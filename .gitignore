@@ -1,0 +1,32 @@
+# Local Claude Code settings — contains GH_TOKEN, never commit
+.claude/settings.local.json
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Scratch
+.scratch/
+
+# Python bytecode (the docs hook runs under python)
+__pycache__/
+*.py[cod]
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node (nothing yet — T1 locks TypeScript, so this lands early)
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+npm-debug.log*

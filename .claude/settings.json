@@ -1,0 +1,18 @@
+{
+  "env": {
+    "DOCS_INDEX_PATH": "README.md"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/docs_protection.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
