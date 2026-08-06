@@ -94,25 +94,49 @@ gh api repos/gabriel-neutron/GAB/issues/<map-number>/sub_issues --jq '.[] | {num
 ### Create a ticket as a child of the map
 
 Create the issue, then attach it. `sub_issues` takes the child's **internal id**, not its
-number — resolve it first:
+number — resolve it first. **Use `-F`, not `-f`**: the endpoint requires an integer, and
+`-f` sends a string, which fails with a 422.
 
 ```bash
-gh issue create --title "<question>" --body "<body>"
+gh issue create --title "<question>" --label "wayfinder:<type>" --body-file <file>
 CHILD_ID=$(gh api repos/gabriel-neutron/GAB/issues/<child-number> --jq .id)
-gh api repos/gabriel-neutron/GAB/issues/<map-number>/sub_issues -f sub_issue_id=$CHILD_ID
+gh api repos/gabriel-neutron/GAB/issues/<map-number>/sub_issues -F sub_issue_id=$CHILD_ID
 ```
+
+Every ticket carries exactly one type label: `wayfinder:research`, `wayfinder:prototype`,
+`wayfinder:grilling`, or `wayfinder:task`.
 
 ### Blocking edges
 
-A ticket declares what blocks it. Prefer GitHub's native issue dependencies; if the API
-rejects the call on this repository, fall back to a `## Blocked by` section in the ticket
-body listing the blocking tickets by title and link. Both forms are legible to a session
-reading the ticket — only the query cost differs.
+**Native issue dependencies are supported on this repository — verified.** Use them; they
+render the frontier visually in GitHub's own UI, so the frontier is visible without opening
+the map. Same integer rule — `-F`, not `-f`:
+
+```bash
+BLOCKER_ID=$(gh api repos/gabriel-neutron/GAB/issues/<blocker-number> --jq .id)
+gh api repos/gabriel-neutron/GAB/issues/<blocked-number>/dependencies/blocked_by \
+  -F issue_id=$BLOCKER_ID
+```
+
+Read them back with:
+
+```bash
+gh api repos/gabriel-neutron/GAB/issues/<number>/dependencies/blocked_by \
+  --jq '.[] | {number, title, state}'
+```
+
+There is no need for a `## Blocked by` body convention here — that fallback exists only for
+trackers without native dependencies.
+
+### Claiming a ticket
+
+A session claims a ticket by **assigning it** before doing any work, so concurrent sessions
+skip it. An open, unassigned ticket is unclaimed.
 
 ### The frontier
 
-Any open child of the map whose blockers are all closed. With no blocking edges recorded,
-every open child is on the frontier.
+The open children of the map that are unblocked and unassigned — every blocker closed, no
+assignee.
 
 ### Closing a ticket
 
