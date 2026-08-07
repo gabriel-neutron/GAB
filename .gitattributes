@@ -1,0 +1,18 @@
+# Store text as LF in the repository. Check out native on Windows.
+# This must exist before the first source file. If you add it later, you must
+# normalise the whole tree in one commit, and that commit destroys `git blame`.
+* text=auto eol=lf
+
+# These files must keep CRLF, or Windows tools fail to read them.
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+
+# Binary files. Git must not change their bytes.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary

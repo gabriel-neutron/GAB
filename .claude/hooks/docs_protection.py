@@ -7,23 +7,40 @@ listed in the index, and the index itself may not sprawl.
 
 Behaviour:
 - Only runs on write/edit tools.
-- Only inspects files under the configured docs directory.
-- Blocks creating new docs that are not indexed (skipped entirely if the index
-  does not exist yet, so a fresh repo can bootstrap).
-- Warns for large docs without a table of contents.
-- Optionally blocks an oversized index.
+- Inspects files under the docs directory, plus the index wherever it lives.
+- Blocks creating new docs that are not indexed. Index entries may name a
+  subdirectory (`agents/domain.md`), and whole directories can be exempted.
+- Blocks an oversized index.
+- Asks the operator to confirm every other write inside the docs directory. The
+  operator owns `docs/`; an agent proposes, the operator decides. A long new
+  document with no table of contents is named in the same question.
+
+Known hole: this hook sees Write, Edit and NotebookEdit only. A shell command
+run through Bash can still change a document without passing here.
+
+This project: the index is `docs/README.md`, `docs/agents/` holds the agent
+configuration, and `docs/adr/` holds architecture decision records. ADRs are
+exempt from indexing -- they are numbered, they multiply, and `docs/agents/
+domain.md` governs them instead of the index.
 
 Configuration via environment variables:
 - DOCS_DIR_NAME (default: "docs")
 - DOCS_INDEX_PATH (default: unset -> <docs dir>/DOCS_INDEX_FILE)
     Path to the index, relative to CLAUDE_PROJECT_DIR. Set this when the index
-    lives outside the docs directory -- e.g. "README.md" for a repo-root index.
+    does not sit directly in the docs directory -- this project uses
+    "docs/README.md".
 - DOCS_INDEX_FILE (default: "README.md")
+- DOCS_INDEX_EXEMPT_DIRS (default: "adr")
+    Comma-separated directories under the docs root whose files need no index
+    entry. Matched on the first path component.
 - DOCS_INDEX_MAX_LINES (default: 200)
 - DOCS_TOC_THRESHOLD_LINES (default: 250)
 - DOCS_TOC_MARKERS (default: "table of contents,contents,table des matieres,sommaire")
 - DOCS_BLOCK_UNINDEXED_NEW_FILES (default: "true")
 - DOCS_BLOCK_OVERSIZED_INDEX (default: "true")
+- DOCS_ASK_ON_WRITE (default: "true")
+    Ask the operator to confirm every write inside the docs directory. Set to
+    "false" to let an agent change a document with no question.
 - DOCS_ALWAYS_SHOW_REMINDER (default: "false")
 """
 
@@ -37,7 +54,7 @@ import unicodedata
 from pathlib import Path
 
 
-WRITE_TOOLS = {"Write", "Edit"}
+WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 
 
 def env_int(name: str, default: int) -> int:
@@ -67,24 +84,40 @@ DOCS_TOC_MARKERS = [
     ).split(",")
     if marker.strip()
 ]
+DOCS_INDEX_EXEMPT_DIRS = {
+    part.strip().strip("/").lower()
+    for part in os.getenv("DOCS_INDEX_EXEMPT_DIRS", "adr").split(",")
+    if part.strip()
+}
 DOCS_BLOCK_UNINDEXED_NEW_FILES = env_bool("DOCS_BLOCK_UNINDEXED_NEW_FILES", True)
 DOCS_BLOCK_OVERSIZED_INDEX = env_bool("DOCS_BLOCK_OVERSIZED_INDEX", True)
+DOCS_ASK_ON_WRITE = env_bool("DOCS_ASK_ON_WRITE", True)
 DOCS_ALWAYS_SHOW_REMINDER = env_bool("DOCS_ALWAYS_SHOW_REMINDER", False)
 
 
-def deny(reason: str) -> None:
-    """Block the tool call. This is the documented PreToolUse decision shape."""
+def decide(decision: str, reason: str) -> None:
+    """Emit a PreToolUse decision. `deny` refuses; `ask` puts it to the operator."""
     print(
         json.dumps(
             {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
+                    "permissionDecision": decision,
                     "permissionDecisionReason": reason,
                 }
             }
         )
     )
+
+
+def deny(reason: str) -> None:
+    """Block the tool call outright."""
+    decide("deny", reason)
+
+
+def ask(reason: str) -> None:
+    """Hand the decision to the operator. The operator owns `docs/`."""
+    decide("ask", reason)
 
 
 def notify(message: str) -> None:
@@ -128,13 +161,21 @@ def find_docs_root(target_path: Path) -> Path | None:
     return None
 
 
-def resolve_index(docs_root: Path) -> Path:
-    """The index may live outside the docs directory (e.g. at the repo root)."""
+def resolve_index(docs_root: Path | None) -> Path | None:
+    """The index may live outside the docs directory (e.g. at the repo root).
+
+    Returns None only when the index cannot be located at all, which happens
+    when DOCS_INDEX_PATH is unset and the file is not under the docs directory.
+    """
     if DOCS_INDEX_PATH:
         root = project_root()
         if root is not None:
             return (root / DOCS_INDEX_PATH).resolve()
-        return (docs_root.parent / DOCS_INDEX_PATH).resolve()
+        if docs_root is not None:
+            return (docs_root.parent / DOCS_INDEX_PATH).resolve()
+        return None
+    if docs_root is None:
+        return None
     return docs_root / DOCS_INDEX_FILE
 
 
@@ -161,29 +202,61 @@ def has_table_of_contents(text: str) -> bool:
 
 
 def load_indexed_docs(index_path: Path) -> set[str]:
-    content = read_text(index_path)
+    """Collect the documents the index names.
 
-    # Backticked mentions: `spec.md`
-    indexed = {
-        Path(name).name.lower()
-        for name in re.findall(r"`([^`]+\.md)`", content, flags=re.IGNORECASE)
-    }
+    Entries keep any subdirectory they were written with, so `agents/domain.md`
+    permits exactly that path and not a same-named file elsewhere. A bare name
+    stays a bare name and matches on filename alone.
+    """
+    content = read_text(index_path)
+    raw: set[str] = set()
+
+    # Backticked mentions: `spec.md`, `agents/domain.md`
+    raw.update(re.findall(r"`([^`]+\.md)`", content, flags=re.IGNORECASE))
 
     # Markdown links, tolerating anchors and link titles:
     #   [Spec](spec.md)  [Spec](./spec.md#schema)  [Spec](spec.md "Technical spec")
-    indexed.update(
-        Path(name).name.lower()
-        for name in re.findall(
-            r"\[[^\]]*\]\(\s*<?([^)\s#\"']+\.md)", content, flags=re.IGNORECASE
-        )
+    raw.update(
+        re.findall(r"\[[^\]]*\]\(\s*<?([^)\s#\"']+\.md)", content, flags=re.IGNORECASE)
     )
 
-    # Bare mentions in plain-text lists: "- spec.md - the technical spec"
-    indexed.update(
-        Path(name).name.lower()
-        for name in re.findall(r"(?<![\w./`(\[])([\w.-]+\.md)\b", content, flags=re.IGNORECASE)
+    # Bare mentions in plain-text lists: "- spec.md - the technical spec".
+    # The hyphen belongs in the lookbehind: without it, `triage-labels.md`
+    # also yields a phantom `labels.md` entry that permits a file nobody listed.
+    raw.update(
+        re.findall(r"(?<![\w./\-`(\[])([\w.-]+\.md)\b", content, flags=re.IGNORECASE)
     )
+
+    indexed: set[str] = set()
+    for entry in raw:
+        rel = entry.replace("\\", "/").lower().lstrip("/")
+        while rel.startswith("./"):
+            rel = rel[2:]
+        # An index outside the docs dir names entries as `docs/spec.md`; an index
+        # inside it names them `spec.md`. Accept both spellings.
+        if rel.startswith(f"{DOCS_DIR_NAME.lower()}/"):
+            rel = rel[len(DOCS_DIR_NAME) + 1 :]
+        if rel:
+            indexed.add(rel)
     return indexed
+
+
+def is_indexed(file_path: Path, docs_root: Path, indexed: set[str]) -> bool:
+    """A file counts as indexed by its path under docs/, or by its bare name."""
+    try:
+        rel = file_path.relative_to(docs_root).as_posix().lower()
+    except ValueError:
+        return False
+    return rel in indexed or file_path.name.lower() in indexed
+
+
+def is_exempt(file_path: Path, docs_root: Path) -> bool:
+    """Files in an exempt directory need no index entry (ADRs, by default)."""
+    try:
+        parts = file_path.relative_to(docs_root).parts
+    except ValueError:
+        return False
+    return len(parts) > 1 and parts[0].lower() in DOCS_INDEX_EXEMPT_DIRS
 
 
 def build_reminder(index_label: str) -> str:
@@ -196,37 +269,58 @@ def build_reminder(index_label: str) -> str:
 
 
 def main() -> None:
+    # A payload that is valid JSON but the wrong shape must not raise. A traceback
+    # here is exit code 1, which lets the call through with noise on the operator's
+    # screen -- two false alarms train them to ignore the one real block.
+    # `lstrip` the BOM: a Windows caller that pipes UTF-8 through PowerShell
+    # prepends U+FEFF, and json.load then raises. That failure is silent and it
+    # fails OPEN, which turns the whole guard off with no signal.
     try:
-        hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError:
+        hook_input = json.loads(sys.stdin.read().lstrip("﻿").strip() or "null")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return
+    if not isinstance(hook_input, dict):
         return
 
     tool_name = hook_input.get("tool_name", "")
     if tool_name not in WRITE_TOOLS:
         return
 
-    tool_input = hook_input.get("tool_input", {}) or {}
-    raw_path = tool_input.get("file_path")
-    if not raw_path:
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
         return
 
-    file_path = to_path(raw_path)
+    # NotebookEdit names its target `notebook_path`, every other write tool
+    # names it `file_path`.
+    raw_path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not isinstance(raw_path, str) or not raw_path:
+        return
+
+    try:
+        file_path = to_path(raw_path)
+    except (OSError, ValueError):
+        return
     docs_root = find_docs_root(file_path)
-    if not docs_root:
-        return
-
     index_path = resolve_index(docs_root)
     index_label = DOCS_INDEX_PATH or DOCS_INDEX_FILE
-    is_docs_index = file_path == index_path
+    is_docs_index = index_path is not None and file_path == index_path
+
+    # The index itself is checked wherever it lives. Resolving it before this
+    # early return is what lets Rule 1 fire for an index at the repository root,
+    # which sits outside the docs directory.
+    if docs_root is None and not is_docs_index:
+        return
 
     # `content` is a whole file (Write). Edit supplies only a fragment, which
     # cannot be used to size anything.
     new_content = tool_input.get("content") if tool_name == "Write" else None
+    if not isinstance(new_content, str):
+        new_content = None
 
     # Rule 1: the index must stay small. Sized from the incoming content, never
     # max()'d against the old length -- otherwise the edit that shrinks an
     # oversized index is the one edit that gets blocked.
-    if DOCS_BLOCK_OVERSIZED_INDEX and is_docs_index and isinstance(new_content, str):
+    if DOCS_BLOCK_OVERSIZED_INDEX and is_docs_index and new_content is not None:
         line_count = len(new_content.splitlines())
         if line_count > DOCS_INDEX_MAX_LINES:
             deny(
@@ -236,38 +330,69 @@ def main() -> None:
             )
             return
 
-    # Rule 2: a new doc must be listed in the index first. Skipped when the index
-    # does not exist yet, so a fresh repo is not deadlocked into never creating one.
+    # Rule 2: a new doc must be listed in the index first.
     if (
         DOCS_BLOCK_UNINDEXED_NEW_FILES
-        and not is_docs_index
+        and docs_root is not None
         and not file_path.exists()
         and file_path.suffix.lower() == ".md"
-        and index_path.exists()
+        and not is_exempt(file_path, docs_root)
     ):
-        if file_path.name.lower() not in load_indexed_docs(index_path):
+        if index_path is None:
+            return
+        if not index_path.exists():
+            # Fail CLOSED when the index location was configured explicitly. A
+            # configured index that is missing means the configuration is broken,
+            # and silently skipping the rule turns the guard off with no signal.
+            # Only the unconfigured case stays open, so a fresh repo can bootstrap.
+            if DOCS_INDEX_PATH:
+                deny(
+                    f"Blocked: the configured doc index `{index_label}` does not exist, "
+                    "so new documents cannot be checked against it. Restore the index, "
+                    "or clear DOCS_INDEX_PATH."
+                )
+            return
+        if not is_indexed(file_path, docs_root, load_indexed_docs(index_path)):
+            rel = file_path.relative_to(docs_root).as_posix()
             deny(
-                f"Blocked: `{file_path.name}` is not listed in `{index_label}`. "
+                f"Blocked: `{rel}` is not listed in `{index_label}`. "
                 "Add it to the index first.\n" + build_reminder(index_label)
             )
             return
 
-    # Rule 3: warn about long docs with no table of contents. Judged on the
-    # content being written, so the edit that ADDS a ToC is not itself warned about.
-    if not is_docs_index and file_path.suffix.lower() == ".md":
-        if isinstance(new_content, str):
-            body, line_count = new_content, len(new_content.splitlines())
-        elif file_path.exists():
-            body, line_count = read_text(file_path), count_lines(file_path)
-        else:
-            body, line_count = "", 0
+    # Rule 3: the operator owns `docs/`. Every remaining write inside the docs
+    # directory goes to them as a question, not through as a fact.
+    if DOCS_ASK_ON_WRITE and docs_root is not None:
+        rel = file_path.name
+        try:
+            rel = file_path.relative_to(docs_root).as_posix()
+        except ValueError:
+            pass
 
-        if line_count > DOCS_TOC_THRESHOLD_LINES and not has_table_of_contents(body):
-            notify(
-                f"Warning: `{file_path.name}` is {line_count} lines "
-                "with no table of contents."
+        verb = "create" if not file_path.exists() else "change"
+        notes = []
+
+        # A long document with no table of contents is named in the same question,
+        # rather than as a second message the operator learns to skip. Judged on
+        # the content being written, so only a Write can be judged: an Edit
+        # supplies a fragment, and sizing that against the file on disk would flag
+        # every edit to an already-long document.
+        if (
+            new_content is not None
+            and file_path.suffix.lower() == ".md"
+            and len(new_content.splitlines()) > DOCS_TOC_THRESHOLD_LINES
+            and not has_table_of_contents(new_content)
+        ):
+            notes.append(
+                f"It would be {len(new_content.splitlines())} lines with no table of "
+                "contents."
             )
-            return
+
+        reason = f"An agent wants to {verb} `{DOCS_DIR_NAME}/{rel}`. You own `docs/`."
+        if notes:
+            reason += " " + " ".join(notes)
+        ask(reason)
+        return
 
     if DOCS_ALWAYS_SHOW_REMINDER:
         notify(build_reminder(index_label))

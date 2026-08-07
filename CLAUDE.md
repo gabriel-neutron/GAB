@@ -1,5 +1,5 @@
-Gabriel is an OSINT data-fusion instrument for a single analyst: ingest documents, extract entities and relations, and promote machine proposals into a sourced evidentiary layer. Every document, issue, and commit in this repository is written in English.
-Specifications live in `docs/` — read `docs/decisions.md` before proposing anything technical. Its entries are locked: a future decision that contradicts one must replace it explicitly, never work around it.
-Issue tracker configuration is in `.claude/tracker.md`. Read it before using `/to-spec`, `/to-tickets`, `/triage`, or `/wayfinder` — it holds the tracker identity, the label vocabulary, and the wayfinding operations.
-Stack: TypeScript end to end, PostgreSQL/PostGIS as the only GOLD datastore, MinIO for raw files. The frontend framework (T7) and the map library (T8) are UNDECIDED — never assume one, and stop and ask if a task appears to require the choice.
-No source code exists yet. This repository currently holds documentation and project configuration only, so there is no build, no test command, and no dev server.
+Write each reply and each document in ASD-STE100 Simplified Technical English.
+Development happens on Windows only.
+Read `docs/README.md` first. It tells you which document to read, and when.
+`docs/decisions.md` is locked. A decision that contradicts an entry must replace it explicitly, never work around it.
+Open questions live as tracker tickets. Never settle one by writing code. Stop and ask.

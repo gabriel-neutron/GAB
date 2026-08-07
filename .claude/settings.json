@@ -1,15 +1,26 @@
 {
   "env": {
-    "DOCS_INDEX_PATH": "README.md"
+    "DOCS_INDEX_PATH": "docs/README.md"
   },
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "^(Write|Edit|NotebookEdit)$",
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/docs_protection.py\""
+            "if": "Write(docs/**)",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
+          },
+          {
+            "type": "command",
+            "if": "Edit(docs/**)",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
+          },
+          {
+            "type": "command",
+            "if": "NotebookEdit(docs/**)",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
           }
         ]
       }

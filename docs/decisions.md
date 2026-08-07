@@ -4,6 +4,57 @@
 One entry per locked decision: what is decided, why, what it costs.
 This document is the project's memory. Any future decision that contradicts an entry here must replace it explicitly, not work around it.
 
+**Read one entry, not the whole file.** The table below gives each identifier in one line.
+Find the identifier you need, then read that entry only.
+
+An identifier in `spec.md`, `schema.md` or `prd.md` always names a row of this table. The
+workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confused with the
+`S` entries here.
+
+## Index
+
+| ID | Decision | Group |
+|---|---|---|
+| C1 | The framing phase delivers a requirements spec, not a tech stack | Framing |
+| C2 | The reference user is one real operator, not a team and not a market | Framing |
+| C3 | The spec is anchored on the analyst workflow; the exclusion list is a deliverable | Framing |
+| C4 | Single arbitration criterion: a capability must multiply investigative capacity | Framing |
+| C5 | Single operator, no authentication, no roles | Framing |
+| C6 | Multi-project support is theoretical; no `project_id` | Framing |
+| C7 | The existing corpus is rebuilt, not carried over | Framing |
+| M1 | FollowTheMoney is abandoned; it has no geometric type | Data model |
+| M2 | Two main tables, `entities` and `relations`; typed columns plus JSONB | Data model |
+| M3 | Events are entities, not relations | Data model |
+| M4 | Relations carry `src_kind` / `dst_kind` now, for deferred reification | Data model |
+| M5 | Current-state model, no versioning, no query as of a date | Data model |
+| M6 | Dates in two places only: retrieval date, and identity or ownership interval | Data model |
+| M7 | JSONB contract: every attribute is `{"v": …, "src": [...]}` | Data model |
+| M8 | `src` is never empty; `manual` is a legitimate source, but never for a machine | Data model |
+| M9 | A value always exists; the unknown is the absence of a key | Data model |
+| M10 | The unit is carried by the key name, such as `coal_stock_t` | Data model |
+| M11 | No attribute registry; a monitoring view instead | Data model |
+| M12 | Entity merges are reversible, through an alias table and a snapshot | Data model |
+| S1 | ADMIRALTY is scored at the document, never at the claim | Sources and scoring |
+| S2 | The source is listed at entity, relation and attribute level | Sources and scoring |
+| S3 | Automated scoring; the operator validates by exception only | Sources and scoring |
+| S4 | The origin of every rating is stored and published | Sources and scoring |
+| P1 | Two layers: the machine writes candidates, the operator promotes | Pipeline and AI |
+| P2 | Proposals are operations, not ghost entities | Pipeline and AI |
+| P3 | Dual review surface: a graph marker, and a queue | Pipeline and AI |
+| P4 | The proposal contract is frozen; agents and prompts stay free | Pipeline and AI |
+| P5 | Ingestion formats: extractable text only, no OCR, no audio, no video | Pipeline and AI |
+| P6 | Structured data imports directly, without the AI | Pipeline and AI |
+| P7 | Live search queries three substrates: documents, graph, internet | Pipeline and AI |
+| PU1 | Everything is public, candidate layer included | Publication |
+| T1 | TypeScript end to end | Technical |
+| T2 | PostgreSQL/PostGIS is the single GOLD datastore | Technical |
+| T3 | Binary split: MinIO holds raw, PostgreSQL holds GOLD | Technical |
+| T4 | The frontend reads on its own; the backend serves writes only | Technical |
+| T5 | Qdrant and NATS are deferred; pgvector and a job table replace them | Technical |
+| T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
+| T7 | Frontend framework choice deferred; shadcn is adopted either way | Technical |
+| T8 | Cartographic library deferred, but it must be chosen before any rendering code | Technical |
+
 ---
 
 ## Framing
