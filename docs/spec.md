@@ -2,7 +2,7 @@
 
 **Version** 1.1 · 6 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
-The tables, the constraints and the triggers are in `schema.md`.
+No schema is settled. §3 says what `schema.md` is, and what it is not.
 
 ## Table of contents
 
@@ -10,7 +10,7 @@ The tables, the constraints and the triggers are in `schema.md`.
 |---|---|---|
 | 1 | Overview | You need the shape of the system. |
 | 2 | Invariants | Always. These rules hold on every write path. |
-| 3 | Schema | Pointer to `schema.md`. |
+| 3 | Schema | You need to know what is decided about the database. Nothing is. |
 | 4 | Read path | You add a read, a query or a public surface. |
 | 5 | Write path | You add an ingest, an extraction or a promotion path. |
 | 6 | What is not specified here | Before you choose a value that no document gives. |
@@ -66,35 +66,48 @@ flowchart LR
 
 ## 2. Invariants
 
-These rules are never violated, whatever the write path. The last column names the tier
-that enforces the rule today.
+These rules are never violated, whatever the write path.
 
-| # | Invariant | Decision | Enforced by |
+**No tier enforces any of them today.** No database exists and no code exists. The last
+column names the tier that must carry each rule when the build reaches it. It is a
+requirement, not a report.
+
+| # | Invariant | Decision | Tier that must carry it |
 |---|---|---|---|
-| 1 | Every attribute carries at least one source. | M8 | Database — `attrs_valid()`, `schema.md` §6 |
-| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs` — `attribute_source` foreign key, §5 and §7. **Application only** for `entities.sources`, `relations.sources` and `proposals.src`. |
-| 3 | A machine proposal cites a real document, never `manual`. | M8 | Database — `proposal_src_not_manual`, §9. The existence of the document is checked by the application. |
-| 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database — `attrs_valid()`, §6 |
-| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal or a direct operator action. | P1 | **Application only.** No constraint, no trigger. See §6. |
-| 6 | Every ADMIRALTY rating carries its origin. | S4 | Database — `doc_admiralty_origin`, §2 |
+| 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
+| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. **Undecided** for `entities.sources`, `relations.sources` and `proposals.src`. See §6. |
+| 3 | A machine proposal cites a real document, never `manual`. | M8 | Database for the value. The application checks that the document exists. |
+| 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
+| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal or a direct operator action. | P1 | **Undecided.** No tier is named. See §6. |
+| 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
 
-The acceptance criterion in `prd.md` §7.3 asks for enforcement by constraint or by trigger
-for all six. Invariant 5, and the three columns named under invariant 2, do not meet it
-yet. §6 records this as open.
+`schema.md` §6, §9 and §2 illustrate one way to build the checks above. That document is
+provisional and it decides nothing. Do not cite it as the authority for an invariant.
+
+The acceptance criterion in `prd.md` §7.3 asks for enforcement by a constraint or by a
+trigger for all six. **None is met today, because nothing is built.** Invariant 5, and the
+three columns named under invariant 2, are further behind: no tier is named for them at
+all. §6 records both as open.
 
 ---
 
 ## 3. Schema
 
-The tables, the columns, the constraints, the triggers, the indexes and the database roles
-are in `schema.md`. Read that document only when you touch one of them.
+**No schema is settled.** `schema.md` shows one possible shape, produced during the
+requirements grilling. It is an example. It is not part of this contract, and no line of it
+is decided.
+
+The real schema is written in the migration files, when the build needs it. It must satisfy
+§2 above. Read `schema.md` for an illustration of how an invariant can map to a table, a
+constraint or a trigger — never as an authority.
 
 ---
 
 ## 4. Read path
 
-The frontend reads through a read-only HTTP layer (T4). The `gabriel_read` role, its
-allowlist and the `neighbourhood()` traversal function are in `schema.md` §15.
+The frontend reads through a read-only HTTP layer (T4). The read path needs a read-only
+database role, an explicit allowlist, and a graph traversal that runs inside the database.
+`schema.md` §15 illustrates one form of the three. It settles none of them.
 
 | Guardrail | Effect |
 |---|---|
@@ -136,8 +149,9 @@ not settle it in a document. See §6.
 without writing the target — rejected proposals are never deleted, they are the record of
 what was set aside.
 
-**Review surfaces (P3).** The partial index on `target` feeds the markers in the graph
-view; the index on `status` feeds the review queue. Both are in `schema.md` §9.
+**Review surfaces (P3).** Two reads must stay cheap: the pending proposals attached to one
+graph element, and the full review queue. Each one needs its own index. `schema.md` §9
+illustrates a pair; it settles neither.
 
 ---
 
@@ -152,8 +166,11 @@ settle one by writing code, and never settle one by writing a default value.
 | Enforcement tier for invariant 5, and for the three source arrays of invariant 2 | **OPEN.** `prd.md` §7.3 asks for a constraint or a trigger. Neither exists. |
 | Mapping library and tile path | T8 — to be settled before any rendering code |
 | Frontend framework | T7 — deferred |
-| Migration tool, and the order the DDL is applied in | **OPEN.** No decision entry covers it. |
-| Folder layout, test command, check command, definition of done | **OPEN.** No document states them. `gab-coder` and `test-fixer` need them. |
+| Migration tool, and the order the DDL is applied in | **OPEN** — #22. Close it before the first line of DDL. |
+| What the read-only role selects from: base tables, or views and functions | **OPEN** — #23. It fixes the contract that the UI is written against. |
+| Folder layout, package manager, check command | **Settled** by ADR 0001. |
+| Test command, and the runner behind it | The command is settled by ADR 0001. The runner is **OPEN** — #24. |
+| Definition of done | Settled by ADR 0001, except the test requirement, which is **OPEN** — #21. |
 | Detailed shape of `payload` per operation type | To be frozen with the first agent written |
 | Confidence threshold | Operational parameter, to be calibrated on the first runs |
 | Rendering proposals as ghost elements | Client-side rendering work, no schema impact |

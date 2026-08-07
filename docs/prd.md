@@ -1,7 +1,8 @@
 # Gabriel — Product Requirements Document
 
 **Version** 1.0 · 6 August 2026
-Related documents: `decisions.md` (rationale), `spec.md` (contract), `schema.md` (tables).
+Related documents: `decisions.md` (rationale), `spec.md` (contract), `schema.md` (a
+provisional example of a database, not a contract).
 
 ---
 

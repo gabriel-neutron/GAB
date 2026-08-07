@@ -8,10 +8,10 @@ codebase.
 - **`CONTEXT.md`** at the repo root — the glossary and the ubiquitous language.
 - **`docs/adr/`** — the ADRs that touch the area you are about to change.
 
-**Neither exists yet. The repo is pre-build.** If a file is absent, **continue silently**.
-Do not report that it is absent. Do not propose to make it in advance. The
-`mattpocock-skills:domain-modeling` skill makes them only when a term or a decision is
-actually resolved. The `mattpocock-skills:grilling` and `mattpocock-skills:codebase-design`
+**`docs/adr/` exists. `CONTEXT.md` does not yet.** If a file is absent, **continue
+silently**. Do not report that it is absent. Do not propose to make it in advance. The
+`mattpocock-skills:domain-modeling` skill makes `CONTEXT.md` only when a term or a decision
+is actually resolved. The `mattpocock-skills:grilling` and `mattpocock-skills:codebase-design`
 skills reach that skill.
 
 Until `CONTEXT.md` exists, the domain words of this project live in `docs/prd.md` and in
@@ -19,21 +19,25 @@ Until `CONTEXT.md` exists, the domain words of this project live in `docs/prd.md
 
 ## File structure, once the build starts
 
+**ADR 0001 holds the repository layout.** Read `docs/adr/0001-repository-conventions.md` for
+the folders, the package manager, the check command and the definition of done. Do not
+restate that layout here — two copies drift apart.
+
 ```
 /
 ├── CONTEXT.md
-├── docs/
-│   └── adr/
-│       ├── 0001-<decision>.md
-│       └── 0002-<decision>.md
-└── src/
+└── docs/
+    └── adr/
+        ├── 0001-<decision>.md
+        └── 0002-<decision>.md
 ```
 
 `CONTEXT.md` stays at the repo root, because all the skills read it from that path. This is
 an agreed exception to the "keep each document in `docs/`" rule in `docs/README.md`.
 
-`docs/adr/` needs no entry in the doc index. ADRs are numbered and they multiply. This
-document governs them instead.
+`docs/adr/` needs no line in the first table of `docs/README.md`. It needs a line in the ADR
+register in that same document. `docs/README.md` states what is an ADR, what is not an ADR,
+and the rules for numbering and for superseding one.
 
 ## Use the vocabulary of the glossary
 

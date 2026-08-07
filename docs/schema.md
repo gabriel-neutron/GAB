@@ -1,16 +1,22 @@
 # Gabriel — Database schema
 
 **Version** 1.1 · 6 August 2026
-The PostgreSQL/PostGIS schema in full. `spec.md` holds the contract that this schema
-serves. `decisions.md` holds the reason for each choice, referenced by identifier.
+A possible PostgreSQL/PostGIS shape for the model. `spec.md` holds the contract that a
+schema must serve. `decisions.md` holds the reason for each choice, referenced by
+identifier.
 
-**Read this document when** you touch a table, a column, a constraint, a trigger, an index
-or a database role. For the invariants, the read path and the write path, read `spec.md`
-instead.
+**Status: provisional. This document is an example, not the contract.** It comes from the
+requirements grilling. It shows one way to satisfy the invariants; it does not settle them.
+Do not apply this DDL. Do not treat a table, a column, a constraint, a trigger or an index
+here as decided, and do not cite it as an authority in a decision or in a ticket. The
+authority is `spec.md` §2 for the invariants and `decisions.md` for the reasons.
 
-**Warning.** When the build starts, the true home of this DDL is the migration files. This
-document must then become a table of tables and columns that points at those migrations.
-Two copies of a `CREATE TABLE` always drift apart.
+**Read this document when** you need an illustration of how an invariant can be enforced in
+the database. Read it for the intent, never for the letter.
+
+**Warning.** The true schema is written when the build needs it, in the migration files. At
+that point this document becomes a table of tables and columns that points at those
+migrations. Two copies of a `CREATE TABLE` always drift apart.
 
 ## Table of contents
 
