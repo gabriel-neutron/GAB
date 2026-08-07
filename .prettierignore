@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+pnpm-lock.yaml
+
+# The operator owns the documentation, and its line breaks are deliberate.
+# A formatter that reflows a table or a paragraph fights the author. Keep it out.
+*.md
+docs
+
+# Tool-owned files. Claude Code writes these, so a formatter would fail the check
+# on a file no person edits.
+.claude
+.mcp.json
