@@ -4,8 +4,10 @@
 **Tickets** #20 (closed), #21 test policy, #22 (closed by ADR 0003), #23 (closed by ADR 0003),
 #24 test runner, #26 type generation, #30 the check command crashes at random
 
-No decision in this ADR has changed since version 2. The "Deliberately absent" table records
-the state of the repository, and that state changed. §3 is amended when #26 closes.
+**No decision in this ADR changed when ADR 0002 and ADR 0003 were accepted.** Two things that
+are not decisions did change: the "Deliberately absent" table, which records the state of the
+repository, and the folder tree in §1, which shows it. §3 is amended when #26 closes. **#30
+records that the command in §3, on which §5 rests, fails at random on this machine.**
 
 ## Context
 

@@ -11,7 +11,7 @@ sends you there. Do not read the whole folder.
 
 | Document | Lines | Read it when |
 |---|---|---|
-| `spec.md` | 200 | Always. It holds the invariants, the read path and the write path. |
+| `spec.md` | 201 | Always. It holds the invariants, the read path and the write path. |
 | `schema.md` | 491 | **Provisional — an example, not the contract.** You need an illustration of how an invariant maps to the database. |
 | `decisions.md` | 315 | `spec.md` cites an identifier such as `(M8)` or `(T5)` and you need the reason or the cost. Start at the index table at the top. |
 | `prd.md` | 146 | You need the scope: what Gabriel does, and what it refuses to do. |

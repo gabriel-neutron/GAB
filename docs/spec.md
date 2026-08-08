@@ -186,6 +186,7 @@ settle one by writing code, and never settle one by writing a default value.
 | Which generator produces the TypeScript types from the schema | **OPEN** — #26. ADR 0003 requires generation; it names no tool, because `geometry` and `vector` break naive ones. |
 | The LLM stack: provider, model per agent, spend ceiling, failure behaviour | **OPEN** — #25. The ticket records a provider preference. **No entry in `decisions.md` and no ADR settles it**, so nothing here is locked. Parked until the UI exists. |
 | How a reader reaches a source file, and what PU1 requires of the raw store | **OPEN** — #31. The bucket is private today. A signed-URL route would need an explicit replacement of T4. |
+| Whether the raw store stays on MinIO | **OPEN** — #32. Both MinIO repositories are archived, so no release is expected. The image is pinned, so nothing changes without a commit. |
 | Proving that the raw bucket and the `documents` index agree | **OPEN** — #27. P6 gives one door; this is the alarm for when the door is bypassed. |
 | Withdrawing a document, and the manual deletion exception | **OPEN** — #28. The ticket proposes soft withdrawal, which leaves T3 standing. Overlaps #11. |
 | The payload of a structured-file mapping proposal | **OPEN** — #29. Created by the replacement of P6. Overlaps #7. |
