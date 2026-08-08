@@ -87,11 +87,14 @@ The reason to keep the bucket private is direct: an open bucket re-publishes eve
 file, and a collected corpus is likely to hold files that someone else owns the rights to. It
 also makes a bandwidth target with no cache in front of it.
 
-**How a reader reaches a source file is not decided here, and this ADR does not decide it.**
-PU1 says the entire system is publishable. Whether that requires the raw store to be
-readable from outside is an open question, and a signed-URL route would be a read served by
-the Node backend, which presses on T4. Neither PU1 nor T4 is replaced by this ADR. See **#31**.
-Until it closes, the bucket is private and no external read path exists.
+**How a reader reaches a source file was decided on #31, not here, and #31 confirms this
+section.** The bucket stays private and no external read path exists. A reader is given the
+original source URL, a public web-archive URL and the file hash, all recorded at ingest. PU1
+governs the claims and their citations, not the bytes. Neither PU1 nor T4 is replaced.
+
+If a public deployment ever needs reader-served files, #31 records the successor: a
+prefix-scoped anonymous read is a standard S3 policy and involves no Node route, so it does
+not press on T4. A signing route in the Node backend does, and would need T4 replaced first.
 
 ### 4. Ports on the loopback address only
 
