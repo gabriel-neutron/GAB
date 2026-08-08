@@ -1,0 +1,63 @@
+# The two services of the first build (T5). See docs/adr/0002-local-runtime.md.
+#
+# Every port is bound to 127.0.0.1. Nothing is reachable from outside this machine.
+# Every image tag is pinned. An upstream change must arrive through a commit.
+name: gab
+
+services:
+  db:
+    build: ./postgres
+    image: gab-postgres:17-3.5-pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gabriel
+      POSTGRES_USER: gabriel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - gab-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gabriel -d gabriel']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in infra/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in infra/.env}
+    ports:
+      # 9000 is the S3 API. 9001 is the console you open in a browser.
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
+    volumes:
+      - gab-minio-data:/data
+
+  # Runs once, creates the bucket, then exits. Running it again changes nothing.
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in infra/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in infra/.env}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until mc alias set gab http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+          echo "waiting for minio"; sleep 2;
+        done
+        mc mb --ignore-existing gab/raw
+        # T3 makes the raw file evidence. The bucket is private: no anonymous read.
+        mc anonymous set none gab/raw
+        mc ls gab
+        echo "bucket raw is ready and private"
+
+volumes:
+  gab-db-data:
+  gab-minio-data:

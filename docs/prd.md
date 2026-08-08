@@ -80,7 +80,7 @@ The technical form of each rule below is an invariant in `spec.md` §2.
 
 | Mode | Input | Output | Formats | Entry points |
 |---|---|---|---|---|
-| Batch | A document | Proposals | Extractable text (P5); structured data through a direct import (P6) | Ingestion |
+| Batch | A document | Proposals | Extractable text (P5); structured data mapped by proposal (P6) | One ingestion door (P6) |
 | Live | A query | An answer | — | Project-level chat; contextual chat from an element |
 
 Live mode reads three substrates: corpus documents, graph, internet (P7). Both the user and the AI can reference relational data and documents.

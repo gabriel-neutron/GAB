@@ -1,6 +1,6 @@
 # Gabriel — Decision Register
 
-**Version** 1.0 · 6 August 2026
+**Version** 1.1 · 7 August 2026
 One entry per locked decision: what is decided, why, what it costs.
 This document is the project's memory. Any future decision that contradicts an entry here must replace it explicitly, not work around it.
 
@@ -43,7 +43,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | P3 | Dual review surface: a graph marker, and a queue | Pipeline and AI |
 | P4 | The proposal contract is frozen; agents and prompts stay free | Pipeline and AI |
 | P5 | Ingestion formats: extractable text only, no OCR, no audio, no video | Pipeline and AI |
-| P6 | Structured data imports directly, without the AI | Pipeline and AI |
+| P6 | One ingestion door; structured data is mapped by proposal | Pipeline and AI |
 | P7 | Live search queries three substrates: documents, graph, internet | Pipeline and AI |
 | PU1 | Everything is public, candidate layer included | Publication |
 | T1 | TypeScript end to end | Technical |
@@ -239,11 +239,12 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Why.** Each additional tier is a separate pipeline to build and maintain, for an undemonstrated gain.
 **Consequence.** A scanned document must be converted outside the tool before ingestion.
 
-### P6 — Document ingestion and structured-data import are two distinct paths
+### P6 — One ingestion door; structured data is mapped by proposal
 
-**Decision.** P5 constrains only the extraction pipeline. GeoJSON, shapefile and structured CSV enter through a direct import into the database, without going through the AI.
-**Why.** Extracting claims from a text and loading already-structured data are two operations with nothing in common.
-**Consequence.** Two entry paths to document, but the geographic material is no longer blocked.
+**Replaces the earlier P6**, which sent GeoJSON, shapefile and structured CSV directly into the database, without the AI.
+**Decision.** Every file enters through one operation, `put_document`. That operation writes the object to the raw store, writes the `documents` row with its source and its retrieval date, and queues the work. Behind that door there are two paths. A text file goes to extraction, chunking and the agents (P5). A structured file goes to a mapping step: the AI reads its schema and a sample of its rows, then emits a mapping **proposal**. The rows load in code, after the operator promotes that mapping. The model never reads the bulk of the file.
+**Why the earlier entry was wrong.** It assumed that structured data arrives ready to load. A file collected from the internet has arbitrary column names, and fitting them to the M7 attribute contract is judgement, not transport. Judgement made by a machine is a proposal — that is P1. A second door also made a second place where the retrieval date of M6 and the row that invariant 2 requires in `documents` could be omitted.
+**Accepted cost.** Loading a shapefile now needs an operator decision that it did not need before. The geographic import path is slower by one promotion step. In exchange, no file exists without a source, and no column mapping enters the graph unreviewed.
 
 ### P7 — Live search queries three substrates
 

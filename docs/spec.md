@@ -1,6 +1,6 @@
 # Gabriel — Technical specification
 
-**Version** 1.1 · 6 August 2026
+**Version** 1.2 · 7 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
 No schema is settled. §3 says what `schema.md` is, and what it is not.
 
@@ -107,11 +107,15 @@ constraint or a trigger — never as an authority.
 
 The frontend reads through a read-only HTTP layer (T4). The read path needs a read-only
 database role, an explicit allowlist, and a graph traversal that runs inside the database.
-`schema.md` §15 illustrates one form of the three. It settles none of them.
+
+**ADR 0003 settles the allowlist.** The role `gabriel_read` gets nothing on `public` — not
+even `USAGE`. It gets `USAGE` on the `api` schema, `SELECT` on the views in it and `EXECUTE`
+on the functions in it, and nothing else. One view per concept, not per surface. `schema.md`
+§15 illustrates a grant on base tables; that illustration is superseded.
 
 | Guardrail | Effect |
 |---|---|
-| Read-only role, explicit allowlist of tables, views and functions | No access outside the perimeter |
+| Read-only role, explicit allowlist of the views and functions of `api` | No access outside the perimeter |
 | `statement_timeout` + default `LIMIT` | Cuts off pathological queries |
 | CDN cache on GETs | Absorbs the public load |
 | PgBouncer | Prevents connection exhaustion |
@@ -123,12 +127,23 @@ client (T4).
 
 ## 5. Write path
 
+**One door (P6).** Every file enters through `put_document`, which writes the object, writes
+the `documents` row and queues the work. Two paths run behind it. A file written straight
+into the bucket has no row, so it is invisible to search, to the agents and to the UI.
+
 ```
-File → S3 (immutable, key returned)
+put_document
+     → S3 (immutable, key returned)
      → documents row (retrieved_at mandatory)
-     → extraction job (queued)
-     → worker: text extraction → doc_chunks + embeddings
-     → agent workflow → proposals (src mandatory, never 'manual')
+     → job (queued)
+     ├── text path (P5)
+     │    → worker: text extraction → doc_chunks + embeddings
+     │    → agent workflow → proposals (src mandatory, never 'manual')
+     └── structured path (P6)
+          → agent reads the file schema and a sample
+          → mapping proposal → promotion → bulk load in code
+
+every proposal, from either path
      → exception rule: dissent OR confidence < threshold
           ├── true  → review queue + graph marker → human decision
           └── false → OPEN, see §6
@@ -163,12 +178,19 @@ settle one by writing code, and never settle one by writing a default value.
 | Topic | Status |
 |---|---|
 | Automatic application of a proposal | **OPEN and blocking.** S3 and P1 conflict. One of the two must be replaced explicitly in `decisions.md`. |
-| Enforcement tier for invariant 5, and for the three source arrays of invariant 2 | **OPEN.** `prd.md` §7.3 asks for a constraint or a trigger. Neither exists. |
+| Enforcement tier for invariant 5, and for the three source arrays of invariant 2 | **OPEN** — #15. `prd.md` §7.3 asks for a constraint or a trigger. Neither exists. The roles of ADR 0003 hold an agent back; they do not enforce invariant 5. |
 | Mapping library and tile path | T8 — to be settled before any rendering code |
 | Frontend framework | T7 — deferred |
-| Migration tool, and the order the DDL is applied in | **OPEN** — #22. Close it before the first line of DDL. |
-| What the read-only role selects from: base tables, or views and functions | **OPEN** — #23. It fixes the contract that the UI is written against. |
+| Migration tool, and the order the DDL is applied in | **Settled** by ADR 0003. #22 closed. |
+| What the read-only role selects from: base tables, or views and functions | **Settled** by ADR 0003: views and functions in an `api` schema, never a base table. #23 closed. |
+| Which generator produces the TypeScript types from the schema | **OPEN** — #26. ADR 0003 requires generation; it names no tool, because `geometry` and `vector` break naive ones. |
+| The LLM stack: provider, model per agent, spend ceiling, failure behaviour | **OPEN** — #25. The ticket records a provider preference. **No entry in `decisions.md` and no ADR settles it**, so nothing here is locked. Parked until the UI exists. |
+| How a reader reaches a source file, and what PU1 requires of the raw store | **OPEN** — #31. The bucket is private today. A signed-URL route would need an explicit replacement of T4. |
+| Proving that the raw bucket and the `documents` index agree | **OPEN** — #27. P6 gives one door; this is the alarm for when the door is bypassed. |
+| Withdrawing a document, and the manual deletion exception | **OPEN** — #28. The ticket proposes soft withdrawal, which leaves T3 standing. Overlaps #11. |
+| The payload of a structured-file mapping proposal | **OPEN** — #29. Created by the replacement of P6. Overlaps #7. |
 | Folder layout, package manager, check command | **Settled** by ADR 0001. |
+| How PostgreSQL and the object store run locally | **Settled** by ADR 0002. |
 | Test command, and the runner behind it | The command is settled by ADR 0001. The runner is **OPEN** — #24. |
 | Definition of done | Settled by ADR 0001, except the test requirement, which is **OPEN** — #21. |
 | Detailed shape of `payload` per operation type | To be frozen with the first agent written |

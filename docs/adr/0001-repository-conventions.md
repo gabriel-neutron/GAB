@@ -1,7 +1,11 @@
 # ADR 0001 — Repository conventions
 
 **Status** Accepted · **Version** 2 · 7 August 2026
-**Tickets** #20 (closed), #21 test policy, #22 migration tool, #23 read grant, #24 test runner
+**Tickets** #20 (closed), #21 test policy, #22 (closed by ADR 0003), #23 (closed by ADR 0003),
+#24 test runner, #26 type generation, #30 the check command crashes at random
+
+No decision in this ADR has changed since version 2. The "Deliberately absent" table records
+the state of the repository, and that state changed. §3 is amended when #26 closes.
 
 ## Context
 
@@ -29,12 +33,17 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
 ```
 /
 ├── docs/
+├── db/                 the schema — ADR 0003
+├── infra/              the services — ADR 0002
 ├── package.json
 ├── tsconfig.json
 ├── .nvmrc
 └── src/
     └── <feature>/      one feature, one flat folder
 ```
+
+`db/` and `infra/` are shown because they now exist. The table under "Deliberately absent"
+records the state of each one.
 
 ### 2. pnpm, and Node 24
 
@@ -74,13 +83,14 @@ both. Not on a plan, and not on a preference.
 
 ## Deliberately absent
 
-Each folder below is expected. None is created yet. Do not improvise one.
+Each folder below is expected. Do not improvise one. **The Status column is a fact about the
+repository and is kept current. No decision in this ADR changes when it is updated.**
 
-| Folder | Holds | Gated by |
+| Folder | Holds | Status |
 |---|---|---|
-| `db/` | Migrations, re-runnable functions and triggers, roles and grants | #22 fixes the tool and the file convention. No DDL before it closes. |
-| `infra/` | The services: PostgreSQL/PostGIS and MinIO (T5), the bucket policy (T3), PgBouncer and the CDN rules (`spec.md` §4) | How PostgreSQL runs locally. No ticket yet. |
-| `src/contract/` | The shape of read data. The mock and the real read layer both satisfy it. | #23. Its form follows the database and the typing. |
+| `db/` | Migrations, re-runnable functions and triggers, roles and grants | **Created**, by ADR 0003, which closed #22 and #23. It holds `README.md` only. No DDL is written. |
+| `infra/` | The services: PostgreSQL/PostGIS and MinIO (T5), the bucket policy (T3) | **Created**, by ADR 0002. PgBouncer and the CDN rules of `spec.md` §4 stay absent; they need a deployment, which does not exist. |
+| `src/contract/` | The shape of read data. The mock and the real read layer both satisfy it. | **Absent.** ADR 0003 makes its content generated, and #26 has not named a generator. |
 
 ## Consequences
 
