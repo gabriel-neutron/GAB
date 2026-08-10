@@ -11,10 +11,10 @@ sends you there. Do not read the whole folder.
 
 | Document | Lines | Read it when |
 |---|---|---|
-| `spec.md` | 201 | Always. It holds the invariants, the read path and the write path. |
+| `spec.md` | 206 | Always. It holds the invariants, the read path and the write path. |
 | `schema.md` | 491 | **Provisional — an example, not the contract.** You need an illustration of how an invariant maps to the database. |
 | `decisions.md` | 315 | `spec.md` cites an identifier such as `(M8)` or `(T5)` and you need the reason or the cost. Start at the index table at the top. |
-| `prd.md` | 146 | You need the scope: what Gabriel does, and what it refuses to do. |
+| `prd.md` | 147 | You need the scope: what Gabriel does, and what it refuses to do. |
 | `agents/issue-tracker.md` | 71 | You write to GitHub: an issue, a comment, a label. |
 | `agents/domain.md` | 61 | You explore the code and you need the domain words. |
 | `agents/triage-labels.md` | 6 | You apply a triage label. |

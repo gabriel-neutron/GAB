@@ -9,6 +9,19 @@ are not decisions did change: the "Deliberately absent" table, which records the
 repository, and the folder tree in §1, which shows it. **#30 records that the command in §3,
 on which §5 rests, fails at random on this machine.**
 
+**No decision in this ADR changed when ADR 0004 was accepted and the first source files were
+written.** The folder tree in §1 is refreshed, as this ADR permits. Two facts below are now
+out of date, and ADR 0004 holds the newer statement of each. Read ADR 0004 with them:
+
+- The Consequences say "One package means one `tsconfig`". There are now three, because the
+  browser bundle and the two Node configuration files need different `lib` and different
+  `types`. ADR 0004 answers this: the signal "is met with a TypeScript configuration and not
+  with a workspace". §6 is untouched, and the repository is still one package.
+- §3 describes three read-only steps. The type check step now generates the route tree before
+  it runs, per ADR 0004, so `pnpm check` **writes** `src/routeTree.gen.ts`. The command is
+  still three steps. A person who runs it may find that file in the diff, and that is the
+  intended signal for §5: the operator reads the diff.
+
 **Version 3** rewrites §1 and §4 in place, which the rules in `docs/README.md` permit while an
 ADR has produced no code. No source file exists. §1 gains the folder shape that #5 needs. §4
 names the runner and closes #24. §3 is still amended when #26 closes.
@@ -39,21 +52,33 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
 ```
 /
 ├── docs/
-├── db/                 the schema — ADR 0003
-├── infra/              the services — ADR 0002
+├── db/                    the schema — ADR 0003
+├── infra/                 the services — ADR 0002
+├── index.html             the entry document — ADR 0004
 ├── package.json
-├── tsconfig.json
+├── pnpm-workspace.yaml    pnpm settings only. It declares no package; see §6
+├── tsconfig.json          the solution file. It compiles nothing
+├── tsconfig.app.json      the browser bundle
+├── tsconfig.node.json     the configuration files at the root
+├── vite.config.ts
+├── eslint.config.ts
+├── components.json        the shadcn aliases, pointed inside src/shared/
 ├── .nvmrc
 └── src/
+    ├── main.tsx           the mount
+    ├── router.tsx         the router instance and its defaults
+    ├── index.css          the one stylesheet
+    ├── routeTree.gen.ts   generated, and committed — ADR 0004 §8
     ├── features/
-    │   └── <feature>/  one feature, one flat folder
-    ├── shared/         the leaf layer
-    ├── routes/         the router's route files
-    └── contract/       the shape of read data — ADR 0003
+    │   └── <feature>/     one feature, one flat folder
+    ├── shared/            the leaf layer, with the user interface kit in shared/ui/
+    ├── routes/            the router's route files
+    └── contract/          the shape of read data — ADR 0003
 ```
 
 `db/` and `infra/` are shown because they now exist. The table under "Deliberately absent"
-records the state of each one.
+records the state of each one. `pnpm-workspace.yaml` holds two pnpm settings and no
+`packages` key. Its name says workspace and it declares none, so §6 is not reached.
 
 **A feature never imports another feature.** The seam between two features carries three
 things and nothing else: the current selection, the active filter, and the read client. All
@@ -65,6 +90,13 @@ import of it is never a breach of the rule above.
 
 **`routes/` is not a feature.** It holds the route files that the router reads, and it is the
 only folder that may import a feature.
+
+**`main.tsx` and `router.tsx` are in no folder above, so the lint rule cannot classify them.**
+The rule matches a folder, and the only folder that holds these two is `src/` itself, which
+would then swallow every folder that nobody declared. The two files are therefore named in the
+lint configuration and excluded. A name is not a pattern that authored code can enter: a third
+file at the root of `src/` fails. Nothing they import escapes, because a second rule refuses a
+dependency on any file that belongs to no folder above.
 
 ### 2. pnpm, and Node 24
 
