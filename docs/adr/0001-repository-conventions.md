@@ -1,13 +1,23 @@
 # ADR 0001 — Repository conventions
 
-**Status** Accepted · **Version** 3 · 10 August 2026
-**Tickets** #20 (closed), #21 test policy, #22 (closed by ADR 0003), #23 (closed by ADR 0003),
-#24 (closed by version 3), #26 type generation, #30 the check command crashes at random
+**Status** Accepted · **Version** 4 · 10 August 2026
+**Tickets** #20 (closed), #22 (closed by ADR 0003), #23 (closed by ADR 0003), #24 (closed by
+version 3), #30 (closed)
+
+**Version 4** adds the drift step to §3. The command is now four steps. ADR 0003 §1 required
+this step and could not add it, because no generator was named and the step needs a running
+database. ADR 0003 version 3 names the generator, so the step is now written. Nothing else in
+this ADR changed. §1 gains `src/db/`, which is a fact about the repository and not a decision.
 
 **No decision in this ADR changed when ADR 0002 and ADR 0003 were accepted.** Two things that
 are not decisions did change: the "Deliberately absent" table, which records the state of the
-repository, and the folder tree in §1, which shows it. **#30 records that the command in §3,
-on which §5 rests, fails at random on this machine.**
+repository, and the folder tree in §1, which shows it.
+
+**#30 is closed, and it holds one fact that a reader of §3 and §5 needs.** `pnpm check` stops
+at random on this machine with a libuv assertion. The cause is outside this repository:
+several Node projects run on the machine at the same time. A crash is not a failure. Run the
+command again. This matters most for the drift step of §3, which is measured by the diff and
+never by the exit code of the generator.
 
 **No decision in this ADR changed when ADR 0004 was accepted and the first source files were
 written.** The folder tree in §1 is refreshed, as this ADR permits. Two facts below are now
@@ -17,14 +27,15 @@ out of date, and ADR 0004 holds the newer statement of each. Read ADR 0004 with 
   browser bundle and the two Node configuration files need different `lib` and different
   `types`. ADR 0004 answers this: the signal "is met with a TypeScript configuration and not
   with a workspace". §6 is untouched, and the repository is still one package.
-- §3 describes three read-only steps. The type check step now generates the route tree before
-  it runs, per ADR 0004, so `pnpm check` **writes** `src/routeTree.gen.ts`. The command is
-  still three steps. A person who runs it may find that file in the diff, and that is the
-  intended signal for §5: the operator reads the diff.
+- §3 described three read-only steps. The type check step now generates the route tree before
+  it runs, per ADR 0004, so `pnpm check` **writes** `src/routeTree.gen.ts`. Version 4 below
+  makes the command four steps, and two of them write. A person who runs it may find a
+  generated file in the diff, and that is the intended signal for §5: the operator reads the
+  diff.
 
-**Version 3** rewrites §1 and §4 in place, which the rules in `docs/README.md` permit while an
-ADR has produced no code. No source file exists. §1 gains the folder shape that #5 needs. §4
-names the runner and closes #24. §3 is still amended when #26 closes.
+**Version 3** rewrote §1 and §4 in place, which the rules in `docs/README.md` permit while an
+ADR has produced no code. §1 gained the folder shape the frontend needs. §4 named the runner
+and closed #24.
 
 ## Context
 
@@ -73,8 +84,13 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
     │   └── <feature>/     one feature, one flat folder
     ├── shared/            the leaf layer, with the user interface kit in shared/ui/
     ├── routes/            the router's route files
-    └── contract/          the shape of read data — ADR 0003
+    ├── contract/          the shape of read data, generated — ADR 0003 §8
+    └── db/                the shape of the base tables, generated — ADR 0003 §8
 ```
+
+**`contract/` and `db/` hold generated files, and neither is a feature.** ADR 0003 §8 governs
+what writes them and which folder may import which. Both are declared in the lint
+configuration, because a folder that nobody declares fails the lint on purpose.
 
 `db/` and `infra/` are shown because they now exist. The table under "Deliberately absent"
 records the state of each one. `pnpm-workspace.yaml` holds two pnpm settings and no
@@ -105,12 +121,38 @@ pinned to the 24 LTS line in `.nvmrc` and in `engines.node`. Pin the line, never
 
 ### 3. `pnpm check`
 
-It runs the type check, the lint and the format check. **It never runs the tests.**
+It runs the type check, the lint, the format check and the drift check. **It never runs the
+tests.**
 
 TypeScript runs with every strict check on. The lint set is `typescript-eslint`. The
 formatter is Prettier, and it never touches `docs/`. All three are pinned before the first
 source file: a rule set added later is answered with suppressions, and `gab-coder` requires
 zero suppressions.
+
+**The drift check regenerates the database types and fails when the result differs from what
+is committed.** ADR 0003 §1 makes SQL the only source of truth, and a generated file that
+nobody regenerates is a copy that drifts. The step is added here, and not left as a separate
+command, because §5 makes a green `pnpm check` the definition of done. A drift check that a
+person must remember to run is the discipline that ADR 0003 refuses.
+
+Three properties of this step are not obvious, and each one is a rule:
+
+- **It needs a running database.** Introspection reads the live schema. Docker Desktop must be
+  up, and the two commands of ADR 0003 §4 must have run. This is the accepted cost of the
+  step. A task that touches no SQL still pays it.
+- **It is measured by the diff, never by the exit code of the generator.** The generator stops
+  at random on this machine, per the preamble above, and it writes correct and identical
+  output when it does. The step therefore regenerates, then compares, and reports only the
+  comparison.
+- **The comparison is scoped to the two generated folders.** An unrelated change in the
+  working tree must not fail it.
+
+**This step writes.** So does the type check, which generates the route tree. A person who
+runs `pnpm check` may find a generated file in the diff. §5 says what that means.
+
+**The step is decided here and is not yet in `package.json`.** It is added with the first
+migration, for the reason ADR 0003 §4 gives about the database commands: a step that reads an
+empty database reports success and proves nothing. Until then `pnpm check` runs three steps.
 
 ### 4. `pnpm test`
 
@@ -125,8 +167,9 @@ A second runner would mean a second configuration of the same things, kept in st
 answer costs nothing: the same runner serves a parser, a payload validator, a query against
 PostgreSQL, and a rendered component. `pnpm test` runs one process and reports one result.
 
-This section chooses a tool. It does not say what to test. That is **#21**, and the two are
-not settled together — a runner chosen before a policy tends to become the policy.
+This section chooses a tool. It does not say what to test. **The test policy is open, and the
+tracker carries it.** The two are not settled together — a runner chosen before a policy tends
+to become the policy.
 
 ### 5. Definition of done
 
@@ -137,7 +180,8 @@ The operator **accepts** a change after reading the diff and updating the ticket
 cannot observe that gate, so it must not report it.
 
 The test requirement is absent on purpose. Too few tests and too many tests are both faults.
-**#21** settles the policy, then amends this section.
+**The test policy is open, and the tracker carries it.** It amends this section when it is
+settled.
 
 ### 6. When this layout becomes a workspace
 
@@ -153,12 +197,15 @@ repository and is kept current. No decision in this ADR changes when it is updat
 |---|---|---|
 | `db/` | Migrations, re-runnable functions and triggers, roles and grants | **Created**, by ADR 0003, which closed #22 and #23. It holds `README.md` only. No DDL is written. |
 | `infra/` | The services: PostgreSQL/PostGIS and MinIO (T5), the bucket policy (T3) | **Created**, by ADR 0002. PgBouncer and the CDN rules of `spec.md` §4 stay absent; they need a deployment, which does not exist. |
-| `src/contract/` | The shape of read data. The mock and the real read layer both satisfy it. | **Absent.** ADR 0003 makes its content generated, and #26 has not named a generator. |
+| `src/contract/` | The shape of read data, generated from the `api` schema | **Absent.** ADR 0003 §8 names the generator. The folder appears with the first migration, because a generator with no table to read produces nothing. |
+| `src/db/` | The shape of the base tables, generated from `public` | **Absent**, for the same reason. No file under `src/` may import it — ADR 0003 §8. |
 
 ## Consequences
 
-- A green `pnpm check` means the change compiles and conforms. It does not mean the change
-  is correct.
+- A green `pnpm check` means the change compiles, conforms, and does not disagree with the
+  database. It does not mean the change is correct.
+- **`pnpm check` now needs a running database.** That is the price of the drift step of §3,
+  and it is paid on every task, not only on a task that touches SQL.
 - No repository layout keeps T4 true. T4 is broken by a `fetch` to the backend origin, which
   no package manager sees. The guarantee lives in the `gabriel_read` role, in the connection
   string of the read layer, and in one base URL given to the frontend at build time.

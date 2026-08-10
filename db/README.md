@@ -6,9 +6,10 @@ folder. Read it before you write one line of SQL.
 **These files are the only source of truth for the schema.** No TypeScript type describing the
 database is written by hand. Every one is generated from the live database.
 
-A drift check must fail the build when a generated file differs from what is committed. **That
-check does not exist yet.** It needs a generator, and #26 has not named one. Until #26 closes,
-`pnpm check` runs the three steps of ADR 0001 §3 and nothing more.
+A drift check must fail the build when a generated file differs from what is committed. **The
+generator is Kanel**, named and measured in ADR 0003 §8. **The check does not exist yet.** It
+needs a table to read, and no migration is written. It arrives with the first migration, and
+`pnpm check` then runs the four steps of ADR 0001 §3. Until then it runs three.
 
 ## The two kinds of file, and the rule that separates them
 

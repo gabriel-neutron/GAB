@@ -1,8 +1,8 @@
 # ADR 0002 — Local runtime and data stores
 
 **Status** Accepted · **Version** 1 · 7 August 2026
-**Tickets** #31 how a reader reaches a source file, #32 MinIO upstream is archived. This ADR
-closes a question that had no ticket, which was itself a fault.
+**Tickets** #31 (closed). This ADR closes a question that had no ticket, which was itself a
+fault.
 **Resolves** the `infra/` row of the "Deliberately absent" table in ADR 0001. That row held the
 folder back because no document said how PostgreSQL runs locally, and no ticket carried the
 question. This ADR answers it, and the Status column of that row now reads **Created**. The
@@ -131,8 +131,8 @@ already excluded by `.gitignore`.
   release, `RELEASE.2025-10-15`, was never published to Docker Hub. So the pinned tag is the
   newest image available, and **no further release is expected, security fixes included**.
   MinIO still does the job asked of it — a simple local S3 for one operator — and it is kept
-  for that. The risk is recorded, not dismissed. **#32** carries it. Garage and SeaweedFS
-  speak the S3 API and are the obvious candidates, but **neither was evaluated**.
+  for that. The risk is recorded, not dismissed. **The tracker carries it.** Garage and
+  SeaweedFS speak the S3 API and are the obvious candidates, but **neither was evaluated**.
 - **The requirement "easy to move to another database later" is met in part only.** The
   container is portable. The dependency is not. T2 requires PostGIS, T5
   requires pgvector, and ADR 0003 puts views, functions and triggers in SQL. Any future target

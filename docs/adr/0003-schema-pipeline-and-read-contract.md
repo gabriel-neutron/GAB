@@ -1,16 +1,40 @@
 # ADR 0003 — Schema pipeline and the read contract
 
-**Status** Accepted · **Version** 2 · 10 August 2026
-**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by version 2), #26
-type generation, #24 (closed by ADR 0001 v3), #15 invariant 5, #37 the unbounded reads
+**Status** Accepted · **Version** 3 · 10 August 2026
+**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by version 2),
+#24 (closed by ADR 0001 v3)
 
-**Version 2** adds §9 and amends §6. It names the read HTTP layer, which version 1 left open,
-and records that two reads cannot carry a default `LIMIT`. Rewriting in place is permitted
-because no code exists under this ADR: `db/` holds `README.md` only and no DDL is written.
-Nothing in versions 1 §1 to §8 changed.
-**Resolves** the `db/` row of the "Deliberately absent" table in ADR 0001. `db/` is now
-created. **`src/contract/` stays absent** until #26 names a generator, because its content is
-generated and nothing generates it yet. The rest of ADR 0001 stays true and stays Accepted.
+**Version 3** names the generator in §1 and rewrites §8. Version 2 left the generator open
+because none had been tested. One has now been tested, against a throwaway database that was
+never committed, so §8 rests on measurement and no longer on trust. Rewriting in place is
+still permitted, because no code exists under this ADR: `db/` holds `README.md` only, no DDL
+is written, and neither generated folder exists. **ADR 0001 §3 is amended by this version**
+and now runs four steps. Nothing in §2 to §7 and §9 changed.
+
+**Version 2** added §9 and amended §6. It named the read HTTP layer, which version 1 left
+open, and recorded that two reads cannot carry a default `LIMIT`. Nothing in versions 1 §1 to
+§8 changed at that time.
+
+**Resolves** the `db/` row of the "Deliberately absent" table in ADR 0001. `db/` is created.
+`src/contract/` and `src/db/` stay absent until the first migration exists, because a
+generator with no table to read produces nothing. The rest of ADR 0001 stays true and stays
+Accepted.
+
+## Table of contents
+
+- [Context](#context)
+- [Decision](#decision)
+  - [1. SQL is the only source of truth](#1-sql-is-the-only-source-of-truth)
+  - [2. `node-pg-migrate` applies the ordered files](#2-node-pg-migrate-applies-the-ordered-files)
+  - [3. Ordered files, and re-runnable files](#3-ordered-files-and-re-runnable-files)
+  - [4. Three commands reach the current state, from zero](#4-three-commands-reach-the-current-state-from-zero)
+  - [5. A migration is tested against an empty database](#5-a-migration-is-tested-against-an-empty-database-never-against-real-data)
+  - [6. Two schemas. The read role never touches a base table](#6-two-schemas-the-read-role-never-touches-a-base-table)
+  - [7. Three roles](#7-three-roles-so-an-agent-is-held-by-a-grant-and-not-by-a-prompt)
+  - [8. The generator is Kanel, and it holds two folders](#8-the-generator-is-kanel-and-it-holds-two-folders)
+  - [9. PostgREST serves the `api` schema](#9-postgrest-serves-the-api-schema-version-2)
+- [Consequences](#consequences)
+- [Not decided here](#not-decided-here)
 
 ## Context
 
@@ -42,9 +66,8 @@ TypeScript types are **generated** from the live database by introspection. No c
 written twice, and no type is written by hand. A drift check regenerates the types and fails
 if the result differs from what is committed. Drift is a failing build, not a discipline.
 
-That check belongs in `pnpm check`. ADR 0001 §3 defines that command as three steps, and it
-is not amended here, because no generator exists yet and the step would need a running
-database. **#26 adds the step, and closing #26 amends ADR 0001 §3.**
+That check belongs in `pnpm check`. **ADR 0001 §3 is amended by this version and now runs
+four steps.** The step needs a running database, and that cost is recorded there.
 
 A TypeScript-first tool that writes the SQL — Drizzle Kit and its family — is **rejected**.
 
@@ -125,12 +148,14 @@ The operator owns the views and the functions. They are re-runnable files in `db
 
 A view keeps its output the same while the table under it changes. A base table has no such
 gap. Grant on base tables, and the shape of a table becomes the shape of the user interface.
-Then #15 adds a column for the origin of a row. PU1 requires that origin on every claim that
+Then a column for the origin of a row is added. PU1 requires that origin on every claim that
 is shown. The change then reaches every component that reads that table.
 
 **No read of data passes through the Node backend.** A view lives inside the database, so it
 adds no hop and no service. T4 is unaffected by this ADR. Reaching a stored source file is a
-separate question and is open — see #31.
+separate question, and it is settled: **#31 is closed.** The bucket stays private and has no
+external read path. A reader is given the original source URL, a public web-archive URL and
+the file hash, all recorded at ingest. ADR 0002 §3 holds that decision.
 
 ### 7. Three roles, so an agent is held by a grant and not by a prompt
 
@@ -146,26 +171,73 @@ fixed here.
 
 An agent holds no database password. It reaches the database only through the backend, and
 whatever the backend exposes to it connects as `gabriel_agent`. **What those tools are is not
-decided here** — the AI work is parked on #25. A prompt is not a permission.
+decided here.** The AI work is open, and the tracker carries it. A prompt is not a permission.
 
 **This constrains the agent. It does not enforce invariant 5.** `gabriel_app` still writes the
-evidentiary layer, so a fault in the backend can still put a row there without a promotion. The enforcement tier for invariant 5 stays **open — #15**, and `spec.md` §2 still
-records it as undecided. This ADR narrows the hole. It does not close it.
+evidentiary layer, so a fault in the backend can still put a row there without a promotion.
+**The enforcement tier for invariant 5 stays open**, the tracker carries it, and `spec.md` §2
+still records it as undecided. This ADR narrows the hole. It does not close it.
 
-### 8. `src/contract/` holds generated types, not written ones
+### 8. The generator is Kanel, and it holds two folders
 
-`src/contract/api.ts` is generated from the `api` schema. The user interface imports it. The
-mock returns those types, and the real read layer returns the same types, so the mock and the
-database agree on **shape**. They do not thereby agree on behaviour: a mock says nothing about
-what the database returns for a given row, about ordering, or about an empty result. This
-removes one class of surprise, not all of them.
+`src/contract/` is generated from the `api` schema. The user interface imports it. `src/db/`
+is generated from `public`. **No file under `src/` may import `src/db/`**, because no backend
+exists yet under `src/`.
 
-`src/db/schema.ts` is generated from `public`. Only the backend imports it. A lint rule stops
-the user interface importing it.
+The mock returns the contract types, and the real read layer returns the same types, so the
+mock and the database agree on **shape**. They do not thereby agree on behaviour: a mock says
+nothing about what the database returns for a given row, about ordering, or about an empty
+result. This removes one class of surprise, not all of them.
 
-The generator is **not named here**, because none was tested. A `geometry` column and a
-`vector` column are the two that a generator is most likely to map badly, and that is what
-#26 must check first. See **#26**.
+**Two folders, not two files.** Kanel writes one file per relation, inside a folder named
+after the schema. Version 2 of this ADR named `src/contract/api.ts` and `src/db/schema.ts`.
+No generator produces those two files, so the names are withdrawn.
+
+**The choice is measured, not taken on trust.** Three candidates were run or read against a
+throwaway database holding a `geometry`, a `geography`, a `vector` and an M7-shaped `jsonb`
+column. That database was never committed, and it decided no schema.
+
+| Candidate | `geometry` | `geography` | `vector` |
+|---|---|---|---|
+| Kanel, with its type map | GeoJSON `Point` | GeoJSON `Point` | `number[]` |
+| Kanel, with no type map | `unknown` | `unknown` | `unknown` |
+| pg-to-ts | `any` | `any` | `any` |
+| `drizzle-kit pull` | correct | a placeholder that does not compile | correct |
+
+pg-to-ts emits `any` for every type it does not know, offers no override, and had no release
+for about three years. `drizzle-kit pull` has no `geography` type at all, and its introspector
+has no override, so the file must be repaired by hand after every run. A file repaired by hand
+cannot carry a drift check.
+
+**Six rules follow from the measurement. Each one is a defect if it is broken.**
+
+1. **Four types are mapped by hand, twice.** Kanel maps `geometry`, `geography`, `vector` and
+   `jsonb` to `unknown` on its own. The type map fixes the types and a second map fixes the
+   Zod schemas. Two maps must state the same rule, and keeping them in step is the cost of
+   this choice.
+2. **The `jsonb` map states M7 and nothing else.** PostgreSQL carries no shape for `jsonb`, so
+   no generator can find one. M7 is locked, so the shape is known. This is the only type
+   written by hand in the whole pipeline. It is permitted because it is not a column name, so
+   it cannot drift from one.
+3. **A view must state its nullability in SQL.** PostgreSQL reports every column of every view
+   as nullable, whatever the base column says, and the generator then types every one as
+   present. A contract that promises a value which can be absent is worse than no contract.
+   The view, and not the generator, carries this.
+4. **Views are read as views, and never resolved to their base tables.** Resolving them makes
+   the generator write `public` types into the contract folder and import across the two. That
+   is the boundary §6 exists to hold.
+5. **The generator runs the formatter after it.** Kanel runs no formatter and writes the line
+   endings of the host machine. Development is Windows only, so it writes CRLF, and the format
+   check of ADR 0001 §3 requires LF. A formatting pass after generation makes the output pass
+   the check, and makes it identical on every run.
+6. **The two folders are declared in the lint configuration.** A folder that nobody declares
+   fails the lint on purpose. `src/contract/` is declared and the user interface may import
+   it. `src/db/` is declared and nothing may import it, because the default is refusal and no
+   rule permits it. This is the whole of the lint requirement: two declarations, and one
+   permission.
+
+**The Zod major is open, and the tracker carries it.** The Zod half of this section rests on a
+package that declares no Zod version and emits Zod 4.
 
 ### 9. PostgREST serves the `api` schema (version 2)
 
@@ -188,20 +260,22 @@ who rejects that reading must replace this section, and must quote T1 when doing
 
 **Two reads return everything, and cannot carry the default `LIMIT`.** The full-graph view and
 the full map view exist to be complete; a page of rows makes both meaningless. They are
-exempt. `spec.md` §4 keeps the default `LIMIT` for every other read. The mechanism of the
+exempt. `spec.md` §4 keeps the default `LIMIT` for every other read. **The mechanism of the
 exemption, and the measurement that proves it safe at 10k entities and 25k relations, are
-**#37**.
+open. The tracker carries them.**
 
 The 5s `statement_timeout` still applies to both. It bounds one query and not a loop of them;
-a rate limit belongs with a deployment, which does not exist — see #34.
+a rate limit belongs with a deployment, which does not exist.
 
 ## Consequences
 
 - Every new read needs a view before the user interface can use it. That is the cost, and it
   is the point.
-- One rule is still expressed twice, per T6 — a Zod schema and a `CHECK`. If the generator
-  chosen by #26 emits Zod as well as types, the read side stops being written twice. **No
-  generator is chosen, so treat that as a hope and not as a saving.**
+- One rule was expressed twice, per T6 — a Zod schema and a `CHECK`. The generator of §8
+  emits Zod as well as types, so the read side is no longer written twice. **The saving is
+  real, and it is paid for.** The two type maps of §8 must state the same rule, so one hand
+  written pair replaces one hand written pair. What is gained is that no column name is
+  written twice.
 - `schema.md` §15 is superseded in substance: its grant on `entities`, `relations`,
   `documents`, `proposals` and `layers` becomes a `REVOKE` on `public` plus grants inside
   `api`. That document stays provisional and stays an illustration.
@@ -209,10 +283,10 @@ a rate limit belongs with a deployment, which does not exist — see #34.
 
 ## Not decided here
 
-- **Which generator** produces the types — **#26**. It also adds the drift step to
-  `pnpm check`, and amends ADR 0001 §3 when it closes.
 - **The DDL itself.** No table, no column, no constraint and no trigger is decided by this
   ADR. `schema.md` stays provisional. The real schema is written in the migration files, when
-  the build needs it, and it must satisfy `spec.md` §2.
-- **The test policy** — #21. The runner is Vitest, settled by ADR 0001 §4 version 3. §5 says
-  what a migration test runs against, not what must be tested.
+  the build needs it, and it must satisfy `spec.md` §2. **No ticket owned the first migration
+  until 10 August 2026. One does now, and the tracker carries it.**
+- **The Zod major**, which §8 records as open.
+- **The test policy.** The runner is Vitest, settled by ADR 0001 §4 version 3. §5 says what a
+  migration test runs against, not what must be tested.

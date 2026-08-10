@@ -1,8 +1,7 @@
 # ADR 0004 — Frontend stack
 
 **Status** Accepted · **Version** 1 · 10 August 2026
-**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003 v2), #33 view state, #35 graph
-positions, #26 type generation, #21 test policy
+**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003 v2)
 **Replaces** **T7** in `docs/decisions.md`, which deferred the frontend framework. T7 is
 answered, not contradicted: it postponed the choice until the real volumes, the cartographic
 library and the graph rendering mode were known. All three are now known. Its consequence —
@@ -67,7 +66,8 @@ The graph view shows the whole corpus — about 10k entities and 25k relations �
 purpose is macro structure and not reading labels. That count rules out a canvas renderer.
 
 Positions are **precomputed and stored**, not computed in the browser at each open. A force
-layout is not deterministic, so the picture would change on every open. See **#35**.
+layout is not deterministic, so the picture would change on every open. **Where the positions
+are stored is open, and the tracker carries it.**
 
 A relation may point at another relation (M4). **No code prevents it and no code supports
 it.** Such a relation is invisible in the graph and is reached through the detail panel.
@@ -116,7 +116,7 @@ nested state, a length cap on the selection, and the browser rate limit on
 `history.replaceState`, which disables the call for a period after about 100 calls in 30
 seconds and does so even when the error is caught.
 
-The proposal and what a reviewer should attack are on **#33**.
+**The proposal, and what a reviewer should attack, are open. The tracker carries them.**
 
 ### 8. Vitest, and zero suppressions with a named exemption
 
@@ -143,8 +143,9 @@ Every other strict flag stays.
 
 - **The read client cannot be written yet.** With `strictTypeChecked` and zero suppressions, an
   untyped `fetch` wrapper cannot compile: `no-unsafe-assignment` and its family fire on
-  `unknown`, and nothing may suppress them. The read client waits for **#26**, and
-  `src/contract/` stays absent until then, per ADR 0001 and ADR 0003 §8.
+  `unknown`, and nothing may suppress them. ADR 0003 §8 names the generator, so the read
+  client now waits only for the first migration. `src/contract/` stays absent until a table
+  exists to generate from.
 - **A shared `Filter` type is not written yet.** No query, no view and no schema exist, so its
   shape would be a guess. The first feature writes its query inline. The second call site is
   the earliest honest place to lift a shared type.
@@ -168,7 +169,6 @@ Every other strict flag stays.
 - **The theme.** A basic theme and the switch from the shadcn documentation are installed. The
   design is a later discussion.
 - **Where the chat surface lives.** `spec.md` §1 and `prd.md` §4.3 name it, and no feature
-  holds it. Deferred with the AI work — #25.
-- **What "edit" means in the layer panel** — #36.
-- **The type generator** — #26. It also fills `src/contract/`.
-- **The test policy** — #21. ADR 0001 §4 chose a runner, not a policy.
+  holds it. Deferred with the AI work.
+- **What "edit" means in the layer panel.**
+- **The test policy.** ADR 0001 §4 chose a runner, not a policy.
