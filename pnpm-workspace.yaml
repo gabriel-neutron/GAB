@@ -1,0 +1,19 @@
+# pnpm writes this file itself. Two settings live in it.
+#
+# `allowBuilds` lets `unrs-resolver` run its install script. It is the resolver that
+# `eslint-import-resolver-typescript` uses to follow the `@/*` alias, and the script only
+# selects the prebuilt binary for this platform. Without it the boundaries rules resolve
+# nothing and report a safety they do not give.
+allowBuilds:
+  unrs-resolver: true
+
+# `minimumReleaseAgeExclude` records the packages installed before the age gate would have
+# released them. pnpm added each line.
+minimumReleaseAgeExclude:
+  - '@tanstack/react-router@1.170.25'
+  - '@tanstack/router-core@1.171.21'
+  - '@boundaries/elements@3.1.1'
+  - '@tanstack/router-cli@1.167.27'
+  - '@tanstack/router-generator@1.167.27'
+  - '@tanstack/router-plugin@1.168.29'
+  - eslint-plugin-boundaries@7.2.0

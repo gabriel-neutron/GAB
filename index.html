@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gabriel</title>
+    <script>
+      // This script sets the theme class before the first paint. No React code can do it: the
+      // entry point is a module script, and a module script always waits for the parser. Without
+      // this, an operator who chose the dark theme sees a white page at each load.
+      //
+      // The key and the shape below are a copy. The one source is `keyOf` in
+      // `src/shared/storage.ts` and `ShellWorkspace` in `src/shared/theme-provider.tsx`. No
+      // check holds the two in step, so change all three together.
+      //
+      // Every fault is silent on purpose. `localStorage` throws when the browser refuses
+      // storage, and `JSON.parse` throws on a damaged value. A throw here stops the parser, and
+      // the effect in the theme provider sets the same class one moment later anyway.
+      try {
+        var raw = localStorage.getItem('gab.shell.v1');
+        var theme = raw === null ? 'system' : JSON.parse(raw).theme;
+        if (theme !== 'dark' && theme !== 'light') theme = 'system';
+        var dark =
+          theme === 'dark' ||
+          (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.add(dark ? 'dark' : 'light');
+      } catch {
+        // Add no class. The page paints light, and the theme provider corrects it at mount.
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
