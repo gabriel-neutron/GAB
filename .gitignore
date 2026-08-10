@@ -30,3 +30,7 @@ build/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
+
+# Tests
+
+.playwright-mcp/

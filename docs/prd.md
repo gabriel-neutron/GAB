@@ -46,7 +46,7 @@ document always name an entry in `decisions.md`, never a step.
 | W7 | Manual creation and editing of entities and relations | **In** |
 | W8 | Conversational drill-down from a graph element | **In** |
 | W9 | Search and correlation across documents, graph and internet | **In** |
-| W10 | Production of geographic elements and layers | **In** |
+| W10 | Production of geographic elements and layers, by coordinate entry and by parameter | **In** |
 | W11 | Heavy satellite imagery processing | Out |
 | W12 | Report writing | Out |
 | W13 | Publication | **In** |
@@ -72,7 +72,7 @@ The technical form of each rule below is an invariant in `spec.md` §2.
 
 - **Two distinct views**: relational graph and map. No unified view.
 - The map is **both an analysis surface and a presentation surface**.
-- The analyst **creates geographic elements and composes layers within Gabriel**, rather than merely consulting them.
+- The analyst **creates geographic elements and composes layers within Gabriel**, rather than merely consulting them. Creation is **by coordinate entry** — a click on the map, or a typed coordinate — and **by parameter** — a buffer radius is a typed number, a view cone is a bearing and an angle. Measurement of a distance, a bearing or an area is read and discarded, and is never stored. A box or lasso select is a **query** over the entities inside a shape, never stored geometry. The tool provides **no interactive geometry editor** and **no geographic file import** (ADR 0005).
 - Navigation from an element to its sources, its neighbours, its position.
 - Pending proposals appear as markers on the graph.
 
@@ -107,6 +107,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 
 ## 5. What Gabriel does not do
 
+- **No interactive geometry editor, and no geographic file import** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
 - **No OCR** (P5). A scan is converted outside the tool before ingestion.
 - **No audio, no video** (P5).
 - **No heavy satellite imagery processing.** Scope only. No decision entry records a cost.

@@ -179,8 +179,12 @@ settle one by writing code, and never settle one by writing a default value.
 |---|---|
 | Automatic application of a proposal | **OPEN and blocking.** S3 and P1 conflict. One of the two must be replaced explicitly in `decisions.md`. |
 | Enforcement tier for invariant 5, and for the three source arrays of invariant 2 | **OPEN** — #15. `prd.md` §7.3 asks for a constraint or a trigger. Neither exists. The roles of ADR 0003 hold an agent back; they do not enforce invariant 5. |
-| Mapping library and tile path | T8 — to be settled before any rendering code |
-| Frontend framework | T7 — deferred |
+| Mapping library and tile path | **Settled** by ADR 0005, which replaces T8. #4 closed. |
+| Frontend framework, and the shape of the frontend | **Settled** by ADR 0004, which replaces T7. #5 closed. |
+| The read HTTP layer | **Settled** by ADR 0003 v2: PostgREST. #6 closed. |
+| The two reads that return everything | **OPEN** — #37. The full-graph read and the full map read cannot carry the default `LIMIT` below. ADR 0003 v2 §9 records the exemption; the mechanism is open. |
+| Where view state lives | **A proposal, for review** — #33. The URL holds identity, `localStorage` holds the workspace, and a value lives in exactly one of the two. There is no permalink requirement. |
+| Graph layout positions | **OPEN** — #35. A browser force layout is not deterministic, so positions are precomputed and stored. No schema holds them. |
 | Migration tool, and the order the DDL is applied in | **Settled** by ADR 0003. #22 closed. |
 | What the read-only role selects from: base tables, or views and functions | **Settled** by ADR 0003: views and functions in an `api` schema, never a base table. #23 closed. |
 | Which generator produces the TypeScript types from the schema | **OPEN** — #26. ADR 0003 requires generation; it names no tool, because `geometry` and `vector` break naive ones. |
@@ -192,7 +196,8 @@ settle one by writing code, and never settle one by writing a default value.
 | The payload of a structured-file mapping proposal | **OPEN** — #29. Created by the replacement of P6. Overlaps #7. |
 | Folder layout, package manager, check command | **Settled** by ADR 0001. |
 | How PostgreSQL and the object store run locally | **Settled** by ADR 0002. |
-| Test command, and the runner behind it | The command is settled by ADR 0001. The runner is **OPEN** — #24. |
+| Test command, and the runner behind it | **Settled** by ADR 0001 v3: Vitest. #24 closed. What must be tested stays **OPEN** — #21. |
+| A deployment, and authenticated editors | **OPEN and locked against** — #34. The operator intends a public read surface with authenticated editing later. It contradicts **C5** and `prd.md` §2, so no code anticipates it. |
 | Definition of done | Settled by ADR 0001, except the test requirement, which is **OPEN** — #21. |
 | Detailed shape of `payload` per operation type | To be frozen with the first agent written |
 | Confidence threshold | Operational parameter, to be calibrated on the first runs |

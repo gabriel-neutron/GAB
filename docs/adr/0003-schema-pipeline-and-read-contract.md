@@ -1,8 +1,13 @@
 # ADR 0003 — Schema pipeline and the read contract
 
-**Status** Accepted · **Version** 1 · 7 August 2026
-**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #26 type generation, #6 read
-layer, #24 test runner, #15 invariant 5
+**Status** Accepted · **Version** 2 · 10 August 2026
+**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by version 2), #26
+type generation, #24 (closed by ADR 0001 v3), #15 invariant 5, #37 the unbounded reads
+
+**Version 2** adds §9 and amends §6. It names the read HTTP layer, which version 1 left open,
+and records that two reads cannot carry a default `LIMIT`. Rewriting in place is permitted
+because no code exists under this ADR: `db/` holds `README.md` only and no DDL is written.
+Nothing in versions 1 §1 to §8 changed.
 **Resolves** the `db/` row of the "Deliberately absent" table in ADR 0001. `db/` is now
 created. **`src/contract/` stays absent** until #26 names a generator, because its content is
 generated and nothing generates it yet. The rest of ADR 0001 stays true and stays Accepted.
@@ -162,6 +167,34 @@ The generator is **not named here**, because none was tested. A `geometry` colum
 `vector` column are the two that a generator is most likely to map badly, and that is what
 #26 must check first. See **#26**.
 
+### 9. PostgREST serves the `api` schema (version 2)
+
+The read HTTP layer is **generated, not hand-written**. #6 asked which, and §6 above had
+already built what a generated layer needs: an `api` schema, one view per concept, functions,
+and a role whose grants are the whole perimeter.
+
+**A generated layer cannot widen the allowlist, because the layer does not hold it.** The
+grants of `gabriel_read` hold it. PostgREST connects as that role, so it sees what the role
+sees and nothing more. `statement_timeout` is set on the role with `ALTER ROLE`, so it applies
+whatever issues the query. To add a read, write a view — §3 applies it on every run.
+
+A hand-written Node service was refused: it is code that only relays `SELECT`s, which is the
+dead weight T4 names, and it puts a Node process back in the read path that T4 removed.
+
+**One tension, recorded and not hidden.** PostgREST is not TypeScript, and T1 asks for
+TypeScript end to end. It is read here as a **service**, like PostgreSQL and the object store,
+and not as code this project writes — the category T1's own consequence anticipates. A reader
+who rejects that reading must replace this section, and must quote T1 when doing so.
+
+**Two reads return everything, and cannot carry the default `LIMIT`.** The full-graph view and
+the full map view exist to be complete; a page of rows makes both meaningless. They are
+exempt. `spec.md` §4 keeps the default `LIMIT` for every other read. The mechanism of the
+exemption, and the measurement that proves it safe at 10k entities and 25k relations, are
+**#37**.
+
+The 5s `statement_timeout` still applies to both. It bounds one query and not a loop of them;
+a rate limit belongs with a deployment, which does not exist — see #34.
+
 ## Consequences
 
 - Every new read needs a view before the user interface can use it. That is the cost, and it
@@ -178,9 +211,8 @@ The generator is **not named here**, because none was tested. A `geometry` colum
 
 - **Which generator** produces the types — **#26**. It also adds the drift step to
   `pnpm check`, and amends ADR 0001 §3 when it closes.
-- **Whether the read HTTP layer is generated or hand-written** — #6. This ADR fixes what such
-  a layer generates *from*, not whether it is generated.
 - **The DDL itself.** No table, no column, no constraint and no trigger is decided by this
   ADR. `schema.md` stays provisional. The real schema is written in the migration files, when
   the build needs it, and it must satisfy `spec.md` §2.
-- **The test runner** — #24. §5 says what a migration test runs against, not what runs it.
+- **The test policy** — #21. The runner is Vitest, settled by ADR 0001 §4 version 3. §5 says
+  what a migration test runs against, not what must be tested.

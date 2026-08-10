@@ -26,9 +26,11 @@ below is the only list of them. Write a line in it when you make an ADR.
 
 | ADR | Decision | Status | Read it when |
 |---|---|---|---|
-| [0001](adr/0001-repository-conventions.md) | Repository conventions | Accepted, v2 | You add a folder, you run the check command or the test command, or you declare a change done. |
+| [0001](adr/0001-repository-conventions.md) | Repository conventions | Accepted, v3 | You add a folder, you run the check command or the test command, or you declare a change done. |
 | [0002](adr/0002-local-runtime.md) | Local runtime and data stores | Accepted, v1 | You start the services, you change an image or a port, or you touch the bucket. |
-| [0003](adr/0003-schema-pipeline-and-read-contract.md) | Schema pipeline and the read contract | Accepted, v1 | You write DDL, you add a read, or you touch a type that describes the database. |
+| [0003](adr/0003-schema-pipeline-and-read-contract.md) | Schema pipeline and the read contract | Accepted, v2 | You write DDL, you add a read, or you touch a type that describes the database. |
+| [0004](adr/0004-frontend-stack.md) | Frontend stack | Accepted, v1 | You write a file under `src/`, you add a feature, or you place a piece of view state. |
+| [0005](adr/0005-map-and-tile-path.md) | Cartographic library and tile path | Accepted, v1 | You render a map, you touch a tile or an imagery source, or you change the `layers` table. |
 
 ### What is an ADR
 

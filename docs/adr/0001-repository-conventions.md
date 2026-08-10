@@ -1,13 +1,17 @@
 # ADR 0001 — Repository conventions
 
-**Status** Accepted · **Version** 2 · 7 August 2026
+**Status** Accepted · **Version** 3 · 10 August 2026
 **Tickets** #20 (closed), #21 test policy, #22 (closed by ADR 0003), #23 (closed by ADR 0003),
-#24 test runner, #26 type generation, #30 the check command crashes at random
+#24 (closed by version 3), #26 type generation, #30 the check command crashes at random
 
 **No decision in this ADR changed when ADR 0002 and ADR 0003 were accepted.** Two things that
 are not decisions did change: the "Deliberately absent" table, which records the state of the
-repository, and the folder tree in §1, which shows it. §3 is amended when #26 closes. **#30
-records that the command in §3, on which §5 rests, fails at random on this machine.**
+repository, and the folder tree in §1, which shows it. **#30 records that the command in §3,
+on which §5 rests, fails at random on this machine.**
+
+**Version 3** rewrites §1 and §4 in place, which the rules in `docs/README.md` permit while an
+ADR has produced no code. No source file exists. §1 gains the folder shape that #5 needs. §4
+names the runner and closes #24. §3 is still amended when #26 closes.
 
 ## Context
 
@@ -41,11 +45,26 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
 ├── tsconfig.json
 ├── .nvmrc
 └── src/
-    └── <feature>/      one feature, one flat folder
+    ├── features/
+    │   └── <feature>/  one feature, one flat folder
+    ├── shared/         the leaf layer
+    ├── routes/         the router's route files
+    └── contract/       the shape of read data — ADR 0003
 ```
 
 `db/` and `infra/` are shown because they now exist. The table under "Deliberately absent"
 records the state of each one.
+
+**A feature never imports another feature.** The seam between two features carries three
+things and nothing else: the current selection, the active filter, and the read client. All
+three live in `shared/`. A lint rule enforces this; it is not a convention.
+
+**`shared/` is a leaf.** Every feature may import it. It imports no feature. It holds the three
+seam items above, and the user interface kit. A component library is not a feature, so an
+import of it is never a breach of the rule above.
+
+**`routes/` is not a feature.** It holds the route files that the router reads, and it is the
+only folder that may import a feature.
 
 ### 2. pnpm, and Node 24
 
@@ -64,8 +83,18 @@ zero suppressions.
 ### 4. `pnpm test`
 
 A separate command. The suite reads documents, embeds them and calls agents, so it is slow.
-A check that runs after each file must stay fast. **The runner is open — #24**, so the
-command fails today and names that ticket.
+A check that runs after each file must stay fast.
+
+**The runner is Vitest.** One runner, for every kind of test. #5 chose Vite as the build tool,
+and Vitest reads the same configuration, the same resolver and the same TypeScript settings.
+A second runner would mean a second configuration of the same things, kept in step by hand.
+
+#24 asked whether code that does not render must wait for the frontend. It does not, and the
+answer costs nothing: the same runner serves a parser, a payload validator, a query against
+PostgreSQL, and a rendered component. `pnpm test` runs one process and reports one result.
+
+This section chooses a tool. It does not say what to test. That is **#21**, and the two are
+not settled together — a runner chosen before a policy tends to become the policy.
 
 ### 5. Definition of done
 
