@@ -1,8 +1,7 @@
 # ADR 0005 — Cartographic library and tile path
 
 **Status** Accepted · **Version** 1 · 10 August 2026
-**Tickets** #4 (closed by this ADR), #36 layer panel, #32 the raw store, #31 (closed), #13
-corpus migration, #29 structured mapping proposal
+**Tickets** #4 (closed by this ADR), #31 (closed)
 **Replaces** **T8** in `docs/decisions.md`, which deferred the cartographic library and the
 tile path. T8 is answered, not contradicted. Its warning is honoured: the choice is made
 **before** any rendering code exists.
@@ -68,8 +67,8 @@ the documented CORS commands belong to the paid product. Origin control is one e
 variable.
 
 **The build is local.** MinIO binds to `127.0.0.1`, so no map is public today. Giving MinIO
-this second job is a new argument on **#32**, which asks whether the raw store stays on MinIO.
-It is recorded there, not settled here.
+this second job is a new argument in the open question of whether the raw store stays on
+MinIO. **The tracker carries that question.** It is recorded there, not settled here.
 
 ### 3. Imagery
 
@@ -118,8 +117,8 @@ geographic elements by coordinate entry and by parameter; the tool provides no i
 geometry editor and no geographic file import.*
 
 **P6 is untouched.** The structured-file ingestion path is not removed; it is not built in the
-first version. #29 stands, and the one-time conversion of the past corpus is #13 — a script
-run once, not a feature.
+first version. The shape of a structured mapping proposal stays open, and the one-time
+conversion of the past corpus is a script run once, not a feature. The tracker carries both.
 
 ### 5. Bought imagery and radar
 
@@ -154,7 +153,7 @@ to a bought, orthorectified scene.
 ## Consequences
 
 - The map works on the operator's machine only. A public map needs a deployment, which does
-  not exist — see #34.
+  not exist.
 - Refreshing the coverage is a job that reads entity geometries and rewrites an archive. It is
   new work on the write side, and no ticket held it before this ADR.
 - The non-commercial condition of §3 now constrains the project. It must be revisited before
@@ -167,6 +166,6 @@ to a bought, orthorectified scene.
 ## Not decided here
 
 - **The zoom breakpoints and the buffer radius** — parameters, to be calibrated on real data.
-- **What "edit" means in the layer panel** — #36, deferred to the map prototype.
-- **Whether the raw store stays on MinIO** — #32, now with one more argument.
+- **What "edit" means in the layer panel** — deferred to the map prototype.
+- **Whether the raw store stays on MinIO** — now with one more argument.
 - **The ShareAlike reach of the imagery licence** — to be rechecked, per §3.
