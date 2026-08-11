@@ -1,8 +1,8 @@
 # Map surface — build specification
 
 **Status** Accepted as a build order · **Version** 1 · 11 August 2026
-**Source** The throwaway prototype on branch `prototype/map-2026-08-11`, commit `d9bc34c`, driven
-and accepted by the operator on 11 August 2026. **Tickets** Reports to #36, #33, #12 and #15.
+**Source** The throwaway prototype in `src/features/map/`, on branch `prototypes/2026-08-11`,
+driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #36, #33, #12 and #15.
 Settles none of them.
 
 ## Contents

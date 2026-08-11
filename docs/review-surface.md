@@ -1,8 +1,8 @@
 # Review surface — build specification
 
 **Status** Accepted as a build order · **Version** 1 · 11 August 2026
-**Source** The throwaway prototype in `src/features/review/`, driven and accepted by the operator
-on 11 August 2026. **Tickets** Reports to #42, #9, #7, #44, #45, #33, #31, #16 and #8. Settles
+**Source** The throwaway prototype in `src/features/review/`, on branch `prototypes/2026-08-11`,
+driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #42, #9, #7, #44, #45, #33, #31, #16 and #8. Settles
 none of them.
 
 ## Contents
@@ -325,7 +325,7 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 | The regular expression that recovers quoted text | §3.4. It measures the hole. It is not a citation path. |
 | The frozen clock | The fixture carries fixed dates, so a real clock would make two runs incomparable. |
 | The inlined colour values | `theme.css` was not imported when they were written. It is now. Read the tokens. |
-| `review-queue-sidebar.tsx` | The narrow triage queue of P3. It was built and never mounted, so it produced no finding. See §9. |
+| `review-sidebar.tsx` | The narrow triage queue of P3. It was built and never mounted, so it produced no finding. See §9. |
 
 ## 7. What this document must not settle
 

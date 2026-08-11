@@ -1,14 +1,14 @@
 # Graph surface — build specification
 
 **Status** Accepted as a build order · **Version** 1 · 11 August 2026
-**Source** The throwaway prototype in `src/features/graph/`, driven and accepted by the operator
-on 11 August 2026. **Tickets** Reports to #35, #10, #33, #36 and #37. Settles none of them.
+**Source** The throwaway prototype in `src/features/graph/`, on branch `prototypes/2026-08-11`,
+driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #35, #10, #33, #36 and #37. Settles none of them.
 
 ## Contents
 
 1. [What this document is, and what it is not](#1-what-this-document-is-and-what-it-is-not)
 2. [What the analyst does here](#2-what-the-analyst-does-here)
-3. [What the prototype measured](#3-what-the-prototype-measured)
+3. [What the prototype found](#3-what-the-prototype-found)
 4. [The components](#4-the-components)
 5. [The rules the rebuild must not lose](#5-the-rules-the-rebuild-must-not-lose)
 6. [What is scaffolding, and must not be rebuilt](#6-what-is-scaffolding-and-must-not-be-rebuilt)
@@ -42,7 +42,7 @@ The graph shows the whole corpus — about 10k entities and 25k relations — be
 | **UC4** | Filter, and keep the same map. An excluded element goes faint. **No position moves.** |
 | **UC5** | See a marker on each real element that carries a pending proposal. `prd.md` §4.2, P3. |
 
-## 3. What the prototype measured
+## 3. What the prototype found
 
 Chrome on Windows, one machine, a development build. The numbers give an order of magnitude. They
 are not a specification of speed.

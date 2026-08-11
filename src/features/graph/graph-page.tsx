@@ -18,7 +18,7 @@ import { emitGraphCost, emitGraphSelection } from './prototype-bridge';
 import { mountLegend, mountRail } from './prototype-chrome';
 import { costLine, mountGraph } from './prototype-mount';
 
-export const GraphSurface = memo(function GraphSurface({ entityCount }: { entityCount: number }) {
+export const GraphPage = memo(function GraphPage({ entityCount }: { entityCount: number }) {
   const canvas = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
   const status = useRef<HTMLDivElement>(null);

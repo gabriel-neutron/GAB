@@ -7,7 +7,7 @@ import {
   onGraphSelection,
   type GraphSelectionDetail,
 } from '@/features/graph/prototype-bridge';
-import { GraphSurface } from '@/features/graph/graph-surface';
+import { GraphPage } from '@/features/graph/graph-page';
 
 /**
  * PROTOTYPE host for the graph.
@@ -54,7 +54,7 @@ function GraphRoute() {
   return (
     <div className="flex h-[calc(100svh-6.5rem)] w-full">
       <div className="min-w-0 flex-1">
-        <GraphSurface key={n} entityCount={n} />
+        <GraphPage key={n} entityCount={n} />
       </div>
 
       <GraphDetail selection={selection} />

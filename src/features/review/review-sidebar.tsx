@@ -24,7 +24,7 @@ import {
 } from './review-model';
 import { ChangeMark, ConfidenceBadge, KIND_COLOR } from './review-parts';
 
-export interface ReviewQueueSidebarProps {
+export interface ReviewSidebarProps {
   /** The subject being examined, when the host knows it. Identity lives in the URL — #33. */
   readonly selectedId?: string | undefined;
   /** The host decides where a click goes. Beside the map it navigates to `/review`. */
@@ -33,12 +33,12 @@ export interface ReviewQueueSidebarProps {
   readonly onSort?: ((next: SortKey) => void) | undefined;
 }
 
-export function ReviewQueueSidebar({
+export function ReviewSidebar({
   selectedId,
   onSelect,
   sort = 'confidence',
   onSort,
-}: ReviewQueueSidebarProps) {
+}: ReviewSidebarProps) {
   const subjects = sortSubjects(pendingSubjects(), sort);
   const changes = subjects.reduce((sum, subject) => sum + subject.changes.length, 0);
 

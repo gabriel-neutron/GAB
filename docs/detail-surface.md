@@ -1,8 +1,8 @@
 # Detail surface — build specification
 
 **Status** Accepted as a build order · **Version** 1 · 11 August 2026
-**Source** The throwaway prototype in `src/features/detail/`, driven and accepted by the operator
-on 11 August 2026. **Tickets** Reports to #12, #10, #45, #33, #46 and #31. Settles none of them.
+**Source** The throwaway prototype in `src/features/detail/`, on branch `prototypes/2026-08-11`,
+driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #12, #10, #45, #33, #46 and #31. Settles none of them.
 
 ## Contents
 
