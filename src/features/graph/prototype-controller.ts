@@ -1,0 +1,437 @@
+/**
+ * PROTOTYPE — throwaway. The imperative adapter of ADR 0004 §2 and §3.
+ *
+ * Sigma is driven directly. **No React value crosses this file.** It owns the selection, the
+ * filter, the camera and the badge layer, and it publishes a read-only view to whoever
+ * subscribes. A variant paints that view into DOM nodes it already holds a reference to; it
+ * never re-renders.
+ *
+ * Two decisions here are reports, not settlements:
+ *
+ * - **#33.** ADR 0004 §7 puts the identity of what is examined in the URL. Writing it with the
+ *   router re-renders the route, which unmounts the canvas and restarts the layout. This file
+ *   therefore writes the selection with `history.replaceState` and bypasses the router. That is
+ *   the only way the two rules of ADR 0004 both hold, and it is a finding for #33, not a
+ *   decision.
+ * - **#10.** A badge is a DOM ring positioned over a node on every frame. It is capped, and the
+ *   cap is reported on screen.
+ */
+
+import Sigma from 'sigma';
+import { readWorkspace, writeWorkspace } from '@/shared/storage';
+import { buildDetail, type Detail, type Selection } from './prototype-detail';
+import { CUT_POINT_COLOUR, type PrototypeModel } from './prototype-model';
+
+export interface FilterState {
+  /** The entity types that stay lit. An empty list lights nothing. */
+  readonly types: readonly string[];
+  readonly minDegree: number;
+  /** Only the elements that carry a pending proposal. */
+  readonly onlyProposed: boolean;
+}
+
+export interface GraphView {
+  readonly selection: Selection | null;
+  readonly detail: Detail | null;
+  readonly filter: FilterState;
+  readonly lit: number;
+  readonly dimmed: number;
+  readonly focused: number;
+  readonly badgesDrawn: number;
+  readonly badgesOverCap: number;
+}
+
+export interface GraphController {
+  readonly model: PrototypeModel;
+  view(): GraphView;
+  select(selection: Selection | null): void;
+  setFilter(patch: Partial<FilterState>): void;
+  /** A deliberate camera move, asked for by a control. A node click never calls this. */
+  flyTo(nodeId: string): void;
+  resetCamera(): void;
+  subscribe(listener: (view: GraphView) => void): () => void;
+  destroy(): void;
+}
+
+/** How many hops stay lit around the selection. */
+const FOCUS_HOPS = 2;
+/** A DOM ring per badge does not scale. The cap is visible on screen, never silent. */
+const BADGE_CAP = 250;
+
+const WORKSPACE = 'graph';
+
+interface Workspace {
+  readonly camera: { readonly x: number; readonly y: number; readonly ratio: number } | null;
+  readonly filter: FilterState;
+}
+
+function isWorkspace(value: unknown): value is Workspace {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Record<string, unknown>;
+  const filter = record['filter'];
+  if (typeof filter !== 'object' || filter === null) return false;
+  const f = filter as Record<string, unknown>;
+  if (!Array.isArray(f['types']) || typeof f['minDegree'] !== 'number') return false;
+  if (typeof f['onlyProposed'] !== 'boolean') return false;
+  const camera = record['camera'];
+  if (camera === null) return true;
+  if (typeof camera !== 'object') return false;
+  const c = camera as Record<string, unknown>;
+  return typeof c['x'] === 'number' && typeof c['y'] === 'number' && typeof c['ratio'] === 'number';
+}
+
+interface Palette {
+  readonly dimNode: string;
+  readonly dimEdge: string;
+  readonly edge: string;
+  readonly label: string;
+  readonly selected: string;
+}
+
+function paletteFor(dark: boolean): Palette {
+  return dark
+    ? {
+        dimNode: '#2f333a',
+        dimEdge: '#23262b',
+        edge: '#3c424b',
+        label: '#d6d9de',
+        selected: '#ffffff',
+      }
+    : {
+        dimNode: '#e3e6ea',
+        dimEdge: '#eef0f3',
+        edge: '#cbd0d8',
+        label: '#31353b',
+        selected: '#111111',
+      };
+}
+
+export function createController(
+  model: PrototypeModel,
+  canvas: HTMLElement,
+  overlay: HTMLElement,
+): GraphController {
+  const stored = readWorkspace<Workspace>(WORKSPACE, isWorkspace, {
+    camera: null,
+    filter: { types: model.entityTypes, minDegree: 0, onlyProposed: false },
+  });
+
+  let filter: FilterState = stored.filter;
+  let selection: Selection | null = null;
+  let focus: Set<string> | null = null;
+  let lit = 0;
+  let dimmed = 0;
+  let badgesDrawn = 0;
+  let badgesOverCap = 0;
+
+  let palette = paletteFor(document.documentElement.classList.contains('dark'));
+  const listeners = new Set<(view: GraphView) => void>();
+
+  const graph = model.graph;
+  const allowedTypes = new Set(filter.types);
+
+  const passesFilter = (node: string): boolean => {
+    const type = graph.getNodeAttribute(node, 'entityType');
+    if (!allowedTypes.has(type)) return false;
+    if (graph.getNodeAttribute(node, 'degree') < filter.minDegree) return false;
+    if (filter.onlyProposed && !graph.getNodeAttribute(node, 'badged')) return false;
+    return true;
+  };
+
+  const isLit = (node: string): boolean => {
+    if (!passesFilter(node)) return false;
+    if (focus !== null && !focus.has(node)) return false;
+    return true;
+  };
+
+  const renderer = new Sigma(graph, canvas, {
+    allowInvalidContainer: true,
+    renderLabels: true,
+    labelRenderedSizeThreshold: 11,
+    labelDensity: 0.5,
+    labelGridCellSize: 110,
+    labelColor: { color: palette.label },
+    zIndex: true,
+    minCameraRatio: 0.02,
+    maxCameraRatio: 3,
+    defaultEdgeColor: palette.edge,
+
+    // A reducer **replaces** the datum, it does not merge into it. Both spread the original, or
+    // the position is lost and Sigma refuses the node.
+    nodeReducer: (node, data) => {
+      if (!isLit(node)) {
+        return { ...data, color: palette.dimNode, size: data.size * 0.55, label: '', zIndex: 0 };
+      }
+      const selected = selection !== null && selection.id === node;
+      return {
+        ...data,
+        color: selected ? palette.selected : data.baseColor,
+        size: selected ? data.size * 1.8 : data.size,
+        zIndex: selected ? 3 : data.bridge ? 2 : 1,
+      };
+    },
+
+    edgeReducer: (edge, data) => {
+      const [source, target] = graph.extremities(edge);
+      if (!isLit(source) || !isLit(target)) {
+        return { ...data, color: palette.dimEdge, size: 0.4, zIndex: 0 };
+      }
+      const touching = selection !== null && (selection.id === source || selection.id === target);
+      return {
+        ...data,
+        color: touching ? CUT_POINT_COLOUR : palette.edge,
+        size: touching ? 1.6 : 0.6,
+        zIndex: touching ? 2 : 1,
+      };
+    },
+  });
+
+  if (stored.camera !== null) renderer.getCamera().setState(stored.camera);
+
+  // --- counts -------------------------------------------------------------------------------
+  const recount = (): void => {
+    lit = 0;
+    dimmed = 0;
+    graph.forEachNode((node) => {
+      if (isLit(node)) lit += 1;
+      else dimmed += 1;
+    });
+  };
+  recount();
+
+  // --- the badge layer, and the selection ring ----------------------------------------------
+  // One absolutely positioned ring per badged node, rebuilt on every frame. It is the honest
+  // way to test the rule the operator chose, and the honest way to find its ceiling.
+  const rings: HTMLElement[] = [];
+  const ringFor = (index: number): HTMLElement => {
+    const existing = rings[index];
+    if (existing !== undefined) return existing;
+    const ring = document.createElement('div');
+    ring.className =
+      'pointer-events-none absolute rounded-full border-2 border-dashed border-amber-500';
+    overlay.appendChild(ring);
+    rings[index] = ring;
+    return ring;
+  };
+
+  const selectionRing = document.createElement('div');
+  selectionRing.className =
+    'pointer-events-none absolute rounded-full ring-2 ring-offset-2 ring-offset-transparent';
+  selectionRing.style.display = 'none';
+  overlay.appendChild(selectionRing);
+
+  const paintOverlay = (): void => {
+    let used = 0;
+    for (const node of model.badgedNodes) {
+      if (!isLit(node)) continue;
+      if (used >= BADGE_CAP) break;
+      const display = renderer.getNodeDisplayData(node);
+      if (display === undefined) continue;
+      const point = renderer.graphToViewport(display);
+      const radius = Math.max(7, display.size * 1.9);
+      const ring = ringFor(used);
+      ring.style.left = `${point.x - radius}px`;
+      ring.style.top = `${point.y - radius}px`;
+      ring.style.width = `${radius * 2}px`;
+      ring.style.height = `${radius * 2}px`;
+      ring.style.display = 'block';
+      used += 1;
+    }
+    for (let i = used; i < rings.length; i += 1) {
+      const ring = rings[i];
+      if (ring !== undefined) ring.style.display = 'none';
+    }
+
+    const litBadges = model.badgedNodes.filter((node) => isLit(node)).length;
+    const changed = badgesDrawn !== used || badgesOverCap !== litBadges - used;
+    badgesDrawn = used;
+    badgesOverCap = Math.max(0, litBadges - used);
+    // The counts are known only after a frame. Publishing here writes text and asks for no
+    // further frame, so it cannot loop.
+    if (changed) publish();
+
+    if (selection !== null && graph.hasNode(selection.id)) {
+      const display = renderer.getNodeDisplayData(selection.id);
+      if (display !== undefined) {
+        const point = renderer.graphToViewport(display);
+        const radius = Math.max(12, display.size * 2.4);
+        selectionRing.style.left = `${point.x - radius}px`;
+        selectionRing.style.top = `${point.y - radius}px`;
+        selectionRing.style.width = `${radius * 2}px`;
+        selectionRing.style.height = `${radius * 2}px`;
+        selectionRing.style.boxShadow = `0 0 0 2px ${CUT_POINT_COLOUR}`;
+        selectionRing.style.display = 'block';
+      }
+    } else {
+      selectionRing.style.display = 'none';
+    }
+  };
+
+  renderer.on('afterRender', paintOverlay);
+
+  // --- publication --------------------------------------------------------------------------
+  const view = (): GraphView => ({
+    selection,
+    detail: selection === null ? null : buildDetail(model, selection),
+    filter,
+    lit,
+    dimmed,
+    focused: focus?.size ?? 0,
+    badgesDrawn,
+    badgesOverCap,
+  });
+
+  const publish = (): void => {
+    const snapshot = view();
+    for (const listener of listeners) listener(snapshot);
+  };
+
+  // --- the workspace, and the URL -------------------------------------------------------------
+  let saveTimer: number | null = null;
+  const saveWorkspace = (): void => {
+    if (saveTimer !== null) window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => {
+      const camera = renderer.getCamera().getState();
+      writeWorkspace(WORKSPACE, {
+        camera: { x: camera.x, y: camera.y, ratio: camera.ratio },
+        filter,
+      });
+    }, 400);
+  };
+
+  // The router is bypassed on purpose. See the file header, and #33.
+  const writeSelectionToUrl = (): void => {
+    const url = new URL(window.location.href);
+    if (selection === null) {
+      url.searchParams.delete('sel');
+      url.searchParams.delete('selKind');
+    } else {
+      url.searchParams.set('sel', selection.id);
+      url.searchParams.set('selKind', selection.kind);
+    }
+    window.history.replaceState(window.history.state, '', url);
+  };
+
+  const applyFocus = (): void => {
+    if (selection === null) {
+      focus = null;
+      return;
+    }
+    const seeds: string[] = [];
+    if (selection.kind === 'entity' && graph.hasNode(selection.id)) {
+      seeds.push(selection.id);
+    } else if (selection.kind === 'relation') {
+      // A relation is not a node. Its entity endpoints are, so the focus falls on them. When
+      // both ends are relations — M4 on both sides — there is nothing to light at all.
+      const relation = model.relationById.get(selection.id);
+      if (relation !== undefined) {
+        if (relation.srcKind === 'entity' && graph.hasNode(relation.srcId))
+          seeds.push(relation.srcId);
+        if (relation.dstKind === 'entity' && graph.hasNode(relation.dstId))
+          seeds.push(relation.dstId);
+      }
+    }
+    if (seeds.length === 0) {
+      focus = null;
+      return;
+    }
+    const reached = new Set<string>(seeds);
+    let frontier = seeds;
+    for (let hop = 0; hop < FOCUS_HOPS; hop += 1) {
+      const next: string[] = [];
+      for (const node of frontier) {
+        for (const neighbour of graph.neighbors(node)) {
+          if (reached.has(neighbour)) continue;
+          reached.add(neighbour);
+          next.push(neighbour);
+        }
+      }
+      frontier = next;
+    }
+    focus = reached;
+  };
+
+  const select = (next: Selection | null): void => {
+    selection = next;
+    applyFocus();
+    recount();
+    // The camera is not touched. UC2: the analyst keeps the picture they learned.
+    renderer.refresh();
+    writeSelectionToUrl();
+    publish();
+  };
+
+  // --- events ---------------------------------------------------------------------------------
+  renderer.on('clickNode', ({ node }) => {
+    // A dimmed node takes no hit. Filtering dims, and a dimmed element is out of the question.
+    if (!passesFilter(node)) return;
+    select({ kind: 'entity', id: node });
+  });
+  renderer.on('clickEdge', ({ edge }) => {
+    if (!model.relationById.has(edge)) return;
+    select({ kind: 'relation', id: edge });
+  });
+  renderer.on('clickStage', () => select(null));
+  renderer.getCamera().on('updated', saveWorkspace);
+
+  const themeWatcher = new MutationObserver(() => {
+    palette = paletteFor(document.documentElement.classList.contains('dark'));
+    renderer.setSetting('labelColor', { color: palette.label });
+    renderer.setSetting('defaultEdgeColor', palette.edge);
+    renderer.refresh();
+  });
+  themeWatcher.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  // The first render happened inside the constructor, before `afterRender` had a listener. One
+  // refresh gives the overlay its first frame; without it no ring is ever drawn. It stands here,
+  // below `publish`, because the handler reads it and a `const` cannot be read before it exists.
+  renderer.refresh();
+
+  // The selection named by the address, restored once at mount.
+  const initial = new URL(window.location.href).searchParams;
+  const initialId = initial.get('sel');
+  const initialKind = initial.get('selKind');
+  if (initialId !== null && (initialKind === 'entity' || initialKind === 'relation')) {
+    select({ kind: initialKind, id: initialId });
+  }
+
+  return {
+    model,
+    view,
+    select,
+    setFilter: (patch) => {
+      filter = { ...filter, ...patch };
+      allowedTypes.clear();
+      for (const type of filter.types) allowedTypes.add(type);
+      // Positions never move. Only the paint changes. UC4.
+      recount();
+      renderer.refresh();
+      saveWorkspace();
+      publish();
+    },
+    flyTo: (nodeId) => {
+      if (!graph.hasNode(nodeId)) return;
+      const x = graph.getNodeAttribute(nodeId, 'x');
+      const y = graph.getNodeAttribute(nodeId, 'y');
+      const display = renderer.getNodeDisplayData(nodeId) ?? { x, y };
+      void renderer
+        .getCamera()
+        .animate({ x: display.x, y: display.y, ratio: 0.12 }, { duration: 420 });
+    },
+    resetCamera: () => {
+      void renderer.getCamera().animate({ x: 0.5, y: 0.5, ratio: 1, angle: 0 }, { duration: 320 });
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      listener(view());
+      return () => listeners.delete(listener);
+    },
+    destroy: () => {
+      if (saveTimer !== null) window.clearTimeout(saveTimer);
+      themeWatcher.disconnect();
+      listeners.clear();
+      renderer.kill();
+      overlay.replaceChildren();
+    },
+  };
+}

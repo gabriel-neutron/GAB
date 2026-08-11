@@ -149,6 +149,254 @@ export const corpus: Corpus = {
       geom: null,
       promotedFrom: 'b2c1d4e5-0005-4a11-9c33-77e1f2a3b4c5',
     },
+
+    // ---------------------------------------------------------------------------------------
+    // Added for the map prototype, 11 August 2026, by operator decision.
+    //
+    // The five rows above carry the awkward cases, and only two of them carry a geometry. Two
+    // points cannot show whether a map helps an analyst find one entity, so the operator asked
+    // for more. **The five rows above are untouched**, because "an entity with no geometry" is
+    // one of the cases this file exists to carry.
+    //
+    // Every row below is invented, exactly like every row above. No claim here is about a real
+    // vessel, company, person or facility, and no coordinate is a real position.
+    //
+    // Two properties are deliberate:
+    //
+    // - **The points are far apart.** ADR 0005 §2 tiers the tile coverage: the world at low
+    //   zoom, Russia at middle zoom, a buffer around each entity at zoom 15. A corpus in one
+    //   harbour would never show a seam between the bands.
+    //   ADR 0005 also names Russia as the region of work, and the rows above are North Sea, so
+    //   the two regions sit in one corpus on purpose.
+    // - **Each type carries a geometry for a different reason.** A facility is where it stands,
+    //   a vessel is where it was last reported, a company is its registered office, a person is
+    //   a last reported location. The map treats the four the same. Whether it should is a
+    //   question for the map prototype, not an answer this file gives.
+    //
+    // No new document is added, so every source below is one of the five that already exist and
+    // invariant 2 still holds by inspection.
+    // ---------------------------------------------------------------------------------------
+
+    {
+      id: 'c5f0a112-3d4e-4a67-9b28-0e1f2a3b4c5d',
+      type: 'facility',
+      label: 'Ust-Luga oil terminal, berth 4',
+      attrs: { throughput_kt_month: { v: 1850, src: ['doc_8f2a41'] } },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 28.408, lat: 59.669 },
+      promotedFrom: 'b2c1d4e5-0006-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'a7b1c233-4e5f-4b78-8c39-1f2a3b4c5d6e',
+      type: 'facility',
+      label: 'Primorsk crude jetty',
+      attrs: { berth_count: { v: 4, src: ['doc_8f2a41'] } },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 28.708, lat: 60.343 },
+      promotedFrom: 'b2c1d4e5-0007-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'e2c3d445-5f60-4c89-9d4a-2a3b4c5d6e7f',
+      type: 'facility',
+      label: 'Bolshoy Port Saint Petersburg, container quay',
+      attrs: {
+        teu_capacity: { v: 1400000, src: ['doc_8f2a41'] },
+        // Hand entered from a photograph. M8 makes `manual` a real document.
+        crane_note: { v: 'Two gantries idle, imagery of 2026-06', src: ['manual'] },
+      },
+      sources: ['doc_8f2a41', 'manual'],
+      geom: { lon: 30.222, lat: 59.888 },
+      promotedFrom: 'b2c1d4e5-0008-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'b8d4e556-6071-4d9a-8e5b-3b4c5d6e7f80',
+      type: 'facility',
+      label: 'Baltiysk naval mole',
+      attrs: { mole_length_m: { v: 620, src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 19.9, lat: 54.645 },
+      promotedFrom: 'b2c1d4e5-0009-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'f3e5f667-7182-4eab-9f6c-4c5d6e7f8091',
+      type: 'facility',
+      label: 'Murmansk commercial seaport, coal berth 2',
+      attrs: { ice_class_required: { v: false, src: ['doc_8f2a41'] } },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 33.055, lat: 68.968 },
+      promotedFrom: 'b2c1d4e5-0010-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'd9f60778-8293-4fbc-806d-5d6e7f8091a2',
+      type: 'facility',
+      label: 'Arkhangelsk timber quay',
+      attrs: { seasonal_closure: { v: true, src: ['doc_5e7730'] } },
+      sources: ['doc_5e7730'],
+      geom: { lon: 40.545, lat: 64.545 },
+      promotedFrom: 'b2c1d4e5-0011-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'c0a71889-93a4-40cd-817e-6e7f8091a2b3',
+      type: 'facility',
+      label: 'Sheskharis oil jetty, Novorossiysk',
+      attrs: { throughput_kt_month: { v: 2400, src: ['doc_8f2a41'] } },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 37.813, lat: 44.706 },
+      promotedFrom: 'b2c1d4e5-0012-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'a1b8299a-a4b5-41de-828f-7f8091a2b3c4',
+      type: 'facility',
+      label: 'Golden Horn repair yard, Vladivostok',
+      attrs: { dry_dock_count: { v: 2, src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 131.888, lat: 43.111 },
+      promotedFrom: 'b2c1d4e5-0013-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'b2c93aab-b5c6-42ef-9390-8091a2b3c4d5',
+      type: 'facility',
+      label: 'Vostochny coal berth, Nakhodka',
+      attrs: { conveyor_lines: { v: 3, src: ['doc_8f2a41'] } },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 133.086, lat: 42.744 },
+      promotedFrom: 'b2c1d4e5-0014-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'c3d04bbc-c6d7-4300-a4a1-91a2b3c4d5e6',
+      type: 'facility',
+      label: 'Sabetta LNG jetty',
+      attrs: { trains_operating: { v: 4, src: ['doc_5e7730'] } },
+      sources: ['doc_5e7730'],
+      geom: { lon: 72.318, lat: 71.264 },
+      promotedFrom: 'b2c1d4e5-0015-4a11-9c33-77e1f2a3b4c5',
+    },
+
+    {
+      id: 'd4e15ccd-d7e8-4411-b5b2-a2b3c4d5e6f7',
+      type: 'vessel',
+      label: 'MV Kestrel Arrow',
+      attrs: {
+        imo: { v: '9613428', src: ['doc_9b0417'] },
+        known_flags: { v: ['LR'], src: ['doc_9b0417'] },
+      },
+      sources: ['doc_9b0417'],
+      geom: { lon: 28.9, lat: 59.9 },
+      promotedFrom: 'b2c1d4e5-0016-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'e5f26dde-e8f9-4522-c6c3-b3c4d5e6f708',
+      type: 'vessel',
+      label: 'MV Pale Meridian',
+      attrs: { imo: { v: '9744015', src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 24.1, lat: 59.1 },
+      promotedFrom: 'b2c1d4e5-0017-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'f6037eef-f900-4633-d7d4-c4d5e6f70819',
+      type: 'vessel',
+      label: 'MV Sable Transit',
+      attrs: {
+        imo: { v: '9388206', src: ['doc_9b0417'] },
+        // Two sources on one attribute, like the row far above. S1 makes this the case that
+        // matters the day a rating moves.
+        last_port_call: { v: 'Gdansk', src: ['doc_8f2a41', 'doc_9b0417'] },
+      },
+      sources: ['doc_9b0417', 'doc_8f2a41'],
+      geom: { lon: 12.8, lat: 55.7 },
+      promotedFrom: 'b2c1d4e5-0018-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '07148ff0-0a11-4744-e8e5-d5e6f708192a',
+      type: 'vessel',
+      label: 'MV Grey Anchorage',
+      attrs: { imo: { v: '9205613', src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 5.2, lat: 53.9 },
+      promotedFrom: 'b2c1d4e5-0019-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '18259001-1b22-4855-f9f6-e6f708192a3b',
+      type: 'vessel',
+      label: 'MV Cold Harbour',
+      attrs: {
+        imo: { v: '9866042', src: ['doc_9b0417'] },
+        ice_class: { v: 'Arc4', src: ['doc_5e7730'] },
+      },
+      sources: ['doc_9b0417', 'doc_5e7730'],
+      geom: { lon: 33.5, lat: 69.5 },
+      promotedFrom: 'b2c1d4e5-0020-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '2936a112-2c33-4966-0a07-f708192a3b4c',
+      type: 'vessel',
+      label: 'MV Amber Reach',
+      attrs: { imo: { v: '9501774', src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 37.9, lat: 44.6 },
+      promotedFrom: 'b2c1d4e5-0021-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '3a47b223-3d44-4a77-1b18-08192a3b4c5d',
+      type: 'vessel',
+      label: 'MV Ninth Errand',
+      attrs: { imo: { v: '9327884', src: ['doc_9b0417'] } },
+      sources: ['doc_9b0417'],
+      geom: { lon: 132.1, lat: 42.8 },
+      promotedFrom: 'b2c1d4e5-0022-4a11-9c33-77e1f2a3b4c5',
+    },
+
+    {
+      id: '4b58c334-4e55-4b88-2c29-192a3b4c5d6e',
+      type: 'company',
+      label: 'Baltic Freight Nominees OU',
+      attrs: { registration_number: { v: 'EE 14992031', src: ['doc_3c1104'] } },
+      sources: ['doc_3c1104'],
+      // A company is placed at its registered office. Whether that is the same kind of fact as
+      // a vessel position is a question for the prototype, not an answer given here.
+      geom: { lon: 24.7536, lat: 59.437 },
+      promotedFrom: 'b2c1d4e5-0023-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '5c69d445-5f66-4c99-3d3a-2a3b4c5d6e7f',
+      type: 'company',
+      label: 'Pomor Chartering LLC',
+      attrs: { registration_number: { v: 'RU 1105190001234', src: ['doc_3c1104'] } },
+      sources: ['doc_3c1104'],
+      geom: { lon: 33.0827, lat: 68.9707 },
+      promotedFrom: 'b2c1d4e5-0024-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '6d7ae556-6077-4daa-4e4b-3b4c5d6e7f80',
+      type: 'company',
+      label: 'Vostok Bunker Agency',
+      attrs: { registration_number: { v: 'RU 1122540007788', src: ['doc_5e7730'] } },
+      sources: ['doc_5e7730'],
+      geom: { lon: 131.8853, lat: 43.1155 },
+      promotedFrom: 'b2c1d4e5-0025-4a11-9c33-77e1f2a3b4c5',
+    },
+
+    {
+      id: '7e8bf667-7188-4ebb-5f5c-4c5d6e7f8091',
+      type: 'person',
+      label: 'I. Kravets',
+      attrs: { role_title: { v: 'Port agent', src: ['doc_3c1104'] } },
+      sources: ['doc_3c1104'],
+      // A last reported location, not a residence. The map cannot show that difference, which
+      // is itself worth reporting.
+      geom: { lon: 30.3141, lat: 59.9386 },
+      promotedFrom: 'b2c1d4e5-0026-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: '8f9c0778-8299-4fcc-606d-5d6e7f8091a2',
+      type: 'person',
+      label: 'M. Duarte',
+      attrs: { role_title: { v: 'Charter broker', src: ['doc_5e7730'] } },
+      sources: ['doc_5e7730'],
+      geom: { lon: 4.4792, lat: 51.9225 },
+      promotedFrom: 'b2c1d4e5-0027-4a11-9c33-77e1f2a3b4c5',
+    },
   ],
 
   relations: [
