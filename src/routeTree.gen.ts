@@ -13,6 +13,7 @@ import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
+import { Route as ReviewDecidedRouteImport } from './routes/review_.decided'
 
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
@@ -34,18 +35,25 @@ const EntityIdRoute = EntityIdRouteImport.update({
   path: '/entity/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewDecidedRoute = ReviewDecidedRouteImport.update({
+  id: '/review_/decided',
+  path: '/review/decided',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
   '/entity/$id': typeof EntityIdRoute
+  '/review/decided': typeof ReviewDecidedRoute
 }
 export interface FileRoutesByTo {
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
   '/entity/$id': typeof EntityIdRoute
+  '/review/decided': typeof ReviewDecidedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,20 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
   '/entity/$id': typeof EntityIdRoute
+  '/review_/decided': typeof ReviewDecidedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/graph' | '/map' | '/review' | '/entity/$id'
+  fullPaths: '/graph' | '/map' | '/review' | '/entity/$id' | '/review/decided'
   fileRoutesByTo: FileRoutesByTo
-  to: '/graph' | '/map' | '/review' | '/entity/$id'
-  id: '__root__' | '/graph' | '/map' | '/review' | '/entity/$id'
+  to: '/graph' | '/map' | '/review' | '/entity/$id' | '/review/decided'
+  id:
+    | '__root__'
+    | '/graph'
+    | '/map'
+    | '/review'
+    | '/entity/$id'
+    | '/review_/decided'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +82,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   ReviewRoute: typeof ReviewRoute
   EntityIdRoute: typeof EntityIdRoute
+  ReviewDecidedRoute: typeof ReviewDecidedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntityIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review_/decided': {
+      id: '/review_/decided'
+      path: '/review/decided'
+      fullPath: '/review/decided'
+      preLoaderRoute: typeof ReviewDecidedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   ReviewRoute: ReviewRoute,
   EntityIdRoute: EntityIdRoute,
+  ReviewDecidedRoute: ReviewDecidedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
