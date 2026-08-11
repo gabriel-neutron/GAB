@@ -17,7 +17,7 @@ import {
   type LocalVerdict,
   type SortKey,
   type Subject,
-} from './review-model';
+} from './prototype-model';
 
 export interface LayoutProps {
   readonly subjects: readonly Subject[];

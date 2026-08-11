@@ -13,7 +13,7 @@ import { Popover } from 'radix-ui';
 import type { Attribute, DocId, Entity, Proposal, Relation } from '@/shared/fixtures/types';
 import { Badge } from '@/shared/ui/badge';
 import { Input } from '@/shared/ui/input';
-import { keyToLabel, shapeOf } from './attribute-shape';
+import { keyToLabel, shapeOf } from './prototype-attribute-shape';
 import {
   allEntities,
   attributeEntries,

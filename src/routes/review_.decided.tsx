@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { ReviewDecided } from '@/features/review/review-decided';
+import { ReviewDecidedPage } from '@/features/review/review-decided-page';
 
 /**
  * **PROTOTYPE — throwaway.** The record of what was decided.
@@ -12,6 +12,6 @@ import { ReviewDecided } from '@/features/review/review-decided';
  * this prototype. The report says what the split costs and what it buys.
  */
 export const Route = createFileRoute('/review_/decided')({
-  component: ReviewDecided,
+  component: ReviewDecidedPage,
   head: () => ({ meta: [{ title: 'Decided · Gabriel' }] }),
 });

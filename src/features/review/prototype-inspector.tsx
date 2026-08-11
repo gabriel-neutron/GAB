@@ -20,8 +20,8 @@
 
 import { Badge } from '@/shared/ui/badge';
 
-import { formatValue, short, type Subject } from './review-model';
-import { useReviewPass, type LayoutProps } from './review-pass';
+import { formatValue, short, type Subject } from './prototype-model';
+import { useReviewPass, type LayoutProps } from './prototype-pass';
 import {
   ChangeFlags,
   ChangeMark,
@@ -38,7 +38,7 @@ import {
   Quote,
   SortBar,
   UnroutedNote,
-} from './review-parts';
+} from './prototype-parts';
 
 export function ReviewInspector(props: LayoutProps) {
   const pass = useReviewPass(props);

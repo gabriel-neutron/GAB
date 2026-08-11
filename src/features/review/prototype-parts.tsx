@@ -49,7 +49,7 @@ import {
   type ResolvedSource,
   type SortKey,
   type Subject,
-} from './review-model';
+} from './prototype-model';
 
 /** Taken from `src/theme.css`. Light value first, dark value second. */
 export const KIND_COLOR: Readonly<Record<ChangeKind, string>> = {

@@ -21,8 +21,8 @@ import {
   subjectConfidence,
   type SortKey,
   type Subject,
-} from './review-model';
-import { ChangeMark, ConfidenceBadge, KIND_COLOR } from './review-parts';
+} from './prototype-model';
+import { ChangeMark, ConfidenceBadge, KIND_COLOR } from './prototype-parts';
 
 export interface ReviewSidebarProps {
   /** The subject being examined, when the host knows it. Identity lives in the URL — #33. */

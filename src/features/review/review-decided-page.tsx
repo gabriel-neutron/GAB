@@ -9,10 +9,10 @@
  * human is #42, and it is open, so this page shows only what carries a decision in the data.
  */
 
-import { decidedRows, short } from './review-model';
-import { ChangeMark, KIND_COLOR } from './review-parts';
+import { decidedRows, short } from './prototype-model';
+import { ChangeMark, KIND_COLOR } from './prototype-parts';
 
-export function ReviewDecided() {
+export function ReviewDecidedPage() {
   const rows = decidedRows();
 
   return (

@@ -19,9 +19,9 @@ import {
   type DecisionMap,
   type LocalVerdict,
   type SortKey,
-} from './review-model';
-import type { LayoutProps } from './review-pass';
-import { ReviewInspector } from './review-inspector';
+} from './prototype-model';
+import type { LayoutProps } from './prototype-pass';
+import { ReviewInspector } from './prototype-inspector';
 
 interface Workspace {
   readonly sort: SortKey;
