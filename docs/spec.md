@@ -1,6 +1,6 @@
 # Gabriel — Technical specification
 
-**Version** 1.2 · 7 August 2026
+**Version** 1.3 · 11 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
 No schema is settled. §3 says what `schema.md` is, and what it is not.
 
@@ -75,19 +75,26 @@ requirement, not a report.
 | # | Invariant | Decision | Tier that must carry it |
 |---|---|---|---|
 | 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
-| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. **Undecided** for `entities.sources`, `relations.sources` and `proposals.src`. See §6. |
-| 3 | A machine proposal cites a real document, never `manual`. | M8 | Database for the value. The application checks that the document exists. |
+| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. For `entities.sources`, `relations.sources` and `proposals.src` the **format** is carried by the `doc_id` domain; the tier that proves **existence** is **undecided**. See §6. |
+| 3 | A machine proposal cites a real document, never `manual`. | M8 | Database for the value, by a check that reads the writing role the proposal records. A trigger stamps that role, so the caller cannot state it. The application checks that the document exists. |
 | 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
-| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal or a direct operator action. | P1 | **Undecided.** No tier is named. See §6. |
+| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. Settled by #15. |
 | 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
 
 `schema.md` §6, §9 and §2 illustrate one way to build the checks above. That document is
 provisional and it decides nothing. Do not cite it as the authority for an invariant.
 
-The acceptance criterion in `prd.md` §7.3 asks for enforcement by a constraint or by a
-trigger for all six. **None is met today, because nothing is built.** Invariant 5, and the
-three columns named under invariant 2, are further behind: no tier is named for them at
-all. §6 records both as open.
+The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database for all six.
+**None is met today, because nothing is built.** Invariant 5 names the third tier that
+criterion allows: a **privilege boundary the writing role cannot cross**. The three columns
+under invariant 2 are further behind: their **format** is carried by the `doc_id` domain, and
+the tier that proves the document **exists** is undecided. §6 records what is open.
+
+**Invariant 5 names one door, not two.** Earlier versions of this row read "or a direct
+operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees with
+the register: the analyst writes the evidentiary layer **by promotion**. An operator edit is
+an operator-authored proposal, promoted by the same path. The tracker carries the measurement
+behind this, and the six forgeries that decided it.
 
 ---
 
@@ -154,10 +161,16 @@ every proposal, from either path
 `dissent = true` OR `confidence < threshold`. The threshold is an operational parameter,
 not a code constant.
 
-**What happens to the rest is an open question.** S3 says the operator intervenes only on
-dissent or low confidence. P1 and invariant 5 say nothing reaches the evidentiary layer
+**What happens to the rest is an open question — #42.** S3 says the operator intervenes only
+on dissent or low confidence. P1 and invariant 5 say nothing reaches the evidentiary layer
 without explicit promotion. The two cannot both hold. Do not settle this in code and do
 not settle it in a document. See §6.
+
+**One door in, and it is a function.** Nothing writes `entities` or `relations` directly. The
+promotion runs inside a function, which holds the privilege alone. It refuses a proposal that
+is not `accepted` with `decided_at` and `decided_by` set. Each evidentiary row carries the
+identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal makes one row.
+**ADR 0003 §7 holds the mechanism and the roles**, and this paragraph does not repeat it.
 
 **Applying a proposal**: a single transaction that writes the target, moves the proposal to
 `accepted`, and fills in `decided_at` / `decided_by`. A rejection moves it to `rejected`
@@ -177,8 +190,9 @@ settle one by writing code, and never settle one by writing a default value.
 
 | Topic | Status |
 |---|---|
-| Automatic application of a proposal | **OPEN and blocking.** S3 and P1 conflict. One of the two must be replaced explicitly in `decisions.md`. |
-| Enforcement tier for invariant 5, and for the three source arrays of invariant 2 | **OPEN** — #15. `prd.md` §7.3 asks for a constraint or a trigger. Neither exists. The roles of ADR 0003 hold an agent back; they do not enforce invariant 5. |
+| Automatic application of a proposal | **OPEN and blocking** — #42. S3 and P1 conflict. One of the two must be replaced explicitly in `decisions.md`. #15 is neutral on it: it fixes how a row enters, not who may decide. |
+| Enforcement tier for invariant 5 | **Settled** by #15: a privilege boundary. No role writes `entities` or `relations`; a `SECURITY DEFINER` function owned by a fourth role does, and a promotion is the only door. ADR 0003 v4 §7 carries the roles. The proof waits on the first migration, so #15 stays open. |
+| Enforcement tier for the three source arrays of invariant 2 | **OPEN** — #15. The `doc_id` domain carries the format. Nothing proves that the cited document exists, because a `CHECK` cannot read another table. A junction table on the `attribute_source` model is one mechanism that would; the ticket weighs it against the others. |
 | Mapping library and tile path | **Settled** by ADR 0005, which replaces T8. #4 closed. |
 | Frontend framework, and the shape of the frontend | **Settled** by ADR 0004, which replaces T7. #5 closed. |
 | The read HTTP layer | **Settled** by ADR 0003 v2: PostgREST. #6 closed. |

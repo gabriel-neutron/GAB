@@ -1,8 +1,24 @@
 # ADR 0003 — Schema pipeline and the read contract
 
-**Status** Accepted · **Version** 3 · 10 August 2026
+**Status** Accepted · **Version** 4 · 11 August 2026
 **Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by version 2),
 #24 (closed by ADR 0001 v3)
+
+**Version 4** repairs §3, §6 and §8, and rewrites §7. Each change rests on measurement against
+a throwaway PostgreSQL 17.5 database on 11 August 2026. No change was visible by reading.
+
+- §3 gains the objects that break its re-runnable rule when they are written plainly.
+- §6 stated a perimeter that it did not hold. A view in `api` is auto-updatable and runs with
+  the rights of its owner. `gabriel_read` wrote a row into a base table on which it holds no
+  privilege.
+- §7 said that the enforcement tier for invariant 5 stayed open. That tier is now decided, and
+  the role table changes with it. **The tracker carries the measurement.**
+- §8 gains one entry in the Zod map, for the domain that carries a document identifier.
+
+Rewriting in place is still permitted, because this ADR has produced no code: `db/` holds
+`README.md` only, neither generated folder exists, and `package.json` carries no `db:` script.
+**That permission ends with the first migration file.** Nothing in §1, §2, §4, §5 and §9
+changed.
 
 **Version 3** names the generator in §1 and rewrites §8. Version 2 left the generator open
 because none had been tested. One has now been tested, against a throwaway database that was
@@ -30,7 +46,7 @@ Accepted.
   - [4. Three commands reach the current state, from zero](#4-three-commands-reach-the-current-state-from-zero)
   - [5. A migration is tested against an empty database](#5-a-migration-is-tested-against-an-empty-database-never-against-real-data)
   - [6. Two schemas. The read role never touches a base table](#6-two-schemas-the-read-role-never-touches-a-base-table)
-  - [7. Three roles](#7-three-roles-so-an-agent-is-held-by-a-grant-and-not-by-a-prompt)
+  - [7. Four roles](#7-four-roles-so-a-write-is-held-by-a-grant-and-not-by-a-prompt-version-4)
   - [8. The generator is Kanel, and it holds two folders](#8-the-generator-is-kanel-and-it-holds-two-folders)
   - [9. PostgREST serves the `api` schema](#9-postgrest-serves-the-api-schema-version-2)
 - [Consequences](#consequences)
@@ -103,6 +119,21 @@ A table holds data, so its change must be ordered and must run once. A function 
 so its whole text can be replaced on every run. Keeping two copies of a `CREATE TABLE` — one
 ordered and one re-runnable — gives two places to edit, so a table is never re-runnable.
 
+**Two objects break the re-runnable rule if they are written plainly (version 4).**
+
+- **A trigger.** A second plain `CREATE TRIGGER` raises `trigger ... already exists`, so it
+  fails on the second `pnpm db:apply`. Write `CREATE OR REPLACE TRIGGER`, which PostgreSQL 14
+  and later supports and which was measured to run clean twice on 17.5. `schema.md` uses the
+  plain form throughout, and that illustration no longer applies.
+- **A domain, and any type.** A type holds no data, but a column's type cannot be replaced,
+  and a domain that a `CHECK` depends on cannot be dropped. A type is therefore **ordered**,
+  and it lives in `db/migrations/` beside the table that uses it.
+
+The same rule reaches a `CHECK` that calls a function: `db/migrations/` runs before
+`db/apply/`, so a constraint cannot call a function that `db/apply/` has not created yet.
+Measured — the migration fails on a fresh machine. A function a constraint depends on is
+schema, and it belongs in the ordered file.
+
 `db/apply/` runs in this order: the `api` schema, then views, then functions, then triggers,
 then grants.
 
@@ -140,6 +171,32 @@ to data that matters.
 A grants file in `db/apply/` will revoke everything on `public` from `gabriel_read`, then
 grant inside `api` only. It runs last, so it always states the current perimeter.
 
+**A grant inside `api` is not always a read (version 4).** A view is auto-updatable, and it
+runs with the rights of **its owner** and not of the caller. The owner of the views is also
+the owner of the base tables, so a write grant on a view passes every `REVOKE` on `public`.
+This was measured: `gabriel_read`, with no privilege on `public.entities`, wrote a row through
+an ordinary `api` view. A `REVOKE` of everything on `public` did not stop it, because the view
+does not read the rights of the caller.
+
+Two lines in the same grants file close it, and they are the perimeter:
+
+```sql
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA api FROM gabriel_read;
+```
+
+That statement covers every view, including the ones nobody has written yet, and the file
+re-runs on every `db:apply`, so a convenience grant is erased rather than inherited.
+
+Each view also carries `WITH (security_invoker = true)`. It is the **second layer, not the
+guard**: it must be typed on every new view for ever, adding a read is the normal weekly act
+under this section, and forgetting it raises nothing at the time.
+
+Two traps recorded so the next reader does not repeat them. A read-only session parameter is
+not a substitute — `default_transaction_read_only` is `USERSET`, so the same session turns it
+off, measured. And a probe built on a `serial` key **passes for an unrelated reason**, because
+the sequence behind the default is checked against the caller. `schema.md` uses `uuid`
+throughout, which does not mask the fault. Test this with `uuid` or the test proves nothing.
+
 **One view per concept, not per surface.** A surface-shaped view multiplies with the user
 interface. A concept-shaped view does not. Graph traversal stays a function, per T4.
 
@@ -157,26 +214,93 @@ separate question, and it is settled: **#31 is closed.** The bucket stays privat
 external read path. A reader is given the original source URL, a public web-archive URL and
 the file hash, all recorded at ingest. ADR 0002 §3 holds that decision.
 
-### 7. Three roles, so an agent is held by a grant and not by a prompt
+### 7. Four roles, so a write is held by a grant and not by a prompt (version 4)
 
 | Role | Writes |
 |---|---|
-| `gabriel_app` | Everything the backend needs, promotion included |
-| `gabriel_agent` | The candidate layer only — proposals, and the chunk and embedding tables. Never the evidentiary layer. |
+| `gabriel_owner` | Nothing, by connecting. It **owns** the tables and the write functions, and it never logs in. `NOLOGIN`, `NOINHERIT`, and no role is a member of it. |
+| `gabriel_app` | No table directly. It calls the write functions, and nothing else. |
+| `gabriel_agent` | The candidate layer only — proposals, and the chunk and embedding tables. Never the evidentiary layer, and never the configuration layer. |
 | `gabriel_read` | Nothing. `USAGE`, `SELECT` and `EXECUTE` inside `api` only. |
 
 **The rule is by layer, not by table name.** No schema is decided, so the table names that
-carry each layer are fixed when the first migration is written. The three role names are
-fixed here.
+carry each layer are fixed when the first migration is written. The four role names are fixed
+here.
+
+**The rule needs three layers, not two (version 4).** Version 3 named a candidate layer and
+an evidentiary layer. A third layer holds the agents, the workflows and their steps, and no
+role was named for it. That gap is part of this decision, because a role table that does not
+name a layer grants nothing and forbids nothing there.
+
+| Layer | Holds | Written by |
+|---|---|---|
+| Configuration | The agents, the workflows and their steps | The **owner**, through a migration or a seed file |
+| Candidate | Proposals, chunks, embeddings, runs and calls | `gabriel_agent` |
+| Evidentiary | Entities and relations | Nothing. A `SECURITY DEFINER` function only |
+
+`gabriel_app` and `gabriel_agent` get `SELECT` on the configuration layer and nothing more.
+The reason is measured: with `INSERT` on `agents`, `gabriel_agent` wrote a new agent row and
+then named that row as the cause of its own work. **A prompt that an agent wrote for itself
+is not a record of what produced a claim.** After `REVOKE INSERT`, the same insert was
+refused.
+
+**A grant is not sufficient on this layer.** A table owner ignores a column grant, and a
+`SECURITY DEFINER` function that obeys every rule above rewrote an agent prompt. The
+configuration tables are therefore **append-only by trigger**: a `BEFORE UPDATE OR DELETE`
+trigger refuses the whole row, and it held where the grant did not. The tracker carries the
+shape of those tables.
 
 An agent holds no database password. It reaches the database only through the backend, and
 whatever the backend exposes to it connects as `gabriel_agent`. **What those tools are is not
 decided here.** The AI work is open, and the tracker carries it. A prompt is not a permission.
 
-**This constrains the agent. It does not enforce invariant 5.** `gabriel_app` still writes the
-evidentiary layer, so a fault in the backend can still put a row there without a promotion.
-**The enforcement tier for invariant 5 stays open**, the tracker carries it, and `spec.md` §2
-still records it as undecided. This ADR narrows the hole. It does not close it.
+**Version 3 said that this ADR narrowed the hole around invariant 5 and did not close it.
+That tier is now decided, and this section changes with the decision. The tracker carries the
+measurement, and the proof waits on the first migration.** The short form:
+
+- No role holds `INSERT`, `UPDATE` or `DELETE` on the evidentiary tables. `gabriel_owner`
+  owns them. No grant limits the owner of a table, and that is why nothing connects as it.
+- Every write is a `SECURITY DEFINER` function owned by `gabriel_owner`, carrying
+  `SET search_path = pg_catalog, public, pg_temp`, with `EXECUTE` revoked from `PUBLIC` and
+  granted to `gabriel_app` alone.
+- **`gabriel_app` loses `INSERT` and `UPDATE` on `proposals` too.** This is the part that
+  matters. While one role can write a proposal and also promote it, no constraint in the
+  database can tell a true promotion from a false one. It was measured: a proposal written and
+  promoted in one transaction produced a row that said a person had decided.
+- **One door, and it is countable.** Each evidentiary row carries the identifier of the
+  proposal that produced it. That column is `NOT NULL UNIQUE`, so one proposal makes one row,
+  and a second promotion of the same proposal fails on the key.
+- **The database witnesses a role, never a human.** `current_user` inside a `SECURITY
+  DEFINER` function is the function owner, so a column that defaults to it records one
+  constant. `session_user` is the real caller, and it separates `gabriel_agent` from
+  `gabriel_app` and nothing finer. A proposal therefore carries the writing role in a column
+  that a `BEFORE INSERT` trigger sets from `session_user` on every row. It is a witness and
+  never an input: measured, a caller that supplied a different value stored its own role. Any
+  recorded origin says which role wrote the proposal, and says no more than that.
+
+**Four rules follow, and each one is a defect if it is broken.**
+
+1. **No role is ever made a member of `gabriel_owner`.** Membership defeats the design, and
+   `NOINHERIT` is not a substitute. Measured: with `INHERIT FALSE` the privilege test returns
+   false, and a plain `SET ROLE` then writes the table.
+2. **Every `SECURITY DEFINER` function carries `SET search_path`.** Without it, the function
+   writes into a temporary table that the caller made, and it reports success. Measured.
+   PostgreSQL makes such a function with no message, so a catalog query finds the fault and a
+   review does not.
+3. **The identity that applies `db/apply/` decides who owns a new function.** `CREATE OR
+   REPLACE` on a function that exists keeps its owner. The first `CREATE` of a new file gives
+   the function to the connected identity. One connection string therefore decides if the
+   promotion function runs as a superuser.
+4. **Every ordered file opens with `SET LOCAL ROLE gabriel_owner`.** The ordered files run as
+   the superuser, because an extension needs one. Measured: `CREATE EXTENSION` as
+   `gabriel_owner` is refused. Without the role change, every table the migration makes is
+   owned by the superuser, and §7 then owns nothing. Use `SET LOCAL`: measured, a plain
+   `SET ROLE` lives through the `COMMIT` and reaches the next file on the same connection.
+
+**What this section still does not close.** `infra/docker-compose.yml` creates
+`POSTGRES_USER: gabriel`, a superuser, and a superuser passes every grant here. That account
+is for the first start and for the ordered migrations. Nothing else connects as it. ADR 0002
+carries that separation.
 
 ### 8. The generator is Kanel, and it holds two folders
 
@@ -215,6 +339,14 @@ cannot carry a drift check.
    `jsonb` to `unknown` on its own. The type map fixes the types and a second map fixes the
    Zod schemas. Two maps must state the same rule, and keeping them in step is the cost of
    this choice.
+
+   **A fifth entry, in the Zod map only (version 4).** A document identifier is a domain, and
+   a column holds an array of it. Measured: the TypeScript output is already correct and needs
+   no entry, but the Zod output drops the array and gives the element schema alone. A plain
+   `text[]` in the same run is correct, so the fault belongs to the array of a domain. The
+   generated Zod then disagrees with the generated TypeScript, a cast hides the disagreement
+   from `tsc`, and **the drift check cannot see it, because the wrong output is the same on
+   every run.** One line in the Zod map repairs it, and it must land with the domain.
 2. **The `jsonb` map states M7 and nothing else.** PostgreSQL carries no shape for `jsonb`, so
    no generator can find one. M7 is locked, so the shape is known. This is the only type
    written by hand in the whole pipeline. It is permitted because it is not a column name, so
@@ -283,10 +415,11 @@ a rate limit belongs with a deployment, which does not exist.
 
 ## Not decided here
 
-- **The DDL itself.** No table, no column, no constraint and no trigger is decided by this
-  ADR. `schema.md` stays provisional. The real schema is written in the migration files, when
-  the build needs it, and it must satisfy `spec.md` §2. **No ticket owned the first migration
-  until 10 August 2026. One does now, and the tracker carries it.**
+- **The DDL itself.** No table name and no column name is decided by this ADR. `schema.md`
+  stays provisional. The real schema is written in the migration files, when the build needs
+  it, and it must satisfy `spec.md` §2. **No ticket owned the first migration until 10 August
+  2026. One does now, and the tracker carries it.** §7 version 4 decides where a privilege
+  boundary and an append-only trigger must stand. It does not decide the tables they stand on.
 - **The Zod major**, which §8 records as open.
 - **The test policy.** The runner is Vitest, settled by ADR 0001 §4 version 3. §5 says what a
   migration test runs against, not what must be tested.

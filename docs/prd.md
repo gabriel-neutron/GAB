@@ -143,5 +143,5 @@ copy that text back into this document.
 
 1. A sample of entities from the v1 corpus is demonstrated to be representable in the target model.
 2. Every requirement in sections 3 and 4 is justifiable by the arbitration criterion of section 1.
-3. The six invariants of the technical specification are enforced by constraint or by trigger, not merely by application convention.
+3. The six invariants of the technical specification are enforced by the database, not merely by application convention. Three tiers count: a constraint, a trigger, or a **privilege boundary the writing role cannot cross**. The third tier was added on 11 August 2026, with invariant 5. That invariant is about how a row arrived, and not about the values in it, so a check on the values cannot carry it. A privilege boundary is not application convention, because the application cannot lift it. The target of this criterion does not change.
 4. Section 5 is validated as exhaustive.
