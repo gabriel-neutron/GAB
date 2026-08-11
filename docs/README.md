@@ -12,6 +12,7 @@ For a normal coding task read `spec.md` only. Read another when the table sends 
 | `schema.md` | **Provisional — an example, not the contract.** You need an illustration of how an invariant maps to the database. |
 | `decisions.md` | `spec.md` cites an identifier such as `(M8)` or `(T5)` and you need the reason or the cost. Start at its index. |
 | `prd.md` | You need the scope: what Gabriel does, and what it refuses to do. |
+| `graph-surface.md` | You build or change the graph view. It is a build order, taken from an accepted prototype. |
 | `agents/issue-tracker.md` | You write to GitHub. |
 | `agents/domain.md` | You explore the code and you need the domain words. |
 | `agents/triage-labels.md` | You apply a triage label. |
