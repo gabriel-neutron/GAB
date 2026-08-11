@@ -1,3 +1,3 @@
 export function ReviewPage() {
-  return <p>review</p>;
+  return <h1>Review</h1>;
 }

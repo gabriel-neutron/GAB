@@ -51,6 +51,10 @@
 }
 
 :root {
+  /* `color-scheme` decides the paint of every native control: the scrollbar, the caret, the
+     focus ring, a date picker. Without it the browser draws a light scrollbar on a dark page.
+     It is one line, and it is the cheapest correction in the whole theme. See #39. */
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -86,6 +90,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

@@ -55,29 +55,27 @@ export default defineConfig(
     },
   },
 
-  // Vendored shadcn source, which only the shadcn CLI writes. ADR 0004 §8 requires this
-  // exemption to be a **path-scoped override in the flat configuration**, not an inline
-  // directive, so `noInlineConfig` still holds and no file suppresses anything.
+  // `src/shared/ui/` takes **no exemption**. #39 removed the one it had, and the reason is
+  // recorded here so that nobody adds it back from memory.
   //
-  // Two facts about it, recorded on 10 August 2026 so that nobody has to rediscover them:
+  // ADR 0004 §8 gave the folder a path-scoped override, because "vendored shadcn source cannot
+  // pass `strictTypeChecked` and `exactOptionalPropertyTypes` clean". Two facts disproved that
+  // premise, both reproduced on 10 August 2026:
   //
-  // - Today it exempts nothing. The four vendored components — button, input, select and badge
-  //   — pass every rule below with the override removed. It stays because ADR 0004 §8 says the
-  //   next component needs it, and because adding it later is answered with suppressions.
+  // - It exempted nothing. The four vendored components — button, input, select and badge —
+  //   pass every rule above with it removed.
   // - `exactOptionalPropertyTypes` is a TypeScript flag and no lint rule reads it. A file that
-  //   fails it fails `tsc`, which this override cannot reach. `tsconfig.app.json` compiles
-  //   this folder with every strict flag on, and it passes.
-  {
-    files: ['src/shared/ui/**'],
-    rules: {
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
+  //   fails it fails `tsc`, which an ESLint override cannot reach. `tsconfig.app.json`
+  //   compiles this folder with every strict flag on, and it passes.
+  //
+  // It was also a hole. An adversarial pass wrote a hand-authored file in that folder using
+  // `any` and unchecked member access, and `pnpm check` passed. The binding rule of ADR 0004
+  // §8 is **a suppression may be excluded by name, never by a pattern that authored code can
+  // enter**, and `src/shared/ui/**` is exactly such a pattern — the more so now that the folder
+  // holds hand-written components beside the vendored ones.
+  //
+  // The day a vendored file genuinely fails, add that **one file name** here. An author who is
+  // blocked until the operator adds the name is the intended gate, not a defect.
 
   // The seam of ADR 0001 §1 and ADR 0004 §5, held by a rule and not by a convention.
   {

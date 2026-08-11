@@ -1,3 +1,3 @@
 export function GraphPage() {
-  return <p>graph</p>;
+  return <h1>Graph</h1>;
 }

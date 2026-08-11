@@ -63,8 +63,8 @@
  *   label                 5.6        5.6
  *   label on muted        5.1        5.2
  *   input (the edge)      3.4        3.2
- *   primary               5.5        8.0
- *   primary-foreground    5.8        8.0     (on the primary fill)
+ *   primary               5.3        9.2
+ *   primary-foreground    5.5        9.2     (on the primary fill)
  *   candidate             5.1       11.0
  *   dissent               6.7        6.7
  *   entity-1 … entity-6   4.6–5.0    7.9–8.9
@@ -147,10 +147,16 @@
 
   /* The action. `--primary` fills the one button that commits the step, and it marks the
      selected row. Note that shadcn's `--accent` below is **not** a brand accent: it is the
-     background of a hover state. */
-  --primary: oklch(0.52 0.16 42);
+     background of a hover state.
+
+     **The action is cool and the data is warm.** The first draft made the action orange, which
+     put it beside the amber candidate and the red-orange dissent — three warm hues at rest,
+     and one colour that meant both "press this" and "look at this". The two are now separate
+     families: a cool hue is always an instruction to the operator, and a warm hue is always a
+     statement about the data. */
+  --primary: oklch(0.5 0.14 235);
   --primary-foreground: oklch(0.99 0.003 230);
-  --ring: oklch(0.52 0.16 42);
+  --ring: oklch(0.5 0.14 235);
 
   --secondary: oklch(0.93 0.005 230);
   --secondary-foreground: oklch(0.2 0.01 230);
@@ -161,8 +167,8 @@
      `--dissent` marks a disagreement between agents, which is what sends a proposal to the
      review queue. The evidentiary layer takes no hue at all: that is rule 8.
 
-     On this ground the candidate hue moves from 82 to 90. A dark amber and the primary orange
-     are hard to separate on paper, and they are not on the dark ground. */
+     On this ground the candidate hue moves from 82 to 90. A dark amber loses its identity on
+     paper and drifts towards the dissent red, and it does not on the dark ground. */
   --candidate: oklch(0.52 0.13 90);
   --dissent: oklch(0.48 0.18 28);
 
@@ -191,12 +197,12 @@
 
   --sidebar: oklch(0.995 0.002 230);
   --sidebar-foreground: oklch(0.2 0.01 230);
-  --sidebar-primary: oklch(0.52 0.16 42);
+  --sidebar-primary: oklch(0.5 0.14 235);
   --sidebar-primary-foreground: oklch(0.99 0.003 230);
   --sidebar-accent: oklch(0.93 0.005 230);
   --sidebar-accent-foreground: oklch(0.2 0.01 230);
   --sidebar-border: oklch(0.86 0.006 230);
-  --sidebar-ring: oklch(0.52 0.16 42);
+  --sidebar-ring: oklch(0.5 0.14 235);
 
   /* Rule 5. Every derived radius in `src/index.css` is a multiple of this one, so a single 0
      flattens the whole scale. */
@@ -239,9 +245,9 @@
   --border: oklch(0.32 0.012 215);
   --input: oklch(0.5 0.008 215);
 
-  --primary: oklch(0.74 0.16 45);
+  --primary: oklch(0.76 0.14 235);
   --primary-foreground: oklch(0.16 0.012 215);
-  --ring: oklch(0.74 0.16 45);
+  --ring: oklch(0.76 0.14 235);
 
   --secondary: oklch(0.24 0.012 215);
   --secondary-foreground: oklch(0.94 0.008 215);
@@ -267,12 +273,12 @@
 
   --sidebar: oklch(0.2 0.012 215);
   --sidebar-foreground: oklch(0.94 0.008 215);
-  --sidebar-primary: oklch(0.74 0.16 45);
+  --sidebar-primary: oklch(0.76 0.14 235);
   --sidebar-primary-foreground: oklch(0.16 0.012 215);
   --sidebar-accent: oklch(0.24 0.012 215);
   --sidebar-accent-foreground: oklch(0.94 0.008 215);
   --sidebar-border: oklch(0.32 0.012 215);
-  --sidebar-ring: oklch(0.74 0.16 45);
+  --sidebar-ring: oklch(0.76 0.14 235);
 }
 
 /* ------------------------------------------------------------------------------------------

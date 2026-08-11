@@ -22,6 +22,10 @@ export const Route = createFileRoute('/entity/$id')({
   },
   component: DetailPage,
   notFoundComponent: EntityNotFound,
+
+  // The identifier is in the title. Four routes that all report "Gabriel" tell a screen reader
+  // nothing, and an entity page is the one route where the name changes on every visit.
+  head: ({ params }) => ({ meta: [{ title: `Entity ${params.id} · Gabriel` }] }),
 });
 
 function EntityNotFound() {
