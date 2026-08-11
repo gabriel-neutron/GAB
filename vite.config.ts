@@ -16,4 +16,10 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
+
+  // `maplibre-gl` starts a worker to turn source data into tiles. Pre-bundled by esbuild for
+  // the development server, that worker never starts: the raster basemap still draws, because
+  // it needs no worker, and every vector layer stays empty while `isStyleLoaded()` never turns
+  // true. Nothing is logged. Excluding the package from the pre-bundling repairs it.
+  optimizeDeps: { exclude: ['maplibre-gl'] },
 });
