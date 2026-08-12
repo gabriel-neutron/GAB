@@ -1,61 +1,40 @@
-# Domain Docs
+# Domain words
 
-How the engineering skills must use this repo's domain documentation when they explore the
-codebase.
+How a skill uses the documentation of this project while it explores the code.
 
-## Before exploring, read these
+## Where the words live
 
-- **`CONTEXT.md`** at the repo root — the glossary and the ubiquitous language.
-- **`docs/adr/`** — the ADRs that touch the area you are about to change.
+- **`CONTEXT.md`**, at the repository root — the glossary and the ubiquitous language. The
+  `mattpocock-skills:domain-modeling` skill writes it, and only when a term or a decision is
+  settled. The `grilling` and `codebase-design` skills reach that skill.
+- **`docs/prd.md` and `docs/decisions.md`** — the domain words of this project, until the
+  glossary exists. Read these two.
+- **`docs/adr/`** — the decisions that touch the area you are about to change.
+  `docs/README.md` holds the register, and ADR 0001 holds the repository layout, the check
+  command and the definition of done.
 
-**`docs/adr/` exists. `CONTEXT.md` does not yet.** If a file is absent, **continue
-silently**. Do not report that it is absent. Do not propose to make it in advance. The
-`mattpocock-skills:domain-modeling` skill makes `CONTEXT.md` only when a term or a decision
-is actually resolved. The `mattpocock-skills:grilling` and `mattpocock-skills:codebase-design`
-skills reach that skill.
+**An absent file is a silent condition. Continue, and report nothing about it.** The glossary
+arrives when a term is settled, and never in advance.
 
-Until `CONTEXT.md` exists, the domain words of this project live in `docs/prd.md` and in
-`docs/decisions.md`. Read those instead.
+`CONTEXT.md` stays at the repository root, because every skill reads it from that path.
+`docs/authoring.md` records that exception to "every document lives in `docs/`".
 
-## File structure, once the build starts
+## Use the words of the glossary
 
-**ADR 0001 holds the repository layout.** Read `docs/adr/0001-repository-conventions.md` for
-the folders, the package manager, the check command and the definition of done. Do not
-restate that layout here — two copies drift apart.
+When your output names a domain concept — an issue title, a proposal to refactor, a
+hypothesis, a test name — use the term as the glossary defines it, and keep the term it tells
+you to prefer.
 
-```
-/
-├── CONTEXT.md
-└── docs/
-    └── adr/
-        ├── 0001-<decision>.md
-        └── 0002-<decision>.md
-```
+A concept that the glossary lacks is a signal. Either the language is invented here, and you
+think again, or the gap is real, and you record it for `mattpocock-skills:domain-modeling`.
 
-`CONTEXT.md` stays at the repo root, because all the skills read it from that path. This is
-an agreed exception to the "keep each document in `docs/`" rule in `docs/README.md`.
+## Report a conflict with a decision or an ADR
 
-`docs/adr/` needs no line in the first table of `docs/README.md`. It needs a line in the ADR
-register in that same document. `docs/README.md` states what is an ADR, what is not an ADR,
-and the rules for numbering and for superseding one.
+When your output disagrees with an ADR, or with an entry in `docs/decisions.md`, say so in the
+output itself:
 
-## Use the vocabulary of the glossary
-
-When your output names a domain concept (an issue title, a proposal to refactor, a
-hypothesis, a test name), use the term as the glossary defines it. Do not change to a
-synonym that the glossary tells you to avoid.
-
-If the concept that you need is not yet in the glossary, this is a signal. Either you
-invent language that the project does not use (think again), or there is a true gap (record
-it for `mattpocock-skills:domain-modeling`).
-
-## Report conflicts with a decision or an ADR
-
-If your output disagrees with an ADR, or with an entry in `docs/decisions.md`, say so
-directly. Do not override it silently:
-
-> _Disagrees with P1 (nothing reaches the evidentiary layer without promotion), but it is
+> _Disagrees with P1 (nothing reaches the evidentiary layer without promotion), and it is
 > correct to open it again because…_
 
-`docs/decisions.md` is locked. A decision that contradicts an entry must replace that entry
-explicitly. It must never work around it.
+`docs/decisions.md` is locked. An entry changes only when a new decision names it and replaces
+it.

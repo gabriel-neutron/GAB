@@ -1,6 +1,6 @@
 # ADR 0005 — Cartographic library and tile path
 
-**Status** Accepted · **Version** 1 · 10 August 2026
+**Status** Accepted · 10 August 2026
 **Tickets** #4 (closed by this ADR), #31 (closed)
 **Replaces** **T8** in `docs/decisions.md`, which deferred the cartographic library and the
 tile path. T8 is answered, not contradicted. Its warning is honoured: the choice is made
@@ -9,8 +9,7 @@ tile path. T8 is answered, not contradicted. Its warning is honoured: the choice
 ## Context
 
 T8 deferred the choice and stated that it prejudged nothing, because PostGIS constrains no
-rendering path. `spec.md` §6 recorded it as open, and `schema.md` §13 marked the `layers` table
-provisional until it closed.
+rendering path. `schema.md` §13 marked the `layers` table provisional until it closed.
 
 `prd.md` §4.2 requires that the map is both an analysis surface and a presentation surface,
 and that the analyst creates geographic elements and composes layers inside Gabriel. The
@@ -137,7 +136,7 @@ to a bought, orthorectified scene.
 
 ### 6. What `layers` becomes
 
-`spec.md` §3.13 asked what the provisional table changes to.
+`schema.md` §13 asked what the provisional table changes to.
 
 - **`kind='drawn'` disappears**, with the editor.
 - **One data source, many presentation entries.** A panel entry per entity type is the right

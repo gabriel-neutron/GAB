@@ -1,8 +1,8 @@
 # Gabriel — Technical specification
 
-**Version** 1.3 · 11 August 2026
+**Version** 1.4 · 12 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
-No schema is settled. §3 says what `schema.md` is, and what it is not.
+This document decides no table and no column. §3 says what `schema.md` is, and what it is not.
 
 ## Table of contents
 
@@ -10,7 +10,7 @@ No schema is settled. §3 says what `schema.md` is, and what it is not.
 |---|---|---|
 | 1 | Overview | You need the shape of the system. |
 | 2 | Invariants | Always. These rules hold on every write path. |
-| 3 | Schema | You need to know what is decided about the database. Nothing is. |
+| 3 | Schema | You need to know what decides the shape of the database. |
 | 4 | Read path | You add a read, a query or a public surface. |
 | 5 | Write path | You add an ingest, an extraction or a promotion path. |
 | 6 | What is not specified here | Before you choose a value that no document gives. |
@@ -68,14 +68,13 @@ flowchart LR
 
 These rules are never violated, whatever the write path.
 
-**No tier enforces any of them today.** No database exists and no code exists. The last
-column names the tier that must carry each rule when the build reaches it. It is a
-requirement, not a report.
+**The last column is a requirement, and never a report.** It names the tier that must carry
+each rule when the build reaches it.
 
 | # | Invariant | Decision | Tier that must carry it |
 |---|---|---|---|
 | 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
-| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. For `entities.sources`, `relations.sources` and `proposals.src` the **format** is carried by the `doc_id` domain; the tier that proves **existence** is **undecided**. See §6. |
+| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. For `entities.sources`, `relations.sources` and `proposals.src` the **format** is carried by the `doc_id` domain; the tier that proves **existence** is **undecided**, and the tracker carries it. |
 | 3 | A machine proposal cites a real document, never `manual`. | M8 | Database for the value, by a check that reads the writing role the proposal records. A trigger stamps that role, so the caller cannot state it. The application checks that the document exists. |
 | 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
 | 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. Settled by #15. |
@@ -85,10 +84,10 @@ requirement, not a report.
 provisional and it decides nothing. Do not cite it as the authority for an invariant.
 
 The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database for all six.
-**None is met today, because nothing is built.** Invariant 5 names the third tier that
-criterion allows: a **privilege boundary the writing role cannot cross**. The three columns
-under invariant 2 are further behind: their **format** is carried by the `doc_id` domain, and
-the tier that proves the document **exists** is undecided. §6 records what is open.
+Invariant 5 names the third tier that criterion allows: a **privilege boundary the writing
+role cannot cross**, held by ADR 0003 §7. The three columns under invariant 2 are further
+behind: their **format** is carried by the `doc_id` domain, and the tier that proves the
+document **exists** is undecided. The tracker carries that question.
 
 **Invariant 5 names one door, not two.** Earlier versions of this row read "or a direct
 operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees with
@@ -100,13 +99,14 @@ behind this, and the six forgeries that decided it.
 
 ## 3. Schema
 
-**No schema is settled.** `schema.md` shows one possible shape, produced during the
-requirements grilling. It is an example. It is not part of this contract, and no line of it
-is decided.
+**The schema is written in the migration files, and nowhere else.** ADR 0003 §1 makes the
+`.sql` files the only source of truth. A migration is written when the build needs it, and it
+must satisfy §2 above.
 
-The real schema is written in the migration files, when the build needs it. It must satisfy
-§2 above. Read `schema.md` for an illustration of how an invariant can map to a table, a
-constraint or a trigger — never as an authority.
+`schema.md` shows one possible shape, produced during the requirements grilling. It is an
+example, it is no part of this contract, and no line of it is decided. Read it for an
+illustration of how an invariant can map to a table, a constraint or a trigger — never as an
+authority.
 
 ---
 
@@ -185,36 +185,22 @@ illustrates a pair; it settles neither.
 
 ## 6. What is not specified here
 
-Each row is an open question. Per `CLAUDE.md`, each one lives as a tracker ticket. Never
-settle one by writing code, and never settle one by writing a default value.
+**Every open question lives on the tracker, as a ticket, and no list of them is kept in this
+document.** A copy of the tracker inside a document goes stale on the day a ticket closes, and
+the reader then holds two answers to one question.
 
-| Topic | Status |
-|---|---|
-| Automatic application of a proposal | **OPEN and blocking** — #42. S3 and P1 conflict. One of the two must be replaced explicitly in `decisions.md`. #15 is neutral on it: it fixes how a row enters, not who may decide. |
-| Enforcement tier for invariant 5 | **Settled** by #15: a privilege boundary. No role writes `entities` or `relations`; a `SECURITY DEFINER` function owned by a fourth role does, and a promotion is the only door. ADR 0003 v4 §7 carries the roles. The proof waits on the first migration, so #15 stays open. |
-| Enforcement tier for the three source arrays of invariant 2 | **OPEN** — #15. The `doc_id` domain carries the format. Nothing proves that the cited document exists, because a `CHECK` cannot read another table. A junction table on the `attribute_source` model is one mechanism that would; the ticket weighs it against the others. |
-| Mapping library and tile path | **Settled** by ADR 0005, which replaces T8. #4 closed. |
-| Frontend framework, and the shape of the frontend | **Settled** by ADR 0004, which replaces T7. #5 closed. |
-| The read HTTP layer | **Settled** by ADR 0003 v2: PostgREST. #6 closed. |
-| The two reads that return everything | **OPEN** — #37. The full-graph read and the full map read cannot carry the default `LIMIT` below. ADR 0003 v2 §9 records the exemption; the mechanism is open. |
-| Where view state lives | **A proposal, for review** — #33. The URL holds identity, `localStorage` holds the workspace, and a value lives in exactly one of the two. There is no permalink requirement. |
-| Graph layout positions | **OPEN** — #35. A browser force layout is not deterministic, so positions are precomputed and stored. No schema holds them. |
-| Migration tool, and the order the DDL is applied in | **Settled** by ADR 0003. #22 closed. |
-| What the read-only role selects from: base tables, or views and functions | **Settled** by ADR 0003: views and functions in an `api` schema, never a base table. #23 closed. |
-| Which generator produces the TypeScript types from the schema | **OPEN** — #26. ADR 0003 requires generation; it names no tool, because `geometry` and `vector` break naive ones. |
-| The LLM stack: provider, model per agent, spend ceiling, failure behaviour | **OPEN** — #25. The ticket records a provider preference. **No entry in `decisions.md` and no ADR settles it**, so nothing here is locked. Parked until the UI exists. |
-| How a reader reaches a source file | **Settled** by #31, closed. The bucket stays private. The UI links the original source URL, plus a web-archive URL and the file hash recorded at ingest. PU1 governs the claims, not the bytes; that reading lives on #31 and is not a locked entry. |
-| Whether the raw store stays on MinIO | **OPEN** — #32. Both MinIO repositories are archived, so no release is expected. The image is pinned, so nothing changes without a commit. |
-| Proving that the raw bucket and the `documents` index agree | **OPEN** — #27. P6 gives one door; this is the alarm for when the door is bypassed. |
-| Withdrawing a document, and the manual deletion exception | **OPEN** — #28. The ticket proposes soft withdrawal, which leaves T3 standing. Overlaps #11. |
-| The payload of a structured-file mapping proposal | **OPEN** — #29. Created by the replacement of P6. Overlaps #7. |
-| Folder layout, package manager, check command | **Settled** by ADR 0001. |
-| How PostgreSQL and the object store run locally | **Settled** by ADR 0002. |
-| Test command, and the runner behind it | **Settled** by ADR 0001 v3: Vitest. #24 closed. #60 installed it, and `pnpm test` runs `vitest run` over one browser project. What must be tested stays **OPEN** — #21. |
-| A deployment, and authenticated editors | **OPEN and locked against** — #34. The operator intends a public read surface with authenticated editing later. It contradicts **C5** and `prd.md` §2, so no code anticipates it. |
-| Definition of done | Settled by ADR 0001, except the test requirement, which is **OPEN** — #21. |
-| Detailed shape of `payload` per operation type | To be frozen with the first agent written |
-| Confidence threshold | Operational parameter, to be calibrated on the first runs |
-| Rendering proposals as ghost elements | Client-side rendering work, no schema impact |
-| v1 corpus migration | After validating the model on a sample (C7) |
-| Correction and right-of-reply mechanism | Adopted by PU1. Its shape is open, to be settled before first publication. |
+Three rules follow, and each one is a defect if it is broken.
+
+- **Never settle an open question by writing code**, and never settle one by writing a default
+  value. Stop, and ask the operator.
+- **A settled question leaves the tracker for one of three homes, and never for this section.**
+  `decisions.md` takes it when it is scope. An ADR takes it when it is a build decision.
+  §2, §4 or §5 above take it when it is an invariant or a path.
+- **No code anticipates a decision that is not made.** The clearest case is a deployment with
+  authenticated editors: the operator intends one later, and it contradicts **C5** and
+  `prd.md` §2, so nothing is built towards it today.
+
+Two kinds of value are deliberately unspecified for ever, and neither is a ticket. An
+**operational parameter** — the confidence threshold, the zoom breakpoints, the buffer radius
+— is calibrated on real data and never written as a code constant. A **provisional shape** —
+every table in `schema.md` — is decided by the first migration that needs it.

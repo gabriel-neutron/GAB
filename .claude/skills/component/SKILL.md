@@ -12,10 +12,10 @@ surface document holds what this one component does.
 
 1. **Find the contract.** `docs/README.md` names the surface document. Read four parts of it: the
    entry for this component under "The components"; every finding under §3 that the entry cites by
-   number; "The rules the rebuild must not lose"; and the *Check* of this step under "The order to
-   build in", which is the acceptance test. Then read "What this document must not settle": a
-   component that turns on one of those questions stops there and asks the operator. State back in
-   five lines: what it does, what it must never do, the "Works when", and the *Check*.
+   number; "The rules the rebuild keeps"; and the *Check* of this step under "The order to
+   build in", which is the acceptance test. Then read "What stays open": a component that turns on
+   one of those questions stops there and asks the operator. State back in five lines: what it
+   does, the rules it holds, the "Works when", and the *Check*.
    - **A component of a surface, with no entry of its own.** The surface is not specified to this
      depth. Stop, and ask the operator.
    - **A surface with no document.** Only the operator writes one. Stop, and ask.
@@ -48,7 +48,7 @@ and not a licence: stop, and ask the operator.
 | Story | `<component>.stories.tsx`, beside its component | The states of one component | — |
 
 - **A feature imports `src/shared/` only.** `src/routes/` is the one folder that composes two
-  features. ADR 0004 §5, held by a lint rule.
+  features. ADR 0001 §1, held by a lint rule.
 - **A shape moves to `shared/` at its second call site, never at its first.** The rail of the map
   and the rail of the graph is the known case — see the `rail` entry of `docs/map-surface.md`,
   which says when to lift it.
@@ -299,8 +299,9 @@ tracker carries it, and you add no test of another kind without the operator.**
 
 1. Quote the "Works when" of the contract and the *Check* of the build order. For each clause, name
    the story that proves it, or write `no story can reach this` and say what does.
-2. List every rule section of the document's "must not lose" by number. For each, write the rule
-   this component obeys, or `does not reach this component` with the reason. Omit none.
+2. List every rule section of the document's "The rules the rebuild keeps" by number. For each,
+   write the rule this component obeys, or `does not reach this component` with the reason. Omit
+   none.
 3. Run every *Check:* in this document on every file you touched, and give each count.
 4. Walk each row of *What a generated design writes* against the file, by row.
 5. `pnpm check` passes and `pnpm test` passes.

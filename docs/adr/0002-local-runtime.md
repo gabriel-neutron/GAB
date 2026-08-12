@@ -1,12 +1,8 @@
 # ADR 0002 — Local runtime and data stores
 
-**Status** Accepted · **Version** 1 · 7 August 2026
+**Status** Accepted · 7 August 2026
 **Tickets** #31 (closed). This ADR closes a question that had no ticket, which was itself a
 fault.
-**Resolves** the `infra/` row of the "Deliberately absent" table in ADR 0001. That row held the
-folder back because no document said how PostgreSQL runs locally, and no ticket carried the
-question. This ADR answers it, and the Status column of that row now reads **Created**. The
-rest of ADR 0001 stays true and stays Accepted.
 
 ## Context
 
@@ -146,5 +142,4 @@ already excluded by `.gitignore`.
 
 - **PgBouncer and the CDN rules.** `spec.md` §4 names both as read-path guardrails. Neither
   belongs to a single operator's laptop, and both wait for a deployment that does not exist.
-  ADR 0001 listed them under `infra/`; they stay absent.
 - **Anything about deployment.** This ADR describes the operator's machine only.

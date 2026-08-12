@@ -1,17 +1,8 @@
 # ADR 0004 — Frontend stack
 
-**Status** Accepted · **Version** 2 · 12 August 2026
-**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003 v2), #39 (closed, and it corrects §8)
+**Status** Accepted · 12 August 2026
+**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003), #39 (closed)
 
-**Version 2 corrects §8, and changes nothing else.** Version 1 gave `src/shared/ui/**` a
-path-scoped override. #39 removed that override from `eslint.config.ts` and did not update this
-document. Every reader since has found the two in disagreement, and has argued the case again in
-a comment or a report. §8 below now states what the repository does.
-
-`docs/README.md` says to supersede an ADR that has produced code, and not to rewrite it. That
-rule is for a **new** decision. No decision is made here: #39 took this one and implemented it,
-and version 1 is simply out of date. A superseding ADR would record a change that already
-happened, and would leave the wrong text in place for the next reader.
 **Replaces** **T7** in `docs/decisions.md`, which deferred the frontend framework. T7 is
 answered, not contradicted: it postponed the choice until the real volumes, the cartographic
 library and the graph rendering mode were known. All three are now known. Its consequence —
@@ -19,8 +10,8 @@ shadcn is adopted whatever the host framework — is kept.
 
 ## Context
 
-`spec.md` §6 recorded the frontend framework as deferred. #5 was blocked by #4, which is
-closed by ADR 0005.
+`spec.md` recorded the frontend framework as deferred. #5 was blocked by #4, which is closed
+by ADR 0005.
 
 Three constraints already decided narrow this to almost nothing:
 
@@ -84,20 +75,13 @@ it.** Such a relation is invisible in the graph and is reached through the detai
 
 ### 5. Features, and the seam between them
 
-| Folder | Holds | Imports |
-|---|---|---|
-| `src/features/<feature>/` | One feature: `map`, `graph`, `review`, `detail` | `shared/`, `contract/`, itself |
-| `src/shared/` | The seam, and the user interface kit | `contract/` only |
-| `src/routes/` | The route files | Any feature, `shared/`, `contract/` |
-| `src/contract/` | Generated read types — ADR 0003 §8 | Nothing |
+**ADR 0001 §1 holds the layout, the seam and what the seam carries.** The lint
+configuration enforces all of it, with deny by default, so a new folder fails loudly. This
+section adds one property of the frontend, and restates none of that.
 
-**A feature never imports another feature.** The seam carries three things and nothing else:
-the current selection, the active filter, and the read client. A lint rule holds this, with
-deny by default, so a new folder fails loudly.
-
-`src/shared/` is a leaf. A component kit is not a feature, so an import of it is never a
-breach — that sentence exists because a plain reading of the rule would flag every shadcn
-import.
+A feature is one surface of the user interface, and the operator's requirement is that a
+separate agent builds each one in isolation. The seam is what makes that possible, and ADR
+0003 §8 gives the generated read types, which every feature may import.
 
 Features load as separate bundles, so MapLibre never loads when the graph is open. A lint rule
 proves that nobody wrote a cross-import. Only an assertion on the emitted chunks proves that
@@ -135,10 +119,10 @@ The runner is Vitest — ADR 0001 §4, which closed #24.
 `routeTree.gen.ts` is generated and carries its own lint banner. It is excluded from the
 linter and the formatter **by name**, and it is committed. **It is the only exemption.**
 
-**`src/shared/ui/` takes none.** Version 1 gave the folder a path-scoped override, on the
-premise that vendored shadcn source cannot pass `strictTypeChecked` and
-`exactOptionalPropertyTypes` clean, because Radix spreads optional properties freely. #39
-removed the override. Two facts disproved the premise, both reproduced on 10 August 2026:
+**`src/shared/ui/` takes none.** A path-scoped override for that folder was proposed and then
+removed by #39. Its premise was that vendored shadcn source cannot pass `strictTypeChecked`
+and `exactOptionalPropertyTypes` clean, because Radix spreads optional properties freely. Two
+facts disproved that premise, both reproduced on 10 August 2026:
 
 - **The override exempted nothing.** The four vendored components — button, input, select and
   badge — pass every rule with it removed.
@@ -164,14 +148,13 @@ Every other strict flag stays.
 
 ## Consequences
 
-- **The read client cannot be written yet.** With `strictTypeChecked` and zero suppressions, an
-  untyped `fetch` wrapper cannot compile: `no-unsafe-assignment` and its family fire on
-  `unknown`, and nothing may suppress them. ADR 0003 §8 names the generator, so the read
-  client now waits only for the first migration. `src/contract/` stays absent until a table
-  exists to generate from.
-- **A shared `Filter` type is not written yet.** No query, no view and no schema exist, so its
-  shape would be a guess. The first feature writes its query inline. The second call site is
-  the earliest honest place to lift a shared type.
+- **The read client cannot be written before the contract types exist.** With
+  `strictTypeChecked` and zero suppressions, an untyped `fetch` wrapper cannot compile:
+  `no-unsafe-assignment` and its family fire on `unknown`, and nothing may suppress them. ADR
+  0003 §8 names the generator, and a generator with no table to read produces nothing, so the
+  read client waits for the first migration.
+- **A shared `Filter` type waits for a second call site.** Shaped before a query, a view and a
+  schema exist, it is a guess. The first feature writes its query inline.
 - **Selection needs no shared module.** It is a route parameter under §7.
 - **TypeScript 7 is refused** until `typescript-eslint` supports it. TS 7 shipped with the Go
   compiler in July 2026, and typescript-eslint closed TS 7 support as *not planned* until a
@@ -189,8 +172,8 @@ Every other strict flag stays.
 
 - **The layout and the navigation.** Deferred by the operator to a layout prototype. The
   backbone renders routes with no navigation, so a route is reached by typing its address.
-- **The theme.** A basic theme and the switch from the shadcn documentation are installed. The
-  design is a later discussion.
+- **The theme.** The shadcn documentation gives a basic theme and a switch, and the design is
+  a later discussion.
 - **Where the chat surface lives.** `spec.md` §1 and `prd.md` §4.3 name it, and no feature
   holds it. Deferred with the AI work.
 - **What "edit" means in the layer panel.**

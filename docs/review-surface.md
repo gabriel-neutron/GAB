@@ -11,9 +11,9 @@ none of them.
 2. [What the analyst does here](#2-what-the-analyst-does-here)
 3. [What the prototype found](#3-what-the-prototype-found)
 4. [The components](#4-the-components)
-5. [The rules the rebuild must not lose](#5-the-rules-the-rebuild-must-not-lose)
-6. [What is scaffolding, and must not be rebuilt](#6-what-is-scaffolding-and-must-not-be-rebuilt)
-7. [What this document must not settle](#7-what-this-document-must-not-settle)
+5. [The rules the rebuild keeps](#5-the-rules-the-rebuild-keeps)
+6. [Scaffolding, which the rebuild leaves behind](#6-scaffolding-which-the-rebuild-leaves-behind)
+7. [What stays open](#7-what-stays-open)
 8. [The order to build in](#8-the-order-to-build-in)
 9. [Not decided here](#9-not-decided-here)
 
@@ -163,7 +163,7 @@ about. **#33 as written admits no third class, and a review pass produces one.**
 
 ### 3.8 One link is narrower than #31, and #31 may be wrong — evidence for #31
 
-`spec.md` §6 records #31 as settled and closed: the UI links the original source URL, plus a
+ADR 0002 §3 records #31 as settled and closed: the UI links the original source URL, plus a
 web-archive URL and the file hash recorded at ingest. The operator asked for one link on
 11 August 2026, and the prototype obeys: the document title is the only link, it prefers the
 archive copy, and no hash is shown.
@@ -193,7 +193,7 @@ and not the call.
 
 ## 4. The components
 
-Five. Each one names what it does, what it must never do, and how to know that it works.
+Five. Each one names what it does, the rules it holds, and how to know that it works.
 
 ### 4.1 `model` — subjects, changes and the record
 
@@ -230,8 +230,8 @@ the sort bar.
 **Colour.** Addition takes `--candidate`, deletion takes `--dissent`, modification stays grey
 because rule 8 of `src/theme.css` makes the normal state grey and a sourced edit is the common
 case. The eye goes to the two rarer and costlier acts. **Read the tokens from the theme.** The
-prototype inlined the values when `theme.css` was not yet imported, and `src/index.css` imports it
-now.
+prototype inlined the values. **The rebuild reads each token from `src/theme.css`, so it imports
+that stylesheet before it uses one.**
 
 **Check.** A deletion and a modification never carry the same weight. A flag prints once per card.
 
@@ -258,7 +258,7 @@ A page of its own, rarely opened. Kept for ever, never deleted.
 can be counted and not read back. On a page whose only purpose is the record of what was set aside,
 that is the missing column.
 
-## 5. The rules the rebuild must not lose
+## 5. The rules the rebuild keeps
 
 Each rule below was a defect in the prototype. Each one is invisible in a review.
 
@@ -314,7 +314,7 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 - **A stored value is read behind a guard**, and every fault returns the fallback.
 - The six values of §3.7 have no home. **Do not invent one in code.** #33 carries it.
 
-## 6. What is scaffolding, and must not be rebuilt
+## 6. Scaffolding, which the rebuild leaves behind
 
 | Scaffolding | Why it existed |
 |---|---|
@@ -324,10 +324,10 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 | The threshold constant | §3.6. It draws a queue. It decides nothing. |
 | The regular expression that recovers quoted text | §3.4. It measures the hole. It is not a citation path. |
 | The frozen clock | The fixture carries fixed dates, so a real clock would make two runs incomparable. |
-| The inlined colour values | `theme.css` was not imported when they were written. It is now. Read the tokens. |
+| The inlined colour values | The prototype had no import of `theme.css`. Import the stylesheet, and read the tokens. |
 | `review-sidebar.tsx` | The narrow triage queue of P3. It was built and never mounted, so it produced no finding. See §9. |
 
-## 7. What this document must not settle
+## 7. What stays open
 
 | Question | Ticket | What the prototype adds |
 |---|---|---|
@@ -337,7 +337,6 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 | How a disagreement is recorded | **#44** | §3.3 — `dissent` is a flag with no argument, and `AgentCall` records the input only. A votes table is not enough without an output field. |
 | Whether a reader sees the rendered prompt | **#45** | The prototype shows it, behind a control, and states on screen that it is one prompt with no reply. `prd.md` §2 gives one operator, so no reader distinct from the operator exists yet. **That is a report, and not a proposal.** |
 | Where the view state lives | **#33** | §3.7 — a pass produces six values that fit neither box, and all six are lost on reload. |
-| What a reader is given instead of the bucket | **#31, closed** | §3.8 — the screen is knowingly narrower than the closed decision, and a scanned document with no address now gives a reader nothing at all. |
 | What a call record names | **#16** | §3.9 — an operator edit carries a call that names an agent which never ran. |
 | Whether the sample is representable | **#8** | §3.1 — the sample cannot exercise the pivotal step. |
 

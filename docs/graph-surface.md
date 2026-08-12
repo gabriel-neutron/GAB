@@ -10,9 +10,9 @@ driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #3
 2. [What the analyst does here](#2-what-the-analyst-does-here)
 3. [What the prototype found](#3-what-the-prototype-found)
 4. [The components](#4-the-components)
-5. [The rules the rebuild must not lose](#5-the-rules-the-rebuild-must-not-lose)
-6. [What is scaffolding, and must not be rebuilt](#6-what-is-scaffolding-and-must-not-be-rebuilt)
-7. [What this document must not settle](#7-what-this-document-must-not-settle)
+5. [The rules the rebuild keeps](#5-the-rules-the-rebuild-keeps)
+6. [Scaffolding, which the rebuild leaves behind](#6-scaffolding-which-the-rebuild-leaves-behind)
+7. [What stays open](#7-what-stays-open)
 8. [The order to build in](#8-the-order-to-build-in)
 9. [Not decided here](#9-not-decided-here)
 
@@ -79,8 +79,7 @@ blind to a rotation.
 picture is as different as before. Neither the coordinates nor the distances between nodes survive
 a second run.
 
-This confirms the line "Graph layout positions" in `spec.md` §6 with a number: a position must be
-**precomputed and stored**. A stored
+This confirms ADR 0004 §4 with a number: a position must be **precomputed and stored**. A stored
 position carries the identity of the layout run that made it, because a position has a meaning
 only beside the other positions of the same run. Dim-only filtering (§5.2) proves that one set of
 positions serves every filter, so a position is **not** held per filter. **What holds the
@@ -107,7 +106,7 @@ than a hub that severs one leaf.
 
 ## 4. The components
 
-Seven. Each one names what it does, what it must never do, and how to know that it works.
+Seven. Each one names what it does, the rules it holds, and how to know that it works.
 
 ### 4.1 `structure` — the macro reads
 
@@ -126,10 +125,10 @@ interface Topology {
 }
 ```
 
-**Must not recurse.** A depth-first walk of ten thousand nodes overflows the stack, so the search
-carries its own stack.
+**Carries its own stack.** A depth-first walk of ten thousand nodes overflows the stack of the
+language, so the search holds its own.
 
-**Must not randomise.** Label propagation walks the nodes in insertion order, and it breaks a tie
+**Runs deterministically.** Label propagation walks the nodes in insertion order, and it breaks a tie
 on the lowest label. The same graph then gives the same communities on every open. That
 determinism is the contrast with the force layout, and the rebuild keeps it.
 
@@ -146,16 +145,15 @@ by community, one colour for a bridge, one for an isolate, size by degree. Index
 by endpoint, the M4 relations by **every** endpoint they name, and the pending proposals by their
 target.
 
-**Must not leave the attribute shape to the default.** The graphology default is an index
+**Declares the node shape and the edge shape.** The graphology default is an index
 signature of `any`, and a read from it produces an unsafe assignment that nobody may suppress
-(ADR 0004 §8). Declare the node and edge shapes.
+(ADR 0004 §8).
 
-**Must not put an M4 relation on the graph.** It has no node at one end. It goes in the
-by-endpoint index, and nowhere else. ADR 0004 §4.
+**Holds an M4 relation in the by-endpoint index alone.** It has no node at one end, so that index
+is its only home. ADR 0004 §4.
 
-**Must not give a colour that WebGL cannot read.** Sigma parses `#rrggbb` and `rgb()` on the CPU.
-It does not read `hsl()`, and a colour it cannot read comes out **black, for the whole graph, in
-silence**.
+**Gives every colour as `#rrggbb` or `rgb()`.** Sigma parses those two on the CPU. An `hsl()`
+colour comes out **black, for the whole graph, in silence**.
 
 **Works when.** The M4 relation of the fixture is absent from the edges and present in the index.
 The picture is not black.
@@ -165,7 +163,7 @@ The picture is not black.
 **Does.** Owns the Sigma instance, the selection, the filter, the camera, the marker layer and the
 workspace. Publishes a read-only view to each subscriber.
 
-**Must not hold a React value, and must not cause a React render.** ADR 0004 §3.
+**Lives wholly outside React.** ADR 0004 §3 keeps every value and every render out of this file.
 
 **Interface.** The view carries the selection, the filter and the counts. **It carries no detail**,
 because `features/detail` owns the detail surface.
@@ -193,9 +191,9 @@ list selects an entity and moves the camera to it.
 the same control, and it reported that to **#36**. A second design of it is the fault that the
 finding names. `features/map/prototype-bar.ts` holds the reference.
 
-**Must not be copied a third time.** Two throwaway prototypes may hold one shape twice. When the
+**The third copy is a shared component.** Two throwaway prototypes may hold one shape twice. When the
 second surface is built, **lift the rail into `shared/`**, because a feature never imports a
-feature (ADR 0004 §5).
+feature (ADR 0001 §1).
 
 **Three differences from the map, and each one has a reason.**
 
@@ -232,7 +230,7 @@ untyped value.
 
 **Does.** Holds the address, and puts the detail sidebar beside the canvas.
 
-**Why here.** ADR 0004 §5 refuses a feature that imports a feature. `routes/entity.$id.tsx` says
+**Why here.** ADR 0001 §1 refuses a feature that imports a feature. `routes/entity.$id.tsx` says
 the same from the other side. The route holds the selection in React state; the canvas is
 memoised, so a change of the selection never reaches it.
 
@@ -240,7 +238,7 @@ memoised, so a change of the selection never reaches it.
 surface draws one entity. An entity that the read does not carry. State the case on screen at the
 same width, so that the canvas never changes size.
 
-## 5. The rules the rebuild must not lose
+## 5. The rules the rebuild keeps
 
 Each rule below was a defect in the prototype. Each one is invisible in a review.
 
@@ -290,12 +288,13 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 ### 5.5 The theme
 
 `src/theme.css` rules 5 to 7 bind: the radius is 0, a hairline of one pixel separates two
-surfaces, and there is no gradient, no blur, no glass and no glow. The theme is no longer deferred.
+surfaces, and there is no gradient, no blur, no glass and no glow. **These rules reach the screen
+through that stylesheet, so the rebuild imports it before it uses a token.**
 
 A panel that floats over the canvas takes no pointer event on its own padding. A drag that starts
 there must still move the graph below it.
 
-## 6. What is scaffolding, and must not be rebuilt
+## 6. Scaffolding, which the rebuild leaves behind
 
 | Scaffolding | Why it existed |
 |---|---|
@@ -304,7 +303,7 @@ there must still move the graph below it.
 | The cache of the layout, held in a module | It is a stored position, kept in memory. The real one is stored, and it survives a reload. |
 | The detail panel that the graph drew for itself | `features/detail` owns that surface now. |
 
-## 7. What this document must not settle
+## 7. What stays open
 
 | Question | Ticket | What the prototype adds |
 |---|---|---|

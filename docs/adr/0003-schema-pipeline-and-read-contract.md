@@ -1,40 +1,11 @@
 # ADR 0003 — Schema pipeline and the read contract
 
-**Status** Accepted · **Version** 4 · 11 August 2026
-**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by version 2),
-#24 (closed by ADR 0001 v3)
+**Status** Accepted · 11 August 2026
+**Tickets** #22 (closed by this ADR), #23 (closed by this ADR), #6 (closed by this ADR),
+#24 (closed by ADR 0001 §4)
 
-**Version 4** repairs §3, §6 and §8, and rewrites §7. Each change rests on measurement against
-a throwaway PostgreSQL 17.5 database on 11 August 2026. No change was visible by reading.
-
-- §3 gains the objects that break its re-runnable rule when they are written plainly.
-- §6 stated a perimeter that it did not hold. A view in `api` is auto-updatable and runs with
-  the rights of its owner. `gabriel_read` wrote a row into a base table on which it holds no
-  privilege.
-- §7 said that the enforcement tier for invariant 5 stayed open. That tier is now decided, and
-  the role table changes with it. **The tracker carries the measurement.**
-- §8 gains one entry in the Zod map, for the domain that carries a document identifier.
-
-Rewriting in place is still permitted, because this ADR has produced no code: `db/` holds
-`README.md` only, neither generated folder exists, and `package.json` carries no `db:` script.
-**That permission ends with the first migration file.** Nothing in §1, §2, §4, §5 and §9
-changed.
-
-**Version 3** names the generator in §1 and rewrites §8. Version 2 left the generator open
-because none had been tested. One has now been tested, against a throwaway database that was
-never committed, so §8 rests on measurement and no longer on trust. Rewriting in place is
-still permitted, because no code exists under this ADR: `db/` holds `README.md` only, no DDL
-is written, and neither generated folder exists. **ADR 0001 §3 is amended by this version**
-and now runs four steps. Nothing in §2 to §7 and §9 changed.
-
-**Version 2** added §9 and amended §6. It named the read HTTP layer, which version 1 left
-open, and recorded that two reads cannot carry a default `LIMIT`. Nothing in versions 1 §1 to
-§8 changed at that time.
-
-**Resolves** the `db/` row of the "Deliberately absent" table in ADR 0001. `db/` is created.
-`src/contract/` and `src/db/` stay absent until the first migration exists, because a
-generator with no table to read produces nothing. The rest of ADR 0001 stays true and stays
-Accepted.
+Every measurement below was made against a throwaway PostgreSQL 17.5 database, which was never
+committed and decided no schema. **No fault recorded here was visible by reading.**
 
 ## Table of contents
 
@@ -46,15 +17,15 @@ Accepted.
   - [4. Three commands reach the current state, from zero](#4-three-commands-reach-the-current-state-from-zero)
   - [5. A migration is tested against an empty database](#5-a-migration-is-tested-against-an-empty-database-never-against-real-data)
   - [6. Two schemas. The read role never touches a base table](#6-two-schemas-the-read-role-never-touches-a-base-table)
-  - [7. Four roles](#7-four-roles-so-a-write-is-held-by-a-grant-and-not-by-a-prompt-version-4)
+  - [7. Four roles](#7-four-roles-so-a-write-is-held-by-a-grant-and-not-by-a-prompt)
   - [8. The generator is Kanel, and it holds two folders](#8-the-generator-is-kanel-and-it-holds-two-folders)
-  - [9. PostgREST serves the `api` schema](#9-postgrest-serves-the-api-schema-version-2)
+  - [9. PostgREST serves the `api` schema](#9-postgrest-serves-the-api-schema)
 - [Consequences](#consequences)
 - [Not decided here](#not-decided-here)
 
 ## Context
 
-`spec.md` §6 held two open questions. #22 asked which tool applies the DDL, and in what
+Two open questions were held on the tracker. #22 asked which tool applies the DDL, and in what
 order. #23 asked what the read-only role selects from. Both gate real work: #22 gates the
 first line of SQL, and #23 gates the contract the UI is written against.
 
@@ -82,8 +53,8 @@ TypeScript types are **generated** from the live database by introspection. No c
 written twice, and no type is written by hand. A drift check regenerates the types and fails
 if the result differs from what is committed. Drift is a failing build, not a discipline.
 
-That check belongs in `pnpm check`. **ADR 0001 §3 is amended by this version and now runs
-four steps.** The step needs a running database, and that cost is recorded there.
+That check belongs in `pnpm check`, and **ADR 0001 §3 carries it**. The step needs a running
+database, and that cost is recorded there.
 
 A TypeScript-first tool that writes the SQL — Drizzle Kit and its family — is **rejected**.
 
@@ -119,7 +90,7 @@ A table holds data, so its change must be ordered and must run once. A function 
 so its whole text can be replaced on every run. Keeping two copies of a `CREATE TABLE` — one
 ordered and one re-runnable — gives two places to edit, so a table is never re-runnable.
 
-**Two objects break the re-runnable rule if they are written plainly (version 4).**
+**Two objects break the re-runnable rule if they are written plainly.**
 
 - **A trigger.** A second plain `CREATE TRIGGER` raises `trigger ... already exists`, so it
   fails on the second `pnpm db:apply`. Write `CREATE OR REPLACE TRIGGER`, which PostgreSQL 14
@@ -139,8 +110,8 @@ then grants.
 
 ### 4. Three commands reach the current state, from zero
 
-**These commands are defined here and are not yet in `package.json`.** They are added with the
-first migration, because a command that runs no file reports success and does nothing.
+**These commands are defined here, and they enter `package.json` with the first migration.** A
+command that runs no file reports success and does nothing.
 
 ```
 docker compose -f infra/docker-compose.yml up -d    the database exists and is empty
@@ -171,7 +142,7 @@ to data that matters.
 A grants file in `db/apply/` will revoke everything on `public` from `gabriel_read`, then
 grant inside `api` only. It runs last, so it always states the current perimeter.
 
-**A grant inside `api` is not always a read (version 4).** A view is auto-updatable, and it
+**A grant inside `api` is not always a read.** A view is auto-updatable, and it
 runs with the rights of **its owner** and not of the caller. The owner of the views is also
 the owner of the base tables, so a write grant on a view passes every `REVOKE` on `public`.
 This was measured: `gabriel_read`, with no privilege on `public.entities`, wrote a row through
@@ -214,7 +185,7 @@ separate question, and it is settled: **#31 is closed.** The bucket stays privat
 external read path. A reader is given the original source URL, a public web-archive URL and
 the file hash, all recorded at ingest. ADR 0002 §3 holds that decision.
 
-### 7. Four roles, so a write is held by a grant and not by a prompt (version 4)
+### 7. Four roles, so a write is held by a grant and not by a prompt
 
 | Role | Writes |
 |---|---|
@@ -227,10 +198,10 @@ the file hash, all recorded at ingest. ADR 0002 §3 holds that decision.
 carry each layer are fixed when the first migration is written. The four role names are fixed
 here.
 
-**The rule needs three layers, not two (version 4).** Version 3 named a candidate layer and
-an evidentiary layer. A third layer holds the agents, the workflows and their steps, and no
-role was named for it. That gap is part of this decision, because a role table that does not
-name a layer grants nothing and forbids nothing there.
+**The rule needs three layers, not two.** A candidate layer and an evidentiary layer are the
+two that are obvious. A third layer holds the agents, the workflows and their steps, and it
+must be named here as well: a role table that does not name a layer grants nothing and forbids
+nothing there.
 
 | Layer | Holds | Written by |
 |---|---|---|
@@ -254,9 +225,8 @@ An agent holds no database password. It reaches the database only through the ba
 whatever the backend exposes to it connects as `gabriel_agent`. **What those tools are is not
 decided here.** The AI work is open, and the tracker carries it. A prompt is not a permission.
 
-**Version 3 said that this ADR narrowed the hole around invariant 5 and did not close it.
-That tier is now decided, and this section changes with the decision. The tracker carries the
-measurement, and the proof waits on the first migration.** The short form:
+**The enforcement tier for invariant 5 is decided here: a privilege boundary. The tracker
+carries the measurement, and the proof waits on the first migration.** The short form:
 
 - No role holds `INSERT`, `UPDATE` or `DELETE` on the evidentiary tables. `gabriel_owner`
   owns them. No grant limits the owner of a table, and that is why nothing connects as it.
@@ -314,12 +284,11 @@ nothing about what the database returns for a given row, about ordering, or abou
 result. This removes one class of surprise, not all of them.
 
 **Two folders, not two files.** Kanel writes one file per relation, inside a folder named
-after the schema. Version 2 of this ADR named `src/contract/api.ts` and `src/db/schema.ts`.
-No generator produces those two files, so the names are withdrawn.
+after the schema. No generator produces one file per schema, so nothing here names one.
 
 **The choice is measured, not taken on trust.** Three candidates were run or read against a
 throwaway database holding a `geometry`, a `geography`, a `vector` and an M7-shaped `jsonb`
-column. That database was never committed, and it decided no schema.
+column.
 
 | Candidate | `geometry` | `geography` | `vector` |
 |---|---|---|---|
@@ -340,7 +309,7 @@ cannot carry a drift check.
    Zod schemas. Two maps must state the same rule, and keeping them in step is the cost of
    this choice.
 
-   **A fifth entry, in the Zod map only (version 4).** A document identifier is a domain, and
+   **A fifth entry, in the Zod map only.** A document identifier is a domain, and
    a column holds an array of it. Measured: the TypeScript output is already correct and needs
    no entry, but the Zod output drops the array and gives the element schema alone. A plain
    `text[]` in the same run is correct, so the fault belongs to the array of a domain. The
@@ -371,7 +340,7 @@ cannot carry a drift check.
 **The Zod major is open, and the tracker carries it.** The Zod half of this section rests on a
 package that declares no Zod version and emits Zod 4.
 
-### 9. PostgREST serves the `api` schema (version 2)
+### 9. PostgREST serves the `api` schema
 
 The read HTTP layer is **generated, not hand-written**. #6 asked which, and §6 above had
 already built what a generated layer needs: an `api` schema, one view per concept, functions,
@@ -417,9 +386,9 @@ a rate limit belongs with a deployment, which does not exist.
 
 - **The DDL itself.** No table name and no column name is decided by this ADR. `schema.md`
   stays provisional. The real schema is written in the migration files, when the build needs
-  it, and it must satisfy `spec.md` §2. **No ticket owned the first migration until 10 August
-  2026. One does now, and the tracker carries it.** §7 version 4 decides where a privilege
-  boundary and an append-only trigger must stand. It does not decide the tables they stand on.
+  it, and it must satisfy `spec.md` §2. **The tracker carries the first migration.** §7 decides
+  where a privilege boundary and an append-only trigger must stand. It does not decide the
+  tables they stand on.
 - **The Zod major**, which §8 records as open.
-- **The test policy.** The runner is Vitest, settled by ADR 0001 §4 version 3. §5 says what a
+- **The test policy.** The runner is Vitest, settled by ADR 0001 §4. §5 says what a
   migration test runs against, not what must be tested.

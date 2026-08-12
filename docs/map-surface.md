@@ -11,9 +11,9 @@ Settles none of them.
 2. [What the analyst does here](#2-what-the-analyst-does-here)
 3. [What the prototype found](#3-what-the-prototype-found)
 4. [The components](#4-the-components)
-5. [The rules the rebuild must not lose](#5-the-rules-the-rebuild-must-not-lose)
-6. [What is scaffolding, and must not be rebuilt](#6-what-is-scaffolding-and-must-not-be-rebuilt)
-7. [What this document must not settle](#7-what-this-document-must-not-settle)
+5. [The rules the rebuild keeps](#5-the-rules-the-rebuild-keeps)
+6. [Scaffolding, which the rebuild leaves behind](#6-scaffolding-which-the-rebuild-leaves-behind)
+7. [What stays open](#7-what-stays-open)
 8. [The order to build in](#8-the-order-to-build-in)
 9. [Not decided here](#9-not-decided-here)
 
@@ -173,7 +173,7 @@ next reader who removes it will lose an afternoon.
 
 ## 4. The components
 
-Eight. Each one names what it does, what it must never do, and how to know that it works.
+Eight. Each one names what it does, the rules it holds, and how to know that it works.
 
 ### 4.1 `projection` — the corpus, reduced to what a map can draw
 
@@ -187,8 +187,8 @@ the count of the relations that this leaves out.
 identifier, and that number is a position in an array. The identity of the row is its `id`, and
 the address carries that one. Keep both lookups.
 
-**Must not decide which types exist.** ADR 0005 §6: the list is a projection, made by the machine.
-A type that no entity carries never appears, and nobody maintains a list.
+**Projects the type list from the read.** ADR 0005 §6: the list is made by the machine. A type
+that no entity carries stays off the rail, and nobody maintains a list by hand.
 
 **Works when.** Adding a type to the read adds a row to the rail with no other change. No entity
 without a geometry appears anywhere.
@@ -266,7 +266,7 @@ names.
 **It is already built twice.** The graph carries the same rail — `docs/graph-surface.md` §4.4 says
 so. **Two throwaway prototypes may hold one shape twice; three call sites may not.** When the
 second surface is rebuilt, lift the rail into `shared/`, because a feature never imports a feature
-(ADR 0004 §5). The differences the graph needs are listed in its own §4.4.
+(ADR 0001 §1). The differences the graph needs are listed in its own §4.4.
 
 **Works when.** A type switches off and the count says so. An entity is reached by name in two
 steps. The closed rail still says what is drawn.
@@ -320,7 +320,7 @@ type, both endpoints, the interval and the source documents. The endpoints move 
 
 **Does.** Holds the address, listens for the selection, and puts the detail sidebar beside the map.
 
-**Why here.** ADR 0004 §5 refuses a feature that imports a feature. `routes/entity.$id.tsx` says
+**Why here.** ADR 0001 §1 refuses a feature that imports a feature. `routes/entity.$id.tsx` says
 the same from the other side.
 
 **No selection, no sidebar.** An empty address is the normal state of a map, so the route composes
@@ -332,7 +332,7 @@ belongs to `/entity/:id`, where a bad address really is a fault.
 **Works when.** A change of the selection does not re-render the canvas. A stale identifier in the
 address gives a map at full width, and no fault on screen.
 
-## 5. The rules the rebuild must not lose
+## 5. The rules the rebuild keeps
 
 Each rule below was a defect in the prototype. Each one is invisible in a review.
 
@@ -391,7 +391,8 @@ Each rule below was a defect in the prototype. Each one is invisible in a review
 
 ### 5.5 The theme, and the licence
 
-`src/theme.css` binds: the radius is 0, a hairline of one pixel separates two surfaces, and there
+`src/theme.css` binds, and the rebuild imports that stylesheet before it uses a token from it:
+the radius is 0, a hairline of one pixel separates two surfaces, and there
 is no gradient, no blur, no glass and no glow. A shadow is only for a true overlay. Rule 11 keeps
 the entity hues on the map and out of the chrome. Rule 13 makes a column of figures line up, so a
 value on a row is monospace and right aligned. Rule 16 truncates a value, and never wraps it.
@@ -404,17 +405,17 @@ wording for both grounds. Two rules follow, and both were faults first:
 - **The credit on screen matches the ground on screen.** MapLibre drops the attribution of a
   source that no visible layer uses. This was checked, and not assumed.
 
-## 6. What is scaffolding, and must not be rebuilt
+## 6. Scaffolding, which the rebuild leaves behind
 
 | Scaffolding | Why it existed |
 |---|---|
 | `?variant=`, and the floating bar that carries it | It switches between designs under comparison. Five bars and three rows were built; one of each survives. |
 | The four bars and the two rows that lost | They are the primary source for the choice, and they are on the branch. |
 | The relation card the map drew for itself | Nothing owns a relation surface yet. §4.7. |
-| The window event that carries the selection | It is the cheapest seam a prototype can offer. ADR 0004 §5 names the real one, and it is not written. |
+| The window event that carries the selection | It is the cheapest seam a prototype can offer. ADR 0001 §1 names the real one, and it is not written. |
 | The raster tiles of the map view | A stand-in for the archive of ADR 0005 §2. §7. |
 
-## 7. What this document must not settle
+## 7. What stays open
 
 | Question | Ticket | What the prototype adds |
 |---|---|---|

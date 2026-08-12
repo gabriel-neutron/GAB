@@ -10,9 +10,9 @@ driven and accepted by the operator on 11 August 2026. **Tickets** Reports to #1
 2. [What the analyst does here](#2-what-the-analyst-does-here)
 3. [What the prototype found](#3-what-the-prototype-found)
 4. [The components](#4-the-components)
-5. [The rules the rebuild must not lose](#5-the-rules-the-rebuild-must-not-lose)
-6. [What is scaffolding, and must not be rebuilt](#6-what-is-scaffolding-and-must-not-be-rebuilt)
-7. [What this document must not settle](#7-what-this-document-must-not-settle)
+5. [The rules the rebuild keeps](#5-the-rules-the-rebuild-keeps)
+6. [Scaffolding, which the rebuild leaves behind](#6-scaffolding-which-the-rebuild-leaves-behind)
+7. [What stays open](#7-what-stays-open)
 8. [The order to build in](#8-the-order-to-build-in)
 9. [Not decided here](#9-not-decided-here)
 
@@ -30,7 +30,7 @@ ticket, and never as a decision.
 path. This document holds one view.
 
 **Two components, and the route joins them.** The feature exports the full page and a narrow
-sidebar. A feature never imports another feature (ADR 0004 §5), so the map and the graph never
+sidebar. A feature never imports another feature (ADR 0001 §1), so the map and the graph never
 import this one: the **route** puts the sidebar beside their canvas. Both already do.
 
 ## 2. What the analyst does here
@@ -104,7 +104,7 @@ screen — was drawn at about **3.3:1** against the ground, below the 4.5:1 that
 requires. The control keeps `disabled`; the opacity is back at 100; and "not editable" is said by a
 flat fill with no border. The corrected ratio is about 16:1.
 
-**A read-only surface must never say "not editable" by fading the data.**
+**A read-only surface says "not editable" with a flat fill, and keeps the data at full contrast.**
 
 ### 3.5 The mark of an M4 relation must come from the relation
 
@@ -132,7 +132,7 @@ surface must print a decimal point, the value cannot sit in a number input.**
 
 ## 4. The components
 
-Seven. Each names what it does, what it must never do, and how to know that it works.
+Seven. Each names what it does, the rules it holds, and how to know that it works.
 
 ### 4.1 `record` — the claims, grouped and flowing
 
@@ -146,11 +146,11 @@ each claim out as a cell that takes its width from its value.
 | up to 34 characters | 26 rem |
 | longer | the whole line |
 
-**Must not need a second layout for the sidebar.** The same rule stacks the cells when the pane is
+**One layout serves the page and the sidebar.** The same rule stacks the cells when the pane is
 narrow. Only the width of the name changes.
 
-**Must not invent the groups in the finished product.** §3.2. Until the attribute carries its
-group, the rule that recovers it from the key stays in one place, named as a guess.
+**The attribute carries its own group in the finished product.** §3.2. Until it does, the rule
+that recovers the group from the key stays in one place, named as a guess.
 
 **Works when.** 100 claims read in about 40 lines, and the same component fills a 24 rem sidebar
 with one claim to a line.
@@ -163,8 +163,8 @@ joined into the one box.
 **Must be one size.** A hundred boxes of six widths read as noise, and the eye loses the left edge
 of the value as a guide.
 
-**Must not fade the value** (§3.4), **must not show a spinner** (§3.7), and **must not write**.
-Every control is disabled until #42 is closed.
+**Shows every value at its full contrast** (§3.4), **gives every character of the value its
+room** (§3.7), and **reads only**. Every control is disabled until #42 is closed.
 
 **Works when.** The four types of the probe are all legible at their full value, in both themes.
 
@@ -222,7 +222,7 @@ surface has the same problem, and one answer must serve both.
 
 **Must not act.** No accept, no reject: that is the review queue, and #42 is open.
 
-## 5. The rules the rebuild must not lose
+## 5. The rules the rebuild keeps
 
 ### 5.1 Labelling — PU1 and #12
 
@@ -248,7 +248,8 @@ surface has the same problem, and one answer must serve both.
 
 ### 5.4 The theme
 
-`src/theme.css` binds: the radius is 0, a hairline separates two surfaces, and the data carries no
+`src/theme.css` binds, and the rebuild imports that stylesheet before it uses a token from it:
+the radius is 0, a hairline separates two surfaces, and the data carries no
 hue at all — a hue means "look at this". The links are the exception, and they take the accent,
 because a reader must see what is reachable.
 
@@ -262,7 +263,7 @@ another rule and a later file cannot win by cascade order.
 - **The stored rendered prompt is not drawn.** The trail reaches it in one join — entity, proposal,
   call, prompt — and #45 is open. See §7.
 
-## 6. What is scaffolding, and must not be rebuilt
+## 6. Scaffolding, which the rebuild leaves behind
 
 | Scaffolding | Why it existed |
 |---|---|
@@ -274,7 +275,7 @@ another rule and a later file cannot win by cascade order.
 `?src=` is **not** scaffolding. It is how the sidebar hands a document to a new tab, and §4.4 keeps
 it.
 
-## 7. What this document must not settle
+## 7. What stays open
 
 | Question | Ticket | What the prototype adds |
 |---|---|---|
@@ -284,7 +285,6 @@ it.
 | Where the view state lives | **#33** | The detail surface needs no workspace state. The identity is the identifier in the path; the only other state is which disclosure is open. Question 5 of #33 is answered with "nothing". |
 | The shape the fixture stands in for | **#46** | §3.2 — no type, no unit, no group, no order. This is the largest finding of the prototype. |
 | What happens to a proposal with no dissent and high confidence | **#42** | The record draws the row and takes no action on it. Every control stays disabled until it is answered. |
-| How a reader reaches a source file | **#31**, closed | §3.3 — a reading, not a change: all three are given, and a rail does not repeat them. |
 
 ## 8. The order to build in
 
