@@ -1,3 +1,232 @@
+/**
+ * The graph surface — the live canvas, and the panels beside it.
+ *
+ * Built from `docs/graph-surface.md` §4.3, §4.4, §4.5, §4.6, §4.7, §5.1, §5.2, §5.4, §5.5 and §8
+ * step 4, and from every rule of `CANVAS.md`. It is the entry point of the feature, so it keeps
+ * the `-page` name.
+ *
+ * **This file owns the two elements, and `./controller` owns the library.** ADR 0004 §2 and §3.
+ * One `ref` for the canvas, one `ref` for the marker overlay, one `useEffect` that calls
+ * `mountGraph` and returns `destroy`. That effect is the adapter, which is where `CANVAS.md`
+ * permits it. **The mount is idempotent and the cleanup is complete**: React invokes the effect
+ * two times in development, `mountGraph` destroys an instance it finds on the same element, and
+ * the cleanup removes the listener and kills the instance.
+ *
+ * **The live element is inside a memoised child that takes the two refs and nothing else.** A ref
+ * is one object for the life of this component, so no later render of this file can build the
+ * element again. A second element is a second WebGL context, the browser drops the older one, and
+ * the failure looks like a blank canvas and is not one.
+ *
+ * **The published view is React state, above that memoised child, and §4.7 sanctions it in as
+ * many words:** "The route holds the selection in React state; the canvas is memoised, so a change
+ * of the selection never reaches it." Read with `CANVAS.md`, which refuses React state in an
+ * **ancestor** of the live element: the memo is what makes the two agree, and it is a rule and not
+ * an improvement of speed. **Do not remove it.**
+ *
+ * **The selection leaves on an event, and never on a property** — §4.6. `./controller` calls
+ * `emitGraphSelection`, and the route listens. A property from the route is a new function on
+ * every render of the route, and that defeats the memoisation above.
+ *
+ * **`eslint.config.ts` refuses a story for this file by name**, because one story is one live
+ * WebGL context. The panels beside the canvas are storied on their own.
+ */
+
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+
+import { corpus } from '@/shared/fixtures/corpus';
+import { cn } from '@/shared/lib/utils';
+
+import { emitGraphSelection } from './bridge';
+import { mountGraph, type GraphController, type GraphView } from './controller';
+import { Legend } from './legend';
+import type { GraphModel } from './model';
+import { Rail, type RailAct } from './rail';
+import { deriveRailRows, type RailStep } from './rail-rows';
+
+/**
+ * What one publish of `./controller` gives this file.
+ *
+ * The model travels with the view because a theme change builds the model again (§4.2), and the
+ * rows of the rail and the lines of the legend are read from it. `./controller` states that the
+ * model is a getter and that a caller reads it again at each publish.
+ */
+interface GraphSnapshot {
+  readonly view: GraphView;
+  readonly model: GraphModel;
+}
+
+interface GraphCanvasProps {
+  /** The element Sigma takes and owns. Its size comes from the layout, never from its content. */
+  readonly canvas: RefObject<HTMLDivElement | null>;
+  /** The element that carries the ring and each marker of UC5, over the canvas. */
+  readonly overlay: RefObject<HTMLDivElement | null>;
+}
+
+/**
+ * The live element, and nothing else.
+ *
+ * **It takes two refs and no value of the view**, so `memo` holds for every render of the page: a
+ * ref is the same object at each render. `CANVAS.md`: no React render inside the tree that wraps
+ * the live element.
+ */
+const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasProps) {
+  return (
+    <>
+      <div ref={canvas} className={cn('absolute inset-0')} />
+      {/* The overlay is positioned, because `./controller` puts an absolute layer inside it. It
+          takes no pointer event, so a drag that starts on it still moves the graph — §5.5. */}
+      <div ref={overlay} className={cn('pointer-events-none absolute inset-0')} />
+    </>
+  );
+});
+
 export function GraphPage() {
-  return <h1>Graph</h1>;
+  const canvas = useRef<HTMLDivElement | null>(null);
+  const overlay = useRef<HTMLDivElement | null>(null);
+  /** The handle of §4.3. The rail and the legend drive the graph through it, and never around it. */
+  const controller = useRef<GraphController | null>(null);
+
+  const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(null);
+
+  /**
+   * The two steps of the rail. **This value dies with the view**, so React state is where ADR 0004
+   * §7 puts it, and `CANVAS.md` permits it beside a memoised canvas. It is held here, and not in
+   * `./rail`, because `deriveRailRows` needs both fields to build the rows, and a value in two
+   * stores is the fault the ADR names.
+   */
+  const [step, setStep] = useState<RailStep>({ openType: null, query: '' });
+
+  /**
+   * The one effect of this file, and it is the adapter — `CANVAS.md` permits a `useEffect` there
+   * and in a subscription, and this is both.
+   *
+   * The list is empty. `corpus` is a module import, and the two refs are stable, so nothing here
+   * can mount a second graph.
+   *
+   * `subscribe` calls its listener at once with the view of that moment, so this file needs no
+   * seeding path of its own: a component that subscribes after the canvas is built has already
+   * missed the restore of the address.
+   */
+  useEffect(() => {
+    const element = canvas.current;
+    const marks = overlay.current;
+    // Both elements are in the returned tree, so React has attached them before this effect runs.
+    // This test states that, and it invents no second mounting path.
+    if (element === null || marks === null) return;
+
+    // **Nothing is selected until this graph says so.** `./bridge` holds the last announcement for
+    // a subscriber that attaches after the mount, and nothing else clears it: a `mountGraph` that
+    // throws — no WebGL context is the real case — announces nothing, and the route is then seeded
+    // with the selection of the **previous** mount and draws an entity that no canvas drew.
+    emitGraphSelection(null);
+
+    const handle = mountGraph(element, marks, corpus);
+    controller.current = handle;
+    const unsubscribe = handle.subscribe((view) => {
+      setSnapshot({ view, model: handle.model });
+    });
+
+    return () => {
+      unsubscribe();
+      handle.destroy();
+      // A destroyed graph answers nothing, so the held announcement goes with it.
+      emitGraphSelection(null);
+      // A cleanup of an older mount must not drop the handle of a newer mount.
+      if (controller.current === handle) controller.current = null;
+    };
+  }, []);
+
+  /**
+   * The rows of the rail. The derivation is in `./rail-rows`: this file sorts nothing, caps
+   * nothing and counts nothing.
+   *
+   * **The memo reads the four values the rows are built from, and never the whole snapshot.** A
+   * publish builds a new snapshot object, and a fold of the rail or of the legend is a publish. On
+   * the snapshot this memo therefore ran `deriveRailRows` again for one click on a chevron — two
+   * walks of every node and a sort, which is about twenty thousand iterations at the ten thousand
+   * entities of §2. `./controller` keeps the identity of each value that did not change, so the
+   * four dependencies below hold across a fold.
+   */
+  const model = snapshot?.model ?? null;
+  const filter = snapshot?.view.filter ?? null;
+  const selection = snapshot?.view.selection ?? null;
+  const rows = useMemo(
+    () =>
+      model === null || filter === null ? null : deriveRailRows(model, filter, step, selection),
+    [model, filter, step, selection],
+  );
+
+  const act = useCallback((next: RailAct) => {
+    const handle = controller.current;
+    if (handle === null) return;
+    switch (next.kind) {
+      case 'hide-types':
+        // §5.2: the filter holds the types that are switched **off**. `./rail-rows` built the set.
+        handle.setFilter({ hiddenTypes: next.hiddenTypes });
+        return;
+      case 'open-type':
+        setStep({ openType: next.type, query: '' });
+        return;
+      case 'change-query':
+        setStep((held) => ({ openType: held.openType, query: next.query }));
+        return;
+      case 'select-entity':
+        // §5.1: a **control** may move the camera, and a click on a node may not. A row of the
+        // rail is that control, so the selection and the move happen together here.
+        handle.select({ kind: 'entity', id: next.id });
+        handle.flyTo(next.id);
+        return;
+    }
+  }, []);
+
+  /**
+   * The two panel keys go to `./controller`, which owns the workspace.
+   *
+   * **The defect this deletes:** this file held the same two values in React state, seeded from
+   * the record and patched on each change, so one value sat in two stores — ADR 0004 §7, and the
+   * skill names a value that must survive a reload and lives in React state as a fault. The
+   * handle publishes them now, and the next publish brings the new value back.
+   */
+  const openRail = useCallback((open: boolean) => {
+    controller.current?.setRailOpen(open);
+  }, []);
+
+  const openLegend = useCallback((open: boolean) => {
+    controller.current?.setLegendOpen(open);
+  }, []);
+
+  return (
+    <div className={cn('relative size-full overflow-hidden')}>
+      <GraphCanvas canvas={canvas} overlay={overlay} />
+
+      {/* §5.5: each floating panel takes no pointer event on its own padding, and neither does the
+          box that places it. A drag that starts there still moves the graph below. */}
+      <div className={cn('pointer-events-none absolute inset-y-2 left-2 flex')}>
+        {snapshot === null || rows === null ? null : (
+          <Rail rows={rows} open={snapshot.view.railOpen} onOpenChange={openRail} onAct={act} />
+        )}
+      </div>
+
+      <div className={cn('pointer-events-none absolute right-2 bottom-2')}>
+        {snapshot === null ? null : (
+          <Legend
+            reading={{
+              definitions: snapshot.model.legendDefinitions,
+              counts: snapshot.model.legendCounts,
+              reach: { lit: snapshot.view.lit, dimmed: snapshot.view.dimmed },
+              // §8 step 7: the count that cannot be drawn goes on the screen. The two figures are
+              // **view** values, so they travel the path `lit` and `dimmed` take, and `./legend`
+              // states the remainder in words.
+              markers: {
+                drawn: snapshot.view.markersDrawn,
+                overCap: snapshot.view.markersOverCap,
+              },
+            }}
+            open={snapshot.view.legendOpen}
+            onOpenChange={openLegend}
+          />
+        )}
+      </div>
+    </div>
+  );
 }
