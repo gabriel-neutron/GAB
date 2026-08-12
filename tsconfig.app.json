@@ -19,6 +19,11 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
+    // The block below is copied in `tsconfig.node.json` and `tsconfig.storybook.json`, and the
+    // copy is deliberate. ADR 0001 §3 puts every strict check on in every target. A base file
+    // with `extends` works, and it moves the standard out of the file that a reader opens.
+    // **Change one of the three, and change all three.** Only six options differ between them:
+    // `lib`, `types`, `jsx`, `baseUrl`, `paths` and `tsBuildInfoFile`.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

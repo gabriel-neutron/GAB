@@ -4,7 +4,7 @@ import boundaries from 'eslint-plugin-boundaries';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/build', '**/coverage'] },
+  { ignores: ['**/node_modules', '**/dist', '**/build', '**/coverage', '**/storybook-static'] },
 
   // The route tree is generated and carries its own banner. It is excluded by name, never by a
   // pattern that authored code can enter (ADR 0004 §8).
@@ -55,34 +55,23 @@ export default defineConfig(
     },
   },
 
-  // `src/shared/ui/` takes **no exemption**. #39 removed the one it had, and the reason is
-  // recorded here so that nobody adds it back from memory.
+  // `src/shared/ui/` takes **no exemption**, and `routeTree.gen.ts` above is the only one.
+  // ADR 0004 §8 holds the decision, the two facts that disproved the premise of the override
+  // that version 1 granted, and the hole it left. #39 removed it. Read §8 before you add it
+  // back: `src/shared/ui/**` is a pattern that authored code can enter.
   //
-  // ADR 0004 §8 gave the folder a path-scoped override, because "vendored shadcn source cannot
-  // pass `strictTypeChecked` and `exactOptionalPropertyTypes` clean". Two facts disproved that
-  // premise, both reproduced on 10 August 2026:
-  //
-  // - It exempted nothing. The four vendored components — button, input, select and badge —
-  //   pass every rule above with it removed.
-  // - `exactOptionalPropertyTypes` is a TypeScript flag and no lint rule reads it. A file that
-  //   fails it fails `tsc`, which an ESLint override cannot reach. `tsconfig.app.json`
-  //   compiles this folder with every strict flag on, and it passes.
-  //
-  // It was also a hole. An adversarial pass wrote a hand-authored file in that folder using
-  // `any` and unchecked member access, and `pnpm check` passed. The binding rule of ADR 0004
-  // §8 is **a suppression may be excluded by name, never by a pattern that authored code can
-  // enter**, and `src/shared/ui/**` is exactly such a pattern — the more so now that the folder
-  // holds hand-written components beside the vendored ones.
-  //
-  // The day a vendored file genuinely fails, add that **one file name** here. An author who is
-  // blocked until the operator adds the name is the intended gate, not a defect.
+  // The day a vendored file genuinely fails, the operator adds that **one file name** here.
 
   // The seam of ADR 0001 §1 and ADR 0004 §5, held by a rule and not by a convention.
   {
     // JavaScript is named as well as TypeScript. `allowJs` is off, so a `.js` file under a
     // feature does not compile, but a `.d.ts` beside it removes that limit and the import
     // then escapes every rule here.
-    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    //
+    // `.storybook/` is named as well as `src/`. Without it no rule below reaches that folder,
+    // and nothing stops `.storybook/preview.ts` from importing a feature. Every feature would
+    // then load into every story (#60).
+    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx}'],
 
     // The mount and the router instance, excluded **by name**. An element pattern matches a
     // folder, so neither file can be an element unless `src` itself becomes one — and `src` as
@@ -104,7 +93,26 @@ export default defineConfig(
         },
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
         { type: 'route', pattern: 'src/routes', partialMatch: false },
+
+        // The Storybook configuration. It has a target of its own, `tsconfig.storybook.json`.
+        // It is not a feature, not the seam and not a route.
+        //
+        // The pattern is `.storybook/**`, and not `.storybook`. The plugin reads a dot in the
+        // last segment of a pattern as a file name, and prints "element descriptors appear to
+        // use file patterns" on each run. `.storybook/*` is worse: it then classifies no file,
+        // and `no-unknown-files` fails. The two stars state the folder without doubt.
+        { type: 'storybook', pattern: '.storybook/**', partialMatch: false },
       ],
+
+      // The one stylesheet, ignored **as a dependency and by name**. `.storybook/preview.ts`
+      // imports it, and an element pattern matches a folder and never a file, so the stylesheet
+      // can never be an element and `no-unknown-dependencies` refuses the import.
+      //
+      // This setting removes that one import from the analysis. It does **not** remove
+      // `preview.ts`: putting the file in `ignores` above would drop it from every rule in this
+      // block, and the file that reaches for a feature is the very file this block exists to
+      // hold. A second stylesheet fails here, which is the intended gate.
+      'boundaries/ignore': ['src/index.css'],
 
       'import/resolver': { typescript: { alwaysTryTypes: true } },
     },
@@ -158,6 +166,78 @@ export default defineConfig(
             {
               from: { element: { type: 'route' } },
               allow: { to: { element: { types: ['feature', 'shared', 'route'] } } },
+            },
+
+            // Storybook reaches the seam, and **never a feature**. A story
+            // lives beside its component and imports what that component may import; the
+            // configuration folder is not a place to reach across the seam. `main.ts` names
+            // the story files in a glob, which is not an import, so no rule is needed for it.
+            {
+              from: { element: { type: 'storybook' } },
+              allow: { to: { element: { type: 'shared' } } },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // No story mounts a live canvas. ADR 0004 §1 gives MapLibre and Sigma one element each, and
+  // their own loop. ADR 0004 §3 keeps React state out of both. One story makes one live WebGL
+  // context, and a browser removes the oldest context after approximately sixteen.
+  //
+  // A comment in `.storybook/main.ts` is not a gate. The glob `../src/**/*.stories.tsx` collects
+  // such a file, and the run then makes the contexts one at a time until the browser removes
+  // them. A negation in that glob is worse: it drops the file in silence.
+  //
+  // The two entry points are named **by name**. A story for a panel inside these folders is
+  // correct and must pass. `Program` always exists, so an empty file fails as well.
+  {
+    files: ['src/features/map/map-page.stories.tsx', 'src/features/graph/graph-page.stories.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Program',
+          message:
+            'No story mounts a live canvas — ADR 0004 §1 and §3. A browser removes the oldest WebGL context after approximately sixteen. Delete this file, and write a story for each panel beside the canvas',
+        },
+      ],
+    },
+  },
+
+  // The rule above names two files, and the hazard is the mount and not the name. A third story
+  // that drives a canvas directly is the same fault under a different file name, so the import
+  // is refused as well.
+  //
+  // A pattern is correct here, and ADR 0004 §8 does not bind. That rule governs an **exemption**,
+  // where a pattern that authored code can enter opens a hole in silence. This is a prohibition:
+  // a pattern that matches too much fails loudly, and the operator sees it at once.
+  //
+  // The gate is partial, and it is stated so that nobody reads more into it. A story that imports
+  // a sibling, which then imports MapLibre, passes both blocks. `CANVAS.md` holds the rule; these
+  // two blocks hold the two cases a rule can reach.
+  {
+    files: ['src/**/*.stories.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'maplibre-gl',
+              message: 'No story mounts a live canvas — ADR 0004 §1 and §3. Story the panels',
+            },
+            {
+              name: 'sigma',
+              message: 'No story mounts a live canvas — ADR 0004 §1 and §3. Story the panels',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/*-page'],
+              message:
+                'A `*-page` is the entry point of a feature, and the map and the graph pages own a live canvas. Story the component, and not the page',
             },
           ],
         },

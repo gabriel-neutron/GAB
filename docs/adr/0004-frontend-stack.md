@@ -1,7 +1,17 @@
 # ADR 0004 — Frontend stack
 
-**Status** Accepted · **Version** 1 · 10 August 2026
-**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003 v2)
+**Status** Accepted · **Version** 2 · 12 August 2026
+**Tickets** #5 (closed by this ADR), #6 (closed by ADR 0003 v2), #39 (closed, and it corrects §8)
+
+**Version 2 corrects §8, and changes nothing else.** Version 1 gave `src/shared/ui/**` a
+path-scoped override. #39 removed that override from `eslint.config.ts` and did not update this
+document. Every reader since has found the two in disagreement, and has argued the case again in
+a comment or a report. §8 below now states what the repository does.
+
+`docs/README.md` says to supersede an ADR that has produced code, and not to rewrite it. That
+rule is for a **new** decision. No decision is made here: #39 took this one and implemented it,
+and version 1 is simply out of date. A superseding ADR would record a change that already
+happened, and would leave the wrong text in place for the next reader.
 **Replaces** **T7** in `docs/decisions.md`, which deferred the frontend framework. T7 is
 answered, not contradicted: it postponed the choice until the real volumes, the cartographic
 library and the graph rendering mode were known. All three are now known. Its consequence —
@@ -118,20 +128,33 @@ seconds and does so even when the error is caught.
 
 **The proposal, and what a reviewer should attack, are open. The tracker carries them.**
 
-### 8. Vitest, and zero suppressions with a named exemption
+### 8. Vitest, and zero suppressions with one exemption by name
 
 The runner is Vitest — ADR 0001 §4, which closed #24.
 
 `routeTree.gen.ts` is generated and carries its own lint banner. It is excluded from the
-linter and the formatter **by name**, and it is committed.
+linter and the formatter **by name**, and it is committed. **It is the only exemption.**
 
-Vendored shadcn source cannot pass `strictTypeChecked` and `exactOptionalPropertyTypes`
-clean, because Radix spreads optional properties freely. `src/shared/ui/**` therefore takes a
-**path-scoped override in the flat configuration**. A scoped configuration is not an inline
-directive, so `noInlineConfig` still holds and no file suppresses anything.
+**`src/shared/ui/` takes none.** Version 1 gave the folder a path-scoped override, on the
+premise that vendored shadcn source cannot pass `strictTypeChecked` and
+`exactOptionalPropertyTypes` clean, because Radix spreads optional properties freely. #39
+removed the override. Two facts disproved the premise, both reproduced on 10 August 2026:
 
-Both exemptions follow one rule: **a suppression may be excluded by name, never by a pattern
-that authored code can enter.**
+- **The override exempted nothing.** The four vendored components — button, input, select and
+  badge — pass every rule with it removed.
+- **No lint rule reads `exactOptionalPropertyTypes`.** It is a TypeScript flag. A file that
+  fails it fails `tsc`, which an ESLint override cannot reach. `tsconfig.app.json` compiles the
+  folder with every strict flag on, and it passes.
+
+It was also a hole. An adversarial pass wrote a hand-authored file in that folder with `any`
+and unchecked member access, and `pnpm check` passed.
+
+One rule holds both exemptions: **a suppression may be excluded by name, never by a pattern
+that authored code can enter.** `src/shared/ui/**` is such a pattern, and the folder now holds
+hand-written components beside the vendored ones.
+
+The day a vendored file genuinely fails, the operator adds that **one file name** to
+`eslint.config.ts`. An author who is blocked until then is the intended gate, and not a defect.
 
 ### 9. `skipLibCheck` becomes `true`
 

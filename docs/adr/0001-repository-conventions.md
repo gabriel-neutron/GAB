@@ -23,15 +23,23 @@ never by the exit code of the generator.
 written.** The folder tree in §1 is refreshed, as this ADR permits. Two facts below are now
 out of date, and ADR 0004 holds the newer statement of each. Read ADR 0004 with them:
 
-- The Consequences say "One package means one `tsconfig`". There are now three, because the
-  browser bundle and the two Node configuration files need different `lib` and different
-  `types`. ADR 0004 answers this: the signal "is met with a TypeScript configuration and not
-  with a workspace". §6 is untouched, and the repository is still one package.
+- The Consequences say "One package means one `tsconfig`". There are now four files and three
+  compile targets: the browser bundle, the Node configuration files at the root, and the
+  Storybook folder. Each one needs a different `lib` and different `types`. ADR 0004 answers
+  this: the signal "is met with a TypeScript configuration and not with a workspace". §6 is
+  untouched, and the repository is still one package.
 - §3 described three read-only steps. The type check step now generates the route tree before
   it runs, per ADR 0004, so `pnpm check` **writes** `src/routeTree.gen.ts`. Version 4 below
   makes the command four steps, and two of them write. A person who runs it may find a
   generated file in the diff, and that is the intended signal for §5: the operator reads the
   diff.
+
+**No decision in this ADR changed when #60 installed Storybook and the Vitest packages.** Two
+facts changed. The folder tree in §1 gains `.storybook/`, `tsconfig.storybook.json` and
+`vitest.config.ts`. `pnpm test` no longer stops with an error: it runs `vitest run`, and one
+story under `src/shared/ui/` proves the loop. §4 chose that runner, and #60 installs it. The
+test policy stays open, and the tracker carries it. §3 is untouched: `pnpm check` still runs
+three steps, and it still never runs the tests.
 
 **Version 3** rewrote §1 and §4 in place, which the rules in `docs/README.md` permit while an
 ADR has produced no code. §1 gained the folder shape the frontend needs. §4 named the runner
@@ -65,13 +73,16 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
 ├── docs/
 ├── db/                    the schema — ADR 0003
 ├── infra/                 the services — ADR 0002
+├── .storybook/            the story configuration — two files, named in tsconfig.storybook.json
 ├── index.html             the entry document — ADR 0004
 ├── package.json
 ├── pnpm-workspace.yaml    pnpm settings only. It declares no package; see §6
 ├── tsconfig.json          the solution file. It compiles nothing
 ├── tsconfig.app.json      the browser bundle
 ├── tsconfig.node.json     the configuration files at the root
+├── tsconfig.storybook.json  the Storybook folder — #60
 ├── vite.config.ts
+├── vitest.config.ts       the suite of `pnpm test` — #60
 ├── eslint.config.ts
 ├── components.json        the shadcn aliases, pointed inside src/shared/
 ├── .nvmrc
@@ -79,6 +90,7 @@ pnpm and the workspace are two decisions, not one. Strict resolution belongs to 
     ├── main.tsx           the mount
     ├── router.tsx         the router instance and its defaults
     ├── index.css          the one stylesheet
+    ├── theme.css          the GAB tokens. Nothing imports it yet
     ├── routeTree.gen.ts   generated, and committed — ADR 0004 §8
     ├── features/
     │   └── <feature>/     one feature, one flat folder
@@ -209,8 +221,9 @@ repository and is kept current. No decision in this ADR changes when it is updat
 - No repository layout keeps T4 true. T4 is broken by a `fetch` to the backend origin, which
   no package manager sees. The guarantee lives in the `gabriel_read` role, in the connection
   string of the read layer, and in one base URL given to the frontend at build time.
-- One package means one `tsconfig`. The day a browser bundle and a Node process need
-  different targets is the first real signal for §6.
+- One package no longer means one `tsconfig`. The browser bundle, the Node configuration files
+  and the Storybook folder are three targets in one package. ADR 0004 answers this signal with
+  a TypeScript configuration and not with a workspace, so §6 is not reached.
 
 ## Not decided here
 

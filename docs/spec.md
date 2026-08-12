@@ -210,7 +210,7 @@ settle one by writing code, and never settle one by writing a default value.
 | The payload of a structured-file mapping proposal | **OPEN** — #29. Created by the replacement of P6. Overlaps #7. |
 | Folder layout, package manager, check command | **Settled** by ADR 0001. |
 | How PostgreSQL and the object store run locally | **Settled** by ADR 0002. |
-| Test command, and the runner behind it | **Settled** by ADR 0001 v3: Vitest. #24 closed. What must be tested stays **OPEN** — #21. |
+| Test command, and the runner behind it | **Settled** by ADR 0001 v3: Vitest. #24 closed. #60 installed it, and `pnpm test` runs `vitest run` over one browser project. What must be tested stays **OPEN** — #21. |
 | A deployment, and authenticated editors | **OPEN and locked against** — #34. The operator intends a public read surface with authenticated editing later. It contradicts **C5** and `prd.md` §2, so no code anticipates it. |
 | Definition of done | Settled by ADR 0001, except the test requirement, which is **OPEN** — #21. |
 | Detailed shape of `payload` per operation type | To be frozen with the first agent written |

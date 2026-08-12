@@ -14,6 +14,8 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
+    // The block below is copied in `tsconfig.app.json` and `tsconfig.storybook.json`. See the
+    // comment there for the reason. Change one of the three, and change all three.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -33,5 +35,8 @@
 
     "skipLibCheck": true
   },
-  "include": ["vite.config.ts", "eslint.config.ts"]
+  // `vitest.config.ts` is a root configuration file like the other two, and Vitest reads it the
+  // same way Vite reads its own. `.storybook/` is **not** here; it needs the DOM library and it
+  // has `tsconfig.storybook.json`.
+  "include": ["vite.config.ts", "eslint.config.ts", "vitest.config.ts"]
 }

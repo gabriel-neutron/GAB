@@ -245,9 +245,10 @@ Chromium, so one runner still holds. `pnpm test` runs the suite and `pnpm check`
 - **One story for each state the contract names**, and none for a permutation it does not name. The
   export is named for the criterion it proves — not `Primary`, not `WithProps`. The "Works when" and
   the *Check* of the build order are the list.
-- **The format is CSF, and the linter holds it**: `const meta = { … } satisfies Meta<typeof X>`, a
+- **The format is CSF, and the indexer holds it**: `const meta = { … } satisfies Meta<typeof X>`, a
   default export of the meta, `type Story = StoryObj<typeof meta>`, and one named export for each
-  story. A story that breaks the format does not fail the run — it disappears from it, in silence.
+  story. No lint rule checks this format. A story that breaks it does not disappear in silence: the
+  indexer throws `MultipleIndexingError`, and `vitest run` fails before the first test starts.
   `src/shared/ui/badge.stories.tsx` is the model.
 - **`expect` comes from `storybook/test`, and it is instrumented**: every matcher returns a promise
   and is awaited. It is not the `expect` of Vitest. A forgotten `await` resolves after the test has

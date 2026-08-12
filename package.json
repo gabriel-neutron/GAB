@@ -16,10 +16,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
-    "test": "node --eval \"console.error('The runner is Vitest (ADR 0001 §4). It is installed with the first test. See issue #21.'); process.exit(1)\""
+    "test": "vitest run",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@storybook/addon-vitest": "^10.5.7",
+    "@storybook/react-vite": "^10.5.7",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.27",
     "@tanstack/router-plugin": "^1.168.29",
@@ -27,15 +31,20 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/browser": "^4.1.10",
+    "@vitest/browser-playwright": "^4.1.10",
     "eslint": "^10.8.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-boundaries": "^7.2.0",
     "jiti": "^2.6.1",
+    "playwright": "^1.62.1",
     "prettier": "^3.6.2",
+    "storybook": "^10.5.7",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.25",

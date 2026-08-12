@@ -1,0 +1,60 @@
+{
+  // The Storybook configuration files. This is the third target, after the browser bundle and
+  // the Node configuration files.
+  //
+  // The target is not a preference. `projectService` in `eslint.config.ts` fails on a file that
+  // no project includes. `.storybook/` is in neither `tsconfig.app.json`, which includes `src`
+  // only, nor `tsconfig.node.json`, which names its files. Without this file `pnpm check` fails
+  // at once. ADR 0001 §1 answers the objection: a target with a different `lib` is a TypeScript
+  // configuration and not a workspace. §6 is not reached, and the repository is one package.
+  //
+  // `main.ts` runs in Node, and `preview.ts` runs in the browser. One file holds both, so
+  // `main.ts` sees the DOM library that it does not need. That is the accepted cost. It is less
+  // than the cost of a fourth target for one file.
+  //
+  // Nothing here imports `src`. `preview.ts` imports the stylesheet and no TypeScript file, so
+  // `tsconfig.app.json` compiles `src` one time and not two.
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "preserve",
+
+    // `vite/client` declares the asset modules, which is what `noUncheckedSideEffectImports`
+    // demands of the stylesheet import in `preview.ts`. `node` is here because `main.ts` runs
+    // in Node.
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
+
+    "composite": true,
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.storybook.tsbuildinfo",
+
+    // The block below is copied in `tsconfig.app.json` and `tsconfig.node.json`. See the comment
+    // there for the reason. Change one of the three, and change all three.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noUncheckedSideEffectImports": true,
+
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "skipLibCheck": true
+  },
+  // Named, and not matched. A wildcard cannot reach this folder. TypeScript drops a path
+  // segment that begins with a dot when it expands `include`, and reports TS18003 "no inputs
+  // were found". A name is also the convention of this repository, because authored code
+  // cannot enter a name. A third file in the folder fails `pnpm check` until it is added here.
+  "files": [".storybook/main.ts", ".storybook/preview.ts"]
+}

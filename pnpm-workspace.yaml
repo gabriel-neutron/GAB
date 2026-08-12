@@ -1,10 +1,17 @@
 # pnpm writes this file itself. Two settings live in it.
 #
-# `allowBuilds` lets `unrs-resolver` run its install script. It is the resolver that
-# `eslint-import-resolver-typescript` uses to follow the `@/*` alias, and the script only
-# selects the prebuilt binary for this platform. Without it the boundaries rules resolve
-# nothing and report a safety they do not give.
+# `allowBuilds` lets two packages run their install script. Each script only selects the
+# prebuilt binary for this platform; neither compiles anything.
+#
+# `unrs-resolver` is the resolver that `eslint-import-resolver-typescript` uses to follow the
+# `@/*` alias. Without it the boundaries rules resolve nothing and report a safety they do not
+# give.
+#
+# `esbuild` arrives with Storybook — `@storybook/csf-plugin` and `@storybook/builder-vite` both
+# depend on it (#60). Vite 8 itself uses rolldown and does not. Without the script the binary
+# is absent and every Storybook command fails at startup.
 allowBuilds:
+  esbuild: true
   unrs-resolver: true
 
 # `minimumReleaseAgeExclude` records the packages installed before the age gate would have
