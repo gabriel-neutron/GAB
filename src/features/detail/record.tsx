@@ -46,9 +46,13 @@ export function EntityRecord({ rows, mark }: EntityRecordProps) {
       {rows.map((row) =>
         row.kind === 'group' ? (
           <h2 key={row.key} className="flex basis-full items-baseline gap-2 pt-2">
-            <span className="text-[11px]/4 tracking-[0.06em] text-label uppercase">
-              {row.label}
-            </span>
+            {/* The group name takes the first step of the text ladder, and the claim labels
+                below it take the third. **The defect this exists to not repeat:** the name was
+                the smallest size on the quietest token, so the heading was the faintest text in
+                the record and it did not outrank what it groups. The uppercase and the tracking
+                went with it: that recipe belongs to a small table header, and a record is not a
+                table. `./claims` already writes each group name in sentence case. */}
+            <span className="text-xs text-foreground">{row.label}</span>
             <span className="font-mono text-[11px]/4 text-label">{row.count}</span>
           </h2>
         ) : (

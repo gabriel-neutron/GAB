@@ -27,23 +27,27 @@ export interface RelationsProps {
 }
 
 /**
- * §4.6: an undrawable relation says in words that the graph does not draw it, and names the ADR
- * that records why. It is a sentence, and never a hue alone and never an icon alone.
+ * §4.6: an undrawable relation says in words that the graph does not draw it. It is words, and
+ * never a hue alone and never an icon alone.
+ *
+ * **As short as it can be and stay clear.** Two clauses, one fact each. The citation of ADR 0004
+ * §4 left the screen: a reader of this surface is not a reader of an ADR, and the header of this
+ * file already carries it for the next author.
  *
  * The words carry no hue. The theme keeps two hues at rest — `candidate` for the machine layer
  * and `dissent` for a disagreement between agents — and this relation is neither of the two.
  */
-const UNDRAWABLE =
-  'The graph does not draw this relation, because one endpoint is a relation. ADR 0004 §4.';
+const UNDRAWABLE = 'The graph does not draw this relation. One endpoint is a relation.';
 
 export function Relations({ relations, mark }: RelationsProps) {
   if (relations.length === 0) {
     return (
       <section aria-label="Relations">
-        {/* The count and the reason in one sentence. No icon, and no friendly line. */}
+        {/* The count and the reason in one sentence. No icon, and no friendly line. "and none
+            was dropped" stays: a surface that drops evidence in silence is worse than one that
+            says how much it dropped, and that clause is the whole of that rule here. */}
         <p className="text-xs text-label">
-          0 relations. The record carries no relation with an endpoint on this entity, and none was
-          dropped.
+          0 relations. No relation has an endpoint on this entity, and none was dropped.
         </p>
       </section>
     );
