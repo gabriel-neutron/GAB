@@ -18,7 +18,7 @@
 import type { ReactNode } from 'react';
 
 import type { Dossier, SourceRef } from './dossier';
-import { SourceMark } from './mark';
+import { SourceCount } from './mark';
 import { Pending } from './pending';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
@@ -39,13 +39,11 @@ const PANE =
 export function Sidebar({ dossier }: SidebarProps) {
   // §5.1: the mark of every claim, relation and proposal. §4.5 makes it open the source in a
   // popover, with the cards of the whole dossier behind it and one way out to the full page.
+  //
+  // #68: the sidebar states the **count** of documents and opens every one of them. A number
+  // here would point at a rail, and §4.5 gives this surface no rail to point at.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
-    <SourceMark
-      surface="sidebar"
-      sources={sources}
-      cards={dossier.sources}
-      entityId={dossier.entityId}
-    />
+    <SourceCount sources={sources} cards={dossier.sources} entityId={dossier.entityId} />
   );
 
   return (

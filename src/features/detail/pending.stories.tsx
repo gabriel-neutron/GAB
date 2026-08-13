@@ -37,12 +37,7 @@ const rows = (root: HTMLElement): readonly HTMLElement[] =>
 const onSelectSource = fn();
 
 const mark = (sources: readonly SourceRef[]): ReactNode => (
-  <SourceMark
-    surface="page"
-    sources={sources}
-    activeSource={null}
-    onSelectSource={onSelectSource}
-  />
+  <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
 );
 
 const meta = {

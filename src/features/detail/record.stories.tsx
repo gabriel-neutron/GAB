@@ -163,12 +163,7 @@ const meta = {
   args: {
     rows: ROWS,
     mark: (sources) => (
-      <SourceMark
-        surface="page"
-        sources={sources}
-        activeSource={null}
-        onSelectSource={onSelectSource}
-      />
+      <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
     ),
   },
   // The width of the pane is part of the contract of §4.1, so each story states it.

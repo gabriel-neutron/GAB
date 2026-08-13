@@ -60,12 +60,7 @@ const meta = {
   args: {
     relations: FROM_ENTITY_END,
     mark: (sources) => (
-      <SourceMark
-        surface="page"
-        sources={sources}
-        activeSource={null}
-        onSelectSource={onSelectSource}
-      />
+      <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
     ),
   },
   parameters: { layout: 'fullscreen' },

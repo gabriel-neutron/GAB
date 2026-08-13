@@ -1,11 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { FunctionComponent } from 'react';
 import { expect, fn, userEvent } from 'storybook/test';
 
 import type { Corpus, DocumentRow } from '@/shared/fixtures/types';
 
 import { readDossier, type SourceRef } from './dossier';
-import { SourceMark, type SourceMarkProps } from './mark';
+import { SourceMark } from './mark';
 
 /**
  * The states of the mark that carries the provenance of one claim, one relation or one proposal.
@@ -67,23 +66,14 @@ const ONE = first();
 const onSelectSource = fn();
 
 /**
- * §4.5 gives the mark two surfaces on one closed union, and `surface` is the discriminant.
- *
- * **The story format reads one shape from the component it names**, and it cannot read a union:
- * `StoryObj` subtracts the arguments of the meta from the arguments of the component, and a
- * subtraction over two branches leaves every property of the other branch required. This alias
- * names the page branch, which is the surface §4.4 and §3.6 specify. It is a type annotation
- * and not a cast: `SourceMark` accepts the whole union, so it accepts this branch.
- *
- * The sidebar branch is proved by `sidebar.stories.tsx`, where the popover has a dossier to
- * open and a page to hand a document to.
+ * This file holds the **page** control alone. #68 split the sidebar control off as `SourceCount`,
+ * because a number on a surface with no rail points at nothing, and `sidebar.stories.tsx` holds
+ * that one: it has a dossier to open and a page to hand a document to.
  */
-const PageMark: FunctionComponent<Extract<SourceMarkProps, { surface: 'page' }>> = SourceMark;
-
 const meta = {
-  component: PageMark,
-  args: { surface: 'page', sources: SOURCES, activeSource: null, onSelectSource },
-} satisfies Meta<typeof PageMark>;
+  component: SourceMark,
+  args: { sources: SOURCES, activeSource: null, onSelectSource },
+} satisfies Meta<typeof SourceMark>;
 
 export default meta;
 

@@ -54,12 +54,7 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
   // §5.1: the mark of every claim, relation and proposal on this surface. The page is the one
   // caller that knows which source is active and what a click does.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
-    <SourceMark
-      surface="page"
-      sources={sources}
-      activeSource={activeSource}
-      onSelectSource={setActiveSource}
-    />
+    <SourceMark sources={sources} activeSource={activeSource} onSelectSource={setActiveSource} />
   );
 
   return (

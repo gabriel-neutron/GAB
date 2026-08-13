@@ -45,17 +45,18 @@ const firstCard = (): SourceCardModel => {
 const CARD = firstCard();
 
 /**
- * The accessible name `./dossier` writes for a mark: `Source <n> — <title>`. It carries no
- * score, which `mark.stories.tsx` proves; this file only needs it to find the badge.
+ * #68: the sidebar states the **count** of documents and never their numbers. A number is a
+ * pointer to a card in the rail, and §4.5 gives this surface no rail. The name says what the
+ * count counts and what a click does.
  */
-const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
+const ONE_SOURCE = '1 source document. Open it.';
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';
 
-/** The first badge of that source. Several claims may cite one document. */
+/** The first count control on the record. Every claim of this entity carries one document. */
 const aMark = (root: HTMLElement): HTMLElement => {
-  const found = within(root).getAllByRole('button', { name: MARK_NAME })[0];
-  if (found === undefined) throw new Error('No mark carries the name of source 1');
+  const found = within(root).getAllByRole('button', { name: ONE_SOURCE })[0];
+  if (found === undefined) throw new Error('No line of the sidebar states a count of one source');
   return found;
 };
 
@@ -110,11 +111,32 @@ export const TheSidebarCarriesNoRail: Story = {
   },
 };
 
-/** §4.5: a badge opens the source in a popover, and the popover carries the same card. */
-export const ABadgeOpensTheSourceInAPopover: Story = {
+/**
+ * §4.5 and #68: the count opens every source of that line in one popover, and the popover carries
+ * the same card the rail draws.
+ *
+ * **The defect this proves is corrected:** the sidebar drew one numbered badge for each document,
+ * in a row that could not shrink, so a line with four documents took the room the value needed
+ * and each number pointed at a rail this surface does not carry.
+ */
+export const TheCountOpensEverySourceInAPopover: Story = {
   play: async ({ canvasElement }) => {
     const popover = await openPopover(canvasElement);
     await expect(popover).toHaveTextContent(CARD.title);
+  },
+};
+
+/**
+ * §5.1: the mark is on the screen and no control hides it. The count **is** the mark, so what a
+ * line shows at rest is one control that states how much evidence stands behind it.
+ */
+export const EachLineShowsOneControlThatCountsItsSources: Story = {
+  play: async ({ canvasElement }) => {
+    const marks = within(canvasElement).getAllByRole('button', { name: ONE_SOURCE });
+    await expect(marks.length).toBeGreaterThan(0);
+    for (const mark of marks) {
+      await expect(mark).toHaveTextContent('1');
+    }
   },
 };
 
