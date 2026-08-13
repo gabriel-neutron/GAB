@@ -3,6 +3,16 @@ import { defineConfig } from 'eslint/config';
 import boundaries from 'eslint-plugin-boundaries';
 import tseslint from 'typescript-eslint';
 
+/**
+ * Every feature entry point that mounts a live canvas. **One list, and the two gates below both
+ * read it**, so a third canvas feature is added at one point and cannot reach one gate and miss
+ * the other.
+ *
+ * A hazard is a mount and not a name. These are the folders that mount MapLibre and Sigma today —
+ * `CANVAS.md` holds the rule and names the same two.
+ */
+const CANVAS_PAGES = ['map', 'graph'] as const;
+
 export default defineConfig(
   { ignores: ['**/node_modules', '**/dist', '**/build', '**/coverage', '**/storybook-static'] },
 
@@ -190,10 +200,10 @@ export default defineConfig(
   // such a file, and the run then makes the contexts one at a time until the browser removes
   // them. A negation in that glob is worse: it drops the file in silence.
   //
-  // The two entry points are named **by name**. A story for a panel inside these folders is
-  // correct and must pass. `Program` always exists, so an empty file fails as well.
+  // The entry points are named **by name**, from `CANVAS_PAGES`. A story for a panel inside these
+  // folders is correct and must pass. `Program` always exists, so an empty file fails as well.
   {
-    files: ['src/features/map/map-page.stories.tsx', 'src/features/graph/graph-page.stories.tsx'],
+    files: CANVAS_PAGES.map((page) => `src/features/${page}/${page}-page.stories.tsx`),
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -213,6 +223,12 @@ export default defineConfig(
   // A pattern is correct here, and ADR 0004 §8 does not bind. That rule governs an **exemption**,
   // where a pattern that authored code can enter opens a hole in silence. This is a prohibition:
   // a pattern that matches too much fails loudly, and the operator sees it at once.
+  //
+  // **It did match too much, and it failed loudly.** The group was `**/*-page`, so it caught
+  // `detail-page` and `review-page` as well. Neither mounts a canvas, and neither reaches MapLibre
+  // or Sigma through any import. The hazard is the mount, so the group now names the pages that
+  // mount, from the same `CANVAS_PAGES` list as the block above. **Extend that list, and never
+  // this group**: two lists of the canvas pages is how one gate falls behind the other.
   //
   // The gate is partial, and it is stated so that nobody reads more into it. A story that imports
   // a sibling, which then imports MapLibre, passes both blocks. `CANVAS.md` holds the rule; these
@@ -235,9 +251,9 @@ export default defineConfig(
           ],
           patterns: [
             {
-              group: ['**/*-page'],
+              group: CANVAS_PAGES.map((page) => `**/${page}-page`),
               message:
-                'A `*-page` is the entry point of a feature, and the map and the graph pages own a live canvas. Story the component, and not the page',
+                'The map page and the graph page own a live canvas. Story the panels beside it, and not the page',
             },
           ],
         },
