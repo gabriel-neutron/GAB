@@ -1,6 +1,6 @@
 import { createRootRoute, HeadContent, Outlet } from '@tanstack/react-router';
 import { ModeToggle } from '@/shared/mode-toggle';
-import { ThemeProvider } from '@/shared/theme-provider';
+import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 
 // No navigation. The layout is deferred to a prototype, so a route is reached by typing its
 // address. The theme switch is a control and not navigation, so it lives here, where every
@@ -22,7 +22,7 @@ function RootLayout() {
           name on every route. See #39. */}
       <HeadContent />
       <div className="min-h-svh p-4">
-        <ModeToggle />
+        <ThemeControl />
         {/* One `main` for the whole application, and not one per page. A landmark that every
             route declares for itself is a landmark that one route forgets. */}
         <main>
@@ -31,6 +31,15 @@ function RootLayout() {
       </div>
     </ThemeProvider>
   );
+}
+
+// The read of the theme lives here, and not in `mode-toggle.tsx`. A component that reads the
+// theme itself cannot be mounted with plain values, and it therefore cannot be storied. This
+// wrapper sits inside the provider, because a component cannot read a context it renders itself.
+// It is not exported, so `shared/mode-toggle.tsx` keeps one runtime symbol.
+function ThemeControl() {
+  const { theme, setTheme } = useTheme();
+  return <ModeToggle theme={theme} onThemeChange={setTheme} />;
 }
 
 function RootError({ error }: { error: Error }) {
