@@ -63,13 +63,36 @@ const isCamera = (value: unknown): value is Camera => {
 };
 
 /**
- * **The guard is strict** — `docs/map-surface.md` §4.4. A record of an older shape falls back,
- * which costs one camera position, once. A tolerant guard lets two shapes live under one key,
- * and that is the fault the version in the key exists to prevent.
+ * Every key this shape declares. **The compiler holds the list closed**: a key added to
+ * `MapWorkspace` and forgotten here fails the type check, so the guard below cannot fall behind
+ * the interface it guards.
+ */
+const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
+  camera: true,
+  hiddenTypes: true,
+  linksHidden: true,
+  railOpen: true,
+  ground: true,
+};
+
+/**
+ * **The guard is strict, and a record that carries an undeclared key falls back** —
+ * `docs/map-surface.md` §4.4. A record of an older shape falls back, which costs one camera
+ * position, once. A tolerant guard lets two shapes live under one key, and that is the fault the
+ * version in the key exists to prevent.
+ *
+ * **The defect this deletes: a guard that accepts a superset lets a dead key outlive the code that
+ * read it.** The guard tested the required keys alone, so a record with a key this shape shrank
+ * away from passed it, `patchMapWorkspace` spread it, and the dead key was written back under one
+ * key for ever. The version in the key answers a **later** shape, and never an earlier one.
+ * `src/features/graph/workspace.ts` states the same rule.
  */
 const isWorkspace = (value: unknown): value is MapWorkspace => {
   if (typeof value !== 'object' || value === null) return false;
   const w = value as Record<string, unknown>;
+  for (const key of Object.keys(w)) {
+    if (!Object.hasOwn(DECLARED_KEYS, key)) return false;
+  }
   const hidden = w['hiddenTypes'];
   return (
     (w['camera'] === null || isCamera(w['camera'])) &&

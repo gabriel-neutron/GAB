@@ -405,8 +405,19 @@ export function mountGraph(
     // it, through the hover card of the library.
     renderLabels: false,
 
-    // UC3 reaches a relation, so a relation takes a click.
+    // A relation is selected on the canvas, so a relation takes a click — §4.3, whose selection
+    // carries `kind: 'relation'`, and §4.7, which draws that case as a report. This is not UC3:
+    // the M4 relation of UC3 has no edge here, so no click can reach it.
     enableEdgeEvents: true,
+
+    // **A line needs a hit box of about 5px on each side** — `CANVAS.md`. The default of Sigma is
+    // 1.7, and each edge has `size: 1`, so a relation was near unclickable.
+    //
+    // **The number is the full thickness, and not the half-width.** It was measured in the
+    // browser, and not read from the shader: a click was walked across a relation one pixel at a
+    // time. At 5 the band was 7px, which is 3.5px on each side. At 10 the band is 10px, which is
+    // the rule. Sigma picks on the geometry it draws, so the line is now 10px wide as well.
+    minEdgeThickness: 10,
 
     // The workspace carries `x`, `y` and `ratio`, and no angle — §5.4. A rotation that the store
     // cannot carry would be lost at the reload, and the analyst would meet a picture that is not
