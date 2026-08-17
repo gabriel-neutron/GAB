@@ -5,6 +5,7 @@ import { expect, userEvent } from 'storybook/test';
 import { corpus } from '@/shared/fixtures/corpus';
 
 import type { MapHandle } from './adapter';
+import type { Ground } from './workspace';
 import {
   entitiesMatching,
   linksOfSelection,
@@ -44,6 +45,8 @@ interface TestMap {
   readonly switched: { type: string; visible: boolean }[];
   /** Each switch of the relations. `adapter.ts` is the only writer of `linksHidden`. */
   readonly linksSwitched: boolean[];
+  /** Each ground the rail asked for. `adapter.ts` is the only writer of `ground`. */
+  readonly grounds: Ground[];
 }
 
 /**
@@ -63,7 +66,9 @@ function testMap(
   const flown: string[] = [];
   const switched: { type: string; visible: boolean }[] = [];
   const linksSwitched: boolean[] = [];
+  const grounds: Ground[] = [];
   let current = selected;
+  let currentGround: Ground = 'plan';
   let linksHidden = false;
   let chosenLink = chosen;
 
@@ -133,12 +138,21 @@ function testMap(
         chooseListeners.delete(listener);
       };
     },
+    // The ground is a layout property of the live style, so the double holds the value and
+    // records nothing else: the rail reads it to name the switch, and writes it on a click.
+    setGround: (next) => {
+      currentGround = next;
+      grounds.push(next);
+    },
+    get ground() {
+      return currentGround;
+    },
     destroy: () => {
       // The double owns nothing, so it releases nothing.
     },
   };
 
-  return { map: { current: handle }, flown, switched, linksSwitched };
+  return { map: { current: handle }, flown, switched, linksSwitched, grounds };
 }
 
 const facetOf = (type: string): { readonly type: string; readonly count: number } => {
@@ -239,6 +253,8 @@ const CHOSEN = firstOf(
 
 const switchOnly = testMap([], null);
 const reachOnly = testMap([], null);
+/** One double per story, so that one story never reads what another one wrote. */
+const groundOnly = testMap([], null);
 const stripOnly = testMap([], null);
 const polarityOnly = testMap(['vessel'], null);
 const restoredOnly = testMap([], firstOf(VESSELS, 'vessel').id);
@@ -271,6 +287,36 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
+
+/**
+ * §4.3: two grounds, and one control between them.
+ *
+ * **The switch goes through the one writer.** The rail writes no workspace field: it calls the
+ * handle, and `adapter.ts` moves the layout property of the two ground layers and stores the
+ * choice. The double records each ground the rail asked for.
+ *
+ * **The credit is not asserted here, and no story can reach it.** MapLibre draws the attribution
+ * over the canvas, from the source of whichever ground layer is visible, and `CANVAS.md` keeps a
+ * live canvas out of every story. The running application is what proves that the credit on
+ * screen matches the ground on screen — §5.5.
+ */
+export const TheGroundSwitchesThroughTheOneWriter: Story = {
+  args: { map: groundOnly.map },
+  play: async ({ canvas, canvasElement }) => {
+    // The name says the ground in force and the one a click brings, because a glyph alone says
+    // neither to a reader who cannot see it.
+    const control = canvas.getByRole('button', { name: 'Ground: plan. Change to imagery.' });
+    await expect(canvasElement.querySelector('[data-ground="plan"]')).not.toBeNull();
+
+    await userEvent.click(control);
+
+    await expect(groundOnly.grounds).toStrictEqual(['imagery']);
+    await expect(
+      canvas.getByRole('button', { name: 'Ground: imagery. Change to plan.' }),
+    ).toBeVisible();
+    await expect(canvasElement.querySelector('[data-ground="imagery"]')).not.toBeNull();
+  },
+};
 
 /**
  * Criterion 1: "A type switches off and the count says so."

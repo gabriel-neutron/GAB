@@ -46,7 +46,7 @@
  * anywhere on this surface**, so M6 cannot be broken at one end only.
  */
 
-import { Waypoints } from 'lucide-react';
+import { Layers2, Waypoints } from 'lucide-react';
 import { useEffect, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -62,6 +62,7 @@ import {
   type Projection,
 } from './projection';
 import { IndexRows } from './row';
+import type { Ground } from './workspace';
 
 export interface RailProps {
   /** The corpus, reduced to what a map can draw. `./projection` makes it. */
@@ -198,6 +199,12 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
    */
   const [chosen, setChosen] = useState<GeoLink | null>(map.current?.chosenLink ?? null);
 
+  /**
+   * The ground the map draws. It is an echo of the handle, exactly like the legend above:
+   * `adapter.ts` owns the workspace field, and this state dies with the view.
+   */
+  const [ground, setGround] = useState<Ground>(() => map.current?.ground ?? 'plan');
+
   const [openType, setOpenType] = useState<OpenType>({ kind: 'follows-selection' });
 
   /** The text of the search field. It dies with the view, and a new fold clears it. */
@@ -231,6 +238,17 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     if (live === null) return;
     live.setTypeVisible(type, visible);
     setLegend(railLegend(projection, live.isTypeVisible));
+  };
+
+  /**
+   * **The ground goes through the one writer** — §4.3. The rail writes no workspace field: the
+   * adapter switches the layout property of the two ground layers and stores the choice.
+   */
+  const switchGround = (next: Ground): void => {
+    const live = map.current;
+    if (live === null) return;
+    live.setGround(next);
+    setGround(live.ground);
   };
 
   /** The same rule for the relations: one call of the handle, and no write of the workspace. */
@@ -297,6 +315,14 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
    */
   const relationsSays = `relations, ${legend.drawnLinks} ${linksShown ? 'on' : 'off'} the map`;
 
+  /**
+   * **The ground is a switch of two and not a list** — §4.3 gives the map two grounds and one
+   * control between them. The name says the ground in force and the one a click brings, because a
+   * glyph alone says neither to a reader who cannot see it.
+   */
+  const otherGround: Ground = ground === 'plan' ? 'imagery' : 'plan';
+  const groundSays = `Ground: ${ground}. Change to ${otherGround}.`;
+
   const facet = shownType === null ? null : (projection.facetByType.get(shownType) ?? null);
 
   return (
@@ -321,6 +347,39 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
 
               **The switch and the count stay in the closed state** — §4.5: the strip keeps the
               colours, the counts and the switches, and **only the list is lost**. */}
+          {/* **The ground of §4.3, and its one control.** The two grounds are in the style and one
+              is hidden, so this is a switch of two and never a list. It survives the fold, exactly
+              as the type switches and the counts do — §4.5 loses only the list.
+
+              **The credit is not here.** MapLibre draws it over the canvas, in the corner that
+              `adapter.ts` takes as a parameter, and it follows whichever ground is visible. A
+              credit in the rail would be a caption, and §5.5 says an attribution is an obligation
+              of a licence and not a caption. */}
+          <div className="shrink-0 border-t border-border px-1.5 py-1">
+            <button
+              type="button"
+              data-ground={ground}
+              aria-label={groundSays}
+              title={groundSays}
+              onClick={() => {
+                switchGround(otherGround);
+              }}
+              className={cn(CONTROL, open ? 'w-full gap-1.5' : 'w-full justify-center px-1')}
+            >
+              <Layers2 size={14} aria-hidden="true" className="shrink-0" />
+              {open ? (
+                <>
+                  <span className="min-w-0 flex-1 truncate" aria-hidden="true">
+                    {ground}
+                  </span>
+                  <span className="shrink-0 text-right text-label" aria-hidden="true">
+                    change
+                  </span>
+                </>
+              ) : null}
+            </button>
+          </div>
+
           <div className="shrink-0 border-t border-border px-1.5 py-1">
             {open ? (
               <button

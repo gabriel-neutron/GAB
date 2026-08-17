@@ -54,6 +54,7 @@
  */
 
 import {
+  AttributionControl,
   GeoJSONSource,
   Map as MapLibreMap,
   type MapMouseEvent,
@@ -63,8 +64,9 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
-import { patchMapWorkspace, readMapWorkspace } from './workspace';
+import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
 /**
  * `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification` again. So this
@@ -90,6 +92,13 @@ export interface MountMapOptions {
    * read module. So, on the day `src/contract/` exists, only the caller changes.
    */
   readonly projection: Projection;
+  /**
+   * Where the credit sits. **The corner is a parameter** — `docs/map-surface.md` §5.5. A bar that
+   * floats over the map covers whichever corner it stands in, and the floating controls of the
+   * prototype covered the credit twice. The rail is on the left, so the default is the corner
+   * that no control of this surface reaches.
+   */
+  readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
 
 /**
@@ -123,6 +132,12 @@ export interface MapHandle {
   readonly chosenLink: GeoLink | null;
   /** Calls the listener immediately with the chosen relation. Gives the unsubscribe. */
   readonly onChooseLink: (listener: (link: GeoLink | null) => void) => () => void;
+  /**
+   * **The ground the map draws** — §4.3. Both grounds are in the style and one is hidden, so this
+   * is a layout property and never a style that is built again.
+   */
+  readonly setGround: (ground: Ground) => void;
+  readonly ground: Ground;
   readonly destroy: () => void;
 }
 
@@ -334,7 +349,11 @@ type Hit =
  */
 const mounted = new WeakMap<HTMLElement, MapHandle>();
 
-export function mountMap({ container, projection }: MountMapOptions): MapHandle {
+export function mountMap({
+  container,
+  projection,
+  creditCorner = 'bottom-right',
+}: MountMapOptions): MapHandle {
   mounted.get(container)?.destroy();
 
   const stored = readMapWorkspace();
@@ -424,9 +443,62 @@ export function mountMap({ container, projection }: MountMapOptions): MapHandle 
     },
   ];
 
+  /**
+   * The theme, from the class on the document element — `CANVAS.md`: "The theme is read from the
+   * class on `documentElement`, with an observer, and never from React."
+   */
+  const isDark = (): boolean => document.documentElement.classList.contains('dark');
+
+  /** The layer that draws one ground. One ground, one layer, and one name for both. */
+  const groundLayerId = (ground: Ground): string => `ground-${ground}`;
+
+  let ground: Ground = stored.ground;
+
+  const groundSources = Object.fromEntries(
+    EVERY_GROUND.filter((name) => GROUNDS[name].tiles !== null).map((name) => {
+      const source = GROUNDS[name];
+      return [
+        groundLayerId(name),
+        {
+          type: 'raster' as const,
+          tiles: [source.tiles ?? ''],
+          tileSize: source.tileSize,
+          maxzoom: source.maxZoom,
+          attribution: source.attribution,
+        },
+      ];
+    }),
+  );
+
+  const groundLayers: LayerSpec[] = EVERY_GROUND.filter((name) => GROUNDS[name].tiles !== null).map(
+    (name) => ({
+      id: groundLayerId(name),
+      type: 'raster',
+      source: groundLayerId(name),
+      // One ground is drawn and the other waits. The switch is this property and nothing else.
+      layout: { visibility: name === ground ? 'visible' : 'none' },
+      paint: { ...groundPaint(name, isDark()) },
+    }),
+  );
+
   const style: StyleSpec = {
     version: 8,
     sources: {
+      // **Both grounds live in the style at one time, and one is hidden** — §4.3. A switch is then
+      // a layout property. A style that is built again drops every source with it, and the
+      // selection, the hidden types and the relations would all have to be applied a second time.
+      //
+      // **The credit is on the source, and MapLibre matches it to what is visible.** §5.5 records
+      // that the library drops the attribution of a source that no visible layer uses, and that
+      // this was checked and not assumed.
+      //
+      // **`maxzoom` is the ceiling of the server, and it is measured and not assumed.** §9 named
+      // this as the one item to check at build time. The OSM servers answer 200 at z19 and **400
+      // at z20**; the EOX service answers 200 far past its 10 m resolution, because it upsamples
+      // on its own. With the ceiling stated here MapLibre never asks past it and draws the
+      // overzoomed parent tile itself, so the seam is deliberate on both grounds and no request
+      // reaches a third party for a tile that carries nothing new.
+      ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
       // The store can hold a type that is already switched off, so the first frame must not draw
@@ -437,17 +509,14 @@ export function mountMap({ container, projection }: MountMapOptions): MapHandle 
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
-      // The ground slot is at the bottom. Step 4 adds its two raster grounds here. It uses
-      // `addLayer(ground, beforeId)`, and it reads `beforeId` from the first layer of the style
-      // that the map has at that moment. Step 4 writes no layer name of its own. The name of the
-      // first layer follows the corpus. That name changes on the day the corpus gains a type
-      // that sorts before each other type. Each point layer and the ring then stay above the
-      // ground, and the style is never built again. A style that is built again removes each
-      // source with it — `docs/map-surface.md` §4.3. The first layer is now the neutral line, and
-      // step 4 reads that name at run time.
-      //
-      // **The lines come after the ground slot and before every point** — §4.7. A relation must
-      // never cover the thing it relates.
+      // **The two grounds are at the bottom, in the style literal.** The slot that stood here
+      // proposed `addLayer(ground, beforeId)` at run time, with `beforeId` read from the first
+      // layer of the moment. That is not needed and it is more fragile: the name of the first
+      // layer follows the corpus, so it changes on the day the corpus gains a type that sorts
+      // before every other one. A literal has no such name to read, and it cannot be reached
+      // before the style loads. **The lines and the points stay above, in the order below.**
+      ...groundLayers,
+      // **The lines come before every point** — §4.7. A relation must never cover what it relates.
       ...linkLayers,
       ...pointLayers,
       {
@@ -502,6 +571,18 @@ export function mountMap({ container, projection }: MountMapOptions): MapHandle 
           { ...base, center: [0, 0], zoom: 0 };
 
   const map = new MapLibreMap(options);
+
+  /**
+   * **The credit is drawn, and its corner is a parameter** — §5.5. The default control of the
+   * library was switched off while there was no ground, because it stated a licence that no
+   * visible layer used. There is a ground now, so the control is added, and MapLibre reads the
+   * attribution of each source that a **visible** layer uses. The hidden ground therefore credits
+   * nothing, which is the rule §5.5 states.
+   *
+   * It is not compact. A credit behind a control that a reader must open is an obligation of a
+   * licence that the screen does not meet.
+   */
+  map.addControl(new AttributionControl({ compact: false }), creditCorner);
 
   let destroyed = false;
   let styleReady = false;
@@ -986,6 +1067,42 @@ export function mountMap({ container, projection }: MountMapOptions): MapHandle 
    * because the record keeps that value for each later open. A guard in `destroy` alone does not
    * reach either fault.
    */
+  /**
+   * Paints every ground for the theme in force. **The inversion reaches the ground layer only**,
+   * so no entity hue and no relation line moves with the theme — §4.3.
+   *
+   * It runs through the queue, because `setPaintProperty` needs a loaded style exactly as
+   * `setLayoutProperty` does.
+   */
+  const paintGrounds = (): void => {
+    whenStyleReady(() => {
+      const dark = isDark();
+      for (const name of EVERY_GROUND) {
+        if (GROUNDS[name].tiles === null) continue;
+        const paint = groundPaint(name, dark);
+        const id = groundLayerId(name);
+        // The three keys are written one at a time, and each one is a literal, because the paint
+        // setter of the library takes a key of its own union and never a plain string.
+        map.setPaintProperty(id, 'raster-brightness-min', paint['raster-brightness-min']);
+        map.setPaintProperty(id, 'raster-brightness-max', paint['raster-brightness-max']);
+        map.setPaintProperty(id, 'raster-hue-rotate', paint['raster-hue-rotate']);
+      }
+    });
+  };
+
+  /**
+   * **The theme is read from the class on `documentElement`, with an observer, and never from
+   * React** — `CANVAS.md`. A React value here would sit in the tree that wraps the live element,
+   * which is the fault ADR 0004 names.
+   *
+   * The observer watches one attribute of one element, so it delivers only on a theme change.
+   */
+  const themeObserver = new MutationObserver(paintGrounds);
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+
   const handle: MapHandle = {
     get selected() {
       return destroyed ? null : selected;
@@ -1084,9 +1201,37 @@ export function mountMap({ container, projection }: MountMapOptions): MapHandle 
       listener(chosenLink);
       return () => chooseLinkListeners.delete(listener);
     },
+    /**
+     * **The switch is a layout property, and never a style that is built again** — §4.3. Both
+     * grounds are in the style, so this shows one and hides the other, and every source, the
+     * selection and the filter survive it.
+     *
+     * The credit follows on its own: MapLibre reads the attribution of each source that a visible
+     * layer uses, and it drops the one that no visible layer uses — §5.5.
+     */
+    setGround: (next) => {
+      if (destroyed) return;
+      if (GROUNDS[next].tiles === null) return;
+      ground = next;
+      patchMapWorkspace({ ground: next });
+      whenStyleReady(() => {
+        for (const name of EVERY_GROUND) {
+          if (GROUNDS[name].tiles === null) continue;
+          map.setLayoutProperty(
+            groundLayerId(name),
+            'visibility',
+            name === next ? 'visible' : 'none',
+          );
+        }
+      });
+    },
+    get ground() {
+      return ground;
+    },
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      themeObserver.disconnect();
       observer.disconnect();
       for (const subscription of subscriptions) subscription.unsubscribe();
       // A camera animation of the rail that is not complete has a listener that waits for one
