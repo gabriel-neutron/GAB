@@ -50,7 +50,6 @@ Placement follows one axis: how long the sentence stays true.
 | Never changes | `decisions.md`, which is locked, and `adr/NNNN`, which is written once |
 | Changes when the scope changes | `prd.md` |
 | Changes when an invariant, the read path or the write path changes | `spec.md` |
-| Changes when a new prototype is accepted | the four `*-surface.md` build orders |
 | Changes every day | the tracker, the code, and the configuration files |
 
 ## What an ADR is

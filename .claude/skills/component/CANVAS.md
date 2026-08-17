@@ -16,7 +16,7 @@ of that, and each failure below is invisible in a review.
   style, a selection or the instance in React state above the live element is the fault the ADR
   names. The rail, the row and the index are **siblings** of the canvas, and they hold ordinary
   React state: which type is open, the text in a search field, hover. The route memoises the canvas
-  so that this stays true, and the surface document records why. Where a value must sit in an
+  so that this stays true, and the file header records why. Where a value must sit in an
   **ancestor** of the canvas, stop and ask the operator.
 - **Drive the library directly.** The React wrapper packages are refused, and ADR 0004 names them: a
   wrapper is a second lifecycle over a library that already has one, and a wrapper lags the library.

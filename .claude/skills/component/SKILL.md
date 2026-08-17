@@ -5,8 +5,11 @@ description: Read before you write or edit a component, a story, a derivation or
 
 # Build one component
 
-A component is a **deep module**. The surface document says what this one does. This document says
-how every one is built.
+A component is a **deep module**. This document says how every one is built. **What one component
+does comes from its contract**, which is the ticket, the file headers of its feature, and the two
+call sites of a shared file. The surface documents that once held it were removed on 17 August
+2026; the three built surfaces carry their rules in their file headers, and the review surface
+carries its own on **#58**.
 
 **It names no file and no line number.** Where a value lives in the repository — a token, a
 density, the parts of the kit, the lint gates — read the repository. A value copied to here goes
@@ -14,10 +17,10 @@ stale in silence, and a stale rule is obeyed as confidently as a live one.
 
 ## The steps
 
-1. **Find the contract.** The documentation index names the surface document. Read the entry for
-   this component, every finding it cites, the rules the rebuild keeps, and the *Check* of this
-   step in the build order. Then read what stays open. State back in five lines: what it does, the
-   rules it holds, the "Works when", and the *Check*.
+1. **Find the contract.** Read the ticket that names this component, and read it whole: it carries
+   what the component does, the rules it holds and the check that says it works. Then read the file
+   headers of its feature, which state each rule and the defect that produced it. State back in
+   five lines: what it does, the rules it holds, the "Works when", and the check.
 2. **Place the file.** See *Placement*.
 3. **Write the derivation**, before the `.tsx` exists.
 4. **Write the component.** Read *What to write* first. Your instinct writes the left column.
@@ -25,17 +28,17 @@ stale in silence, and a stale rule is obeyed as confidently as a live one.
 6. **Run the check command, then the test command.** The package manifest names both. Then answer
    *Before you report*.
 
-**Stop and ask the operator** when: the component has no entry in the surface document; the surface
-has no document at all; a document contradicts an ADR or contradicts a rule below; a value must sit
-in an ancestor of a live canvas. A contradiction is a question, and never a licence.
+**Stop and ask the operator** when: no ticket says what the component does; a ticket contradicts an
+ADR or contradicts a rule below; a value must sit in an ancestor of a live canvas. A contradiction
+is a question, and never a licence.
 
-**A shared file has no surface document.** Its contract is the two call sites that need it, and the
-rules below. Name both callers in your report.
+**A shared file has no ticket of its own.** Its contract is the two call sites that need it, and
+the rules below. Name both callers in your report.
 
 **A folder that drives a live canvas:** read [`CANVAS.md`](CANVAS.md) before step 2.
 
-**Which wins.** The surface document wins on what the component does, on its shape and on its
-"Works when". This document wins on how it is built.
+**Which wins.** The ticket wins on what the component does, on its shape and on its "Works when".
+This document wins on how it is built.
 
 ## Placement
 
@@ -175,7 +178,7 @@ Read the Storybook and Vitest configurations for what is set.
 | Say **why** in a comment, and let the code say what. A rule that was a defect carries that defect in one line, so the next reader does not restore it | Narrate what the line below does |
 | Head each file with the document and the section it is built from, and use the domain words | — |
 | File an open question as a tracker ticket, comment on it, and ask the operator — even in the middle of a file | Leave a silent default in code |
-| Keep a guess the surface document permits in exactly one place, with a comment that names its ticket | Spread a guess over two files, or guess where the document names no guess |
+| Keep a guess the ticket permits in exactly one place, with a comment that names the ticket it guesses at | Spread a guess over two files, or guess where nothing names a guess |
 | Read the header of the read module you import: it says whether it is the generated contract or a stand-in | Guess a second shape for the read data |
 | Take the read as an argument in a derivation, so only the caller changes on the day the contract arrives | Import a read module from a derivation |
 
@@ -187,8 +190,8 @@ carries it, and you add a test of another kind with the operator only.
 
 1. Quote the "Works when" and the *Check* of the build order. For each clause, name the story that
    proves it, or write `no story can reach this` and say what does.
-2. List every rule section of the surface document by number. For each, write the rule this
-   component obeys, or `does not reach this component` with the reason. Omit none.
+2. List every rule the ticket and the file headers state. For each, write the rule this component
+   obeys, or `does not reach this component` with the reason. Omit none.
 3. Run every count above on every file you touched, and give each number.
 4. Walk each row of *What to write* against the file, by row.
 5. The check command passes and the test command passes.
