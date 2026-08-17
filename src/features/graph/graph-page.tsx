@@ -35,13 +35,14 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject
 
 import { corpus } from '@/shared/fixtures/corpus';
 import { cn } from '@/shared/lib/utils';
+import { Rail, type RailAct } from '@/shared/rail';
 
 import { emitGraphSelection } from './bridge';
-import { mountGraph, type GraphController, type GraphView } from './controller';
+import { mountGraph, type FilterState, type GraphController, type GraphView } from './controller';
 import { Legend } from './legend';
 import type { GraphModel } from './model';
-import { Rail, type RailAct } from './rail';
-import { deriveRailRows, type RailStep } from './rail-rows';
+import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
+import { IndexRows } from './row';
 
 /**
  * What one publish of `./controller` gives this file.
@@ -89,6 +90,17 @@ export function GraphPage() {
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(null);
 
   /**
+   * The filter of the last publish. **It is a ref and not a second store**: the value lives on the
+   * view that `./controller` owns, and this holds the same value only so that a stable callback
+   * can read it. A `useCallback` that took the filter in its list would build a new function on
+   * every filter change, and `GraphCanvas` is memoised on the props it is given.
+   *
+   * The shared rail says what the analyst did — a type, and the state asked for — and the polarity
+   * of §5.2 is answered here, with `hiddenAfterSwitch`.
+   */
+  const filterNow = useRef<FilterState | null>(null);
+
+  /**
    * The two steps of the rail. **This value dies with the view**, so React state is where ADR 0004
    * §7 puts it, and `CANVAS.md` permits it beside a memoised canvas. It is held here, and not in
    * `./rail`, because `deriveRailRows` needs both fields to build the rows, and a value in two
@@ -123,6 +135,7 @@ export function GraphPage() {
     const handle = mountGraph(element, marks, corpus);
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
+      filterNow.current = view.filter;
       setSnapshot({ view, model: handle.model });
     });
 
@@ -150,19 +163,35 @@ export function GraphPage() {
   const model = snapshot?.model ?? null;
   const filter = snapshot?.view.filter ?? null;
   const selection = snapshot?.view.selection ?? null;
+  // The fold of the rail is the fifth value the rows are built from, and it is read on its own for
+  // the same reason as the four above: the whole snapshot is a new object at each publish, so a
+  // memo that took it would run the derivation again for one click on a chevron.
+  const railOpen = snapshot?.view.railOpen ?? false;
   const rows = useMemo(
     () =>
-      model === null || filter === null ? null : deriveRailRows(model, filter, step, selection),
-    [model, filter, step, selection],
+      model === null || filter === null
+        ? null
+        : deriveRailRows(model, filter, step, selection, railOpen),
+    [model, filter, step, selection, railOpen],
   );
 
   const act = useCallback((next: RailAct) => {
     const handle = controller.current;
     if (handle === null) return;
     switch (next.kind) {
-      case 'hide-types':
-        // §5.2: the filter holds the types that are switched **off**. `./rail-rows` built the set.
-        handle.setFilter({ hiddenTypes: next.hiddenTypes });
+      case 'open-rail':
+        handle.setRailOpen(next.open);
+        return;
+      case 'switch-type': {
+        // §5.2: the workspace holds the types that are switched **off**. `./rail-rows` holds that
+        // polarity, so the shared control states the act and never the set it produces.
+        const filter = filterNow.current;
+        if (filter === null) return;
+        handle.setFilter({ hiddenTypes: hiddenAfterSwitch(filter, next.type, next.on) });
+        return;
+      }
+      case 'show-every-type':
+        handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
         setStep({ openType: next.type, query: '' });
@@ -170,27 +199,29 @@ export function GraphPage() {
       case 'change-query':
         setStep((held) => ({ openType: held.openType, query: next.query }));
         return;
-      case 'select-entity':
-        // §5.1: a **control** may move the camera, and a click on a node may not. A row of the
-        // rail is that control, so the selection and the move happen together here.
-        handle.select({ kind: 'entity', id: next.id });
-        handle.flyTo(next.id);
-        return;
     }
   }, []);
 
   /**
-   * The two panel keys go to `./controller`, which owns the workspace.
+   * §5.1: a **control** may move the camera, and a click on a node may not. A row of the index is
+   * that control, so the selection and the move happen together here.
+   */
+  const reach = useCallback((id: string) => {
+    const handle = controller.current;
+    if (handle === null) return;
+    handle.select({ kind: 'entity', id });
+    handle.flyTo(id);
+  }, []);
+
+  /**
+   * The legend panel key goes to `./controller`, which owns the workspace. The rail says the same
+   * thing through its own act, `open-rail`, which `act` above answers.
    *
    * **The defect this deletes:** this file held the same two values in React state, seeded from
    * the record and patched on each change, so one value sat in two stores — ADR 0004 §7, and the
    * skill names a value that must survive a reload and lives in React state as a fault. The
    * handle publishes them now, and the next publish brings the new value back.
    */
-  const openRail = useCallback((open: boolean) => {
-    controller.current?.setRailOpen(open);
-  }, []);
-
   const openLegend = useCallback((open: boolean) => {
     controller.current?.setLegendOpen(open);
   }, []);
@@ -203,7 +234,28 @@ export function GraphPage() {
           box that places it. A drag that starts there still moves the graph below. */}
       <div className={cn('pointer-events-none absolute inset-y-2 left-2 flex')}>
         {snapshot === null || rows === null ? null : (
-          <Rail rows={rows} open={snapshot.view.railOpen} onOpenChange={openRail} onAct={act} />
+          <Rail
+            rows={rows.rail}
+            onAct={act}
+            index={
+              rows.open === null ? null : (
+                <IndexRows
+                  entities={rows.open.entities}
+                  remainder={rows.open.remainder}
+                  count={rows.open.count}
+                  onSelect={reach}
+                />
+              )
+            }
+            footer={null}
+            // §5.5: the panel floats over the canvas, so it takes the popover ground and no
+            // pointer event on its own padding. Each control inside takes the pointer back.
+            className={cn(
+              'pointer-events-none max-h-full border border-border bg-popover',
+              'text-popover-foreground',
+              rows.rail.open ? 'w-64' : 'w-11',
+            )}
+          />
         )}
       </div>
 

@@ -12,6 +12,7 @@
  */
 
 import type { Attributes, Corpus, Entity, Point } from '@/shared/fixtures/types';
+import type { RailRows, RailTypeRow } from '@/shared/rail';
 
 /**
  * One entity that carries a geometry, flattened for the renderer.
@@ -266,6 +267,45 @@ export function railLegend(
  * The comparison is made on a trimmed and lowered copy of the text, so that a name is reached by
  * how it reads and not by how it was typed.
  */
+/**
+ * The rows of the shared rail, for one legend and one step.
+ *
+ * **The shared control draws, and this computes** — `src/shared/rail.tsx` states no word of its
+ * own about a type. The word for a type that is off is `off` here, because the map hides a layer;
+ * the graph dims one and says so. Each surface states its own consequence.
+ *
+ * **The swatch stays.** §5.5 rule 11 keeps the entity hues on the map and out of the chrome, and
+ * §3.1 and §4.5 keep the colour swatch per entry: it is the legend, and a coloured point means
+ * nothing without one. The hue is the hex the map parses, so no class can carry it.
+ */
+export function railRows(
+  legend: RailLegend,
+  openType: string | null,
+  query: string,
+  open: boolean,
+): RailRows {
+  const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
+    type: facet.type,
+    initial: facet.type.slice(0, 1).toUpperCase(),
+    count: facet.count,
+    on: !hidden,
+    open: openType === facet.type,
+    stateWord: hidden ? 'off' : 'on',
+    // A name that said `on the map` for a type that is off is a false report to a reader who
+    // cannot see the opacity of the swatch.
+    name: `${facet.type}, ${facet.count} ${hidden ? 'off' : 'on'} the map`,
+    colour: facet.colour,
+  }));
+
+  return {
+    types,
+    openType,
+    query,
+    everyTypeOff: types.length > 0 && types.every((row) => !row.on),
+    open,
+  };
+}
+
 export function entitiesMatching(
   projection: Projection,
   type: string,

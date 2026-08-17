@@ -28,6 +28,8 @@
  * count, so the rail lists what is on the screen.
  */
 
+import type { RailRows, RailTypeRow } from '@/shared/rail';
+
 import type { GraphSelection } from './bridge';
 import type { FilterState } from './controller';
 import type { GraphModel } from './model';
@@ -57,24 +59,6 @@ export interface RailStep {
   readonly query: string;
 }
 
-/** One type row of the first step. */
-export interface RailTypeRow {
-  readonly type: string;
-  /** The one letter the folded strip draws. The strip has no room for a word. */
-  readonly initial: string;
-  /** How many entities of this type the canvas draws. */
-  readonly count: number;
-  /** Whether this type is in consideration. §5.2 stores the types that are **off**. */
-  readonly on: boolean;
-  readonly open: boolean;
-  /**
-   * The hidden set that results when this row is switched. **The polarity of §5.2 lives here**,
-   * and never in the `.tsx`: the filter holds the types that are off, so a control that computed
-   * the set for itself would hold that rule in a second file.
-   */
-  readonly hiddenWhenToggled: readonly string[];
-}
-
 /** One entity row of the second step. The list is already sorted, already capped. */
 export interface RailEntityRow {
   readonly id: string;
@@ -83,27 +67,47 @@ export interface RailEntityRow {
   readonly selected: boolean;
 }
 
-/** The second step: the type that is unfolded, its field, and its list. */
+/** The second step: the type that is unfolded, and its list. */
 export interface RailOpenList {
   readonly type: string;
-  readonly query: string;
   readonly entities: readonly RailEntityRow[];
   /** How many entities match and are not drawn. §4.4: the remainder is on the screen. */
   readonly remainder: number;
+  /** How many entities of the type the canvas draws, for the line that says no name matches. */
+  readonly count: number;
 }
 
-export interface RailRows {
-  readonly types: readonly RailTypeRow[];
+/**
+ * What the rail draws: the shape `src/shared/rail.tsx` takes, and the list of the second step,
+ * which the shared control does not own.
+ */
+export interface GraphRailRows {
+  readonly rail: RailRows;
   /** `null` at the first step, and at a type that is switched off. */
   readonly open: RailOpenList | null;
-  /** §5.2: a control that can exclude everything says so, and carries the way back. */
-  readonly everyTypeOff: boolean;
-  /**
-   * The way back of §5.2, taken from `DEFAULT_GRAPH_WORKSPACE` and never invented here. The
-   * prototype reached an all-grey screen that survived a reload, because the filter is stored.
-   */
-  readonly hiddenWhenEveryTypeShown: readonly string[];
 }
+
+/**
+ * The hidden set after one switch. **The polarity of §5.2 lives here**, and never in a `.tsx`:
+ * the workspace holds the types that are **off**, and a control that computed the set for itself
+ * would hold that rule in a second file.
+ *
+ * It is beside `deriveRailRows` because it is the same job: both answer "what does the rail say
+ * about the filter", one for the drawing and one for the act that changes it.
+ */
+export function hiddenAfterSwitch(
+  filter: FilterState,
+  type: string,
+  on: boolean,
+): readonly string[] {
+  const hidden = new Set(filter.hiddenTypes);
+  if (on) hidden.delete(type);
+  else hidden.add(type);
+  return [...hidden];
+}
+
+/** The way back of §5.2, taken from the stored default and never invented. */
+export const everyTypeShown = (): readonly string[] => DEFAULT_GRAPH_WORKSPACE.hiddenTypes;
 
 /**
  * The rows of the rail, for one model, one filter and one step.
@@ -118,7 +122,8 @@ export function deriveRailRows(
   filter: FilterState,
   step: RailStep,
   selection: GraphSelection | null,
-): RailRows {
+  open: boolean,
+): GraphRailRows {
   const hidden = new Set(filter.hiddenTypes);
 
   const counts = new Map<string, number>();
@@ -132,16 +137,20 @@ export function deriveRailRows(
 
   const types: readonly RailTypeRow[] = names.map((type) => {
     const on = !hidden.has(type);
-    const toggled = new Set(hidden);
-    if (on) toggled.add(type);
-    else toggled.delete(type);
+    const count = counts.get(type) ?? 0;
     return {
       type,
       initial: type.slice(0, 1).toUpperCase(),
-      count: counts.get(type) ?? 0,
+      count,
       on,
       open: step.openType === type,
-      hiddenWhenToggled: [...toggled],
+      // §5.2 dims and never hides, so the row states that consequence. The word reaches a reader
+      // who sees no strike and no dimming.
+      stateWord: on ? 'on' : 'off, dimmed',
+      name: on ? `${type}, ${count}, on` : `${type}, ${count}, off and dimmed`,
+      // §4.4, the first difference: no colour beside a type. Here the hue is the community and
+      // not the type, so a type colour would state an encoding this canvas does not use.
+      colour: null,
     };
   });
 
@@ -150,7 +159,7 @@ export function deriveRailRows(
   const openType = step.openType;
   const openIsDrawn = openType !== null && counts.has(openType) && !hidden.has(openType);
 
-  let open: RailOpenList | null = null;
+  let openList: RailOpenList | null = null;
   if (openType !== null && openIsDrawn) {
     const needle = step.query.trim().toLowerCase();
     const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
@@ -172,18 +181,16 @@ export function deriveRailRows(
     matches.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
 
     const drawn = matches.slice(0, LIST_CAP);
-    open = {
+    openList = {
       type: openType,
-      query: step.query,
       entities: drawn,
       remainder: matches.length - drawn.length,
+      count: counts.get(openType) ?? 0,
     };
   }
 
   return {
-    types,
-    open,
-    everyTypeOff,
-    hiddenWhenEveryTypeShown: DEFAULT_GRAPH_WORKSPACE.hiddenTypes,
+    rail: { types, openType, query: step.query, everyTypeOff, open },
+    open: openList,
   };
 }

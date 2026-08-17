@@ -319,7 +319,7 @@ export const AnEntityIsReachedByNameInTwoSteps: Story = {
 
     // Step one. The field does not exist before it.
     await expect(canvas.queryByRole('textbox', { name: 'Search vessel by name' })).toBeNull();
-    await userEvent.click(canvas.getByRole('button', { name: 'Index of vessel' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
     await expect(rowsIn(canvasElement)).toHaveLength(VESSELS.length);
 
     // Step two.
@@ -629,7 +629,8 @@ export const ARestoredSelectionOpensItsGroup: Story = {
   play: async ({ canvas, canvasElement }) => {
     const restored = firstOf(VESSELS, 'vessel');
 
-    await expect(canvas.getByRole('button', { name: 'Index of vessel' })).toHaveAttribute(
+    // The group is already open, so the fold control names the act that closes it.
+    await expect(canvas.getByRole('button', { name: 'Close the vessel list' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
