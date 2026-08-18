@@ -141,25 +141,39 @@ const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
  * shape that the palettes above promise, so the promise and the parser sat in two files and a
  * change of the format would reach one of them only.
  *
- * **The result is premultiplied.** Sigma blends with `gl.blendFunc(gl.ONE,
- * gl.ONE_MINUS_SRC_ALPHA)`, so it expects a colour that already carries its own alpha. A colour
- * that is not premultiplied is added at full strength: the element would then keep its brightness
- * on a dark ground, and no analyst would see any dim at all.
+ * **The result is opaque, and that is the whole point of it.**
  *
- * `parseColor` of Sigma reads a fourth pair of hex digits where the string is nine characters
- * long, so `#rrggbbaa` is a colour the parser takes. Every colour this file gives is `#rrggbb`; a
- * string of another shape keeps its colour instead of turning black.
+ * **The defect this replaces.** The dim was an `#rrggbbaa` colour, 40 % on the dark ground. A
+ * translucent node lets through everything under it, and the relations are drawn under the nodes:
+ * the operator saw **the ends of the lines inside the dots**, and this canvas drew a see-through
+ * dot where the map drew a solid one. A dim is a change of **appearance**, and never a hole.
+ *
+ * So the hue is composited over the colour of the page here, and the answer is a plain `#rrggbb`
+ * that looks dimmed and hides what is behind it. **Do not go back to an alpha channel**: the two
+ * canvases disagree again, and every line end shows through.
  */
-export const dimmedColour = (colour: string, fraction: number): string => {
+export const dimmedColour = (colour: string, ground: string, fraction: number): string => {
   if (colour.length !== 7 || !colour.startsWith('#')) return colour;
   const value = Number.parseInt(colour.slice(1), 16);
-  if (Number.isNaN(value)) return colour;
-  const red = Math.round(((value >> 16) & 0xff) * fraction);
-  const green = Math.round(((value >> 8) & 0xff) * fraction);
-  const blue = Math.round((value & 0xff) * fraction);
-  const alpha = Math.round(fraction * 0xff);
-  return `#${hexPair(red)}${hexPair(green)}${hexPair(blue)}${hexPair(alpha)}`;
+  const under = Number.parseInt(ground.slice(1), 16);
+  if (Number.isNaN(value) || Number.isNaN(under)) return colour;
+  // The hue at `fraction`, over the page at the rest. Both are opaque, so the answer is opaque.
+  const mix = (shift: number): number =>
+    Math.round(((value >> shift) & 0xff) * fraction + ((under >> shift) & 0xff) * (1 - fraction));
+  return `#${hexPair(mix(16))}${hexPair(mix(8))}${hexPair(mix(0))}`;
 };
+
+/**
+ * The colour of the page, per ground, as hex.
+ *
+ * **It is a copy of `--background` of `src/index.css`**, converted from `oklch`, for the same
+ * reason the palettes above are: a CSS custom property never reaches the Sigma parser. It is here
+ * and not in `controller.ts`, because this file owns every colour value the canvas is given.
+ */
+export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
+  light: '#f7f8f9',
+  dark: '#0b1013',
+});
 
 /**
  * What the canvas needs, and nothing more.

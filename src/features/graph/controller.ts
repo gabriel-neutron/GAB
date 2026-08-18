@@ -31,7 +31,7 @@
 import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
-import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
 import type { Corpus } from '@/shared/fixtures/types';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
@@ -39,6 +39,7 @@ import { standInPositions } from './layout';
 import {
   buildGraphModel,
   dimmedColour,
+  GROUND_HUE,
   GRAPH_PALETTES,
   type EdgeAttrs,
   type GraphGround,
@@ -187,9 +188,22 @@ const LAYER_CLASS = 'pointer-events-none absolute inset-0 overflow-hidden';
  * asks for a **node program** instead of an element of the page, and this file writes none: a
  * node program is a WebGL program, a shader pair and a buffer layout, which is a surface of its
  * own and a decision about how a proposal appears. The cost of the element is the cap above.
+ *
+ * **It sits at the upper right of the dot and no longer on its centre** — #91 row A9. The operator
+ * ruled the idea right and the form wrong, and chose this shape from three prototypes on the
+ * branch `proto/marks-2026-08-18`. A mark on the centre covers the very thing it marks.
  */
 const MARKER_CLASS =
   'pointer-events-none absolute top-0 left-0 size-2 rounded-none border border-background bg-candidate';
+
+/**
+ * How far the marker stands from the centre of the dot, in pixels, on each axis — #91 A9.
+ *
+ * It is a fixed offset and not a fraction of the radius of the node: a hub of two thousand
+ * relations would otherwise push its badge far out into the picture, and a leaf would keep the
+ * badge on top of itself.
+ */
+const MARKER_OFFSET = 7;
 
 /**
  * The ring of §5.1. It is drawn here, and never with the `highlighted` flag of Sigma: that flag
@@ -278,7 +292,7 @@ export function mountGraph(
    * moves, and a publish on each one would run every subscriber of this handle at that rate. The
    * label is drawn over the canvas by this file, exactly as the ring and the markers are.
    */
-  let hovered: { readonly id: string; readonly words: string } | null = null;
+  let hovered: { readonly id: string; readonly lines: readonly string[] } | null = null;
 
   /** One dimmed colour for each colour of the palette. A reducer runs for each element, each frame. */
   const dimCache = new Map<string, string>();
@@ -286,7 +300,7 @@ export function mountGraph(
     const held = dimCache.get(colour);
     if (held !== undefined) return held;
     // The fraction follows the ground, so the cache is emptied at each theme change below.
-    const made = dimmedColour(colour, DIM_ALPHA[ground]);
+    const made = dimmedColour(colour, GROUND_HUE[ground], DIM_ALPHA[ground]);
     dimCache.set(colour, made);
     return made;
   };
@@ -584,7 +598,9 @@ export function mountGraph(
         element.hidden = true;
         return;
       }
-      place(element, sigma.framedGraphToViewport(point), null);
+      // #91 A9: the badge stands clear of the dot, at its upper right.
+      const at = sigma.framedGraphToViewport(point);
+      place(element, { x: at.x + MARKER_OFFSET, y: at.y - MARKER_OFFSET }, null);
     });
   };
 
@@ -770,10 +786,17 @@ export function mountGraph(
    * own. #88 GRAPH-RELATION-DRAW owns what else a relation says on a canvas, and the direction it
    * still does not draw.
    */
-  const nameHover = (next: { id: string; words: string } | null): void => {
+  const nameHover = (next: { id: string; lines: readonly string[] } | null): void => {
     if (destroyed) return;
     hovered = next;
-    hoverLabel.textContent = next?.words ?? '';
+    // One element per line, so each one truncates on its own — a relation takes three.
+    hoverLabel.replaceChildren(
+      ...(next?.lines ?? []).map((line) => {
+        const row = document.createElement('span');
+        row.textContent = line;
+        return row;
+      }),
+    );
     if (next === null) hoverLabel.hidden = true;
     // The label is placed on the next frame, with the ring and the markers, so one loop owns
     // every element over this canvas.
@@ -782,7 +805,7 @@ export function mountGraph(
 
   sigma.on('enterNode', ({ node }) => {
     if (!nodePassesFilter(node)) return;
-    nameHover({ id: node, words: model.graph.getNodeAttribute(node, 'label') });
+    nameHover({ id: node, lines: [model.graph.getNodeAttribute(node, 'label')] });
   });
   sigma.on('leaveNode', ({ node }) => {
     if (hovered?.id === node) nameHover(null);
@@ -793,7 +816,7 @@ export function mountGraph(
     const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
     const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
     const type = model.graph.getEdgeAttribute(edge, 'relationType');
-    nameHover({ id: edge, words: `${from} — ${type} — ${to}` });
+    nameHover({ id: edge, lines: relationLines(from, type, to) });
   });
   sigma.on('leaveEdge', ({ edge }) => {
     if (hovered?.id === edge) nameHover(null);
