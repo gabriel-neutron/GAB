@@ -41,10 +41,7 @@ const RATED = sourceOf('doc_8f2a41');
 const UNRATED = sourceOf('manual');
 
 const ORIGINAL = stated(RATED.uri, 'original address for doc_8f2a41');
-const ARCHIVE = stated(RATED.archiveUri, 'archive address for doc_8f2a41');
-const HASH = stated(RATED.sha256, 'hash for doc_8f2a41');
-
-const DISCLOSURE = /Archive, hash and claims/;
+const DISCLOSURE = /Claims/;
 
 const meta = {
   component: SourceCard,
@@ -63,11 +60,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * #31: the bucket is private, so the reader is given the original address, the web-archive
- * address and the file hash. All three are reachable from this one card.
+ * #80 removed the web-archive address and the printed hash from this card, and **#31 RAW-ACCESS
+ * owns how a reader reaches a source file**. What is left of the disclosure is the claims the
+ * document holds up.
+ *
+ * The original address stays on the face of the card, and it is one link.
  */
-export const AllThreeAddressesAreReachable: Story = {
-  play: async ({ canvas }) => {
+export const TheOriginalAddressIsOnTheCard: Story = {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole('link', { name: /original document/ })).toHaveAttribute(
       'href',
       ORIGINAL,
@@ -75,25 +75,9 @@ export const AllThreeAddressesAreReachable: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getByRole('link', { name: /web archive/ })).toHaveAttribute(
-      'href',
-      ARCHIVE,
-    );
-    await expect(canvas.getByText(HASH)).toBeInTheDocument();
-  },
-};
-
-/** §4.3 "Works when": the hash is one click away, and it is not on the two lines. */
-export const TheHashIsOneClickAway: Story = {
-  play: async ({ canvas }) => {
-    const control = canvas.getByRole('button', { name: DISCLOSURE });
-    await expect(control).toHaveAttribute('aria-expanded', 'false');
-    await expect(canvas.queryByText(HASH)).toBeNull();
-
-    await userEvent.click(control);
-
-    await expect(control).toHaveAttribute('aria-expanded', 'true');
-    await expect(canvas.getByText(HASH)).toBeInTheDocument();
+    // #80: neither the archive link nor the hash comes back.
+    await expect(canvas.queryByRole('link', { name: /web archive/ })).toBeNull();
+    await expect(canvasElement.querySelector('.font-mono')).toBeNull();
   },
 };
 

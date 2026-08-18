@@ -56,12 +56,6 @@ export function Sidebar({ dossier }: SidebarProps) {
         <span className="text-xs text-label">{dossier.type}</span>
       </h1>
 
-      {/* §5.1 and PU1: the labelling is visible and it is not bypassable, so it holds on **both**
-          surfaces. UC5 reads one entity here and on the full page, and a reader who only ever
-          opens the sidebar would otherwise never be told what this data is. The words are the
-          ones `./dossier` wrote, and #12 owns them: no second disclaimer is written here. */}
-      <p className="text-[11px]/4 text-label">{dossier.labellingNotice}</p>
-
       {/* **The defect this key exists to not repeat.** §5.3 makes every control read-only, so
           each one draws its value with `defaultValue`, and React reads that once. In the
           sidebar the entity changes with **no navigation at all** — a selection on the map
@@ -72,10 +66,6 @@ export function Sidebar({ dossier }: SidebarProps) {
 
       <Relations relations={dossier.relations} mark={mark} />
       <Pending proposals={dossier.pending} mark={mark} />
-
-      {/* §5.5: the trail of #15, in the words `./dossier` wrote. #45 keeps the stored rendered
-          prompt off the screen, and this line does not draw it. */}
-      <p className="text-[11px]/4 text-label">{dossier.provenance}</p>
     </aside>
   );
 }

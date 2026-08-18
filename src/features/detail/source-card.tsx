@@ -113,7 +113,7 @@ export function SourceCard({ source }: SourceCardProps) {
           // `--control-height: 24px`. **Do not state a height here again.**
           className="shrink-0 rounded-none px-1 text-[11px]/4 transition-colors duration-100"
         >
-          {`Archive, hash and claims (${source.holdsUp.length})`}
+          {`Claims (${source.holdsUp.length})`}
         </Button>
       </div>
 
@@ -127,32 +127,6 @@ export function SourceCard({ source }: SourceCardProps) {
 
       {open ? (
         <div id={panelId} className="mt-1 space-y-1 text-[11px]/4">
-          <p className="flex gap-2">
-            <span className={cn(NAME)}>Archive</span>
-            {source.archiveUri === null ? (
-              <span className="min-w-0 truncate text-label">No archive address recorded</span>
-            ) : (
-              <a
-                href={source.archiveUri}
-                title={source.archiveUri}
-                aria-label={`Open the web archive copy at ${source.archiveUri}`}
-                className={cn(LINK)}
-              >
-                {source.archiveShort ?? source.archiveUri}
-              </a>
-            )}
-          </p>
-          <p className="flex gap-2">
-            <span className={cn(NAME)}>Hash</span>
-            {source.sha256 === null ? (
-              <span className="min-w-0 truncate text-label">No hash recorded</span>
-            ) : (
-              // Rule 12: a hash is monospace.
-              <span className="min-w-0 truncate font-mono" title={source.sha256}>
-                {source.sha256}
-              </span>
-            )}
-          </p>
           <div>
             <p className={cn(NAME, 'w-auto')}>
               {`Claims this document holds up (${source.holdsUp.length})`}

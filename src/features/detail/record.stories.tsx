@@ -218,7 +218,7 @@ export const AHundredClaimsReadInAboutFortyLines: Story = {
     await expect(cells).toHaveLength(100);
 
     const lines = await linesOnThePage(canvasElement);
-    // The measured value is 41: 32 lines of cells and 9 group headings. The band is "about 40".
+    // The measured value was 41 with 9 group headings, which #80 removed. The band is "about 40".
     await expect(lines).toBeGreaterThanOrEqual(34);
     await expect(lines).toBeLessThanOrEqual(46);
   },
@@ -272,10 +272,16 @@ export const EveryClaimCarriesAMarkToItsSource: Story = {
   },
 };
 
-/** §4.1: the claims arrive in named groups, and the name of a group is a heading. */
-export const TheGroupOfAClaimIsNamed: Story = {
+/**
+ * The record is one flat list, and it carries no heading of its own.
+ *
+ * **#80 removed the group headings.** Their names — `Identity`, `Ownership`, `Other` — were
+ * invented in `./claims` from the prefix of a key, and no data supplies them. **#46** owns any
+ * real group.
+ */
+export const TheRecordDrawsNoInventedHeading: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('heading', { name: /Identity/ })).toBeInTheDocument();
+    await expect(canvas.queryByRole('heading')).toBeNull();
   },
 };

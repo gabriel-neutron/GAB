@@ -139,20 +139,17 @@ export const ArrivingWithASourceMarksThatCard: Story = {
 };
 
 /**
- * §5.1 and PU1: the labelling notice of #12. §5.5: the trail of #15, which #45 keeps the stored
- * rendered prompt out of.
+ * #80 removed the two paragraphs of placeholder words: the labelling notice that stood in for #12,
+ * and the promotion trail of #15 that named a proposal identifier to the reader.
  *
- * **Each set of words appears once.** One place holds them, so #12 changes one string and every
- * surface follows. A second disclaimer on one surface is how two of them drift apart.
+ * **This story proves they do not come back.** #12 owns the real disclaimer, and it is the one
+ * that PU1 requires; a placeholder that reads like a disclaimer is worse than none.
  */
-export const TheLabellingNoticeAndTheProvenanceAreDrawnOnce: Story = {
-  play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByText(DOSSIER.labellingNotice)).toBeInTheDocument();
-    await expect(canvas.getByText(DOSSIER.provenance)).toBeInTheDocument();
-
+export const NoPlaceholderProseIsDrawn: Story = {
+  play: async ({ canvasElement }) => {
     const words = canvasElement.textContent;
-    const first = words.indexOf(DOSSIER.labellingNotice);
-    await expect(words.indexOf(DOSSIER.labellingNotice, first + 1)).toBe(-1);
+    await expect(words).not.toMatch(/Placeholder words/);
+    await expect(words).not.toMatch(/Promoted by proposal/);
   },
 };
 

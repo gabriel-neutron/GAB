@@ -67,11 +67,6 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
           <span className="text-xs text-label">{dossier.type}</span>
         </h1>
 
-        {/* §5.1: the words of #12, drawn as `./dossier` wrote them. **No second disclaimer is
-            written anywhere on this surface**: one place holds the words, so #12 changes one
-            string and every surface follows. */}
-        <p className="text-[11px]/4 text-label">{dossier.labellingNotice}</p>
-
         <EntityRecord rows={dossier.rows} mark={mark} />
         <Relations relations={dossier.relations} mark={mark} />
         <Pending proposals={dossier.pending} mark={mark} />
@@ -84,10 +79,6 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
           </span>
           {mark(dossier.entitySources)}
         </div>
-
-        {/* §5.5: the trail of #15, in the words `./dossier` wrote. #45 keeps the stored
-            rendered prompt off the screen, and this line does not draw it. */}
-        <p className="text-[11px]/4 text-label">{dossier.provenance}</p>
       </div>
 
       {/* The right pane. The rail holds its own scroll and its own hairline, so this element

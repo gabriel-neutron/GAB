@@ -69,9 +69,6 @@ export interface SourceCardModel {
   readonly scoreOrigin: string;
   readonly uri: string | null;
   readonly uriShort: string | null;
-  readonly archiveUri: string | null;
-  readonly archiveShort: string | null;
-  readonly sha256: string | null;
   readonly retrievedAt: string | null;
   readonly holdsUp: readonly ClaimLine[];
   /**
@@ -81,15 +78,19 @@ export interface SourceCardModel {
   readonly missing: boolean;
 }
 
-/** One line of the record. Flat on purpose: a heading is a row (§4.1). */
-export type RecordRow =
-  | { readonly key: string; readonly kind: 'group'; readonly label: string; readonly count: number }
-  | {
-      readonly key: string;
-      readonly kind: 'claim';
-      readonly claim: ClaimRow;
-      readonly sources: readonly SourceRef[];
-    };
+/**
+ * One line of the record.
+ *
+ * **It was a union of two, and the heading half is gone** — #80. The names of the groups were
+ * invented in `./claims`, and no data supplies them. `kind` stays, because a second kind of row is
+ * what #85 DETAIL-SEGMENTATION may add.
+ */
+export interface RecordRow {
+  readonly key: string;
+  readonly kind: 'claim';
+  readonly claim: ClaimRow;
+  readonly sources: readonly SourceRef[];
+}
 
 export interface RelationLine {
   readonly id: string;
@@ -122,10 +123,6 @@ export interface Dossier {
   readonly sources: readonly SourceCardModel[];
   readonly relations: readonly RelationLine[];
   readonly pending: readonly PendingLine[];
-  /** §5.1: placeholder words. #12 writes the real disclaimer. */
-  readonly labellingNotice: string;
-  /** §5.5: the trail of #15, and what #45 keeps off the screen. */
-  readonly provenance: string;
   readonly claimCount: number;
 }
 
@@ -210,25 +207,15 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
   const claims = readClaims(entity.attrs);
   const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
 
-  const rows: RecordRow[] = [];
-  let group: string | null = null;
-  for (const held of claimSources) {
-    if (held.claim.group !== group) {
-      group = held.claim.group;
-      rows.push({
-        key: `group:${group}`,
-        kind: 'group',
-        label: group,
-        count: claims.filter((claim) => claim.group === group).length,
-      });
-    }
-    rows.push({
-      key: `claim:${held.claim.key}`,
-      kind: 'claim',
-      claim: held.claim,
-      sources: held.sources,
-    });
-  }
+  // **The record is one flat list of claims.** The group headings are gone — #80 — because their
+  // names were invented in `./claims` and no data supplies them. **#46** owns any real group, and
+  // **#85 DETAIL-SEGMENTATION** owns how the four parts of this page are separated.
+  const rows: readonly RecordRow[] = claimSources.map((held) => ({
+    key: `claim:${held.claim.key}`,
+    kind: 'claim',
+    claim: held.claim,
+    sources: held.sources,
+  }));
 
   // §4.6: the relations with one endpoint on the entity, then the relations that point at
   // **those** relations, deduplicated against the first set.
@@ -336,9 +323,6 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       scoreOrigin: rating.scoreOrigin,
       uri: row?.uri ?? null,
       uriShort: shorten(row?.uri ?? null),
-      archiveUri: row?.archiveUri ?? null,
-      archiveShort: shorten(row?.archiveUri ?? null),
-      sha256: row?.sha256 ?? null,
       retrievedAt: row?.retrievedAt ?? null,
       holdsUp: claimSources
         .filter((held) => held.claim.sources.includes(ref.id))
@@ -360,17 +344,6 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     sources,
     relations,
     pending,
-    // §5.1: placeholder words, in one place. **#12 writes the real disclaimer**, and until it
-    // does no other file states one.
-    labellingNotice:
-      'Placeholder words for #12. Each claim on this page is evidence that was extracted and ' +
-      'promoted, and it is not a verified fact. A number beside a claim points to the document ' +
-      'that carries it, and the score of that document is on the card in the rail.',
-    // §5.5: #15 gives every evidentiary row the proposal that made it. #45 asks whether a
-    // reader ever sees the stored rendered prompt, so this surface does not draw it.
-    provenance:
-      `Promoted by proposal ${entity.promotedFrom}. The trail reaches the agent call and the ` +
-      'stored prompt in one join, and that prompt is not drawn here: #45 is open.',
     claimCount: claims.length,
   };
 }
