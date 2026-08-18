@@ -64,6 +64,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { arrowImage } from '@/shared/canvas-arrow';
 import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
@@ -163,6 +164,20 @@ const LINK_LAYER = 'links-line';
  */
 const ACTIVE_LINK_SOURCE = 'links-active';
 const ACTIVE_LINK_LAYER = 'links-active-line';
+
+/**
+ * **A relation says which way it points** — #88 row A5. One head, at the end it arrives at.
+ *
+ * **It carries a source of its own, and it is not a symbol on the line source.** MapLibre places a
+ * symbol along a line from the start of that line, and it has no expression that reads where a
+ * line ends or which way it runs. So the end and the angle are computed here, as a point with a
+ * bearing on it, and the layer turns the image by that bearing.
+ *
+ * `shared/canvas-arrow.ts` holds the shape, and the graph draws the same one.
+ */
+const ARROW_SOURCE = 'link-arrows';
+const ARROW_LAYER = 'link-arrow';
+const ARROW_IMAGE = 'link-arrow-head';
 
 /**
  * The one colour of a line, as hex.
@@ -333,6 +348,45 @@ const collectLines = (links: readonly GeoLink[]): LineCollection => ({
 });
 
 /**
+ * One arrowhead, at the end its relation arrives at — #88 row A5.
+ *
+ * A relation is drawn as a straight line between two points, so the end of the line is the
+ * position of the target entity and the angle is the plane bearing between the two.
+ *
+ * **The bearing is the plane angle, and not the great-circle one.** The great-circle bearing is
+ * the angle a vessel would steer, and it is not the angle of the straight line that this map
+ * draws. At a high latitude the two differ by degrees, and the head would then point off its own
+ * line.
+ */
+interface ArrowFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry: {
+    readonly type: 'Point';
+    readonly coordinates: readonly [number, number];
+  };
+  readonly properties: { readonly bearing: number };
+}
+
+interface ArrowCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly ArrowFeature[];
+}
+
+const collectArrows = (links: readonly GeoLink[]): ArrowCollection => ({
+  type: 'FeatureCollection',
+  features: links.map((link) => ({
+    type: 'Feature',
+    id: link.fid,
+    geometry: { type: 'Point', coordinates: [link.to.lon, link.to.lat] },
+    properties: {
+      bearing:
+        (Math.atan2(link.to.lon - link.from.lon, link.to.lat - link.from.lat) * 180) / Math.PI,
+    },
+  })),
+});
+
+/**
  * What the hit test found. There are four results, and they are not two.
  *
  * `unknown` is the window before the style loads. In that window the library can answer no query.
@@ -472,6 +526,40 @@ export function mountMap({
   ];
 
   /**
+   * The heads of the relations — #88 row A5.
+   *
+   * **It is above the lines and below every point**, for the rule of §4.7: a relation must never
+   * cover the thing it relates.
+   *
+   * **The collision machinery is switched off.** MapLibre drops a symbol that meets another one,
+   * and a dropped head reads as a relation with no direction — an absence that states something
+   * false about the data. A head that crowds its neighbour is the lesser fault, and it is the one
+   * the analyst can see and answer with a zoom.
+   */
+  const arrowLayer: LayerSpec = {
+    id: ARROW_LAYER,
+    type: 'symbol',
+    source: ARROW_SOURCE,
+    layout: {
+      visibility: linksHidden ? 'none' : 'visible',
+      'icon-image': ARROW_IMAGE,
+      // The head follows the zoom with the width of the line it belongs to, at the same rate.
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.22, 8, 0.34, 14, 0.48],
+      // The image points north, so the bearing on the feature is the whole of the rotation.
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      // **The head stands back from the point it names**, along its own axis, for the reason
+      // `4bbab56` gives for the pending badge: a mark on the centre covers the thing it marks.
+      // The step back is in the units of the image, so it follows `icon-size` and never the
+      // length of the relation: a long line would otherwise leave its head out in open ground.
+      'icon-offset': [0, 14],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+    paint: { 'icon-opacity': LINK_OPACITY },
+  };
+
+  /**
    * The theme, from the class on the document element — `CANVAS.md`: "The theme is read from the
    * class on `documentElement`, with an observer, and never from React."
    */
@@ -534,6 +622,12 @@ export function mountMap({
       // the two paint functions below.
       [LINK_SOURCE]: { type: 'geojson', data: collectLines(drawnLinks(projection.links, hidden)) },
       [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
+      // The heads read the same list as the quiet lines, so a type that switches off takes its
+      // heads with its lines and no second truth about what is drawn can appear.
+      [ARROW_SOURCE]: {
+        type: 'geojson',
+        data: collectArrows(drawnLinks(projection.links, hidden)),
+      },
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
@@ -546,6 +640,7 @@ export function mountMap({
       ...groundLayers,
       // **The lines come before every point** — §4.7. A relation must never cover what it relates.
       ...linkLayers,
+      arrowLayer,
       ...pointLayers,
       {
         // **The ring is above each point layer.** One slot cannot do two jobs. A point that
@@ -697,7 +792,12 @@ export function mountMap({
       const source = map.getSource(LINK_SOURCE);
       // The test on the class gives the type that declares `setData`, exactly as above.
       if (!(source instanceof GeoJSONSource)) return;
-      void source.setData(collectLines(drawnLinks(projection.links, hidden)));
+      const drawn = drawnLinks(projection.links, hidden);
+      void source.setData(collectLines(drawn));
+      // The heads follow the same list, in the same queue, so a line and its head can never
+      // disagree about which relations are drawn.
+      const heads = map.getSource(ARROW_SOURCE);
+      if (heads instanceof GeoJSONSource) void heads.setData(collectArrows(drawn));
     });
   };
 
@@ -817,6 +917,23 @@ export function mountMap({
     }
     return { kind: 'ground' };
   };
+
+  /**
+   * The arrowhead, given to the library when it asks for it — #88 row A5.
+   *
+   * **This style holds no sprite and no glyph server**, because the map draws its own ground and
+   * it has never needed either. So the image the style names must come from here.
+   *
+   * **The `styleimagemissing` event is not the path in `maplibre-gl` 6.** It fires, and the layer
+   * that was already built keeps an empty image: the library warns that the image "could not be
+   * loaded" and draws no head. That was measured in the browser and not assumed. This resolver is
+   * the path of this version, and it is set before the style loads, so the first frame that wants
+   * a head already has one.
+   */
+  map.setMissingStyleImageResolver((id) => {
+    if (id !== ARROW_IMAGE || map.hasImage(id)) return;
+    map.addImage(id, arrowImage(LINK_HUE));
+  });
 
   subscriptions.push(
     map.on('load', () => {
@@ -1287,7 +1404,9 @@ export function mountMap({
       linksHidden = !visible;
       patchMapWorkspace({ linksHidden });
       whenStyleReady(() => {
-        for (const id of linkLayerIds) {
+        // The heads go with the lines. They are not in `linkLayerIds`, because that list is the
+        // hit test as well: a click must find the line, and a head has no identity of its own.
+        for (const id of [...linkLayerIds, ARROW_LAYER]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });

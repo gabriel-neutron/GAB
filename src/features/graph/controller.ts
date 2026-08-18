@@ -29,8 +29,10 @@
  */
 
 import Sigma from 'sigma';
+import { createEdgeArrowProgram } from 'sigma/rendering';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
+import { ARROW_LENGTH_RATIO, ARROW_WIDTH_RATIO } from '@/shared/canvas-arrow';
 import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
 import type { Corpus } from '@/shared/fixtures/types';
 
@@ -426,6 +428,21 @@ export function mountGraph(
     // fixed colour, and it put black text on a white box over this canvas. The overlay label above
     // takes its place, in the tokens of the theme and in the recipe the map shares — #82 A6, A10.
     defaultDrawNodeHover: () => undefined,
+
+    // **A relation says which way it points** — #88 row A5. The head is at the end the relation
+    // arrives at, and `shared/canvas-arrow.ts` states its shape for this canvas and for the map.
+    // Sigma reads the program from the `type` of an edge, and this default reaches every edge that
+    // states none, so no edge datum and no reducer below changes.
+    defaultEdgeType: 'arrow',
+    edgeProgramClasses: {
+      // The default export of the arrow program is typed for a graph that declares no attributes
+      // of its own. The factory beside it takes the two types of this graph, so the record needs
+      // no assertion and this file keeps its rule of writing none.
+      arrow: createEdgeArrowProgram<NodeAttrs, EdgeAttrs>({
+        lengthToThicknessRatio: ARROW_LENGTH_RATIO,
+        widenessToThicknessRatio: ARROW_WIDTH_RATIO,
+      }),
+    },
 
     // A relation is selected on the canvas, so a relation takes a click — §4.3, whose selection
     // carries `kind: 'relation'`, and §4.7, which draws that case as a report. This is not UC3:
