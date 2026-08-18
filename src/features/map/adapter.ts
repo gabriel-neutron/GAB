@@ -187,6 +187,25 @@ const ACTIVE_LINK_LAYER = 'links-active-line';
  * part opacity, and the bright line is the full hue and a greater width.
  */
 const LINK_HUE = '#7b8489';
+
+/**
+ * The outline of a point. **Every point carries it, and a selection changes nothing about it.**
+ *
+ * **The defect it corrects:** a point is one flat disc of an entity hue, and it sits on imagery.
+ * Imagery holds every hue there is, so a green point on a field and a blue point on water each
+ * lose their edge, and two points that touch read as one shape. The ring of a selection answered
+ * this for one point at a time, and the operator asked for the answer on all of them.
+ *
+ * **It is black, and it is not a token.** It is not a colour of the interface: it is the edge that
+ * separates a mark from the ground under it, and a cartographic outline is dark on every ground
+ * for that reason. `--foreground` is near white in the dark theme and would read as a second mark.
+ * The map uses the dark set on every ground already — `CANVAS.md` — so this value follows no theme
+ * either.
+ *
+ * **The hex is stated here and not read from a stylesheet**, for the reason `LINK_HUE` gives above
+ * it: a CSS custom property never reaches the style parser of the library.
+ */
+const POINT_OUTLINE = '#000000';
 /**
  * The quiet line says "a relation is here". The bright line answers "what does this one touch".
  *
@@ -405,6 +424,13 @@ export function mountMap({
     paint: {
       'circle-color': facet.colour,
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 14, 7],
+      // **The outline is on every point, and no state removes it** — see `POINT_OUTLINE`.
+      'circle-stroke-color': POINT_OUTLINE,
+      // The width follows the zoom with the radius, at a rate that keeps the outline a hairline
+      // and never a second disc. At zoom 3 the point is 3px and the outline is 1px; at zoom 14 it
+      // is 7px and 1.6px. A fixed width would swallow the point at the low zoom that the rule is
+      // about.
+      'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
     },
   }));
 
