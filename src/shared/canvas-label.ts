@@ -25,17 +25,40 @@
  * took the pointer would put itself between the analyst and the thing it names, and the leave
  * event would never arrive.
  *
- * **It never wraps and it truncates**, rule 16. A name of two hundred characters would otherwise
- * cover the picture it is naming.
+ * **Each line truncates and none of them wraps**, rule 16. A name of two hundred characters would
+ * otherwise cover the picture it is naming. A relation takes three lines, so the box is a column
+ * and the truncation is per line.
  *
  * `top-0 left-0` with a transform is the same placement rule the ring and the markers of the graph
  * use: one paint per frame, and no layout of the box model in the loop.
  */
 export const CANVAS_LABEL_CLASS = [
-  'pointer-events-none absolute top-0 left-0 z-10 max-w-64 truncate',
+  'pointer-events-none absolute top-0 left-0 z-10 flex max-w-64 flex-col',
   'border border-border bg-popover px-1.5 py-0.5',
   'font-sans text-xs text-popover-foreground',
+  '[&>*]:truncate',
 ].join(' ');
+
+/**
+ * What a relation says, in three lines.
+ *
+ * **One line was unreadable, and the operator said so.** `A — type — B` on one line puts three
+ * names in a row and truncates the lot at the width of the box. A relation is a statement about
+ * two entities, so it is drawn as one: an entity, what it does, and the other entity.
+ *
+ * **The arrow is the direction, and it points from the first line to the third.** The data has
+ * carried a direction all along and neither canvas drew it; this is the first place that does.
+ * **#88 GRAPH-RELATION-DRAW still owns the direction on the line itself**, which is a different
+ * job: this names a relation, and that one draws it.
+ *
+ * The arrow is hidden from a reader, because an arrow has no name that a reader can say. The words
+ * carry the same fact into the accessible text.
+ */
+export const relationLines = (from: string, type: string, to: string): readonly string[] => [
+  from,
+  `↓ ${type}`,
+  to,
+];
 
 /**
  * How far above the point the label sits, in pixels.

@@ -64,7 +64,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
 // PROTOTYPE — deleted with `shared/marks.prototype.ts` once the operator has chosen.
 import { markOf, type MarkVocabulary } from '@/shared/marks.prototype';
 
@@ -890,15 +890,26 @@ export function mountMap({
   /** What the label says now, so that a move over one feature writes the DOM one time. */
   let hoverWords: string | null = null;
 
-  const nameHover = (words: string | null, point: { x: number; y: number } | null): void => {
-    if (words === null || point === null) {
+  const nameHover = (
+    lines: readonly string[] | null,
+    point: { x: number; y: number } | null,
+  ): void => {
+    if (lines === null || point === null) {
       hoverWords = null;
       hoverLabel.hidden = true;
       return;
     }
+    const words = lines.join('|');
     if (words !== hoverWords) {
       hoverWords = words;
-      hoverLabel.textContent = words;
+      // One element per line, so each one truncates on its own — a relation takes three.
+      hoverLabel.replaceChildren(
+        ...lines.map((line) => {
+          const row = document.createElement('span');
+          row.textContent = line;
+          return row;
+        }),
+      );
       hoverLabel.hidden = false;
     }
     // The label follows the pointer here, and the graph anchors it to the node. A map has no
@@ -917,11 +928,14 @@ export function mountMap({
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
       if (hit.kind === 'entity') {
-        nameHover(hit.entity.label, event.point);
+        nameHover([hit.entity.label], event.point);
         return;
       }
       if (hit.kind === 'link') {
-        nameHover(`${hit.link.from.label} — ${hit.link.type} — ${hit.link.to.label}`, event.point);
+        nameHover(
+          relationLines(hit.link.from.label, hit.link.type, hit.link.to.label),
+          event.point,
+        );
         return;
       }
       nameHover(null, null);

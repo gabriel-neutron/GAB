@@ -31,7 +31,7 @@
 import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
-import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
 // PROTOTYPE — deleted with `shared/marks.prototype.ts` once the operator has chosen.
 import {
   markOf,
@@ -48,6 +48,7 @@ import { standInPositions } from './layout';
 import {
   buildGraphModel,
   dimmedColour,
+  GROUND_HUE,
   GRAPH_PALETTES,
   type EdgeAttrs,
   type GraphGround,
@@ -269,7 +270,7 @@ export function mountGraph(
    * moves, and a publish on each one would run every subscriber of this handle at that rate. The
    * label is drawn over the canvas by this file, exactly as the ring and the markers are.
    */
-  let hovered: { readonly id: string; readonly words: string } | null = null;
+  let hovered: { readonly id: string; readonly lines: readonly string[] } | null = null;
 
   /** One dimmed colour for each colour of the palette. A reducer runs for each element, each frame. */
   const dimCache = new Map<string, string>();
@@ -277,7 +278,7 @@ export function mountGraph(
     const held = dimCache.get(colour);
     if (held !== undefined) return held;
     // The fraction follows the ground, so the cache is emptied at each theme change below.
-    const made = dimmedColour(colour, DIM_ALPHA[ground]);
+    const made = dimmedColour(colour, GROUND_HUE[ground], DIM_ALPHA[ground]);
     dimCache.set(colour, made);
     return made;
   };
@@ -772,10 +773,17 @@ export function mountGraph(
    * own. #88 GRAPH-RELATION-DRAW owns what else a relation says on a canvas, and the direction it
    * still does not draw.
    */
-  const nameHover = (next: { id: string; words: string } | null): void => {
+  const nameHover = (next: { id: string; lines: readonly string[] } | null): void => {
     if (destroyed) return;
     hovered = next;
-    hoverLabel.textContent = next?.words ?? '';
+    // One element per line, so each one truncates on its own — a relation takes three.
+    hoverLabel.replaceChildren(
+      ...(next?.lines ?? []).map((line) => {
+        const row = document.createElement('span');
+        row.textContent = line;
+        return row;
+      }),
+    );
     if (next === null) hoverLabel.hidden = true;
     // The label is placed on the next frame, with the ring and the markers, so one loop owns
     // every element over this canvas.
@@ -784,7 +792,7 @@ export function mountGraph(
 
   sigma.on('enterNode', ({ node }) => {
     if (!nodePassesFilter(node)) return;
-    nameHover({ id: node, words: model.graph.getNodeAttribute(node, 'label') });
+    nameHover({ id: node, lines: [model.graph.getNodeAttribute(node, 'label')] });
   });
   sigma.on('leaveNode', ({ node }) => {
     if (hovered?.id === node) nameHover(null);
@@ -795,7 +803,7 @@ export function mountGraph(
     const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
     const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
     const type = model.graph.getEdgeAttribute(edge, 'relationType');
-    nameHover({ id: edge, words: `${from} — ${type} — ${to}` });
+    nameHover({ id: edge, lines: relationLines(from, type, to) });
   });
   sigma.on('leaveEdge', ({ edge }) => {
     if (hovered?.id === edge) nameHover(null);
