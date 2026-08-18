@@ -31,6 +31,7 @@
 import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
+import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
 import type { Corpus } from '@/shared/fixtures/types';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
@@ -270,6 +271,15 @@ export function mountGraph(
   /** The elements that carry a marker on this frame, and how many get none. §3.3. */
   let markerTargets: readonly string[] = [];
 
+  /**
+   * What the pointer is over, and the words the label draws for it — #82 A6 and A10.
+   *
+   * **It is not on the view, and it never publishes.** A hover changes as fast as the pointer
+   * moves, and a publish on each one would run every subscriber of this handle at that rate. The
+   * label is drawn over the canvas by this file, exactly as the ring and the markers are.
+   */
+  let hovered: { readonly id: string; readonly words: string } | null = null;
+
   /** One dimmed colour for each colour of the palette. A reducer runs for each element, each frame. */
   const dimCache = new Map<string, string>();
   const dimOf = (colour: string): string => {
@@ -394,9 +404,14 @@ export function mountGraph(
 
     // §2 and ADR 0004 §4: this canvas is for macro structure, and not for reading labels. The
     // label colour of the library is one fixed value that no token of this repository reaches, so
-    // a label drawn here is unreadable on one of the two grounds. A pointer on a node still names
-    // it, through the hover card of the library.
+    // a label drawn here is unreadable on one of the two grounds.
     renderLabels: false,
+
+    // **The hover card of the library is switched off, and this file draws the name itself.**
+    // `renderLabels: false` does not reach it: the card is drawn by its own path, in the same
+    // fixed colour, and it put black text on a white box over this canvas. The overlay label above
+    // takes its place, in the tokens of the theme and in the recipe the map shares — #82 A6, A10.
+    defaultDrawNodeHover: () => undefined,
 
     // A relation is selected on the canvas, so a relation takes a click — §4.3, whose selection
     // carries `kind: 'relation'`, and §4.7, which draws that case as a report. This is not UC3:
@@ -448,6 +463,22 @@ export function mountGraph(
   ring.className = RING_CLASS;
   ring.hidden = true;
   layer.append(ring);
+
+  /**
+   * The name a pointer draws — #82 rows A6 and A10, and #91.
+   *
+   * **It replaces the hover card of Sigma**, which `renderLabels: false` does not switch off. That
+   * card draws in one fixed colour of the library, so it put black text on a white box over this
+   * dark canvas. `defaultDrawNodeHover` below switches it off, and `shared/canvas-label.ts` states
+   * how this one looks — the same recipe the map reads, so the two surfaces name a thing the same
+   * way.
+   *
+   * **It names a relation as well as a node** — #82 A6, which the operator kept and extended.
+   */
+  const hoverLabel = document.createElement('div');
+  hoverLabel.className = CANVAS_LABEL_CLASS;
+  hoverLabel.hidden = true;
+  layer.append(hoverLabel);
   overlay.append(layer);
 
   const markers: HTMLDivElement[] = [];
@@ -524,6 +555,24 @@ export function mountGraph(
         const diameter =
           data === undefined ? RING_ON_RELATION : 2 * sigma.scaleSize(data.size) + RING_MARGIN;
         place(ring, sigma.framedGraphToViewport(point), diameter);
+      }
+    }
+
+    // The label follows the thing it names, and not the pointer: the camera may move while the
+    // pointer stands still, and a label left at the old pixel would name empty ground.
+    if (hovered === null) hoverLabel.hidden = true;
+    else {
+      const point = framedPointOf(hovered.id);
+      if (point === null) hoverLabel.hidden = true;
+      else {
+        const { x, y } = sigma.framedGraphToViewport(point);
+        const { width, height } = sigma.getDimensions();
+        hoverLabel.hidden =
+          x < -OVERLAY_MARGIN ||
+          y < -OVERLAY_MARGIN ||
+          x > width + OVERLAY_MARGIN ||
+          y > height + OVERLAY_MARGIN;
+        hoverLabel.style.transform = canvasLabelTransform(x, y);
       }
     }
 
@@ -708,6 +757,46 @@ export function mountGraph(
   sigma.on('clickStage', () => {
     if (destroyed) return;
     settle(null);
+  });
+
+  /**
+   * **A pointer names what it is over** — #82 A6, which the operator kept and asked to extend to a
+   * relation, and #82 A10, which asks the map for the same behaviour.
+   *
+   * **The same filter guard as a click.** A dimmed element is out of consideration, so it is out
+   * of reach: naming one would offer the analyst a thing the surface has excluded.
+   *
+   * **A relation is named by its type and its two ends**, because a relation has no name of its
+   * own. #88 GRAPH-RELATION-DRAW owns what else a relation says on a canvas, and the direction it
+   * still does not draw.
+   */
+  const nameHover = (next: { id: string; words: string } | null): void => {
+    if (destroyed) return;
+    hovered = next;
+    hoverLabel.textContent = next?.words ?? '';
+    if (next === null) hoverLabel.hidden = true;
+    // The label is placed on the next frame, with the ring and the markers, so one loop owns
+    // every element over this canvas.
+    sigma.refresh();
+  };
+
+  sigma.on('enterNode', ({ node }) => {
+    if (!nodePassesFilter(node)) return;
+    nameHover({ id: node, words: model.graph.getNodeAttribute(node, 'label') });
+  });
+  sigma.on('leaveNode', ({ node }) => {
+    if (hovered?.id === node) nameHover(null);
+  });
+
+  sigma.on('enterEdge', ({ edge }) => {
+    if (!edgePassesFilter(edge)) return;
+    const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
+    const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
+    const type = model.graph.getEdgeAttribute(edge, 'relationType');
+    nameHover({ id: edge, words: `${from} — ${type} — ${to}` });
+  });
+  sigma.on('leaveEdge', ({ edge }) => {
+    if (hovered?.id === edge) nameHover(null);
   });
 
   /**

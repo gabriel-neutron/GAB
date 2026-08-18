@@ -64,6 +64,8 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
@@ -817,6 +819,73 @@ export function mountMap({
    */
   let cameraIsAnalystChoice = false;
 
+  /**
+   * The name a pointer draws over this canvas — #81 row A10.
+   *
+   * **The operator asked for the hover name of the graph, here.** They liked that design and asked
+   * the two canvases to read as one product. `shared/canvas-label.ts` states how it looks, and the
+   * graph reads the same recipe: the two libraries share no draw call, so one file of words and
+   * one geometry rule is what can be shared.
+   *
+   * **It is a child of the container and not of the canvas.** MapLibre owns the canvas element and
+   * replaces it on a context loss, so an element inside it would go with it.
+   *
+   * **It names a relation as well as a point**, in the same words the graph uses.
+   */
+  const hoverLabel = document.createElement('div');
+  hoverLabel.className = CANVAS_LABEL_CLASS;
+  hoverLabel.hidden = true;
+  container.append(hoverLabel);
+
+  /** What the label says now, so that a move over one feature writes the DOM one time. */
+  let hoverWords: string | null = null;
+
+  const nameHover = (words: string | null, point: { x: number; y: number } | null): void => {
+    if (words === null || point === null) {
+      hoverWords = null;
+      hoverLabel.hidden = true;
+      return;
+    }
+    if (words !== hoverWords) {
+      hoverWords = words;
+      hoverLabel.textContent = words;
+      hoverLabel.hidden = false;
+    }
+    // The label follows the pointer here, and the graph anchors it to the node. A map has no
+    // node radius to stand clear of, and a point under the pointer is the thing being named.
+    hoverLabel.style.transform = canvasLabelTransform(point.x, point.y);
+  };
+
+  /**
+   * **The pointer names what it is over, and it changes no state** — #81 A10.
+   *
+   * It asks the same question as the click, through the one hit test, so the thing that is named
+   * and the thing that a click takes can never disagree. A type that is switched off is hidden on
+   * this surface, and `hitAt` already refuses it.
+   */
+  subscriptions.push(
+    map.on('mousemove', (event) => {
+      const hit = hitAt(event.point);
+      if (hit.kind === 'entity') {
+        nameHover(hit.entity.label, event.point);
+        return;
+      }
+      if (hit.kind === 'link') {
+        nameHover(`${hit.link.from.label} — ${hit.link.type} — ${hit.link.to.label}`, event.point);
+        return;
+      }
+      nameHover(null, null);
+    }),
+  );
+
+  // A pointer that leaves the canvas names nothing. Without this the label stays where the
+  // pointer left the map.
+  subscriptions.push(
+    map.on('mouseout', () => {
+      nameHover(null, null);
+    }),
+  );
+
   // **One `click` handler, and it asks what is under the pointer** — §5.3. Two handlers make the
   // result depend on the order in which they run.
   subscriptions.push(
@@ -1245,6 +1314,9 @@ export function mountMap({
       chooseLinkListeners.clear();
       // A task that waits for a style which never loads stays in the closure. The list is emptied.
       queued.length = 0;
+      // The hover label is a child of the container and not of the canvas, so `map.remove()` does
+      // not take it: this file appended it, and this file removes it.
+      hoverLabel.remove();
       if (mounted.get(container) === handle) mounted.delete(container);
       map.remove();
     },
