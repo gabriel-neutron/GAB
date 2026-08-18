@@ -34,13 +34,15 @@ export interface DetailPageProps {
  * §5.2: the shell needs a settled height, or neither pane can hold a scroll of its own and the
  * window scrolls both together.
  *
- * **`6rem` is a magic number and it belongs to the layout ticket.** It tracks the `p-4` of
- * `src/routes/__root.tsx` and the mode toggle above `<main>`. It is the value of the accepted
- * prototype, it lives at this one point of one file, and it is reported under ASK. The day the
- * layout ticket gives the shell a real height, this expression is deleted and nothing else
- * changes.
+ * **It asks its parent, and it calculates nothing** — #92. `src/routes/__root.tsx` states the
+ * height of the header once and gives `<main>` the rest, so `h-full` is the whole answer. The
+ * `calc(100svh - 6rem)` that stood here tracked a padding and a control height that no file
+ * declared.
+ *
+ * **The padding is here because this page is not a canvas.** #92 takes every margin off the shell,
+ * so a page that wants one states it. The map and the graph want none: a canvas fills the pane.
  */
-const SHELL = 'flex h-[calc(100svh-6rem)] gap-4';
+const SHELL = 'flex h-full gap-4 p-4';
 
 export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
   // §7 and #33: the source the record points at dies with the view, so React state is where

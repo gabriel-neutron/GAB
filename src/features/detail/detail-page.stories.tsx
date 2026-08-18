@@ -29,7 +29,7 @@ import { readDossier, type Dossier, type SourceCardModel } from './dossier';
  *
  * **The populated scroll of §8 step 5.** "The two panes scroll independently" needs a pane whose
  * content is taller than the pane. The committed corpus gives MV Northern Ledger three claims and
- * a few documents, and the shell is `calc(100svh-6rem)`, so neither pane overflows and a
+ * a few documents, and the shell takes the height of its parent (#92), so neither pane overflows and a
  * `scrollTop` assertion would pass while proving nothing.
  * `EachPaneIsItsOwnScrollContainer` proves the half this component owns — two separate scroll
  * containers, and neither inside the other — which is the structure that makes the independent

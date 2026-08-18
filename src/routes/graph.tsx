@@ -42,12 +42,21 @@ export interface GraphSearch {
 }
 
 /**
- * The sentence the aside states where it draws no dossier. §4.7 gives two cases the detail
- * surface cannot take, and **both are reports**: a relation, because that surface draws one
- * entity; and an entity that the read does not carry. Each one says the count and the reason.
+ * The sentence the aside states where it draws no dossier, **and only where something is
+ * selected**.
+ *
+ * **Nothing selected draws no panel at all** — #82 row D1, Never asked for it. The operator
+ * removed the sentence that invited a selection, and the aside with it, so the canvas takes the
+ * whole width until something is chosen. The map already worked this way.
+ *
+ * §4.7 gives two cases the detail surface cannot take, and **both are reports**: a relation,
+ * because that surface draws one entity; and an entity that the read does not carry.
+ *
+ * **The relation sentence is provisional** — #82 D2. It holds until **#89 DETAIL-RELATION-VIEW**
+ * exists, and the relation view replaces it. It should also stop telling an analyst how this
+ * application is cut into surfaces, and that wording is #89's to write.
  */
-const reportOf = (selection: GraphSelection | null): string => {
-  if (selection === null) return 'Nothing is selected. Select a node or a relation on the graph.';
+const reportOf = (selection: GraphSelection): string => {
   if (selection.kind === 'relation') {
     return 'A relation is selected. This surface draws 1 entity, so it draws no relation. Select an entity at one end of it.';
   }
@@ -128,20 +137,23 @@ function GraphRoute() {
   // the sidebar produced no scroll at all and the **window** scrolled both panes together.
   // **Do not remove the height.**
   //
-  // **`6rem` is a magic number and it belongs to the layout ticket.** It tracks the `p-4` of
-  // `src/routes/__root.tsx` and the mode toggle above `<main>`. It is the expression
-  // `src/features/detail/detail-page.tsx` uses, it lives at this one point of this file, and it is
-  // reported under ASK.
+  // **`h-full` and not a calculation** — #92. `src/routes/__root.tsx` states the height of the
+  // header and gives `<main>` everything that is left, so this row asks its parent for that
+  // height instead of subtracting a number nobody declared.
   return (
-    <div className={cn('flex h-[calc(100svh-6rem)] overflow-hidden')}>
+    <div className={cn('flex h-full overflow-hidden')}>
       <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
+      {/* **No selection draws no panel** — #82 D1. The canvas then takes the whole row, and
+          `adapter` and `controller` each observe their own element, so the resize is answered. */}
       {dossier === null ? (
-        <aside
-          aria-label="Detail"
-          className={cn('w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label')}
-        >
-          <p>{reportOf(selection)}</p>
-        </aside>
+        selection === null ? null : (
+          <aside
+            aria-label="Detail"
+            className={cn('w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label')}
+          >
+            <p>{reportOf(selection)}</p>
+          </aside>
+        )
       ) : (
         <Sidebar dossier={dossier} />
       )}

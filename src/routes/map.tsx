@@ -95,12 +95,11 @@ function MapRoute() {
   // `overflow-y-auto` on the sidebar produced no scroll at all and the **window** scrolled both
   // panes together. §5.2 asks each pane to scroll on its own. **Do not remove the height.**
   //
-  // **`6rem` is a magic number and it belongs to the layout ticket.** It tracks the `p-4` of
-  // `src/routes/__root.tsx` and the mode toggle above `<main>`. It is the expression
-  // `src/features/detail/detail-page.tsx` uses, it lives at this one point of this file, and it
-  // is reported under ASK.
+  // **`h-full` and not a calculation** — #92. `src/routes/__root.tsx` states the height of the
+  // header and gives `<main>` everything that is left, so this row asks its parent for that
+  // height instead of subtracting a number nobody declared.
   return (
-    <div className="flex h-[calc(100svh-6rem)] overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       <div className="min-h-0 min-w-0 flex-1">{canvas}</div>
       {dossier === null ? null : <Sidebar dossier={dossier} />}
     </div>
