@@ -60,6 +60,8 @@ export interface MapPageProps {
    * mounts a new map at each render, and that is the fault §3.4 names.
    */
   readonly onSelect: (id: string | null) => void;
+  /** PROTOTYPE — the direction vocabulary. See `shared/direction.prototype.ts`. */
+  readonly variant?: string | undefined;
 }
 
 /**
@@ -71,7 +73,7 @@ export interface MapPageProps {
  * the live element again. The operator owns the question, and this file makes no structural change
  * for it.
  */
-export function MapPage({ onSelect }: MapPageProps) {
+export function MapPage({ onSelect, variant }: MapPageProps) {
   const host = useRef<HTMLDivElement | null>(null);
   /**
    * The handle of the live map. **`CANVAS.md`: one `ref`, one imperative adapter.** The rail is a
@@ -135,7 +137,7 @@ export function MapPage({ onSelect }: MapPageProps) {
     // before this effect runs. This test states that, and it invents no second mounting path.
     if (container === null) return;
 
-    const map = mountMap({ container, projection });
+    const map = mountMap({ container, projection, variant });
     handle.current = map;
     setMapReady(true);
     const unsubscribe = map.onSelect(onSelect);
@@ -148,7 +150,10 @@ export function MapPage({ onSelect }: MapPageProps) {
       handle.current = null;
       setMapReady(false);
     };
-  }, [projection, onSelect]);
+    // PROTOTYPE: the variant is in the list, so a change of it mounts the map again. The three
+    // vocabularies are three layer lists, and a layer list is a style. The list holds the two real
+    // values again when `shared/direction.prototype.ts` goes.
+  }, [projection, onSelect, variant]);
 
   /**
    * **The element is memoised, and the empty list is the reason it works.** CANVAS.md: no React

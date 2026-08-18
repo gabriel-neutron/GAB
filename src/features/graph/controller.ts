@@ -29,9 +29,13 @@
  */
 
 import Sigma from 'sigma';
+// PROTOTYPE — the three edge programs of #88. They go with `shared/direction.prototype.ts`.
+import { createEdgeArrowProgram, EdgeRectangleProgram, EdgeTriangleProgram } from 'sigma/rendering';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
 import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
+// PROTOTYPE — #88 row A5. It goes with `shared/direction.prototype.ts`.
+import { directionOf, sigmaEdgeType } from '@/shared/direction.prototype';
 import type { Corpus } from '@/shared/fixtures/types';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
@@ -257,6 +261,9 @@ export function mountGraph(
   canvas: HTMLElement,
   overlay: HTMLElement,
   corpus: Corpus,
+  // PROTOTYPE — the direction vocabulary the address asked for. #88 row A5, and it goes with
+  // `shared/direction.prototype.ts`.
+  variant?: string,
 ): GraphController {
   mounted.get(canvas)?.destroy();
 
@@ -426,6 +433,29 @@ export function mountGraph(
     // fixed colour, and it put black text on a white box over this canvas. The overlay label above
     // takes its place, in the tokens of the theme and in the recipe the map shares — #82 A6, A10.
     defaultDrawNodeHover: () => undefined,
+
+    // **PROTOTYPE — #88 row A5: the shape that carries the direction.** Sigma reads the program
+    // from the `type` of the edge, and a default reaches every edge with no attribute of its own,
+    // so no edge datum and no reducer below changes. `EdgeRectangleProgram` is the plain line the
+    // graph draws today, and variant B stands on it: the repeated head has no program here, and
+    // that absence is the cost the operator must see before choosing B.
+    defaultEdgeType: sigmaEdgeType(directionOf(variant)),
+    edgeProgramClasses: {
+      // The default export of the arrow program is typed for a graph with no attribute type of
+      // its own. The factory beside it takes the two types of this graph, so the record needs no
+      // assertion and this file keeps its rule of writing none.
+      arrow: createEdgeArrowProgram<NodeAttrs, EdgeAttrs>({
+        // **The head is sized from the thickness of the line, and this line is 10px.** That is
+        // `minEdgeThickness` above, which is the 10px hit box `CANVAS.md` asks for and #88 asks
+        // this shape to keep. At the ratios of the library the head came out about 25px long on
+        // a dot of about 10px, so the mark was larger than the thing it pointed at. The two
+        // ratios below were read in the browser and not calculated.
+        lengthToThicknessRatio: 1.2,
+        widenessToThicknessRatio: 1.1,
+      }),
+      rectangle: EdgeRectangleProgram,
+      triangle: EdgeTriangleProgram,
+    },
 
     // A relation is selected on the canvas, so a relation takes a click — §4.3, whose selection
     // carries `kind: 'relation'`, and §4.7, which draws that case as a report. This is not UC3:

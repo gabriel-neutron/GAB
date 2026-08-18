@@ -1,3 +1,6 @@
+// PROTOTYPE — both go with `shared/direction.prototype.ts`.
+import { directionOf } from '@/shared/direction.prototype';
+import { VariantSwitcher } from '@/shared/variant-switcher.prototype';
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Sidebar } from '@/features/detail/sidebar';
@@ -17,6 +20,8 @@ import { corpus } from '@/shared/fixtures/corpus';
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
   readonly entity: string;
+  /** PROTOTYPE — the direction vocabulary. See `shared/direction.prototype.ts`. */
+  readonly variant?: string | undefined;
 }
 
 export const Route = createFileRoute('/map')({
@@ -25,7 +30,12 @@ export const Route = createFileRoute('/map')({
   // malformed parameter must never take the map off the screen.
   validateSearch: (search: Record<string, unknown>): MapSearch => {
     const entity = search['entity'];
-    return { entity: typeof entity === 'string' ? entity : '' };
+    // PROTOTYPE — it goes with `shared/direction.prototype.ts`.
+    const variant = search['variant'];
+    return {
+      entity: typeof entity === 'string' ? entity : '',
+      variant: typeof variant === 'string' ? variant : undefined,
+    };
   },
 
   search: { middlewares: [stripSearchParams({ entity: '' })] },
@@ -34,7 +44,7 @@ export const Route = createFileRoute('/map')({
 });
 
 function MapRoute() {
-  const { entity } = Route.useSearch();
+  const { entity, variant } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   // The address of this moment, for `handleSelect` below. The list of that callback must stay
@@ -85,7 +95,12 @@ function MapRoute() {
   // element.** A selection change re-renders this route, and without the memo it would rebuild
   // the element that owns the canvas. The list holds the one prop the canvas takes, and that
   // prop never changes on a selection (§3.4), so the memo holds across every selection.
-  const canvas = useMemo(() => <MapPage onSelect={handleSelect} />, [handleSelect]);
+  // PROTOTYPE: the variant is in the list, so choosing one mounts the map again — the vocabulary
+  // is three layers of the style. The list holds the one real prop again when the prototype goes.
+  const canvas = useMemo(
+    () => <MapPage onSelect={handleSelect} variant={variant} />,
+    [handleSelect, variant],
+  );
 
   // **The route states the geometry** (§4.5: the route composes). The sidebar states no height
   // and still knows nothing about its neighbour.
@@ -100,6 +115,13 @@ function MapRoute() {
   // height instead of subtracting a number nobody declared.
   return (
     <div className="flex h-full overflow-hidden">
+      {/* PROTOTYPE — the bar that cycles the vocabularies of #88. It goes with the prototype. */}
+      <VariantSwitcher
+        current={directionOf(variant)}
+        onChange={(next) => {
+          void navigate({ search: (held) => ({ ...held, variant: next }) });
+        }}
+      />
       <div className="min-h-0 min-w-0 flex-1">{canvas}</div>
       {dossier === null ? null : <Sidebar dossier={dossier} />}
     </div>

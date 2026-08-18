@@ -1,3 +1,6 @@
+// PROTOTYPE — both go with `shared/direction.prototype.ts`.
+import { directionOf } from '@/shared/direction.prototype';
+import { VariantSwitcher } from '@/shared/variant-switcher.prototype';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -39,6 +42,8 @@ export interface GraphSearch {
   readonly entity: string;
   /** The relation that is examined. UC3 reaches one, and the detail surface cannot draw it. */
   readonly relation: string;
+  /** PROTOTYPE — the direction vocabulary. See `shared/direction.prototype.ts`. */
+  readonly variant?: string | undefined;
 }
 
 /**
@@ -70,9 +75,12 @@ export const Route = createFileRoute('/graph')({
   validateSearch: (search: Record<string, unknown>): GraphSearch => {
     const entity = search['entity'];
     const relation = search['relation'];
+    // PROTOTYPE — it goes with `shared/direction.prototype.ts`.
+    const variant = search['variant'];
     return {
       entity: typeof entity === 'string' ? entity : '',
       relation: typeof relation === 'string' ? relation : '',
+      variant: typeof variant === 'string' ? variant : undefined,
     };
   },
 
@@ -81,6 +89,11 @@ export const Route = createFileRoute('/graph')({
 });
 
 function GraphRoute() {
+  // PROTOTYPE — the direction vocabulary of `shared/direction.prototype.ts`. **This is the one
+  // value this route reads from the address**, and it is not the selection: see the note below.
+  const { variant } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
   /**
    * **This route reads the address for the selection nowhere, and that is the point.**
    *
@@ -127,7 +140,9 @@ function GraphRoute() {
    * element that owns the canvas again. The list is empty because the page takes nothing from this
    * route — §4.6 puts the selection on an event for that reason. **Do not remove it.**
    */
-  const canvas = useMemo(() => <GraphPage />, []);
+  // PROTOTYPE: the variant is in the list, so choosing one builds the canvas again. That is what a
+  // change of the edge program needs, and the list is empty again when the prototype goes.
+  const canvas = useMemo(() => <GraphPage variant={variant} />, [variant]);
 
   // **The route states the geometry** (§4.7: the route composes). The aside keeps one width for
   // every case, so the canvas never changes size and Sigma is never resized by a selection.
@@ -142,6 +157,13 @@ function GraphRoute() {
   // height instead of subtracting a number nobody declared.
   return (
     <div className={cn('flex h-full overflow-hidden')}>
+      {/* PROTOTYPE — the bar that cycles the vocabularies of #88. It goes with the prototype. */}
+      <VariantSwitcher
+        current={directionOf(variant)}
+        onChange={(next) => {
+          void navigate({ search: (held) => ({ ...held, variant: next }) });
+        }}
+      />
       <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
       {/* **No selection draws no panel** — #82 D1. The canvas then takes the whole row, and
           `adapter` and `controller` each observe their own element, so the resize is answered. */}

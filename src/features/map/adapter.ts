@@ -65,6 +65,14 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
+// PROTOTYPE — #88 row A5. Every symbol below goes with `shared/direction.prototype.ts`.
+import {
+  ARROW_SPACING,
+  arrowImage,
+  bearingOf,
+  directionOf,
+  mapDirection,
+} from '@/shared/direction.prototype';
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
@@ -77,6 +85,12 @@ import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
  */
 type StyleSpec = Exclude<MapOptions['style'], string | undefined>;
 type LayerSpec = StyleSpec['layers'][number];
+/**
+ * PROTOTYPE — the paint of a line layer, and the ramp of its width, taken from the same place and
+ * in the same way as the two types above. `maplibre-gl` 6 exports no name for either.
+ */
+type LinePaintSpec = NonNullable<Extract<LayerSpec, { type: 'line' }>['paint']>;
+type LineWidthSpec = NonNullable<LinePaintSpec['line-width']>;
 
 export interface MountMapOptions {
   /**
@@ -101,6 +115,8 @@ export interface MountMapOptions {
    * that no control of this surface reaches.
    */
   readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  /** PROTOTYPE — the direction vocabulary. See `shared/direction.prototype.ts`. */
+  readonly variant?: string | undefined;
 }
 
 /**
@@ -163,6 +179,33 @@ const LINK_LAYER = 'links-line';
  */
 const ACTIVE_LINK_SOURCE = 'links-active';
 const ACTIVE_LINK_LAYER = 'links-active-line';
+
+/**
+ * PROTOTYPE — #88 row A5. The arrowheads, and the two images they draw.
+ *
+ * **Variant A carries a source of its own**, because the head must stand at the target end of the
+ * line and MapLibre places a symbol along a line from the start of it. So the end is computed here
+ * as a point, with the bearing on the feature, and the layer rotates the image by that bearing.
+ * **Variant B needs no such source**: it repeats a head along the line, which is what
+ * `symbol-placement: line` does over the line source that already exists.
+ */
+const ARROW_SOURCE = 'direction-arrows';
+const ARROW_END_LAYER = 'direction-arrow-end';
+const ARROW_ALONG_LAYER = 'direction-arrow-along';
+const ARROW_UP_IMAGE = 'direction-arrow-up';
+const ARROW_RIGHT_IMAGE = 'direction-arrow-right';
+
+/**
+ * PROTOTYPE — variant C. The two ends of the gradient that carries the direction on the map.
+ *
+ * **The map cannot taper a width.** `line-width` is one value for the whole line, so the taper of
+ * the graph — the triangle program of Sigma — has no twin here. The nearest reading is a fade:
+ * the line is faint where the relation starts and full where it arrives. It is the same sentence
+ * said with another property, and the operator must judge whether the two canvases still read as
+ * one product.
+ */
+const TAPER_START = 'rgba(123, 132, 137, 0.12)';
+const TAPER_END = 'rgba(123, 132, 137, 1)';
 
 /**
  * The one colour of a line, as hex.
@@ -314,6 +357,48 @@ const collectLines = (links: readonly GeoLink[]): LineCollection => ({
 });
 
 /**
+ * PROTOTYPE — #88 row A5, variant A. One arrowhead per relation, at the end it points to.
+ *
+ * A relation is drawn as a straight line between two points, so the end of the line is the
+ * position of the target entity and the angle is the plane bearing between the two. Both are
+ * computed here and never in the style: MapLibre has no expression that reads the direction of the
+ * line a symbol stands on.
+ */
+interface ArrowFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry: {
+    readonly type: 'Point';
+    readonly coordinates: readonly [number, number];
+  };
+  readonly properties: { readonly bearing: number };
+}
+
+interface ArrowCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly ArrowFeature[];
+}
+
+const collectArrows = (links: readonly GeoLink[]): ArrowCollection => ({
+  type: 'FeatureCollection',
+  features: links.map((link) => ({
+    type: 'Feature',
+    id: link.fid,
+    geometry: {
+      type: 'Point',
+      // **The head stands a little back from the point it names**, for the reason `4bbab56` gives
+      // for the pending badge: a mark on the thing it marks covers it. A fraction of the line is
+      // the wrong rule here — a long relation would put the head far out in open ground — so the
+      // step back is the offset of the layer below, in pixels, and this coordinate is the end.
+      coordinates: [link.to.lon, link.to.lat],
+    },
+    properties: {
+      bearing: bearingOf([link.from.lon, link.from.lat], [link.to.lon, link.to.lat]),
+    },
+  })),
+});
+
+/**
  * What the hit test found. There are four results, and they are not two.
  *
  * `unknown` is the window before the style loads. In that window the library can answer no query.
@@ -355,8 +440,14 @@ export function mountMap({
   container,
   projection,
   creditCorner = 'bottom-right',
+  // PROTOTYPE — #88 row A5, and it goes with `shared/direction.prototype.ts`.
+  variant,
 }: MountMapOptions): MapHandle {
   mounted.get(container)?.destroy();
+
+  // PROTOTYPE — which shape says the direction on this ground. It is read one time, because the
+  // three answers are three different layers and a style is not rebuilt to swap one.
+  const direction = mapDirection(directionOf(variant));
 
   const stored = readMapWorkspace();
   const hidden = new Set<string>(stored.hiddenTypes);
@@ -415,6 +506,30 @@ export function mountMap({
    * a thread at zoom 2 and a band at zoom 14. The brighter line is wider than the neutral one, so
    * the bright line is not a change of colour alone.
    */
+  /**
+   * PROTOTYPE — variant C. The gradient replaces the colour, and it is the only paint of the three
+   * that a line layer can carry. `line-gradient` needs `lineMetrics` on the source, which is why
+   * the two line sources below take that flag on this variant and on no other: it makes the worker
+   * measure every line, and a flag that no layer reads is a cost with no picture.
+   */
+  const taperPaint = direction === 'taper';
+  const linePaint = (opacity: number, width: LineWidthSpec): LinePaintSpec =>
+    taperPaint
+      ? {
+          'line-gradient': [
+            'interpolate',
+            ['linear'],
+            ['line-progress'],
+            0,
+            TAPER_START,
+            1,
+            TAPER_END,
+          ],
+          'line-opacity': opacity,
+          'line-width': width,
+        }
+      : { 'line-color': LINK_HUE, 'line-opacity': opacity, 'line-width': width };
+
   const linkLayers: LayerSpec[] = [
     {
       id: LINK_LAYER,
@@ -424,26 +539,84 @@ export function mountMap({
       // from `queryRenderedFeatures` after the worker parses the tile again, and `linkAt` guards
       // the window before that answer.
       layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
-      paint: {
-        'line-color': LINK_HUE,
-        'line-opacity': LINK_OPACITY,
-        // A line of less than one pixel is a grey suggestion on the light page. The ramp starts
-        // at one pixel, and it stays under the bright ramp at each zoom of the two.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 8, 1.4, 14, 2.2],
-      },
+      // A line of less than one pixel is a grey suggestion on the light page. The ramp starts
+      // at one pixel, and it stays under the bright ramp at each zoom of the two.
+      paint: linePaint(LINK_OPACITY, ['interpolate', ['linear'], ['zoom'], 2, 1, 8, 1.4, 14, 2.2]),
     },
     {
       id: ACTIVE_LINK_LAYER,
       type: 'line',
       source: ACTIVE_LINK_SOURCE,
       layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
-      paint: {
-        'line-color': LINK_HUE,
-        'line-opacity': ACTIVE_LINK_OPACITY,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1.4, 8, 2.4, 14, 3.5],
-      },
+      paint: linePaint(ACTIVE_LINK_OPACITY, [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        2,
+        1.4,
+        8,
+        2.4,
+        14,
+        3.5,
+      ]),
     },
   ];
+
+  /**
+   * PROTOTYPE — #88 row A5. The arrowheads of variant A and of variant B, in one list.
+   *
+   * **The list is empty on variant C**, which says the direction with the line itself and adds no
+   * element. The list is above the lines and below every point, for the rule of §4.7: a relation
+   * must never cover the thing it relates.
+   *
+   * `icon-allow-overlap` and `icon-ignore-placement` are both on. The collision machinery of
+   * MapLibre drops a symbol that meets another one, and a dropped arrowhead reads as a relation
+   * with no direction — an absence that says something false. A head that crowds its neighbour is
+   * the lesser fault, and it is the one the operator can see.
+   */
+  const directionLayers: LayerSpec[] =
+    direction === 'taper'
+      ? []
+      : [
+          direction === 'head-at-end'
+            ? {
+                id: ARROW_END_LAYER,
+                type: 'symbol',
+                source: ARROW_SOURCE,
+                layout: {
+                  visibility: linksHidden ? 'none' : 'visible',
+                  'icon-image': ARROW_UP_IMAGE,
+                  'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.22, 8, 0.34, 14, 0.48],
+                  // The image is drawn pointing north, and the bearing on the feature turns it.
+                  'icon-rotate': ['get', 'bearing'],
+                  'icon-rotation-alignment': 'map',
+                  // The head stands back from the point, along its own axis, so it stops covering
+                  // the entity it names. The offset is in the units of the icon.
+                  'icon-offset': [0, 14],
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
+                },
+                paint: { 'icon-opacity': LINK_OPACITY },
+              }
+            : {
+                id: ARROW_ALONG_LAYER,
+                type: 'symbol',
+                // It stands on the line source itself. No second source, and no second truth about
+                // which relations are drawn.
+                source: LINK_SOURCE,
+                layout: {
+                  visibility: linksHidden ? 'none' : 'visible',
+                  'symbol-placement': 'line',
+                  'symbol-spacing': ARROW_SPACING,
+                  'icon-image': ARROW_RIGHT_IMAGE,
+                  'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.2, 8, 0.3, 14, 0.42],
+                  'icon-rotation-alignment': 'map',
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
+                },
+                paint: { 'icon-opacity': LINK_OPACITY },
+              },
+        ];
 
   /**
    * The theme, from the class on the document element — `CANVAS.md`: "The theme is read from the
@@ -506,8 +679,23 @@ export function mountMap({
       // The store can hold a type that is already switched off, so the first frame must not draw
       // a line that runs to a point which no layer draws. The literal reads the same predicate as
       // the two paint functions below.
-      [LINK_SOURCE]: { type: 'geojson', data: collectLines(drawnLinks(projection.links, hidden)) },
-      [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
+      // PROTOTYPE — `lineMetrics` is the price of the gradient of variant C, and it is asked for
+      // on that variant alone.
+      [LINK_SOURCE]: {
+        type: 'geojson',
+        data: collectLines(drawnLinks(projection.links, hidden)),
+        lineMetrics: taperPaint,
+      },
+      [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]), lineMetrics: taperPaint },
+      // PROTOTYPE — the heads of variant A. It is declared on every variant and fed on one: a
+      // source with no layer over it parses nothing, and a style that changes its own source list
+      // per variant would be a second thing to read.
+      [ARROW_SOURCE]: {
+        type: 'geojson',
+        data: collectArrows(
+          direction === 'head-at-end' ? drawnLinks(projection.links, hidden) : [],
+        ),
+      },
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
@@ -520,6 +708,8 @@ export function mountMap({
       ...groundLayers,
       // **The lines come before every point** — §4.7. A relation must never cover what it relates.
       ...linkLayers,
+      // PROTOTYPE — the arrowheads sit with the lines they belong to, and under every point.
+      ...directionLayers,
       ...pointLayers,
       {
         // **The ring is above each point layer.** One slot cannot do two jobs. A point that
@@ -671,7 +861,14 @@ export function mountMap({
       const source = map.getSource(LINK_SOURCE);
       // The test on the class gives the type that declares `setData`, exactly as above.
       if (!(source instanceof GeoJSONSource)) return;
-      void source.setData(collectLines(drawnLinks(projection.links, hidden)));
+      const drawn = drawnLinks(projection.links, hidden);
+      void source.setData(collectLines(drawn));
+      // PROTOTYPE — the heads of variant A read the same list, so a type that switches off takes
+      // its arrowheads with its lines. Variant B needs nothing here: it stands on this source.
+      const arrows = map.getSource(ARROW_SOURCE);
+      if (arrows instanceof GeoJSONSource) {
+        void arrows.setData(collectArrows(direction === 'head-at-end' ? drawn : []));
+      }
     });
   };
 
@@ -738,6 +935,14 @@ export function mountMap({
 
   /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
   const linkLayerIds = linkLayers.map((layer) => layer.id);
+  /**
+   * PROTOTYPE — the layers the relation switch hides, which is the lines **and** their heads.
+   *
+   * It is not `linkLayerIds`: that list is the hit test as well, and a click must find a line and
+   * never an arrowhead. A head has no identity of its own — it is one end of the relation the line
+   * already carries — so a hit on it must reach the line under it.
+   */
+  const directionLayerIds = directionLayers.map((layer) => layer.id);
 
   /**
    * The hit test asks the library. It reads `id` only, which contains the `fid` of the projection.
@@ -791,6 +996,26 @@ export function mountMap({
     }
     return { kind: 'ground' };
   };
+
+  /**
+   * PROTOTYPE — the two arrowhead images, given to the library when it asks for them.
+   *
+   * **The style names an image that no sprite holds**, because this style has no sprite and no
+   * glyph server: the map draws its own ground and it has never needed either.
+   *
+   * **The `styleimagemissing` event is not the path in `maplibre-gl` 6.** It fires, and a layer
+   * that was already built keeps its empty image: the library warns "could not be loaded" and
+   * draws no head, which was measured in the browser and not assumed. `setMissingStyleImageResolver`
+   * is the path of this version, and it is set before the style loads.
+   *
+   * The hue is `LINK_HUE` and it is painted into the image, so the image is not an SDF. A relation
+   * takes one colour and no other — see the head of that constant — so nothing recolours it.
+   */
+  map.setMissingStyleImageResolver((id) => {
+    if (map.hasImage(id)) return;
+    if (id === ARROW_UP_IMAGE) map.addImage(id, arrowImage(LINK_HUE, 'up'));
+    if (id === ARROW_RIGHT_IMAGE) map.addImage(id, arrowImage(LINK_HUE, 'right'));
+  });
 
   subscriptions.push(
     map.on('load', () => {
@@ -1261,7 +1486,7 @@ export function mountMap({
       linksHidden = !visible;
       patchMapWorkspace({ linksHidden });
       whenStyleReady(() => {
-        for (const id of linkLayerIds) {
+        for (const id of [...linkLayerIds, ...directionLayerIds]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });
