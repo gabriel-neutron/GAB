@@ -80,7 +80,12 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
   );
 });
 
-export function GraphPage() {
+export interface GraphPageProps {
+  /** PROTOTYPE — the visual vocabulary the address asked for. See `shared/marks.prototype.ts`. */
+  readonly variant?: string | undefined;
+}
+
+export function GraphPage({ variant }: GraphPageProps) {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   /** The handle of §4.3. The rail and the legend drive the graph through it, and never around it. */
@@ -131,7 +136,7 @@ export function GraphPage() {
     // with the selection of the **previous** mount and draws an entity that no canvas drew.
     emitGraphSelection(null);
 
-    const handle = mountGraph(element, marks, corpus);
+    const handle = mountGraph(element, marks, corpus, variant);
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
@@ -146,7 +151,10 @@ export function GraphPage() {
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (controller.current === handle) controller.current = null;
     };
-  }, []);
+    // PROTOTYPE: the variant is in the list, so a change of it mounts the graph again. That is the
+    // whole point — the vocabulary is baked into the style at the mount. The list is empty again
+    // when `marks.prototype.ts` goes.
+  }, [variant]);
 
   /**
    * The rows of the rail. The derivation is in `./rail-rows`: this file sorts nothing, caps

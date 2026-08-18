@@ -32,6 +32,15 @@ import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
 import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+// PROTOTYPE — deleted with `shared/marks.prototype.ts` once the operator has chosen.
+import {
+  markOf,
+  pendingClassOf,
+  pendingOffsetOf,
+  selectionClassOf,
+  selectionMarginOf,
+  type MarkVocabulary,
+} from '@/shared/marks.prototype';
 import type { Corpus } from '@/shared/fixtures/types';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
@@ -180,27 +189,6 @@ const OVERLAY_MARGIN = 32;
  */
 const LAYER_CLASS = 'pointer-events-none absolute inset-0 overflow-hidden';
 
-/**
- * One marker of UC5. **The appearance is #10's to settle** (§7), so this is the smallest mark
- * that a person can see: one square of `--candidate`, which is the token for evidence that is not
- * promoted, with a hairline of the ground around it so that it reads on a dark node. §8 step 7
- * asks for a **node program** instead of an element of the page, and this file writes none: a
- * node program is a WebGL program, a shader pair and a buffer layout, which is a surface of its
- * own and a decision about how a proposal appears. The cost of the element is the cap above.
- */
-const MARKER_CLASS =
-  'pointer-events-none absolute top-0 left-0 size-2 rounded-none border border-background bg-candidate';
-
-/**
- * The ring of §5.1. It is drawn here, and never with the `highlighted` flag of Sigma: that flag
- * makes the library draw its own hover card, in colours that no token of this repository reaches.
- */
-const RING_CLASS =
-  'pointer-events-none absolute top-0 left-0 rounded-full border-2 border-foreground';
-
-/** How much larger the ring is than the node it names, in pixels of diameter. */
-const RING_MARGIN = 6;
-
 /** The diameter of the ring that names a selected relation, in pixels. A relation has no radius. */
 const RING_ON_RELATION = 12;
 
@@ -243,7 +231,10 @@ export function mountGraph(
   canvas: HTMLElement,
   overlay: HTMLElement,
   corpus: Corpus,
+  // PROTOTYPE — the visual vocabulary the address asked for. It goes with `marks.prototype.ts`.
+  variant?: string,
 ): GraphController {
+  const mark: MarkVocabulary = markOf(variant);
   mounted.get(canvas)?.destroy();
 
   // **The positions are computed one time.** §5.2: a filter never moves a position, and §3.2
@@ -460,7 +451,7 @@ export function mountGraph(
   const layer = document.createElement('div');
   layer.className = LAYER_CLASS;
   const ring = document.createElement('div');
-  ring.className = RING_CLASS;
+  ring.className = selectionClassOf(mark);
   ring.hidden = true;
   layer.append(ring);
 
@@ -486,7 +477,7 @@ export function mountGraph(
   function sizeMarkerPool(count: number): void {
     while (markers.length < count) {
       const element = document.createElement('div');
-      element.className = MARKER_CLASS;
+      element.className = pendingClassOf(mark);
       element.hidden = true;
       layer.append(element);
       markers.push(element);
@@ -553,7 +544,9 @@ export function mountGraph(
       else {
         const data = selected.kind === 'entity' ? sigma.getNodeDisplayData(selected.id) : undefined;
         const diameter =
-          data === undefined ? RING_ON_RELATION : 2 * sigma.scaleSize(data.size) + RING_MARGIN;
+          data === undefined
+            ? RING_ON_RELATION
+            : 2 * sigma.scaleSize(data.size) + selectionMarginOf(mark);
         place(ring, sigma.framedGraphToViewport(point), diameter);
       }
     }
@@ -584,7 +577,16 @@ export function mountGraph(
         element.hidden = true;
         return;
       }
-      place(element, sigma.framedGraphToViewport(point), null);
+      const at = sigma.framedGraphToViewport(point);
+      // PROTOTYPE: a badge stands clear of the dot at its upper right; the other two shapes are
+      // drawn around it, so they take the size of the dot and no offset.
+      const offset = pendingOffsetOf(mark);
+      const data = sigma.getNodeDisplayData(target);
+      const size =
+        offset > 0 || data === undefined
+          ? null
+          : 2 * sigma.scaleSize(data.size) + (mark.pending === 'halo' ? 12 : 4);
+      place(element, { x: at.x + offset, y: at.y - offset }, size);
     });
   };
 

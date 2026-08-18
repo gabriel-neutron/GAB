@@ -65,6 +65,8 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { CANVAS_LABEL_CLASS, canvasLabelTransform } from '@/shared/canvas-label';
+// PROTOTYPE — deleted with `shared/marks.prototype.ts` once the operator has chosen.
+import { markOf, type MarkVocabulary } from '@/shared/marks.prototype';
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
@@ -101,6 +103,8 @@ export interface MountMapOptions {
    * that no control of this surface reaches.
    */
   readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  /** PROTOTYPE — the visual vocabulary the address asked for. See `shared/marks.prototype.ts`. */
+  readonly variant?: string | undefined;
 }
 
 /**
@@ -197,8 +201,12 @@ const LINK_HUE = '#7b8489';
  * the same difference: the quiet line starts at one pixel, and the bright line is wider at each
  * zoom.
  */
+// PROTOTYPE: `marks.prototype.ts` states the two now, so a variant can be judged. **These figures
+// are the measurement above, and the winner has to keep them or beat them.**
 const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
+void LINK_OPACITY;
+void ACTIVE_LINK_OPACITY;
 
 /**
  * The hit box, in pixels on each side of the pointer — §4.7. A line of one pixel is otherwise
@@ -355,8 +363,15 @@ export function mountMap({
   container,
   projection,
   creditCorner = 'bottom-right',
+  variant,
 }: MountMapOptions): MapHandle {
   mounted.get(container)?.destroy();
+
+  // PROTOTYPE — `shared/marks.prototype.ts`. It goes with that file.
+  const mark: MarkVocabulary = markOf(variant);
+  /** The colour of the page, for the edge that separates two dots that touch. */
+  const groundHue = (): string =>
+    document.documentElement.classList.contains('dark') ? '#0b0e11' : '#ffffff';
 
   const stored = readMapWorkspace();
   const hidden = new Set<string>(stored.hiddenTypes);
@@ -403,8 +418,21 @@ export function mountMap({
     // The hit test therefore has a second guard against `hidden` — see `entityAt`.
     layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
     paint: {
+      // PROTOTYPE: the vocabulary of `marks.prototype.ts`. The fill can be made translucent, so a
+      // ring variant shows the ground through the dot, and the edge separates two that touch.
       'circle-color': facet.colour,
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 14, 7],
+      'circle-opacity': mark.dot.fillOpacity,
+      'circle-stroke-width': mark.dot.stroke,
+      'circle-stroke-color': mark.dot.strokeFromGround ? groundHue() : facet.colour,
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        3,
+        mark.dot.radius[0],
+        14,
+        mark.dot.radius[1],
+      ],
     },
   }));
 
@@ -426,10 +454,18 @@ export function mountMap({
       layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
       paint: {
         'line-color': LINK_HUE,
-        'line-opacity': LINK_OPACITY,
-        // A line of less than one pixel is a grey suggestion on the light page. The ramp starts
-        // at one pixel, and it stays under the bright ramp at each zoom of the two.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 8, 1.4, 14, 2.2],
+        'line-opacity': mark.line.opacity,
+        // A line of less than one pixel is a grey suggestion on the light page. The ramp stays
+        // under the bright ramp at each zoom of the two.
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          2,
+          mark.line.width[0],
+          14,
+          mark.line.width[1],
+        ],
       },
     },
     {
@@ -439,8 +475,16 @@ export function mountMap({
       layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
       paint: {
         'line-color': LINK_HUE,
-        'line-opacity': ACTIVE_LINK_OPACITY,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1.4, 8, 2.4, 14, 3.5],
+        'line-opacity': mark.line.activeOpacity,
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          2,
+          mark.line.activeWidth[0],
+          14,
+          mark.line.activeWidth[1],
+        ],
       },
     },
   ];
@@ -540,11 +584,17 @@ export function mountMap({
           // The width of the stroke follows the zoom with the radius, at the same rate. A width
           // of one value stands against a radius of two values. The weight of the ring then
           // changes by a factor of two over the range.
+          // PROTOTYPE: a ring is an outline, a halo is a wide faint disc, and a double is two
+          // thin rings. `marks.prototype.ts` states which.
           'circle-color': ['get', 'colour'],
-          'circle-opacity': 0,
+          'circle-opacity': mark.selection === 'ring' ? 0 : 0.18,
           'circle-stroke-color': ['get', 'colour'],
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 14, 3],
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 14, 18],
+          'circle-stroke-width':
+            mark.selection === 'halo' ? 0 : ['interpolate', ['linear'], ['zoom'], 3, 1.5, 14, 3],
+          'circle-radius':
+            mark.selection === 'halo'
+              ? ['interpolate', ['linear'], ['zoom'], 3, 14, 14, 26]
+              : ['interpolate', ['linear'], ['zoom'], 3, 9, 14, 18],
         },
       },
     ],
