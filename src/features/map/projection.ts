@@ -11,6 +11,7 @@
  * behind a view; until then the caller passes the fixture of #46.
  */
 
+import { ENTITY_HUES, typeHues } from '@/shared/entity-hues';
 import type { Attributes, Corpus, Entity, Point } from '@/shared/fixtures/types';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
@@ -76,26 +77,15 @@ export interface Projection {
 }
 
 /**
- * The six entity hues of `src/index.css`, converted from `oklch` to hex. It is the **dark** set.
+ * **The hues left this file** — #87. `shared/entity-hues.ts` holds the six, in both themes, and
+ * the rule that gives one to a type. The graph paints by type now as well, so a copy here and a
+ * copy there would give one type two hues the first time either was tuned.
  *
- * **A colour must be a colour that the library reads** — `docs/map-surface.md` §5.3 and §9.
- * MapLibre parses the style with its own parser, so a CSS custom property never reaches it.
- *
- * **The ground that the dark set was chosen for is not there.** Step 4 is blocked, and
- * `adapter.ts` says so plainly: the canvas is transparent, and no point sits on imagery. The
- * colour behind a point is the page. So the measurements below are against `--background` of
- * `src/index.css`, in each theme: `#f5f7f8` in the light theme, and `#070f10` in the dark theme.
- * The six hues give 2.02:1 to 2.28:1 on the light page, and 7.91:1 to 8.91:1 on the dark page.
- * The light page is therefore the weak one today.
- *
- * **Step 4 is the point where this set must be read again.** It restores the imagery, and a point
- * over imagery is a different question. A second copy for the light page now is one more thing
- * that step 4 must undo, so the operator holds the values as they are.
- *
- * Rule 11 of the theme holds: these hues stay on the map and never enter the chrome. **A copy
- * that drifts is worse than a lookup**, and §9 carries that cost as undecided.
+ * **This surface takes the dark set on both themes.** `CANVAS.md` rules it: a point sits on
+ * imagery, and imagery is dark, so the light set cannot be read on it. The shared file states
+ * both sets and the ratios each one gives, and this line is the choice of this surface.
  */
-const ENTITY_HUES = ['#70adfb', '#00c2d2', '#53c48e', '#a8b44b', '#df9b44', '#e887b6'] as const;
+const MAP_HUES = ENTITY_HUES.dark;
 
 /** `geom` is nullable on `Entity`, and the narrowing has to survive the `map` below. */
 const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point } =>
@@ -219,14 +209,22 @@ export function entitiesOfType(projection: Projection, type: string): readonly G
 export function project(read: Corpus): Projection {
   const drawn = read.entities.filter(hasGeometry);
 
-  // **The hue is a position in a list of six, so a seventh type wears the hue of the first**, in
-  // silence. #81 row A6 records it, and **#93 ENTITY-TYPE-TABLE** puts a decided colour on the
-  // type itself. This file assumes no answer: it cycles, and it says so.
+  // **The hue comes from every type of the corpus, and not from the types this map draws** —
+  // #87. `shared/entity-hues.ts` carries the rule and the reason: this file drops an entity with
+  // no geometry, the graph drops one with no position, so an index taken from a drawn subset
+  // would give one type two hues, one per canvas, in silence.
+  //
+  // **The hue still cycles, and it still says so** — #81 row A6. A seventh type wears the hue of
+  // the first, and **#93 ENTITY-TYPE-TABLE** puts a decided colour on the type itself.
+  const hueOfType = typeHues(
+    read.entities.map((entity) => entity.type),
+    MAP_HUES,
+  );
   const types: readonly TypeFacet[] = [...new Set(drawn.map((entity) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
-    .map((type, index) => ({
+    .map((type) => ({
       type,
-      colour: ENTITY_HUES[index % ENTITY_HUES.length] ?? ENTITY_HUES[0],
+      colour: hueOfType.get(type) ?? MAP_HUES[0],
       count: drawn.filter((entity) => entity.type === type).length,
     }));
 

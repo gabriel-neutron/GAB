@@ -44,6 +44,7 @@
 
 import { MultiDirectedGraph } from 'graphology';
 
+import { ENTITY_HUES, typeHues, type EntityHueSet } from '@/shared/entity-hues';
 import type { Corpus, Proposal, Relation } from '@/shared/fixtures/types';
 
 import { analyseStructure, topologyOf } from './structure';
@@ -67,7 +68,6 @@ export interface NodeAttrs {
   readonly color: string;
   readonly label: string;
   readonly entityType: string;
-  readonly community: number;
   readonly degree: number;
   readonly isolate: boolean;
 }
@@ -87,8 +87,12 @@ export interface EdgeAttrs {
  * hex on the CPU and an `hsl()` colour comes out black in silence — §4.2.
  */
 export interface GraphPalette {
-  /** The six entity hues, in order. They **cycle**: see `hueOf`. */
-  readonly communities: readonly [string, string, string, string, string, string];
+  /**
+   * The six entity hues, in order. **They are not declared here** — #87. `shared/entity-hues.ts`
+   * holds them for both canvases, and this field states which of its two sets this ground takes.
+   * They **cycle**: a seventh type wears the hue of the first, and #93 ends that.
+   */
+  readonly types: EntityHueSet;
   readonly isolate: string;
   readonly edge: string;
 }
@@ -97,37 +101,24 @@ export interface GraphPalette {
 export type GraphGround = 'light' | 'dark';
 
 /**
- * `readonly` is a promise to the compiler, and `Object.freeze` is a lock at run time. This value
- * is one module object that every build of the model shares, so an importer that writes into it
- * changes the paint of every later build in silence. The freeze reaches the list of hues too.
- */
-const freeze = (palette: GraphPalette): GraphPalette =>
-  Object.freeze({ ...palette, communities: Object.freeze(palette.communities) });
-
-/**
- * The palettes, converted from the `oklch` values of `src/index.css` to hex.
+ * The two colours this canvas owns, converted from the `oklch` values of `src/index.css` to hex.
  *
  * Each ratio below is against `--background` of the same theme, and `src/index.css` asks 3:1 of a
  * mark that a person must see.
  *
- * - `communities`: `--entity-1` to `--entity-6`. 4.6:1 to 5.0:1 on the light ground, 7.9:1 to
- *   8.9:1 on the dark ground.
  * - `isolate`: `--muted-foreground`, 8.6:1 and 8.7:1. An isolate is out of the structure, so it
  *   is grey, and it stays legible.
  * - `edge`: `--label`, 5.6:1 on each ground. The `--border` hue gives 1.5:1 on the dark ground
  *   and no reader sees a relation painted with it.
+ *
+ * **The six entity hues are not here** — #87. `shared/entity-hues.ts` holds them for both
+ * canvases, with the ratios of each set. This canvas takes the set of the theme, because its
+ * ground is the page and the dark set gives 2.0:1 to 2.3:1 on the light page. The map takes the
+ * dark set on both themes, because its ground is imagery.
  */
 export const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
-  light: freeze({
-    communities: ['#2971c6', '#007989', '#007d50', '#677000', '#a16100', '#b53c7f'],
-    isolate: '#42494c',
-    edge: '#5e6468',
-  }),
-  dark: freeze({
-    communities: ['#70adfb', '#00c2d2', '#53c48e', '#a8b44b', '#df9b44', '#e887b6'],
-    isolate: '#a9afb1',
-    edge: '#848a8c',
-  }),
+  light: Object.freeze({ types: ENTITY_HUES.light, isolate: '#42494c', edge: '#5e6468' }),
+  dark: Object.freeze({ types: ENTITY_HUES.dark, isolate: '#a9afb1', edge: '#848a8c' }),
 });
 
 /** One byte as two hex digits, so that a colour of this file keeps the `#rrggbb` shape. */
@@ -194,20 +185,16 @@ export interface GraphModel {
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
   /** UC5: the pending proposals, under the identifier of the element that can carry a marker. */
   readonly pendingByTarget: ReadonlyMap<string, readonly Proposal[]>;
+  /**
+   * The hue of each type — #87.
+   *
+   * **The rail reads this and never a node**, so the swatch beside a name and the disc on the
+   * canvas cannot disagree. A node would be the wrong source: an isolate wears the grey of an
+   * isolate, so a type whose only drawn entity is isolated would paint a grey swatch and name a
+   * hue that the canvas gives to somebody else.
+   */
+  readonly hueOfType: ReadonlyMap<string, string>;
 }
-
-/**
- * The hue of one community. **The six hues cycle**, so community 0 and community 6 wear one hue.
- * A hue is therefore the encoding "these entities connect", and never the identity of one
- * community. So a hue says "these entities connect" and it names nobody.
- *
- * **Nothing on the screen states that any more.** The legend that said it is gone — #82 B2. **#87
- * GRAPH-COLOUR-RULE** owns whether this colouring carries information at all, and whether a reader
- * learns its meaning somewhere else. This file assumes no answer: it paints, and it explains
- * nothing.
- */
-const hueOf = (palette: GraphPalette, community: number): string =>
-  palette.communities[community % palette.communities.length] ?? palette.communities[0];
 
 /**
  * The radius of a node of degree 0, in the units Sigma scales to pixels.
@@ -298,12 +285,22 @@ export function buildGraphModel(
   // make each size `Infinity` or `NaN`, and Sigma draws nothing for either.
   const sizeSpan = Math.log1p(structure.largestDegree);
 
+  /**
+   * **The hue of each type, over every type of the corpus** — #87. `shared/entity-hues.ts` states
+   * why the whole corpus and not the drawn set: this file drops an entity with no position and
+   * the map drops one with no geometry, so an index taken from a drawn subset would give one
+   * type two hues, one per canvas, in silence.
+   */
+  const hueOfType = typeHues(
+    corpus.entities.map((entity) => entity.type),
+    palette.types,
+  );
+
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
   for (const entity of corpus.entities) {
     const position = positions.get(entity.id);
     if (position === undefined || graph.hasNode(entity.id)) continue;
 
-    const community = structure.community.get(entity.id) ?? 0;
     const degree = topology.degree(entity.id);
     const isolate = isolates.has(entity.id);
     graph.addNode(entity.id, {
@@ -314,10 +311,16 @@ export function buildGraphModel(
       // that a hub reads as a hub beside a leaf at each size of corpus — UC1. `log1p(0)` is 0, so
       // a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      color: isolate ? palette.isolate : hueOf(palette, community),
+      // **The hue is the type of the entity, and it is no longer its community** — #87. A
+      // community number is a rank of size, so one new entity renumbered the run and repainted
+      // the whole picture; a type never renumbers. The rail names the type beside its hue, so
+      // the words the hue needs are on the screen and no legend comes back.
+      //
+      // **The grey of an isolate wins over the type.** An isolate is out of the structure, and
+      // that is the one thing this canvas says which the map does not.
+      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? palette.isolate),
       label: entity.label,
       entityType: entity.type,
-      community,
       degree,
       isolate,
     });
@@ -344,5 +347,5 @@ export function buildGraphModel(
     if (carried) hold(pendingByTarget, target, proposal);
   }
 
-  return { graph, pendingByTarget };
+  return { graph, pendingByTarget, hueOfType };
 }

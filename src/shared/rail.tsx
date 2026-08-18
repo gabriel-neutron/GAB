@@ -30,11 +30,15 @@
  * **It reads no library and no `localStorage`.** It is a sibling of a live canvas and never an
  * ancestor of one, so `CANVAS.md` permits the caller to hold ordinary React state beside it.
  *
- * **Three differences the graph needs, and this file carries all three in data** —
- * `docs/graph-surface.md` §4.4. No colour beside a type, because there the hue is the community and
- * not the type: `colour` is `null` and the initial takes the place of the swatch. The list is
- * capped and the remainder is on the screen: that is the caller's list. The list is in the order of
- * the degree: that is the caller's list as well.
+ * **The differences the graph needs, and this file carries each one in data** —
+ * `docs/graph-surface.md` §4.4. The list is capped and the remainder is on the screen: that is the
+ * caller's list. The list is in the order of the degree: that is the caller's list as well.
+ *
+ * **The first difference is gone** — #87. The graph carried no colour beside a type, because
+ * there the hue was the community and not the type. The hue is the type on both canvases now, so
+ * both callers give a colour and both rails read the same. `colour` stays nullable all the same:
+ * a surface that paints no hue must be able to say so, and the initial then takes the place of
+ * the swatch.
  */
 
 import {
@@ -81,9 +85,13 @@ export interface RailTypeRow {
    */
   readonly name: string;
   /**
-   * The hue of the legend, as the canvas parses it, or `null` where the hue is not the encoding.
-   * A CSS custom property never reaches a map or a graph style parser, so this is a colour value
-   * and no class can carry it.
+   * The hue the canvas gives this type, as the canvas parses it, or `null` where the surface
+   * paints no hue. A CSS custom property never reaches a map or a graph style parser, so this is
+   * a colour value and no class can carry it.
+   *
+   * **It is the words that the hue owes a reader who cannot see it** — #87 and the rule of
+   * `SKILL.md`: a hue is never the only mark. The name of the type stands beside the swatch, in
+   * the one place that lists every type.
    */
   readonly colour: string | null;
 }

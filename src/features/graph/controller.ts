@@ -33,7 +33,12 @@ import { createEdgeArrowProgram } from 'sigma/rendering';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
 import { ARROW_LENGTH_RATIO, ARROW_WIDTH_RATIO } from '@/shared/canvas-arrow';
-import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
+import {
+  CANVAS_LABEL_CLASS,
+  canvasLabelTransform,
+  entityLines,
+  relationLines,
+} from '@/shared/canvas-label';
 import type { Corpus } from '@/shared/fixtures/types';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
@@ -822,7 +827,16 @@ export function mountGraph(
 
   sigma.on('enterNode', ({ node }) => {
     if (!nodePassesFilter(node)) return;
-    nameHover({ id: node, lines: [model.graph.getNodeAttribute(node, 'label')] });
+    // **The name carries the count of relations** — #87. This canvas sizes a node by its degree,
+    // and a size alone is unreadable to a reader who cannot compare two discs. The words the hue
+    // owes a reader live in the rail; the words the radius owes one live here.
+    nameHover({
+      id: node,
+      lines: entityLines(
+        model.graph.getNodeAttribute(node, 'label'),
+        model.graph.getNodeAttribute(node, 'degree'),
+      ),
+    });
   });
   sigma.on('leaveNode', ({ node }) => {
     if (hovered?.id === node) nameHover(null);

@@ -65,7 +65,12 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { arrowImage } from '@/shared/canvas-arrow';
-import { CANVAS_LABEL_CLASS, canvasLabelTransform, relationLines } from '@/shared/canvas-label';
+import {
+  CANVAS_LABEL_CLASS,
+  canvasLabelTransform,
+  entityLines,
+  relationLines,
+} from '@/shared/canvas-label';
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
@@ -1021,7 +1026,13 @@ export function mountMap({
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
       if (hit.kind === 'entity') {
-        nameHover([hit.entity.label], event.point);
+        // **The name carries the count of relations, in the words the graph uses** — #87. This
+        // canvas draws every point at one radius, so the count is not a second reading of the
+        // picture here: it is the one place the map states it at all.
+        nameHover(
+          entityLines(hit.entity.label, (projection.linksByEntity.get(hit.entity.id) ?? []).length),
+          event.point,
+        );
         return;
       }
       if (hit.kind === 'link') {

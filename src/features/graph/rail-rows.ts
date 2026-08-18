@@ -12,11 +12,13 @@
  * job, and one file holds one main runtime symbol. The name says the job, and it is never
  * `utils.ts`.
  *
- * **The three differences from the map, each with its reason** — §4.4:
+ * **The differences from the map, each with its reason** — §4.4:
  *
- * - *No colour beside a type.* On the map the hue **is** the encoding. Here the hue is the
- *   community, the bridge and the isolate (§4.2), so a type colour would state an encoding this
- *   canvas does not use. So no row below carries a colour, and the count carries the weight.
+ * - *A colour beside a type, on both surfaces.* **This was the first difference, and #87 removed
+ *   it.** The hue of this canvas was the community, so a type colour would have stated an
+ *   encoding the canvas did not use. The hue is the type now, on both canvases, so the swatch
+ *   says a true thing here as it does on the map — and it is **the words that the hue owes a
+ *   reader who cannot see it**, which is why #87 asked for it and not only the one product.
  * - *The list of entities is capped, and the remainder is a number on the row.* The map holds
  *   tens of rows; this graph holds thousands, and a rail of 2 500 rows is not a rail. A surface
  *   that drops evidence in silence is worse than one that states how much it dropped.
@@ -159,9 +161,10 @@ export function deriveRailRows(
       // who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
       name: on ? `${type}, ${count}, on` : `${type}, ${count}, off and dimmed`,
-      // §4.4, the first difference: no colour beside a type. Here the hue is the community and
-      // not the type, so a type colour would state an encoding this canvas does not use.
-      colour: null,
+      // **The swatch is the words of the hue** — #87. The canvas paints a node by its type, and
+      // a hue alone is hidden from a reader who cannot see it, so the one place that names every
+      // type carries the colour beside the name.
+      colour: model.hueOfType.get(type) ?? null,
     };
   });
 

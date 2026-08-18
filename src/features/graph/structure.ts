@@ -7,10 +7,21 @@
  * `bridges` and the floor that separated the two left this file, and the `--dissent` hue left
  * `model.ts`. #61 asked where that floor sits, and the question dies with the analysis.
  *
- * **What is left is the community run, and it is kept under a condition.** #82 row A2: the
- * operator keeps the colouring only until it is proved on a real corpus, and **#87
- * GRAPH-COLOUR-RULE** holds that proof. **If #87 drops the colouring, this whole file goes with
- * it**, because `communitySizes` and `community` are then read by nobody.
+ * **The community run no longer paints anything, and it places every node** — #87. That ticket
+ * ruled that a hue is a grouping and never an identity, that a community number is a rank of size
+ * which renumbers at each change of the corpus, and that no word on the screen said what a hue
+ * meant. So the paint is the type of an entity now, and `layout.ts` is the one reader left.
+ *
+ * **The condition of survival of this file is therefore the placement, and no longer the paint.**
+ * #87 said the opposite — "if the community run goes too, the whole file goes with it" — and that
+ * was wrong even when it was written. `layout.ts` is scaffolding that dies with **#35**, so this
+ * file lives at least that long. `isolates` and `largestDegree` outlive both: `model.ts` reads
+ * them for the grey of an isolate and for the size by degree, which #87 keeps.
+ *
+ * **`communityCount` and `communitySizes` left this shape** — #87. Each was built at every run
+ * and read by nobody, and the comment on `communitySizes` claimed that `layout.ts` read it, which
+ * was false: `layout.ts` counts the members itself. A comment that lies is obeyed as confidently
+ * as a true one.
  *
  * Built from `docs/graph-surface.md` §4.1 and §8 step 1. UC1 of §2 says that the analyst
  * reads the macro structure with no label read, so this file gives the numbers that the paint
@@ -112,16 +123,17 @@ export function topologyOf(nodes: Iterable<string>, links: Iterable<TopologyLink
 }
 
 export interface Structure {
-  /** The community of each node. Index 0 is the largest community. */
-  readonly community: ReadonlyMap<string, number>;
-  readonly communityCount: number;
   /**
-   * The size of each community, largest first. The index is the community number.
+   * The community of each node. Index 0 is the largest community.
    *
-   * `layout.ts` reads it to give each community a disc whose radius grows with the square root
-   * of its member count, so the density of the picture stays even. It is not dead.
+   * **`layout.ts` reads it, and nothing else does** — #87. It was the paint of a node until that
+   * ticket, and the paint is the type now. So this number places a node and never colours one.
+   *
+   * **It is a rank of size, and that is why it stopped being a colour.** The renumbering below
+   * puts the largest community at index 0, so one new entity can renumber the whole run. A
+   * colour keyed to it repainted the whole picture at each change of the corpus.
    */
-  readonly communitySizes: readonly number[];
+  readonly community: ReadonlyMap<string, number>;
   /** Every node with no relation at all. */
   readonly isolates: readonly string[];
   /**
@@ -237,8 +249,6 @@ export function analyseStructure(graph: Topology): Structure {
 
   return {
     community,
-    communityCount: ranked.length,
-    communitySizes: ranked.map((group) => group.length),
     isolates: nodes.filter((_node, index) => numberAt(degrees, index) === 0),
     largestDegree: degrees.reduce((largest, degree) => Math.max(largest, degree), 0),
   };

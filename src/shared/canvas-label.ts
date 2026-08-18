@@ -58,6 +58,22 @@ export const relationLines = (from: string, type: string, to: string): readonly 
 ];
 
 /**
+ * What an entity says, in two lines.
+ *
+ * **The count is the words that the size owes a reader** — #87. The graph sizes a node by its
+ * degree, and a size alone is unreadable to anybody who cannot compare two discs: the ticket
+ * asked for words beside the hue, and the same argument reaches the radius. The map draws every
+ * point at one radius, so the count states there what the picture never draws at all.
+ *
+ * **One sentence and not a bare figure.** A number alone under a name reads as an identifier or a
+ * year. The word says which quantity it is.
+ */
+export const entityLines = (label: string, relations: number): readonly string[] => [
+  label,
+  relations === 1 ? '1 relation' : `${relations} relations`,
+];
+
+/**
  * How far above the point the label sits, in pixels.
  *
  * The label is placed by its bottom centre, so it stands clear of the dot it names and of the
