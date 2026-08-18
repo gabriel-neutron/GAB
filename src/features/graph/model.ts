@@ -69,8 +69,6 @@ export interface NodeAttrs {
   readonly entityType: string;
   readonly community: number;
   readonly degree: number;
-  /** §3.4: a cut point that severs a piece which is large enough to draw. */
-  readonly bridge: boolean;
   readonly isolate: boolean;
 }
 
@@ -91,7 +89,6 @@ export interface EdgeAttrs {
 export interface GraphPalette {
   /** The six entity hues, in order. They **cycle**: see `hueOf`. */
   readonly communities: readonly [string, string, string, string, string, string];
-  readonly bridge: string;
   readonly isolate: string;
   readonly edge: string;
 }
@@ -115,9 +112,6 @@ const freeze = (palette: GraphPalette): GraphPalette =>
  *
  * - `communities`: `--entity-1` to `--entity-6`. 4.6:1 to 5.0:1 on the light ground, 7.9:1 to
  *   8.9:1 on the dark ground.
- * - `bridge`: `--dissent`, 6.7:1 on each ground. §3.4 says an analyst wants to be shown a bridge,
- *   so it takes the one colour that says "look here". It is not `--destructive` in meaning,
- *   although the two tokens hold one value today.
  * - `isolate`: `--muted-foreground`, 8.6:1 and 8.7:1. An isolate is out of the structure, so it
  *   is grey, and it stays legible.
  * - `edge`: `--label`, 5.6:1 on each ground. The `--border` hue gives 1.5:1 on the dark ground
@@ -126,13 +120,11 @@ const freeze = (palette: GraphPalette): GraphPalette =>
 export const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
   light: freeze({
     communities: ['#2971c6', '#007989', '#007d50', '#677000', '#a16100', '#b53c7f'],
-    bridge: '#ac1b18',
     isolate: '#42494c',
     edge: '#5e6468',
   }),
   dark: freeze({
     communities: ['#70adfb', '#00c2d2', '#53c48e', '#a8b44b', '#df9b44', '#e887b6'],
-    bridge: '#f66e60',
     isolate: '#a9afb1',
     edge: '#848a8c',
   }),
@@ -143,7 +135,7 @@ const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
 
 /**
  * The same hue, at a low opacity. **A dim invents no colour**, so a dimmed element never reads as
- * an isolate or as a bridge, which are the two hues this file gives a meaning.
+ * an isolate, which is the one hue this file gives a meaning.
  *
  * **This file holds it because this file owns the format.** `controller.ts` parsed the `#rrggbb`
  * shape that the palettes above promise, so the promise and the parser sat in two files and a
@@ -319,7 +311,6 @@ export function buildGraphModel(
   );
   const structure = analyseStructure(topology);
 
-  const bridges = new Set(structure.bridges.map((bridge) => bridge.node));
   const isolates = new Set(structure.isolates);
 
   // The span of the size ramp, in the same logarithm the size below uses. A graph where every
@@ -335,7 +326,6 @@ export function buildGraphModel(
     const community = structure.community.get(entity.id) ?? 0;
     const degree = topology.degree(entity.id);
     const isolate = isolates.has(entity.id);
-    const bridge = bridges.has(entity.id);
     graph.addNode(entity.id, {
       x: position.x,
       y: position.y,
@@ -344,13 +334,11 @@ export function buildGraphModel(
       // that a hub reads as a hub beside a leaf at each size of corpus — UC1. `log1p(0)` is 0, so
       // a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      // An isolate has no relation, so it is never a cut point and the two cases never meet.
-      color: isolate ? palette.isolate : bridge ? palette.bridge : hueOf(palette, community),
+      color: isolate ? palette.isolate : hueOf(palette, community),
       label: entity.label,
       entityType: entity.type,
       community,
       degree,
-      bridge,
       isolate,
     });
   }

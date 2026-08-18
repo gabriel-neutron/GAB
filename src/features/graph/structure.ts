@@ -1,7 +1,18 @@
 /**
- * The macro reads of the graph: the communities, the cut points, the bridges, the isolates.
+ * The macro reads of the graph: the communities, the isolates, and the largest degree.
  *
- * Built from `docs/graph-surface.md` §4.1, §3.4 and §8 step 1. UC1 of §2 says that the analyst
+ * **The bridge and cut-point analysis is gone** — #82 row A3, Never asked for it, and **#61 is
+ * closed with it**. The operator reports that the simple rules of colour and size are enough, and
+ * that a red dot for a cut point teaches them nothing. The Tarjan walk, `Bridge`, `cutPoints`,
+ * `bridges` and the floor that separated the two left this file, and the `--dissent` hue left
+ * `model.ts`. #61 asked where that floor sits, and the question dies with the analysis.
+ *
+ * **What is left is the community run, and it is kept under a condition.** #82 row A2: the
+ * operator keeps the colouring only until it is proved on a real corpus, and **#87
+ * GRAPH-COLOUR-RULE** holds that proof. **If #87 drops the colouring, this whole file goes with
+ * it**, because `communitySizes` and `community` are then read by nobody.
+ *
+ * Built from `docs/graph-surface.md` §4.1 and §8 step 1. UC1 of §2 says that the analyst
  * reads the macro structure with no label read, so this file gives the numbers that the paint
  * of §4.2 uses.
  *
@@ -14,7 +25,7 @@
  * a copy of that block, over two different node sets, and two copies of an adjacency and a degree
  * can disagree with nobody to see it.
  *
- * **It names four reads and nothing else.** §4.1 gives the `Topology` shape below word for word.
+ * **It names its reads and nothing else.** §4.1 gives the `Topology` shape below word for word.
  * The file therefore never touches the generic parameters of graphology, and it never depends on
  * the attribute shape of the graph.
  *
@@ -108,18 +119,6 @@ export function topologyOf(nodes: Iterable<string>, links: Iterable<TopologyLink
   };
 }
 
-/**
- * One cut point that severs a piece which is large enough to draw — §3.4.
- *
- * `severs` is the size of the smaller **side** that the removal of this node makes: the largest
- * piece it cuts away, against everything else that stays. That is the rank of §3.4, and it is
- * the reason the list is short.
- */
-export interface Bridge {
-  readonly node: string;
-  readonly severs: number;
-}
-
 export interface Structure {
   /** The community of each node. Index 0 is the largest community. */
   readonly community: ReadonlyMap<string, number>;
@@ -131,10 +130,6 @@ export interface Structure {
    * of its member count, so the density of the picture stays even. It is not dead.
    */
   readonly communitySizes: readonly number[];
-  /** Every node whose removal breaks its component. §3.4 counted 675 of them at 10k nodes. */
-  readonly cutPoints: ReadonlySet<string>;
-  /** The cut points above the floor of §3.4, the largest smaller side first. */
-  readonly bridges: readonly Bridge[];
   /** Every node with no relation at all. */
   readonly isolates: readonly string[];
   /**
@@ -156,7 +151,8 @@ export interface Structure {
  * gives one, label propagation settles in far fewer rounds on a corpus that is not adversarial,
  * and twenty rounds of ten thousand nodes cost a small part of the 51 ms of §4.1.
  *
- * **This number guesses at #61**, which owns it together with the floor below.
+ * **#61 owned this number, and #82 A3 closed it.** The bridge analysis is gone, so nothing is
+ * left to calibrate here but this ceiling, and no ticket holds it.
  */
 const MAX_ROUNDS = 20;
 
@@ -168,30 +164,6 @@ const MAX_ROUNDS = 20;
  * `noUncheckedIndexedAccess` is on, and this keeps the intent of each read on one line.
  */
 const numberAt = (values: readonly number[], index: number): number => values[index] ?? 0;
-
-/**
- * The floor of §3.4, which **scales with the order of the graph**.
- *
- * §3.4 measured 675 cut points at ten thousand nodes and twenty-five thousand relations, and most
- * of them detach one leaf. To paint all of them fills the picture with one colour and reads as
- * noise. Above the floor about 50 remain, and each one is a bridge an analyst wants to be shown.
- *
- * **The shape of this function is chosen here, and it guesses at #61**, which owns the floor that
- * separates a bridge from a cut point. §3.4 gives the rule ("a floor that scales with the order")
- * and one measurement, and no formula. The square root of the order gives 100 at ten thousand
- * nodes, which is the order of magnitude that the measurement asks for. That measurement is the
- * only calibration available: §6 removes the inflater that grew the fixture to 10k/25k, so it
- * cannot be produced a second time.
- *
- * **Zero bridges is a true result on a small corpus.** The fixture of 27 entities gives 5 cut
- * points and no bridge, because a corpus that small severs no piece worth painting. Read the
- * count of cut points beside it — `model.ts` puts both on the legend for that reason.
- *
- * **Degree is the wrong measure**, and §3.4 says so: a node of degree two that holds two halves
- * apart is worth more than a hub that severs one leaf. So the floor is on the severed piece and
- * never on the degree.
- */
-const floorOf = (order: number): number => Math.max(2, Math.ceil(Math.sqrt(order)));
 
 /** The most frequent label among the neighbours. A tie goes to the lowest label — §4.1. */
 function bestLabel(labels: readonly number[], neighbours: readonly number[], own: number): number {
@@ -271,109 +243,10 @@ export function analyseStructure(graph: Topology): Structure {
     }
   });
 
-  // ---------------------------------------------------------------- the cut points ---
-
-  // An iterative Tarjan walk. §4.1: a recursive walk of ten thousand nodes overflows the stack
-  // of the language, so this walk holds its own stack in `walkNode` and `walkEdge`.
-  const NONE = -1;
-  const discovered = new Array<number>(order).fill(NONE);
-  const low = new Array<number>(order).fill(0);
-  const subtree = new Array<number>(order).fill(1);
-  const parent = new Array<number>(order).fill(NONE);
-  const rootChildren = new Array<number>(order).fill(0);
-  const componentSize = new Array<number>(order).fill(1);
-  // For each node, the size of each piece that its removal cuts away from the rest.
-  const severed: number[][] = nodes.map(() => []);
-
-  let clock = 0;
-  for (let root = 0; root < order; root += 1) {
-    if (numberAt(discovered, root) !== NONE) continue;
-
-    const reached: number[] = [root];
-    discovered[root] = clock;
-    low[root] = clock;
-    clock += 1;
-
-    const walkNode: number[] = [root];
-    const walkEdge: number[] = [0];
-    while (walkNode.length > 0) {
-      const node = numberAt(walkNode, walkNode.length - 1);
-      const edge = numberAt(walkEdge, walkEdge.length - 1);
-      const neighbours = neighboursOf(node);
-
-      if (edge < neighbours.length) {
-        walkEdge[walkEdge.length - 1] = edge + 1;
-        const neighbour = numberAt(neighbours, edge);
-        // Every edge back to the parent is skipped, because the edge the walk arrived on is not
-        // a back edge and must not lower `low`. The test is on each neighbour, so a repeated
-        // parent is skipped each time. **`Topology` promises no unique neighbour list**, and
-        // `topologyOf` above gives a set today: a repeated neighbour that is **not** the parent is
-        // walked two times, which costs time and changes no result.
-        if (neighbour === numberAt(parent, node)) continue;
-
-        if (numberAt(discovered, neighbour) !== NONE) {
-          low[node] = Math.min(numberAt(low, node), numberAt(discovered, neighbour));
-          continue;
-        }
-
-        parent[neighbour] = node;
-        if (node === root) rootChildren[root] = numberAt(rootChildren, root) + 1;
-        discovered[neighbour] = clock;
-        low[neighbour] = clock;
-        clock += 1;
-        reached.push(neighbour);
-        walkNode.push(neighbour);
-        walkEdge.push(0);
-        continue;
-      }
-
-      walkNode.pop();
-      walkEdge.pop();
-      const above = numberAt(parent, node);
-      if (above === NONE) continue;
-      low[above] = Math.min(numberAt(low, above), numberAt(low, node));
-      subtree[above] = numberAt(subtree, above) + numberAt(subtree, node);
-      // The piece below `node` reaches nothing above `above`, so the removal of `above` cuts it.
-      const pieces = severed[above];
-      if (pieces !== undefined && numberAt(low, node) >= numberAt(discovered, above)) {
-        pieces.push(numberAt(subtree, node));
-      }
-    }
-
-    for (const node of reached) componentSize[node] = reached.length;
-  }
-
-  const cutPoints = new Set<string>();
-  const bridges: Bridge[] = [];
-  const floor = floorOf(order);
-  nodes.forEach((name, node) => {
-    const pieces: readonly number[] = severed[node] ?? [];
-    const isRoot = numberAt(parent, node) === NONE;
-    const isCutPoint = isRoot ? numberAt(rootChildren, node) > 1 : pieces.length > 0;
-    if (!isCutPoint) return;
-
-    cutPoints.add(name);
-
-    // §3.4 asks for the size of the smaller **side**. So: the largest piece the removal cuts
-    // away, against everything else the removal leaves — the component, less this node and less
-    // that piece.
-    //
-    // **This was the smallest piece, and that was a defect.** The two agree only where a node
-    // cuts the graph in exactly two. A hub that cuts one leaf away and four thousand entities
-    // away scored 1 and was dropped, and §3.4 names that node as one an analyst wants to be
-    // shown. Do not restore the minimum.
-    const largest = pieces.reduce((biggest, piece) => Math.max(biggest, piece), 0);
-    const severs = Math.min(largest, numberAt(componentSize, node) - 1 - largest);
-    if (severs >= floor) bridges.push({ node: name, severs });
-  });
-  bridges.sort((a, b) => b.severs - a.severs || a.node.localeCompare(b.node));
-
   return {
     community,
     communityCount: ranked.length,
     communitySizes: ranked.map((group) => group.length),
-    cutPoints,
-    bridges,
     isolates: nodes.filter((_node, index) => numberAt(degrees, index) === 0),
     largestDegree: degrees.reduce((largest, degree) => Math.max(largest, degree), 0),
   };
