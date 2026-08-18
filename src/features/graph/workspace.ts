@@ -45,14 +45,12 @@ export interface GraphWorkspace {
    */
   readonly hiddenTypes: readonly string[];
   readonly railOpen: boolean;
-  readonly legendOpen: boolean;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   camera: null,
   hiddenTypes: [],
   railOpen: true,
-  legendOpen: false,
 };
 
 const isCamera = (value: unknown): value is GraphCamera => {
@@ -77,7 +75,6 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   camera: true,
   hiddenTypes: true,
   railOpen: true,
-  legendOpen: true,
 };
 
 /**
@@ -101,8 +98,7 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     (w['camera'] === null || isCamera(w['camera'])) &&
     Array.isArray(hidden) &&
     hidden.every((type) => typeof type === 'string') &&
-    typeof w['railOpen'] === 'boolean' &&
-    typeof w['legendOpen'] === 'boolean'
+    typeof w['railOpen'] === 'boolean'
   );
 };
 
@@ -113,7 +109,7 @@ export function readGraphWorkspace(): GraphWorkspace {
 /**
  * **Every writer patches, and never replaces** — `docs/graph-surface.md` §5.4.
  *
- * There are four writers, and `./controller` holds each one: the camera, the rail, the legend and
+ * There are three writers, and `./controller` holds each one: the camera, the rail and
  * the type switches. Two writers that each hold a partial record erase the other's field. Reading
  * before every write costs one `localStorage` read and removes the whole class of fault.
  */

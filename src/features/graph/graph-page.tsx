@@ -39,7 +39,6 @@ import { Rail, type RailAct } from '@/shared/rail';
 
 import { emitGraphSelection } from './bridge';
 import { mountGraph, type FilterState, type GraphController, type GraphView } from './controller';
-import { Legend } from './legend';
 import type { GraphModel } from './model';
 import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
 import { IndexRows } from './row';
@@ -213,19 +212,6 @@ export function GraphPage() {
     handle.flyTo(id);
   }, []);
 
-  /**
-   * The legend panel key goes to `./controller`, which owns the workspace. The rail says the same
-   * thing through its own act, `open-rail`, which `act` above answers.
-   *
-   * **The defect this deletes:** this file held the same two values in React state, seeded from
-   * the record and patched on each change, so one value sat in two stores — ADR 0004 §7, and the
-   * skill names a value that must survive a reload and lives in React state as a fault. The
-   * handle publishes them now, and the next publish brings the new value back.
-   */
-  const openLegend = useCallback((open: boolean) => {
-    controller.current?.setLegendOpen(open);
-  }, []);
-
   return (
     <div className={cn('relative size-full overflow-hidden')}>
       <GraphCanvas canvas={canvas} overlay={overlay} />
@@ -255,27 +241,6 @@ export function GraphPage() {
               'text-popover-foreground',
               rows.rail.open ? 'w-64' : 'w-11',
             )}
-          />
-        )}
-      </div>
-
-      <div className={cn('pointer-events-none absolute right-2 bottom-2')}>
-        {snapshot === null ? null : (
-          <Legend
-            reading={{
-              definitions: snapshot.model.legendDefinitions,
-              counts: snapshot.model.legendCounts,
-              reach: { lit: snapshot.view.lit, dimmed: snapshot.view.dimmed },
-              // §8 step 7: the count that cannot be drawn goes on the screen. The two figures are
-              // **view** values, so they travel the path `lit` and `dimmed` take, and `./legend`
-              // states the remainder in words.
-              markers: {
-                drawn: snapshot.view.markersDrawn,
-                overCap: snapshot.view.markersOverCap,
-              },
-            }}
-            open={snapshot.view.legendOpen}
-            onOpenChange={openLegend}
           />
         )}
       </div>

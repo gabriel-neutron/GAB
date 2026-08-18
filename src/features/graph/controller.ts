@@ -25,7 +25,7 @@
  * already writes; which keys the address carries is #33's to settle.
  *
  * **This file owns no part of the screen except the marker layer.** It states each count it
- * cannot draw on the view, and `./legend` draws them.
+ * cannot draw on the view. The legend that drew them is gone — #82 B1 to B11.
  */
 
 import Sigma from 'sigma';
@@ -73,7 +73,7 @@ export type FilterState = Pick<GraphWorkspace, 'hiddenTypes'>;
  * that carries them would be copied at each publish.
  *
  * `lit` and `dimmed` count **elements**: a node and an edge each count as one, so the two figures
- * together are the whole picture — which is what §4.5 asks the legend to state.
+ * together are the whole picture. The legend that stated them is gone — #82 B7.
  */
 export interface GraphView {
   /** The shape §4.3 quotes. `./bridge` declares it, and the route reads the same declaration. */
@@ -81,12 +81,8 @@ export interface GraphView {
   readonly filter: FilterState;
   readonly lit: number;
   readonly dimmed: number;
-  /** How many elements carry a marker of UC5. The cap of §3.3 holds it down. */
-  readonly markersDrawn: number;
-  /** How many elements carry a pending proposal and get no marker. §3.3: state the remainder. */
-  readonly markersOverCap: number;
   /**
-   * Whether the rail is unfolded, and whether the definitions of the legend are shown.
+   * Whether the rail is unfolded.
    *
    * **They are on the view because they are the workspace, and this file owns the workspace** —
    * §5.4 and ADR 0004 §7. `graph-page.tsx` held them in React state as well, seeded from the same
@@ -95,11 +91,10 @@ export interface GraphView {
    * reported under ASK.
    */
   readonly railOpen: boolean;
-  readonly legendOpen: boolean;
 }
 
 /**
- * What the rail, the legend and the route use to drive the graph.
+ * What the rail and the route use to drive the graph.
  *
  * **`subscribe` calls its listener at once, with the view of that moment** — `CANVAS.md`: a
  * component that subscribes after the canvas is built has already missed the restore of the
@@ -117,10 +112,7 @@ export interface GraphController {
   readonly setFilter: (patch: Partial<FilterState>) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
-  /** The definitions of the legend were shown or hidden. The workspace keeps it too. */
-  readonly setLegendOpen: (open: boolean) => void;
   readonly flyTo: (id: string) => void;
-  readonly resetCamera: () => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
   readonly destroy: () => void;
 }
@@ -265,7 +257,6 @@ export function mountGraph(
   let filter: FilterState = { hiddenTypes: [...stored.hiddenTypes] };
   let hidden = new Set(filter.hiddenTypes);
   let railOpen = stored.railOpen;
-  let legendOpen = stored.legendOpen;
 
   let destroyed = false;
   const listeners = new Set<(view: GraphView) => void>();
@@ -278,7 +269,6 @@ export function mountGraph(
 
   /** The elements that carry a marker on this frame, and how many get none. §3.3. */
   let markerTargets: readonly string[] = [];
-  let markersOverCap = 0;
 
   /** One dimmed colour for each colour of the palette. A reducer runs for each element, each frame. */
   const dimCache = new Map<string, string>();
@@ -382,9 +372,12 @@ export function mountGraph(
       if (litNodes.has(target) || litEdges.has(target)) targets.push(target);
     }
     // The order is the order of the read, so the same corpus gives the same 250 on every open.
-    // **Which 250 is #10's to settle**, and this file states the remainder instead of choosing.
+    // **Which 250 is #10's to settle.**
+    //
+    // **The remainder is no longer stated anywhere.** This file counted it and the legend drew it;
+    // the operator removed the legend — #82 B8 — so an element over the cap now carries no marker
+    // and no report. **#10 must say what happens past 250.**
     markerTargets = targets.slice(0, MARKER_CAP);
-    markersOverCap = targets.length - markerTargets.length;
     sizeMarkerPool(markerTargets.length);
   };
 
@@ -561,10 +554,7 @@ export function mountGraph(
     filter,
     lit,
     dimmed,
-    markersDrawn: markerTargets.length,
-    markersOverCap,
     railOpen,
-    legendOpen,
   });
 
   const publish = (): void => {
@@ -609,7 +599,7 @@ export function mountGraph(
    * accepted, counts again, paints again, and publishes one view.
    *
    * **It moves no camera.** §5.1: the camera never moves for a selection made on the canvas. The
-   * two controls that may move it are `flyTo` and `resetCamera`, and each one is called by a
+   * the one control that may move it is `flyTo`, and it is called by a
    * control of the analyst.
    */
   const settle = (next: GraphSelection | null): void => {
@@ -776,12 +766,6 @@ export function mountGraph(
       patchGraphWorkspace({ railOpen: open });
       publish();
     },
-    setLegendOpen: (open) => {
-      if (destroyed) return;
-      legendOpen = open;
-      patchGraphWorkspace({ legendOpen: open });
-      publish();
-    },
     flyTo: (id) => {
       if (destroyed) return;
       const point = framedPointOf(id);
@@ -789,10 +773,6 @@ export function mountGraph(
       // A control of the analyst may move the camera — §5.1. The zoom stays: what "near enough"
       // means is a camera value that nobody has decided.
       void camera.animate({ x: point.x, y: point.y });
-    },
-    resetCamera: () => {
-      if (destroyed) return;
-      void camera.animatedReset();
     },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;

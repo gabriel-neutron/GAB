@@ -3,7 +3,12 @@
  *
  * Built from `docs/graph-surface.md` §4.2, §3.3, §3.4, §4.5 and §8 step 2. It takes the read, the
  * positions and one palette, and it returns one typed graph, the macro reads of `./structure`,
- * three indexes, and the two arrays the legend of §4.5 draws.
+ * three indexes.
+ *
+ * **The legend is gone** — #82 rows B1 to B11, Never asked for it. `legendDefinitions`,
+ * `legendCounts`, `LegendDefinition`, `LegendCount` and `LegendToken` left this file with it, and
+ * #76 holds the reason. Nothing on the graph now states what the paint means: **#87
+ * GRAPH-COLOUR-RULE** owns that question.
  *
  * **It computes no position.** `positions` is the seam of **#35**, which is OPEN. §3.2 measured
  * two layouts of one corpus: the displacement is about half the width of the picture, and
@@ -164,39 +169,6 @@ export const dimmedColour = (colour: string, fraction: number): string => {
   return `#${hexPair(red)}${hexPair(green)}${hexPair(blue)}${hexPair(alpha)}`;
 };
 
-/**
- * One line of the legend of §4.5: a token, and what it means.
- *
- * **The meaning is a label and not a sentence.** It fits one row of 24px with no wrap. The
- * accepted prototype drew five short labels, and a rebuild that wrote four wrapped sentences made
- * the panel three times too tall for a surface that floats over the canvas.
- *
- * `token` is `null` where the line states a rule and not a hue — `size = degree` has no swatch,
- * and a swatch invented for it would state an encoding this canvas does not use.
- */
-export interface LegendDefinition {
-  readonly token: LegendToken | null;
-  readonly meaning: string;
-}
-
-/**
- * The token of one swatch of the legend. **A closed set of four**, because the definitions are a
- * fixed list and a token that nobody declares emits no rule at all, in silence.
- *
- * **The swatch names a token, and never a hex value.** The palettes above are copied as hex
- * because a CSS custom property never reaches the Sigma parser (`CANVAS.md`). A `<span>` of the
- * page is not that parser, so a swatch takes the declared token and the two can never drift.
- * `src/index.css` declares `--color-entity-1`, `--color-dissent`, `--color-muted-foreground` and
- * `--color-label`.
- */
-export type LegendToken = 'entity-1' | 'dissent' | 'muted-foreground' | 'label';
-
-/** One count of the legend of §4.5. The legend derives nothing; it draws these. */
-export interface LegendCount {
-  readonly label: string;
-  readonly count: number;
-}
-
 export interface GraphModel {
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
   readonly structure: Structure;
@@ -238,21 +210,17 @@ export interface GraphModel {
   readonly duplicateEntities: number;
   /** How many relation rows repeat an identifier. The second row is dropped. */
   readonly duplicateRelations: number;
-  readonly legendDefinitions: readonly LegendDefinition[];
-  /**
-   * The rows the panel of §4.5 draws, and **only** the rows that are a report to the analyst.
-   *
-   * Every count above stays on the model, because the controller and the report read them. The
-   * panel loses them: a count of the entities drawn, of the communities or of the cut points is a
-   * build diagnostic, and it made a panel of twelve rows that covered the canvas.
-   */
-  readonly legendCounts: readonly LegendCount[];
 }
 
 /**
  * The hue of one community. **The six hues cycle**, so community 0 and community 6 wear one hue.
  * A hue is therefore the encoding "these entities connect", and never the identity of one
- * community. `legendDefinitions` states the encoding for that reason, and never a community.
+ * community. So a hue says "these entities connect" and it names nobody.
+ *
+ * **Nothing on the screen states that any more.** The legend that said it is gone — #82 B2. **#87
+ * GRAPH-COLOUR-RULE** owns whether this colouring carries information at all, and whether a reader
+ * learns its meaning somewhere else. This file assumes no answer: it paints, and it explains
+ * nothing.
  */
 const hueOf = (palette: GraphPalette, community: number): string =>
   palette.communities[community % palette.communities.length] ?? palette.communities[0];
@@ -423,48 +391,6 @@ export function buildGraphModel(
     else pendingWithoutTarget += 1;
   }
 
-  // §4.5: the legend states **what the paint means**. So this list has a fixed length, and it
-  // never grows a line for each community: at ten thousand entities that panel would cover the
-  // canvas.
-  //
-  // **Each meaning is a short label, and it fits one row with no wrap.** The words are the ones
-  // the accepted prototype drew. Four wrapped sentences made this panel three times too tall for
-  // a surface that floats over a canvas.
-  //
-  // **Each line names the token of its hue, and never a value.** The palette above is a hex copy
-  // for the Sigma parser only; a swatch of the page reads the declared token, so the legend and
-  // the canvas cannot drift apart. Each token here is the one the palette was converted from.
-  const legendDefinitions: readonly LegendDefinition[] = [
-    // The six hues cycle, so a hue is the encoding "these entities connect" and never the
-    // identity of one community. The label says `community` for that reason, and names none.
-    { token: 'entity-1', meaning: 'Community' },
-    { token: 'dissent', meaning: 'Bridge — a cut point that severs a real piece' },
-    { token: 'muted-foreground', meaning: 'Isolate' },
-    { token: 'label', meaning: 'Relation' },
-    // The size of a node is an encoding with no hue, so this line carries no swatch.
-    { token: null, meaning: 'Size = degree' },
-  ];
-
-  // §4.5 asks for two things: what the paint means, and **how much of the picture is out of
-  // consideration**. So the panel keeps the three counts that are a report to the analyst, and it
-  // loses the nine that are a build diagnostic. Every one of the nine stays on the model above,
-  // because the controller and the report read them.
-  //
-  // **A count of zero is not drawn**, because a panel of zeros over a canvas says nothing. The
-  // count of the entities with no position is the exception: it is the evidence that #35 is
-  // unanswered, and while a stand-in places every entity that evidence reads 0. It must stay
-  // visible, so it is always a row.
-  const reports: readonly LegendCount[] = [
-    // §4.2 and UC3: the index holds them and the canvas does not draw them. A report, not a loss.
-    { label: 'M4 relations, in the index and not on the canvas', count: m4.length },
-    // §3.3: of the three pending proposals of the fixture one can be drawn, and two cannot.
-    { label: 'Pending proposals with no element', count: pendingWithoutTarget },
-  ];
-  const legendCounts: readonly LegendCount[] = [
-    ...reports.filter((report) => report.count !== 0),
-    { label: 'Entities with no position', count: entitiesWithoutPosition },
-  ];
-
   return {
     graph,
     structure,
@@ -479,7 +405,5 @@ export function buildGraphModel(
     relationsWithoutEndpoint,
     duplicateEntities,
     duplicateRelations,
-    legendDefinitions,
-    legendCounts,
   };
 }
