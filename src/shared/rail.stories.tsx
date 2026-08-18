@@ -42,7 +42,7 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
 
 const rows = (over: Partial<RailRows> = {}): RailRows => ({
   types: [row({ type: 'vessel' }), row({ type: 'port', count: 7 })],
-  openType: null,
+  openTypes: [],
   everyTypeOff: false,
   open: true,
   ...over,
@@ -55,7 +55,7 @@ const meta = {
   args: {
     rows: rows(),
     onAct,
-    index: <p data-index="">The index of the open type</p>,
+    index: (type: string) => <p data-index={type}>The index of {type}</p>,
     footer: <p data-footer="">The footer of the surface</p>,
   },
   // The width is part of the contract of each caller — 240px open and a 44px strip closed on the
@@ -148,11 +148,11 @@ export const TheFoldAndTheSwitchAreTwoActs: Story = {
  * it opens **only while that region is in the tree**: a closed row that named it sent a reader to
  * an element that is not there.
  */
-export const OneTypeIsUnfoldedAtATimeAndCarriesTheField: Story = {
+export const AnUnfoldedTypeCarriesItsOwnIndex: Story = {
   args: {
     rows: rows({
       types: [row({ type: 'vessel', open: true }), row({ type: 'port', count: 7 })],
-      openType: 'vessel',
+      openTypes: ['vessel'],
     }),
   },
   play: async ({ canvas, canvasElement }) => {
@@ -164,10 +164,40 @@ export const OneTypeIsUnfoldedAtATimeAndCarriesTheField: Story = {
     await expect(closed).toHaveAttribute('aria-expanded', 'false');
     await expect(closed).not.toHaveAttribute('aria-controls');
 
-    // The slot belongs to the one open type, and to no other row.
+    // The slot belongs to the open type, and to no other row.
     await expect(canvasElement.querySelectorAll('[data-index]')).toHaveLength(1);
     // #82 C6: no search field stands in this rail any more.
     await expect(canvasElement.querySelector('input')).toBeNull();
+  },
+};
+
+/**
+ * #82 C5: **more than one type may stand unfolded**. Opening a second one closed the first, and
+ * an analyst could not read two lists beside each other.
+ *
+ * Each open row asks the caller for its own list, so the two indexes are two elements and never
+ * one that the rail moves about.
+ */
+export const MoreThanOneTypeStandsUnfolded: Story = {
+  args: {
+    rows: rows({
+      types: [row({ type: 'vessel', open: true }), row({ type: 'port', count: 7, open: true })],
+      openTypes: ['vessel', 'port'],
+    }),
+  },
+  play: async ({ canvas, canvasElement, args }) => {
+    const drawn = canvasElement.querySelectorAll('[data-index]');
+    await expect(drawn).toHaveLength(2);
+    await expect(canvasElement.querySelector('[data-index="vessel"]')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-index="port"]')).not.toBeNull();
+
+    // Folding one names the type and the state it asked for, and it says nothing about the other.
+    await userEvent.click(canvas.getByRole('button', { name: 'Close the port list' }));
+    await expect(args.onAct).toHaveBeenCalledWith({
+      kind: 'open-type',
+      type: 'port',
+      open: false,
+    });
   },
 };
 
@@ -239,7 +269,7 @@ export const ATypeThatIsOffCarriesNoIndex: Story = {
   args: {
     rows: rows({
       types: [row({ type: 'vessel', open: true, on: false, stateWord: 'off' })],
-      openType: 'vessel',
+      openTypes: ['vessel'],
     }),
   },
   play: async ({ canvasElement }) => {

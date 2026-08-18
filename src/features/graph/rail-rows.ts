@@ -50,12 +50,20 @@ const LIST_CAP = 60;
 /**
  * The two steps of the rail, as the analyst left them.
  *
- * `openType` is `null` at the first step, where the rail shows the type rows only. A string is
- * the second step: that one type is unfolded, and the field belongs to it. **One type at a time**,
- * so the rail never becomes the whole corpus by accident — §4.4.
+ * **More than one type may stand unfolded** — #82 C5. The rule that closed one list to open the
+ * next is gone: it stopped an analyst reading two lists beside each other, and neither surface
+ * needed it.
  */
 export interface RailStep {
-  readonly openType: string | null;
+  /** Every type the analyst unfolded. Empty is the first step, with the type rows only. */
+  readonly openTypes: readonly string[];
+  /**
+   * The types whose **whole** list is drawn, past the cap — #82 C8.
+   *
+   * The operator ruled that the line which counted the dropped rows becomes a control that opens
+   * them. The order does not change: the hubs stay first.
+   */
+  readonly wholeList: readonly string[];
 }
 
 /** One entity row of the second step. The list is already sorted, already capped. */
@@ -66,14 +74,15 @@ export interface RailEntityRow {
   readonly selected: boolean;
 }
 
-/** The second step: the type that is unfolded, and its list. */
+/** The second step: one unfolded type, and its list. */
 export interface RailOpenList {
   readonly type: string;
   readonly entities: readonly RailEntityRow[];
-  /** How many entities match and are not drawn. §4.4: the remainder is on the screen. */
+  /**
+   * How many entities of this type the cap leaves out. §4.4 puts the number on the screen, and
+   * #82 C8 makes it a control that draws them. It is 0 once the whole list is open.
+   */
   readonly remainder: number;
-  /** How many entities of the type the canvas draws, for the line that says no name matches. */
-  readonly count: number;
 }
 
 /**
@@ -82,8 +91,11 @@ export interface RailOpenList {
  */
 export interface GraphRailRows {
   readonly rail: RailRows;
-  /** `null` at the first step, and at a type that is switched off. */
-  readonly open: RailOpenList | null;
+  /**
+   * One list for each type that stands unfolded **and** is drawn, by type name. A type that is
+   * switched off has no entry: the surface draws none of it.
+   */
+  readonly lists: ReadonlyMap<string, RailOpenList>;
 }
 
 /**
@@ -142,7 +154,7 @@ export function deriveRailRows(
       initial: type.slice(0, 1).toUpperCase(),
       count,
       on,
-      open: step.openType === type,
+      open: step.openTypes.includes(type),
       // §5.2 dims and never hides, so the row states that consequence. The word reaches a reader
       // who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
@@ -155,39 +167,44 @@ export function deriveRailRows(
 
   const everyTypeOff = types.length > 0 && types.every((row) => !row.on);
 
-  const openType = step.openType;
-  const openIsDrawn = openType !== null && counts.has(openType) && !hidden.has(openType);
+  const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
 
-  let openList: RailOpenList | null = null;
-  if (openType !== null && openIsDrawn) {
-    const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
-
-    const matches: RailEntityRow[] = [];
+  // One walk of the graph fills every open list. A walk per open type would read the whole graph
+  // once for each one, and #82 C5 permits every type to stand open at the same moment.
+  const matching = new Map<string, RailEntityRow[]>();
+  for (const type of step.openTypes) {
+    if (!counts.has(type) || hidden.has(type)) continue;
+    matching.set(type, []);
+  }
+  if (matching.size > 0) {
     model.graph.forEachNode((node, attrs) => {
-      if (attrs.entityType !== openType) return;
-      matches.push({
+      matching.get(attrs.entityType)?.push({
         id: node,
         label: attrs.label,
         degree: attrs.degree,
         selected: node === selectedId,
       });
     });
+  }
 
+  const lists = new Map<string, RailOpenList>();
+  for (const [type, matches] of matching) {
     // §4.4: the hubs first. The name is the tie-break, so the same corpus gives the same head on
-    // every open, which the degree alone does not promise.
+    // every open, which the degree alone does not promise. **#82 C8 keeps this order when the
+    // whole list opens**: the operator asked for the most connected first either way.
     matches.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
 
-    const drawn = matches.slice(0, LIST_CAP);
-    openList = {
-      type: openType,
+    const whole = step.wholeList.includes(type);
+    const drawn = whole ? matches : matches.slice(0, LIST_CAP);
+    lists.set(type, {
+      type,
       entities: drawn,
       remainder: matches.length - drawn.length,
-      count: counts.get(openType) ?? 0,
-    };
+    });
   }
 
   return {
-    rail: { types, openType, everyTypeOff, open },
-    open: openList,
+    rail: { types, openTypes: step.openTypes, everyTypeOff, open },
+    lists,
   };
 }

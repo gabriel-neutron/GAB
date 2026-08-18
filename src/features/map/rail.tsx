@@ -77,17 +77,20 @@ export interface RailProps {
 }
 
 /**
- * Which type is unfolded. It dies with the view, so it is React state — `CANVAS.md` makes the
+ * Which types are unfolded. It dies with the view, so it is React state — `CANVAS.md` makes the
  * rail a sibling of the canvas.
  *
- * **The two cases are not one nullable value.** Until the analyst folds a type open, the rail
- * follows the selection of the map: a rail that only listened opened no group on a reload (§5.1).
- * After the first fold the choice of the analyst holds, and `null` then means "the analyst closed
+ * **More than one may stand open** — #82 C5. The rule that closed one group to open the next is
+ * gone.
+ *
+ * **The two cases are not one empty list.** Until the analyst folds a type open, the rail follows
+ * the selection of the map: a rail that only listened opened no group on a reload (§5.1). After
+ * the first fold the choice of the analyst holds, and an empty list then means "the analyst closed
  * every group", which the selection must not undo.
  */
-type OpenType =
+type OpenTypes =
   | { readonly kind: 'follows-selection' }
-  | { readonly kind: 'chosen'; readonly type: string | null };
+  | { readonly kind: 'chosen'; readonly types: readonly string[] };
 
 /**
  * The recipe of every control of the footer. It is the one the shared rail uses, and it is stated
@@ -125,7 +128,7 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
    */
   const [ground, setGround] = useState<Ground>(() => map.current?.ground ?? 'plan');
 
-  const [openType, setOpenType] = useState<OpenType>({ kind: 'follows-selection' });
+  const [openTypes, setOpenTypes] = useState<OpenTypes>({ kind: 'follows-selection' });
 
   // The one effect of this file, and it is a subscription. It returns the unsubscribe of the
   // handle, so a rail that leaves the screen drives no dead map. The ref is stable, so this list
@@ -138,7 +141,13 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   }, [map]);
 
   const selectedType = selected === null ? null : (projection.byId.get(selected)?.type ?? null);
-  const shownType = openType.kind === 'follows-selection' ? selectedType : openType.type;
+  // The selection opens its own group until the analyst folds one, and their choice holds after.
+  const shownTypes: readonly string[] =
+    openTypes.kind === 'follows-selection'
+      ? selectedType === null
+        ? []
+        : [selectedType]
+      : openTypes.types;
 
   /**
    * **The switch goes through the one writer** — §4.4 and §5.2. This rail writes no workspace
@@ -190,7 +199,13 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        setOpenType({ kind: 'chosen', type: next.type });
+        // #82 C5: this adds and removes one name, and never replaces the list.
+        setOpenTypes({
+          kind: 'chosen',
+          types: next.open
+            ? [...shownTypes, next.type]
+            : shownTypes.filter((type) => type !== next.type),
+        });
         return;
     }
   };
@@ -203,22 +218,22 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   const otherGround: Ground = ground === 'plan' ? 'imagery' : 'plan';
   const groundSays = `Ground: ${ground}. Change to ${otherGround}.`;
 
-  const facet = shownType === null ? null : (projection.facetByType.get(shownType) ?? null);
-
   return (
     <TwoStepRail
-      rows={railRows(legend, shownType, open)}
+      rows={railRows(legend, shownTypes, open)}
       onAct={act}
-      index={
-        facet === null ? null : (
+      // #82 C5: the rail asks for each open list, because more than one may stand open.
+      index={(type) => {
+        const facet = projection.facetByType.get(type);
+        return facet === undefined ? null : (
           <IndexRows
             facet={facet}
             entities={entitiesOfType(projection, facet.type)}
             selectedId={selected}
             onSelect={reach}
           />
-        )
-      }
+        );
+      }}
       footer={
         <>
           {/* **The relations, with one switch of their own** — §4.7. They are not an entity type,

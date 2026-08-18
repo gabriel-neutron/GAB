@@ -105,7 +105,7 @@ export function GraphPage() {
    * `./rail`, because `deriveRailRows` needs both fields to build the rows, and a value in two
    * stores is the fault the ADR names.
    */
-  const [step, setStep] = useState<RailStep>({ openType: null });
+  const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
   /**
    * The one effect of this file, and it is the adapter — `CANVAS.md` permits a `useEffect` there
@@ -193,9 +193,33 @@ export function GraphPage() {
         handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
-        setStep({ openType: next.type });
+        // #82 C5: more than one type may stand unfolded, so this adds and removes one name.
+        // **Folding a type also forgets that its whole list was open**, so opening it again
+        // starts at the cap and #82 C8 states the remainder afresh.
+        setStep((held) =>
+          next.open
+            ? { ...held, openTypes: [...held.openTypes, next.type] }
+            : {
+                openTypes: held.openTypes.filter((type) => type !== next.type),
+                wholeList: held.wholeList.filter((type) => type !== next.type),
+              },
+        );
         return;
     }
+  }, []);
+
+  /**
+   * #82 C8: the line that counted the rows the cap dropped is a control now, and it draws them in
+   * the same order — the hubs first.
+   *
+   * **It is not an act of the shared rail.** The cap belongs to this surface: the map lists every
+   * entity of a type and has nothing to open. An act on the shared control would put a rule of one
+   * surface into a file that both surfaces read.
+   */
+  const showWholeList = useCallback((type: string) => {
+    setStep((held) =>
+      held.wholeList.includes(type) ? held : { ...held, wholeList: [...held.wholeList, type] },
+    );
   }, []);
 
   /**
@@ -220,16 +244,20 @@ export function GraphPage() {
           <Rail
             rows={rows.rail}
             onAct={act}
-            index={
-              rows.open === null ? null : (
+            // #82 C5: the rail asks for each open list, because more than one may stand open.
+            index={(type) => {
+              const list = rows.lists.get(type);
+              return list === undefined ? null : (
                 <IndexRows
-                  entities={rows.open.entities}
-                  remainder={rows.open.remainder}
-                  count={rows.open.count}
+                  entities={list.entities}
+                  remainder={list.remainder}
                   onSelect={reach}
+                  onShowWholeList={() => {
+                    showWholeList(type);
+                  }}
                 />
-              )
-            }
+              );
+            }}
             footer={null}
             // §5.5: the panel floats over the canvas, so it takes the popover ground and no
             // pointer event on its own padding. Each control inside takes the pointer back.

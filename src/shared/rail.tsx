@@ -90,8 +90,14 @@ export interface RailTypeRow {
 
 export interface RailRows {
   readonly types: readonly RailTypeRow[];
-  /** The type that is unfolded, or `null` at the first step. */
-  readonly openType: string | null;
+  /**
+   * Every type that stands unfolded.
+   *
+   * **It was one type, and the operator ruled that rule off** — #82 C5. Opening a second type
+   * closed the first, so an analyst could not read two lists beside each other, and nothing on
+   * either surface needed that constraint.
+   */
+  readonly openTypes: readonly string[];
   /** §5.2: a control that can exclude everything says so, and carries the way back. */
   readonly everyTypeOff: boolean;
   /** Whether the rail shows its index. The workspace holds it — ADR 0004. */
@@ -110,7 +116,12 @@ export interface RailRows {
 export type RailAct =
   | { readonly kind: 'open-rail'; readonly open: boolean }
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
-  | { readonly kind: 'open-type'; readonly type: string | null }
+  /**
+   * One type was unfolded or folded. **It names the type and the state it asked for**, exactly as
+   * `switch-type` does, because more than one may stand open — #82 C5. The act that stood here
+   * carried `null` to mean "close whatever is open", which only made sense while one could be.
+   */
+  | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
   | { readonly kind: 'show-every-type' };
 
 export interface RailProps {
@@ -118,10 +129,14 @@ export interface RailProps {
   readonly rows: RailRows;
   readonly onAct: (act: RailAct) => void;
   /**
-   * The list of entities of the open type. The caller draws it, because a row is not the same
+   * The list of entities of one open type. The caller draws it, because a row is not the same
    * component on the two surfaces — see the header.
+   *
+   * **It is a function of the type, and no longer one node.** More than one type may stand
+   * unfolded (#82 C5), so this control asks the caller for each list it has room to draw, and it
+   * never holds a list of its own.
    */
-  readonly index: ReactNode;
+  readonly index: (type: string) => ReactNode;
   /** What the surface pins below the list. The map puts its relations and its counts here. */
   readonly footer: ReactNode;
   /**
@@ -255,7 +270,7 @@ export function Rail({ rows, onAct, index, footer, className }: RailProps) {
                   aria-controls={row.open ? listId(row.type) : undefined}
                   aria-label={row.open ? `Close the ${row.type} list` : `Open the ${row.type} list`}
                   onClick={() => {
-                    onAct({ kind: 'open-type', type: row.open ? null : row.type });
+                    onAct({ kind: 'open-type', type: row.type, open: !row.open });
                   }}
                   className={cn(CONTROL, 'size-6 shrink-0 justify-center')}
                 >
@@ -326,7 +341,7 @@ export function Rail({ rows, onAct, index, footer, className }: RailProps) {
                 index: the surface draws none of it. */}
             {open && row.open && row.on ? (
               <div id={listId(row.type)} className="px-1.5 pb-1">
-                {index}
+                {index(row.type)}
               </div>
             ) : null}
           </div>

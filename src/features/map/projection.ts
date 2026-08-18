@@ -180,13 +180,17 @@ export function railLegend(
  * §3.1 and §4.5 keep the colour swatch per entry: it is the legend, and a coloured point means
  * nothing without one. The hue is the hex the map parses, so no class can carry it.
  */
-export function railRows(legend: RailLegend, openType: string | null, open: boolean): RailRows {
+export function railRows(
+  legend: RailLegend,
+  openTypes: readonly string[],
+  open: boolean,
+): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
     initial: facet.type.slice(0, 1).toUpperCase(),
     count: facet.count,
     on: !hidden,
-    open: openType === facet.type,
+    open: openTypes.includes(facet.type),
     stateWord: hidden ? 'off' : 'on',
     // A name that said `on the map` for a type that is off is a false report to a reader who
     // cannot see the opacity of the swatch.
@@ -196,7 +200,7 @@ export function railRows(legend: RailLegend, openType: string | null, open: bool
 
   return {
     types,
-    openType,
+    openTypes,
     everyTypeOff: types.length > 0 && types.every((row) => !row.on),
     open,
   };
