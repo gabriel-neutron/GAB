@@ -1,18 +1,22 @@
 /**
- * The check of step 7 of `docs/map-surface.md` §8: `vessel` reads down as one column, and
- * `facility` shows blanks under a named header.
+ * One line of the index draws the name of an entity, and nothing else.
  *
- * The read arrives through `project()` over `@/shared/fixtures/corpus`, which is what the caller
- * of this component reads. Both change on the day `src/contract/` replaces the fixture.
+ * **The two stories that stood here are gone with their subject.** They proved the one column of
+ * values: `vessel` reading down as a straight column of IMO numbers, and `facility` showing blanks
+ * under a named header. The operator ruled that column off the screen — #81 rows B5, B6 and B7 —
+ * so a story that asserts it would prove a surface that no longer exists.
  *
- * §3.2 measured the two cases on this sample: `vessel` carries `imo` on 8 of 8, and `facility`
- * carries `throughput_kt_month` on 2 of 11. Each story asserts the text of each cell, per row,
- * against the same projection the component receives. A group that pairs the wrong entity with
- * the wrong value then fails.
+ * **The measurement they made is not lost, because it is the reason for the ruling.** On this
+ * sample `vessel` carries `imo` on 8 of 8, and `facility` carries `throughput_kt_month` on 2 of 11:
+ * a column that is full for one type and blank for nine rows of another. #76 records it, and #12
+ * owns a readable name for an attribute.
+ *
+ * The read arrives through `project()` over `@/shared/fixtures/corpus`, which is what the caller of
+ * this component reads. Both change on the day `src/contract/` replaces the fixture — #46.
  */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
 
@@ -28,18 +32,12 @@ function facetOf(type: string): TypeFacet {
   return facet;
 }
 
+/** The drawn entities of one type, in the order the projection holds them. */
 function entitiesOf(type: string): readonly GeoEntity[] {
-  const entities = projection.entitiesByType.get(type);
-  if (entities === undefined) throw new Error(`The fixture draws no entity of type ${type}.`);
-  return entities;
+  return projection.entities.filter((entity) => entity.type === type);
 }
 
-/** One element of the group. An absent element is a fault of the component, and it stops here. */
-function elementIn(root: HTMLElement, selector: string): HTMLElement {
-  const found = root.querySelector<HTMLElement>(selector);
-  if (found === null) throw new Error(`The group draws no element for ${selector}.`);
-  return found;
-}
+const VESSELS = entitiesOf('vessel');
 
 const meta = {
   component: IndexRows,
@@ -58,82 +56,48 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Criterion 1 and the first clause of the *Check*: "Every row of `vessel` shows an IMO in one
- * straight column."
+ * One row per drawn entity, and each row carries the name of its own entity.
  *
- * Three assertions, because the clause holds three facts. The header names the key in full. Each
- * row shows the value of its own entity. Each cell ends on one right edge, which is what a column
- * that reads down means. The story waits for `document.fonts.ready` first: the theme declares two
- * families, and a measurement before the fonts arrive gives a different width.
+ * **No row carries a second value.** The group is asserted to draw no cell and no header at all:
+ * a column that came back would fail here, and not only in a review.
  */
-export const VesselShowsAnImoInOneStraightColumn: Story = {
-  args: { facet: facetOf('vessel'), entities: entitiesOf('vessel') },
-  play: async ({ canvas, canvasElement }) => {
-    await document.fonts.ready;
-
-    // The header says `imo`, and the box of the header is not smaller than the text in it. A
-    // header that clips names no column, and the text alone does not show the clip.
-    const header = elementIn(canvasElement, '[data-column-key]');
-    await expect(header).toHaveTextContent('imo');
-    await expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
-
-    const entities = entitiesOf('vessel');
-    const edges = new Set<number>();
-    for (const entity of entities) {
-      const cell = elementIn(canvasElement, `[data-id="${entity.id}"] [data-cell]`);
-      // The cell of this row holds the value of this entity, and of no other row.
-      await expect(cell.textContent).toBe(entity.keyValue);
-      await expect(entity.keyValue).toMatch(/^\d{7}$/);
-      edges.add(Math.round(cell.getBoundingClientRect().right));
+export const EachRowNamesItsEntityAndNothingElse: Story = {
+  args: { facet: facetOf('vessel'), entities: VESSELS },
+  play: async ({ canvasElement }) => {
+    const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
+    await expect(rows).toHaveLength(VESSELS.length);
+    for (const [index, row] of rows.entries()) {
+      await expect(row).toHaveTextContent(VESSELS[index]?.label ?? '');
     }
-
-    await expect(edges.size).toBe(1);
-    await expect(canvas.getAllByRole('button')).toHaveLength(entities.length);
+    // #81 B5 and B6: the header and the value cell left this component.
+    await expect(canvasElement.querySelector('[data-column-key]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-cell]')).toBeNull();
   },
 };
 
 /**
- * Criterion 2 and the second clause of the *Check*: "Every row of `facility` that carries no
- * throughput shows nothing there, under a header that says `throughput_kt_month`."
+ * A row reports the entity it names, and the caller moves the camera — §4.5.
  *
- * The header is asserted by its exact text, in the raw machine key: #12 owns the attribute
- * vocabulary, and a humanised key would answer it here. Each cell is asserted against the value
- * the projection gives that entity, so a blank proves an absence and a value proves a value.
- *
- * The labels of `facility` are the longest in the fixture, and the group draws at the 240px of
- * the rail. A name that does not truncate therefore pushes the column off the line, and the
- * width assertions below catch it.
+ * The group states the selected row with `aria-current`, so a reader who cannot see the paint
+ * still hears which row is the selection.
  */
-export const FacilityShowsBlanksUnderANamedHeader: Story = {
-  args: { facet: facetOf('facility'), entities: entitiesOf('facility') },
-  play: async ({ canvas, canvasElement }) => {
-    await document.fonts.ready;
-
-    const header = elementIn(canvasElement, '[data-column-key]');
-    await expect(header).toHaveTextContent('throughput_kt_month');
-    await expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
-
-    const entities = entitiesOf('facility');
-    const edges = new Set<number>();
-    let blank = 0;
-    for (const entity of entities) {
-      const row = elementIn(canvasElement, `[data-id="${entity.id}"]`);
-      const cell = elementIn(canvasElement, `[data-id="${entity.id}"] [data-cell]`);
-      await expect(cell.textContent).toBe(entity.keyValue);
-      // The long name stays inside the row, and it does not move the column.
-      await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
-      edges.add(Math.round(cell.getBoundingClientRect().right));
-      if (entity.keyValue === '') blank += 1;
+export const ARowSelectsItsEntity: Story = {
+  args: {
+    facet: facetOf('vessel'),
+    entities: VESSELS,
+    selectedId: VESSELS[0]?.id ?? null,
+  },
+  play: async ({ args, canvasElement }) => {
+    const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
+    const first = rows[0];
+    const second = rows[1];
+    if (first === undefined || second === undefined) {
+      throw new Error('The fixture draws fewer than two vessels.');
     }
+    await expect(first).toHaveAttribute('aria-current', 'true');
+    await expect(second).not.toHaveAttribute('aria-current');
 
-    // §3.2 measured `throughput_kt_month` on 2 of 11 facilities, so the group holds a value and a
-    // blank. The story states a range, because the fixture can grow again.
-    await expect(blank).toBeGreaterThan(0);
-    await expect(blank).toBeLessThan(entities.length);
-    await expect(edges.size).toBe(1);
-
-    // A blank row is still a control with a readable name, so the absence reads as an absence and
-    // not as a fault.
-    await expect(canvas.getAllByRole('button')).toHaveLength(entities.length);
+    await userEvent.click(second);
+    await expect(args.onSelect).toHaveBeenCalledWith(VESSELS[1]?.id);
   },
 };

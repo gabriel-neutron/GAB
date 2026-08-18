@@ -31,15 +31,6 @@ export interface GeoEntity {
   readonly sources: readonly string[];
   /** M7 and M8: a value, and the documents that carry it. The index rows read these. */
   readonly attrs: Attributes;
-  /**
-   * The value of this entity's own type key — `TypeFacet.key` — rendered as text for one cell of
-   * the index. `docs/map-surface.md` §4.6 puts that one column beside the name.
-   *
-   * **The empty string is the contract, and it is what draws a blank cell.** M9: the unknown is
-   * the absence of a key, and the row must read as an absence and not as a fault. Never `N/A`,
-   * never a dash and never `0`. M7: a flat list joins with `', '`.
-   */
-  readonly keyValue: string;
 }
 
 /**
@@ -66,18 +57,6 @@ export interface TypeFacet {
   readonly type: string;
   readonly colour: string;
   readonly count: number;
-  /**
-   * The attribute key that the most entities of this type carry, ties broken by the alphabet.
-   * `null` when the type carries no attribute at all.
-   *
-   * ADR 0005 §6 forbids a hand-kept table of "the key that matters for a vessel", so the rule is
-   * machine-derived and stays that way. `docs/map-surface.md` §3.2 measures what it gives, and
-   * records that one type of four does not share a key at all. That is #12, and this file does
-   * not answer it: it reports the key and the count that carry it.
-   */
-  readonly key: string | null;
-  /** How many entities of this type carry `key`. The rail says so when it is not all of them. */
-  readonly keyCount: number;
 }
 
 export interface Projection {
@@ -88,21 +67,10 @@ export interface Projection {
   readonly types: readonly TypeFacet[];
   /** The same facets, by type name. A caller that draws one group reads one entry. */
   readonly facetByType: ReadonlyMap<string, TypeFacet>;
-  /** The drawn entities of each type, in the order of `entities`. The index draws one group. */
-  readonly entitiesByType: ReadonlyMap<string, readonly GeoEntity[]>;
   readonly links: readonly GeoLink[];
   readonly byLinkFid: ReadonlyMap<number, GeoLink>;
   /** Every drawn relation that touches an entity, in either direction, keyed by entity id. */
   readonly linksByEntity: ReadonlyMap<string, readonly GeoLink[]>;
-  /**
-   * How many relations this projection leaves out, counted one relation at a time. **It goes on
-   * the screen.** A map that drops evidence in silence is worse than one that says how much it
-   * dropped — `docs/map-surface.md` §3.3. Each relation in this count has an endpoint that the
-   * map draws nowhere, and the number cannot say which of the three reasons applies.
-   */
-  readonly undrawableLinks: number;
-  /** How many entities carry no geometry, and are therefore absent from every layer. */
-  readonly undrawableEntities: number;
   /** West, south, east, north. `null` when nothing can be drawn. */
   readonly bounds: readonly [number, number, number, number] | null;
 }
@@ -133,44 +101,6 @@ const ENTITY_HUES = ['#70adfb', '#00c2d2', '#53c48e', '#a8b44b', '#df9b44', '#e8
 const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point } =>
   entity.geom !== null;
 
-/** The key that the most entities of one type carry. Ties go to the alphabet. */
-function dominantKey(entities: readonly { readonly attrs: Attributes }[]): {
-  key: string | null;
-  keyCount: number;
-} {
-  const counts = new Map<string, number>();
-  for (const entity of entities) {
-    for (const key of Object.keys(entity.attrs)) {
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-  }
-
-  let key: string | null = null;
-  let keyCount = 0;
-  for (const [candidate, count] of [...counts].sort(([a], [b]) => a.localeCompare(b))) {
-    if (count > keyCount) {
-      key = candidate;
-      keyCount = count;
-    }
-  }
-  return { key, keyCount };
-}
-
-/**
- * The value one entity holds for one key, as the text of a cell.
- *
- * `docs/map-surface.md` §4.6, and M7 and M9 of `decisions.md`. A flat list joins with `', '`. A
- * key the entity does not carry, and a type that carries no key at all, both give the empty
- * string, which is the blank cell the row draws under the header that names the key.
- */
-function keyValueOf(attrs: Attributes, key: string | null): string {
-  if (key === null) return '';
-  const held = attrs[key];
-  if (held === undefined) return '';
-  // M7: a value is a scalar or a flat list, and never an object, so `typeof` separates the two.
-  return typeof held.v === 'object' ? held.v.join(', ') : String(held.v);
-}
-
 /**
  * One entry of the rail: the type, and whether it is switched off.
  *
@@ -195,25 +125,7 @@ export interface RailLegend {
    * type switches answer from one value at each render.
    */
   readonly drawnTypes: ReadonlySet<string>;
-  /**
-   * How many relations the map draws now. A type that switches off lowers it, because a relation
-   * needs both of its endpoints on the map.
-   *
-   * **The switch of the relations does not lower it.** That switch is a state, and the rail says
-   * the state in one word beside this number, exactly as a type switch does.
-   */
-  readonly drawnLinks: number;
 }
-
-/**
- * Whether the map draws one relation, under the type filter of this moment.
- *
- * **A relation needs both of its endpoints on the map** — `docs/map-surface.md` §5.1, and
- * `adapter.ts` paints its lines by the same rule. One rule here keeps the rail and the map from
- * two answers to one question.
- */
-const isDrawnLink = (link: GeoLink, isTypeVisible: (type: string) => boolean): boolean =>
-  isTypeVisible(link.from.type) && isTypeVisible(link.to.type);
 
 /**
  * The legend of the rail, taken from the map itself.
@@ -221,9 +133,6 @@ const isDrawnLink = (link: GeoLink, isTypeVisible: (type: string) => boolean): b
  * `docs/map-surface.md` §4.5 and §3.1: four items survive the layer panel, and they are an entry
  * per entity type, a colour, a count and visibility. This function derives the four, and it
  * decides nothing about presentation.
- *
- * **It also counts the relations the map draws now** — §4.7. The switch of the relations states a
- * count, and a count that stays while a type goes off states a number that is not on the map.
  *
  * **Visibility is asked of the handle, so the adapter stays the one writer** — §4.4 and §5.2. The
  * caller passes `handle.isTypeVisible`, and this file reads no store of its own.
@@ -247,14 +156,7 @@ export function railLegend(
     drawnTypes.add(entry.facet.type);
   }
 
-  // The relations are counted one at a time, at the one place that decides what a line is. A
-  // count taken from the type counts would answer a different question — M4.
-  let drawnLinks = 0;
-  for (const link of projection.links) {
-    if (isDrawnLink(link, isTypeVisible)) drawnLinks += 1;
-  }
-
-  return { facets, drawn, drawnTypes, drawnLinks };
+  return { facets, drawn, drawnTypes };
 }
 
 /**
@@ -318,82 +220,19 @@ export function entitiesMatching(
   );
 }
 
-/**
- * One relation of the selected entity, as the rail lists it.
- *
- * **It carries no interval and no source document.** `docs/map-surface.md` §4.7 gives those two
- * to a card, and §7 keeps the owner of a relation surface open with no ticket. So the operator
- * decides who draws them, and M6 cannot be broken at one end here, because no end is written.
- */
-export interface LinkRow {
-  /** The identity of the relation. It keys the row: `fid` is a position in an array. */
-  readonly id: string;
-  /**
-   * Which way the relation points. `out` where the selected entity is the source of it.
-   *
-   * **The two cases are a closed set, and never a glyph.** A derivation states the direction, and
-   * the rail states how it reads.
-   */
-  readonly direction: 'out' | 'in';
-  /** The type of the relation, as the corpus states it. */
-  readonly type: string;
-  /** The endpoint that is not the selected entity. Choosing the row selects this entity. */
-  readonly other: GeoEntity;
-}
-
-/**
- * The drawn relations that touch the selected entity.
- *
- * `docs/map-surface.md` §4.7: "Selecting an entity brightens its links and lists them." The map
- * brightens, and the rail lists. An empty list is the answer for an entity that touches no
- * relation which can be drawn, and the rail says so in one sentence.
- *
- * **A relation whose other endpoint is not drawn is not a row.** A type that is switched off takes
- * its points and its lines off the map, so a row for such a relation offers the analyst a place
- * that the map shows nowhere: the camera flies to nothing and the selection is refused. The map
- * and the rail therefore hold one rule, and the count beside the list is the length of this array.
- *
- * **Visibility is asked of the caller, so the adapter stays the one writer** — §4.4 and §5.2, the
- * same shape as `railLegend` above.
- */
-export function linksOfSelection(
-  projection: Projection,
-  selected: string | null,
-  isTypeVisible: (type: string) => boolean,
-): readonly LinkRow[] {
-  if (selected === null) return [];
-  const held = projection.linksByEntity.get(selected) ?? [];
-  const rows: LinkRow[] = [];
-  for (const link of held) {
-    const out = link.from.id === selected;
-    const other = out ? link.to : link.from;
-    // The one rule of a drawn relation, and never a second one — see `isDrawnLink`.
-    if (!isDrawnLink(link, isTypeVisible)) continue;
-    rows.push({ id: link.id, direction: out ? 'out' : 'in', type: link.type, other });
-  }
-  return rows;
-}
-
 export function project(read: Corpus): Projection {
   const drawn = read.entities.filter(hasGeometry);
 
-  // The types are derived before the entities, because each entity carries the value of its own
-  // type's key. §3.2 makes that key machine-derived, and ADR 0005 §6 keeps it that way.
+  // **The hue is a position in a list of six, so a seventh type wears the hue of the first**, in
+  // silence. #81 row A6 records it, and **#93 ENTITY-TYPE-TABLE** puts a decided colour on the
+  // type itself. This file assumes no answer: it cycles, and it says so.
   const types: readonly TypeFacet[] = [...new Set(drawn.map((entity) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
-    .map((type, index) => {
-      const ofType = drawn.filter((entity) => entity.type === type);
-      const { key, keyCount } = dominantKey(ofType);
-      return {
-        type,
-        colour: ENTITY_HUES[index % ENTITY_HUES.length] ?? ENTITY_HUES[0],
-        count: ofType.length,
-        key,
-        keyCount,
-      };
-    });
-
-  const keyOfType = new Map(types.map((facet) => [facet.type, facet.key]));
+    .map((type, index) => ({
+      type,
+      colour: ENTITY_HUES[index % ENTITY_HUES.length] ?? ENTITY_HUES[0],
+      count: drawn.filter((entity) => entity.type === type).length,
+    }));
 
   const entities: readonly GeoEntity[] = drawn.map((entity, fid) => ({
     fid,
@@ -404,19 +243,9 @@ export function project(read: Corpus): Projection {
     lat: entity.geom.lat,
     sources: entity.sources,
     attrs: entity.attrs,
-    keyValue: keyValueOf(entity.attrs, keyOfType.get(entity.type) ?? null),
   }));
 
   const byId = new Map(entities.map((entity) => [entity.id, entity]));
-
-  // One walk fills the groups, and it keeps the order of `entities`. A caller that draws one
-  // group then reads a value that is already derived.
-  const entitiesByType = new Map<string, GeoEntity[]>();
-  for (const entity of entities) {
-    const held = entitiesByType.get(entity.type);
-    if (held === undefined) entitiesByType.set(entity.type, [entity]);
-    else held.push(entity);
-  }
 
   const links: GeoLink[] = [];
   /**
@@ -428,14 +257,10 @@ export function project(read: Corpus): Projection {
    * corpus does not contain — and the sentence names none of the three, because one number
    * cannot separate them.
    */
-  let undrawableLinks = 0;
   read.relations.forEach((relation) => {
     const from = relation.srcKind === 'entity' ? byId.get(relation.srcId) : undefined;
     const to = relation.dstKind === 'entity' ? byId.get(relation.dstId) : undefined;
-    if (from === undefined || to === undefined) {
-      undrawableLinks += 1;
-      return;
-    }
+    if (from === undefined || to === undefined) return;
     links.push({
       fid: links.length,
       id: relation.id,
@@ -474,12 +299,9 @@ export function project(read: Corpus): Projection {
     byId,
     types,
     facetByType: new Map(types.map((facet) => [facet.type, facet])),
-    entitiesByType,
     links,
     byLinkFid: new Map(links.map((link) => [link.fid, link])),
     linksByEntity,
-    undrawableLinks,
-    undrawableEntities: read.entities.length - entities.length,
     bounds,
   };
 }
