@@ -47,7 +47,6 @@
  * where a control that floats over a canvas lives.
  */
 
-import { Layers2 } from 'lucide-react';
 import { useEffect, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -56,7 +55,6 @@ import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
 import type { MapHandle } from './adapter';
 import { entitiesOfType, railLegend, railRows, type Projection } from './projection';
 import { IndexRows } from './row';
-import type { Ground } from './workspace';
 
 export interface RailProps {
   /** The corpus, reduced to what a map can draw. `./projection` makes it. */
@@ -92,16 +90,6 @@ type OpenTypes =
   | { readonly kind: 'follows-selection' }
   | { readonly kind: 'chosen'; readonly types: readonly string[] };
 
-/**
- * The recipe of every control of the footer. It is the one the shared rail uses, and it is stated
- * here because a vendored file and a shared file are both closed to a feature.
- */
-const CONTROL = cn(
-  'flex h-6 items-center border border-transparent text-left',
-  'transition-colors duration-100 hover:bg-muted',
-  'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-);
-
 export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   /**
    * The legend, as the map holds it at this moment. It is seeded from the handle and it is taken
@@ -121,12 +109,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
    * selection of that moment, so there is no second path and no window between the two.
    */
   const [selected, setSelected] = useState<string | null>(map.current?.selected ?? null);
-
-  /**
-   * The ground the map draws. It is an echo of the handle, exactly like the legend above:
-   * `adapter.ts` owns the workspace field, and this state dies with the view.
-   */
-  const [ground, setGround] = useState<Ground>(() => map.current?.ground ?? 'plan');
 
   const [openTypes, setOpenTypes] = useState<OpenTypes>({ kind: 'follows-selection' });
 
@@ -159,17 +141,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     if (live === null) return;
     live.setTypeVisible(type, visible);
     setLegend(railLegend(projection, live.isTypeVisible));
-  };
-
-  /**
-   * **The ground goes through the one writer** — §4.3. The rail writes no workspace field: the
-   * adapter switches the layout property of the two ground layers and stores the choice.
-   */
-  const switchGround = (next: Ground): void => {
-    const live = map.current;
-    if (live === null) return;
-    live.setGround(next);
-    setGround(live.ground);
   };
 
   /** A row selects an entity and moves the camera to it — §4.5. */
@@ -210,14 +181,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     }
   };
 
-  /**
-   * **The ground is a switch of two and not a list** — §4.3 gives the map two grounds and one
-   * control between them. The name says the ground in force and the one a click brings, because a
-   * glyph alone says neither to a reader who cannot see it.
-   */
-  const otherGround: Ground = ground === 'plan' ? 'imagery' : 'plan';
-  const groundSays = `Ground: ${ground}. Change to ${otherGround}.`;
-
   return (
     <TwoStepRail
       rows={railRows(legend, shownTypes, open)}
@@ -234,48 +197,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
           />
         );
       }}
-      footer={
-        <>
-          {/* **The relations, with one switch of their own** — §4.7. They are not an entity type,
-              so ADR 0005 §6 keeps them out of the list above. The switch is the same shape as a
-              type switch, and it carries no colour: a line takes no entity hue.
-
-              **The switch and the count stay in the closed state** — §4.5: the strip keeps the
-              colours, the counts and the switches, and **only the list is lost**. */}
-          {/* **The ground of §4.3, and its one control.** The two grounds are in the style and one
-              is hidden, so this is a switch of two and never a list. It survives the fold, exactly
-              as the type switches and the counts do — §4.5 loses only the list.
-
-              **The credit is not here.** MapLibre draws it over the canvas, in the corner that
-              `adapter.ts` takes as a parameter, and it follows whichever ground is visible. A
-              credit in the rail would be a caption, and §5.5 says an attribution is an obligation
-              of a licence and not a caption. */}
-          <div className="shrink-0 border-t border-border px-1.5 py-1">
-            <button
-              type="button"
-              data-ground={ground}
-              aria-label={groundSays}
-              title={groundSays}
-              onClick={() => {
-                switchGround(otherGround);
-              }}
-              className={cn(CONTROL, open ? 'w-full gap-1.5' : 'w-full justify-center px-1')}
-            >
-              <Layers2 size={14} aria-hidden="true" className="shrink-0" />
-              {open ? (
-                <>
-                  <span className="min-w-0 flex-1 truncate" aria-hidden="true">
-                    {ground}
-                  </span>
-                  <span className="shrink-0 text-right text-label" aria-hidden="true">
-                    change
-                  </span>
-                </>
-              ) : null}
-            </button>
-          </div>
-        </>
-      }
       // One hairline separates two surfaces, and `border` is that token. The width is part of the
       // contract — 240px open, and a 44px strip closed.
       className={cn('shrink-0 border-r border-border bg-background', open ? 'w-60' : 'w-11')}

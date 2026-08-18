@@ -258,7 +258,6 @@ export function GraphPage() {
                 />
               );
             }}
-            footer={null}
             // §5.5: the panel floats over the canvas, so it takes the popover ground and no
             // pointer event on its own padding. Each control inside takes the pointer back.
             className={cn(

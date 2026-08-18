@@ -45,6 +45,7 @@ import { corpus } from '@/shared/fixtures/corpus';
 
 import { mountMap, type MapHandle } from './adapter';
 import { project } from './projection';
+import { GroundControl } from './ground-control';
 import { Rail } from './rail';
 import { patchMapWorkspace, readMapWorkspace } from './workspace';
 
@@ -163,12 +164,22 @@ export function MapPage({ onSelect }: MapPageProps) {
   // The rail is a **sibling** of the canvas — `CANVAS.md`. It holds ordinary React state, and the
   // memo above is what keeps that state away from the live element. The rail changes the width of
   // this row when it opens and closes, and the `ResizeObserver` of `adapter.ts` answers that.
+  // The rail is a **sibling** of the canvas — `CANVAS.md`. So is the ground control, which #81
+  // rows A2 and B8 moved out of the rail and onto the map. Both hold ordinary React state, and the
+  // memo above is what keeps that state away from the live element.
+  //
+  // **The wrapper is what the ground control is placed against**, and it is the flex child the
+  // canvas used to be. The canvas keeps `flex-1`, so the wrapper is a flex row of its own and the
+  // element measures exactly what it measured before.
   return (
     <div className="flex h-full">
       {mapReady ? (
         <Rail projection={projection} map={handle} open={railOpen} onOpenChange={changeRailOpen} />
       ) : null}
-      {canvas}
+      <div className="relative flex min-w-0 flex-1">
+        {canvas}
+        {mapReady ? <GroundControl map={handle} /> : null}
+      </div>
     </div>
   );
 }

@@ -137,8 +137,6 @@ export interface RailProps {
    * never holds a list of its own.
    */
   readonly index: (type: string) => ReactNode;
-  /** What the surface pins below the list. The map puts its relations and its counts here. */
-  readonly footer: ReactNode;
   /**
    * The ground and the width, which the two callers state differently: the map rail is a solid
    * column beside the canvas, and the graph rail floats over it (`docs/graph-surface.md` §5.5).
@@ -198,7 +196,7 @@ function Swatch({ colour, on }: SwatchProps) {
   );
 }
 
-export function Rail({ rows, onAct, index, footer, className }: RailProps) {
+export function Rail({ rows, onAct, index, className }: RailProps) {
   const { open } = rows;
 
   return (
@@ -348,12 +346,10 @@ export function Rail({ rows, onAct, index, footer, className }: RailProps) {
         ))}
       </div>
 
-      {/* **The footer is drawn in both states, and that is a rule and not a choice.**
-          `docs/map-surface.md` §4.5 keeps the switches and the counts in the folded strip and
-          loses **only the list**. A footer that vanished with the fold would drop the count of
-          what cannot be drawn, which is the one number §3.3 puts on the screen in words. The
-          caller owns the two shapes of its own footer. */}
-      {footer}
+      {/* **This control pins nothing below the list any more.** It took a `footer` node, and the
+          map filled it with the relations switch, the counts and the ground. #81 rows B9 to B15
+          removed all of those, and rows A2 and B8 moved the ground onto the map itself, so the
+          slot had no caller left on either surface. */}
     </aside>
   );
 }

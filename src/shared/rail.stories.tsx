@@ -56,7 +56,6 @@ const meta = {
     rows: rows(),
     onAct,
     index: (type: string) => <p data-index={type}>The index of {type}</p>,
-    footer: <p data-footer="">The footer of the surface</p>,
   },
   // The width is part of the contract of each caller — 240px open and a 44px strip closed on the
   // map — and the caller states it. The stories below state a width so that the two shapes are
@@ -227,8 +226,9 @@ export const AControlThatExcludesEverythingCarriesTheWayBack: Story = {
  * and loses **only the list**. A sentence does not fit in 44px, so the number stays on the screen
  * and the caller's name says the words to the reader.
  *
- * **The footer is drawn in both states.** A footer that vanished with the fold would drop the
- * count of what cannot be drawn, which §3.3 puts on the screen in words.
+ * **This control pins nothing below the list any more.** It took a `footer` node, and #81 emptied
+ * it: rows B9 to B15 removed the relations switch and the counts, and rows A2 and B8 moved the
+ * ground onto the map.
  */
 export const TheFoldedRailStillSaysWhatIsDrawn: Story = {
   args: {
@@ -247,7 +247,6 @@ export const TheFoldedRailStillSaysWhatIsDrawn: Story = {
     await expect(off).toHaveTextContent('7');
 
     await expect(canvas.getByRole('button', { name: 'Open the rail' })).toBeVisible();
-    await expect(canvasElement.querySelector('[data-footer]')).not.toBeNull();
     // Only the list is lost.
     await expect(canvasElement.querySelector('[data-index]')).toBeNull();
   },
