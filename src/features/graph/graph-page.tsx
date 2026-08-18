@@ -105,7 +105,7 @@ export function GraphPage() {
    * `./rail`, because `deriveRailRows` needs both fields to build the rows, and a value in two
    * stores is the fault the ADR names.
    */
-  const [step, setStep] = useState<RailStep>({ openType: null, query: '' });
+  const [step, setStep] = useState<RailStep>({ openType: null });
 
   /**
    * The one effect of this file, and it is the adapter — `CANVAS.md` permits a `useEffect` there
@@ -193,10 +193,7 @@ export function GraphPage() {
         handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
-        setStep({ openType: next.type, query: '' });
-        return;
-      case 'change-query':
-        setStep((held) => ({ openType: held.openType, query: next.query }));
+        setStep({ openType: next.type });
         return;
     }
   }, []);

@@ -6,7 +6,7 @@ import { corpus } from '@/shared/fixtures/corpus';
 
 import type { MapHandle } from './adapter';
 import type { Ground } from './workspace';
-import { entitiesMatching, project, type GeoLink } from './projection';
+import { entitiesOfType, project, type GeoLink } from './projection';
 import { Rail } from './rail';
 
 /**
@@ -181,7 +181,7 @@ const drawnIn = (root: HTMLElement): string =>
   shownCount(root, '[data-drawn]', 'what the map draws');
 
 const VESSEL = facetOf('vessel');
-const VESSELS = entitiesMatching(projection, 'vessel', '');
+const VESSELS = entitiesOfType(projection, 'vessel');
 
 const switchOnly = testMap([], null);
 const reachOnly = testMap([], null);
@@ -276,31 +276,25 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
 };
 
 /**
- * Criterion 2: "An entity is reached by name in two steps."
+ * The index opens in one step, and a row of it reaches the entity.
  *
- * Step one folds the type open, step two searches inside it. The row then reports the selection,
- * and the rail asks the map to fly to it. **The camera move itself is not in this test**: a double
- * proves the call and not the movement, and the movement is checked in the running application.
+ * **The second step used to be a search field, and it is gone** — #82 C6, Not here. The operator
+ * does not want a search inside this rail, and **#90 GLOBAL-SEARCH** holds a search across the
+ * corpus. So the chevron opens the whole list of the type, and a row of it selects the entity and
+ * moves the camera.
  */
-export const AnEntityIsReachedByNameInTwoSteps: Story = {
+export const AnEntityIsReachedFromTheOpenList: Story = {
   args: { map: reachOnly.map },
   play: async ({ canvas, canvasElement }) => {
     const target = firstOf(VESSELS, 'vessel');
-    const matches = entitiesMatching(projection, 'vessel', target.label);
 
-    // Step one. The field does not exist before it.
-    await expect(canvas.queryByRole('textbox', { name: 'Search vessel by name' })).toBeNull();
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
-    await expect(rowsIn(canvasElement)).toHaveLength(VESSELS.length);
+    const drawn = rowsIn(canvasElement);
+    await expect(drawn).toHaveLength(VESSELS.length);
+    // #82 C6: the rail carries no field at all.
+    await expect(canvasElement.querySelector('input')).toBeNull();
 
-    // Step two.
-    const field = canvas.getByRole('textbox', { name: 'Search vessel by name' });
-    await userEvent.type(field, target.label);
-    const narrowed = rowsIn(canvasElement);
-    await expect(narrowed).toHaveLength(matches.length);
-    await expect(matches.length).toBeLessThan(VESSELS.length);
-
-    const row = firstOf(narrowed, 'row of the index');
+    const row = firstOf(drawn, 'row of the index');
     await userEvent.click(row);
 
     await expect(row).toHaveAttribute('aria-current', 'true');

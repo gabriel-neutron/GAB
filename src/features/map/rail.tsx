@@ -54,7 +54,7 @@ import { cn } from '@/shared/lib/utils';
 import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
 
 import type { MapHandle } from './adapter';
-import { entitiesMatching, railLegend, railRows, type Projection } from './projection';
+import { entitiesOfType, railLegend, railRows, type Projection } from './projection';
 import { IndexRows } from './row';
 import type { Ground } from './workspace';
 
@@ -127,9 +127,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
 
   const [openType, setOpenType] = useState<OpenType>({ kind: 'follows-selection' });
 
-  /** The text of the search field. It dies with the view, and a new fold clears it. */
-  const [query, setQuery] = useState('');
-
   // The one effect of this file, and it is a subscription. It returns the unsubscribe of the
   // handle, so a rail that leaves the screen drives no dead map. The ref is stable, so this list
   // holds for the whole life of the rail. Each subscription seeds itself, so the two states above
@@ -194,10 +191,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         return;
       case 'open-type':
         setOpenType({ kind: 'chosen', type: next.type });
-        setQuery('');
-        return;
-      case 'change-query':
-        setQuery(next.query);
         return;
     }
   };
@@ -214,13 +207,13 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
 
   return (
     <TwoStepRail
-      rows={railRows(legend, shownType, query, open)}
+      rows={railRows(legend, shownType, open)}
       onAct={act}
       index={
         facet === null ? null : (
           <IndexRows
             facet={facet}
-            entities={entitiesMatching(projection, facet.type, query)}
+            entities={entitiesOfType(projection, facet.type)}
             selectedId={selected}
             onSelect={reach}
           />

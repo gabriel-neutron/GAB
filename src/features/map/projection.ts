@@ -180,12 +180,7 @@ export function railLegend(
  * §3.1 and §4.5 keep the colour swatch per entry: it is the legend, and a coloured point means
  * nothing without one. The hue is the hex the map parses, so no class can carry it.
  */
-export function railRows(
-  legend: RailLegend,
-  openType: string | null,
-  query: string,
-  open: boolean,
-): RailRows {
+export function railRows(legend: RailLegend, openType: string | null, open: boolean): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
     initial: facet.type.slice(0, 1).toUpperCase(),
@@ -202,22 +197,19 @@ export function railRows(
   return {
     types,
     openType,
-    query,
     everyTypeOff: types.length > 0 && types.every((row) => !row.on),
     open,
   };
 }
 
-export function entitiesMatching(
-  projection: Projection,
-  type: string,
-  query: string,
-): readonly GeoEntity[] {
-  const wanted = query.trim().toLowerCase();
-  return projection.entities.filter(
-    (entity) =>
-      entity.type === type && (wanted === '' || entity.label.toLowerCase().includes(wanted)),
-  );
+/**
+ * The drawn entities of one type, in the order of the projection.
+ *
+ * **It filtered on the text of a search field, and that field is gone** — #82 C6. The operator does
+ * not want a search inside the rail, and **#90 GLOBAL-SEARCH** holds a search across the corpus.
+ */
+export function entitiesOfType(projection: Projection, type: string): readonly GeoEntity[] {
+  return projection.entities.filter((entity) => entity.type === type);
 }
 
 export function project(read: Corpus): Projection {

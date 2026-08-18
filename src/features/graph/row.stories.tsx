@@ -55,11 +55,11 @@ const TYPE = (() => {
   return first[0];
 })();
 
-const listOf = (query: string) => {
+const listOf = () => {
   const rows = deriveRailRows(
     model,
     { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
-    { openType: TYPE, query },
+    { openType: TYPE },
     null,
     true,
   );
@@ -67,7 +67,7 @@ const listOf = (query: string) => {
   return rows.open;
 };
 
-const LIST = listOf('');
+const LIST = listOf();
 
 const onSelect = fn();
 

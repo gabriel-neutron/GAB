@@ -8,13 +8,18 @@
  * this control first and the graph wrote it again. This file is the lift, and the two callers are
  * `src/features/map/rail.tsx` and `src/features/graph/graph-page.tsx`.
  *
- * **It separates two acts.** Switching a type is a control and it is always at hand. Finding an
- * entity is a search and it is asked for. That is the whole of the two steps.
+ * **It separates two acts.** Switching a type is a control and it is always at hand. Reading the
+ * entities of one type is asked for, with the chevron. That is the whole of the two steps.
+ *
+ * **The search field of the first build is gone** — #82 rows C6 and C9, and the empty-result line
+ * with it. The operator does not want a search inside this rail. A search across the corpus is a
+ * capability of its own, and **#90 GLOBAL-SEARCH** holds it. So the second step draws the whole
+ * list of the open type, and this file carries no text and no `change-query` act.
  *
  * **It owns the control, and never the row.** The list of entities under an open type is not the
- * same thing on the two surfaces: the map draws a name and the one key that most entities of that
- * type carry, under a header that names the key (M9), and the graph draws a name and a degree,
- * capped, with the remainder on the screen. `docs/graph-surface.md` §4.4 calls this rail "the same
+ * same thing on the two surfaces: the map draws a name alone — #81 B6 took its one column of
+ * values off — and the graph draws a name and a degree, capped, with the remainder on the
+ * screen. `docs/graph-surface.md` §4.4 calls this rail "the same
  * **control** as the map's", and the row has its own entry in `docs/map-surface.md` §4.6. So the
  * caller passes its list in, and this file states nothing about a row.
  *
@@ -36,7 +41,6 @@ import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide
 import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
-import { Input } from '@/shared/ui/input';
 
 /** One type row of the first step. Every word of it is written by the caller's derivation. */
 export interface RailTypeRow {
@@ -73,8 +77,6 @@ export interface RailRows {
   readonly types: readonly RailTypeRow[];
   /** The type that is unfolded, or `null` at the first step. */
   readonly openType: string | null;
-  /** The text of the field that belongs to the open type. */
-  readonly query: string;
   /** §5.2: a control that can exclude everything says so, and carries the way back. */
   readonly everyTypeOff: boolean;
   /** Whether the rail shows its index. The workspace holds it — ADR 0004. */
@@ -94,7 +96,6 @@ export type RailAct =
   | { readonly kind: 'open-rail'; readonly open: boolean }
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
   | { readonly kind: 'open-type'; readonly type: string | null }
-  | { readonly kind: 'change-query'; readonly query: string }
   | { readonly kind: 'show-every-type' };
 
 export interface RailProps {
@@ -296,21 +297,14 @@ export function Rail({ rows, onAct, index, footer, className }: RailProps) {
               </button>
             )}
 
-            {/* The second step. The field belongs to the type that is open, because a filter over
-                one type is a different question from a search across the corpus, which W9 makes
-                its own capability. A type that is switched off has no index: the surface draws
-                none of it. */}
+            {/* The second step: the index of the type that is unfolded.
+
+                **The field of the first build is gone** — #82 rows C6 and C9. The operator does
+                not want a search inside this rail. A search across the corpus is a capability of
+                its own, and **#90 GLOBAL-SEARCH** holds it. A type that is switched off has no
+                index: the surface draws none of it. */}
             {open && row.open && row.on ? (
               <div id={listId(row.type)} className="px-1.5 pb-1">
-                <Input
-                  className="pointer-events-auto h-6 text-xs"
-                  aria-label={`Search ${row.type} by name`}
-                  placeholder="Search by name"
-                  value={rows.query}
-                  onChange={(event) => {
-                    onAct({ kind: 'change-query', query: event.target.value });
-                  }}
-                />
                 {index}
               </div>
             ) : null}

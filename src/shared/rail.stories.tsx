@@ -43,7 +43,6 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
 const rows = (over: Partial<RailRows> = {}): RailRows => ({
   types: [row({ type: 'vessel' }), row({ type: 'port', count: 7 })],
   openType: null,
-  query: '',
   everyTypeOff: false,
   open: true,
   ...over,
@@ -136,23 +135,10 @@ export const OneTypeIsUnfoldedAtATimeAndCarriesTheField: Story = {
     await expect(closed).toHaveAttribute('aria-expanded', 'false');
     await expect(closed).not.toHaveAttribute('aria-controls');
 
-    // The field and the slot belong to the one open type, and to no other row.
-    await expect(canvas.getByRole('textbox', { name: 'Search vessel by name' })).toBeVisible();
+    // The slot belongs to the one open type, and to no other row.
     await expect(canvasElement.querySelectorAll('[data-index]')).toHaveLength(1);
-  },
-};
-
-/** The field reports what the analyst typed, and the rail holds no text of its own. */
-export const TheFieldReportsWhatWasTyped: Story = {
-  args: {
-    rows: rows({
-      types: [row({ type: 'vessel', open: true })],
-      openType: 'vessel',
-    }),
-  },
-  play: async ({ canvas, args }) => {
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Search vessel by name' }), 'a');
-    await expect(args.onAct).toHaveBeenCalledWith({ kind: 'change-query', query: 'a' });
+    // #82 C6: no search field stands in this rail any more.
+    await expect(canvasElement.querySelector('input')).toBeNull();
   },
 };
 

@@ -56,7 +56,6 @@ const LIST_CAP = 60;
  */
 export interface RailStep {
   readonly openType: string | null;
-  readonly query: string;
 }
 
 /** One entity row of the second step. The list is already sorted, already capped. */
@@ -161,13 +160,11 @@ export function deriveRailRows(
 
   let openList: RailOpenList | null = null;
   if (openType !== null && openIsDrawn) {
-    const needle = step.query.trim().toLowerCase();
     const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
 
     const matches: RailEntityRow[] = [];
     model.graph.forEachNode((node, attrs) => {
       if (attrs.entityType !== openType) return;
-      if (needle !== '' && !attrs.label.toLowerCase().includes(needle)) return;
       matches.push({
         id: node,
         label: attrs.label,
@@ -190,7 +187,7 @@ export function deriveRailRows(
   }
 
   return {
-    rail: { types, openType, query: step.query, everyTypeOff, open },
+    rail: { types, openType, everyTypeOff, open },
     open: openList,
   };
 }
