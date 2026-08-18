@@ -38,20 +38,15 @@
  */
 
 /**
- * The four reads of `docs/graph-surface.md` §4.1, quoted word for word. Nothing else is read.
+ * The reads of a topology. Nothing else is read.
  *
- * **`forEachNeighbor` is never called by this file.** The walk below needs the whole neighbour
- * list at one time, and `neighbors` gives it. The member stays because §4.1 states this shape,
- * and a shape that is quoted is not edited here.
+ * **`forEachNeighbor` is gone** — #76. It was declared because §4.1 of `docs/graph-surface.md`
+ * quoted this shape word for word, and it was implemented once and called by nobody. That
+ * document is deleted, and the line of #74 is interface plus its own machinery: a member that
+ * drives no drawing is not machinery.
  */
 export interface Topology {
   forEachNode(cb: (node: string) => void): void;
-  /**
-   * Declared by §4.1, implemented by `topologyOf` below, which is the one implementation, and
-   * called by nothing here. **The member stays because §4.1 quotes this shape word for word**,
-   * and a shape that is quoted is not edited here.
-   */
-  forEachNeighbor(node: string, cb: (neighbour: string) => void): void;
   neighbors(node: string): string[];
   degree(node: string): number;
 }
@@ -110,9 +105,6 @@ export function topologyOf(nodes: Iterable<string>, links: Iterable<TopologyLink
   return {
     forEachNode: (cb) => {
       for (const id of adjacency.keys()) cb(id);
-    },
-    forEachNeighbor: (node, cb) => {
-      for (const neighbour of adjacency.get(node) ?? []) cb(neighbour);
     },
     neighbors: (node) => [...(adjacency.get(node) ?? [])],
     degree: (node) => degrees.get(node) ?? 0,

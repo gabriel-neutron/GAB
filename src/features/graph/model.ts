@@ -46,7 +46,7 @@ import { MultiDirectedGraph } from 'graphology';
 
 import type { Corpus, Proposal, Relation } from '@/shared/fixtures/types';
 
-import { analyseStructure, topologyOf, type Structure } from './structure';
+import { analyseStructure, topologyOf } from './structure';
 
 /**
  * Where one node is drawn. **The seam of #35, and nothing more.**
@@ -161,47 +161,25 @@ export const dimmedColour = (colour: string, fraction: number): string => {
   return `#${hexPair(red)}${hexPair(green)}${hexPair(blue)}${hexPair(alpha)}`;
 };
 
+/**
+ * What the canvas needs, and nothing more.
+ *
+ * **Nine members left this shape**, and each one was read by nobody. `structure`,
+ * `relationsByEndpoint`, `m4RelationsByEndpoint`, `entitiesDrawn`, `relationsDrawn`,
+ * `m4Relations`, `relationsWithoutEndpoint`, `duplicateEntities` and `duplicateRelations` were
+ * built at every model and never read: six of them were build diagnostics that the legend drew,
+ * and the legend is gone — #82 B1 to B11. The two indexes were declared for a reach the surface
+ * never made.
+ *
+ * **The behaviour they measured is unchanged.** A duplicate row is still dropped, a relation with
+ * no endpoint is still left out, an M4 relation is still kept off the canvas, and an entity with
+ * no position is still absent. **Nothing counts any of them any more**, and no surface reports
+ * them: **#35** owns what a surface does with what it cannot place.
+ */
 export interface GraphModel {
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
-  readonly structure: Structure;
-  /** Every drawn relation, held under each of its two endpoints, one time for each endpoint. */
-  readonly relationsByEndpoint: ReadonlyMap<string, readonly Relation[]>;
-  /**
-   * M4: a relation that names a relation. It has no node at one end, so it is **absent from the
-   * edges** and this index is its only home — §4.2 and ADR 0004 §4. It is held under **every**
-   * endpoint it names, of either kind, because UC3 reaches it from either side.
-   */
-  readonly m4RelationsByEndpoint: ReadonlyMap<string, readonly Relation[]>;
   /** UC5: the pending proposals, under the identifier of the element that can carry a marker. */
   readonly pendingByTarget: ReadonlyMap<string, readonly Proposal[]>;
-  /**
-   * How many pending proposals name no element that this graph draws. §3.3: of the three pending
-   * proposals of the fixture one can be drawn, and two cannot. **This count goes on the screen.**
-   */
-  readonly pendingWithoutTarget: number;
-  /** How many entities carry no position, and are therefore absent from the graph. */
-  readonly entitiesWithoutPosition: number;
-  /** How many entities became a node. A build diagnostic, for the controller and the report. */
-  readonly entitiesDrawn: number;
-  /** How many relations became an edge. A build diagnostic, for the controller and the report. */
-  readonly relationsDrawn: number;
-  /**
-   * How many M4 relations are held in the index instead of the edges. **This is not a loss.**
-   * Each one is reached from either endpoint, and UC3 says the graph must not draw it.
-   */
-  readonly m4Relations: number;
-  /**
-   * How many relations lose an endpoint, and are therefore in **no** index at all. This is a
-   * loss, and it is a different one from the count above.
-   */
-  readonly relationsWithoutEndpoint: number;
-  /**
-   * How many entity rows repeat an identifier that the graph already holds. The second row is
-   * dropped. The corpus is a read from outside, and a repeated row must not stop the surface.
-   */
-  readonly duplicateEntities: number;
-  /** How many relation rows repeat an identifier. The second row is dropped. */
-  readonly duplicateRelations: number;
 }
 
 /**
@@ -267,37 +245,25 @@ export function buildGraphModel(
   positions: ReadonlyMap<string, NodePosition>,
   palette: GraphPalette,
 ): GraphModel {
-  let duplicateEntities = 0;
-  let duplicateRelations = 0;
-
   const drawn = new Set<string>();
-  let entitiesWithoutPosition = 0;
   for (const entity of corpus.entities) {
-    if (!positions.has(entity.id)) {
-      entitiesWithoutPosition += 1;
-      continue;
-    }
+    // An entity with no position is absent from the graph. Nothing counts it any more — #35.
+    if (!positions.has(entity.id)) continue;
     // The read comes from outside. A repeated identifier makes `addNode` throw, and an exception
-    // here takes the canvas with it. So the second row is dropped and stated instead.
-    if (drawn.has(entity.id)) duplicateEntities += 1;
-    else drawn.add(entity.id);
+    // here takes the canvas with it. So the second row is dropped, in silence.
+    drawn.add(entity.id);
   }
 
-  const m4 = corpus.relations.filter(isM4);
+  // **An M4 relation names a relation, so it has no node at one end and the canvas never draws
+  // it** — §4.2 and ADR 0004 §4. It is dropped here, and no index holds it any more: the index
+  // that did was read by nobody.
   const rest = corpus.relations.filter((relation) => !isM4(relation));
   const edges: Relation[] = [];
   const edgeKeys = new Set<string>();
-  let relationsWithoutEndpoint = 0;
   for (const relation of rest) {
-    if (!isDrawable(relation, drawn)) {
-      relationsWithoutEndpoint += 1;
-      continue;
-    }
+    if (!isDrawable(relation, drawn)) continue;
     // `MultiDirectedGraph` permits a parallel edge, and it refuses a repeated key.
-    if (edgeKeys.has(relation.id)) {
-      duplicateRelations += 1;
-      continue;
-    }
+    if (edgeKeys.has(relation.id)) continue;
     edgeKeys.add(relation.id);
     edges.push(relation);
   }
@@ -343,7 +309,6 @@ export function buildGraphModel(
     });
   }
 
-  const relationsByEndpoint = new Map<string, Relation[]>();
   for (const relation of edges) {
     graph.addDirectedEdgeWithKey(relation.id, relation.srcId, relation.dstId, {
       size: 1,
@@ -352,46 +317,18 @@ export function buildGraphModel(
       validFrom: relation.validFrom,
       validTo: relation.validTo,
     });
-    hold(relationsByEndpoint, relation.srcId, relation);
-    // A self-loop names one endpoint two times, and it is held one time.
-    if (relation.dstId !== relation.srcId) hold(relationsByEndpoint, relation.dstId, relation);
-  }
-
-  const m4RelationsByEndpoint = new Map<string, Relation[]>();
-  for (const relation of m4) {
-    hold(m4RelationsByEndpoint, relation.srcId, relation);
-    if (relation.dstId !== relation.srcId) hold(m4RelationsByEndpoint, relation.dstId, relation);
   }
 
   // A marker of UC5 needs an element to sit on. A node is drawn, and a relation that became an
   // edge is drawn. Anything else carries no marker, and it is counted instead — §3.3.
   const pendingByTarget = new Map<string, Proposal[]>();
-  let pendingWithoutTarget = 0;
   for (const proposal of corpus.proposals) {
     if (proposal.status !== 'pending') continue;
     const target = proposal.targetId;
-    if (target === null || proposal.targetKind === null) {
-      pendingWithoutTarget += 1;
-      continue;
-    }
+    if (target === null || proposal.targetKind === null) continue;
     const carried = proposal.targetKind === 'entity' ? drawn.has(target) : edgeKeys.has(target);
     if (carried) hold(pendingByTarget, target, proposal);
-    else pendingWithoutTarget += 1;
   }
 
-  return {
-    graph,
-    structure,
-    relationsByEndpoint,
-    m4RelationsByEndpoint,
-    pendingByTarget,
-    pendingWithoutTarget,
-    entitiesWithoutPosition,
-    entitiesDrawn: drawn.size,
-    relationsDrawn: edges.length,
-    m4Relations: m4.length,
-    relationsWithoutEndpoint,
-    duplicateEntities,
-    duplicateRelations,
-  };
+  return { graph, pendingByTarget };
 }
