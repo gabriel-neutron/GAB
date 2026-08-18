@@ -37,7 +37,14 @@
  * the degree: that is the caller's list as well.
  */
 
-import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -54,9 +61,17 @@ export interface RailTypeRow {
   /** Whether the index of this type is unfolded. One type at a time. */
   readonly open: boolean;
   /**
-   * What being off means on this surface, in words. The map hides a layer and says `off`; the
-   * graph dims one and says `off, dimmed`. **The consequence is a fact of the surface**, so the
-   * derivation writes it and this file never chooses between the two.
+   * What being off means on this surface, in words.
+   *
+   * **One icon, two names, and that is why these words survive the eye.** #91 and #94 asked for an
+   * eye in place of `on` and `off`, and the same control does two different things: the **map
+   * hides** a layer, the **graph dims** one and never removes it. A struck-out eye reads as
+   * "hidden", which is true on one surface and false on the other. So the icon is hidden from a
+   * reader and these words carry the state instead — the map writes `on` and `off`, the graph
+   * writes `on` and `off, dimmed`.
+   *
+   * **The consequence is a fact of the surface**, so the derivation writes it and this file never
+   * chooses between the two.
    */
   readonly stateWord: string;
   /**
@@ -264,11 +279,17 @@ export function Rail({ rows, onAct, index, footer, className }: RailProps) {
                   </span>
                   {/* The count carries on the graph the weight that a colour carries on the map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.count}</span>
-                  {/* "Works when": a type switches off, and **the count beside it says so**. The
-                      count is honest and it does not change where the surface dims, so the row
-                      states the consequence in words. A line through the text said it to a reader
-                      who sees the strike, and to nobody else. */}
-                  <span className="shrink-0 text-right text-label">{row.stateWord}</span>
+                  {/* **The eye of #91 and #94, and the words that survive it.** The glyph is the
+                      state for the eye, and it is hidden from a reader: one icon cannot say
+                      "hidden" on the map and "dimmed" on the graph, and a struck-out eye claims
+                      the first on both. The caller wrote the words, so each surface keeps its own
+                      voice, and they reach a reader where the words used to be drawn. */}
+                  <span className="sr-only">{row.stateWord}</span>
+                  {row.on ? (
+                    <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
+                  ) : (
+                    <EyeOff size={14} aria-hidden="true" className="shrink-0 text-label" />
+                  )}
                 </button>
               </div>
             ) : (

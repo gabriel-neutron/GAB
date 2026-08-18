@@ -69,6 +69,35 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
+ * #91 and #94: an eye in place of the words `on` and `off`.
+ *
+ * **The eye is hidden from a reader, and the words are not.** One icon cannot say "hidden" on the
+ * map and "dimmed" on the graph, and a struck-out eye claims the first on both surfaces. So the
+ * glyph is the state for the eye alone, and the caller's own words reach a screen reader.
+ */
+export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
+  args: {
+    rows: rows({
+      types: [
+        row({ type: 'vessel' }),
+        row({ type: 'port', count: 7, on: false, stateWord: 'off, dimmed' }),
+      ],
+    }),
+  },
+  play: async ({ canvas, canvasElement }) => {
+    // Two rows, two eyes, and neither is exposed.
+    const eyes = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye');
+    const shut = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye-off');
+    await expect(eyes).toHaveLength(1);
+    await expect(shut).toHaveLength(1);
+
+    // The words the caller wrote are what a reader hears, and they are surface-specific.
+    await expect(canvas.getByRole('button', { pressed: false })).toHaveTextContent('off, dimmed');
+    await expect(canvas.getByRole('button', { pressed: true })).toHaveTextContent('on');
+  },
+};
+
+/**
  * "A type switches off, and the count beside it says so." The count is honest and it does not
  * change where the surface dims, so the row states the consequence in words. A line through the
  * text said it to a reader who sees the strike, and to nobody else.
