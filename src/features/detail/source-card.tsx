@@ -1,17 +1,17 @@
 /**
  * One cited document, on two lines, with the rest behind one control.
  *
- * Built from `docs/detail-surface.md` §4.3, and from the finding §3.3. §3.6 puts the score of
- * the document here and nowhere else, and §5.1 makes an absent rating words and not a dash.
+ * The score of the document appears here and nowhere else, and an absent rating is words and
+ * not a dash.
  *
  * **The defect this shape exists to not repeat:** a first card drew the title, the kind, the
  * score, the origin, the original address, the archive address, the hash and the date on eight
  * lines. Fourteen of them filled three screens, and the rail became the thing the analyst
  * scrolled instead of the record. **Do not add a third line.**
  *
- * **#31 is still met.** The reader is given all three addresses: the original address is on line
- * 2, and the archive address and the hash open behind the control. #31 asks that a reader gets
- * them, not that a rail repeats them fourteen times.
+ * **All three addresses are still given.** The original address is on line 2, and the archive
+ * address and the hash open behind the control. The rule asks that a reader gets them, not that
+ * a rail repeats them fourteen times.
  *
  * The card draws what `./dossier` derived. It re-derives nothing: the score, the short form of
  * each address and the claims the document holds up all arrive ready.
@@ -29,7 +29,7 @@ export interface SourceCardProps {
 }
 
 /**
- * §5.4: a link takes the accent, because a reader must see what is reachable. It is the one
+ * A link takes the accent, because a reader must see what is reachable. It is the one
  * exception to rule 8, which leaves the evidentiary layer with no hue at all.
  */
 const LINK = 'min-w-0 truncate text-primary underline underline-offset-2';
@@ -38,8 +38,8 @@ const LINK = 'min-w-0 truncate text-primary underline underline-offset-2';
 const NAME = 'w-16 shrink-0 truncate text-label';
 
 export function SourceCard({ source }: SourceCardProps) {
-  // §7 and #33: the only view state of this surface is which disclosure is open. It dies with
-  // the view, so React state is where ADR 0004 §7 puts it.
+  // The only view state of this surface is which disclosure is open. It dies with the view, so
+  // React state is where it belongs.
   const [open, setOpen] = useState<boolean>(false);
   const panelId = useId();
 
@@ -65,7 +65,7 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
           {source.title}
         </span>
-        {/* §3.6: the score belongs to the document and appears once, here. It is never repeated
+        {/* The score belongs to the document and appears once, here. It is never repeated
             on a claim, because one score on twenty claims reads as a score for each claim. */}
         <span
           className="max-w-40 shrink-0 truncate font-mono text-[11px]/4 text-label"
@@ -77,7 +77,7 @@ export function SourceCard({ source }: SourceCardProps) {
 
       <div className="mt-1 flex items-center gap-2 text-[11px]/4">
         {source.uri === null ? (
-          // §4.3: an absence is said in words. A scan carries no address, and a dash would read
+          // An absence is said in words. A scan carries no address, and a dash would read
           // as a value that the surface lost.
           <span className="min-w-0 flex-1 truncate text-label">No address recorded</span>
         ) : (

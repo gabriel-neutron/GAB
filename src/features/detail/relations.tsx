@@ -1,14 +1,14 @@
 /**
  * The relations of one entity, including the ones the graph cannot draw.
  *
- * Built from `docs/detail-surface.md` §4.6, and from the findings §3.5 and §5.1. M6 writes an
- * interval at both ends, and §5.1 puts a mark to the sources on every line.
+ * M6 writes an interval at both ends: dates go in two places only, the retrieval date and the
+ * identity or ownership interval. A mark to the sources sits on every line.
  *
  * The lines arrive ready from `./dossier`: the direct relations first, then the relations that
  * point at those relations, deduplicated. This file re-orders nothing and computes nothing, so
  * it holds exactly one `.map`.
  *
- * **The defect this file exists to not repeat (§3.5).** The `contradicts` relation of the probe
+ * **The defect this file exists to not repeat.** The `contradicts` relation of the probe
  * is a **direct** relation of the entity and an invisible one at the same time. A first version
  * marked it from the list it was placed in, and the mark vanished. `relation.undrawable` is
  * computed from the relation, and this file reads that property and nothing else. **Never take
@@ -22,17 +22,16 @@ import type { RelationLine, SourceRef } from './dossier';
 export interface RelationsProps {
   /** Already found, already ordered, already marked. `./dossier` decides all three. */
   readonly relations: readonly RelationLine[];
-  /** The mark of §5.1. The caller owns which source is active and what a click does. */
+  /** The mark to the sources. The caller owns which source is active and what a click does. */
   readonly mark: (sources: readonly SourceRef[]) => ReactNode;
 }
 
 /**
- * §4.6: an undrawable relation says in words that the graph does not draw it. It is words, and
- * never a hue alone and never an icon alone.
+ * An undrawable relation says in words that the graph does not draw it. It is words, and never
+ * a hue alone and never an icon alone.
  *
- * **As short as it can be and stay clear.** Two clauses, one fact each. The citation of ADR 0004
- * §4 left the screen: a reader of this surface is not a reader of an ADR, and the header of this
- * file already carries it for the next author.
+ * **As short as it can be and stay clear.** Two clauses, one fact each. The citation left the
+ * screen: a reader of this surface is not a reader of a decision record.
  *
  * The words carry no hue. The theme keeps two hues at rest — `candidate` for the machine layer
  * and `dissent` for a disagreement between agents — and this relation is neither of the two.
@@ -76,10 +75,11 @@ export function Relations({ relations, mark }: RelationsProps) {
                   {relation.interval}
                 </span>
               )}
-              {/* §5.1: the mark is last on the line, and it is inside nothing that can hide it. */}
+              {/* The mark is last on the line, and it is inside nothing that can hide it. */}
               {mark(relation.sources)}
             </div>
-            {/* §3.5: the mark of an M4 relation comes from the relation. */}
+            {/* The mark of an M4 relation — one with a relation at an endpoint — comes from the
+                relation itself. */}
             {relation.undrawable ? <p className="text-[11px]/4 text-label">{UNDRAWABLE}</p> : null}
           </li>
         ))}

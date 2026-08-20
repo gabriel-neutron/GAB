@@ -10,9 +10,8 @@ import { Pending } from './pending';
 import { EntityRecord } from './record';
 
 /**
- * One half of the check of step 7 of `docs/detail-surface.md` §8: a candidate is never mixed
- * into the record. §4.7 is the contract, §5.1 asks for labelling that no control can hide, and
- * §5.3 keeps every control disabled while #42 is open.
+ * A candidate is never mixed into the record. No control can hide the labelling, and every
+ * control stays disabled while the review queue is open. The tracker carries that queue.
  *
  * The input is `readDossier(corpus, …)`, which is what the page calls, so this file changes on
  * the day `src/contract/` replaces the fixtures. **Nothing here is invented.**
@@ -28,7 +27,7 @@ const DOSSIER = readDossier(corpus, FACILITY);
 
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 
-/** The claims of the same entity, from the same read. §4.7 puts them outside this section. */
+/** The claims of the same entity, from the same read. They sit outside this section. */
 const CLAIMS: readonly RecordRow[] = DOSSIER?.rows ?? [];
 
 const rows = (root: HTMLElement): readonly HTMLElement[] =>
@@ -57,8 +56,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.7 and §5.1: the row is marked `candidate` in words. A hue alone gives nothing to a reader
- * who cannot see it, so the word is on every row.
+ * The row is marked `candidate` in words. A hue alone gives nothing to a reader who cannot see
+ * it, so the word is on every row.
  */
 export const ACandidateIsMarkedInWords: Story = {
   play: async ({ canvas, canvasElement }) => {
@@ -84,8 +83,8 @@ export const ACandidateIsMarkedInWordsInTheDarkTheme: Story = {
 };
 
 /**
- * §4.7 "Must not act", and §5.3. No accept, no reject, no promote: that is the review queue, and
- * #42 is open. The mark of §5.1 is the only control this section carries.
+ * Must not act. No accept, no reject, no promote: that is the review queue, and the tracker
+ * carries it. The mark to the sources is the only control this section carries.
  */
 export const NoControlActsOnAProposal: Story = {
   play: async ({ canvas }) => {
@@ -96,7 +95,7 @@ export const NoControlActsOnAProposal: Story = {
 };
 
 /**
- * §4.7: a candidate is drawn below the record and never mixed into it.
+ * A candidate is drawn below the record and never mixed into it.
  *
  * **The defect this replaces:** the story mounted this section alone and compared the rows
  * inside its region to the rows inside the whole canvas. `Pending` draws one `<section>` and
@@ -131,7 +130,7 @@ export const ACandidateIsNeverMixedIntoTheRecord: Story = {
   },
 };
 
-/** §4.7: the dissent and the confidence are written. `./dossier` formatted the figure. */
+/** The dissent and the confidence are written. `./dossier` formatted the figure. */
 export const DissentAndConfidenceAreWritten: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('dissent')).toBeInTheDocument();

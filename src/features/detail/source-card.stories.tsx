@@ -8,8 +8,7 @@ import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
 
 /**
- * The check of step 3 of `docs/detail-surface.md` §8: the three addresses of #31 are all
- * reachable, and an absent one says so. §4.3 is the contract and §3.3 is the finding.
+ * The three addresses of a document are all reachable, and an absent one says so.
  *
  * The input is `readDossier(corpus, …)`, which is what the page calls, so this file changes on
  * the day `src/contract/` replaces the fixtures. It invents no row: `doc_8f2a41` is the rated
@@ -46,8 +45,8 @@ const DISCLOSURE = /Claims/;
 const meta = {
   component: SourceCard,
   args: { source: RATED },
-  // §4.4 puts the card in a 24 rem rail, and the two lines of §3.3 are measured at that width,
-  // so every story states it.
+  // The card sits in a 24 rem rail, and the two lines are measured at that width, so every
+  // story states it.
   render: (args) => (
     <div className="w-96">
       <SourceCard {...args} />
@@ -60,7 +59,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * #80 removed the web-archive address and the printed hash from this card, and **#31 RAW-ACCESS
+ * The web-archive address and the printed hash are removed from this card, and **the tracker
  * owns how a reader reaches a source file**. What is left of the disclosure is the claims the
  * document holds up.
  *
@@ -75,23 +74,24 @@ export const TheOriginalAddressIsOnTheCard: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    // #80: neither the archive link nor the hash comes back.
+    // Neither the archive link nor the hash comes back.
     await expect(canvas.queryByRole('link', { name: /web archive/ })).toBeNull();
     await expect(canvasElement.querySelector('.font-mono')).toBeNull();
   },
 };
 
 /**
- * §4.3: a scan with no address says so. `manual` is a real document row (M8) with no address at
- * all, and the surface writes the absence in words. Never `N/A`, never `—`, never `0`: each of
- * those reads as a value that the surface lost.
+ * A scan with no address says so. `manual` is a real document row with no address at all — M8
+ * makes it a legitimate source — and the surface writes the absence in words. Never `N/A`,
+ * never `—`, never `0`: each of those reads as a value that the surface lost.
  *
  * **The defect this replaces:** the story asserted the words of the original address and of the
- * date, and it never clicked the disclosure. #31 names three addresses, and the two behind the
- * control — the archive address and the hash — were never rendered and never asserted: both
- * could be deleted and the story still passed. Its `queryByRole('link')` was self-satisfying for
- * the same reason, because a closed disclosure holds no link whatever the code does. **The story
- * reaches all three addresses, and the assertion on the links is made with the panel open.**
+ * date, and it never clicked the disclosure. A document carries three addresses, and the two
+ * behind the control — the archive address and the hash — were never rendered and never
+ * asserted: both could be deleted and the story still passed. Its `queryByRole('link')` was
+ * self-satisfying for the same reason, because a closed disclosure holds no link whatever the
+ * code does. **The story reaches all three addresses, and the assertion on the links is made
+ * with the panel open.**
  */
 export const AnAbsentAddressSaysSo: Story = {
   args: { source: UNRATED },
@@ -125,7 +125,7 @@ export const AnUnratedDocumentSaysNotRated: Story = {
   },
 };
 
-/** §4.3: behind the control are the claims this document holds up, each one named. */
+/** Behind the control are the claims this document holds up, each one named. */
 export const AClaimTheDocumentHoldsUpIsNamed: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));

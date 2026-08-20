@@ -1,12 +1,9 @@
 /**
  * The full page of one entity: the record on the left, the sources on the right.
  *
- * Built from `docs/detail-surface.md` §5.2 (the two panes), §5.1 (the labelling notice), §5.5
- * (the provenance line), §4.4 (the rail and the badge that moves it) and §8 step 5.
- *
  * **It reads no router.** The route reads the address and passes the dossier and the source the
  * reader arrived at. That keeps this file storyable in principle and testable in fact, and it
- * keeps the identity of what is examined in exactly one store (ADR 0004 §7).
+ * keeps the identity of what is examined in exactly one store.
  *
  * It draws and it derives nothing: `./dossier` decided every list, every word and every order,
  * so this file holds no `.map` at all. Each list belongs to a child.
@@ -31,29 +28,30 @@ export interface DetailPageProps {
 }
 
 /**
- * §5.2: the shell needs a settled height, or neither pane can hold a scroll of its own and the
- * window scrolls both together.
+ * The shell needs a settled height, or neither pane can hold a scroll of its own and the window
+ * scrolls both together.
  *
- * **It asks its parent, and it calculates nothing** — #92. `src/routes/__root.tsx` states the
- * height of the header once and gives `<main>` the rest, so `h-full` is the whole answer. The
+ * **It asks its parent, and it calculates nothing.** `src/routes/__root.tsx` states the height of
+ * the header once and gives `<main>` the rest, so `h-full` is the whole answer. The
  * `calc(100svh - 6rem)` that stood here tracked a padding and a control height that no file
  * declared.
  *
- * **The padding is here because this page is not a canvas.** #92 takes every margin off the shell,
- * so a page that wants one states it. The map and the graph want none: a canvas fills the pane.
+ * **The padding is here because this page is not a canvas.** The shell carries no margin of its
+ * own, so a page that wants one states it. The map and the graph want none: a canvas fills the
+ * pane.
  */
 const SHELL = 'flex h-full gap-4 p-4';
 
 export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
-  // §7 and #33: the source the record points at dies with the view, so React state is where
-  // ADR 0004 §7 puts it. The initial value is the arrival.
+  // The source the record points at dies with the view, so React state is where it belongs.
+  // The initial value is the arrival.
   //
   // **It is never written back to the address.** A two-way binding between the router and a
-  // view is a loop, and ADR 0004 §7 already holds the identity of what is examined: the path
+  // view is a loop, and one store already holds the identity of what is examined: the path
   // carries the entity, and `?src=` carries the arrival and nothing after it.
   const [activeSource, setActiveSource] = useState<DocId | null>(arrivedAtSource);
 
-  // §5.1: the mark of every claim, relation and proposal on this surface. The page is the one
+  // The mark of every claim, relation and proposal on this surface. The page is the one
   // caller that knows which source is active and what a click does.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
     <SourceMark sources={sources} activeSource={activeSource} onSelectSource={setActiveSource} />
@@ -84,9 +82,9 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
       </div>
 
       {/* The right pane. The rail holds its own scroll and its own hairline, so this element
-          states the width of §4.5 and nothing else. */}
+          states the width and nothing else. */}
       <div className="w-96 min-h-0 shrink-0">
-        {/* §4.4: the rail follows `activeSource` on its own, and its mount run is the arrival
+        {/* The rail follows `activeSource` on its own, and its mount run is the arrival
             case. `arrivedAtSource` reaches it through the state above and by no other path:
             two writers of one scroll position fight each other. */}
         <Rail sources={dossier.sources} activeSource={activeSource} />

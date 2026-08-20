@@ -8,13 +8,12 @@ import { SourceMark } from './mark';
 import { Relations } from './relations';
 
 /**
- * One half of the check of step 7 of `docs/detail-surface.md` §8: the M4 relation is reachable
- * from both ends and marked. §4.6 is the contract, §3.5 is the defect, and M6 writes an interval
- * at both ends.
+ * The M4 relation is reachable from both ends and marked. M4: a relation carries `src_kind` and
+ * `dst_kind` now, for deferred reification. M6 writes an interval at both ends.
  *
  * The input is `readDossier(corpus, …)`, which is what the page calls, so this file changes on
  * the day `src/contract/` replaces the fixtures. **Nothing here is invented**: the committed
- * corpus already carries the trap of §3.5.
+ * corpus already carries the trap.
  */
 
 /** Meridian Bulk Carriers Ltd. From this end the `contradicts` relation is a **direct** one. */
@@ -78,8 +77,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.6 "Works when", first end: from the vessel the `contradicts` relation is reached as a
- * relation that points at a direct relation.
+ * The first end: from the vessel the `contradicts` relation is reached as a relation that points
+ * at a direct relation.
  */
 export const TheM4RelationIsReachableFromTheRelationEnd: Story = {
   args: { relations: FROM_RELATION_END },
@@ -91,8 +90,8 @@ export const TheM4RelationIsReachableFromTheRelationEnd: Story = {
 };
 
 /**
- * §4.6 "Works when", second end, and **this is the story that catches the defect of §3.5**. From
- * the company the same relation is a **direct** relation: it sits in the middle of ordinary
+ * The second end, and **this is the story that catches the defect**. From the company the same
+ * relation is a **direct** relation: it sits in the middle of ordinary
  * direct relations. A mark taken from the list a relation was placed in vanishes here, and the
  * relation that is direct and invisible at once loses its words. The mark comes from the
  * relation, so the same sentence appears at this end as at the other one.
@@ -108,7 +107,7 @@ export const TheM4RelationIsReachableFromTheEntityEnd: Story = {
 };
 
 /**
- * §3.5, the other way round: a mark that is on every row proves nothing. The `appoints` relation
+ * The other way round: a mark that is on every row proves nothing. The `appoints` relation
  * stands beside the M4 relation in the same list, and it carries no such words.
  */
 export const AnOrdinaryRelationCarriesNoUndrawableMark: Story = {
@@ -131,7 +130,7 @@ export const AClosedIntervalIsWrittenAtBothEnds: Story = {
   },
 };
 
-/** §5.1: every relation names the documents it comes from, and no control hides the mark. */
+/** Every relation names the documents it comes from, and no control hides the mark. */
 export const EveryRelationNamesItsSources: Story = {
   play: async ({ canvasElement }) => {
     const lines = rows(canvasElement);

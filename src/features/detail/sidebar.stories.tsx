@@ -7,18 +7,17 @@ import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 import { Sidebar } from './sidebar';
 
 /**
- * The check of step 6 of `docs/detail-surface.md` §8, and the three "Must" clauses of §4.5:
- * the sidebar carries no rail, it shows the name and the type and nothing else at the top, and
- * it knows nothing about its neighbour.
+ * The three "Must" clauses: the sidebar carries no rail, it shows the name and the type and
+ * nothing else at the top, and it knows nothing about its neighbour.
  *
- * **Two criteria no story can reach.** "The two panes scroll independently" (§8 step 5) and "a
- * badge scrolls the rail alone" (§8 step 4) both need the whole page on the screen, and
- * `eslint.config.ts` refuses a `-page` import from every `.stories.tsx` file. The `visual-qa`
- * agent proves both on `/entity/:id` in the running application. The other half of step 6 —
- * "the map route and the graph route compose it with no change to either feature" — is proved
- * by the `boundaries` policy of `eslint.config.ts`, which makes an import from one feature to
- * another fail `pnpm check`. **It is not proved by a diff**: a working tree carries the work of
- * other tickets on those two folders, so an empty diff was never the evidence it claimed to be.
+ * **Two criteria no story can reach.** "The two panes scroll independently" and "a badge scrolls
+ * the rail alone" both need the whole page on the screen, and `eslint.config.ts` refuses a
+ * `-page` import from every `.stories.tsx` file. The `visual-qa` agent proves both on
+ * `/entity/:id` in the running application. The other half — "the map route and the graph route
+ * compose it with no change to either feature" — is proved by the `boundaries` policy of
+ * `eslint.config.ts`, which makes an import from one feature to another fail `pnpm check`. **It
+ * is not proved by a diff**: a working tree carries the work of other tickets on those two
+ * folders, so an empty diff was never the evidence it claimed to be.
  *
  * The input is `readDossier(corpus, …)`, which is what the route calls, so this file changes on
  * the day `src/contract/` replaces the fixtures. **Nothing here is invented.**
@@ -41,13 +40,13 @@ const firstCard = (): SourceCardModel => {
   return held;
 };
 
-/** Source 1 of the page order of §4.4. Its mark sits on the first claim that cites it. */
+/** Source 1 of the page order. Its mark sits on the first claim that cites it. */
 const CARD = firstCard();
 
 /**
- * #68: the sidebar states the **count** of documents and never their numbers. A number is a
- * pointer to a card in the rail, and §4.5 gives this surface no rail. The name says what the
- * count counts and what a click does.
+ * The sidebar states the **count** of documents and never their numbers. A number is a pointer
+ * to a card in the rail, and this surface has no rail. The name says what the count counts and
+ * what a click does.
  */
 const ONE_SOURCE = '1 source document. Open it.';
 
@@ -73,7 +72,7 @@ const meta = {
   component: Sidebar,
   args: { dossier: DOSSIER },
   parameters: { layout: 'fullscreen' },
-  // §4.5 makes 24 rem part of the contract, and the sidebar carries that width itself. The row
+  // 24 rem is part of the contract, and the sidebar carries that width itself. The row
   // below states a height, exactly as the route does, and the sidebar stretches to it. Without a
   // stated height on the row its `overflow-y-auto` is not a scroll at all.
   render: (args) => (
@@ -88,7 +87,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.5: "Must show the name and the type, and nothing else at the top." No identifier and no
+ * "Must show the name and the type, and nothing else at the top." No identifier and no
  * coordinate: the analyst arrived from the map or from the graph.
  */
 export const TheTopShowsTheNameAndTheTypeOnly: Story = {
@@ -103,7 +102,7 @@ export const TheTopShowsTheNameAndTheTypeOnly: Story = {
   },
 };
 
-/** §4.5: "Must carry no rail." There is no room for one, and the popover replaces it. */
+/** "Must carry no rail." There is no room for one, and the popover replaces it. */
 export const TheSidebarCarriesNoRail: Story = {
   play: async ({ canvas }) => {
     const sidebar = canvas.getByRole('complementary', { name: DOSSIER.label });
@@ -112,8 +111,8 @@ export const TheSidebarCarriesNoRail: Story = {
 };
 
 /**
- * §4.5 and #68: the count opens every source of that line in one popover, and the popover carries
- * the same card the rail draws.
+ * The count opens every source of that line in one popover, and the popover carries the same
+ * card the rail draws.
  *
  * **The defect this proves is corrected:** the sidebar drew one numbered badge for each document,
  * in a row that could not shrink, so a line with four documents took the room the value needed
@@ -127,8 +126,8 @@ export const TheCountOpensEverySourceInAPopover: Story = {
 };
 
 /**
- * §5.1: the mark is on the screen and no control hides it. The count **is** the mark, so what a
- * line shows at rest is one control that states how much evidence stands behind it.
+ * The mark is on the screen and no control hides it. The count **is** the mark, so what a line
+ * shows at rest is one control that states how much evidence stands behind it.
  */
 export const EachLineShowsOneControlThatCountsItsSources: Story = {
   play: async ({ canvasElement }) => {
@@ -141,8 +140,8 @@ export const EachLineShowsOneControlThatCountsItsSources: Story = {
 };
 
 /**
- * §4.5: the popover carries one way out — the full page, in a new tab, opened at that source.
- * §6: `?src=` is kept and `?surface=` is scaffolding that the rebuild leaves behind.
+ * The popover carries one way out — the full page, in a new tab, opened at that source. `?src=`
+ * is kept, and `?surface=` is scaffolding that the rebuild leaves behind.
  */
 export const ThePopoverCarriesOneWayOut: Story = {
   play: async ({ canvasElement }) => {
@@ -156,8 +155,8 @@ export const ThePopoverCarriesOneWayOut: Story = {
 };
 
 /**
- * §4.5: "The same record, the same groups, one claim to a line." §4.1 states that one layout
- * serves both surfaces, so the sidebar states no width of its own inside the record.
+ * "The same record, the same groups, one claim to a line." One layout serves both surfaces, so
+ * the sidebar states no width of its own inside the record.
  *
  * **`document.fonts.ready` is awaited first.** The theme declares `Roboto Condensed` and
  * `JetBrains Mono`. The day either one is installed, the text reflows after a measurement that

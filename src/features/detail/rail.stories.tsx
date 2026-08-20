@@ -9,9 +9,8 @@ import { readDossier, type SourceCardModel } from './dossier';
 import { Rail } from './rail';
 
 /**
- * The check of step 4 of `docs/detail-surface.md` §8: a badge scrolls the rail alone, and
- * arriving with `?src=` opens at that card. §4.4 is the contract, §4.3 gives the density and
- * §5.2 keeps the two panes apart.
+ * A badge scrolls the rail alone, and arriving with `?src=` opens at that card. The two panes
+ * stay apart.
  *
  * **One half of that check no story can reach.** "A badge scrolls the rail **alone**" needs the
  * record and the rail on one page, and `eslint.config.ts` refuses an import of a `-page` file
@@ -28,7 +27,7 @@ const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL)?.sources ?? [];
 
 /**
- * §4.3 measures the density on fourteen documents, and the committed corpus cites fewer here.
+ * The density is measured on fourteen documents, and the committed corpus cites fewer here.
  * The rows below **repeat the real ones and are a story fixture**, exactly as the density probe
  * of `record.stories.tsx` is: every repeated row is invented, nothing outside this file reads
  * them, and they die with the story.
@@ -68,7 +67,7 @@ const markedCard = (rail: HTMLElement): HTMLElement => {
 };
 
 /**
- * §4.4 and §5.2: the mark moves, and the rail follows it on its own. The button stands in for
+ * The mark moves, and the rail follows it on its own. The button stands in for
  * the badge in the record, which lives on the other pane and which a story cannot mount.
  */
 function RailUnderAMovingMark() {
@@ -95,7 +94,7 @@ const meta = {
   component: Rail,
   args: { sources: SOURCES, activeSource: null },
   parameters: { layout: 'fullscreen' },
-  // The rail is a 24 rem pane that holds its own scroll (§4.4 and §5.2), so every story states
+  // The rail is a 24 rem pane that holds its own scroll, so every story states
   // a width and a height. Without a stated height the scroll is not real and nothing is proved.
   render: (args) => (
     <div className="h-40 w-96">
@@ -109,9 +108,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.3 "Works when": fourteen documents fit one screen. The finding of §3.3 is that an
- * eight-line card put fourteen documents on three screens. The height below is one 900 px
- * screen, and the whole rail fits inside it with no scroll.
+ * Fourteen documents fit one screen. An eight-line card put fourteen documents on three
+ * screens. The height below is one 900 px screen, and the whole rail fits inside it with no
+ * scroll.
  */
 export const FourteenDocumentsFitOneScreen: Story = {
   args: { sources: REPEATED },
@@ -130,9 +129,9 @@ export const FourteenDocumentsFitOneScreen: Story = {
 };
 
 /**
- * §4.4: arriving with a source named opens the page at that card. `activeSource` is already set
- * at mount, so the mount run of the one effect in `./rail` is the arrival case, and no second
- * mechanism exists for it. This is the storyable half of the step 4 check.
+ * Arriving with a source named opens the page at that card. `activeSource` is already set at
+ * mount, so the mount run of the one effect in `./rail` is the arrival case, and no second
+ * mechanism exists for it. This is the storyable half of that check.
  */
 export const ArrivingWithASourceOpensAtThatCard: Story = {
   args: { sources: REPEATED, activeSource: LAST.id },
@@ -145,7 +144,7 @@ export const ArrivingWithASourceOpensAtThatCard: Story = {
   },
 };
 
-/** §4.4: the rail moves on its own when the mark moves, and it marks the new card. */
+/** The rail moves on its own when the mark moves, and it marks the new card. */
 export const TheRailMovesWhenTheMarkChanges: Story = {
   render: () => <RailUnderAMovingMark />,
   play: async ({ canvas }) => {
@@ -163,7 +162,7 @@ export const TheRailMovesWhenTheMarkChanges: Story = {
 };
 
 /**
- * §4.4: each cited document is listed once, and it is numbered in the order it is met.
+ * Each cited document is listed once, and it is numbered in the order it is met.
  *
  * **The defect this replaces:** the story counted the distinct identifiers of `SOURCES` and
  * compared that count to the number of cards. `readDossier` already de-duplicates and `Rail` is
@@ -181,7 +180,7 @@ export const EachDocumentIsListedOnce: Story = {
     const drawn = cards.map((card) => card.getAttribute('data-source'));
     await expect(new Set(drawn).size).toBe(cards.length);
 
-    // §4.4: numbered in the order it is met. A number that repeats or that goes backwards is a
+    // Numbered in the order it is met. A number that repeats or that goes backwards is a
     // second answer to "which document is number 7".
     const numbers = cards.map((card) => Number(card.querySelector('span')?.textContent ?? ''));
     for (let index = 1; index < numbers.length; index += 1) {

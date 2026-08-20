@@ -9,9 +9,8 @@ import { SourceMark } from './mark';
 /**
  * The states of the mark that carries the provenance of one claim, one relation or one proposal.
  *
- * `docs/detail-surface.md` §5.1 is the contract: a claim never appears without a mark to its
- * source, and no control hides it. §3.6 makes the visible badge a number alone, and §4.4 makes a
- * click name the document for the caller to act on.
+ * The contract: a claim never appears without a mark to its source, and no control hides it.
+ * The visible badge is a number alone, and a click names the document for the caller to act on.
  *
  * **This file exists because a story file holds the states of one component.** These stories sat
  * in `record.stories.tsx`, which is the story file of `EntityRecord`.
@@ -66,7 +65,7 @@ const ONE = first();
 const onSelectSource = fn();
 
 /**
- * This file holds the **page** control alone. #68 split the sidebar control off as `SourceCount`,
+ * This file holds the **page** control alone. The sidebar control is split off as `SourceCount`,
  * because a number on a surface with no rail points at nothing, and `sidebar.stories.tsx` holds
  * that one: it has a dossier to open and a page to hand a document to.
  */
@@ -80,8 +79,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.4: a click on a mark names the document, and the caller decides what moves. §3.6: the
- * visible text is the number alone, and the accessible name names the document.
+ * A click on a mark names the document, and the caller decides what moves. The visible text is
+ * the number alone, and the accessible name names the document.
  */
 export const AClickOnAMarkNamesTheDocument: Story = {
   play: async ({ canvas }) => {
@@ -91,9 +90,9 @@ export const AClickOnAMarkNamesTheDocument: Story = {
 };
 
 /**
- * §3.6: the accessible name names the document and never its score. A document that holds up
- * twenty claims once announced `B2, machine` twenty times, which is the per-claim score §3.6
- * calls false. The score stays on the card in the rail, once.
+ * The accessible name names the document and never its score. A document that holds up twenty
+ * claims once announced `B2, machine` twenty times, which is a per-claim score, and a per-claim
+ * score is false. The score stays on the card in the rail, once.
  */
 export const TheNameOfAMarkCarriesNoScore: Story = {
   play: async ({ canvas }) => {
@@ -105,8 +104,8 @@ export const TheNameOfAMarkCarriesNoScore: Story = {
 };
 
 /**
- * §5.1 and invariant 1: every claim carries at least one source, so an empty list is a fault in
- * the data. **The defect this proves is corrected:** an empty list once rendered an empty
+ * Invariant 1: every claim carries at least one source, so an empty list is a fault in the
+ * data. **The defect this proves is corrected:** an empty list once rendered an empty
  * element, and a claim with no provenance drew nothing at all. The surface says it in words.
  */
 export const AClaimWithNoSourceSaysSo: Story = {

@@ -1,21 +1,20 @@
 /**
  * The panel beside the map or the graph, 24 rem wide.
  *
- * **Two exports, and they are one job** — #89. A canvas selects one of two things, an entity or
- * a relation, and this file draws whichever was selected in the one pane that sits beside the
- * canvas. `PANE` below is the geometry of §4.5, and one copy of it is what keeps the two panels
- * the same width, the same ground and the same scroll.
+ * **Two exports, and they are one job.** A canvas selects one of two things, an entity or a
+ * relation, and this file draws whichever was selected in the one pane that sits beside the
+ * canvas. `PANE` below is the geometry of that pane, and one copy of it is what keeps the two
+ * panels the same width, the same ground and the same scroll.
  *
- * **`Sidebar` draws the entity**, and it is built from `docs/detail-surface.md` §4.5, and from
- * §4.1, §4.6, §4.7, §5.1 and §5.5. UC5 is the use case: the analyst reads one entity in a narrow
- * sidebar, and audits its provenance on the full page. **`RelationSidebar` draws the relation**,
- * and #89 is its contract. Each one carries its own note below.
+ * **`Sidebar` draws the entity.** UC5 is the use case: the analyst reads one entity in a narrow
+ * sidebar, and audits its provenance on the full page. **`RelationSidebar` draws the relation.**
+ * Each one carries its own note below.
  *
- * **Neither carries a rail** (§4.5). There is no room for one, so a mark opens its source in a
- * popover, and that popover carries one way out to the full page.
+ * **Neither carries a rail.** There is no room for one, so a mark opens its source in a popover,
+ * and that popover carries one way out to the full page.
  *
- * **Neither knows anything about its neighbour** (§4.5). Each takes no `className`, no width and
- * no callback to a canvas. Each carries its own width, and the route composes it beside the
+ * **Neither knows anything about its neighbour.** Each takes no `className`, no width and no
+ * callback to a canvas. Each carries its own width, and the route composes it beside the
  * canvas.
  *
  * They draw and they derive nothing: `./dossier` decided every list, every word and every order.
@@ -36,27 +35,27 @@ export interface SidebarProps {
 }
 
 /**
- * §4.5: 24 rem, which is `w-96`. The sidebar holds its own scroll and its own hairline.
+ * 24 rem, which is `w-96`. The sidebar holds its own scroll and its own hairline.
  *
- * It states **no height**. The route states the geometry of the row (§4.5), and the sidebar
- * stretches to that row, so it states nothing about its neighbour.
+ * It states **no height**. The route states the geometry of the row, and the sidebar stretches
+ * to that row, so it states nothing about its neighbour.
  */
 const PANE =
   'w-96 min-h-0 shrink-0 space-y-3 overflow-y-auto overscroll-contain border-l border-border bg-sidebar p-2 text-sidebar-foreground';
 
 export function Sidebar({ dossier }: SidebarProps) {
-  // §5.1: the mark of every claim, relation and proposal. §4.5 makes it open the source in a
-  // popover, with the cards of the whole dossier behind it and one way out to the full page.
+  // The mark of every claim, relation and proposal. It opens the source in a popover, with the
+  // cards of the whole dossier behind it and one way out to the full page.
   //
-  // #68: the sidebar states the **count** of documents and opens every one of them. A number
-  // here would point at a rail, and §4.5 gives this surface no rail to point at.
+  // The sidebar states the **count** of documents and opens every one of them. A number here
+  // would point at a rail, and this surface has no rail to point at.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
     <SourceCount sources={sources} cards={dossier.sources} entityId={dossier.entityId} />
   );
 
   return (
     <aside aria-label={dossier.label} className={PANE}>
-      {/* §4.5: the name and the type, and nothing else at the top. No identifier and no
+      {/* The name and the type, and nothing else at the top. No identifier and no
           coordinate: the analyst arrived from the map or from the graph, and he already knows
           which point he selected. */}
       <h1 className="flex items-baseline gap-2">
@@ -64,12 +63,12 @@ export function Sidebar({ dossier }: SidebarProps) {
         <span className="text-xs text-label">{dossier.type}</span>
       </h1>
 
-      {/* **The defect this key exists to not repeat.** §5.3 makes every control read-only, so
-          each one draws its value with `defaultValue`, and React reads that once. In the
-          sidebar the entity changes with **no navigation at all** — a selection on the map
-          swaps the whole dossier under the same mounted element — so React reconciled the
-          record and a field kept the previous entity's value under the correct label. The key
-          makes React build a new record instead. **Do not remove it.** */}
+      {/* **The defect this key exists to not repeat.** Every control is read-only, so each one
+          draws its value with `defaultValue`, and React reads that once. In the sidebar the
+          entity changes with **no navigation at all** — a selection on the map swaps the whole
+          dossier under the same mounted element — so React reconciled the record and a field
+          kept the previous entity's value under the correct label. The key makes React build a
+          new record instead. **Do not remove it.** */}
       <EntityRecord key={dossier.entityId} rows={dossier.rows} mark={mark} />
 
       <Relations relations={dossier.relations} mark={mark} />
@@ -83,12 +82,11 @@ export interface RelationSidebarProps {
 }
 
 /**
- * The relation, in the same pane — #89, and #82 rows A12 and D2.
+ * The relation, in the same pane.
  *
- * **A click on a line has selected a relation on both canvases since #82, and nothing was drawn
- * for it.** The graph route held one provisional sentence, which told the analyst how this
- * application is cut into surfaces, and the map held nothing at all after the footer of its rail
- * was removed on #81.
+ * **A click on a line selects a relation on both canvases, and nothing was drawn for it.** The
+ * graph route held one provisional sentence, which told the analyst how this application is cut
+ * into surfaces, and the map held nothing at all after the footer of its rail was removed.
  *
  * **It is simpler than the entity panel, and the operator asked for exactly that**: the entity at
  * each end, the type, and the sources. There is no record of claims, no list of relations and no
@@ -134,12 +132,13 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
         </span>
       </div>
 
-      {/* **The presentation is the one the entity view already uses** — the count of #68, which
-          opens every card in one popover, under the header the full page writes over the sources
-          of an entity. **What "the sources of a relation" are is #86 DETAIL-SOURCE-RULE, and it
-          is open.** This panel answers nothing: it draws the documents the relation cites. The
-          entry that carries that list is **S2**, and #86 names M8; `./dossier.ts` holds the
-          correction, and it is reported to the operator. */}
+      {/* **The presentation is the one the entity view already uses** — the count of documents,
+          which opens every card in one popover, under the header the full page writes over the
+          sources of an entity. **What "the sources of a relation" are is open, and the tracker
+          carries the question.** This panel answers nothing: it draws the documents the relation
+          cites. The entry that carries that list is **S2**: the source is listed at entity,
+          relation and attribute level. The tracker also names M8: `src` is never empty.
+          `./dossier.ts` holds the correction, and it is reported to the operator. */}
       <div className="flex items-center gap-2">
         <span className="text-[11px]/4 tracking-[0.06em] text-label uppercase">
           Sources of this relation

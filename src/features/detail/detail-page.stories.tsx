@@ -9,9 +9,9 @@ import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 /**
  * The full page: the record on the left, the sources on the right.
  *
- * §5.1 puts the labelling notice of #12 on this surface, M8 puts the sources of the entity itself
- * on it, and §5.5 puts the trail of #15 on it. **Those three are drawn by this file and by no
- * child**, so no other story reaches them.
+ * The labelling notice, the sources of the entity itself and the promotion trail all sit on this
+ * surface. M8 asks for the second one: `src` is never empty. **Those three are drawn by this file
+ * and by no child**, so no other story reaches them.
  *
  * The seam this file proves is `activeSource`: a click on a mark in the left pane names a
  * document, and the rail marks that card. `rail.stories.tsx` proves that the rail moves when the
@@ -20,21 +20,21 @@ import { readDossier, type Dossier, type SourceCardModel } from './dossier';
  * The input is `readDossier(corpus, …)`, which is what the route calls, so this file changes on
  * the day `src/contract/` replaces the fixtures. **Nothing here is invented.**
  *
- * **This file exists because #70 moved a lint gate.** `eslint.config.ts` refused every `*-page`
+ * **This file exists because a lint gate moved.** `eslint.config.ts` refused every `*-page`
  * import from every story, for a hazard that belongs to the two pages that mount a live canvas.
  * The group now names those two by name. This page mounts none, and it reaches neither MapLibre
  * nor Sigma through any import.
  *
  * ## What no story of this file can reach
  *
- * **The populated scroll of §8 step 5.** "The two panes scroll independently" needs a pane whose
- * content is taller than the pane. The committed corpus gives MV Northern Ledger three claims and
- * a few documents, and the shell takes the height of its parent (#92), so neither pane overflows and a
+ * **The populated scroll.** "The two panes scroll independently" needs a pane whose content is
+ * taller than the pane. The committed corpus gives MV Northern Ledger three claims and a few
+ * documents, and the shell takes the height of its parent, so neither pane overflows and a
  * `scrollTop` assertion would pass while proving nothing.
  * `EachPaneIsItsOwnScrollContainer` proves the half this component owns — two separate scroll
  * containers, and neither inside the other — which is the structure that makes the independent
- * scroll possible. The scroll itself needs the density probe of **#46**, and until then the
- * `visual-qa` agent proves it on `/entity/:id` in the running application.
+ * scroll possible. The scroll itself needs a density probe, and the tracker carries it. Until
+ * then the `visual-qa` agent proves it on `/entity/:id` in the running application.
  */
 
 /** MV Northern Ledger. It carries claims, relations and cited documents. */
@@ -59,7 +59,7 @@ const CARD = firstCard();
 /** The accessible name `./dossier` writes for a page mark: `Source <n> — <title>`. */
 const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
 
-/** The rail of §4.4. It names itself, so the story reads the contract and not a class. */
+/** The rail. It names itself, so the story reads the contract and not a class. */
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
 
@@ -85,7 +85,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §5.2: "Each pane scrolls on its own, and neither drives the other except through a badge." Two
+ * "Each pane scrolls on its own, and neither drives the other except through a badge." Two
  * scroll containers, and neither one inside the other, is what makes that true. A single
  * container, or a rail nested in the record pane, would move both together and no assertion on
  * the words could see it.
@@ -106,8 +106,8 @@ export const EachPaneIsItsOwnScrollContainer: Story = {
 };
 
 /**
- * §4.4: a click on a mark in the record marks the card in the rail. **This is the seam the page
- * owns** — `activeSource` — and no child story can reach it: the record holds the mark, the rail
+ * A click on a mark in the record marks the card in the rail. **This is the seam the page owns**
+ * — `activeSource` — and no child story can reach it: the record holds the mark, the rail
  * holds the card, and only this file joins the two.
  */
 export const AMarkInTheRecordMarksTheCardInTheRail: Story = {
@@ -127,8 +127,8 @@ export const AMarkInTheRecordMarksTheCardInTheRail: Story = {
 };
 
 /**
- * §4.4: arriving with a source named opens the page at that card. `?src=` reaches this component
- * as `arrivedAtSource`, which the route reads once and the page never writes back.
+ * Arriving with a source named opens the page at that card. `?src=` reaches this component as
+ * `arrivedAtSource`, which the route reads once and the page never writes back.
  */
 export const ArrivingWithASourceMarksThatCard: Story = {
   args: { arrivedAtSource: CARD.id },
@@ -139,11 +139,12 @@ export const ArrivingWithASourceMarksThatCard: Story = {
 };
 
 /**
- * #80 removed the two paragraphs of placeholder words: the labelling notice that stood in for #12,
- * and the promotion trail of #15 that named a proposal identifier to the reader.
+ * Two paragraphs of placeholder words were removed: the labelling notice that stood in for the
+ * real disclaimer, and the promotion trail that named a proposal identifier to the reader.
  *
- * **This story proves they do not come back.** #12 owns the real disclaimer, and it is the one
- * that PU1 requires; a placeholder that reads like a disclaimer is worse than none.
+ * **This story proves they do not come back.** The tracker carries the real disclaimer, and PU1
+ * requires it: everything is public, the candidate layer included. A placeholder that reads like
+ * a disclaimer is worse than none.
  */
 export const NoPlaceholderProseIsDrawn: Story = {
   play: async ({ canvasElement }) => {

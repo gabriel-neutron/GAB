@@ -8,16 +8,16 @@ import { readRelation, type RelationDossier } from './dossier';
 import { RelationSidebar } from './sidebar';
 
 /**
- * The check of #89 DETAIL-RELATION-VIEW. The component lives in `./sidebar.tsx`, which draws the
- * two things a canvas can select in one pane; this file checks the relation half of it.
+ * The check of the relation view. The component lives in `./sidebar.tsx`, which draws the two
+ * things a canvas can select in one pane; this file checks the relation half of it.
  *
  * The operator asked for a view simpler than an entity view: **the entity at each end, the type,
- * and the sources**. Each story below names one of those clauses, or the rule that #89 gave the
+ * and the sources**. Each story below names one of those clauses, or the rule that gave the
  * words: the direction is the one both canvases already draw.
  *
  * **One criterion no story can reach.** "A click on a line opens this panel" needs a live canvas,
- * and `CANVAS.md` gives no story one. The `visual-qa` agent proves it on `/map` and on `/graph`
- * in the running application.
+ * and no story gets one. The `visual-qa` agent proves it on `/map` and on `/graph` in the running
+ * application.
  *
  * The input is `readRelation(corpus, …)`, which is what both routes call, so this file changes on
  * the day `src/contract/` replaces the fixtures. **Nothing here is invented.**
@@ -42,7 +42,7 @@ const CLOSED = read(CLOSED_ID);
 const FROM = 'MV Northern Ledger';
 const TO = 'Maasvlakte bulk terminal, berth 7';
 
-/** The type as the read carries it, and the type as every surface now says it — #89 Q4. */
+/** The type as the read carries it, and the type as every surface now says it. */
 const RAW_TYPE = 'berthed_at';
 const TYPE = 'berthed at';
 
@@ -66,7 +66,7 @@ const meta = {
   component: RelationSidebar,
   args: { relation: BERTHED },
   parameters: { layout: 'fullscreen' },
-  // §4.5 makes 24 rem part of the contract, and the panel carries that width itself. The row
+  // 24 rem is part of the contract, and the panel carries that width itself. The row
   // below states a height, exactly as the route does, and the panel stretches to it.
   render: (args) => (
     <div className="flex h-[600px]">
@@ -79,7 +79,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** #89: the entity at each end, and the type. Three lines, and one of them is each. */
+/** The entity at each end, and the type. Three lines, and one of them is each. */
 export const TheTwoEndsAndTheTypeAreDrawn: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
@@ -90,7 +90,7 @@ export const TheTwoEndsAndTheTypeAreDrawn: Story = {
 };
 
 /**
- * #89: the panel writes no second wording for the direction. The three lines are the three that
+ * The panel writes no second wording for the direction. The three lines are the three that
  * `shared/canvas-label.ts` gives both canvases, in that order, so a hover over the line and the
  * panel beside it can never disagree about which way the relation points.
  */
@@ -103,9 +103,9 @@ export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
 };
 
 /**
- * The operator ruled on #89 that one relation carries one name on every surface, and that the
- * name is words. **The identifier reaches no screen.** `shared/canvas-label.ts` holds the rule,
- * so the two canvases changed with this panel.
+ * The operator ruled that one relation carries one name on every surface, and that the name is
+ * words. **The identifier reaches no screen.** `shared/canvas-label.ts` holds the rule, so the
+ * two canvases changed with this panel.
  */
 export const TheTypeReadsInWordsAndNeverAsTheIdentifier: Story = {
   play: async ({ canvas }) => {
@@ -130,7 +130,7 @@ export const TheNameOfThePanelSaysTheDirectionInWords: Story = {
 };
 
 /**
- * #89: the sources. The presentation is the one the entity panel already uses — one control that
+ * The sources. The presentation is the one the entity panel already uses — one control that
  * counts the documents, and one popover that opens the same card.
  */
 export const TheSourcesOpenTheSameCardTheEntityPanelOpens: Story = {

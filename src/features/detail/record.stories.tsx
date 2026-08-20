@@ -15,14 +15,13 @@ import { SourceMark } from './mark';
 import { EntityRecord } from './record';
 
 /**
- * The check of step 2 of `docs/detail-surface.md` §8: 100 claims in about 40 lines on the page,
- * and one to a line at 24 rem. §4.1 is the contract, and §3.1 is the measurement.
+ * 100 claims in about 40 lines on the page, and one to a line at 24 rem.
  *
  * **Every row below is invented**, as `src/shared/fixtures/corpus.ts` says of its own rows. The
- * fixture of #46 carries three claims on its largest entity, and §3.1 cannot be measured on
- * three claims, so this file builds the density probe itself. **Nothing outside this file reads
- * it**: a second module that holds the shape of the read is the fault the skill forbids, and
- * this probe dies with the story.
+ * committed fixture carries three claims on its largest entity, and the density cannot be
+ * measured on three claims, so this file builds the density probe itself. **Nothing outside this
+ * file reads it**: a second module that holds the shape of the read is the fault the skill
+ * forbids, and this probe dies with the story.
  *
  * The keys are the ones the group rules of `./claims` match, so the groups on the screen are
  * the ones an analyst would meet. The story calls `readDossier`, which is what the page calls.
@@ -42,7 +41,7 @@ const CITED: readonly DocId[] = ['doc-registry', 'doc-class', 'doc-survey', 'doc
 const cite = (n: number): readonly DocId[] => [CITED[n % CITED.length] ?? 'doc-registry'];
 
 /**
- * §5.1 and invariant 1: every claim carries at least one source. This one key carries none, so
+ * Invariant 1: every claim carries at least one source. This one key carries none, so
  * the probe holds the fault that `./mark` must report in words. **Without it the mark story
  * compares 100 to 100 by construction and cannot fail.**
  */
@@ -166,7 +165,7 @@ const meta = {
       <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
     ),
   },
-  // The width of the pane is part of the contract of §4.1, so each story states it.
+  // The width of the pane is part of the contract, so each story states it.
   render: (args) => (
     <div className="w-[1200px] p-2">
       <EntityRecord {...args} />
@@ -185,8 +184,8 @@ const claimCells = (root: HTMLElement): readonly HTMLElement[] =>
  * The lines the claims occupy **on the page**, headings included.
  *
  * A line of cells is one distinct `offsetTop` among the claim cells. A group heading is
- * `basis-full` and takes a line of its own, and §8 states the criterion "on the page", so each
- * heading counts.
+ * `basis-full` and takes a line of its own, and the criterion is "on the page", so each heading
+ * counts.
  *
  * **`document.fonts.ready` is awaited first.** The theme declares `Roboto Condensed` and
  * `JetBrains Mono`. The day either one is installed, the text reflows after a measurement that
@@ -204,8 +203,7 @@ const linesOnThePage = async (root: HTMLElement): Promise<number> => {
 };
 
 /**
- * §4.1 and §3.1. The prototype measured about 2.6 claims to a line, which puts 100 claims in
- * about 40 lines.
+ * The prototype measured about 2.6 claims to a line, which puts 100 claims in about 40 lines.
  *
  * **The bound is closed at both ends.** The assertion was a ceiling alone, and a ceiling alone
  * passes when every cell collapses onto one line, which is the opposite failure and a worse one.
@@ -218,16 +216,17 @@ export const AHundredClaimsReadInAboutFortyLines: Story = {
     await expect(cells).toHaveLength(100);
 
     const lines = await linesOnThePage(canvasElement);
-    // The measured value was 41 with 9 group headings, which #80 removed. The band is "about 40".
+    // The measured value was 41 with 9 group headings, which are now removed. The band is
+    // "about 40".
     await expect(lines).toBeGreaterThanOrEqual(34);
     await expect(lines).toBeLessThanOrEqual(46);
   },
 };
 
 /**
- * §4.1: the same component, with no second layout and no appearance prop, fills a 24 rem
- * sidebar with one claim to a line. Each cell is `grow min-w-0` and each basis is wider than
- * the pane, so every claim takes the whole line.
+ * The same component, with no second layout and no appearance prop, fills a 24 rem sidebar with
+ * one claim to a line. Each cell is `grow min-w-0` and each basis is wider than the pane, so
+ * every claim takes the whole line.
  */
 export const AtTwentyFourRemOneClaimTakesOneLine: Story = {
   parameters: { layout: 'fullscreen' },
@@ -250,7 +249,7 @@ export const AtTwentyFourRemOneClaimTakesOneLine: Story = {
 };
 
 /**
- * §5.1: a claim never appears without a mark to its source, and no control hides the mark. The
+ * A claim never appears without a mark to its source, and no control hides the mark. The
  * one claim of the probe that carries no source says so in words, so the count below is 99 of
  * 100 and the story can fail.
  */
@@ -275,9 +274,9 @@ export const EveryClaimCarriesAMarkToItsSource: Story = {
 /**
  * The record is one flat list, and it carries no heading of its own.
  *
- * **#80 removed the group headings.** Their names — `Identity`, `Ownership`, `Other` — were
- * invented in `./claims` from the prefix of a key, and no data supplies them. **#46** owns any
- * real group.
+ * **The group headings are removed.** Their names — `Identity`, `Ownership`, `Other` — were
+ * invented in `./claims` from the prefix of a key, and no data supplies them. The tracker owns
+ * any real group.
  */
 export const TheRecordDrawsNoInventedHeading: Story = {
   parameters: { layout: 'fullscreen' },
