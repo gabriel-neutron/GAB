@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import type { Rule } from 'eslint';
 import { defineConfig } from 'eslint/config';
 import boundaries from 'eslint-plugin-boundaries';
 import tseslint from 'typescript-eslint';
@@ -12,6 +13,71 @@ import tseslint from 'typescript-eslint';
  * `CANVAS.md` holds the rule and names the same two.
  */
 const CANVAS_PAGES = ['map', 'graph'] as const;
+
+/**
+ * **A comment records a reason, and never a reference.** A reason is a fact about the code, and it
+ * cannot go stale: if the code changes, it changes with it. A reference is an address to something
+ * outside the file, and it goes stale in silence when somebody else edits or deletes the thing it
+ * names.
+ *
+ * **The defect this rule exists to not repeat.** Four surface documents were deleted on 17 August
+ * 2026. Two days later, 67 paths under `src/` still named them and 578 section marks still pointed
+ * into their sections. No check failed and nothing warned.
+ *
+ * **A ticket needs a word boundary after one to three digits**, so `#89` is refused and the
+ * hexadecimal colours `#2971c6` and `#000000` are not: no boundary follows three digits inside a
+ * six-digit hex. The pattern stops working above `#999`, and it must change on that day.
+ *
+ * **An entry of the locked register stays.** `M8` and `T5` carry no address, and a new decision
+ * replaces an entry by name, so the name outlives even its replacement. They are domain words.
+ *
+ * **A stylesheet is out of reach.** ESLint does not read `src/index.css`, so a reference there is
+ * refused by nobody.
+ */
+const SHAPES = [
+  { pattern: /#\d{1,3}\b/g, kind: 'a ticket number' },
+  { pattern: /\u00a7/g, kind: 'a section mark' },
+  { pattern: /\bADR ?\d{4}\b/g, kind: 'an ADR citation' },
+  { pattern: /[\w./-]+\.md\b/g, kind: 'a path to a document' },
+] as const;
+
+const noReferenceInComment: Rule.RuleModule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      address:
+        'A comment records a reason, and never a reference. `{{text}}` is {{kind}}. Write the fact the reader needs, and carry the reference in the commit message or in your report',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        const source = context.sourceCode;
+        for (const comment of source.getAllComments()) {
+          const start = comment.range?.[0];
+          if (start === undefined) continue;
+          // `range[0]` is the first character of the delimiter, and `value` begins two characters
+          // later for `//` and for `/*` alike.
+          const body = start + 2;
+          for (const shape of SHAPES) {
+            shape.pattern.lastIndex = 0;
+            let found = shape.pattern.exec(comment.value);
+            while (found !== null) {
+              const at = source.getLocFromIndex(body + found.index);
+              context.report({
+                loc: { start: at, end: at },
+                messageId: 'address',
+                data: { text: found[0], kind: shape.kind },
+              });
+              found = shape.pattern.exec(comment.value);
+            }
+          }
+        }
+      },
+    };
+  },
+};
 
 export default defineConfig(
   { ignores: ['**/node_modules', '**/dist', '**/build', '**/coverage', '**/storybook-static'] },
@@ -259,5 +325,14 @@ export default defineConfig(
         },
       ],
     },
+  },
+
+  // The rule above this list holds the whole of `src/`, and it takes no exception. `main.tsx` and
+  // `router.tsx` are outside the boundaries block and inside this one on purpose: a reference
+  // rots in them exactly as it rots anywhere else.
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    plugins: { local: { rules: { 'no-reference-in-comment': noReferenceInComment } } },
+    rules: { 'local/no-reference-in-comment': 'error' },
   },
 );
