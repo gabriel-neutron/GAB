@@ -19,7 +19,9 @@ stale in silence, and a stale rule is obeyed as confidently as a live one.
 
 1. **Find the contract.** Read the ticket that names this component, and read it whole: it carries
    what the component does, the rules it holds and the check that says it works. Then read the file
-   headers of its feature, which state each rule and the defect that produced it. State back in
+   headers of its feature, which state each rule and the defect that produced it, and nothing
+   else. A header names no document and no section, so the rule you read there is the whole
+   authority. State back in
    five lines: what it does, the rules it holds, the "Works when", and the check.
 2. **Place the file.** See *Placement*.
 3. **Write the derivation**, before the `.tsx` exists.
@@ -176,9 +178,9 @@ Read the Storybook and Vitest configurations for what is set.
 |---|---|
 | Write every comment and every message in ASD-STE100 Simplified Technical English | — |
 | Say **why** in a comment, and let the code say what. A rule that was a defect carries that defect in one line, so the next reader does not restore it | Narrate what the line below does |
-| Head each file with the document and the section it is built from, and use the domain words | — |
-| File an open question as a tracker ticket, comment on it, and ask the operator — even in the middle of a file | Leave a silent default in code |
-| Keep a guess the ticket permits in exactly one place, with a comment that names the ticket it guesses at | Spread a guess over two files, or guess where nothing names a guess |
+| Head each file with the rule it holds and the defect that produced that rule, in the domain words. That is the reason, and the reason is the whole header | Name a document, a section or a ticket. A comment records a reason, and never a reference. A path, a `§` and a `#` are each an address, and an address is not a reason |
+| File an open question as a tracker ticket, comment on that ticket, and ask the operator — even in the middle of a file. In the file write only that the question is open and that the tracker carries it | Leave a silent default in code. Write the ticket number in the file |
+| Keep a guess the ticket permits in exactly one place, with a comment that says what is guessed, what would prove it wrong, and that the tracker carries the question. Name the ticket in your report | Write the ticket number in the file. Spread a guess over two files, or guess where nothing names a guess |
 | Read the header of the read module you import: it says whether it is the generated contract or a stand-in | Guess a second shape for the read data |
 | Take the read as an argument in a derivation, so only the caller changes on the day the contract arrives | Import a read module from a derivation |
 
