@@ -8,9 +8,9 @@ import { Rail, type RailRows, type RailTypeRow } from '@/shared/rail';
  *
  * No surface document owns this file: the rail is shared, so its contract is its two call sites —
  * `src/features/map/rail.tsx` and `src/features/graph/graph-page.tsx` — and the rules of the
- * `component` skill. The behaviour it must hold is the "Works when" both documents state:
- * `docs/map-surface.md` §4.5 and `docs/graph-surface.md` §4.4. A type switches off and the count
- * says so. An entity is reached by name in two steps. The folded rail still says what is drawn.
+ * `component` skill. The behaviour it must hold is the one both surfaces state: a type switches
+ * off and the count says so. An entity is reached by name in two steps. The folded rail still
+ * says what is drawn.
  *
  * **The rows are stated here, and no read module is imported.** A shared file has no surface
  * document and no one read: each caller derives these rows from its own model — `railRows` on the
@@ -68,7 +68,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * #91 and #94: an eye in place of the words `on` and `off`.
+ * An eye in place of the words `on` and `off`, which the operator asked for.
  *
  * **The eye is hidden from a reader, and the words are not.** One icon cannot say "hidden" on the
  * map and "dimmed" on the graph, and a struck-out eye claims the first on both surfaces. So the
@@ -165,13 +165,13 @@ export const AnUnfoldedTypeCarriesItsOwnIndex: Story = {
 
     // The slot belongs to the open type, and to no other row.
     await expect(canvasElement.querySelectorAll('[data-index]')).toHaveLength(1);
-    // #82 C6: no search field stands in this rail any more.
+    // No search field stands in this rail any more.
     await expect(canvasElement.querySelector('input')).toBeNull();
   },
 };
 
 /**
- * #82 C5: **more than one type may stand unfolded**. Opening a second one closed the first, and
+ * **More than one type may stand unfolded.** Opening a second one closed the first, and
  * an analyst could not read two lists beside each other.
  *
  * Each open row asks the caller for its own list, so the two indexes are two elements and never
@@ -201,7 +201,7 @@ export const MoreThanOneTypeStandsUnfolded: Story = {
 };
 
 /**
- * §5.2: a control that can exclude everything carries the way back. A prototype reached an
+ * A control that can exclude everything carries the way back. A prototype reached an
  * all-grey screen, and the filter is stored, so that screen survived a reload.
  */
 export const AControlThatExcludesEverythingCarriesTheWayBack: Story = {
@@ -222,13 +222,13 @@ export const AControlThatExcludesEverythingCarriesTheWayBack: Story = {
 };
 
 /**
- * The folded rail still says what is drawn. §4.5 keeps the switches and the counts in the strip
- * and loses **only the list**. A sentence does not fit in 44px, so the number stays on the screen
+ * The folded rail still says what is drawn. It keeps the switches and the counts in the strip and
+ * loses **only the list**. A sentence does not fit in 44px, so the number stays on the screen
  * and the caller's name says the words to the reader.
  *
- * **This control pins nothing below the list any more.** It took a `footer` node, and #81 emptied
- * it: rows B9 to B15 removed the relations switch and the counts, and rows A2 and B8 moved the
- * ground onto the map.
+ * **This control pins nothing below the list any more.** It took a `footer` node, and the
+ * operator emptied it: the relations switch and the counts went, and the ground moved onto the
+ * map.
  */
 export const TheFoldedRailStillSaysWhatIsDrawn: Story = {
   args: {

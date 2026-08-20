@@ -1,5 +1,5 @@
 /**
- * The workspace store of ADR 0004 §7.
+ * The workspace store: the view state a surface keeps between two visits.
  *
  * One key per feature, `gab.<feature>.v1`. The version is part of the key, so a later shape
  * writes a later key and never reads this one. A read returns the fallback on every fault the

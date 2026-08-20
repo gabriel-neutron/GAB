@@ -1,22 +1,20 @@
 /**
  * The hue of an entity type, in one list and one rule for both canvases.
  *
- * **The operator lifted the hues here** — #87. `features/graph/model.ts` had written the
- * condition in advance: "A feature never imports a feature (ADR 0001 §1), so the two copies
- * cannot become one **until the operator lifts the hues into `shared/`**." That day is this one,
- * and the two copies are one list below.
+ * **The hues live here because a feature never imports a feature.** Each canvas held its own
+ * copy of the six, and two copies of one list drift apart. This is the one list.
  *
- * **The graph paints by type now, and no longer by community** — #87. A hue was the community of
- * a node, and three facts closed that:
+ * **The graph paints by type, and no longer by community.** A hue was the community of a node,
+ * and three facts closed that:
  *
  * - **A hue is a grouping and never an identity.** Six hues cycle, so a seventh group wears the
  *   hue of the first.
  * - **A community number is a rank of size** — `features/graph/structure.ts` renumbers so that
  *   index 0 is the largest. One new entity renumbers the run, and the whole picture repaints.
  *   **A type never renumbers.**
- * - **No word on the screen said what a hue meant.** The legend that said it is gone — #82 B1 to
- *   B7 — and `SKILL.md` forbids a hue as the only mark. The rail names the type beside its hue,
- *   on both surfaces, so the words are there and no legend comes back.
+ * - **No word on the screen said what a hue meant.** The legend that said it is gone, and a hue
+ *   may never be the only mark. The rail names the type beside its hue, on both surfaces, so the
+ *   words are there and no legend comes back.
  *
  * **The community run stays, and it places the nodes.** That is its only job now.
  *
@@ -26,9 +24,9 @@
  * per canvas, in silence. The rule below takes the whole corpus, so the two agree by
  * construction.
  *
- * **The hue cycles, and it says so** — #81 row A6. A seventh type wears the hue of the first.
- * **#93 ENTITY-TYPE-TABLE puts a decided colour on the type itself** and ends the cycle. This
- * file assumes no answer: it cycles, and it states it.
+ * **The hue cycles, and it says so.** A seventh type wears the hue of the first. A decided colour
+ * on the type row would end the cycle, and the tracker carries that question. This file assumes
+ * no answer: it cycles, and it states it.
  */
 
 /** Which theme the page has. The light theme is on `:root`, the dark theme on `.dark`. */
@@ -42,7 +40,7 @@ export type EntityHueSet = readonly [string, string, string, string, string, str
  *
  * **A colour must be a colour that the library reads.** Sigma parses hex and `rgb()` on the CPU,
  * and an `hsl()` colour comes out black for the whole graph in silence. MapLibre parses its style
- * with its own parser. `CANVAS.md` states the second half: **a CSS custom property never reaches
+ * with its own parser. The second half is the same rule: **a CSS custom property never reaches
  * either parser**, so the hues of the stylesheet are copied here as hex. This file is that copy,
  * and it is now the only one.
  *
@@ -53,7 +51,7 @@ export type EntityHueSet = readonly [string, string, string, string, string, str
  * - **The light set gives 4.6:1 to 5.0:1 on the light page.**
  *
  * So a canvas whose ground follows the theme takes the set of that theme, and a canvas whose
- * ground is imagery takes the dark set on both themes. `CANVAS.md` rules the second case: a point
+ * ground is imagery takes the dark set on both themes. The second case has one reason: a point
  * sits on imagery, and the light set cannot be read on it.
  */
 const LIGHT_SET = ['#2971c6', '#007989', '#007d50', '#677000', '#a16100', '#b53c7f'] as const;

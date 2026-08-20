@@ -1,9 +1,9 @@
 /**
  * The head that says which way a relation points, in one shape for both canvases.
  *
- * **The data has always carried a direction and neither canvas drew one** — #88 row A5, in the
- * operator words: "a direction through the shape". Row A6 of that ticket says the direction in
- * words, on the hover name of `./canvas-label`. This says it on the line.
+ * **The data has always carried a direction and neither canvas drew one.** The operator asked
+ * for "a direction through the shape". The hover name of `./canvas-label` says the direction in
+ * words. This says it on the line.
  *
  * **One head, at the end the relation arrives at.** Three forms were built and shown on
  * `proto/direction-2026-08-18`, and the operator chose this one. The two that lost are on the tag
@@ -15,8 +15,8 @@
  *   map faded a gradient instead. On the light ground the faint half went to nothing, and the
  *   relation then stated one end and not two.
  *
- * **The two canvases are drawn by different libraries**, so no draw call is shared — `CANVAS.md`
- * and the caution of #94. What is shared is the silhouette below: Sigma builds the head from two
+ * **The two canvases are drawn by different libraries**, so no draw call is shared. What is
+ * shared is the silhouette below: Sigma builds the head from two
  * ratios of the line thickness, and MapLibre takes a raster image, so the one shape is given to
  * each library in the form that library takes. One place states the shape, and the two cannot
  * drift.
@@ -29,8 +29,8 @@
  * reads them too, so the image it draws has the same silhouette as the head the graph draws.
  *
  * **The numbers are small, and the reason is the hit box.** A relation takes a pick band of 10px
- * — `CANVAS.md` asks for about 5px on each side, and #88 says any new shape must keep it — so the
- * line of the graph is drawn 10px wide. At the ratios of the library the head came out about 25px
+ * — about 5px on each side, and any new shape must keep it — so the line of the graph is drawn
+ * 10px wide. At the ratios of the library the head came out about 25px
  * on a dot of about 10px, and a mark bigger than the thing it points at is the fault that
  * `4bbab56` corrected for the pending badge. These two were read in a browser, and not calculated.
  */

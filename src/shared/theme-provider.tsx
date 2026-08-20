@@ -5,7 +5,7 @@ import { readWorkspace, writeWorkspace } from '@/shared/storage';
  * The theme provider of the shadcn documentation, with two changes that this repository forces.
  *
  * 1. The choice is stored under `gab.shell.v1` through the workspace helper, and not under the
- *    `vite-ui-theme` key of the documentation, so one namespace convention holds (ADR 0004 §7).
+ *    `vite-ui-theme` key of the documentation, so one namespace convention holds.
  * 2. The documentation reads the stored value with an unchecked assertion. Under
  *    `strictTypeChecked` with no suppression, the value must be guarded, and a bad value must
  *    fall back.

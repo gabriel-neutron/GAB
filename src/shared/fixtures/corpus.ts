@@ -1,10 +1,10 @@
 /**
  * A small sample corpus for the prototypes. **Synthetic, not the v1 corpus.**
  *
- * #8 C7-VALIDATE asks whether a sample of the **real** v1 entities is representable in the
- * target model, and it says to take the awkward ones. The v1 corpus is not in this repository,
- * so this file cannot answer #8. It prepares the answer: it is shaped like the model the
- * tracker decided, and the awkward cases below are the ones a real sample must also survive.
+ * The tracker asks whether a sample of the **real** v1 entities is representable in the target
+ * model, and it says to take the awkward ones. The v1 corpus is not in this repository, so this
+ * file cannot answer that. It prepares the answer: it is shaped like the model the tracker
+ * decided, and the awkward cases below are the ones a real sample must also survive.
  *
  * Every row is invented. No claim here is about a real vessel, company or person.
  *
@@ -18,9 +18,9 @@
  * | An entity with no geometry | The map shows only what carries one |
  * | A dated ownership relation | M6 reserves an interval for identity and ownership |
  * | An unrated document | Invariant 6 pairs a rating with its origin, so both are absent together |
- * | A proposal with no dissent and high confidence | The gap S3 and P1 leave open — #42 |
- * | A rejected proposal | `spec.md` §5: never deleted, it is the record of what was set aside |
- * | Two versions of one agent | #16: the old prompt must still be readable |
+ * | A proposal with no dissent and high confidence | The gap S3 and P1 leave open |
+ * | A rejected proposal | Never deleted: it is the record of what was set aside |
+ * | Two versions of one agent | The old prompt must still be readable |
  */
 
 import type { Corpus } from './types';
@@ -163,11 +163,10 @@ export const corpus: Corpus = {
     //
     // Two properties are deliberate:
     //
-    // - **The points are far apart.** ADR 0005 §2 tiers the tile coverage: the world at low
-    //   zoom, Russia at middle zoom, a buffer around each entity at zoom 15. A corpus in one
-    //   harbour would never show a seam between the bands.
-    //   ADR 0005 also names Russia as the region of work, and the rows above are North Sea, so
-    //   the two regions sit in one corpus on purpose.
+    // - **The points are far apart.** The tile coverage is tiered: the world at low zoom, Russia
+    //   at middle zoom, a buffer around each entity at zoom 15. A corpus in one harbour would
+    //   never show a seam between the bands. Russia is the region of work and the rows above are
+    //   North Sea, so the two regions sit in one corpus on purpose.
     // - **Each type carries a geometry for a different reason.** A facility is where it stands,
     //   a vessel is where it was last reported, a company is its registered office, a person is
     //   a last reported location. The map treats the four the same. Whether it should is a
@@ -445,8 +444,8 @@ export const corpus: Corpus = {
       promotedFrom: 'b2c1d4e5-0008-4a11-9c33-77e1f2a3b4c5',
     },
     {
-      // M4: an endpoint is a relation, not an entity. This one is invisible in the graph view
-      // and is reached through the detail panel. ADR 0004 §4 says so.
+      // M4: an endpoint is a relation, not an entity. This one is invisible in the graph view,
+      // and it is reached through the detail panel.
       id: 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d',
       type: 'contradicts',
       srcKind: 'entity',
@@ -697,8 +696,8 @@ export const corpus: Corpus = {
       decidedBy: null,
     },
     {
-      // No dissent, high confidence. **This is the gap #42 must settle.** S3 does not send it
-      // to review. P1 does not let it through. A prototype must show what it does with this
+      // No dissent, high confidence. **This is the gap the tracker must settle.** S3 does not
+      // send it to review. P1 does not let it through. A prototype must show what it does with this
       // row, and must not decide it.
       id: '1c2d3e4f-6071-489a-b123-456789abcdef',
       op: 'create_entity',
@@ -742,7 +741,7 @@ export const corpus: Corpus = {
       decidedBy: 'operator',
     },
     {
-      // Rejected, and kept. `spec.md` §5: the record of what was set aside.
+      // Rejected, and kept. It is the record of what was set aside.
       id: '3e4f5061-8293-4abc-d345-6789abcdef01',
       op: 'merge_entities',
       targetKind: 'entity',
@@ -763,8 +762,8 @@ export const corpus: Corpus = {
       decidedBy: 'operator',
     },
     {
-      // Written by the operator, not by an agent. #15: an operator edit is a proposal too, and
-      // the writing role is stamped and not stated by the caller. It may cite `manual`.
+      // Written by the operator, not by an agent. An operator edit is a proposal too, and the
+      // writing role is stamped and not stated by the caller. It may cite `manual`.
       id: '4f506172-93a4-4bcd-e456-789abcdef012',
       op: 'update_attrs',
       targetKind: 'entity',
@@ -786,7 +785,7 @@ export const corpus: Corpus = {
   ],
 
   agents: [
-    // Two versions of one agent. #16: the old prompt stays readable after the new one exists.
+    // Two versions of one agent. The old prompt stays readable after the new one exists.
     {
       id: 'a9e70001-0000-4000-8000-000000000001',
       name: 'extractor',
@@ -856,7 +855,7 @@ export const corpus: Corpus = {
       createdAt: '2026-08-05T08:02:00Z',
     },
     {
-      // Produced by version 3, before the prompt was raised. #16 exists for this row.
+      // Produced by version 3, before the prompt was raised. This row is why versions are kept.
       id: 'ca110001-0000-4000-8000-000000000004',
       runId: '4e110001-0000-4000-8000-000000000003',
       agentId: 'a9e70001-0000-4000-8000-000000000001',

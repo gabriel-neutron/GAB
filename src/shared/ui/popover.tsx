@@ -5,11 +5,11 @@ import { cn } from '@/shared/lib/utils';
 
 /**
  * Vendored from shadcn, in the `radix-nova` style of the other four parts of the kit. It is
- * added on the instruction of the operator for `docs/detail-surface.md` §4.5: the sidebar has no
- * room for a rail, so a mark opens its source in a popover.
+ * added on the instruction of the operator: the sidebar has no room for a rail, so a mark opens
+ * its source in a popover.
  *
- * It takes **no** lint exemption. ADR 0004 §8: `src/shared/ui/` is a pattern that authored code
- * can enter, so the folder is excluded from nothing.
+ * It takes **no** lint exemption. `src/shared/ui/` is a pattern that authored code can enter, so
+ * the folder is excluded from nothing.
  *
  * The base classes below are the upstream ones. A caller corrects the scale and the radius at the
  * call site with `cn()`, as it does for `Input` and `Button`. **The shadow stays**: rule 6 of the
@@ -51,7 +51,7 @@ function PopoverContent({
 
 /**
  * **`PopoverAnchor` is removed on purpose.** Upstream exports it and nothing here imports it.
- * ADR 0004 §8 gives this folder no lint exemption, so a vendored file carries no dead surface by
- * right. Vendor it again on the day a caller needs an anchor away from the trigger.
+ * This folder takes no lint exemption, so a vendored file carries no dead surface by right.
+ * Vendor it again on the day a caller needs an anchor away from the trigger.
  */
 export { Popover, PopoverTrigger, PopoverContent };

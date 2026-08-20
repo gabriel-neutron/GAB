@@ -1,9 +1,6 @@
 /**
  * The two-step rail — the layer control that the map and the graph both draw.
  *
- * Built from `docs/map-surface.md` §4.5, `docs/graph-surface.md` §4.4 and §5.2, and step 5 of
- * `docs/graph-surface.md` §8, which asks for one design on two surfaces.
- *
  * **Two throwaway prototypes may hold one shape twice; three call sites may not.** The map wrote
  * this control first and the graph wrote it again. This file is the lift, and the two callers are
  * `src/features/map/rail.tsx` and `src/features/graph/graph-page.tsx`.
@@ -11,30 +8,29 @@
  * **It separates two acts.** Switching a type is a control and it is always at hand. Reading the
  * entities of one type is asked for, with the chevron. That is the whole of the two steps.
  *
- * **The search field of the first build is gone** — #82 rows C6 and C9, and the empty-result line
- * with it. The operator does not want a search inside this rail. A search across the corpus is a
- * capability of its own, and **#90 GLOBAL-SEARCH** holds it. So the second step draws the whole
+ * **The search field of the first build is gone**, and the empty-result line with it. The
+ * operator does not want a search inside this rail. A search across the corpus is a capability of
+ * its own, and the tracker holds it. So the second step draws the whole
  * list of the open type, and this file carries no text and no `change-query` act.
  *
  * **It owns the control, and never the row.** The list of entities under an open type is not the
- * same thing on the two surfaces: the map draws a name alone — #81 B6 took its one column of
- * values off — and the graph draws a name and a degree, capped, with the remainder on the
- * screen. `docs/graph-surface.md` §4.4 calls this rail "the same
- * **control** as the map's", and the row has its own entry in `docs/map-surface.md` §4.6. So the
- * caller passes its list in, and this file states nothing about a row.
+ * same thing on the two surfaces: the map draws a name alone — its one column of values was
+ * taken off — and the graph draws a name and a degree, capped, with the remainder on the screen.
+ * The rail is the same **control** on the two surfaces, and the row is not. So the caller passes
+ * its list in, and this file states nothing about a row.
  *
  * **It derives nothing and it holds no state.** Every row arrives ready, and every act goes back to
- * the caller as one of a closed set. The caller owns the store, so the polarity of §5.2 — the
- * workspace holds the types that are **off** — stays in one place on each surface and never here.
+ * the caller as one of a closed set. The caller owns the store, so the polarity — the workspace
+ * holds the types that are **off** — stays in one place on each surface and never here.
  *
  * **It reads no library and no `localStorage`.** It is a sibling of a live canvas and never an
- * ancestor of one, so `CANVAS.md` permits the caller to hold ordinary React state beside it.
+ * ancestor of one, so the caller may hold ordinary React state beside it.
  *
- * **The differences the graph needs, and this file carries each one in data** —
- * `docs/graph-surface.md` §4.4. The list is capped and the remainder is on the screen: that is the
- * caller's list. The list is in the order of the degree: that is the caller's list as well.
+ * **The differences the graph needs, and this file carries each one in data.** The list is capped
+ * and the remainder is on the screen: that is the caller's list. The list is in the order of the
+ * degree: that is the caller's list as well.
  *
- * **The first difference is gone** — #87. The graph carried no colour beside a type, because
+ * **The first difference is gone.** The graph carried no colour beside a type, because
  * there the hue was the community and not the type. The hue is the type on both canvases now, so
  * both callers give a colour and both rails read the same. `colour` stays nullable all the same:
  * a surface that paints no hue must be able to say so, and the initial then takes the place of
@@ -67,8 +63,8 @@ export interface RailTypeRow {
   /**
    * What being off means on this surface, in words.
    *
-   * **One icon, two names, and that is why these words survive the eye.** #91 and #94 asked for an
-   * eye in place of `on` and `off`, and the same control does two different things: the **map
+   * **One icon, two names, and that is why these words survive the eye.** The operator asked for
+   * an eye in place of `on` and `off`, and the same control does two different things: the **map
    * hides** a layer, the **graph dims** one and never removes it. A struck-out eye reads as
    * "hidden", which is true on one surface and false on the other. So the icon is hidden from a
    * reader and these words carry the state instead — the map writes `on` and `off`, the graph
@@ -89,8 +85,8 @@ export interface RailTypeRow {
    * paints no hue. A CSS custom property never reaches a map or a graph style parser, so this is
    * a colour value and no class can carry it.
    *
-   * **It is the words that the hue owes a reader who cannot see it** — #87 and the rule of
-   * `SKILL.md`: a hue is never the only mark. The name of the type stands beside the swatch, in
+   * **It is the words that the hue owes a reader who cannot see it**, because a hue is never the
+   * only mark. The name of the type stands beside the swatch, in
    * the one place that lists every type.
    */
   readonly colour: string | null;
@@ -101,14 +97,14 @@ export interface RailRows {
   /**
    * Every type that stands unfolded.
    *
-   * **It was one type, and the operator ruled that rule off** — #82 C5. Opening a second type
+   * **It was one type, and the operator ruled that rule off.** Opening a second type
    * closed the first, so an analyst could not read two lists beside each other, and nothing on
    * either surface needed that constraint.
    */
   readonly openTypes: readonly string[];
-  /** §5.2: a control that can exclude everything says so, and carries the way back. */
+  /** A control that can exclude everything says so, and carries the way back. */
   readonly everyTypeOff: boolean;
-  /** Whether the rail shows its index. The workspace holds it — ADR 0004. */
+  /** Whether the rail shows its index. The workspace holds it. */
   readonly open: boolean;
 }
 
@@ -126,7 +122,7 @@ export type RailAct =
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
   /**
    * One type was unfolded or folded. **It names the type and the state it asked for**, exactly as
-   * `switch-type` does, because more than one may stand open — #82 C5. The act that stood here
+   * `switch-type` does, because more than one may stand open. The act that stood here
    * carried `null` to mean "close whatever is open", which only made sense while one could be.
    */
   | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
@@ -141,15 +137,14 @@ export interface RailProps {
    * component on the two surfaces — see the header.
    *
    * **It is a function of the type, and no longer one node.** More than one type may stand
-   * unfolded (#82 C5), so this control asks the caller for each list it has room to draw, and it
+   * unfolded, so this control asks the caller for each list it has room to draw, and it
    * never holds a list of its own.
    */
   readonly index: (type: string) => ReactNode;
   /**
    * The ground and the width, which the two callers state differently: the map rail is a solid
-   * column beside the canvas, and the graph rail floats over it (`docs/graph-surface.md` §5.5).
-   * The Placement rule of the `component` skill allows a shared file to take `className` exactly
-   * where two callers differ, and this is that case.
+   * column beside the canvas, and the graph rail floats over it. A shared file may take
+   * `className` exactly where two callers differ, and this is that case.
    */
   readonly className?: string;
 }
@@ -239,7 +234,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
         </button>
       </div>
 
-      {/* §5.2: a control that can exclude everything carries the way back. A prototype reached an
+      {/* A control that can exclude everything carries the way back. A prototype reached an
           all-grey screen, and the filter is stored, so that screen survived a reload. The sentence
           says the state, and the button restores the stored default of the caller. */}
       {open && rows.everyTypeOff ? (
@@ -261,7 +256,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
       <div className="pointer-events-auto min-h-0 flex-1 overflow-y-auto">
         {/* The one `.map` of this file. It turns an already-derived array into elements, and the
             two states of the control are two shapes of one entry — never two designs of the layer
-            panel, which is the fault #36 names. */}
+            panel, which is the fault the tracker names. */}
         {rows.types.map((row) => (
           <div key={row.type} data-facet={row.type}>
             {open ? (
@@ -300,11 +295,12 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   </span>
                   {/* The count carries on the graph the weight that a colour carries on the map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.count}</span>
-                  {/* **The eye of #91 and #94, and the words that survive it.** The glyph is the
-                      state for the eye, and it is hidden from a reader: one icon cannot say
-                      "hidden" on the map and "dimmed" on the graph, and a struck-out eye claims
-                      the first on both. The caller wrote the words, so each surface keeps its own
-                      voice, and they reach a reader where the words used to be drawn. */}
+                  {/* **The eye the operator asked for, and the words that survive it.** The
+                      glyph is the state for the eye, and it is hidden from a reader: one
+                      icon cannot say "hidden" on the map and "dimmed" on the graph, and a
+                      struck-out eye claims the first on both. The caller wrote the words,
+                      so each surface keeps its own voice, and they reach a reader where the
+                      words used to be drawn. */}
                   <span className="sr-only">{row.stateWord}</span>
                   {row.on ? (
                     <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
@@ -341,9 +337,9 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
 
             {/* The second step: the index of the type that is unfolded.
 
-                **The field of the first build is gone** — #82 rows C6 and C9. The operator does
-                not want a search inside this rail. A search across the corpus is a capability of
-                its own, and **#90 GLOBAL-SEARCH** holds it. A type that is switched off has no
+                **The field of the first build is gone.** The operator does not want a search
+                inside this rail. A search across the corpus is a capability of its own, and the
+                tracker holds it. A type that is switched off has no
                 index: the surface draws none of it. */}
             {open && row.open && row.on ? (
               <div id={listId(row.type)} className="px-1.5 pb-1">
@@ -355,9 +351,9 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
       </div>
 
       {/* **This control pins nothing below the list any more.** It took a `footer` node, and the
-          map filled it with the relations switch, the counts and the ground. #81 rows B9 to B15
-          removed all of those, and rows A2 and B8 moved the ground onto the map itself, so the
-          slot had no caller left on either surface. */}
+          map filled it with the relations switch, the counts and the ground. The operator removed
+          all of those and moved the ground onto the map itself, so the slot had no caller left on
+          either surface. */}
     </aside>
   );
 }

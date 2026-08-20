@@ -1,23 +1,23 @@
 /**
  * Provisional shapes for the prototypes. **This is not the contract.**
  *
- * `src/contract/` is generated from the `api` schema by Kanel (ADR 0003 §8), and it does not
- * exist because no table exists. Until it does, the four feature prototypes need one shape to
+ * `src/contract/` is generated from the `api` schema, and it does not exist because no table
+ * exists. Until it does, the four feature prototypes need one shape to
  * agree on, and this file is it. It is a guess, written by hand, and it is deleted the day the
  * generated contract arrives.
  *
  * Two rules hold while it lives:
  *
- * - **Nothing here settles an open question.** `CLAUDE.md` forbids it. Every guess below names
- *   the ticket it guesses at, and a prototype that finds the guess wrong reports to that
- *   ticket. It does not correct the guess and move on.
+ * - **Nothing here settles an open question.** Every guess below says what it guesses and what
+ *   would prove it wrong, and the tracker carries the question. A prototype that finds a guess
+ *   wrong reports it. It does not correct the guess and move on.
  * - **Nothing here is imported by anything but a prototype.** A generated type replaces it.
  */
 
 /**
  * A document identifier. The database gives this a domain that refuses a NULL, a blank and an
- * empty string — decided on #14. `manual` is a real document row (M8), so the format rule
- * permits it and only a machine proposal refuses it.
+ * empty string. `manual` is a real document row (M8), so the format rule permits it and only a
+ * machine proposal refuses it.
  */
 export type DocId = string;
 
@@ -39,9 +39,9 @@ export interface DocumentRow {
   readonly id: DocId;
   readonly kind: DocumentKind;
   readonly title: string;
-  /** The original address. #31: the bucket stays private, so this is what a reader is given. */
+  /** The original address. The bucket stays private, so this is what a reader is given. */
   readonly uri: string | null;
-  /** A web archive copy of `uri`, recorded at ingest. #31. */
+  /** A web archive copy of `uri`, recorded at ingest. */
   readonly archiveUri: string | null;
   readonly sha256: string | null;
   readonly retrievedAt: string | null;
@@ -65,7 +65,7 @@ export interface Entity {
   /** S2, entity level. Invariant 2's existence tier for this column is open. */
   readonly sources: readonly DocId[];
   readonly geom: Point | null;
-  /** #15: one door in. Every evidentiary row names the proposal that made it. */
+  /** One door in. Every evidentiary row names the proposal that made it. */
   readonly promotedFrom: string;
 }
 
@@ -97,9 +97,9 @@ export type ProposalOp =
   | 'merge_entities';
 
 /**
- * **A guess at #7, which is open.** The payload shape per operation is undecided, and this
- * union exists so that a prototype can draw a review card. A prototype that finds it wrong
- * reports to #7.
+ * **A guess, and the question is open.** The payload shape per operation is undecided, and this
+ * union exists so that a prototype can draw a review card. The tracker carries the question, and
+ * a prototype that finds this shape wrong reports it.
  */
 export type ProposalPayload =
   | {
@@ -120,7 +120,7 @@ export type ProposalPayload =
 
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected' | 'superseded';
 
-/** #15: a trigger stamps this from `session_user`. The caller cannot state it. */
+/** A trigger stamps this from `session_user`. The caller cannot state it. */
 export type AuthorRole = 'gabriel_agent' | 'gabriel_app';
 
 export interface Proposal {
@@ -135,14 +135,14 @@ export interface Proposal {
   readonly dissent: boolean;
   readonly authorRole: AuthorRole;
   readonly status: ProposalStatus;
-  /** #16: one row names the run, the agent and the text that was sent. */
+  /** One row names the run, the agent and the text that was sent. */
   readonly callId: string;
   readonly createdAt: string;
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
 }
 
-/** #16: configuration. Append-only, owner-written, never written by an agent. */
+/** Configuration. Append-only, owner-written, never written by an agent. */
 export interface Agent {
   readonly id: string;
   readonly name: string;
@@ -158,7 +158,7 @@ export interface AgentCall {
   readonly runId: string;
   readonly agentId: string;
   readonly ord: number;
-  /** #16: exactly what was sent. #45 asks whether a reader ever sees it. */
+  /** Exactly what was sent. Whether a reader ever sees it is open, and the tracker carries it. */
   readonly renderedPrompt: string;
   readonly createdAt: string;
 }
