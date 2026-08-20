@@ -1,25 +1,25 @@
 /**
  * The corpus, reduced to what one entity's detail surface draws.
  *
- * Built from `docs/detail-surface.md` §3.3, §3.5, §3.6, §4.3, §4.4, §4.6, §4.7, §5.1 and §5.5.
  * It is the one place that decides what "on this page" means, and every component of the
  * surface reads it.
  *
  * **It holds no state and it reads no module.** It takes the read as an argument, so the day
- * `src/contract/` exists the caller changes and this file does not. `spec.md` §4 puts the read
- * behind a view; until then the caller passes the fixture of #46.
+ * `src/contract/` exists the caller changes and this file does not. The read sits behind a view;
+ * until then the caller passes the fixture.
  *
  * Three properties decide the shapes below, and each one keeps work out of a `.tsx`:
  *
  * - **A record row is flat.** A group heading is a row, so the record holds one `.map`.
  * - **Every line carries resolved sources**, and never a bare identifier. A `.find` in a
- *   component is how a claim loses its provenance (§5.1).
+ *   component is how a claim loses its provenance.
  * - **It carries arrays and no `Map`.** It is returned from a router loader.
  *
- * **Two reads, and they are one job** — #89. `readDossier` reduces the corpus to one entity, and
+ * **Two reads, and they are one job.** `readDossier` reduces the corpus to one entity, and
  * `readRelation` reduces it to one relation. A canvas selects one of those two things, the panel
  * beside it draws whichever was selected, and both reads number a document by the register of
- * §4.4 and hand the same card to the same control. Two files would give one surface two rules for
+ * the page order and hand the same card to the same control. Two files would give one surface
+ * two rules for
  * a source and two ways to name an endpoint.
  */
 
@@ -39,22 +39,22 @@ import { readClaims, type ClaimRow } from './claims';
 /**
  * One cited document, at the position it was first met.
  *
- * §3.6: the badge on a claim is a number and not a score, because one score repeated on twenty
- * claims reads as a score for each claim. The score stays on the card in the rail, once. #12
- * owns whether a number satisfies the obligation of PU1, and this file does not answer it.
+ * The badge on a claim is a number and not a score, because one score repeated on twenty claims
+ * reads as a score for each claim. The score stays on the card in the rail, once. Whether a
+ * number satisfies the obligation of PU1 is open, and this file does not answer it.
  */
 export interface SourceRef {
   readonly id: DocId;
-  /** 1-based, and the position in the page order of §4.4. */
+  /** 1-based, and the position in the page order. */
   readonly number: number;
   /**
    * The accessible name of the mark: `Source 7 — <title>`.
    *
    * **The defect this shape exists to not repeat:** the name once ended `— B2, machine`, and
    * the mark carries that name on every claim. A document that holds up twenty claims then
-   * announced `B2, machine` twenty times to a reader, which is the per-claim score §3.6 calls
-   * false. The name says which document (M8) and no more. **The score stays on the card in the
-   * rail, once.** Do not put a rating back in this string.
+   * announced `B2, machine` twenty times to a reader, which is the per-claim score this surface
+   * calls false. The name says which document (M8) and no more. **The score stays on the card
+   * in the rail, once.** Do not put a rating back in this string.
    */
   readonly name: string;
 }
@@ -89,9 +89,9 @@ export interface SourceCardModel {
 /**
  * One line of the record.
  *
- * **It was a union of two, and the heading half is gone** — #80. The names of the groups were
- * invented in `./claims`, and no data supplies them. `kind` stays, because a second kind of row is
- * what #85 DETAIL-SEGMENTATION may add.
+ * **It was a union of two, and the heading half is gone.** The names of the groups were invented
+ * in `./claims`, and no data supplies them. `kind` stays, because a second kind of row is what a
+ * later segmentation of this page may add.
  */
 export interface RecordRow {
   readonly key: string;
@@ -106,7 +106,7 @@ export interface RelationLine {
   readonly sentence: string;
   /** M6: written at both ends, and a closed interval never reads as current. */
   readonly interval: string | null;
-  /** §3.5: the mark of an M4 relation comes from the relation, never from the list. */
+  /** The mark of an M4 relation comes from the relation, never from the list. */
   readonly undrawable: boolean;
   readonly sources: readonly SourceRef[];
 }
@@ -117,7 +117,8 @@ export interface PendingLine {
   readonly dissent: boolean;
   /** Already formatted. A `.tsx` of this surface calls no `toFixed`. */
   readonly confidence: string;
-  /** No dissent and high confidence: the gap of #42. The surface draws it and does not act. */
+  /** No dissent and high confidence: the gap the tracker holds. The surface draws it and does
+   * not act. */
   readonly undecided: boolean;
   readonly sources: readonly SourceRef[];
 }
@@ -134,10 +135,10 @@ export interface Dossier {
   readonly claimCount: number;
 }
 
-/** #42: no dissent at or above this confidence is the row that neither S3 nor P1 decides. */
+/** No dissent at or above this confidence is the row that neither S3 nor P1 decides. */
 const HIGH_CONFIDENCE = 0.9;
 
-/** A long address does not fit a two-line card (§3.3), so the card carries a short form too. */
+/** A long address does not fit a two-line card, so the card carries a short form too. */
 const URI_LENGTH = 44;
 
 const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
@@ -153,8 +154,8 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
 /**
  * An identifier of a type, in words: `berthed_at` reads as `berthed at`.
  *
- * **The rule left this file** — the operator ruled on #89 that one relation carries one name on
- * every surface. `shared/canvas-label.ts` holds it, and both canvases read the same function.
+ * **The rule left this file.** The operator ruled that one relation carries one name on every
+ * surface. `shared/canvas-label.ts` holds it, and both canvases read the same function.
  */
 const typeWords = relationTypeWords;
 
@@ -239,7 +240,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     relationById: new Map(read.relations.map((row) => [row.id, row])),
   };
 
-  // §4.4: each document is numbered in the order it is met — the entity, then the claims, then
+  // Each document is numbered in the order it is met — the entity, then the claims, then
   // the relations, then the pending proposals. This function is the register of that order, so
   // a document met twice keeps its first number and no caller can renumber it.
   const met = new Map<DocId, SourceRef>();
@@ -249,7 +250,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     const row = documentById.get(id);
     const number = met.size + 1;
     const title = row?.title ?? `Cited document ${id}, absent from the record`;
-    // §3.6: the name names the document and never its score. See `SourceRef.name`.
+    // The name names the document and never its score. See `SourceRef.name`.
     const made: SourceRef = { id, number, name: `Source ${number} — ${title}` };
     met.set(id, made);
     return made;
@@ -261,9 +262,10 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
   const claims = readClaims(entity.attrs);
   const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
 
-  // **The record is one flat list of claims.** The group headings are gone — #80 — because their
-  // names were invented in `./claims` and no data supplies them. **#46** owns any real group, and
-  // **#85 DETAIL-SEGMENTATION** owns how the four parts of this page are separated.
+  // **The record is one flat list of claims.** The group headings are gone, because their names
+  // were invented in `./claims` and no data supplies them. A real group needs an attribute that
+  // carries one, and how the four parts of this page are separated is open. The tracker carries
+  // both.
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
     key: `claim:${held.claim.key}`,
     kind: 'claim',
@@ -271,7 +273,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     sources: held.sources,
   }));
 
-  // §4.6: the relations with one endpoint on the entity, then the relations that point at
+  // The relations with one endpoint on the entity, then the relations that point at
   // **those** relations, deduplicated against the first set.
   const touches = (relation: Relation): boolean =>
     (relation.srcKind === 'entity' && relation.srcId === entityId) ||
@@ -292,13 +294,13 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       relation.type,
     )} ${endpointWords(index, relation.dstKind, relation.dstId, 1)}`,
     interval: intervalWords(relation),
-    // §3.5: the mark comes from the relation. A first version marked it from the list it was
+    // The mark comes from the relation. A first version marked it from the list it was
     // placed in, and the mark vanished on a relation that is direct and invisible at once.
     undrawable: relation.srcKind === 'relation' || relation.dstKind === 'relation',
     sources: refsOf(relation.sources),
   }));
 
-  // §4.7: a pending proposal that names this entity, as a target or inside its payload.
+  // A pending proposal that names this entity, as a target or inside its payload.
   const names = (proposal: Proposal): boolean => {
     if (proposal.targetKind === 'entity' && proposal.targetId === entityId) return true;
     switch (proposal.payload.kind) {
@@ -318,7 +320,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     .map((proposal) => {
       const undecided = !proposal.dissent && proposal.confidence >= HIGH_CONFIDENCE;
       const head = OP_WORDS[proposal.op];
-      // The humanised keys come from `readClaims`, so the guess of §3.2 stays in one file.
+      // The humanised keys come from `readClaims`, so the guess stays in one file.
       const keys =
         proposal.payload.kind === 'attrs'
           ? readClaims(proposal.payload.attrs).map((claim) => claim.label)
@@ -326,9 +328,11 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
         id: proposal.id,
-        // #42 is named in the words, and the surface takes no action on the row.
+        // The state is named in the words, and the surface takes no action on the row. **An
+        // analyst is not a reader of the tracker**, so the sentence says what the record holds
+        // and never which ticket owes an answer.
         summary: undecided
-          ? `${body}. No dissent, and the confidence is high: #42 must say what happens to this proposal.`
+          ? `${body}. No dissent, and the confidence is high: what happens to this proposal is not yet decided.`
           : body,
         dissent: proposal.dissent,
         confidence: proposal.confidence.toFixed(2),
@@ -337,7 +341,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       };
     });
 
-  // Every document that was met, in the order of §4.4. The claims a document holds up are read
+  // Every document that was met, in the order above. The claims a document holds up are read
   // from the rows above, so the card and the record can never disagree.
   const sources: readonly SourceCardModel[] = [...met.values()].map((ref) => {
     const row = documentById.get(ref.id);
@@ -387,7 +391,7 @@ export interface RelationRow {
 }
 
 /**
- * One relation, as the panel beside a canvas draws it — #89.
+ * One relation, as the panel beside a canvas draws it.
  *
  * **It is simpler than a dossier, and the operator asked for that**: the entity at each end, the
  * type, and the sources. It carries no record of claims, no list of relations and no proposal.
@@ -411,26 +415,26 @@ export interface RelationDossier {
 }
 
 /**
- * The corpus, reduced to what the detail view of one relation draws — #89.
+ * The corpus, reduced to what the detail view of one relation draws.
  *
  * **The direction is not written here.** `shared/canvas-label.ts` states a relation in three
  * lines with an arrow, both canvases draw those words over a line, and this function takes the
  * same three. A second wording for one direction is how two surfaces come to disagree about
  * which way a relation points.
  *
- * **The sources are presented as the entity view presents them** — the register of §4.4, one
+ * **The sources are presented as the entity view presents them** — the same register, one
  * `SourceRef` for each document, and the same card. **What "the sources of a relation" means is
- * #86 DETAIL-SOURCE-RULE, and it is open.**
+ * open, and the tracker carries it.**
  *
  * **The entry that gives a relation its own list is S2, and not M8.** M8 is attribute level only:
  * every attribute cites at least one document. S2 is the entry that says "the entity and the
  * relation carry a list of sources; each attribute additionally carries its own `src`", and
- * `spec.md` invariant 2 cites S2 for `relations.sources`. #86 names M8, and `CLAUDE.md` makes an
- * entry change only when a new decision names it, so a decision that names M8 alone would leave
- * this contradiction standing. **That correction is reported to #86 and it is the operator's.**
+ * invariant 2 cites S2 for `relations.sources`. The tracker names M8 instead, and an entry of the
+ * register changes only when a new decision names it, so a decision that names M8 alone would
+ * leave this contradiction standing. **That correction is reported, and it is the operator's.**
  *
  * This function answers nothing. It lists `relation.sources`, which is the column the read
- * carries, and the tension is reported on #86 and on #89.
+ * carries, and the tension is reported.
  */
 export function readRelation(read: Corpus, relationId: string): RelationDossier | null {
   const relation = read.relations.find((candidate) => candidate.id === relationId);
@@ -449,7 +453,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   // canvases at once, so no caller humanises a type before it calls.
   const [fromLine, typeLine, toLine] = relationLines(from, relation.type, to);
 
-  // §4.4 numbers a document at the position where it is first met. A relation cites its own
+  // A document is numbered at the position where it is first met. A relation cites its own
   // documents and nothing else, so this register holds one list. **A document cited twice keeps
   // one number and one card**: two entries of one document would draw one key twice in the list
   // of the panel, and would count the evidence twice.
@@ -458,7 +462,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
     if (met.has(id)) continue;
     const number = met.size + 1;
     const title = documentById.get(id)?.title ?? `Cited document ${id}, absent from the record`;
-    // §3.6: the name names the document and never its score. See `SourceRef.name`.
+    // The name names the document and never its score. See `SourceRef.name`.
     met.set(id, { id, number, name: `Source ${number} — ${title}` });
   }
   const sources = [...met.values()];
@@ -478,7 +482,8 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
       retrievedAt: row?.retrievedAt ?? null,
       // **This view draws no claim, so no document holds one up here.** The card says that in
       // its own words. It invents no claim from the attributes of the relation: the operator
-      // asked for the two ends, the type and the sources, and #89 carries what is left out.
+      // asked for the two ends, the type and the sources, and the tracker carries what is left
+      // out.
       holdsUp: [],
       missing: row === undefined,
     };

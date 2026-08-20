@@ -1,8 +1,7 @@
 /**
  * The sources of the page, on the right.
  *
- * Built from `docs/detail-surface.md` §4.4, and from the findings §3.3 and §3.6. §5.2 gives each
- * pane its own scroll, and lets a badge in the record move this pane and nothing else.
+ * Each pane has its own scroll, and a badge in the record moves this pane and nothing else.
  *
  * The order is the order `./dossier` numbered: the entity, then the claims, then the relations,
  * then the pending proposals. This file re-orders nothing and de-duplicates nothing, because a
@@ -28,10 +27,10 @@ export function Rail({ sources, activeSource }: RailProps) {
 
   // **This `useEffect` is a known conflict with the component skill**, which puts a `useEffect`
   // in an adapter or a subscription and asks for a count of zero everywhere else. It is here
-  // because §4.4 makes the rail move on its own, and a scroll position is a property of the DOM
+  // because the rail moves on its own, and a scroll position is a property of the DOM
   // that no render can state. It is reported under ASK and it is not hidden.
   //
-  // `block: 'nearest'` is what stops an ancestor from moving: §5.2 says a badge scrolls the
+  // `block: 'nearest'` is what stops an ancestor from moving: a badge scrolls the
   // rail **alone**, and the record does not move.
   //
   // The mount run of this effect is the arrival case. `activeSource` is already set when the

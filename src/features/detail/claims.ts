@@ -1,14 +1,13 @@
 /**
  * An attribute set that declares nothing, read as rows a surface can draw.
  *
- * Built from `docs/detail-surface.md` §3.2, §4.1 and §4.2.
- *
- * **This whole file is the guess of §3.2, and it is the only place that holds it.** The model
+ * **This whole file is a guess, and it is the only place that holds it.** The model
  * carries no type, no unit, no group and no order for an attribute, so this file takes the
  * control from the shape of the value, the group from the name of the key, and the order from
  * the alphabet. Each rule is named as a guess where it stands.
  *
- * **It reports to #46 and it dies with #46.** The day an attribute arrives with its type, its
+ * **It reports to the tracker and it dies there.** The day an attribute arrives with its type,
+ * its
  * unit and its group, every rule below is deleted and nothing else changes: the file is one
  * function over one argument, and it imports no read module.
  *
@@ -18,13 +17,13 @@
 
 import type { AttributeValue, Attributes, DocId } from '@/shared/fixtures/types';
 
-/** The control the value asks for. §4.2: a list is joined into the one box. */
+/** The control the value asks for. A list is joined into the one box. */
 export type ClaimControl = 'boolean' | 'number' | 'date' | 'text' | 'note' | 'list';
 
 /**
  * The width of the cell, as a name and never as a class.
  *
- * §4.1 gives four widths: 17 rem, 20 rem, 26 rem and the whole line. A derivation holds no
+ * Four widths: 17 rem, 20 rem, 26 rem and the whole line. A derivation holds no
  * class string, so the presentation maps these four names to the four widths.
  */
 export type ClaimWidth = 'short' | 'date' | 'medium' | 'line';
@@ -41,27 +40,27 @@ export type ClaimValue =
 export interface ClaimRow {
   /** The attribute key. It is the domain identifier of the row, and the key of the list. */
   readonly key: string;
-  /** The key, humanised. §3.2: the model carries no label either. */
+  /** The key, humanised. The model carries no label either. */
   readonly label: string;
   readonly value: ClaimValue;
   readonly width: ClaimWidth;
-  /** M8: every claim carries the documents it comes from. No control hides them (§5.1). */
+  /** M8: every claim carries the documents it comes from. No control hides them. */
   readonly sources: readonly DocId[];
 }
 
-/** A text of exactly this shape is read as a date. A guess at #46. */
+/** A text of exactly this shape is read as a date. A guess, and the tracker carries it. */
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Longer than this, or with a line break, and the text is read as a note. A guess at #46. */
+/** Longer than this, or with a line break, and the text is read as a note. A guess. */
 const NOTE_LENGTH = 48;
 
-/** §4.1: a yes-or-no, or a text up to this length, takes the 17 rem cell. */
+/** A yes-or-no, or a text up to this length, takes the 17 rem cell. */
 const SHORT_LENGTH = 12;
 
-/** §4.1: a text up to this length takes the 26 rem cell. Longer takes the whole line. */
+/** A text up to this length takes the 26 rem cell. Longer takes the whole line. */
 const MEDIUM_LENGTH = 34;
 
-/** The control, from the shape of the value. The first guess of §3.2. */
+/** The control, from the shape of the value. The first guess. */
 function shapeOf(value: AttributeValue): ClaimValue {
   if (typeof value === 'boolean') {
     return { control: 'boolean', checked: value, text: value ? 'yes' : 'no' };
@@ -74,11 +73,11 @@ function shapeOf(value: AttributeValue): ClaimValue {
     if (value.length > NOTE_LENGTH || value.includes('\n')) return { control: 'note', text: value };
     return { control: 'text', text: value };
   }
-  // M7 leaves a flat list of scalars, and nothing else. §4.2 joins it into the one box.
+  // M7 leaves a flat list of scalars, and nothing else. It is joined into the one box.
   return { control: 'list', text: value.join(', '), count: value.length };
 }
 
-/** §4.1, the four widths. The value decides, and the pane does not. */
+/** The four widths. The value decides, and the pane does not. */
 function widthOf(value: ClaimValue): ClaimWidth {
   if (value.control === 'boolean') return 'short';
   if (value.control === 'date') return 'date';
@@ -112,14 +111,15 @@ function labelOf(key: string): string {
  * The claims of one entity, in one flat list.
  *
  * **The order is the alphabet of the key, and nothing else.** Two lists put a claim in a group and
- * ordered those groups, and both are gone — #80 removed the headings they drew, because their
- * names were invented in this file and no data supplies them. **#46 owns any real group and any
+ * ordered those groups, and both are gone. The headings they drew were removed, because their
+ * names were invented in this file and no data supplies them. **The tracker owns any real group
+ * and any
  * real order**, and this file now guesses at neither.
  */
 export function readClaims(attrs: Attributes): readonly ClaimRow[] {
   return (
     Object.entries(attrs)
-      // The third guess of §3.2: no order arrives, so the alphabet is the order.
+      // The third guess: no order arrives, so the alphabet is the order.
       .sort(([a], [b]) => byCodePoint(a, b))
       .map(([key, attribute]) => {
         const value = shapeOf(attribute.v);

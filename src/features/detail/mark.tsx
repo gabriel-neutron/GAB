@@ -1,30 +1,29 @@
 /**
  * The mark that carries the provenance of one claim, one relation or one proposal.
  *
- * Built from `docs/detail-surface.md` §5.1, §3.6, §4.4 and §4.5.
- *
- * **Two exports, and they are one job.** §5.1 gives every claim a mark to its source on **both**
- * surfaces, and §4.4 and §4.5 then give each surface a different control for it. `SourceMark` is
+ * **Two exports, and they are one job.** Every claim carries a mark to its source on **both**
+ * surfaces, and each surface gives that mark a different control. `SourceMark` is
  * the page control and `SourceCount` is the sidebar control. They share the empty-source case,
  * the shape of the control and the obligation that produced both, so they stay in one file.
  *
- * **Neither has an entry of its own in §4, and that is stated under ASK.** The obligation is
- * specified across §5.1 — a claim never appears without a mark to its source, and no control
- * hides the mark — §3.6, which makes the page badge a number alone and never the score, and §4.4
- * and §4.5, which say what a mark does on each surface. The operator specified the sidebar
- * control on 13 August 2026, on #68. The operator owns whether §4 gains an entry for either.
+ * **The obligation is spread over several rules, and no one of them owns this control.** A
+ * claim never appears without a mark to its source and no control hides the mark; the page badge
+ * is a number alone and never the score; and a mark does a different thing on each surface. The
+ * operator specified the sidebar control on 13 August 2026.
  *
  * **Why the two controls differ.** A number is a pointer to a card. The page carries the rail, so
- * the reader can follow the pointer. The sidebar carries no rail (§4.5), so a number there points
+ * the reader can follow the pointer. The sidebar carries no rail, so a number there points
  * at nothing that is on the screen. The sidebar therefore states **how many** documents hold the
  * line up, and opens all of them in one popover.
  *
- * **§5.1 is met by the count.** The count is the mark: it is on the screen, no control hides it,
+ * **The obligation is met by the count.** The count is the mark: it is on the screen, no
+ * control hides it,
  * and it says exactly how much evidence stands behind the line. What opens on demand is the
  * *document*, never the fact that one exists.
  *
- * §3.6 is a real tension and this file does not resolve it: PU1 asks for the origin **and** the
- * score of every candidate claim to be visible, and a number is a pointer to both. **#12 owns
+ * This is a real tension and this file does not resolve it: PU1 asks for the origin **and** the
+ * score of every candidate claim to be visible, and a number is a pointer to both. **The tracker
+ * owns
  * it.** The score reaches a reader through the accessible name, and never as printed text on a
  * claim, because one score repeated on twenty claims is the presentation S1 calls false.
  */
@@ -45,7 +44,7 @@ export interface SourceMarkProps {
 export interface SourceCountProps {
   readonly sources: readonly SourceRef[];
   /**
-   * Every card of the dossier, in the order §4.4 numbered them. `SourceRef.number` is the 1-based
+   * Every card of the dossier, in the order they were numbered. `SourceRef.number` is the 1-based
    * position in this array, so a mark reaches its card by index and no `.find` runs inside a
    * component.
    */
@@ -53,7 +52,7 @@ export interface SourceCountProps {
   /**
    * The entity whose full page the way out opens, or `null` where there is no page to open.
    *
-   * **`null` is the relation view of #89**, which draws the sources of a relation and has no full
+   * **`null` is the relation view**, which draws the sources of a relation and has no full
    * page of its own. The popover then carries the card and no way out. **It must not point at an
    * entity at one end of the relation**: that page carries the sources of *that entity*, so the
    * link would open a rail where the card of this document need not exist, and a reader would
@@ -82,7 +81,7 @@ const MARK =
   'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-input px-1 font-mono text-[11px]/4 text-label transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /**
- * §5.1 and invariant 1: a claim never appears without a mark to its source, and M8 gives every
+ * Invariant 1: a claim never appears without a mark to its source, and M8 gives every
  * attribute at least one source.
  *
  * **The defect this exists to not repeat:** an empty list rendered an empty element, so a claim
@@ -97,10 +96,10 @@ function NoSource() {
 }
 
 /**
- * §4.5: the popover carries one way out — the full page, in a new tab, opened at that source.
+ * The popover carries one way out — the full page, in a new tab, opened at that source.
  *
- * **No `?surface=` reaches this address.** §6 calls that parameter scaffolding of the prototype
- * and the rebuild leaves it behind. `?src=` is not scaffolding: §6 keeps it, because it is how
+ * **No `?surface=` reaches this address.** That parameter was scaffolding of the prototype and
+ * the rebuild leaves it behind. `?src=` is not scaffolding, because it is how
  * the sidebar hands a document to a new tab.
  */
 const WAY_OUT = 'Open the full page at this source, in a new tab';
@@ -109,7 +108,7 @@ const WAY_OUT = 'Open the full page at this source, in a new tab';
 const ROW = 'inline-flex shrink-0 items-center gap-1';
 
 /**
- * The page control — §4.4 and §3.6. One numbered badge for each document, and a click moves the
+ * The page control. One numbered badge for each document, and a click moves the
  * rail to that card.
  */
 export function SourceMark({ sources, activeSource, onSelectSource }: SourceMarkProps) {
@@ -121,7 +120,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
         <button
           key={source.id}
           type="button"
-          // §3.6: the visible text is the number alone. The title and the score of the document
+          // The visible text is the number alone. The title and the score of the document
           // reach a reader through the accessible name.
           aria-label={source.name}
           aria-pressed={activeSource === source.id}
@@ -141,7 +140,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
 }
 
 /**
- * The sidebar control — §4.5 and #68. One control for the whole line: it states how many
+ * The sidebar control. One control for the whole line: it states how many
  * documents hold that line up, and it opens every one of them in one popover.
  *
  * **The defect this exists to not repeat:** the sidebar drew one numbered badge for each
@@ -193,26 +192,26 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
                 </p>
               ) : (
                 // **The same card the rail draws**, so the two surfaces can never disagree about
-                // a document. §4.3 owns its shape and this file states none of it.
+                // a document. Another file owns its shape, and this one states none of it.
                 <SourceCard source={card} />
               )}
-              {/* **No entity, no way out** — #89. A relation has no full page, and a link to
+              {/* **No entity, no way out.** A relation has no full page, and a link to
                   the page of an endpoint would open a rail that need not hold this card. The
                   popover then states the document and stops there. */}
               {entityId === null ? null : (
                 <a
-                  // **Both values are percent-encoded.** `spec.md` §3 settles no identifier
+                  // **Both values are percent-encoded.** No identifier shape is settled
                   // schema, so this surface assumes nothing about the characters an identifier
                   // carries. An unencoded `&`, `#`, `?` or space cuts the address short or adds a
                   // parameter, and it does both in silence. **Keep the encoding.**
                   href={`/entity/${encodeURIComponent(entityId)}?src=${encodeURIComponent(source.id)}`}
                   target="_blank"
                   rel="noreferrer noopener"
-                  // §5.4: a link takes the accent, because a reader must see what is reachable.
+                  // A link takes the accent, because a reader must see what is reachable.
                   //
-                  // §4.5 gives the popover one way out **per document**: "opened at that source"
+                  // The popover carries one way out **per document**: "opened at that source"
                   // names one source, so each card carries its own. With one document the popover
-                  // reads exactly as it did before #68.
+                  // reads exactly as it did before the sidebar control existed.
                   className="block truncate px-2 py-1.5 text-[11px]/4 text-primary underline underline-offset-2"
                 >
                   {WAY_OUT}
