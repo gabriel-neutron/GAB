@@ -29,6 +29,10 @@
     "allowUnusedLabels": false,
     "noUncheckedSideEffectImports": true,
 
+    // Node runs `tools/*.ts` directly and strips the types, so an import needs the real
+    // extension. Nothing emits here, so the flag costs nothing.
+    "allowImportingTsExtensions": true,
+
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
@@ -38,5 +42,5 @@
   // `vitest.config.ts` is a root configuration file like the other two, and Vitest reads it the
   // same way Vite reads its own. `.storybook/` is **not** here; it needs the DOM library and it
   // has `tsconfig.storybook.json`.
-  "include": ["vite.config.ts", "eslint.config.ts", "vitest.config.ts"]
+  "include": ["vite.config.ts", "eslint.config.ts", "vitest.config.ts", "tools/*.ts"]
 }

@@ -12,10 +12,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsr generate && tsc -b",
-    "lint": "eslint . --config eslint.config.ts --no-config-lookup --max-warnings=0",
+    "lint": "eslint . --config eslint.config.ts --no-config-lookup --max-warnings=0 --cache --cache-location node_modules/.cache/eslint",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check . --cache",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check",
+    "census": "node tools/comment-report.ts",
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
