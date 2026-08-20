@@ -19,10 +19,10 @@ function RootLayout() {
     <ThemeProvider>
       {/* `HeadContent` writes the `head` of each matched route into the document. Without it
           the `title` below is computed and never applied, so a screen reader reports the same
-          name on every route. See #39. */}
+          name on every route. */}
       <HeadContent />
-      {/* **The shell owns the height of a page, and it is the only place that states one** —
-          #92. The three routes each subtracted `calc(100svh - 6rem)` by hand, tracking a padding
+      {/* **The shell owns the height of a page, and it is the only place that states one.**
+          The three routes each subtracted `calc(100svh - 6rem)` by hand, tracking a padding
           and a control height that no file declared. The number was right by coincidence and
           wrong the day either one changed, and each route reported it under ASK.
 
@@ -32,7 +32,8 @@ function RootLayout() {
       <div className="flex h-svh flex-col">
         {/* The header of the application. **Its height is stated here and nowhere else.** The
             theme control lives in it, and never above `<main>` in normal flow, where it pushed
-            every page down by an amount no page could read. #71 owns the control itself. */}
+            every page down by an amount no page could read. The control itself is not this
+            file's, and the tracker owns it. */}
         <header className="flex h-10 shrink-0 items-center justify-end px-2">
           <ThemeControl />
         </header>
@@ -40,7 +41,7 @@ function RootLayout() {
             route declares for itself is a landmark that one route forgets.
 
             **It carries no padding.** A page fills it edge to edge, which is what a canvas
-            needs. A page that is not a canvas supplies its own inner padding — #92. */}
+            needs. A page that is not a canvas supplies its own inner padding. */}
         <main className="min-h-0 flex-1">
           <Outlet />
         </main>

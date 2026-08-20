@@ -2,19 +2,19 @@
  * Gabriel — the visual language
  * ==========================================================================================
  *
- * The operator chose this theme from a layout prototype on 10 August 2026 (#39). That prototype
- * is deleted; the palette below is what it produced.
+ * The operator chose this theme from a layout prototype on 10 August 2026. That prototype is
+ * deleted; the palette below is what it produced.
  *
  * **The theme lived in `src/theme.css` and nothing imported it.** A colour utility is built from
  * a `--color-*` name in an `@theme` block, so `text-label`, `text-candidate` and `text-dissent`
  * emitted no rule at all, in silence, and every element kept the colour it inherited. `--radius`
- * stayed at `0.625rem`, so every part of the kit was round. `docs/detail-surface.md` §5.4
- * recorded the theme as adopted, and the repository disagreed with it.
+ * stayed at `0.625rem`, so every part of the kit was round. The theme was recorded as adopted,
+ * and the repository disagreed with it.
  *
  * The two files are merged here on the instruction of the operator, and `src/theme.css` is
- * deleted. One stylesheet, and no second palette that can win by source order. §5.4 records why
- * an `@import` is the wrong tool for this: an `@import` is only valid before another rule, so an
- * imported palette lands first and the block below it wins.
+ * deleted. One stylesheet, and no second palette that can win by source order. An `@import` is
+ * the wrong tool for this: it is only valid before another rule, so an imported palette lands
+ * first and the block below it wins.
  *
  * The shape follows shadcn: `:root` holds the light theme, `.dark` holds the dark theme, and
  * every token uses a shadcn name where one exists.
@@ -76,8 +76,8 @@
  *   dissent               6.7        6.7
  *   entity-1 … entity-6   4.6–5.0    7.9–8.9
  *
- * `docs/detail-surface.md` §3.4 is what the ladder is for: a disabled shadcn input drew the
- * value at about 3.3:1, below the 4.5:1 this file requires. A read-only surface says "not
+ * This is what the ladder is for: a disabled shadcn input drew the value at about 3.3:1, below
+ * the 4.5:1 this file requires. A read-only surface says "not
  * editable" with a flat fill, and keeps the data at full contrast.
  *
  * Two warnings, both learned the hard way:
@@ -165,7 +165,7 @@
 :root {
   /* `color-scheme` decides the paint of every native control: the scrollbar, the caret, the
      focus ring, a date picker. Without it the browser draws a light scrollbar on a dark page.
-     It is one line, and it is the cheapest correction in the whole theme. See #39. */
+     It is one line, and it is the cheapest correction in the whole theme. */
   color-scheme: light;
 
   /* One hue, 230, at a very low chroma. The page is never pure white (rule 10). */

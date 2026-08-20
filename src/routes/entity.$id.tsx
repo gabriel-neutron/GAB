@@ -5,9 +5,9 @@ import { corpus } from '@/shared/fixtures/corpus';
 import type { DocId } from '@/shared/fixtures/types';
 
 /**
- * The route of the full entity page — `docs/detail-surface.md` §8 step 5.
+ * The route of the full entity page.
  *
- * `$id` is an opaque string. No schema is settled (`spec.md` §3), so this file decides nothing
+ * `$id` is an opaque string. No schema is settled, so this file decides nothing
  * about the form of an identifier — no length, no character set, no prefix.
  *
  * The one case it does answer is a segment that is blank once trimmed. A blank string names no
@@ -15,19 +15,18 @@ import type { DocId } from '@/shared/fixtures/types';
  * read, and an answer of `null` raises the same not-found.
  *
  * The words of `EntityNotFound` are not the words of an unknown path. An unknown identifier is
- * usually a stale link to a withdrawn document (#28), and a fuzzy match would hide that.
+ * usually a stale link to a withdrawn document, and a fuzzy match would hide that.
  *
  * **The fixture is imported here, in the route.** A derivation takes the read as an argument
  * and imports no read module, so on the day `src/contract/` replaces `src/shared/fixtures/`
- * (ADR 0003 §8) only this one line changes.
+ * only this one line changes.
  */
 
 /**
  * The address of this route, validated at the edge.
  *
- * §4.4 and §6: `?src=` opens the page at one card of the rail, and it is **not** scaffolding.
- * `?surface=` was scaffolding of the prototype, §6 leaves it behind, and this route reads it
- * nowhere.
+ * `?src=` opens the page at one card of the rail, and it is **not** scaffolding. `?surface=` was
+ * scaffolding of the prototype, it was left behind, and this route reads it nowhere.
  */
 export interface EntitySearch {
   /** The document the reader arrived at. `null` is the normal arrival. */
@@ -59,7 +58,7 @@ export const Route = createFileRoute('/entity/$id')({
 
   loader: ({ params }) => {
     if (params.id.trim() === '') entityNotFound();
-    // #26: this is the read. `readDossier` takes the corpus as an argument, so the day the read
+    // This is the read. `readDossier` takes the corpus as an argument, so the day the read
     // layer exists the argument changes and the derivation does not.
     return readDossier(corpus, params.id) ?? entityNotFound();
   },
@@ -78,7 +77,7 @@ function EntityRoute() {
   const { src } = Route.useSearch();
   const dossier = Route.useLoaderData();
 
-  // **The defect this key exists to not repeat.** §5.3 makes every control read-only, so each
+  // **The defect this key exists to not repeat.** Every control is read-only, so each
   // one draws its value with `defaultValue`, and React reads that once. A move from one entity
   // to another keeps the same route and the same mounted page, so React reconciled the record
   // and a field kept the previous entity's value under the correct label.

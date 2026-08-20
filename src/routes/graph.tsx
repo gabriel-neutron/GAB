@@ -9,23 +9,23 @@ import { corpus } from '@/shared/fixtures/corpus';
 import { cn } from '@/shared/lib/utils';
 
 /**
- * The graph, and the detail surface beside it — `docs/graph-surface.md` §4.7 and §8 step 4.
+ * The graph, and the detail surface beside it.
  *
- * **This route composes, and it changes neither feature.** ADR 0001 §1 and ADR 0004 §5 make a
- * feature import `shared/` only, so `src/features/graph/` never imports `src/features/detail/`.
+ * **This route composes, and it changes neither feature.** A feature imports `shared/` only, so
+ * `src/features/graph/` never imports `src/features/detail/`.
  * `src/routes/` is the one folder that puts two features side by side. It holds no domain logic:
  * `features/graph` publishes the selection, and `features/detail` reads the dossier.
  *
- * **The address is read one time, at the mount** — the skill, and §7. A two-way binding between
+ * **The address is read one time, at the mount.** A two-way binding between
  * the router and this view is a loop: a write through the router re-renders the route, which
  * destroys the canvas and starts the layout again. `./features/graph/controller.ts` writes the
- * address with `history.replaceState` for that reason, and **that is a report to #33**.
+ * address with `history.replaceState` for that reason, and **the tracker carries that report**.
  *
- * **The selection arrives on an event** — §4.6. A property from this route would be a new function
+ * **The selection arrives on an event.** A property from this route would be a new function
  * on every render, and that defeats the memoisation which keeps the canvas from a re-render.
  *
- * **The aside is always drawn, at one width, so the canvas never changes size** — §4.7. It holds
- * the entity panel of `features/detail`, the relation panel of #89, or one sentence where the
+ * **The aside is always drawn, at one width, so the canvas never changes size.** It holds the
+ * entity panel of `features/detail`, the panel of a relation, or one sentence where the
  * read carries no record for what the canvas drew.
  */
 
@@ -39,7 +39,7 @@ export interface GraphSearch {
   /** The entity that is examined. An empty string is the normal state of the graph. */
   readonly entity: string;
   /**
-   * The relation that is examined. **The detail surface draws it since #89**, and
+   * The relation that is examined. **The detail surface draws it**, and
    * `features/graph/controller.ts` is the one writer of this key.
    */
   readonly relation: string;
@@ -49,16 +49,16 @@ export interface GraphSearch {
  * The sentence the aside states where the read carries no record for what is selected, **and only
  * where something is selected**.
  *
- * **Nothing selected draws no panel at all** — #82 row D1, Never asked for it. The operator
+ * **Nothing selected draws no panel at all**, and it was never asked for. The operator
  * removed the sentence that invited a selection, and the aside with it, so the canvas takes the
  * whole width until something is chosen. The map already worked this way.
  *
- * **The relation is no longer one of these cases** — #89, which replaces the provisional sentence
- * of #82 row D2. A selected relation now reaches `RelationSidebar`. What is left here is one
+ * **The relation is no longer one of these cases.** It replaces a provisional sentence, and a
+ * selected relation now reaches `RelationSidebar`. What is left here is one
  * report for each kind: the canvas drew the thing, and the detail read does not carry it.
  *
- * **The words say what the record holds, and never how this application is cut into surfaces**
- * — #82 D2. An analyst is not a reader of the source tree.
+ * **The words say what the record holds, and never how this application is cut into surfaces.**
+ * An analyst is not a reader of the source tree.
  */
 const reportOf = (selection: GraphSelection): string => {
   if (selection.kind === 'relation') {
@@ -68,7 +68,7 @@ const reportOf = (selection: GraphSelection): string => {
 };
 
 export const Route = createFileRoute('/graph')({
-  // ADR 0004 §7 puts the identity of what is examined in the address. The value comes from
+  // The identity of what is examined lives in the address. The value comes from
   // outside, so it is validated before its first use, and it falls back instead of throwing: a
   // malformed parameter must never take the graph off the screen.
   validateSearch: (search: Record<string, unknown>): GraphSearch => {
@@ -95,12 +95,12 @@ function GraphRoute() {
    * **Three surfaces and two answers**, and no reader could tell which was true.
    *
    * The canvas is the authority on what it drew, so it is the only reader of the address here.
-   * `validateSearch` above still states the contract of the address, because ADR 0004 §7 puts the
-   * identity of what is examined there and the controller reads it. **Do not seed this state from
+   * `validateSearch` above still states the contract of the address, because the identity of what
+   * is examined lives there and the controller reads it. **Do not seed this state from
    * `Route.useSearch()` again.**
    */
   const [selection, setSelection] = useState<GraphSelection | null>(null);
-  // **This value sits in an ancestor of the live canvas, and the operator permitted that** — #89,
+  // **This value sits in an ancestor of the live canvas, and the operator permitted that** on
   // 19 August 2026. It is not the instance, the camera, the style or the selection of the library,
   // and `canvas` below is memoised on an empty list, so no render of this route can reach the
   // element. `src/features/map/map-page.tsx` carries the rule in full.
@@ -130,8 +130,8 @@ function GraphRoute() {
   );
 
   /**
-   * The relation the analyst chose, or `null` — #89. **A click on a line has selected a relation
-   * on this canvas since #82 row A12, and the aside drew one provisional sentence for it.**
+   * The relation the analyst chose, or `null`. **A click on a line has selected a relation on
+   * this canvas for a long time, and the aside drew one provisional sentence for it.**
    *
    * The read is memoised on the selection for the reason the dossier above is: every other render
    * of this route would otherwise walk the whole corpus again.
@@ -143,14 +143,14 @@ function GraphRoute() {
   );
 
   /**
-   * **`CANVAS.md` and ADR 0004 §3: no React render inside the tree that wraps the live element.**
+   * **No React render inside the tree that wraps the live element.**
    * A change of the selection re-renders this route, and without this memo it would build the
    * element that owns the canvas again. The list is empty because the page takes nothing from this
-   * route — §4.6 puts the selection on an event for that reason. **Do not remove it.**
+   * route, and the selection is on an event for that reason. **Do not remove it.**
    */
   const canvas = useMemo(() => <GraphPage />, []);
 
-  // **The route states the geometry** (§4.7: the route composes). The aside keeps one width for
+  // **The route states the geometry**, because the route composes. The aside keeps one width for
   // every case, so the canvas never changes size and Sigma is never resized by a selection.
   //
   // **The defect this row exists to not repeat:** the row stated no height, and no ancestor stated
@@ -158,18 +158,18 @@ function GraphRoute() {
   // the sidebar produced no scroll at all and the **window** scrolled both panes together.
   // **Do not remove the height.**
   //
-  // **`h-full` and not a calculation** — #92. `src/routes/__root.tsx` states the height of the
+  // **`h-full` and not a calculation.** `src/routes/__root.tsx` states the height of the
   // header and gives `<main>` everything that is left, so this row asks its parent for that
   // height instead of subtracting a number nobody declared.
   return (
     <div className={cn('flex h-full overflow-hidden')}>
       <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
-      {/* **No selection draws no panel** — #82 D1. The canvas then takes the whole row, and
+      {/* **No selection draws no panel.** The canvas then takes the whole row, and
           `adapter` and `controller` each observe their own element, so the resize is answered. */}
       {dossier !== null ? (
         <Sidebar dossier={dossier} />
       ) : relation !== null ? (
-        /* **The relation reaches a detail view of its own** — #89 and #82 row A12. It is the same
+        /* **The relation reaches a detail view of its own.** It is the same
            pane, at the same width, so the canvas never changes size on a selection. */
         <RelationSidebar relation={relation} />
       ) : selection === null ? null : (
