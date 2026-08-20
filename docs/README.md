@@ -43,5 +43,5 @@ An ADR records one build decision and its cost. This register is the only list o
 
 The section numbers of an ADR are cited from one document to another — `authoring.md` cites them,
 and the ADRs cite each other — so they are stable. **Keep them stable** when an ADR is edited:
-compress a section, and never renumber one. No source file cites one, because ADR 0006 removed
-that. The documents are the whole ground now.
+compress a section, and never renumber one. No file under `src/` cites one, because ADR 0006
+removed that. The configuration files at the root still do, and the tracker carries them.

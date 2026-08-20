@@ -34,9 +34,9 @@
  * two can never state different things.
  *
  * **This file is the only writer of `hiddenTypes` and of `linksHidden` in the workspace.** The
- * document names four writers, and the built record carries a fifth field, `linksHidden`. The
- * document and the code differ there, the operator owns that difference, and this file answers it
- * with no second writer. It takes a snapshot of that field at the mount and it writes the whole
+ * specification names four writers, and the built record carries a fifth field, `linksHidden`.
+ * **The specification and the code differ there**, the operator owns that difference, and this
+ * file answers it with no second writer. It takes a snapshot of that field at the mount and it writes the whole
  * field at each switch. A second writer of the same field is a fault, and this file does no merge.
  * A stored type that the corpus no longer contains stays in the list, and it goes back to storage.
  * The corpus can gain that type again, and the choice of the analyst must stay valid.

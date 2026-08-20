@@ -135,8 +135,8 @@ export function standInPositions(corpus: Corpus): ReadonlyMap<string, NodePositi
   const structure = analyseStructure(topology);
 
   // **The ring carries the communities that hold the structure, and never a lone isolate.** An
-  // isolate has no relation, so the analysis gives it a community of its own. On the ring it would
-  // one whole angular slot and sit as far out as a cluster of five hundred.
+  // isolate has no relation, so the analysis gives it a community of its own. On the ring it
+  // would take one whole angular slot and sit as far out as a cluster of five hundred.
   const isolates = new Set(structure.isolates);
   const members = new Map<number, number>();
   topology.forEachNode((node) => {

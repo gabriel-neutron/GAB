@@ -44,8 +44,8 @@ decision replaces an entry **by name**, and the name survives the replacement. T
 speaks this way, because "an M4 relation" is a kind of relation and not a citation.
 
 **One condition. The identifier never travels alone.** Write the rule, then name it. `M8: every
-attribute carries at least one source` is a domain word. `See M8` is a reference, and it is
-refused.
+attribute carries at least one source` is a domain word. `See M8` is a reference. **No rule
+refuses it, and the reviewer does** — §6 measures that an identifier alone passes the lint.
 
 A commit hash and a tag stay for the same reason. A commit is frozen with the code it describes,
 so it cannot drift.

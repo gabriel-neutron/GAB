@@ -6,10 +6,11 @@
  * the page control and `SourceCount` is the sidebar control. They share the empty-source case,
  * the shape of the control and the obligation that produced both, so they stay in one file.
  *
- * **The obligation is spread over several rules, and no one of them owns this control.** A
- * claim never appears without a mark to its source and no control hides the mark; the page badge
- * is a number alone and never the score; and a mark does a different thing on each surface. The
- * operator specified the sidebar control on 13 August 2026.
+ * **The obligation is spread over several rules, and no one of them owns this control. That is
+ * stated under ASK.** A claim never appears without a mark to its source and no control hides the
+ * mark; the page badge is a number alone and never the score; and a mark does a different thing
+ * on each surface. The operator specified the sidebar control on 13 August 2026, and the operator
+ * owns whether either control gains a rule of its own.
  *
  * **Why the two controls differ.** A number is a pointer to a card. The page carries the rail, so
  * the reader can follow the pointer. The sidebar carries no rail, so a number there points

@@ -24,9 +24,14 @@ const CANVAS_PAGES = ['map', 'graph'] as const;
  * 2026. Two days later, 67 paths under `src/` still named them and 578 section marks still pointed
  * into their sections. No check failed and nothing warned.
  *
- * **A ticket needs a word boundary after one to three digits**, so `#89` is refused and the
- * hexadecimal colours `#2971c6` and `#000000` are not: no boundary follows three digits inside a
- * six-digit hex. The pattern stops working above `#999`, and it must change on that day.
+ * **A colour is not a ticket, and the shape excludes the two hexadecimal lengths this repository
+ * writes.** `#2971c6`, `#000000`, `#999` and `#abc` pass; `#89` and `#1234` are refused. Counting
+ * digits was the first attempt and it was wrong twice: it refused the grey `#999`, and it went
+ * blind above `#999`. **A colour never fails the build**, which is the safe direction of the one
+ * ambiguity left: `#123456` could be either, and it is read as a colour.
+ *
+ * **A link is an address too.** A ticket written as `https://github.com/.../issues/89` defeated
+ * the first shape completely, and it is the form a paste produces.
  *
  * **An entry of the locked register stays.** `M8` and `T5` carry no address, and a new decision
  * replaces an entry by name, so the name outlives even its replacement. They are domain words.
@@ -35,10 +40,16 @@ const CANVAS_PAGES = ['map', 'graph'] as const;
  * refused by nobody.
  */
 const SHAPES = [
-  { pattern: /#\d{1,3}\b/g, kind: 'a ticket number' },
+  {
+    pattern: /(?<!#)#(?:\s+\d+|(?!(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![\w-]))\d+)\b/g,
+    kind: 'a ticket number',
+  },
+  { pattern: /\b(?:issues?|pulls?|PR|ticket)[\s/#:-]*\d+\b/gi, kind: 'a ticket number' },
+  { pattern: /https?:\/\/\S+/g, kind: 'a link' },
   { pattern: /\u00a7/g, kind: 'a section mark' },
-  { pattern: /\bADR ?\d{4}\b/g, kind: 'an ADR citation' },
-  { pattern: /[\w./-]+\.md\b/g, kind: 'a path to a document' },
+  { pattern: /\b(?:section|sect\.?)\s*\d+(?:\.\d+)*\b/gi, kind: 'a section' },
+  { pattern: /\badr[\s._-]*\d{1,4}\b/gi, kind: 'an ADR citation' },
+  { pattern: /[\w./-]+\.(?:md|mdx|markdown)(?![\w-])/gi, kind: 'a path to a document' },
 ] as const;
 
 const noReferenceInComment: Rule.RuleModule = {
@@ -327,11 +338,12 @@ export default defineConfig(
     },
   },
 
-  // The rule above this list holds the whole of `src/`, and it takes no exception. `main.tsx` and
-  // `router.tsx` are outside the boundaries block and inside this one on purpose: a reference
-  // rots in them exactly as it rots anywhere else.
+  // The rule above holds the whole of `src/` and the Storybook configuration, and it takes no
+  // exception. `main.tsx` and `router.tsx` are outside the boundaries block and inside this one on
+  // purpose: a reference rots in them exactly as it rots anywhere else. `.mts` and `.cts` are
+  // named because they compile under `src/` and reached neither this gate nor the boundaries one.
   {
-    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    files: ['src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx,js,mjs,cjs}'],
     plugins: { local: { rules: { 'no-reference-in-comment': noReferenceInComment } } },
     rules: { 'local/no-reference-in-comment': 'error' },
   },
