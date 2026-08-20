@@ -75,7 +75,7 @@ each rule when the build reaches it.
 |---|---|---|---|
 | 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
 | 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. For `entities.sources`, `relations.sources` and `proposals.src` the **format** is carried by the `doc_id` domain; the tier that proves **existence** is **undecided**, and the tracker carries it. |
-| 3 | A machine proposal cites a real document, never `manual`. | M8 | Database for the value, by a check that reads the writing role the proposal records. A trigger stamps that role, so the caller cannot state it. The application checks that the document exists. |
+| 3 | A machine never signs an act as `manual`. `manual` is reserved to the human operator. | M8 | Database, by a privilege boundary and a stamp. `gabriel_agent` holds `EXECUTE` on no door that signs. A trigger stamps `author_role` from `session_user`, so the caller cannot state it. A check then refuses `manual` in the act. A value cannot hide one, because every source a value cites must also stand in the act. |
 | 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
 | 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. Settled by #15. |
 | 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
@@ -84,10 +84,18 @@ The objects that carry these rules live in `db/migrations/` and `db/apply/`. **R
 the authority on a constraint, and never a document.**
 
 The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database for all six.
-Invariant 5 names the third tier that criterion allows: a **privilege boundary the writing
-role cannot cross**, held by ADR 0003 §7. The three columns under invariant 2 are further
-behind: their **format** is carried by the `doc_id` domain, and the tier that proves the
-document **exists** is undecided. The tracker carries that question.
+Invariants 3 and 5 name the third tier that criterion allows: a **privilege boundary the
+writing role cannot cross**, held by ADR 0003 §7. The three columns under invariant 2 are
+further behind: their **format** is carried by the `doc_id` domain, and the tier that proves
+the document **exists** is undecided. The tracker carries that question.
+
+**Invariant 3 is a rule about the signature, and not about the source.** Earlier versions of
+this row read "a machine proposal cites a real document, never `manual`". M8 is not narrowed:
+a machine still cites a real document, because `manual` is refused in the act and in a value,
+and `documents` is read on every proposal. What the row now names is the thing the database
+holds — a machine cannot sign as the operator. **`decided_by` is not in this invariant.** A
+decision signed by a name that nothing proves to be a person is #42, and
+`db/apply/90_grants.sql` states that limit in full.
 
 **Invariant 5 names one door, not two.** Earlier versions of this row read "or a direct
 operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees with
