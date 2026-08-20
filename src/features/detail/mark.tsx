@@ -63,7 +63,7 @@ export interface SourceCountProps {
 }
 
 /**
- * Rule 8: the evidentiary layer carries no hue. The mark is grey at rest, and the active one is
+ * The evidentiary layer carries no hue. The mark is grey at rest, and the active one is
  * marked by its edge and its fill.
  *
  * A mark that acts is a real `<button>`, so it reaches the keyboard, the focus ring and the
@@ -73,8 +73,8 @@ export interface SourceCountProps {
  * token that separates two surfaces: it measures about 1.3:1 light and 1.5:1 dark, and this is
  * the edge of a control. `border-input` is the token measured for a control edge, at 3.4:1 and
  * 3.2:1. **Keep `input` on a control edge.** And `transition-colors` carried no duration, so it
- * ran at the Tailwind default of 150ms, above the 120ms of rule 17. The duration is stated. And
- * the height was `h-5`: rule 1 of `src/index.css` states one control height,
+ * ran at the Tailwind default of 150ms, above the 120ms the theme allows. The duration is stated.
+ * And the height was `h-5`: `src/index.css` states one control height,
  * `--control-height: 24px`, which is `h-6`, and a mark sits on a line of controls of that height.
  * **Keep it at 24 px.**
  */
@@ -172,7 +172,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       </PopoverTrigger>
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale. The correction is made here, at
           the call site, because a vendored file is closed. **The shadow stays**: a popover is a
-          true overlay, and rule 6 permits a shadow on one.
+          true overlay, and the theme permits a shadow on one.
 
           The panel holds its own scroll. A line with eight documents opens eight cards, and a
           popover that grows past the window puts the way out of the last card off the screen. */}

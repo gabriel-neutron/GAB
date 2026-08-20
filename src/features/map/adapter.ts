@@ -201,8 +201,8 @@ const ARROW_IMAGE = 'link-arrow-head';
  * the dark theme, which is `#070f10`. The bright line is this hex at full opacity, and it has a
  * contrast ratio of 3.55:1 on the light page and 5.08:1 on the dark page.
  *
- * **A relation takes no entity hue.** A line is not an entity, and rule 11 gives the six hues to
- * the entity types. So the bright line is not a second colour: the quiet line is the same hue at
+ * **A relation takes no entity hue.** A line is not an entity, and the six hues belong to the
+ * entity types. So the bright line is not a second colour: the quiet line is the same hue at
  * part opacity, and the bright line is the full hue and a greater width.
  */
 const LINK_HUE = '#7b8489';

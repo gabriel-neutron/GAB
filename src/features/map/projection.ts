@@ -162,7 +162,7 @@ export function railLegend(
  * own about a type. The word for a type that is off is `off` here, because the map hides a layer;
  * the graph dims one and says so. Each surface states its own consequence.
  *
- * **The swatch stays.** Rule 11 keeps the entity hues on the map and out of the chrome, and the
+ * **The swatch stays.** The entity hues stay on the map and out of the chrome, and the
  * colour swatch stays per entry: it is the legend, and a coloured point means nothing without
  * one. The hue is the hex the map parses, so no class can carry it.
  */

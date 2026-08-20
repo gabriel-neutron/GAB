@@ -12,8 +12,8 @@ import { cn } from '@/shared/lib/utils';
  * the folder is excluded from nothing.
  *
  * The base classes below are the upstream ones. A caller corrects the scale and the radius at the
- * call site with `cn()`, as it does for `Input` and `Button`. **The shadow stays**: rule 6 of the
- * theme permits a shadow on a true overlay, and this is one.
+ * call site with `cn()`, as it does for `Input` and `Button`. **The shadow stays**: the theme
+ * permits a shadow on a true overlay, and this is one.
  */
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />;

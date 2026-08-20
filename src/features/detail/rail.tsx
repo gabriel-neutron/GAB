@@ -65,7 +65,7 @@ export function Rail({ sources, activeSource }: RailProps) {
               }
             }}
             aria-current={activeSource === source.id ? 'true' : undefined}
-            // Rule 8: the mark is not a hue. It is an edge, and it is held at the same width on
+            // The mark is not a hue. It is an edge, and it is held at the same width on
             // every card so that the mark moves and the text does not.
             className={cn(
               'border-l-2 border-l-transparent',

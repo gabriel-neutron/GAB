@@ -56,7 +56,7 @@ interface GraphSnapshot {
 interface GraphCanvasProps {
   /** The element Sigma takes and owns. Its size comes from the layout, never from its content. */
   readonly canvas: RefObject<HTMLDivElement | null>;
-  /** The element that carries the ring and each marker of UC5, over the canvas. */
+  /** The element that carries the ring and each pending-proposal marker, over the canvas. */
   readonly overlay: RefObject<HTMLDivElement | null>;
 }
 

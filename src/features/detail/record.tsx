@@ -54,7 +54,7 @@ export function EntityRecord({ rows, mark }: EntityRecordProps) {
           data-claim=""
           className={cn('flex min-w-0 grow items-center gap-1.5', WIDTH[row.claim.width])}
         >
-          {/* Rule 16: a value truncates and the full one appears on hover. `truncate` alone
+          {/* A value truncates and the full one appears on hover. `truncate` alone
                 does nothing in a flex row, so `min-w-0` and `shrink-0` sit beside it. */}
           <span
             className="w-24 shrink-0 truncate text-xs text-label @md:w-32"

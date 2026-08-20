@@ -30,7 +30,7 @@ export interface SourceCardProps {
 
 /**
  * A link takes the accent, because a reader must see what is reachable. It is the one
- * exception to rule 8, which leaves the evidentiary layer with no hue at all.
+ * exception to the rule that leaves the evidentiary layer with no hue at all.
  */
 const LINK = 'min-w-0 truncate text-primary underline underline-offset-2';
 
@@ -52,7 +52,7 @@ export function SourceCard({ source }: SourceCardProps) {
     <article
       aria-label={`Source ${source.number} — ${source.title}`}
       data-source={source.id}
-      // Rule 3: one border level. The hairline separates two cards, and nothing inside the card
+      // One border level. The hairline separates two cards, and nothing inside the card
       // carries a second one.
       className="rounded-none border-b border-border px-2 py-1.5"
     >
@@ -60,7 +60,7 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className="shrink-0 font-mono text-[11px]/4 tabular-nums text-label">
           {source.number}
         </span>
-        {/* Rule 16: the value truncates and the full one appears on hover. `truncate` alone does
+        {/* The value truncates and the full one appears on hover. `truncate` alone does
             nothing in a flex row, so `min-w-0` sits beside it. */}
         <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
           {source.title}
@@ -104,12 +104,12 @@ export function SourceCard({ source }: SourceCardProps) {
           onClick={() => {
             setOpen(!open);
           }}
-          // Rule 17: a state change lasts under 120ms. `transition-colors` with no duration runs
+          // A state change lasts under 120ms. `transition-colors` with no duration runs
           // at the Tailwind default of 150ms, so the duration is stated. The button is a ghost
           // and carries no edge, so no `border` token reaches a control here.
           //
           // **The defect this list exists to not repeat:** the class list carried `h-5` and beat
-          // the `h-6` of `size="xs"`. Rule 1 of `src/index.css` states one control height,
+          // the `h-6` of `size="xs"`. `src/index.css` states one control height,
           // `--control-height: 24px`. **Do not state a height here again.**
           className="shrink-0 rounded-none px-1 text-[11px]/4 transition-colors duration-100"
         >

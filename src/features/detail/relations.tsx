@@ -56,11 +56,11 @@ export function Relations({ relations, mark }: RelationsProps) {
     <section aria-label="Relations">
       <ul>
         {relations.map((relation) => (
-          // Rule 3: one border level. The hairline separates two relations, and nothing inside
+          // One border level. The hairline separates two relations, and nothing inside
           // a line carries a second one.
           <li key={relation.id} data-relation={relation.id} className="border-b border-border py-1">
             <div className="flex items-center gap-2">
-              {/* Rule 16: a value truncates and the full one appears on hover. `truncate` alone
+              {/* A value truncates and the full one appears on hover. `truncate` alone
                   does nothing in a flex row, so `min-w-0` sits beside it. */}
               <span className="min-w-0 flex-1 truncate text-xs" title={relation.sentence}>
                 {relation.sentence}

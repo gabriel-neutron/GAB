@@ -10,7 +10,7 @@
  *
  * **It computes no position and it stores none.** `./layout` gives a stand-in for each node, and
  * it is scaffolding. The positions are computed one time, at the mount, so that no later act of
- * this file moves a node — UC4.
+ * this file moves a node. A filter dims an element, and it never moves one.
  *
  * **It reads the theme from the class on `documentElement`, with an observer, and never from
  * React.** `./model` holds two palettes, one for each ground, because a Sigma canvas has no
@@ -123,7 +123,7 @@ export interface GraphController {
 }
 
 /**
- * How many elements carry a marker of UC5 at one time.
+ * How many elements carry a marker of a pending proposal at one time.
  *
  * **250 is the number the accepted prototype used, and it is chosen here.** A marker drawn as an
  * element of the page, and positioned over its element on each frame, does not scale. The
@@ -135,7 +135,7 @@ export interface GraphController {
 const MARKER_CAP = 250;
 
 /**
- * How far a selection lights the graph around itself. UC2: two hops.
+ * How far a selection lights the graph around itself. Two hops.
  */
 const HOPS = 2;
 
@@ -145,7 +145,7 @@ const HOPS = 2;
  * **A dim that reaches the ground is a hide, and a hide is forbidden.** That was the defect: one
  * value of 0.2, for both grounds, put a dimmed element at the colour of the near-white background
  * of the light theme. A browser check of `/graph` read the canvas as empty while 33 of the 42
- * elements were dimmed by the two hops of UC2. UC4 says an excluded element goes **faint**, and
+ * elements were dimmed by the two hops of a selection. An excluded element goes **faint**, and
  * faint is present and clearly secondary, and never absent.
  *
  * **The two grounds take two values, for the same reason that `./model` holds two palettes.** The
@@ -157,8 +157,8 @@ const HOPS = 2;
  * and 6.7:1 for the same element while it is lit. A lit element therefore still reads as clearly
  * stronger, which is what makes the dim state something.
  *
- * **No ticket owns these two values, and they guess at no open question.** UC4 gives the rule that
- * a filter dims and never hides, and the colour rule is given too, so the rule is already
+ * **No ticket owns these two values, and they guess at no open question.** The rule that a filter
+ * dims and never hides is given, and the colour rule is given too, so the rule is already
  * decided. The two values are **measured** against each ground, as the ratios above record, and
  * a value that a measurement gives is not a guess. Measure again before you change one.
  */
@@ -185,12 +185,12 @@ const OVERLAY_MARGIN = 32;
 const LAYER_CLASS = 'pointer-events-none absolute inset-0 overflow-hidden';
 
 /**
- * One marker of UC5. **The appearance is open**, so this is the smallest mark that a person can
- * see: one square of `--candidate`, which is the token for evidence that is not promoted, with a
- * hairline of the ground around it so that it reads on a dark node. A **node program** is asked
- * for instead of an element of the page, and this file writes none: a node program is a WebGL
- * program, a shader pair and a buffer layout, which is a surface of its own and a decision about
- * how a proposal appears. The cost of the element is the cap above.
+ * One marker of a pending proposal. **The appearance is open**, so this is the smallest mark that
+ * a person can see: one square of `--candidate`, which is the token for evidence that is not
+ * promoted, with a hairline of the ground around it so that it reads on a dark node. A **node
+ * program** is asked for instead of an element of the page, and this file writes none: a node
+ * program is a WebGL program, a shader pair and a buffer layout, which is a surface of its own
+ * and a decision about how a proposal appears. The cost of the element is the cap above.
  *
  * **It sits at the upper right of the dot and no longer on its centre.** The operator ruled the
  * idea right and the form wrong, and chose this shape from three prototypes on the branch
@@ -279,7 +279,7 @@ export function mountGraph(
   let destroyed = false;
   const listeners = new Set<(view: GraphView) => void>();
 
-  // The elements the filter keeps lit, and the elements the two hops of UC2 keep lit with it.
+  // The elements the filter keeps lit, and the elements the two hops of a selection keep lit.
   const litNodes = new Set<string>();
   const litEdges = new Set<string>();
   let lit = 0;
@@ -311,7 +311,7 @@ export function mountGraph(
   /**
    * **The filter decides what is in consideration, and the selection decides what is in focus.**
    * The two dims are not one. An element that the **filter** dims is out of reach, so this test
-   * is the one that a click and a control obey. The two hops of UC2 dim as well, and they
+   * is the one that a click and a control obey. The two hops of a selection dim as well, and they
    * must not stop the analyst from selecting a node on the other side of the picture.
    */
   const passesFilter = (attrs: NodeAttrs): boolean => !hidden.has(attrs.entityType);
@@ -339,7 +339,7 @@ export function mountGraph(
   };
 
   /**
-   * The nodes within two hops of the selection, or `null` while nothing is selected — UC2.
+   * The nodes within two hops of the selection, or `null` while nothing is selected.
    *
    * **The walk steps through the nodes that pass the filter only.** Out of consideration is out of
    * reach, so an excluded node carries no neighbourhood either.
@@ -446,8 +446,8 @@ export function mountGraph(
     },
 
     // A relation is selected on the canvas, so a relation takes a click: the selection carries
-    // `kind: 'relation'`, and the route draws that case as a report. This is not UC3: the M4
-    // relation of UC3 has no edge here, so no click can reach it.
+    // `kind: 'relation'`, and the route draws that case as a report. This is not the case the
+    // graph cannot draw: an M4 relation has no edge here, so no click can reach it.
     enableEdgeEvents: true,
 
     // **A line needs a hit box of about 5px on each side.** The default of Sigma is
@@ -466,7 +466,7 @@ export function mountGraph(
 
     nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
       if (litNodes.has(node)) return { ...data };
-      // A filter dims. **It never hides** — UC4. So `hidden` stays false, the node keeps
+      // A filter dims. **It never hides.** So `hidden` stays false, the node keeps
       // its position, and only the paint changes. The label goes, because an element that is out
       // of consideration does not name itself.
       return { ...data, color: dimOf(data.color), label: null };
@@ -773,7 +773,7 @@ export function mountGraph(
   camera.on('updated', onCameraUpdated);
 
   /**
-   * **A click on a node selects it, and the camera does not move** — UC2. There is no
+   * **A click on a node selects it, and the camera does not move.** There is no
    * camera call in this handler, and that absence is the rule.
    *
    * The picking layer of the library answers with a dimmed node as well, because a filter dims and

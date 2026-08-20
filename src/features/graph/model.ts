@@ -180,7 +180,7 @@ export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
  */
 export interface GraphModel {
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
-  /** UC5: the pending proposals, under the identifier of the element that can carry a marker. */
+  /** The pending proposals, under the identifier of the element that can carry a marker. */
   readonly pendingByTarget: ReadonlyMap<string, readonly Proposal[]>;
   /**
    * The hue of each type.
@@ -198,8 +198,8 @@ export interface GraphModel {
  *
  * **The floor is the smallest shape that a person can find and click, and it is not the smallest
  * number the scale allows.** 1.6 came from the prototype, which drew ten thousand nodes at a zoom
- * where 1.6 was a shape; at twenty-seven entities it drew one pale pixel, and UC1 asks for an
- * outlier to be **found** with no label read. A node of degree 0 is an isolate, which is exactly
+ * where 1.6 was a shape; at twenty-seven entities it drew one pale pixel, and an outlier must be
+ * **found** with no label read. A node of degree 0 is an isolate, which is exactly
  * the node this floor decides.
  *
  * **No ticket owns this number, and it guesses at no open question.** The rule is "size by
@@ -305,7 +305,7 @@ export function buildGraphModel(
       y: position.y,
       // The size is by the degree. The logarithm holds a hub of two thousand relations beside a
       // node of two, which a linear size cannot do, and the span of the graph normalises it so
-      // that a hub reads as a hub beside a leaf at each size of corpus — UC1. `log1p(0)` is 0, so
+      // that a hub reads as a hub beside a leaf at each size of corpus. `log1p(0)` is 0, so
       // a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
       // **The hue is the type of the entity, and it is no longer its community.** A community
@@ -333,8 +333,8 @@ export function buildGraphModel(
     });
   }
 
-  // A marker of UC5 needs an element to sit on. A node is drawn, and a relation that became an
-  // edge is drawn. Anything else carries no marker, and it is counted instead.
+  // A marker of a pending proposal needs an element to sit on. A node is drawn, and a relation
+  // that became an edge is drawn. Anything else carries no marker, and it is counted instead.
   const pendingByTarget = new Map<string, Proposal[]>();
   for (const proposal of corpus.proposals) {
     if (proposal.status !== 'pending') continue;

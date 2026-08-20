@@ -36,20 +36,20 @@ export interface FieldProps {
  * **The second defect this list exists to not repeat:** the kit also writes
  * `disabled:pointer-events-none`. It killed every `title` on the surface, so the full value of
  * a truncated cell never appeared, and the analyst could not select or copy a value either.
- * `title` is the whole mitigation rule 16 gives a truncated value. `disabled:pointer-events-auto`
+ * `title` is the whole mitigation a truncated value gets. `disabled:pointer-events-auto`
  * gives it back and `disabled` stays, so the rule still holds. **Do not remove it.**
  *
- * Rule 17 and the skill: a state change lasts under 120ms. The kit writes `transition-colors`
- * with no duration, and the Tailwind default is 150ms, so the duration is stated here.
+ * A state change lasts under 120ms. The kit writes `transition-colors` with no duration, and
+ * the Tailwind default is 150ms, so the duration is stated here.
  */
 const BOX =
   'h-6 w-full rounded-none border-transparent bg-muted px-1.5 py-0 text-xs duration-100 md:text-xs dark:bg-muted disabled:opacity-100 disabled:bg-muted disabled:text-foreground disabled:cursor-default disabled:pointer-events-auto dark:disabled:bg-muted';
 
 /**
- * Rules 12 and 13: every identifier, count, date and code is monospace, and figures are tabular.
+ * Every identifier, count, date and code is monospace, and figures are tabular.
  * A number and a date take it; a text does not.
  *
- * **The figures are not right-aligned.** Rule 13 aligns a *column* of figures, and there is no
+ * **The figures are not right-aligned.** Alignment is for a *column* of figures, and there is no
  * column here: the name of the claim sits to the left of each cell and the cells flow
  * about 2.6 to a line, so a right edge would land at a different place on every cell and the
  * value would sit far from the name it belongs to. `tabular-nums` still holds the digits on one
@@ -81,7 +81,7 @@ const NO_SPINNER =
  * state at 16:1. **Do not remove `appearance-none`.**
  *
  * **The second defect this pair exists to not repeat:** the tick stood alone at 14 px on a line
- * where every other control is 24 px. Rule 1 of `src/index.css` states one control height,
+ * where every other control is 24 px. `src/index.css` states one control height,
  * `--control-height: 24px`, and the surface asks for one size. A small glyph reads better than
  * a 24 px
  * square, so the glyph keeps 14 px and the **box** takes the row height. **Do not take the box

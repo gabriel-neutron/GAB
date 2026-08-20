@@ -25,7 +25,7 @@
  * took the pointer would put itself between the analyst and the thing it names, and the leave
  * event would never arrive.
  *
- * **Each line truncates and none of them wraps**, rule 16. A name of two hundred characters would
+ * **Each line truncates and none of them wraps.** A name of two hundred characters would
  * otherwise cover the picture it is naming. A relation takes three lines, so the box is a column
  * and each line truncates on its own.
  *

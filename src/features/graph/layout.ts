@@ -50,8 +50,9 @@ const DISC = 12;
 const GAP = 8;
 
 /**
- * How far a hub is pulled towards the centre of its disc, as a fraction of the radius. UC1 reads
- * the picture with no label, so a hub must sit inside its cluster and not on the edge of it.
+ * How far a hub is pulled towards the centre of its disc, as a fraction of the radius. The
+ * analyst reads the picture with no label, so a hub must sit inside its cluster and not on the
+ * edge of it.
  *
  * **It is a guess**, with the disc above.
  */
@@ -70,7 +71,7 @@ const HUB_PULL = 0.6;
  *
  * **12 % is close enough that the isolates do not set the picture, and far enough that they read
  * as outside the structure.** They sit beyond the outer edge of every disc, and they add about a
- * tenth to the reach of the picture. UC1 asks for an outlier to be **found**, and not hidden.
+ * tenth to the reach of the picture. An outlier must be **found**, and not hidden.
  *
  * **It is a guess**, with the disc above.
  */
@@ -109,7 +110,7 @@ const unitOf = (id: string, salt: number): number => hashOf(id, salt) / 0x1_0000
  *
  * **An isolate does not go on that ring.** The analysis makes it a community of one, which is
  * right for the count and wrong for the placement. The isolates sit in one band just outside the
- * ring, where UC1 can find them and where they do not set the size of the picture.
+ * ring, where the analyst can find them and where they do not set the size of the picture.
  */
 export function standInPositions(corpus: Corpus): ReadonlyMap<string, NodePosition> {
   // **Every entity takes a position**, so the stand-in loses none of them. A repeated identifier
@@ -209,7 +210,7 @@ export function standInPositions(corpus: Corpus): ReadonlyMap<string, NodePositi
     });
   });
 
-  // **The isolates sit in one band outside the structure** — UC1 wants an outlier to be found.
+  // **The isolates sit in one band outside the structure**, so an outlier is found and not hidden.
   // The reach of the structure is the outer edge of the disc that stands furthest out.
   const reach = ringCommunities.reduce(
     (furthest, community) => Math.max(furthest, ring + (radii.get(community) ?? 0)),

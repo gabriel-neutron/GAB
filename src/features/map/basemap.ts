@@ -25,10 +25,6 @@
  * OpenStreetMap Foundation when none is configured. **The fallback is a real dependency of a
  * public repository, and the tracker carries what must be true before any deployment**: that
  * policy is for casual and low-volume use, and it is not a tile service for an application.
- *
- * **This ruling contradicts two documents, and only the operator changes them.** One names the
- * self-hosted archive as *the* source of the basemap, and the other says the map view "must not
- * ship". Both are reported under ASK.
  */
 
 import type { Ground } from './workspace';

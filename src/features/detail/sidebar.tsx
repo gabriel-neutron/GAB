@@ -6,8 +6,8 @@
  * canvas. `PANE` below is the geometry of that pane, and one copy of it is what keeps the two
  * panels the same width, the same ground and the same scroll.
  *
- * **`Sidebar` draws the entity.** UC5 is the use case: the analyst reads one entity in a narrow
- * sidebar, and audits its provenance on the full page. **`RelationSidebar` draws the relation.**
+ * **`Sidebar` draws the entity.** The analyst reads one entity in a narrow sidebar, and audits
+ * its provenance on the full page. **`RelationSidebar` draws the relation.**
  * Each one carries its own note below.
  *
  * **Neither carries a rail.** There is no room for one, so a mark opens its source in a popover,
@@ -104,7 +104,7 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
           order of the words in the sentence says the same thing in words. */}
       <h1 aria-label={relation.sentence} className="space-y-0.5">
         {relation.rows.map((row) => (
-          // Rule 16: each line truncates on its own and none of them wraps, exactly as the label
+          // Each line truncates on its own and none of them wraps, exactly as the label
           // over a canvas does. The full line is under `title`.
           <span
             key={row.key}

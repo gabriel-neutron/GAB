@@ -24,38 +24,38 @@
  * ------------------------------------------------------------------------------------------
  *
  * DENSITY
- *   1. Everything sits on a 4px grid. One control height, one row height, no exception.
- *   2. Padding is small and constant: 8px in a panel, 6px in a cell.
- *   3. One border level per surface. No panel inside a panel inside a card.
- *   4. Data and labels take more than half of the pixels.
+ *   - Everything sits on a 4px grid. One control height, one row height, no exception.
+ *   - Padding is small and constant: 8px in a panel, 6px in a cell.
+ *   - One border level per surface. No panel inside a panel inside a card.
+ *   - Data and labels take more than half of the pixels.
  *
  * SHAPE
- *   5. The radius is 0. One value, everywhere. A large radius is the strongest sign of a
- *      generated design.
- *   6. A 1px hairline separates two surfaces. A shadow is only for a true overlay.
- *   7. No gradient, no blur, no glass, no glow.
+ *   - The radius is 0. One value, everywhere. A large radius is the strongest sign of a
+ *     generated design.
+ *   - A 1px hairline separates two surfaces. A shadow is only for a true overlay.
+ *   - No gradient, no blur, no glass, no glow.
  *
  * COLOUR
- *   8. A hue means "look at this". The normal state is grey. The evidentiary layer, which is
- *      the promoted and sourced data, therefore carries no hue at all.
- *   9. No violet, no indigo, no purple in the chrome.
- *  10. The page is never pure white and never pure black.
- *  11. Two hues at rest, at most. The entity hues belong to the map and to the graph. They
- *      never enter the chrome.
+ *   - A hue means "look at this". The normal state is grey. The evidentiary layer, which is
+ *     the promoted and sourced data, therefore carries no hue at all.
+ *   - No violet, no indigo, no purple in the chrome.
+ *   - The page is never pure white and never pure black.
+ *   - Two hues at rest, at most. The entity hues belong to the map and to the graph. They
+ *     never enter the chrome.
  *
  * TYPE
- *  12. One text face, one monospace. Every identifier, coordinate, count, date, code and hash
- *      is monospace.
- *  13. Figures are tabular and align right. A column of numbers must line up.
- *  14. Three text sizes and one heading size. No display text on a working screen.
- *  15. Sentence case. Uppercase only for a small table header, with tracking.
- *  16. A value never wraps in a row. It truncates, and the full value appears on hover.
+ *   - One text face, one monospace. Every identifier, coordinate, count, date, code and hash
+ *     is monospace.
+ *   - Figures are tabular and align right. A column of numbers must line up.
+ *   - Three text sizes and one heading size. No display text on a working screen.
+ *   - Sentence case. Uppercase only for a small table header, with tracking.
+ *   - A value never wraps in a row. It truncates, and the full value appears on hover.
  *
  * BEHAVIOUR
- *  17. Nothing animates except a state change, and that lasts less than 120ms.
- *  18. No emoji, no illustration, no round avatar, no large centred icon with a friendly line.
- *  19. Keyboard first. A visible shortcut hint is part of the style, not a help page.
- *  20. An icon is a 14px line. It is never the only label on a destructive or unclear action.
+ *   - Nothing animates except a state change, and that lasts less than 120ms.
+ *   - No emoji, no illustration, no round avatar, no large centred icon with a friendly line.
+ *   - Keyboard first. A visible shortcut hint is part of the style, not a help page.
+ *   - An icon is a 14px line. It is never the only label on a destructive or unclear action.
  *
  * ------------------------------------------------------------------------------------------
  * The contrast ladder, measured
@@ -150,7 +150,7 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
-  /* Rule 5. Every radius below is a multiple of `--radius`, so a single 0 flattens the scale. */
+  /* Every radius below is a multiple of `--radius`, so a single 0 flattens the scale. */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -168,7 +168,7 @@
      It is one line, and it is the cheapest correction in the whole theme. */
   color-scheme: light;
 
-  /* One hue, 230, at a very low chroma. The page is never pure white (rule 10). */
+  /* One hue, 230, at a very low chroma. The page is never pure white. */
   --background: oklch(0.975 0.003 230);
   --foreground: oklch(0.2 0.01 230);
 
@@ -214,7 +214,7 @@
 
   /* The two states of the data. `--candidate` marks the machine layer, which is not promoted.
      `--dissent` marks a disagreement between agents, which is what sends a proposal to the
-     review queue. The evidentiary layer takes no hue at all: that is rule 8.
+     review queue. The evidentiary layer takes no hue at all.
 
      A hue is never the only mark. PU1 asks for labelling that no control can hide, and a
      colour is hidden from a reader who cannot see it, so a candidate is marked in words too.
@@ -229,7 +229,7 @@
      may move later. */
   --destructive: oklch(0.48 0.18 28);
 
-  /* For the graph and the map only, never for the chrome (rule 11). Sigma and MapLibre read a
+  /* For the graph and the map only, and never for the chrome. Sigma and MapLibre read a
      colour string and not a class, so these must stay readable from JavaScript. They may sit
      near a semantic hue above, because the two never appear on one surface. */
   --entity-1: oklch(0.55 0.15 255);
@@ -256,7 +256,7 @@
   --sidebar-border: oklch(0.86 0.006 230);
   --sidebar-ring: oklch(0.5 0.14 235);
 
-  /* Rule 5. */
+  /* The radius is 0. One value, everywhere. */
   --radius: 0px;
 
   /* The density and the type scale. These are not shadcn tokens and no utility reads them, so
@@ -280,7 +280,7 @@
   color-scheme: dark;
 
   /* One hue, 215, at a very low chroma. A pure grey looks dead beside a colour map, and a cast
-     any stronger competes with the data. The page is never pure black (rule 10). */
+     any stronger competes with the data. The page is never pure black. */
   --background: oklch(0.16 0.012 215);
   --foreground: oklch(0.94 0.008 215);
 

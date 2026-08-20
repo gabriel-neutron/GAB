@@ -62,7 +62,10 @@ export interface Entity {
   readonly type: string;
   readonly label: string;
   readonly attrs: Attributes;
-  /** S2, entity level. Invariant 2's existence tier for this column is open. */
+  /**
+   * S2, entity level. Invariant 2 asks that every cited source exists in the documents, and the
+   * tier that proves existence for this column is open.
+   */
   readonly sources: readonly DocId[];
   readonly geom: Point | null;
   /** One door in. Every evidentiary row names the proposal that made it. */

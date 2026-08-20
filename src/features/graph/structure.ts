@@ -24,8 +24,8 @@
  * false: `layout.ts` counts the members itself. A comment that lies is obeyed as confidently as a
  * true one.
  *
- * UC1 says that the analyst reads the macro structure with no label read, so this file gives the
- * numbers that the paint uses.
+ * The analyst reads the macro structure with no label read, so this file gives the numbers that
+ * the paint uses.
  *
  * **It holds no state, it reads no module and it imports no library.** It takes the topology as
  * an argument, so the day `src/contract/` exists the caller changes and this file does not.

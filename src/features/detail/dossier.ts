@@ -429,9 +429,10 @@ export interface RelationDossier {
  * **The entry that gives a relation its own list is S2, and not M8.** M8 is attribute level only:
  * every attribute cites at least one document. S2 is the entry that says "the entity and the
  * relation carry a list of sources; each attribute additionally carries its own `src`", and
- * invariant 2 cites S2 for `relations.sources`. The tracker names M8 instead, and an entry of the
- * register changes only when a new decision names it, so a decision that names M8 alone would
- * leave this contradiction standing. **That correction is reported, and it is the operator's.**
+ * invariant 2 — every cited source exists in the documents — cites S2 for `relations.sources`.
+ * The tracker names M8 instead, and an entry of the register changes only when a new decision
+ * names it, so a decision that names M8 alone would leave this contradiction standing. **That
+ * correction is reported, and it is the operator's.**
  *
  * This function answers nothing. It lists `relation.sources`, which is the column the read
  * carries, and the tension is reported.

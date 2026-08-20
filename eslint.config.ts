@@ -36,8 +36,23 @@ const CANVAS_PAGES = ['map', 'graph'] as const;
  * **An entry of the locked register stays.** `M8` and `T5` carry no address, and a new decision
  * replaces an entry by name, so the name outlives even its replacement. They are domain words.
  *
- * **A stylesheet is out of reach.** ESLint does not read `src/index.css`, so a reference there is
- * refused by nobody.
+ * **A use case of a deleted document is refused.** `UC1` to `UC5` were defined in the four surface
+ * documents and nowhere else, and the same token named two different things in two of them. So the
+ * shape had already rotted when it was added here. It is case sensitive, because the token was
+ * only ever written in capitals.
+ *
+ * **A numbered rule is refused.** The rules of the visual language were cited by number from 34
+ * places, and an inserted rule would have renumbered every citation after it in silence. The list
+ * carries no numbers now, so a number here names nothing at all.
+ *
+ * **A numbered invariant stays, and no shape below matches one.** It is a name and not a position:
+ * a number is given once and never given again, so no citation can rot. The one condition of the
+ * locked register applies to it — the identifier never travels alone, and every site states the
+ * invariant beside the number.
+ *
+ * **A stylesheet is out of reach, and it now carries nothing.** ESLint does not read
+ * `src/index.css`, so a reference there is refused by nobody. Its rules are no longer numbered and
+ * its comments cite none, so there is nothing left for this rule to miss.
  */
 const SHAPES = [
   {
@@ -50,6 +65,8 @@ const SHAPES = [
   { pattern: /\b(?:section|sect\.?)\s*\d+(?:\.\d+)*\b/gi, kind: 'a section' },
   { pattern: /\badr[\s._-]*\d{1,4}\b/gi, kind: 'an ADR citation' },
   { pattern: /[\w./-]+\.(?:md|mdx|markdown)(?![\w-])/gi, kind: 'a path to a document' },
+  { pattern: /\bUC\s*\d+\b/g, kind: 'a use case of a deleted document' },
+  { pattern: /\brules?\s*\d+\b/gi, kind: 'a numbered rule' },
 ] as const;
 
 const noReferenceInComment: Rule.RuleModule = {

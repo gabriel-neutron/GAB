@@ -33,12 +33,12 @@ export interface IndexRowsProps {
 }
 
 /**
- * Rule 16: a value truncates and never wraps. `truncate` alone does nothing in a flex row,
+ * A value truncates and never wraps. `truncate` alone does nothing in a flex row,
  * because the item defaults to `min-width: auto` and pushes its neighbour off the line.
  */
 const NAME = 'min-w-0 flex-1 truncate';
 
-/** Rule 5 and the density rules: one row of 24px, a 6px cell pad, and no radius. */
+/** The density and the shape rules: one row of 24px, a 6px cell pad, and no radius. */
 const LINE = 'flex h-6 w-full items-center gap-2 rounded-none px-1.5 text-left text-xs';
 
 export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsProps) {

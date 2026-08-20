@@ -172,8 +172,8 @@ export const corpus: Corpus = {
     //   a last reported location. The map treats the four the same. Whether it should is a
     //   question for the map prototype, not an answer this file gives.
     //
-    // No new document is added, so every source below is one of the five that already exist and
-    // invariant 2 still holds by inspection.
+    // No new document is added, so every source below is one of the five that already exist, so
+    // invariant 2 — every cited source exists in the documents — still holds by inspection.
     // ---------------------------------------------------------------------------------------
 
     {

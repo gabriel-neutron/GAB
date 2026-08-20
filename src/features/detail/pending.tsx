@@ -55,7 +55,7 @@ export function Pending({ proposals, mark }: PendingProps) {
       ) : (
         <ul>
           {proposals.map((proposal) => (
-            // Rule 3: one border level. A dashed hairline against the solid one of an
+            // One border level. A dashed hairline against the solid one of an
             // evidentiary row, so a candidate row never reads as a promoted row.
             <li
               key={proposal.id}
@@ -65,7 +65,7 @@ export function Pending({ proposals, mark }: PendingProps) {
               {/* The word is on the row, in text, and the token paints it. The
                   word holds on both grounds and for a reader who sees no colour. */}
               <span className="shrink-0 text-[11px]/4 text-candidate">{CANDIDATE}</span>
-              {/* Rule 16: a value truncates and the full one appears on hover. `truncate` alone
+              {/* A value truncates and the full one appears on hover. `truncate` alone
                   does nothing in a flex row, so `min-w-0` sits beside it. The summary already
                   carries the sentence where the proposal is undecided. */}
               <span className="min-w-0 flex-1 truncate text-xs" title={proposal.summary}>
@@ -81,7 +81,7 @@ export function Pending({ proposals, mark }: PendingProps) {
               >
                 {proposal.dissent ? 'dissent' : 'no dissent'}
               </span>
-              {/* Rule 13: a figure is monospace and tabular. `./dossier` formatted it. There is
+              {/* A figure is monospace and tabular. `./dossier` formatted it. There is
                   no column header on this row, so the name of the figure reaches a reader as
                   hidden words: a bare number says nothing about what it measures. */}
               <span className="sr-only">confidence</span>

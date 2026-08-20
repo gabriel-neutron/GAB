@@ -34,8 +34,8 @@
  * **Three reports left the screen with them, and each loss now has an owner.** A relation that
  * cannot be drawn, an entity that carries no geometry, and the count of what is drawn are stated
  * nowhere. The tracker owns what a surface does with an entity it cannot place. **A click on a
- * line of the map now names nothing at all**, and the tracker must give a chosen relation
- * somewhere to appear.
+ * line of the map names the relation.** The chosen relation is identity, so it is in the address,
+ * and the route draws its panel beside the canvas.
  *
  * **The ground switch stays here, and it is the one thing left in the footer.** The operator moves
  * it onto the map as an icon button. It was not deleted with the rest, because deleting a control
