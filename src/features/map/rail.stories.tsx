@@ -10,7 +10,7 @@ import { entitiesOfType, project, type GeoLink } from './projection';
 import { Rail } from './rail';
 
 /**
- * The "Works when" of `docs/map-surface.md` §4.5, and the *Check* of step 6 of §8.
+ * The "Works when" of the rail, and the *Check* of the step that built it.
  *
  * The read arrives through `project()` over `@/shared/fixtures/corpus`, which is what the caller
  * of this component reads. Both change on the day `src/contract/` replaces the fixture.
@@ -29,8 +29,8 @@ const projection = project(corpus);
 interface TestMap {
   /**
    * The handle, in a ref. The rail takes the ref, because `map-page.tsx` keeps the instance in a
-   * `useRef` and never in React state above the canvas — `CANVAS.md`. A plain object is that ref
-   * here: the rail reads `current`, and it writes nothing.
+   * `useRef` and never in React state above the canvas. A plain object is that ref here: the
+   * rail reads `current`, and it writes nothing.
    */
   readonly map: RefObject<MapHandle | null>;
   /** Each identifier the rail asked the map to fly to, in order. */
@@ -47,8 +47,8 @@ interface TestMap {
  * A handle that answers like `adapter.ts` and owns no library.
  *
  * It keeps the two behaviours the rail depends on: `onSelect` calls its listener at once with the
- * selection of that moment (§5.1), and a type that is switched off drops a selection of that type
- * (§5.1). It holds the types that are switched **off**, which is the polarity of §5.2.
+ * selection of that moment, and a type that is switched off drops a selection of that type. It
+ * holds the types that are switched **off**, which is the polarity the map keeps.
  */
 function testMap(
   hidden: readonly string[],
@@ -214,16 +214,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * §4.3: two grounds, and one control between them.
+ * Two grounds, and one control between them.
  *
  * **The switch goes through the one writer.** The rail writes no workspace field: it calls the
  * handle, and `adapter.ts` moves the layout property of the two ground layers and stores the
  * choice. The double records each ground the rail asked for.
  *
  * **The credit is not asserted here, and no story can reach it.** MapLibre draws the attribution
- * over the canvas, from the source of whichever ground layer is visible, and `CANVAS.md` keeps a
- * live canvas out of every story. The running application is what proves that the credit on
- * screen matches the ground on screen — §5.5.
+ * over the canvas, from the source of whichever ground layer is visible, and a live canvas stays
+ * out of every story. The running application is what proves that the credit on screen matches
+ * the ground on screen.
  */
 export const TheGroundSwitchesThroughTheOneWriter: Story = {
   args: { map: groundOnly.map },
@@ -268,7 +268,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     await expect(canvas.getByRole('button', { name: /^vessel/, pressed: false })).toBeVisible();
 
     // The count of the corpus stays beside the type: it says what the corpus holds where the map
-    // now draws nothing — §3.1.
+    // now draws nothing.
     await expect(canvas.getByRole('button', { name: /^vessel/ })).toHaveTextContent(
       String(VESSEL.count),
     );
@@ -278,10 +278,9 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
 /**
  * The index opens in one step, and a row of it reaches the entity.
  *
- * **The second step used to be a search field, and it is gone** — #82 C6, Not here. The operator
- * does not want a search inside this rail, and **#90 GLOBAL-SEARCH** holds a search across the
- * corpus. So the chevron opens the whole list of the type, and a row of it selects the entity and
- * moves the camera.
+ * **The second step used to be a search field, and it is gone.** The operator does not want a
+ * search inside this rail, and the tracker holds a search across the corpus. So the chevron opens
+ * the whole list of the type, and a row of it selects the entity and moves the camera.
  */
 export const AnEntityIsReachedFromTheOpenList: Story = {
   args: { map: reachOnly.map },
@@ -291,7 +290,7 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
     const drawn = rowsIn(canvasElement);
     await expect(drawn).toHaveLength(VESSELS.length);
-    // #82 C6: the rail carries no field at all.
+    // The rail carries no field at all.
     await expect(canvasElement.querySelector('input')).toBeNull();
 
     const row = firstOf(drawn, 'row of the index');
@@ -303,7 +302,7 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
 };
 
 /**
- * The first clause of the *Check*: "the polarity of §5.2".
+ * The first clause of the *Check*: the polarity of the type switches.
  *
  * The map holds the types that are switched **off**. A type the map never names is drawn, so a
  * type that the corpus gains is never hidden by a stale list. The rail keeps that polarity and
@@ -331,8 +330,8 @@ export const TheSwitchGoesThroughTheOneWriter: Story = {
 };
 
 /**
- * §5.1: "A component that subscribes after the map is built has already missed the restore. Seed
- * from the current selection, then subscribe."
+ * "A component that subscribes after the map is built has already missed the restore. Seed from
+ * the current selection, then subscribe."
  *
  * A rail that only listened opened no group on a reload. The map carries a selection here before
  * the rail exists, and the group of that type is open at the first render.

@@ -1,29 +1,25 @@
 /**
  * The layer control and the index, on the left of the map.
  *
- * Built from `docs/map-surface.md` §4.5, §4.7 and §8 step 6, with the findings §3.1 and §3.3 and
- * the rules §5.1, §5.2, §5.4 and §5.5.
+ * **The two-step rail itself is `src/shared/rail.tsx` now.** The map wrote that control first and
+ * the graph wrote it again; two throwaway prototypes may hold one shape twice, and three call
+ * sites may not. This file is what stays behind: the state of this surface, the calls of the
+ * handle, the index of a type, and everything the surface pins below the list.
  *
- * **The two-step rail itself is `src/shared/rail.tsx` now** — step 5 of `docs/graph-surface.md`
- * §8. The map wrote that control first and the graph wrote it again; two throwaway prototypes may
- * hold one shape twice, and three call sites may not. This file is what stays behind: the state
- * of this surface, the calls of the handle, the index of a type, and everything §4.7 pins below
- * the list.
+ * **This is one control, and not two.** Four items survive the layer panel: an entry per entity
+ * type, a colour, a count and visibility. That is the same control as the type filter, so nothing
+ * here draws a presentation setting: no opacity, no reorder, no rename and no colour picker. The
+ * tracker names a second design of the layer panel as the fault.
  *
- * **This is one control, and not two** — §3.1. Four items survive the layer panel: an entry per
- * entity type, a colour, a count and visibility. That is the same control as the type filter, so
- * nothing here draws a presentation setting: no opacity, no reorder, no rename and no colour
- * picker. #36 names a second design of the layer panel as the fault.
+ * **It drives the map through the handle, and it touches no library.** `adapter.ts` is the only
+ * writer of `hiddenTypes`, so a switch here is a call of `setTypeVisible` and never a write of the
+ * workspace. `whenStyleReady` inside the adapter absorbs the window while the style loads, so a
+ * control of this file can be clicked at any moment.
  *
- * **It drives the map through the handle, and it touches no library** — §4.2. `adapter.ts` is the
- * only writer of `hiddenTypes`, so a switch here is a call of `setTypeVisible` and never a write
- * of the workspace. `whenStyleReady` inside the adapter absorbs the window while the style loads,
- * so a control of this file can be clicked at any moment.
- *
- * **The state stays here, and it does not move up to `map-page.tsx`.** `CANVAS.md` makes the rail
- * a **sibling** of the canvas, where ordinary React state is permitted, and it asks the author to
- * stop and ask the operator before a value sits in an **ancestor** of the live element. The lift
- * shares the drawing and moves no value upward.
+ * **The state stays here, and it does not move up to `map-page.tsx`.** The rail is a **sibling** of
+ * the canvas, where ordinary React state is permitted, and the author must stop and ask the
+ * operator before a value sits in an **ancestor** of the live element. The lift shares the drawing
+ * and moves no value upward.
  *
  * **It derives nothing.** `projection.ts` holds `railRows`, `railLegend`, `entitiesMatching` and
  * `linksOfSelection`, and this file turns already-derived arrays into elements.
@@ -31,20 +27,20 @@
  * **M9 stays in `row.tsx`.** The blank cell and the header that names the key belong to one line
  * of the index, and this file does not restate them.
  *
- * **The footer is gone, except the ground** — #81 rows B9 to B15, Never asked for it. The
- * relations switch, the row that named a chosen relation, the list of the relations of the
- * selection, and the three counts all left this file.
+ * **The footer is gone, except the ground.** The operator never asked for it. The relations
+ * switch, the row that named a chosen relation, the list of the relations of the selection, and
+ * the three counts all left this file.
  *
  * **Three reports left the screen with them, and each loss now has an owner.** A relation that
  * cannot be drawn, an entity that carries no geometry, and the count of what is drawn are stated
- * nowhere. **#35** owns what a surface does with an entity it cannot place. **A click on a line of
- * the map now names nothing at all**, and **#89 DETAIL-RELATION-VIEW** must give a chosen relation
+ * nowhere. The tracker owns what a surface does with an entity it cannot place. **A click on a
+ * line of the map now names nothing at all**, and the tracker must give a chosen relation
  * somewhere to appear.
  *
- * **The ground switch stays here, and it is the one thing left in the footer.** #81 row A2 moves it
- * onto the map as an icon button. It was not deleted with the rest, because deleting a control
- * before its replacement exists removes the capability. **#94** holds the move, and **#92** rules
- * where a control that floats over a canvas lives.
+ * **The ground switch stays here, and it is the one thing left in the footer.** The operator moves
+ * it onto the map as an icon button. It was not deleted with the rest, because deleting a control
+ * before its replacement exists removes the capability. The tracker holds the move, and the rule
+ * for a control that floats over a canvas.
  */
 
 import { useEffect, useState, type RefObject } from 'react';
@@ -63,28 +59,27 @@ export interface RailProps {
    * The live map, in the ref that the caller holds. Every act of this rail goes through it, and
    * never through the library.
    *
-   * **The instance arrives in a ref, and never in React state above the canvas** — `CANVAS.md`
-   * names "the instance in React state above the live element" as the fault the ADR names. The
-   * caller renders this rail only after its mount effect fills the ref, so `current` holds the
-   * live map for the whole life of this component.
+   * **The instance arrives in a ref, and never in React state above the canvas.** "The instance
+   * in React state above the live element" is the named fault. The caller renders this rail only
+   * after its mount effect fills the ref, so `current` holds the live map for the whole life of
+   * this component.
    */
   readonly map: RefObject<MapHandle | null>;
-  /** Whether the rail shows the index. The workspace holds it — ADR 0004 §7. */
+  /** Whether the rail shows the index. The workspace holds it. */
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
 
 /**
- * Which types are unfolded. It dies with the view, so it is React state — `CANVAS.md` makes the
- * rail a sibling of the canvas.
+ * Which types are unfolded. It dies with the view, so it is React state: the rail is a sibling of
+ * the canvas.
  *
- * **More than one may stand open** — #82 C5. The rule that closed one group to open the next is
- * gone.
+ * **More than one may stand open.** The rule that closed one group to open the next is gone.
  *
  * **The two cases are not one empty list.** Until the analyst folds a type open, the rail follows
- * the selection of the map: a rail that only listened opened no group on a reload (§5.1). After
- * the first fold the choice of the analyst holds, and an empty list then means "the analyst closed
- * every group", which the selection must not undo.
+ * the selection of the map: a rail that only listened opened no group on a reload. After the first
+ * fold the choice of the analyst holds, and an empty list then means "the analyst closed every
+ * group", which the selection must not undo.
  */
 type OpenTypes =
   | { readonly kind: 'follows-selection' }
@@ -104,9 +99,9 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   );
 
   /**
-   * **Seed from the current selection, then subscribe** — §5.1. The seed is here, and the
-   * subscription below is the same read: `handle.onSelect` calls its listener at once with the
-   * selection of that moment, so there is no second path and no window between the two.
+   * **Seed from the current selection, then subscribe.** The seed is here, and the subscription
+   * below is the same read: `handle.onSelect` calls its listener at once with the selection of
+   * that moment, so there is no second path and no window between the two.
    */
   const [selected, setSelected] = useState<string | null>(map.current?.selected ?? null);
 
@@ -132,9 +127,9 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
       : openTypes.types;
 
   /**
-   * **The switch goes through the one writer** — §4.4 and §5.2. This rail writes no workspace
-   * field. The adapter stores the types that are switched off, drops a selection that the switch
-   * would leave undrawn, and answers `isTypeVisible` after the write.
+   * **The switch goes through the one writer.** This rail writes no workspace field. The adapter
+   * stores the types that are switched off, drops a selection that the switch would leave undrawn,
+   * and answers `isTypeVisible` after the write.
    */
   const switchType = (type: string, visible: boolean): void => {
     const live = map.current;
@@ -143,7 +138,7 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     setLegend(railLegend(projection, live.isTypeVisible));
   };
 
-  /** A row selects an entity and moves the camera to it — §4.5. */
+  /** A row selects an entity and moves the camera to it. */
   const reach = (id: string): void => {
     const live = map.current;
     if (live === null) return;
@@ -165,12 +160,12 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         switchType(next.type, next.on);
         return;
       case 'show-every-type':
-        // §5.2: the way back from a screen that excludes everything. Each type goes on through the
-        // one writer, so the adapter stays the only holder of `hiddenTypes`.
+        // The way back from a screen that excludes everything. Each type goes on through the one
+        // writer, so the adapter stays the only holder of `hiddenTypes`.
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        // #82 C5: this adds and removes one name, and never replaces the list.
+        // This adds and removes one name, and never replaces the list.
         setOpenTypes({
           kind: 'chosen',
           types: next.open
@@ -185,7 +180,7 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     <TwoStepRail
       rows={railRows(legend, shownTypes, open)}
       onAct={act}
-      // #82 C5: the rail asks for each open list, because more than one may stand open.
+      // The rail asks for each open list, because more than one may stand open.
       index={(type) => {
         const facet = projection.facetByType.get(type);
         return facet === undefined ? null : (

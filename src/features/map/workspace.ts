@@ -1,15 +1,14 @@
 /**
  * The workspace of the map surface.
  *
- * Built from `docs/map-surface.md` §4.4 and §5.4. ADR 0004 §7 puts the workspace in
- * `localStorage` under one key per feature, and puts identity in the address. So this file holds
- * the camera, the types that are switched off, the state of the rail and the ground in use.
+ * The workspace lives in `localStorage` under one key per feature, and identity lives in the
+ * address. So this file holds the camera, the types that are switched off, the state of the rail
+ * and the ground in use.
  *
- * **The selection is not here.** It is identity, and it is in the address —
- * `docs/map-surface.md` §3.4.
+ * **The selection is not here.** It is identity, and it is in the address.
  *
- * **It holds no React value and causes no render.** ADR 0004 §3. The map owns a live canvas, and
- * every value here is read at mount and written on change, outside React.
+ * **It holds no React value and causes no render.** The map owns a live canvas, and every value
+ * here is read at mount and written on change, outside React.
  */
 
 import { readWorkspace, writeWorkspace } from '@/shared/storage';
@@ -28,12 +27,11 @@ export interface MapWorkspace {
   /** `null` until the first camera is stored, so the first open frames the corpus instead. */
   readonly camera: Camera | null;
   /**
-   * **The types that are switched OFF, and never the types that are on** —
-   * `docs/map-surface.md` §5.2.
+   * **The types that are switched OFF, and never the types that are on.**
    *
-   * The type list is a projection (ADR 0005 §6), so the corpus gains a type whenever a document
-   * does. A stored list of the types that are on meets that new type already excluded, hides it
-   * on every open, and says nothing.
+   * The type list is a projection, so the corpus gains a type whenever a document does. A stored
+   * list of the types that are on meets that new type already excluded, hides it on every open,
+   * and says nothing.
    */
   readonly hiddenTypes: readonly string[];
   readonly linksHidden: boolean;
@@ -76,10 +74,9 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
 };
 
 /**
- * **The guard is strict, and a record that carries an undeclared key falls back** —
- * `docs/map-surface.md` §4.4. A record of an older shape falls back, which costs one camera
- * position, once. A tolerant guard lets two shapes live under one key, and that is the fault the
- * version in the key exists to prevent.
+ * **The guard is strict, and a record that carries an undeclared key falls back.** A record of an
+ * older shape falls back, which costs one camera position, once. A tolerant guard lets two shapes
+ * live under one key, and that is the fault the version in the key exists to prevent.
  *
  * **The defect this deletes: a guard that accepts a superset lets a dead key outlive the code that
  * read it.** The guard tested the required keys alone, so a record with a key this shape shrank
@@ -109,7 +106,7 @@ export function readMapWorkspace(): MapWorkspace {
 }
 
 /**
- * **Every writer patches, and never replaces** — `docs/map-surface.md` §4.4.
+ * **Every writer patches, and never replaces.**
  *
  * There are four writers: the camera, the rail, the ground and the type switches. Two writers
  * that each hold a partial record erase the other's field. Reading before every write costs one

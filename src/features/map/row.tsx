@@ -1,21 +1,17 @@
 /**
  * One line of the index: the name of an entity, and nothing else.
  *
- * Built from `docs/map-surface.md` §4.6 and step 7 of §8, with the rules of §5.5.
- *
- * **The one column of values is gone** — #81 rows B5, B6 and B7. The operator ruled that the rail
- * shows the name of an entity and that **only the type makes a layer**. Three things left with the
- * column:
+ * **The one column of values is gone.** The operator ruled that the rail shows the name of an
+ * entity and that **only the type makes a layer**. Three things left with the column:
  *
  * - **The header, which drew a raw machine key** — `throughput_kt_month`, underscores and all. The
- *   key was machine-derived, because ADR 0005 §6 forbids a hand-kept table of the key that matters
- *   for a type. **#12** owns a readable name for an attribute, and **#93** gives a type its own
- *   readable label.
- * - **The blank cell of `decisions.md` M9.** M9 is untouched and it still holds: a blank reads as
- *   an absence only under a header that says what the column holds. There is no column here now,
- *   so there is no blank to read.
- * - **The sentence for a group that a filter emptied.** The search field goes with #82 C6, and
- *   **#90 GLOBAL-SEARCH** holds the capability, so no filter can empty a group from this rail.
+ *   key was machine-derived, because a hand-kept table of the key that matters for a type is
+ *   forbidden. The tracker owns a readable name for an attribute, and a readable label for a type.
+ * - **The blank cell of M9.** M9 is untouched and it still holds: a blank reads as an absence only
+ *   under a header that says what the column holds. There is no column here now, so there is no
+ *   blank to read.
+ * - **The sentence for a group that a filter emptied.** The search field goes to another surface,
+ *   and the tracker holds the global search, so no filter can empty a group from this rail.
  *
  * **The values are not lost to the analyst.** The dossier at the right lists every attribute of a
  * selected entity, with its sources.
@@ -30,7 +26,7 @@ export interface IndexRowsProps {
   readonly facet: TypeFacet;
   /** The entities of that type, in the order the group shows them. The caller chooses it. */
   readonly entities: readonly GeoEntity[];
-  /** The entity that is selected on the map, or `null`. §5.1 keeps the map the only writer. */
+  /** The entity that is selected on the map, or `null`. The map is the only writer. */
   readonly selectedId: string | null;
   /** A row selects an entity, and the caller moves the camera to it. */
   readonly onSelect: (id: string) => void;
@@ -42,7 +38,7 @@ export interface IndexRowsProps {
  */
 const NAME = 'min-w-0 flex-1 truncate';
 
-/** Rule 5 and the density of §5.5: one row of 24px, a 6px cell pad, and no radius. */
+/** Rule 5 and the density rules: one row of 24px, a 6px cell pad, and no radius. */
 const LINE = 'flex h-6 w-full items-center gap-2 rounded-none px-1.5 text-left text-xs';
 
 export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsProps) {

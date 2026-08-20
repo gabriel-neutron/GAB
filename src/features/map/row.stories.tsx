@@ -3,16 +3,16 @@
  *
  * **The two stories that stood here are gone with their subject.** They proved the one column of
  * values: `vessel` reading down as a straight column of IMO numbers, and `facility` showing blanks
- * under a named header. The operator ruled that column off the screen — #81 rows B5, B6 and B7 —
- * so a story that asserts it would prove a surface that no longer exists.
+ * under a named header. The operator ruled that column off the screen, so a story that asserts it
+ * would prove a surface that no longer exists.
  *
  * **The measurement they made is not lost, because it is the reason for the ruling.** On this
  * sample `vessel` carries `imo` on 8 of 8, and `facility` carries `throughput_kt_month` on 2 of 11:
- * a column that is full for one type and blank for nine rows of another. #76 records it, and #12
- * owns a readable name for an attribute.
+ * a column that is full for one type and blank for nine rows of another. The tracker records it,
+ * and owns a readable name for an attribute.
  *
  * The read arrives through `project()` over `@/shared/fixtures/corpus`, which is what the caller of
- * this component reads. Both change on the day `src/contract/` replaces the fixture — #46.
+ * this component reads. Both change on the day `src/contract/` replaces the fixture.
  */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -69,14 +69,14 @@ export const EachRowNamesItsEntityAndNothingElse: Story = {
     for (const [index, row] of rows.entries()) {
       await expect(row).toHaveTextContent(VESSELS[index]?.label ?? '');
     }
-    // #81 B5 and B6: the header and the value cell left this component.
+    // The header and the value cell left this component.
     await expect(canvasElement.querySelector('[data-column-key]')).toBeNull();
     await expect(canvasElement.querySelector('[data-cell]')).toBeNull();
   },
 };
 
 /**
- * A row reports the entity it names, and the caller moves the camera — §4.5.
+ * A row reports the entity it names, and the caller moves the camera.
  *
  * The group states the selected row with `aria-current`, so a reader who cannot see the paint
  * still hears which row is the selection.

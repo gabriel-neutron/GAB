@@ -1,14 +1,12 @@
 /**
  * The corpus, reduced to what a map can draw.
  *
- * Built from `docs/map-surface.md` §4.1, §4.5, §4.6 and §4.7. It is the one place that decides
- * what "on the map" means, and every other component of the surface reads it. §4.1 gives the
- * projection itself, §4.5 gives `railLegend` and `entitiesMatching`, §4.6 gives the key of a type
- * and the cell that carries it, and §4.7 gives `LinkRow` and `linksOfSelection`.
+ * It is the one place that decides what "on the map" means, and every other component of the
+ * surface reads it.
  *
  * **It holds no state and it reads no module.** It takes the read as an argument, so the day
- * `src/contract/` exists the caller changes and this file does not. `spec.md` §4 puts the read
- * behind a view; until then the caller passes the fixture of #46.
+ * `src/contract/` exists the caller changes and this file does not. The read goes behind a view;
+ * until then the caller passes the fixture.
  */
 
 import { ENTITY_HUES, typeHues } from '@/shared/entity-hues';
@@ -38,8 +36,8 @@ export interface GeoEntity {
  * One relation whose **two** endpoints carry a geometry, so a line can be drawn for it.
  *
  * M4 permits a relation to point at another relation. Such a relation has no second point, so it
- * is not here — ADR 0004 §4 says the same of the graph, and it is reached through the detail
- * surface instead.
+ * is not here. The graph does the same, and such a relation is reached through the detail surface
+ * instead.
  */
 export interface GeoLink {
   readonly fid: number;
@@ -64,7 +62,7 @@ export interface Projection {
   readonly entities: readonly GeoEntity[];
   readonly byFid: ReadonlyMap<number, GeoEntity>;
   readonly byId: ReadonlyMap<string, GeoEntity>;
-  /** Generated from the entities that are drawn. Nobody maintains it. ADR 0005 §6. */
+  /** Generated from the entities that are drawn. Nobody maintains it. */
   readonly types: readonly TypeFacet[];
   /** The same facets, by type name. A caller that draws one group reads one entry. */
   readonly facetByType: ReadonlyMap<string, TypeFacet>;
@@ -77,13 +75,13 @@ export interface Projection {
 }
 
 /**
- * **The hues left this file** — #87. `shared/entity-hues.ts` holds the six, in both themes, and
- * the rule that gives one to a type. The graph paints by type now as well, so a copy here and a
- * copy there would give one type two hues the first time either was tuned.
+ * **The hues left this file.** `shared/entity-hues.ts` holds the six, in both themes, and the
+ * rule that gives one to a type. The graph paints by type now as well, so a copy here and a copy
+ * there would give one type two hues the first time either was tuned.
  *
- * **This surface takes the dark set on both themes.** `CANVAS.md` rules it: a point sits on
- * imagery, and imagery is dark, so the light set cannot be read on it. The shared file states
- * both sets and the ratios each one gives, and this line is the choice of this surface.
+ * **This surface takes the dark set on both themes.** A point sits on imagery, and imagery is
+ * dark, so the light set cannot be read on it. The shared file states both sets and the ratios
+ * each one gives, and this line is the choice of this surface.
  */
 const MAP_HUES = ENTITY_HUES.dark;
 
@@ -94,10 +92,9 @@ const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point 
 /**
  * One entry of the rail: the type, and whether it is switched off.
  *
- * **The polarity of §5.2 reaches this shape.** The field says which type is **hidden**, and no
- * value here is a list of the types that are on. The type list is a projection (ADR 0005 §6), so
- * the corpus gains a type whenever a document does, and a new type that nobody has switched off
- * is drawn.
+ * **The polarity reaches this shape.** The field says which type is **hidden**, and no value here
+ * is a list of the types that are on. The type list is a projection, so the corpus gains a type
+ * whenever a document does, and a new type that nobody has switched off is drawn.
  */
 export interface RailFacet {
   readonly facet: TypeFacet;
@@ -120,12 +117,11 @@ export interface RailLegend {
 /**
  * The legend of the rail, taken from the map itself.
  *
- * `docs/map-surface.md` §4.5 and §3.1: four items survive the layer panel, and they are an entry
- * per entity type, a colour, a count and visibility. This function derives the four, and it
- * decides nothing about presentation.
+ * Four items survive the layer panel, and they are an entry per entity type, a colour, a count
+ * and visibility. This function derives the four, and it decides nothing about presentation.
  *
- * **Visibility is asked of the handle, so the adapter stays the one writer** — §4.4 and §5.2. The
- * caller passes `handle.isTypeVisible`, and this file reads no store of its own.
+ * **Visibility is asked of the handle, so the adapter stays the one writer.** The caller passes
+ * `handle.isTypeVisible`, and this file reads no store of its own.
  */
 export function railLegend(
   projection: Projection,
@@ -152,9 +148,9 @@ export function railLegend(
 /**
  * The entities of one type whose name holds the text of the search field.
  *
- * `docs/map-surface.md` §4.5: finding an entity is a search, inside one type. §9 records that a
- * search across the corpus is its own capability (W9), and this is not that: it is a control on
- * one filter. The order of the projection is kept, because no document states an order.
+ * Finding an entity is a search, inside one type. A search across the corpus is its own
+ * capability (W9), and this is not that: it is a control on one filter. The order of the
+ * projection is kept, because no document states an order.
  *
  * The comparison is made on a trimmed and lowered copy of the text, so that a name is reached by
  * how it reads and not by how it was typed.
@@ -166,9 +162,9 @@ export function railLegend(
  * own about a type. The word for a type that is off is `off` here, because the map hides a layer;
  * the graph dims one and says so. Each surface states its own consequence.
  *
- * **The swatch stays.** §5.5 rule 11 keeps the entity hues on the map and out of the chrome, and
- * §3.1 and §4.5 keep the colour swatch per entry: it is the legend, and a coloured point means
- * nothing without one. The hue is the hex the map parses, so no class can carry it.
+ * **The swatch stays.** Rule 11 keeps the entity hues on the map and out of the chrome, and the
+ * colour swatch stays per entry: it is the legend, and a coloured point means nothing without
+ * one. The hue is the hex the map parses, so no class can carry it.
  */
 export function railRows(
   legend: RailLegend,
@@ -199,8 +195,8 @@ export function railRows(
 /**
  * The drawn entities of one type, in the order of the projection.
  *
- * **It filtered on the text of a search field, and that field is gone** — #82 C6. The operator does
- * not want a search inside the rail, and **#90 GLOBAL-SEARCH** holds a search across the corpus.
+ * **It filtered on the text of a search field, and that field is gone.** The operator does not
+ * want a search inside the rail, and the tracker holds a search across the corpus.
  */
 export function entitiesOfType(projection: Projection, type: string): readonly GeoEntity[] {
   return projection.entities.filter((entity) => entity.type === type);
@@ -209,13 +205,13 @@ export function entitiesOfType(projection: Projection, type: string): readonly G
 export function project(read: Corpus): Projection {
   const drawn = read.entities.filter(hasGeometry);
 
-  // **The hue comes from every type of the corpus, and not from the types this map draws** —
-  // #87. `shared/entity-hues.ts` carries the rule and the reason: this file drops an entity with
-  // no geometry, the graph drops one with no position, so an index taken from a drawn subset
-  // would give one type two hues, one per canvas, in silence.
+  // **The hue comes from every type of the corpus, and not from the types this map draws.**
+  // `shared/entity-hues.ts` carries the rule and the reason: this file drops an entity with no
+  // geometry, the graph drops one with no position, so an index taken from a drawn subset would
+  // give one type two hues, one per canvas, in silence.
   //
-  // **The hue still cycles, and it still says so** — #81 row A6. A seventh type wears the hue of
-  // the first, and **#93 ENTITY-TYPE-TABLE** puts a decided colour on the type itself.
+  // **The hue still cycles, and it still says so.** A seventh type wears the hue of the first, and
+  // the tracker holds a decided colour on the type itself.
   const hueOfType = typeHues(
     read.entities.map((entity) => entity.type),
     MAP_HUES,

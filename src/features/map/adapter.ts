@@ -1,48 +1,45 @@
 /**
  * One MapLibre instance, driven directly.
  *
- * Built from `docs/map-surface.md` §4.2, §5.1, §5.2, §5.3 and §8 step 2. It also obeys ADR
- * 0004 §2 and §3, and ADR 0005 §6. This file owns the instance, the style, the sources, the
- * layers, the hit test, the camera and the disposal. It gives a handle to the other components.
- * **No other file uses the library.**
+ * This file owns the instance, the style, the sources, the layers, the hit test, the camera and
+ * the disposal. It gives a handle to the other components. **No other file uses the library.**
  *
- * **This file contains no React value, and it causes no render.** ADR 0004 §3. It imports no
- * React module. The mount and the cleanup are parts of `mountMap`.
+ * **This file contains no React value, and it causes no render.** It imports no React module. The
+ * mount and the cleanup are parts of `mountMap`.
  *
- * **This style has no ground layer, and no tile address.** §8 gives the two grounds, the switch,
- * the dark paint and the credit to step 4, which is `basemap`. No step needs the step after it.
- * §7 keeps the tile path of the map view open, and no ticket names it. A tile address in this
- * file is therefore a silent default, and `CLAUDE.md` gives the rule against it. The canvas stays
- * transparent. The colour of the container shows through it, and this file invents no background
- * colour.
+ * **This style has no ground layer, and no tile address.** The two grounds, the switch, the dark
+ * paint and the credit belong to step 4, which is `basemap`. No step needs the step after it. The
+ * tile path of the map view is open, and the tracker carries it. A tile address in this file is
+ * therefore a silent default, and the rules forbid a silent default. The canvas stays transparent.
+ * The colour of the container shows through it, and this file invents no background colour.
  *
- * **The handle is the seam.** §6 leaves the `window` event of the prototype behind. So there is
- * no `CustomEvent`, and no `declare global`.
+ * **The handle is the seam.** The `window` event of the prototype is left behind. So there is no
+ * `CustomEvent`, and no `declare global`.
  *
- * **This file draws the relations, and it draws them under every point** — §4.7 and §8 step 8. A
- * relation never covers the thing it relates. A point wins over a line it crosses, and the one
- * `click` handler below is where that rule lives.
+ * **This file draws the relations, and it draws them under every point.** A relation never covers
+ * the thing it relates. A point wins over a line it crosses, and the one `click` handler below is
+ * where that rule lives.
  *
- * **This file holds the chosen relation, and it draws no card.** §4.7 refused the card of the
- * prototype until the operator said who owns a relation surface. **#89 answered that**: the route
- * draws a detail panel for a chosen relation, beside the canvas, exactly as it does for a selected
- * entity. This file still draws no card. It brightens the line and it announces the choice.
+ * **This file holds the chosen relation, and it draws no card.** The card of the prototype was
+ * refused until the operator said who owns a relation surface. **The operator answered that**: the
+ * route draws a detail panel for a chosen relation, beside the canvas, exactly as it does for a
+ * selected entity. This file still draws no card. It brightens the line and it announces the
+ * choice.
  *
- * **The chosen relation is identity now, so it is in the address** — #89, and ADR 0004 §7, which
- * puts the identity of what is examined there. Before that ticket nothing drew a relation, the
- * choice died with the view, and this closure was the whole of its life. The rule that has not
- * changed is the direction: **this file reads the address one time, at the mount, and never writes
- * it.** The route writes it, from what this file announces, so the canvas stays the one authority
- * on what it drew and the two can never state different things.
+ * **The chosen relation is identity now, so it is in the address**, which carries the identity of
+ * what is examined. Before that decision nothing drew a relation, the choice died with the view,
+ * and this closure was the whole of its life. The rule that has not changed is the direction:
+ * **this file reads the address one time, at the mount, and never writes it.** The route writes
+ * it, from what this file announces, so the canvas stays the one authority on what it drew and the
+ * two can never state different things.
  *
- * **This file is the only writer of `hiddenTypes` and of `linksHidden` in the workspace** — §4.4
- * and §5.2. §4.4 names four writers, and the built record carries a fifth field, `linksHidden`.
- * The document and the code differ there, the operator owns that difference, and this file
- * answers it with no second writer. It takes
- * a snapshot of that field at the mount and it writes the whole field at each switch. A second
- * writer of the same field is a fault, and this file does no merge. A stored type that the
- * corpus no longer contains stays in the list, and it goes back to storage. The corpus can gain
- * that type again, and the choice of the analyst must stay valid.
+ * **This file is the only writer of `hiddenTypes` and of `linksHidden` in the workspace.** The
+ * document names four writers, and the built record carries a fifth field, `linksHidden`. The
+ * document and the code differ there, the operator owns that difference, and this file answers it
+ * with no second writer. It takes a snapshot of that field at the mount and it writes the whole
+ * field at each switch. A second writer of the same field is a fault, and this file does no merge.
+ * A stored type that the corpus no longer contains stays in the list, and it goes back to storage.
+ * The corpus can gain that type again, and the choice of the analyst must stay valid.
  *
  * **The route of step 5 seeds from `handle.selected`, and never from the address.** This file
  * reads the address one time. It drops a restored identifier that finds no drawn entity. It also
@@ -103,10 +100,10 @@ export interface MountMapOptions {
    */
   readonly projection: Projection;
   /**
-   * Where the credit sits. **The corner is a parameter** — `docs/map-surface.md` §5.5. A bar that
-   * floats over the map covers whichever corner it stands in, and the floating controls of the
-   * prototype covered the credit twice. The rail is on the left, so the default is the corner
-   * that no control of this surface reaches.
+   * Where the credit sits. **The corner is a parameter.** A bar that floats over the map covers
+   * whichever corner it stands in, and the floating controls of the prototype covered the credit
+   * twice. The rail is on the left, so the default is the corner that no control of this surface
+   * reaches.
    */
   readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
@@ -114,10 +111,10 @@ export interface MountMapOptions {
 /**
  * What the other components of the surface use to drive the map.
  *
- * **`selected` is on the handle, so that a caller can start from it** — `docs/map-surface.md`
- * §5.1. A component that subscribes after the map is built has already missed the restore of the
- * address. So `onSelect` also calls its listener immediately, with the selection of that moment.
- * After that it calls the listener at each change.
+ * **`selected` is on the handle, so that a caller can start from it.** A component that subscribes
+ * after the map is built has already missed the restore of the address. So `onSelect` also calls
+ * its listener immediately, with the selection of that moment. After that it calls the listener at
+ * each change.
  */
 export interface MapHandle {
   /** The identity of the selected entity, or `null`. Read it to start a control. */
@@ -130,28 +127,28 @@ export interface MapHandle {
   readonly setTypeVisible: (type: string, visible: boolean) => void;
   readonly isTypeVisible: (type: string) => boolean;
   /**
-   * **The relations have one switch of their own** — §4.7. They are not an entity type, and ADR
-   * 0005 §6 keeps the type list a projection of the entity types and nothing else.
+   * **The relations have one switch of their own.** They are not an entity type, and the type
+   * list stays a projection of the entity types and nothing else.
    */
   readonly setLinksVisible: (visible: boolean) => void;
   readonly linksVisible: boolean;
   /**
    * The relation the analyst chose with a click on a line, or `null`. **The rail names it, and
-   * nothing opens a card** — §4.7 and §7.
+   * nothing opens a card.**
    */
   readonly chosenLink: GeoLink | null;
   /** Calls the listener immediately with the chosen relation. Gives the unsubscribe. */
   readonly onChooseLink: (listener: (link: GeoLink | null) => void) => () => void;
   /**
-   * **The ground the map draws** — §4.3. Both grounds are in the style and one is hidden, so this
-   * is a layout property and never a style that is built again.
+   * **The ground the map draws.** Both grounds are in the style and one is hidden, so this is a
+   * layout property and never a style that is built again.
    */
   readonly setGround: (ground: Ground) => void;
   readonly ground: Ground;
   readonly destroy: () => void;
 }
 
-/** The one source of points. ADR 0005 §6: a panel of thirty types must not make thirty queries. */
+/** The one source of points. A panel of thirty types must not make thirty queries. */
 const ENTITY_SOURCE = 'entities';
 /** The selected point, alone. So the ring is a change of data, and never a change of style. */
 const SELECTION_SOURCE = 'selection';
@@ -173,7 +170,7 @@ const ACTIVE_LINK_SOURCE = 'links-active';
 const ACTIVE_LINK_LAYER = 'links-active-line';
 
 /**
- * **A relation says which way it points** — #88 row A5. One head, at the end it arrives at.
+ * **A relation says which way it points.** One head, at the end it arrives at.
  *
  * **It carries a source of its own, and it is not a symbol on the line source.** MapLibre places a
  * symbol along a line from the start of that line, and it has no expression that reads where a
@@ -189,9 +186,9 @@ const ARROW_IMAGE = 'link-arrow-head';
 /**
  * The one colour of a line, as hex.
  *
- * **A colour must be a colour that the library reads** — §5.3. MapLibre parses the style itself,
- * so a CSS custom property never reaches it, and §9 carries the cost of that copy beside the cost
- * of the entity hues in `projection.ts`.
+ * **A colour must be a colour that the library reads.** MapLibre parses the style itself, so a CSS
+ * custom property never reaches it, and the cost of that copy is recorded beside the cost of the
+ * entity hues in `projection.ts`.
  *
  * **One hex reads on both grounds, because there is no ground.** Step 4 is blocked, so the canvas
  * is transparent and the colour behind a line is the page: near white in the light theme, and
@@ -221,8 +218,7 @@ const LINK_HUE = '#7b8489';
  * **It is black, and it is not a token.** It is not a colour of the interface: it is the edge that
  * separates a mark from the ground under it, and a cartographic outline is dark on every ground
  * for that reason. `--foreground` is near white in the dark theme and would read as a second mark.
- * The map uses the dark set on every ground already — `CANVAS.md` — so this value follows no theme
- * either.
+ * The map uses the dark set on every ground already, so this value follows no theme either.
  *
  * **The hex is stated here and not read from a stylesheet**, for the reason `LINK_HUE` gives above
  * it: a CSS custom property never reaches the style parser of the library.
@@ -242,12 +238,11 @@ const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
 
 /**
- * The hit box, in pixels on each side of the pointer — §4.7. A line of one pixel is otherwise
- * unclickable.
+ * The hit box, in pixels on each side of the pointer. A line of one pixel is otherwise unclickable.
  *
  * **The points take the same box as the lines.** A point is a disc of three pixels at zoom 3, so a
  * bare point query gives it the narrower tolerance of the two, and a click four pixels from a
- * point centre returns the line under it. §4.7 gives that click to the point.
+ * point centre returns the line under it. That click goes to the point.
  */
 const HIT_BOX = 5;
 
@@ -262,9 +257,9 @@ const FIT_PADDING = 24;
  * the maximum zoom of the map, which is 22. The map then shows one street. The analyst gets no
  * view of the area around the entity.
  *
- * **14 is an invented number.** §5.4 records that the first camera is a value that nobody decided,
- * and this is a parameter to calibrate. 14 is the top of the two radius ramps of this file, so a
- * point at this zoom already has its full size.
+ * **14 is an invented number.** The first camera is a value that nobody decided, and this is a
+ * parameter to calibrate. 14 is the top of the two radius ramps of this file, so a point at this
+ * zoom already has its full size.
  */
 const FIT_MAX_ZOOM = 14;
 
@@ -325,9 +320,9 @@ interface LineCollection {
 }
 
 /**
- * **A relation whose endpoint is not drawn is not drawn either** — §5.1. A line that runs to a
- * point which no layer draws states a place that the map shows nowhere, which is the lie that
- * §5.1 refuses for a point. The quiet line states that place as much as the bright line does.
+ * **A relation whose endpoint is not drawn is not drawn either.** A line that runs to a point
+ * which no layer draws states a place that the map shows nowhere, which is the lie that the rule
+ * refuses for a point. The quiet line states that place as much as the bright line does.
  *
  * The rule was written for the bright lines, and it applies to both. So both line sources, the
  * style literal and the hit test read this one function, and the four cannot drift again.
@@ -355,7 +350,7 @@ const collectLines = (links: readonly GeoLink[]): LineCollection => ({
 });
 
 /**
- * One arrowhead, at the end its relation arrives at — #88 row A5.
+ * One arrowhead, at the end its relation arrives at.
  *
  * A relation is drawn as a straight line between two points, so the end of the line is the
  * position of the target entity and the angle is the plane bearing between the two.
@@ -412,9 +407,9 @@ type Hit =
 /**
  * Each live mount, by the element that it owns.
  *
- * **The mount does the same thing each time** — `docs/map-surface.md` §5.3. Two instances on one
- * element make the browser remove the older WebGL context. The map then looks empty, and it is
- * not empty. So a second mount destroys the first.
+ * **The mount does the same thing each time.** Two instances on one element make the browser
+ * remove the older WebGL context. The map then looks empty, and it is not empty. So a second mount
+ * destroys the first.
  *
  * React 19 StrictMode runs the effect two times in development, in this order: setup, cleanup,
  * setup. The cleanup destroys the first handle and it deletes the entry here. The second setup
@@ -441,7 +436,7 @@ export function mountMap({
   const stored = readMapWorkspace();
   const hidden = new Set<string>(stored.hiddenTypes);
   /**
-   * **The store holds the state that is switched off** — §5.2 and `workspace.ts`. The field says
+   * **The store holds the state that is switched off**, as `workspace.ts` states. The field says
    * that the relations are hidden, and never that they are drawn, so the two switches of this
    * surface keep one polarity.
    */
@@ -449,12 +444,12 @@ export function mountMap({
   const colourOfType = new Map(projection.types.map((facet) => [facet.type, facet.colour]));
 
   /**
-   * **A colour must be a colour that the library reads** — §5.3. MapLibre reads the style with
-   * its own parser. So a CSS custom property never reaches it. `projection.ts` contains the hex
-   * copy of the entity hues, and §9 carries the cost of that copy.
+   * **A colour must be a colour that the library reads.** MapLibre reads the style with its own
+   * parser. So a CSS custom property never reaches it. `projection.ts` contains the hex copy of
+   * the entity hues, and the cost of that copy is recorded.
    *
    * An entity of a type that carries no facet is not drawn. This file invents no colour for it.
-   * The type list is made from these same entities (ADR 0005 §6). So the case is empty today.
+   * The type list is made from these same entities. So the case is empty today.
    */
   const featuresOf = (entities: readonly GeoEntity[]): PointFeature[] => {
     const features: PointFeature[] = [];
@@ -476,11 +471,11 @@ export function mountMap({
     type: 'circle',
     source: ENTITY_SOURCE,
     filter: ['==', ['get', 'entityType'], facet.type],
-    // **A type is hidden with `visibility`** — ADR 0005 §6. It needs no new data. A hidden layer
-    // returns nothing from `queryRenderedFeatures` after the worker parses the tile again.
-    // `setLayoutProperty` only marks the source, and the new parse is asynchronous. In the window
-    // between the switch and the answer of the worker, the old tile still contains the points.
-    // The hit test therefore has a second guard against `hidden` — see `entityAt`.
+    // **A type is hidden with `visibility`.** It needs no new data. A hidden layer returns nothing
+    // from `queryRenderedFeatures` after the worker parses the tile again. `setLayoutProperty`
+    // only marks the source, and the new parse is asynchronous. In the window between the switch
+    // and the answer of the worker, the old tile still contains the points. The hit test therefore
+    // has a second guard against `hidden` — see `entityAt`.
     layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
     paint: {
       'circle-color': facet.colour,
@@ -533,10 +528,10 @@ export function mountMap({
   ];
 
   /**
-   * The heads of the relations — #88 row A5.
+   * The heads of the relations.
    *
-   * **It is above the lines and below every point**, for the rule of §4.7: a relation must never
-   * cover the thing it relates.
+   * **It is above the lines and below every point**: a relation must never cover the thing it
+   * relates.
    *
    * **The collision machinery is switched off.** MapLibre drops a symbol that meets another one,
    * and a dropped head reads as a relation with no direction — an absence that states something
@@ -567,8 +562,8 @@ export function mountMap({
   };
 
   /**
-   * The theme, from the class on the document element — `CANVAS.md`: "The theme is read from the
-   * class on `documentElement`, with an observer, and never from React."
+   * The theme, from the class on the document element. The theme is read from the class on
+   * `documentElement`, with an observer, and never from React.
    */
   const isDark = (): boolean => document.documentElement.classList.contains('dark');
 
@@ -607,20 +602,20 @@ export function mountMap({
   const style: StyleSpec = {
     version: 8,
     sources: {
-      // **Both grounds live in the style at one time, and one is hidden** — §4.3. A switch is then
-      // a layout property. A style that is built again drops every source with it, and the
+      // **Both grounds live in the style at one time, and one is hidden.** A switch is then a
+      // layout property. A style that is built again drops every source with it, and the
       // selection, the hidden types and the relations would all have to be applied a second time.
       //
-      // **The credit is on the source, and MapLibre matches it to what is visible.** §5.5 records
-      // that the library drops the attribution of a source that no visible layer uses, and that
-      // this was checked and not assumed.
+      // **The credit is on the source, and MapLibre matches it to what is visible.** The library
+      // drops the attribution of a source that no visible layer uses, and that was checked and not
+      // assumed.
       //
-      // **`maxzoom` is the ceiling of the server, and it is measured and not assumed.** §9 named
-      // this as the one item to check at build time. The OSM servers answer 200 at z19 and **400
-      // at z20**; the EOX service answers 200 far past its 10 m resolution, because it upsamples
-      // on its own. With the ceiling stated here MapLibre never asks past it and draws the
-      // overzoomed parent tile itself, so the seam is deliberate on both grounds and no request
-      // reaches a third party for a tile that carries nothing new.
+      // **`maxzoom` is the ceiling of the server, and it is measured and not assumed.** It is the
+      // one item to check at build time. The OSM servers answer 200 at z19 and **400 at z20**; the
+      // EOX service answers 200 far past its 10 m resolution, because it upsamples on its own.
+      // With the ceiling stated here MapLibre never asks past it and draws the overzoomed parent
+      // tile itself, so the seam is deliberate on both grounds and no request reaches a third
+      // party for a tile that carries nothing new.
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
@@ -645,7 +640,7 @@ export function mountMap({
       // before every other one. A literal has no such name to read, and it cannot be reached
       // before the style loads. **The lines and the points stay above, in the order below.**
       ...groundLayers,
-      // **The lines come before every point** — §4.7. A relation must never cover what it relates.
+      // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
       arrowLayer,
       ...pointLayers,
@@ -657,9 +652,9 @@ export function mountMap({
         type: 'circle',
         source: SELECTION_SOURCE,
         paint: {
-          // **The ring has no fill, and its size follows the zoom** — §5.1. A disc of one size
-          // shows as a grey area at low zoom, and it covers each point that stands near it. The
-          // mark then shows two points where the data has one.
+          // **The ring has no fill, and its size follows the zoom.** A disc of one size shows
+          // as a grey area at low zoom, and it covers each point that stands near it. The mark
+          // then shows two points where the data has one.
           //
           // The colour of the fill is stated, and the opacity of the fill is 0. A fill colour
           // that nobody states takes the value of the parser, which is a colour that nobody
@@ -683,8 +678,8 @@ export function mountMap({
   const base = {
     container,
     style,
-    // Step 4 owns the credit and its corner — §5.5. Nothing is credited while there is no
-    // ground. The default control states a licence that no visible layer uses.
+    // Step 4 owns the credit and its corner. Nothing is credited while there is no ground. The
+    // default control states a licence that no visible layer uses.
     attributionControl: false,
   } as const;
   const options: MapOptions =
@@ -697,17 +692,17 @@ export function mountMap({
             fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM },
           }
         : // Nothing can be drawn. So the map shows the world, which states no place that the data
-          // does not contain. §5.4 records that the first camera is a value that nobody decided.
+          // does not contain. The first camera is a value that nobody decided.
           { ...base, center: [0, 0], zoom: 0 };
 
   const map = new MapLibreMap(options);
 
   /**
-   * **The credit is drawn, and its corner is a parameter** — §5.5. The default control of the
-   * library was switched off while there was no ground, because it stated a licence that no
-   * visible layer used. There is a ground now, so the control is added, and MapLibre reads the
-   * attribution of each source that a **visible** layer uses. The hidden ground therefore credits
-   * nothing, which is the rule §5.5 states.
+   * **The credit is drawn, and its corner is a parameter.** The default control of the library
+   * was switched off while there was no ground, because it stated a licence that no visible layer
+   * used. There is a ground now, so the control is added, and MapLibre reads the attribution of
+   * each source that a **visible** layer uses. The hidden ground therefore credits nothing, which
+   * is the rule.
    *
    * It is not compact. A credit behind a control that a reader must open is an obligation of a
    * licence that the screen does not meet.
@@ -720,9 +715,9 @@ export function mountMap({
   const subscriptions: Subscription[] = [];
 
   /**
-   * **A layout property needs a loaded style** — §5.3. `setLayoutProperty` throws an error while
-   * the style loads, and the analyst can click a control in that window. `getSource` returns
-   * nothing in the same window, and it reports no fault for that — §5.1.
+   * **A layout property needs a loaded style.** `setLayoutProperty` throws an error while the
+   * style loads, and the analyst can click a control in that window. `getSource` returns nothing
+   * in the same window, and it reports no fault for that.
    *
    * One queue covers both cases, for each caller. A later caller therefore has one pattern to copy.
    */
@@ -755,28 +750,28 @@ export function mountMap({
   const selectListeners = new Set<(id: string | null) => void>();
 
   /**
-   * **The restore is one way, and it occurs one time** — §5.1. This file reads the address here,
-   * at the mount, and never again. It never writes the address. The route owns the navigation and
+   * **The restore is one way, and it occurs one time.** This file reads the address here, at the
+   * mount, and never again. It never writes the address. The route owns the navigation and
    * `replace: true`.
    */
   const address = new URLSearchParams(window.location.search);
   // **An empty value is not an identifier.** The router writes `entity=` for the empty selection,
   // which is the normal state of a map, and a first version of the graph read that empty value as
-  // an identifier — #89.
+  // an identifier.
   const wanted = address.get('entity') === '' ? null : address.get('entity');
   const restored = wanted === null ? null : (projection.byId.get(wanted) ?? null);
   // An old identifier gives no selection, and it shows no fault on the screen. The map draws no
   // selected point of a type that is switched off. A mark on such a point shows a point that the
-  // map does not draw. Such a selection is dropped as well — §5.1.
+  // map does not draw. Such a selection is dropped as well.
   let selected: string | null = restored === null || hidden.has(restored.type) ? null : restored.id;
 
   /**
    * The relation the analyst chose with a click on a line, or `null`.
    *
-   * **It is restored from the address, and #89 is the decision that put it there.** Before that
-   * ticket it started at `null` on every open, because nothing on this surface drew a chosen
-   * relation and the choice died with the view. A relation is now a thing the analyst examines,
-   * and ADR 0004 §7 puts the identity of what is examined in the address.
+   * **It is restored from the address, and a decision put it there.** Before that decision it
+   * started at `null` on every open, because nothing on this surface drew a chosen relation and
+   * the choice died with the view. A relation is now a thing the analyst examines, and the address
+   * carries the identity of what is examined.
    *
    * **It is dropped under the same rules as a selected point**, and for the same reason: a panel
    * that names a relation which this canvas draws nowhere is a lie on the screen. An identifier
@@ -829,15 +824,15 @@ export function mountMap({
   };
 
   /**
-   * **The bright lines follow the selection, and they need no click** — §4.7. They answer "what
-   * does this one touch". A selection that the address restored is painted through the same queue,
-   * so the lines and the ring arrive together once the style loads — §5.1.
+   * **The bright lines follow the selection, and they need no click.** They answer "what does
+   * this one touch". A selection that the address restored is painted through the same queue, so
+   * the lines and the ring arrive together once the style loads.
    *
    * A type that switches off drops the selection, and this source is emptied with it.
    *
    * **A relation whose endpoint is not drawn is not bright.** A line at full opacity that runs to
    * a point which no layer draws states a place that the map shows nowhere, which is the lie that
-   * §5.1 refuses for a point. Each change of the visibility of a type therefore calls this
+   * the rule refuses for a point. Each change of the visibility of a type therefore calls this
    * function again.
    */
   const paintActiveLinks = (): void => {
@@ -903,12 +898,13 @@ export function mountMap({
    * **A point of a type that is switched off gives the result `ground`.** `setLayoutProperty` only
    * marks the source, and the worker parses the tile again after that. Until the worker answers,
    * the old tile still contains the points of the hidden layer, and the query returns them. A
-   * hit in that window would select a point that the map draws nowhere, which §5.1 forbids, and
-   * `handle.select` would refuse the same identifier. The guard on `hidden` makes the two agree.
+   * hit in that window would select a point that the map draws nowhere, which the rule forbids,
+   * and `handle.select` would refuse the same identifier. The guard on `hidden` makes the two
+   * agree.
    *
-   * **A point wins over a line it crosses** — §4.7. The point is the smaller target, and it is the
-   * one the analyst aimed at. So the points are asked first, and the lines only where no point
-   * answered. There is one `click` handler, and this order lives inside it — §5.3.
+   * **A point wins over a line it crosses.** The point is the smaller target, and it is the one
+   * the analyst aimed at. So the points are asked first, and the lines only where no point
+   * answered. There is one `click` handler, and this order lives inside it.
    */
   const hitAt = (point: MapMouseEvent['point']): Hit => {
     if (!styleReady) return { kind: 'unknown' };
@@ -929,7 +925,7 @@ export function mountMap({
     // guard above: the layer is marked hidden, and the old tile still answers until the worker
     // parses it again. The two paths therefore hold one rule.
     if (linksHidden) return { kind: 'ground' };
-    // **A line needs a hit box of about five pixels on each side** — §4.7. A line of one pixel is
+    // **A line needs a hit box of about five pixels on each side.** A line of one pixel is
     // otherwise unclickable. The box above is that box, and the points already used it.
     for (const feature of map.queryRenderedFeatures(box, { layers: linkLayerIds })) {
       const fid = feature.id;
@@ -946,7 +942,7 @@ export function mountMap({
   };
 
   /**
-   * The arrowhead, given to the library when it asks for it — #88 row A5.
+   * The arrowhead, given to the library when it asks for it.
    *
    * **This style holds no sprite and no glyph server**, because the map draws its own ground and
    * it has never needed either. So the image the style names must come from here.
@@ -990,7 +986,7 @@ export function mountMap({
   let cameraIsAnalystChoice = false;
 
   /**
-   * The name a pointer draws over this canvas — #81 row A10.
+   * The name a pointer draws over this canvas.
    *
    * **The operator asked for the hover name of the graph, here.** They liked that design and asked
    * the two canvases to read as one product. `shared/canvas-label.ts` states how it looks, and the
@@ -1038,7 +1034,7 @@ export function mountMap({
   };
 
   /**
-   * **The pointer names what it is over, and it changes no state** — #81 A10.
+   * **The pointer names what it is over, and it changes no state.**
    *
    * It asks the same question as the click, through the one hit test, so the thing that is named
    * and the thing that a click takes can never disagree. A type that is switched off is hidden on
@@ -1048,9 +1044,9 @@ export function mountMap({
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
       if (hit.kind === 'entity') {
-        // **The name carries the count of relations, in the words the graph uses** — #87. This
-        // canvas draws every point at one radius, so the count is not a second reading of the
-        // picture here: it is the one place the map states it at all.
+        // **The name carries the count of relations, in the words the graph uses.** This canvas
+        // draws every point at one radius, so the count is not a second reading of the picture
+        // here: it is the one place the map states it at all.
         nameHover(
           entityLines(hit.entity.label, (projection.linksByEntity.get(hit.entity.id) ?? []).length),
           event.point,
@@ -1076,16 +1072,16 @@ export function mountMap({
     }),
   );
 
-  // **One `click` handler, and it asks what is under the pointer** — §5.3. Two handlers make the
-  // result depend on the order in which they run.
+  // **One `click` handler, and it asks what is under the pointer.** Two handlers make the result
+  // depend on the order in which they run.
   subscriptions.push(
     map.on('click', (event) => {
       const hit = hitAt(event.point);
       // The style is not loaded, so the library can say nothing about this point. A click in
       // that window changes no selection. The selection from the address stays.
       if (hit.kind === 'unknown') return;
-      // **A click on a line chooses that relation, and it opens nothing** — §4.7 and §7. The card
-      // of the prototype waits for the operator to say who owns a relation surface. The line is
+      // **A click on a line chooses that relation, and it opens nothing.** The card of the
+      // prototype waits for the operator to say who owns a relation surface. The line is
       // brightened and the rail names it. The selection stays: a line that cleared it would take
       // away the bright lines of the entity under the pointer.
       if (hit.kind === 'link') {
@@ -1107,8 +1103,8 @@ export function mountMap({
   );
 
   /**
-   * **The adapter is one of the four writers of the workspace, and each writer patches** — §4.4.
-   * A writer that knows one part of the record only removes the field of the other writer.
+   * **The adapter is one of the four writers of the workspace, and each writer patches.** A writer
+   * that knows one part of the record only removes the field of the other writer.
    */
   const storeCamera = (): void => {
     if (destroyed) return;
@@ -1253,11 +1249,10 @@ export function mountMap({
   };
 
   /**
-   * **A `ResizeObserver` on the container is necessary, and it is not an improvement of speed** —
-   * §5.3. MapLibre measures the container one time, in the constructor, while the browser still
-   * builds the chrome around it. The prototype measured a canvas of 1140 by 97 inside a container
-   * of 1140 by 839, and nothing gave a warning. A map draws correctly in a canvas of the wrong
-   * size.
+   * **A `ResizeObserver` on the container is necessary, and it is not an improvement of speed.**
+   * MapLibre measures the container one time, in the constructor, while the browser still builds
+   * the chrome around it. The prototype measured a canvas of 1140 by 97 inside a container of 1140
+   * by 839, and nothing gave a warning. A map draws correctly in a canvas of the wrong size.
    *
    * **The observer of the library does not cover that measurement.** It drops its first delivery
    * always. A container can become stable between the constructor and that delivery. It then
@@ -1320,15 +1315,14 @@ export function mountMap({
   observer.observe(container);
 
   /**
-   * **Each member of the handle does nothing after `destroy`** — `CANVAS.md`, the cleanup is
-   * complete. After `map.remove()` the style of the map is absent, and a call of
-   * `setLayoutProperty` throws an error. A write to the workspace from a dead adapter is worse,
-   * because the record keeps that value for each later open. A guard in `destroy` alone does not
-   * reach either fault.
+   * **Each member of the handle does nothing after `destroy`**, so the cleanup is complete. After
+   * `map.remove()` the style of the map is absent, and a call of `setLayoutProperty` throws an
+   * error. A write to the workspace from a dead adapter is worse, because the record keeps that
+   * value for each later open. A guard in `destroy` alone does not reach either fault.
    */
   /**
    * Paints every ground for the theme in force. **The inversion reaches the ground layer only**,
-   * so no entity hue and no relation line moves with the theme — §4.3.
+   * so no entity hue and no relation line moves with the theme.
    *
    * It runs through the queue, because `setPaintProperty` needs a loaded style exactly as
    * `setLayoutProperty` does.
@@ -1351,8 +1345,8 @@ export function mountMap({
 
   /**
    * **The theme is read from the class on `documentElement`, with an observer, and never from
-   * React** — `CANVAS.md`. A React value here would sit in the tree that wraps the live element,
-   * which is the fault ADR 0004 names.
+   * React.** A React value here would sit in the tree that wraps the live element, which is the
+   * named fault.
    *
    * The observer watches one attribute of one element, so it delivers only on a theme change.
    */
@@ -1374,9 +1368,9 @@ export function mountMap({
     onSelect: (listener) => {
       if (destroyed) return NO_OP;
       selectListeners.add(listener);
-      // **A component that subscribes after the map is built has already missed the restore** —
-      // §5.1. The listener is called here with the current selection. So no caller must
-      // remember to read `selected` first.
+      // **A component that subscribes after the map is built has already missed the restore.**
+      // The listener is called here with the current selection. So no caller must remember to
+      // read `selected` first.
       listener(selected);
       return () => selectListeners.delete(listener);
     },
@@ -1390,8 +1384,8 @@ export function mountMap({
       // The rail calls this, so the analyst made this move. This line arms the flag before the
       // camera call, so the observer interrupts this animation with no correction of the size.
       cameraIsAnalystChoice = true;
-      // The zoom of the analyst stays. What "near enough" means is a camera value, and §5.4
-      // records that nobody has decided one.
+      // The zoom of the analyst stays. What "near enough" means is a camera value, and nobody has
+      // decided one.
       map.flyTo({ center: [entity.lon, entity.lat] });
       // The animation carries no gesture of its own, so it stores its camera here.
       storeCameraAfterMove();
@@ -1407,12 +1401,12 @@ export function mountMap({
       whenStyleReady(() => {
         map.setLayoutProperty(layerOfType(type), 'visibility', visible ? 'visible' : 'none');
       });
-      // **A type that is switched off drops the selection** — §5.1. The map draws no point for
-      // that type, so a mark on such a point shows a point that is not there.
+      // **A type that is switched off drops the selection.** The map draws no point for that
+      // type, so a mark on such a point shows a point that is not there.
       const entity = selected === null ? undefined : projection.byId.get(selected);
       if (!visible && entity?.type === type) setSelected(null);
       // **A relation whose endpoint is not drawn must not stay on the map.** The line then names a
-      // point that the map shows nowhere, which is the lie that §5.1 refuses for a point. The
+      // point that the map shows nowhere, which is the lie that the rule refuses for a point. The
       // rule covers the quiet lines, the chosen relation and every relation of the selection, so
       // both sets are painted again at each change of this switch, and never at the switch off
       // alone: a type that comes back brings its lines back with it.
@@ -1425,12 +1419,12 @@ export function mountMap({
     // A destroyed handle draws no type.
     isTypeVisible: (type) => !destroyed && !hidden.has(type),
     /**
-     * **The relations have one switch, and it is not in the type list** — §4.7. ADR 0005 §6 keeps
-     * that list a projection of the entity types. This file is the only writer of `linksHidden`,
-     * and the rail calls this member and patches nothing itself.
+     * **The relations have one switch, and it is not in the type list.** That list stays a
+     * projection of the entity types. This file is the only writer of `linksHidden`, and the rail
+     * calls this member and patches nothing itself.
      *
      * The switch drops no selection. A relation is not an entity, so a hidden line leaves no
-     * marked point undrawn, and §5.1 asks for nothing here.
+     * marked point undrawn, and the rule asks for nothing here.
      */
     setLinksVisible: (visible) => {
       if (destroyed) return;
@@ -1463,12 +1457,12 @@ export function mountMap({
       return () => chooseLinkListeners.delete(listener);
     },
     /**
-     * **The switch is a layout property, and never a style that is built again** — §4.3. Both
-     * grounds are in the style, so this shows one and hides the other, and every source, the
-     * selection and the filter survive it.
+     * **The switch is a layout property, and never a style that is built again.** Both grounds
+     * are in the style, so this shows one and hides the other, and every source, the selection and
+     * the filter survive it.
      *
      * The credit follows on its own: MapLibre reads the attribution of each source that a visible
-     * layer uses, and it drops the one that no visible layer uses — §5.5.
+     * layer uses, and it drops the one that no visible layer uses.
      */
     setGround: (next) => {
       if (destroyed) return;

@@ -1,22 +1,19 @@
 /**
  * The two grounds of the map: where each one comes from, what it credits, and how it is darkened.
  *
- * Built from `docs/map-surface.md` §4.3 and §5.5, and from `docs/adr/0005-map-and-tile-path.md`
- * §3, which fixes the source and the obligation of each ground.
- *
  * **It is a second `.ts` beside `projection.ts`, and it is named for its job.** `projection.ts`
  * reduces the corpus to what a map can draw. This holds a tile address, a licence and a paint
  * value, which is a different job and shares nothing with that one.
  *
- * **It touches no library.** `CANVAS.md` makes `adapter.ts` the one file that speaks to MapLibre.
- * This file exports plain values, and the adapter turns them into a source and a layer. So a
- * change of the tile path never reaches the library, and this file can be read by a person who
- * knows nothing about MapLibre.
+ * **It touches no library.** `adapter.ts` is the one file that speaks to MapLibre. This file
+ * exports plain values, and the adapter turns them into a source and a layer. So a change of the
+ * tile path never reaches the library, and this file can be read by a person who knows nothing
+ * about MapLibre.
  *
  * ## The tile path, and the ruling of the operator on 17 August 2026
  *
- * ADR 0005 §2 decides a tiered PMTiles archive, self-hosted. **That archive does not exist**, and
- * `docs/map-surface.md` §7 recorded the gap with no ticket to hold it. **#73 now holds it.**
+ * The decided source is a tiered PMTiles archive, self-hosted. **That archive does not exist**,
+ * and the tracker now holds the gap.
  *
  * The operator ruled that **the archive is an optimisation and never a condition of running**:
  *
@@ -26,12 +23,12 @@
  *
  * So the plan ground reads a hosted address first, and falls back to the servers of the
  * OpenStreetMap Foundation when none is configured. **The fallback is a real dependency of a
- * public repository, and #73 carries what must be true before any deployment**: that policy is
- * for casual and low-volume use, and it is not a tile service for an application.
+ * public repository, and the tracker carries what must be true before any deployment**: that
+ * policy is for casual and low-volume use, and it is not a tile service for an application.
  *
- * **This ruling contradicts two documents, and only the operator changes them.** ADR 0005 §3
- * names the self-hosted archive as *the* source of the basemap, and `docs/map-surface.md` §4.3
- * and §7 say the map view "must not ship". Both are reported under ASK.
+ * **This ruling contradicts two documents, and only the operator changes them.** One names the
+ * self-hosted archive as *the* source of the basemap, and the other says the map view "must not
+ * ship". Both are reported under ASK.
  */
 
 import type { Ground } from './workspace';
@@ -54,15 +51,15 @@ const hosted = (): string | null => {
 /**
  * The servers of the OpenStreetMap Foundation, which is the fallback the operator asked for.
  *
- * **This address is a dependency and not a decision.** #73 holds what must be true before a
- * deployment, and ADR 0005 §2 holds the archive that replaces it. Do not raise the zoom above 19:
- * that is where those tiles stop, and MapLibre then asks for a tile that does not exist.
+ * **This address is a dependency and not a decision.** The tracker holds what must be true
+ * before a deployment, and the decided archive replaces it. Do not raise the zoom above 19: that
+ * is where those tiles stop, and MapLibre then asks for a tile that does not exist.
  */
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 /**
- * EOX Sentinel-2 cloudless 2025 — ADR 0005 §3. Keyless, global, and uniform over the region this
- * corpus is about, which is why the ADR chose it over a provider that wants a registration.
+ * EOX Sentinel-2 cloudless 2025. Keyless, global, and uniform over the region this corpus is
+ * about, which is why it was chosen over a provider that wants a registration.
  *
  * It is a WMTS service, so the path is `{TileMatrix}/{TileRow}/{TileCol}`, which is `{z}/{y}/{x}`
  * and **not** `{z}/{x}/{y}`. A template with the last two exchanged draws a world that is
@@ -77,21 +74,21 @@ export interface GroundSource {
   readonly tiles: string | null;
   readonly tileSize: number;
   /**
-   * Where the tiles stop. **The two grounds stop at different zooms**, and `docs/map-surface.md`
-   * §9 keeps open whether MapLibre draws the blurry parent tile or nothing past that point. It
-   * names this as the one item to check at build time and never to assume.
+   * Where the tiles stop. **The two grounds stop at different zooms**, and it is open whether
+   * MapLibre draws the blurry parent tile or nothing past that point. It is the one item to check
+   * at build time and never to assume.
    */
   readonly maxZoom: number;
   /**
-   * The credit, in the exact wording of ADR 0005 §3. **An attribution is an obligation of a
-   * licence and not a caption**, so this string is not shortened and not reworded.
+   * The credit, in its exact decided wording. **An attribution is an obligation of a licence and
+   * not a caption**, so this string is not shortened and not reworded.
    */
   readonly attribution: string;
   /**
    * Whether the dark theme inverts this ground in the shader.
    *
    * The plan ground is a light drawing and it is inverted. **Imagery is not inverted** — it is
-   * already dark, and §4.3 says it only wants taking down.
+   * already dark, and it only wants taking down.
    */
   readonly invertsInDark: boolean;
   /** Words for a reader, where the ground has no address at all. */
@@ -99,9 +96,9 @@ export interface GroundSource {
 }
 
 /**
- * The two grounds. **Both live in the style at one time and one is hidden** — §4.3. A switch is
- * then a layout property, and never a style that is built again: a style that is built again drops
- * every source with it, and the selection, the hidden types and the relations would all have to be
+ * The two grounds. **Both live in the style at one time and one is hidden.** A switch is then a
+ * layout property, and never a style that is built again: a style that is built again drops every
+ * source with it, and the selection, the hidden types and the relations would all have to be
  * applied a second time.
  */
 export const GROUNDS: Readonly<Record<Ground, GroundSource>> = {
@@ -130,14 +127,14 @@ export const planIsHosted = (): boolean => hosted() !== null;
 /**
  * The paint of one ground, in the theme in force.
  *
- * **The inversion is in the shader, and it adds no source** — §4.3. `raster-brightness-min: 1`
- * with `raster-brightness-max: 0` inverts the luminance of one layer, and a half turn of the hue
- * puts the water back to blue. It reaches **the ground layer only**, so the entity hues and the
+ * **The inversion is in the shader, and it adds no source.** `raster-brightness-min: 1` with
+ * `raster-brightness-max: 0` inverts the luminance of one layer, and a half turn of the hue puts
+ * the water back to blue. It reaches **the ground layer only**, so the entity hues and the
  * relation lines are untouched. A CSS filter cannot do this, because there is one canvas and the
  * points are on it.
  *
- * **`IMAGERY_DARK` is a tuning value and it guesses at no open question.** §4.3 decides the rule —
- * imagery "only wants taking down" — and names no figure, exactly as the cap of a list does.
+ * **`IMAGERY_DARK` is a tuning value and it guesses at no open question.** The rule is decided —
+ * imagery "only wants taking down" — and it names no figure, exactly as the cap of a list does.
  */
 const IMAGERY_DARK = 0.7;
 
