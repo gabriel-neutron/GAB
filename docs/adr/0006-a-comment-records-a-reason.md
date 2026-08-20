@@ -79,6 +79,22 @@ It reaches nothing else. A document cites another document, and `authoring.md` s
 names the ticket an agent must fetch, because the agent needs the number to fetch it. A commit
 message carries every reference it wants. A generated file carries what its generator writes.
 
+**`db/**/*.sql` is exempt. The operator ruled it on 20 August 2026.** This is a real exception and
+not an oversight: ADR 0003 §1 makes the SQL the only source of truth for the schema, and `spec.md`
+§2 sends a reader there for the authority on a constraint, so the SQL **is** authored source.
+
+**The reason is that a comment there does a second job, and a reason alone cannot do it.** It
+records where the SQL **departs from an accepted decision**, and it names the ticket that owns the
+amendment. `db/apply/20_views.sql` carries no `security_invoker` while ADR 0003 §6 asks every view
+to carry one, because the two rules of §6 delete each other and the read then fails. A file that
+disobeys a decision must say which decision and where the correction is argued. Take the address
+away, and the next reader restores the rule and breaks the read.
+
+**The cost is the defect of §2, accepted here on purpose.** A reference in a `.sql` file rots in
+silence, exactly as one under `src/` did. **Ninety were live on 20 August 2026**: 60 tickets, 16
+section marks, 7 `ADR nnnn` and 7 paths to a document, over eight files. Nothing warns, and nothing
+will: ESLint does not read SQL.
+
 ### 6. A local lint rule refuses an address, and it cannot be suppressed
 
 The rule lives in `eslint.config.ts`, scoped to `src/`, so it runs inside `pnpm check` at the lint
