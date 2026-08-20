@@ -23,15 +23,17 @@
  * relation never covers the thing it relates. A point wins over a line it crosses, and the one
  * `click` handler below is where that rule lives.
  *
- * **This file holds the chosen relation, and it draws no card.** §4.7 refuses the card of the
- * prototype until the operator says who owns a relation surface, and §7 holds that question open
- * with no ticket. So a click on a line brightens that line and the rail names it, and no
- * interval, no attribute and no source document is written anywhere.
+ * **This file holds the chosen relation, and it draws no card.** §4.7 refused the card of the
+ * prototype until the operator said who owns a relation surface. **#89 answered that**: the route
+ * draws a detail panel for a chosen relation, beside the canvas, exactly as it does for a selected
+ * entity. This file still draws no card. It brightens the line and it announces the choice.
  *
- * **The chosen relation dies with the view, so it lives in this closure.** The State table of the
- * skill puts such a value in React state. This surface keeps no React value below the canvas —
- * ADR 0004 §3 — so the closure of the adapter is that class here. It is not identity, so it is
- * not in the address, and it is not a setting, so it is not in the workspace.
+ * **The chosen relation is identity now, so it is in the address** — #89, and ADR 0004 §7, which
+ * puts the identity of what is examined there. Before that ticket nothing drew a relation, the
+ * choice died with the view, and this closure was the whole of its life. The rule that has not
+ * changed is the direction: **this file reads the address one time, at the mount, and never writes
+ * it.** The route writes it, from what this file announces, so the canvas stays the one authority
+ * on what it drew and the two can never state different things.
  *
  * **This file is the only writer of `hiddenTypes` and of `linksHidden` in the workspace** — §4.4
  * and §5.2. §4.4 names four writers, and the built record carries a fifth field, `linksHidden`.
@@ -757,7 +759,11 @@ export function mountMap({
    * at the mount, and never again. It never writes the address. The route owns the navigation and
    * `replace: true`.
    */
-  const wanted = new URLSearchParams(window.location.search).get('entity');
+  const address = new URLSearchParams(window.location.search);
+  // **An empty value is not an identifier.** The router writes `entity=` for the empty selection,
+  // which is the normal state of a map, and a first version of the graph read that empty value as
+  // an identifier — #89.
+  const wanted = address.get('entity') === '' ? null : address.get('entity');
   const restored = wanted === null ? null : (projection.byId.get(wanted) ?? null);
   // An old identifier gives no selection, and it shows no fault on the screen. The map draws no
   // selected point of a type that is switched off. A mark on such a point shows a point that the
@@ -765,10 +771,26 @@ export function mountMap({
   let selected: string | null = restored === null || hidden.has(restored.type) ? null : restored.id;
 
   /**
-   * The relation the analyst chose with a click on a line, or `null`. **It starts at `null` on
-   * every open**, because it dies with the view and no store carries it.
+   * The relation the analyst chose with a click on a line, or `null`.
+   *
+   * **It is restored from the address, and #89 is the decision that put it there.** Before that
+   * ticket it started at `null` on every open, because nothing on this surface drew a chosen
+   * relation and the choice died with the view. A relation is now a thing the analyst examines,
+   * and ADR 0004 §7 puts the identity of what is examined in the address.
+   *
+   * **It is dropped under the same rules as a selected point**, and for the same reason: a panel
+   * that names a relation which this canvas draws nowhere is a lie on the screen. An identifier
+   * that names no drawn relation, a relation with an endpoint of a type that is switched off, and
+   * every relation while the line switch is off, all give `null`. The route then corrects the
+   * address, because `onChooseLink` announces what this file accepted.
    */
-  let chosenLink: GeoLink | null = null;
+  const wantedLink = address.get('relation') === '' ? null : address.get('relation');
+  const restoredLink =
+    wantedLink === null ? null : (projection.links.find((link) => link.id === wantedLink) ?? null);
+  let chosenLink: GeoLink | null =
+    restoredLink !== null && !linksHidden && isDrawnLink(restoredLink, hidden)
+      ? restoredLink
+      : null;
   const chooseLinkListeners = new Set<(link: GeoLink | null) => void>();
 
   const paintSelection = (): void => {

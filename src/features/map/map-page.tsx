@@ -55,23 +55,38 @@ export interface MapPageProps {
    * address.
    *
    * **This function must be the same function at each render of the caller.** §3.4 gives the
-   * canvas one prop that never changes on a selection, and that is what keeps the re-render of
-   * the route away from the live element. A caller that builds a new function at each render
-   * mounts a new map at each render, and that is the fault §3.4 names.
+   * canvas props that never change on a selection, and that is what keeps the re-render of the
+   * route away from the live element. A caller that builds a new function at each render mounts a
+   * new map at each render, and that is the fault §3.4 names.
    */
   readonly onSelect: (id: string | null) => void;
+  /**
+   * The analyst chose a relation with a click on a line, or ended that choice — #89. The route
+   * draws the detail view of it.
+   *
+   * **`adapter.ts` ends the choice on its own**, on a click on a point and on a click on the
+   * ground, and it calls this with `null` when it does. So the route needs no second rule for
+   * when a relation stops being chosen.
+   *
+   * **This function must be the same function at each render of the caller**, for the reason
+   * `onSelect` above states.
+   */
+  readonly onChooseRelation: (id: string | null) => void;
 }
 
 /**
- * **ASK: two React values live in an ancestor of the canvas.** `CANVAS.md` says "Where a value
- * must sit in an ancestor of the canvas, stop and ask the operator." The two are `mapReady`, which
- * says that the map exists, and `railOpen`, which is the workspace field the rail takes as a prop.
- * Neither is the camera, the style, the selection or the instance that `CANVAS.md` names as the
- * fault. The element below is memoised on an empty list, so no render from either value can build
- * the live element again. The operator owns the question, and this file makes no structural change
- * for it.
+ * **Two React values live in an ancestor of the canvas, and the operator ruled that this is
+ * permitted** — #89, on 19 August 2026. `CANVAS.md` said "Where a value must sit in an ancestor of
+ * the canvas, stop and ask the operator", and the same answer came back four times. The rule the
+ * operator gave: a value that is not the instance, the camera, the style or the selection may sit
+ * in an ancestor, **if the element that carries the canvas is memoised on a list that cannot
+ * change**. The two here are `mapReady`, which says that the map exists, and `railOpen`, which is
+ * the workspace field the rail takes as a prop. The element below is memoised on an empty list.
+ *
+ * **The edit that puts this rule into `CANVAS.md` is under ASK**, because the operator owns every
+ * document. Until it lands, this note is the record of the decision.
  */
-export function MapPage({ onSelect }: MapPageProps) {
+export function MapPage({ onSelect, onChooseRelation }: MapPageProps) {
   const host = useRef<HTMLDivElement | null>(null);
   /**
    * The handle of the live map. **`CANVAS.md`: one `ref`, one imperative adapter.** The rail is a
@@ -119,10 +134,10 @@ export function MapPage({ onSelect }: MapPageProps) {
    * The one effect of this file, and it is the adapter — the skill puts a `useEffect` in an
    * adapter or in a subscription, and this is both.
    *
-   * **Neither value of the list can change.** `projection` comes from an empty memo, and
-   * `onSelect` is the one prop, which §3.4 requires to be the same function at each render. A
-   * caller that breaks that contract mounts the map again, which is loud, instead of driving a
-   * listener that this file captured before.
+   * **No value of the list can change.** `projection` comes from an empty memo, and `onSelect`
+   * and `onChooseRelation` are the two props, which §3.4 requires to be the same function at each
+   * render. A caller that breaks that contract mounts the map again, which is loud, instead of
+   * driving a listener that this file captured before.
    *
    * **The mount does the same thing each time, and the cleanup is complete** — §5.3. React 19
    * StrictMode runs setup, cleanup, setup in development. `mountMap` destroys an instance that it
@@ -139,16 +154,24 @@ export function MapPage({ onSelect }: MapPageProps) {
     handle.current = map;
     setMapReady(true);
     const unsubscribe = map.onSelect(onSelect);
+    // **The chosen relation leaves the canvas the same way the selection does** — #89, and #76
+    // item 2, which held `chosenLink` and `onChooseLink` on the handle until a chosen relation
+    // had somewhere to appear. `onChooseLink` calls its listener at once with the choice of that
+    // moment, as `onSelect` does, so this subscription needs no second seeding path.
+    const stopChoosing = map.onChooseLink((link) => {
+      onChooseRelation(link?.id ?? null);
+    });
 
     return () => {
       unsubscribe();
+      stopChoosing();
       map.destroy();
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (handle.current !== map) return;
       handle.current = null;
       setMapReady(false);
     };
-  }, [projection, onSelect]);
+  }, [projection, onSelect, onChooseRelation]);
 
   /**
    * **The element is memoised, and the empty list is the reason it works.** CANVAS.md: no React

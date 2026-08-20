@@ -50,12 +50,32 @@ export const CANVAS_LABEL_CLASS = [
  * carried a direction all along and neither canvas drew it. **#88 GRAPH-RELATION-DRAW still owns
  * the direction on the line itself**, which is a different job: this names a relation, and #88
  * draws one.
+ *
+ * **A third caller reads it, and it is not a canvas** — #89. The detail view of a relation states
+ * the same relation in a panel, so it takes these words and it writes no second wording for the
+ * direction. The file is named for the two canvases that asked for it first; what it holds is one
+ * vocabulary for a relation and for an entity, and any surface of this product may read it.
+ *
+ * **The three lines are a tuple, and not a list of unknown length.** A caller that draws one line
+ * at a time — a panel does, and a canvas does not — would otherwise test each line for `undefined`
+ * and invent words for a case that cannot occur.
  */
-export const relationLines = (from: string, type: string, to: string): readonly string[] => [
-  from,
-  `↓ ${type}`,
-  to,
-];
+export const relationLines = (
+  from: string,
+  type: string,
+  to: string,
+): readonly [string, string, string] => [from, `↓ ${relationTypeWords(type)}`, to];
+
+/**
+ * The type of a relation, in words: `berthed_at` reads as `berthed at`.
+ *
+ * **One rule, for the two canvases and for the detail surface** — the operator ruled it on #89.
+ * The panel read a type in words and the hover over the same line read the identifier, so one
+ * relation had two names on two screens. The detail surface has humanised a key since it was
+ * built, `relationLines` above humanises for both canvases, and this is the one function that
+ * does it. **The raw identifier now appears on no screen**, which is the cost of the rule.
+ */
+export const relationTypeWords = (type: string): string => type.replaceAll('_', ' ');
 
 /**
  * What an entity says, in two lines.

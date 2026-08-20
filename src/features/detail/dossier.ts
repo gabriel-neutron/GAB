@@ -15,12 +15,20 @@
  * - **Every line carries resolved sources**, and never a bare identifier. A `.find` in a
  *   component is how a claim loses its provenance (§5.1).
  * - **It carries arrays and no `Map`.** It is returned from a router loader.
+ *
+ * **Two reads, and they are one job** — #89. `readDossier` reduces the corpus to one entity, and
+ * `readRelation` reduces it to one relation. A canvas selects one of those two things, the panel
+ * beside it draws whichever was selected, and both reads number a document by the register of
+ * §4.4 and hand the same card to the same control. Two files would give one surface two rules for
+ * a source and two ways to name an endpoint.
  */
 
+import { relationLines, relationTypeWords } from '@/shared/canvas-label';
 import type {
   Corpus,
   DocId,
   DocumentRow,
+  Entity,
   EndpointKind,
   Proposal,
   Relation,
@@ -142,8 +150,13 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   merge_entities: 'Merges entities',
 };
 
-/** An identifier of a type, in words: `berthed_at` reads as `berthed at`. */
-const typeWords = (type: string): string => type.replaceAll('_', ' ');
+/**
+ * An identifier of a type, in words: `berthed_at` reads as `berthed at`.
+ *
+ * **The rule left this file** — the operator ruled on #89 that one relation carries one name on
+ * every surface. `shared/canvas-label.ts` holds it, and both canvases read the same function.
+ */
+const typeWords = relationTypeWords;
 
 function shorten(uri: string | null): string | null {
   if (uri === null) return null;
@@ -177,13 +190,54 @@ function readRating(row: DocumentRow | undefined): {
   };
 }
 
+/**
+ * The two indexes an endpoint is resolved against. **Both readers of this file build one**, so
+ * the words that name an endpoint are written in one place and the two views can never disagree
+ * about what sits at the end of a relation.
+ */
+interface Index {
+  readonly entityById: ReadonlyMap<string, Entity>;
+  readonly relationById: ReadonlyMap<string, Relation>;
+}
+
+/**
+ * An endpoint is resolved one level only. Deeper than that the sentence says `a relation`,
+ * because a sentence that unrolls a chain of relations is not readable on one line.
+ */
+function endpointWords(index: Index, kind: EndpointKind, id: string, depth: number): string {
+  if (kind === 'entity') {
+    return index.entityById.get(id)?.label ?? 'an entity that is absent from the record';
+  }
+  if (depth === 0) return 'a relation';
+  const held = index.relationById.get(id);
+  if (held === undefined) return 'a relation that is absent from the record';
+  const from = endpointWords(index, held.srcKind, held.srcId, depth - 1);
+  const to = endpointWords(index, held.dstKind, held.dstId, depth - 1);
+  return `the "${typeWords(held.type)}" of ${from} and ${to}`;
+}
+
+/**
+ * M6: an interval is written at both ends. A closed interval says that it is closed, because a
+ * first version drew `2018-02-01 —` and a reader took a relation that ended for a current one.
+ */
+function intervalWords(relation: Relation): string | null {
+  if (relation.validFrom !== null && relation.validTo !== null) {
+    return `from ${relation.validFrom} to ${relation.validTo}, and closed`;
+  }
+  if (relation.validFrom !== null) return `from ${relation.validFrom}, with no end date`;
+  if (relation.validTo !== null) return `to ${relation.validTo}, with no start date`;
+  return null;
+}
+
 export function readDossier(read: Corpus, entityId: string): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
   const documentById = new Map(read.documents.map((row) => [row.id, row]));
-  const entityById = new Map(read.entities.map((row) => [row.id, row]));
-  const relationById = new Map(read.relations.map((row) => [row.id, row]));
+  const index: Index = {
+    entityById: new Map(read.entities.map((row) => [row.id, row])),
+    relationById: new Map(read.relations.map((row) => [row.id, row])),
+  };
 
   // §4.4: each document is numbered in the order it is met — the entity, then the claims, then
   // the relations, then the pending proposals. This function is the register of that order, so
@@ -232,37 +286,11 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
         (relation.dstKind === 'relation' && directIds.has(relation.dstId))),
   );
 
-  // An endpoint is resolved one level only. Deeper than that the sentence says `a relation`,
-  // because a sentence that unrolls a chain of relations is not readable on one line.
-  function endpointWords(kind: EndpointKind, id: string, depth: number): string {
-    if (kind === 'entity') {
-      return entityById.get(id)?.label ?? 'an entity that is absent from the record';
-    }
-    if (depth === 0) return 'a relation';
-    const held = relationById.get(id);
-    if (held === undefined) return 'a relation that is absent from the record';
-    const from = endpointWords(held.srcKind, held.srcId, depth - 1);
-    const to = endpointWords(held.dstKind, held.dstId, depth - 1);
-    return `the "${typeWords(held.type)}" of ${from} and ${to}`;
-  }
-
-  // M6: an interval is written at both ends. A closed interval says that it is closed, because
-  // a first version drew `2018-02-01 —` and a reader took a relation that ended for a current
-  // one.
-  function intervalWords(relation: Relation): string | null {
-    if (relation.validFrom !== null && relation.validTo !== null) {
-      return `from ${relation.validFrom} to ${relation.validTo}, and closed`;
-    }
-    if (relation.validFrom !== null) return `from ${relation.validFrom}, with no end date`;
-    if (relation.validTo !== null) return `to ${relation.validTo}, with no start date`;
-    return null;
-  }
-
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => ({
     id: relation.id,
-    sentence: `${endpointWords(relation.srcKind, relation.srcId, 1)} ${typeWords(
+    sentence: `${endpointWords(index, relation.srcKind, relation.srcId, 1)} ${typeWords(
       relation.type,
-    )} ${endpointWords(relation.dstKind, relation.dstId, 1)}`,
+    )} ${endpointWords(index, relation.dstKind, relation.dstId, 1)}`,
     interval: intervalWords(relation),
     // §3.5: the mark comes from the relation. A first version marked it from the list it was
     // placed in, and the mark vanished on a relation that is direct and invisible at once.
@@ -345,5 +373,128 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     relations,
     pending,
     claimCount: claims.length,
+  };
+}
+
+/**
+ * One line of the heading of a relation view. The three of them are the three lines that both
+ * canvases already draw over a relation.
+ */
+export interface RelationRow {
+  /** The place of the line, and the key of the list. A relation on itself repeats the words. */
+  readonly key: 'from' | 'type' | 'to';
+  readonly text: string;
+}
+
+/**
+ * One relation, as the panel beside a canvas draws it — #89.
+ *
+ * **It is simpler than a dossier, and the operator asked for that**: the entity at each end, the
+ * type, and the sources. It carries no record of claims, no list of relations and no proposal.
+ */
+export interface RelationDossier {
+  readonly relationId: string;
+  /** The type in words, as every other line of this surface writes an identifier. */
+  readonly type: string;
+  /** The heading, in the words of `shared/canvas-label.ts`. The arrow is the direction. */
+  readonly rows: readonly RelationRow[];
+  /**
+   * The same relation on one line, for the accessible name of the panel. **The arrow of the
+   * heading is a picture and not a word**: a reader who is given the name of the panel hears the
+   * direction in the order of the words, and never as "down arrow".
+   */
+  readonly sentence: string;
+  /** M6, written at both ends. `null` where the relation carries no interval at all. */
+  readonly interval: string | null;
+  readonly sources: readonly SourceRef[];
+  readonly cards: readonly SourceCardModel[];
+}
+
+/**
+ * The corpus, reduced to what the detail view of one relation draws — #89.
+ *
+ * **The direction is not written here.** `shared/canvas-label.ts` states a relation in three
+ * lines with an arrow, both canvases draw those words over a line, and this function takes the
+ * same three. A second wording for one direction is how two surfaces come to disagree about
+ * which way a relation points.
+ *
+ * **The sources are presented as the entity view presents them** — the register of §4.4, one
+ * `SourceRef` for each document, and the same card. **What "the sources of a relation" means is
+ * #86 DETAIL-SOURCE-RULE, and it is open.**
+ *
+ * **The entry that gives a relation its own list is S2, and not M8.** M8 is attribute level only:
+ * every attribute cites at least one document. S2 is the entry that says "the entity and the
+ * relation carry a list of sources; each attribute additionally carries its own `src`", and
+ * `spec.md` invariant 2 cites S2 for `relations.sources`. #86 names M8, and `CLAUDE.md` makes an
+ * entry change only when a new decision names it, so a decision that names M8 alone would leave
+ * this contradiction standing. **That correction is reported to #86 and it is the operator's.**
+ *
+ * This function answers nothing. It lists `relation.sources`, which is the column the read
+ * carries, and the tension is reported on #86 and on #89.
+ */
+export function readRelation(read: Corpus, relationId: string): RelationDossier | null {
+  const relation = read.relations.find((candidate) => candidate.id === relationId);
+  if (relation === undefined) return null;
+
+  const documentById = new Map(read.documents.map((row) => [row.id, row]));
+  const index: Index = {
+    entityById: new Map(read.entities.map((row) => [row.id, row])),
+    relationById: new Map(read.relations.map((row) => [row.id, row])),
+  };
+
+  const from = endpointWords(index, relation.srcKind, relation.srcId, 1);
+  const to = endpointWords(index, relation.dstKind, relation.dstId, 1);
+  const type = typeWords(relation.type);
+  // The raw identifier goes in. `relationLines` states the words, for this panel and for the two
+  // canvases at once, so no caller humanises a type before it calls.
+  const [fromLine, typeLine, toLine] = relationLines(from, relation.type, to);
+
+  // §4.4 numbers a document at the position where it is first met. A relation cites its own
+  // documents and nothing else, so this register holds one list. **A document cited twice keeps
+  // one number and one card**: two entries of one document would draw one key twice in the list
+  // of the panel, and would count the evidence twice.
+  const met = new Map<DocId, SourceRef>();
+  for (const id of relation.sources) {
+    if (met.has(id)) continue;
+    const number = met.size + 1;
+    const title = documentById.get(id)?.title ?? `Cited document ${id}, absent from the record`;
+    // §3.6: the name names the document and never its score. See `SourceRef.name`.
+    met.set(id, { id, number, name: `Source ${number} — ${title}` });
+  }
+  const sources = [...met.values()];
+
+  const cards: readonly SourceCardModel[] = sources.map((ref) => {
+    const row = documentById.get(ref.id);
+    const rating = readRating(row);
+    return {
+      id: ref.id,
+      number: ref.number,
+      title: row?.title ?? `Cited document ${ref.id}, absent from the record`,
+      rated: rating.rated,
+      score: rating.score,
+      scoreOrigin: rating.scoreOrigin,
+      uri: row?.uri ?? null,
+      uriShort: shorten(row?.uri ?? null),
+      retrievedAt: row?.retrievedAt ?? null,
+      // **This view draws no claim, so no document holds one up here.** The card says that in
+      // its own words. It invents no claim from the attributes of the relation: the operator
+      // asked for the two ends, the type and the sources, and #89 carries what is left out.
+      holdsUp: [],
+      missing: row === undefined,
+    };
+  });
+
+  return {
+    relationId: relation.id,
+    type,
+    rows: [
+      { key: 'from', text: fromLine },
+      { key: 'type', text: typeLine },
+      { key: 'to', text: toLine },
+    ],
+    sentence: `${from} ${type} ${to}`,
+    interval: intervalWords(relation),
+    sources,
+    cards,
   };
 }

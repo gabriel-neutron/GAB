@@ -1,23 +1,31 @@
 /**
- * The same entity, 24 rem wide, beside the map or the graph.
+ * The panel beside the map or the graph, 24 rem wide.
  *
- * Built from `docs/detail-surface.md` §4.5, and from §4.1, §4.6, §4.7, §5.1 and §5.5. UC5 is
- * the use case: the analyst reads one entity in a narrow sidebar, and audits its provenance on
- * the full page.
+ * **Two exports, and they are one job** — #89. A canvas selects one of two things, an entity or
+ * a relation, and this file draws whichever was selected in the one pane that sits beside the
+ * canvas. `PANE` below is the geometry of §4.5, and one copy of it is what keeps the two panels
+ * the same width, the same ground and the same scroll.
  *
- * **It carries no rail** (§4.5). There is no room for one, so a mark opens its source in a
+ * **`Sidebar` draws the entity**, and it is built from `docs/detail-surface.md` §4.5, and from
+ * §4.1, §4.6, §4.7, §5.1 and §5.5. UC5 is the use case: the analyst reads one entity in a narrow
+ * sidebar, and audits its provenance on the full page. **`RelationSidebar` draws the relation**,
+ * and #89 is its contract. Each one carries its own note below.
+ *
+ * **Neither carries a rail** (§4.5). There is no room for one, so a mark opens its source in a
  * popover, and that popover carries one way out to the full page.
  *
- * **It knows nothing about its neighbour** (§4.5). It takes no `className`, no width and no
- * callback to a canvas. It carries its own width, and the route composes it beside the canvas.
+ * **Neither knows anything about its neighbour** (§4.5). Each takes no `className`, no width and
+ * no callback to a canvas. Each carries its own width, and the route composes it beside the
+ * canvas.
  *
- * It draws and it derives nothing: `./dossier` decided every list, every word and every order,
- * so this file holds no `.map` at all. Each list belongs to a child.
+ * They draw and they derive nothing: `./dossier` decided every list, every word and every order.
  */
 
 import type { ReactNode } from 'react';
 
-import type { Dossier, SourceRef } from './dossier';
+import { cn } from '@/shared/lib/utils';
+
+import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
 import { Pending } from './pending';
 import { EntityRecord } from './record';
@@ -66,6 +74,80 @@ export function Sidebar({ dossier }: SidebarProps) {
 
       <Relations relations={dossier.relations} mark={mark} />
       <Pending proposals={dossier.pending} mark={mark} />
+    </aside>
+  );
+}
+
+export interface RelationSidebarProps {
+  readonly relation: RelationDossier;
+}
+
+/**
+ * The relation, in the same pane — #89, and #82 rows A12 and D2.
+ *
+ * **A click on a line has selected a relation on both canvases since #82, and nothing was drawn
+ * for it.** The graph route held one provisional sentence, which told the analyst how this
+ * application is cut into surfaces, and the map held nothing at all after the footer of its rail
+ * was removed on #81.
+ *
+ * **It is simpler than the entity panel, and the operator asked for exactly that**: the entity at
+ * each end, the type, and the sources. There is no record of claims, no list of relations and no
+ * proposal here.
+ *
+ * **The direction comes from `shared/canvas-label.ts`**, which both canvases already draw over a
+ * line. The panel writes no second wording for it: one arrow, one order of the words, and three
+ * surfaces that say one thing.
+ */
+export function RelationSidebar({ relation }: RelationSidebarProps) {
+  return (
+    <aside aria-label={relation.sentence} className={PANE}>
+      {/* **The name of the heading is the sentence, and not the three lines.** The arrow is a
+          picture of the direction. A reader who is given the lines hears "down arrow", and the
+          order of the words in the sentence says the same thing in words. */}
+      <h1 aria-label={relation.sentence} className="space-y-0.5">
+        {relation.rows.map((row) => (
+          // Rule 16: each line truncates on its own and none of them wraps, exactly as the label
+          // over a canvas does. The full line is under `title`.
+          <span
+            key={row.key}
+            title={row.text}
+            className={cn(
+              'block truncate',
+              row.key === 'type' ? 'text-xs text-label' : 'text-base',
+            )}
+          >
+            {row.text}
+          </span>
+        ))}
+      </h1>
+
+      {/* M6 and M9: the interval is written at both ends, and a relation that carries none draws
+          a blank under a header that names the key. An absence must never read as a fault, and a
+          row that vanishes tells the analyst nothing about what the record holds. */}
+      <div className="flex items-baseline gap-2 text-[11px]/4">
+        <span className="w-20 shrink-0 text-label">Validity</span>
+        <span
+          title={relation.interval ?? undefined}
+          className="min-w-0 flex-1 truncate font-mono tabular-nums"
+        >
+          {relation.interval}
+        </span>
+      </div>
+
+      {/* **The presentation is the one the entity view already uses** — the count of #68, which
+          opens every card in one popover, under the header the full page writes over the sources
+          of an entity. **What "the sources of a relation" are is #86 DETAIL-SOURCE-RULE, and it
+          is open.** This panel answers nothing: it draws the documents the relation cites. The
+          entry that carries that list is **S2**, and #86 names M8; `./dossier.ts` holds the
+          correction, and it is reported to the operator. */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px]/4 tracking-[0.06em] text-label uppercase">
+          Sources of this relation
+        </span>
+        {/* A relation has no full page, so the popover carries no way out — see
+            `SourceCountProps.entityId`. */}
+        <SourceCount sources={relation.sources} cards={relation.cards} entityId={null} />
+      </div>
     </aside>
   );
 }

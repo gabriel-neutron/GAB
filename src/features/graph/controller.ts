@@ -659,10 +659,15 @@ export function mountGraph(
    */
   const readAddress = (): GraphSelection | null => {
     const params = new URLSearchParams(window.location.search);
+    // **An empty value is not an identifier** — #89. `src/routes/graph.tsx` states that an empty
+    // string is the normal state of this canvas, and the router writes `entity=` into the address
+    // for it. A first version read that empty value as an entity: `acceptable` then dropped it,
+    // and the relation that the address carried beside it was never read at all. **A relation
+    // could not survive a reload**, and the detail view of #89 draws one now.
     const entity = params.get('entity');
-    if (entity !== null) return { kind: 'entity', id: entity };
+    if (entity !== null && entity !== '') return { kind: 'entity', id: entity };
     const relation = params.get('relation');
-    if (relation !== null) return { kind: 'relation', id: relation };
+    if (relation !== null && relation !== '') return { kind: 'relation', id: relation };
     return null;
   };
 

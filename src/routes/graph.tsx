@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 
-import { readDossier } from '@/features/detail/dossier';
-import { Sidebar } from '@/features/detail/sidebar';
+import { readDossier, readRelation } from '@/features/detail/dossier';
+import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { onGraphSelection, type GraphSelection } from '@/features/graph/bridge';
 import { GraphPage } from '@/features/graph/graph-page';
 import { corpus } from '@/shared/fixtures/corpus';
@@ -25,7 +25,8 @@ import { cn } from '@/shared/lib/utils';
  * on every render, and that defeats the memoisation which keeps the canvas from a re-render.
  *
  * **The aside is always drawn, at one width, so the canvas never changes size** — §4.7. It holds
- * the sidebar of `features/detail`, or one sentence for a case that surface cannot take.
+ * the entity panel of `features/detail`, the relation panel of #89, or one sentence where the
+ * read carries no record for what the canvas drew.
  */
 
 /**
@@ -37,28 +38,31 @@ import { cn } from '@/shared/lib/utils';
 export interface GraphSearch {
   /** The entity that is examined. An empty string is the normal state of the graph. */
   readonly entity: string;
-  /** The relation that is examined. UC3 reaches one, and the detail surface cannot draw it. */
+  /**
+   * The relation that is examined. **The detail surface draws it since #89**, and
+   * `features/graph/controller.ts` is the one writer of this key.
+   */
   readonly relation: string;
 }
 
 /**
- * The sentence the aside states where it draws no dossier, **and only where something is
- * selected**.
+ * The sentence the aside states where the read carries no record for what is selected, **and only
+ * where something is selected**.
  *
  * **Nothing selected draws no panel at all** — #82 row D1, Never asked for it. The operator
  * removed the sentence that invited a selection, and the aside with it, so the canvas takes the
  * whole width until something is chosen. The map already worked this way.
  *
- * §4.7 gives two cases the detail surface cannot take, and **both are reports**: a relation,
- * because that surface draws one entity; and an entity that the read does not carry.
+ * **The relation is no longer one of these cases** — #89, which replaces the provisional sentence
+ * of #82 row D2. A selected relation now reaches `RelationSidebar`. What is left here is one
+ * report for each kind: the canvas drew the thing, and the detail read does not carry it.
  *
- * **The relation sentence is provisional** — #82 D2. It holds until **#89 DETAIL-RELATION-VIEW**
- * exists, and the relation view replaces it. It should also stop telling an analyst how this
- * application is cut into surfaces, and that wording is #89's to write.
+ * **The words say what the record holds, and never how this application is cut into surfaces**
+ * — #82 D2. An analyst is not a reader of the source tree.
  */
 const reportOf = (selection: GraphSelection): string => {
   if (selection.kind === 'relation') {
-    return 'A relation is selected. This surface draws 1 entity, so it draws no relation. Select an entity at one end of it.';
+    return 'A relation is selected, and the read holds 0 records for it. The graph draws it, and the detail read does not carry it.';
   }
   return 'An entity is selected, and the read holds 0 records for it. The graph draws it, and the detail read does not carry it.';
 };
@@ -96,6 +100,10 @@ function GraphRoute() {
    * `Route.useSearch()` again.**
    */
   const [selection, setSelection] = useState<GraphSelection | null>(null);
+  // **This value sits in an ancestor of the live canvas, and the operator permitted that** — #89,
+  // 19 August 2026. It is not the instance, the camera, the style or the selection of the library,
+  // and `canvas` below is memoised on an empty list, so no render of this route can reach the
+  // element. `src/features/map/map-page.tsx` carries the rule in full.
 
   /**
    * The one effect of this file, and it is a subscription, which is where the skill permits it.
@@ -118,6 +126,19 @@ function GraphRoute() {
       selection === null || selection.kind === 'relation'
         ? null
         : readDossier(corpus, selection.id),
+    [selection],
+  );
+
+  /**
+   * The relation the analyst chose, or `null` — #89. **A click on a line has selected a relation
+   * on this canvas since #82 row A12, and the aside drew one provisional sentence for it.**
+   *
+   * The read is memoised on the selection for the reason the dossier above is: every other render
+   * of this route would otherwise walk the whole corpus again.
+   */
+  const relation = useMemo(
+    () =>
+      selection === null || selection.kind === 'entity' ? null : readRelation(corpus, selection.id),
     [selection],
   );
 
@@ -145,17 +166,19 @@ function GraphRoute() {
       <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
       {/* **No selection draws no panel** — #82 D1. The canvas then takes the whole row, and
           `adapter` and `controller` each observe their own element, so the resize is answered. */}
-      {dossier === null ? (
-        selection === null ? null : (
-          <aside
-            aria-label="Detail"
-            className={cn('w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label')}
-          >
-            <p>{reportOf(selection)}</p>
-          </aside>
-        )
-      ) : (
+      {dossier !== null ? (
         <Sidebar dossier={dossier} />
+      ) : relation !== null ? (
+        /* **The relation reaches a detail view of its own** — #89 and #82 row A12. It is the same
+           pane, at the same width, so the canvas never changes size on a selection. */
+        <RelationSidebar relation={relation} />
+      ) : selection === null ? null : (
+        <aside
+          aria-label="Detail"
+          className={cn('w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label')}
+        >
+          <p>{reportOf(selection)}</p>
+        </aside>
       )}
     </div>
   );

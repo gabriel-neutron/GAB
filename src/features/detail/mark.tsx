@@ -50,7 +50,16 @@ export interface SourceCountProps {
    * component.
    */
   readonly cards: readonly SourceCardModel[];
-  readonly entityId: string;
+  /**
+   * The entity whose full page the way out opens, or `null` where there is no page to open.
+   *
+   * **`null` is the relation view of #89**, which draws the sources of a relation and has no full
+   * page of its own. The popover then carries the card and no way out. **It must not point at an
+   * entity at one end of the relation**: that page carries the sources of *that entity*, so the
+   * link would open a rail where the card of this document need not exist, and a reader would
+   * take the absence for a lost source.
+   */
+  readonly entityId: string | null;
 }
 
 /**
@@ -187,23 +196,28 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
                 // a document. §4.3 owns its shape and this file states none of it.
                 <SourceCard source={card} />
               )}
-              <a
-                // **Both values are percent-encoded.** `spec.md` §3 settles no identifier schema,
-                // so this surface assumes nothing about the characters an identifier carries. An
-                // unencoded `&`, `#`, `?` or space cuts the address short or adds a parameter,
-                // and it does both in silence. **Keep the encoding.**
-                href={`/entity/${encodeURIComponent(entityId)}?src=${encodeURIComponent(source.id)}`}
-                target="_blank"
-                rel="noreferrer noopener"
-                // §5.4: a link takes the accent, because a reader must see what is reachable.
-                //
-                // §4.5 gives the popover one way out **per document**: "opened at that source"
-                // names one source, so each card carries its own. With one document the popover
-                // reads exactly as it did before #68.
-                className="block truncate px-2 py-1.5 text-[11px]/4 text-primary underline underline-offset-2"
-              >
-                {WAY_OUT}
-              </a>
+              {/* **No entity, no way out** — #89. A relation has no full page, and a link to
+                  the page of an endpoint would open a rail that need not hold this card. The
+                  popover then states the document and stops there. */}
+              {entityId === null ? null : (
+                <a
+                  // **Both values are percent-encoded.** `spec.md` §3 settles no identifier
+                  // schema, so this surface assumes nothing about the characters an identifier
+                  // carries. An unencoded `&`, `#`, `?` or space cuts the address short or adds a
+                  // parameter, and it does both in silence. **Keep the encoding.**
+                  href={`/entity/${encodeURIComponent(entityId)}?src=${encodeURIComponent(source.id)}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  // §5.4: a link takes the accent, because a reader must see what is reachable.
+                  //
+                  // §4.5 gives the popover one way out **per document**: "opened at that source"
+                  // names one source, so each card carries its own. With one document the popover
+                  // reads exactly as it did before #68.
+                  className="block truncate px-2 py-1.5 text-[11px]/4 text-primary underline underline-offset-2"
+                >
+                  {WAY_OUT}
+                </a>
+              )}
             </div>
           );
         })}
