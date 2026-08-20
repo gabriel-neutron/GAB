@@ -43,6 +43,13 @@ line. The register is locked, so the name cannot be renumbered and cannot be del
 decision replaces an entry **by name**, and the name survives the replacement. The code already
 speaks this way, because "an M4 relation" is a kind of relation and not a citation.
 
+**A number that is given once is a name too.** The numbered invariants of `spec.md` are not held by
+the register, and they are read the same way, on one condition: **a number is given once and never
+given again.** A new invariant takes the next row, and no number ever moves, so no citation of one
+can rot. The operator ruled this on 20 August 2026. **A number that a list can renumber is an
+address, and it goes** — the rules of the visual language were numbered by position, 34 comments
+cited one, and the numbering was removed on the same day.
+
 **One condition. The identifier never travels alone.** Write the rule, then name it. `M8: every
 attribute carries at least one source` is a domain word. `See M8` is a reference. **No rule
 refuses it, and the reviewer does** — §6 measures that an identifier alone passes the lint.
@@ -78,27 +85,39 @@ The rule lives in `eslint.config.ts`, scoped to `src/`, so it runs inside `pnpm 
 step. It needs no dependency and no new command. `noInlineConfig` is on, so no author can disable
 it on a line, and a stale attempt to disable it is itself an error.
 
-It refuses four shapes inside a comment: a ticket, a section mark, an `ADR nnnn`, and a path that
-ends in `.md`.
+It refuses a reference of every shape it can name inside a comment: a ticket, written `#89` or
+`issue 89` or as a link; a section mark, and `section 4`; an `ADR nnnn`; a path that ends in `.md`;
+a `UCn`, whose four documents are deleted; and a numbered rule. **The list carries no count**, so a
+shape added later does not make this sentence false.
 
 **Both halves were measured before the rule was committed.** A comment carrying
 `docs/map-surface.md §4.5, see #89 and ADR 0004` gives four errors, one for each shape, at the
 column of each match. A comment carrying `#2971c6`, `#000000`, the register entries `M8`, `T5` and
 `S2`, `invariant 1`, a commit hash and a tag gives none.
 
+**Both halves were measured again on 20 August 2026, when `UCn` and the numbered rule were
+added.** A comment carrying `UC5 and Rule 16 and rules 12` gives three errors, at columns 4, 12 and
+24. The clean comment above still gives none, and `invariant 1` is one of the tokens that pass.
+
 **A hexadecimal colour is not a ticket.** The pattern for a ticket needs a word boundary after one
 to three digits, and no boundary follows three digits inside a six-digit hex. **This holds while a
 ticket number stays under four digits**, and the rule says so above itself.
 
-**A stylesheet is out of reach.** ESLint does not read `src/index.css`, so the references there
-were removed by hand and nothing keeps them out.
+**A stylesheet is out of reach, so it carries no number either.** ESLint does not read
+`src/index.css`, so the references there were removed by hand and nothing keeps them out. Its rules
+were numbered, and a number that names a position in a list nothing can check is a number that rots
+in silence. **The numbering was removed on 20 August 2026**, and the comments that cited one state
+the rule instead.
 
 ## Consequences
 
 - **A reader loses one hop to the argument.** The register in `docs/README.md` is the route to an
   ADR, and `docs/decisions.md` is the route to an entry. Each one is one document away.
-- **One reader loses more than a hop, in one place.** A comment recorded that a ruling contradicts
-  two documents and named which two. The fact survives and the names do not.
+- **One reader lost more than a hop in one place, and then lost nothing at all.** A comment
+  recorded that a ruling contradicts two documents and named which two. The sweep kept the fact and
+  dropped the names. The audit of that sweep then read the two: ADR 0005 §3 was amended on 17
+  August 2026 and settles one, and the other document is deleted. **The fact was false**, and the
+  sentence was removed on 20 August 2026. A citation had carried a dead assertion.
 - **The section numbers of an ADR stay stable for the documents, and no longer for the code.**
   `authoring.md` cites them and the ADRs cite each other, so the obligation holds. Its ground
   changed.
