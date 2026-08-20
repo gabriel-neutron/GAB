@@ -1,27 +1,27 @@
 /**
  * How the graph tells its neighbour what is selected.
  *
- * Built from `docs/graph-surface.md` §4.6. The graph announces the selection on an event of the
- * window, and the route listens.
+ * The graph announces the selection on an event of the window, and the route listens.
  *
  * **Why an event, and not a property.** A property from the route is a new function on every
  * render of the route. That defeats the memoisation which keeps the canvas from a re-render, and
- * ADR 0004 §3 refuses that render: a re-render of the canvas destroys the Sigma instance and the
- * picture with it.
+ * that render is refused: a re-render of the canvas destroys the Sigma instance and the picture
+ * with it.
  *
- * **§4.6 names `features/map` as the precedent, and the repository no longer holds it.**
- * `src/features/map/adapter.ts` says that §6 of the map document leaves the window event of the
- * prototype behind, and that the handle is the seam there: it has no `CustomEvent` and no
- * `declare global`. The graph document still asks for the event, and a document wins on **what**,
- * so the event stays. The conflict is a question for the operator, and this file settles nothing.
+ * **The named precedent, `features/map`, no longer holds the event.**
+ * `src/features/map/adapter.ts` says that the map leaves the window event of the prototype
+ * behind, and that the handle is the seam there: it has no `CustomEvent` and no `declare global`.
+ * The graph surface still asks for the event, and the specification wins on **what**, so the
+ * event stays. The conflict is a question for the operator, and this file settles nothing.
  *
- * **The one narrowing of this surface lives here.** §4.6: the listener helper holds it, so that
- * no route file reads an untyped value. A value from the event is a value from outside, and it
+ * **The one narrowing of this surface lives here.** The listener helper holds it, so that no
+ * route file reads an untyped value. A value from the event is a value from outside, and it
  * passes the guard below before its first use.
  *
- * **The word "bridge" here is the seam of §4.6, and never the bridge of §4.1.** A bridge of §4.1
- * is a cut point that severs a large piece, and `./structure` owns that word. The two are not
- * the same thing, and this file uses no read of `./structure`.
+ * **The word "bridge" here is the seam that carries the selection, and never the bridge of the
+ * graph structure.** A bridge of the structure is a cut point that severs a large piece, and
+ * `./structure` owns that word. The two are not the same thing, and this file uses no read of
+ * `./structure`.
  */
 
 export const GRAPH_SELECTION_EVENT = 'gab:graph-selection';
@@ -29,9 +29,8 @@ export const GRAPH_SELECTION_EVENT = 'gab:graph-selection';
 /**
  * What the graph announces. `null` says that nothing is selected.
  *
- * The two kinds are a closed set. §4.7 gives the route two cases it must state on screen: a
- * relation, because the detail surface draws one entity, and an entity that the read does not
- * carry.
+ * The two kinds are a closed set. The route must state two cases on screen: a relation, because
+ * the detail surface draws one entity, and an entity that the read does not carry.
  */
 export interface GraphSelection {
   readonly kind: 'entity' | 'relation';
@@ -50,7 +49,7 @@ const isSelection = (value: unknown): value is GraphSelection | null => {
 };
 
 /**
- * The narrowing of §4.6, and it is guarded.
+ * The narrowing of the event, and it is guarded.
  *
  * A listener of the window is given an `Event`. Only a `CustomEvent` carries `detail`, and the
  * `in` operator states that before the read. A cast through `unknown` is refused, and so is a
@@ -61,10 +60,10 @@ const carriesDetail = (event: Event): event is CustomEvent<unknown> => 'detail' 
 /**
  * The last selection the graph announced.
  *
- * **A stateless relay loses the restore, and that was a defect.** `CANVAS.md`: "A component that
- * subscribes after the map is built has already missed the restore. Seed from the current
- * selection, then subscribe." The canvas is a child of the route, so its effect runs **before**
- * the effect of the route, and the mount announces the restored selection into an empty room.
+ * **A stateless relay loses the restore, and that was a defect.** A component that subscribes
+ * after the map is built has already missed the restore: seed from the current selection, then
+ * subscribe. The canvas is a child of the route, so its effect runs **before** the effect of the
+ * route, and the mount announces the restored selection into an empty room.
  *
  * The route then kept its own seed, read from the address, while the graph had already dropped a
  * selection it cannot draw and corrected the address. The sidebar drew one entity, the canvas
@@ -87,10 +86,10 @@ export function emitGraphSelection(selection: GraphSelection | null): void {
  * the caller keeps no name of its own and cannot remove the wrong one.
  *
  * **It calls the listener at once with the selection of this moment, and then at each change.**
- * That is the shape of `onSelect` in `src/features/map/adapter.ts`, which §4.6 names as the
- * precedent, and it is what `CANVAS.md` requires of every subscriber of a live canvas. **Do not
- * remove the first call**: without it a subscriber that attaches after the mount never learns
- * what the graph restored, and it keeps whatever it guessed instead.
+ * That is the shape of `onSelect` in `src/features/map/adapter.ts`, which is the precedent, and
+ * every subscriber of a live canvas requires it. **Do not remove the first call**: without it a
+ * subscriber that attaches after the mount never learns what the graph restored, and it keeps
+ * whatever it guessed instead.
  */
 export function onGraphSelection(listener: (selection: GraphSelection | null) => void): () => void {
   const handle = (event: Event): void => {

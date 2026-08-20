@@ -1,29 +1,27 @@
 /**
  * The graph surface — the live canvas, and the panels beside it.
  *
- * Built from `docs/graph-surface.md` §4.3, §4.4, §4.5, §4.6, §4.7, §5.1, §5.2, §5.4, §5.5 and §8
- * step 4, and from every rule of `CANVAS.md`. It is the entry point of the feature, so it keeps
- * the `-page` name.
+ * It is the entry point of the feature, so it keeps the `-page` name.
  *
- * **This file owns the two elements, and `./controller` owns the library.** ADR 0004 §2 and §3.
- * One `ref` for the canvas, one `ref` for the marker overlay, one `useEffect` that calls
- * `mountGraph` and returns `destroy`. That effect is the adapter, which is where `CANVAS.md`
- * permits it. **The mount is idempotent and the cleanup is complete**: React invokes the effect
- * two times in development, `mountGraph` destroys an instance it finds on the same element, and
- * the cleanup removes the listener and kills the instance.
+ * **This file owns the two elements, and `./controller` owns the library.** One `ref` for the
+ * canvas, one `ref` for the marker overlay, one `useEffect` that calls `mountGraph` and returns
+ * `destroy`. That effect is the adapter, which is the one place it is permitted. **The mount is
+ * idempotent and the cleanup is complete**: React invokes the effect two times in development,
+ * `mountGraph` destroys an instance it finds on the same element, and the cleanup removes the
+ * listener and kills the instance.
  *
  * **The live element is inside a memoised child that takes the two refs and nothing else.** A ref
  * is one object for the life of this component, so no later render of this file can build the
  * element again. A second element is a second WebGL context, the browser drops the older one, and
  * the failure looks like a blank canvas and is not one.
  *
- * **The published view is React state, above that memoised child, and §4.7 sanctions it in as
- * many words:** "The route holds the selection in React state; the canvas is memoised, so a change
- * of the selection never reaches it." Read with `CANVAS.md`, which refuses React state in an
- * **ancestor** of the live element: the memo is what makes the two agree, and it is a rule and not
- * an improvement of speed. **Do not remove it.**
+ * **The published view is React state, above that memoised child, and the surface sanctions it in
+ * as many words:** "The route holds the selection in React state; the canvas is memoised, so a
+ * change of the selection never reaches it." React state is refused in an **ancestor** of the
+ * live element: the memo is what makes the two agree, and it is a rule and not an improvement of
+ * speed. **Do not remove it.**
  *
- * **The selection leaves on an event, and never on a property** — §4.6. `./controller` calls
+ * **The selection leaves on an event, and never on a property.** `./controller` calls
  * `emitGraphSelection`, and the route listens. A property from the route is a new function on
  * every render of the route, and that defeats the memoisation above.
  *
@@ -46,8 +44,8 @@ import { IndexRows } from './row';
 /**
  * What one publish of `./controller` gives this file.
  *
- * The model travels with the view because a theme change builds the model again (§4.2), and the
- * rows of the rail and the lines of the legend are read from it. `./controller` states that the
+ * The model travels with the view because a theme change builds the model again, and the rows of
+ * the rail and the lines of the legend are read from it. `./controller` states that the
  * model is a getter and that a caller reads it again at each publish.
  */
 interface GraphSnapshot {
@@ -66,15 +64,15 @@ interface GraphCanvasProps {
  * The live element, and nothing else.
  *
  * **It takes two refs and no value of the view**, so `memo` holds for every render of the page: a
- * ref is the same object at each render. `CANVAS.md`: no React render inside the tree that wraps
- * the live element.
+ * ref is the same object at each render. **No React render inside the tree that wraps the live
+ * element.**
  */
 const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasProps) {
   return (
     <>
       <div ref={canvas} className={cn('absolute inset-0')} />
       {/* The overlay is positioned, because `./controller` puts an absolute layer inside it. It
-          takes no pointer event, so a drag that starts on it still moves the graph — §5.5. */}
+          takes no pointer event, so a drag that starts on it still moves the graph. */}
       <div ref={overlay} className={cn('pointer-events-none absolute inset-0')} />
     </>
   );
@@ -83,7 +81,7 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
 export function GraphPage() {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
-  /** The handle of §4.3. The rail and the legend drive the graph through it, and never around it. */
+  /** The handle. The rail and the legend drive the graph through it, and never around it. */
   const controller = useRef<GraphController | null>(null);
 
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(null);
@@ -95,20 +93,20 @@ export function GraphPage() {
    * every filter change, and `GraphCanvas` is memoised on the props it is given.
    *
    * The shared rail says what the analyst did — a type, and the state asked for — and the polarity
-   * of §5.2 is answered here, with `hiddenAfterSwitch`.
+   * of the filter is answered here, with `hiddenAfterSwitch`.
    */
   const filterNow = useRef<FilterState | null>(null);
 
   /**
-   * The two steps of the rail. **This value dies with the view**, so React state is where ADR 0004
-   * §7 puts it, and `CANVAS.md` permits it beside a memoised canvas. It is held here, and not in
-   * `./rail`, because `deriveRailRows` needs both fields to build the rows, and a value in two
-   * stores is the fault the ADR names.
+   * The two steps of the rail. **This value dies with the view**, so React state is where it
+   * belongs, and it is permitted beside a memoised canvas. It is held here, and not in `./rail`,
+   * because `deriveRailRows` needs both fields to build the rows, and a value in two stores is a
+   * fault.
    */
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
   /**
-   * The one effect of this file, and it is the adapter — `CANVAS.md` permits a `useEffect` there
+   * The one effect of this file, and it is the adapter. A `useEffect` is permitted in an adapter
    * and in a subscription, and this is both.
    *
    * The list is empty. `corpus` is a module import, and the two refs are stable, so nothing here
@@ -155,9 +153,9 @@ export function GraphPage() {
    * **The memo reads the four values the rows are built from, and never the whole snapshot.** A
    * publish builds a new snapshot object, and a fold of the rail or of the legend is a publish. On
    * the snapshot this memo therefore ran `deriveRailRows` again for one click on a chevron — two
-   * walks of every node and a sort, which is about twenty thousand iterations at the ten thousand
-   * entities of §2. `./controller` keeps the identity of each value that did not change, so the
-   * four dependencies below hold across a fold.
+   * walks of every node and a sort, which is about twenty thousand iterations at ten thousand
+   * entities. `./controller` keeps the identity of each value that did not change, so the four
+   * dependencies below hold across a fold.
    */
   const model = snapshot?.model ?? null;
   const filter = snapshot?.view.filter ?? null;
@@ -182,7 +180,7 @@ export function GraphPage() {
         handle.setRailOpen(next.open);
         return;
       case 'switch-type': {
-        // §5.2: the workspace holds the types that are switched **off**. `./rail-rows` holds that
+        // The workspace holds the types that are switched **off**. `./rail-rows` holds that
         // polarity, so the shared control states the act and never the set it produces.
         const filter = filterNow.current;
         if (filter === null) return;
@@ -193,9 +191,9 @@ export function GraphPage() {
         handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
-        // #82 C5: more than one type may stand unfolded, so this adds and removes one name.
-        // **Folding a type also forgets that its whole list was open**, so opening it again
-        // starts at the cap and #82 C8 states the remainder afresh.
+        // More than one type may stand unfolded, so this adds and removes one name. **Folding a
+        // type also forgets that its whole list was open**, so opening it again starts at the cap
+        // and states the remainder afresh.
         setStep((held) =>
           next.open
             ? { ...held, openTypes: [...held.openTypes, next.type] }
@@ -209,8 +207,8 @@ export function GraphPage() {
   }, []);
 
   /**
-   * #82 C8: the line that counted the rows the cap dropped is a control now, and it draws them in
-   * the same order — the hubs first.
+   * The line that counted the rows the cap dropped is a control now, and it draws them in the
+   * same order — the hubs first.
    *
    * **It is not an act of the shared rail.** The cap belongs to this surface: the map lists every
    * entity of a type and has nothing to open. An act on the shared control would put a rule of one
@@ -223,8 +221,8 @@ export function GraphPage() {
   }, []);
 
   /**
-   * §5.1: a **control** may move the camera, and a click on a node may not. A row of the index is
-   * that control, so the selection and the move happen together here.
+   * A **control** may move the camera, and a click on a node may not. A row of the index is that
+   * control, so the selection and the move happen together here.
    */
   const reach = useCallback((id: string) => {
     const handle = controller.current;
@@ -237,14 +235,14 @@ export function GraphPage() {
     <div className={cn('relative size-full overflow-hidden')}>
       <GraphCanvas canvas={canvas} overlay={overlay} />
 
-      {/* §5.5: each floating panel takes no pointer event on its own padding, and neither does the
-          box that places it. A drag that starts there still moves the graph below. */}
+      {/* Each floating panel takes no pointer event on its own padding, and neither does the box
+          that places it. A drag that starts there still moves the graph below. */}
       <div className={cn('pointer-events-none absolute inset-y-2 left-2 flex')}>
         {snapshot === null || rows === null ? null : (
           <Rail
             rows={rows.rail}
             onAct={act}
-            // #82 C5: the rail asks for each open list, because more than one may stand open.
+            // The rail asks for each open list, because more than one may stand open.
             index={(type) => {
               const list = rows.lists.get(type);
               return list === undefined ? null : (
@@ -258,8 +256,8 @@ export function GraphPage() {
                 />
               );
             }}
-            // §5.5: the panel floats over the canvas, so it takes the popover ground and no
-            // pointer event on its own padding. Each control inside takes the pointer back.
+            // The panel floats over the canvas, so it takes the popover ground and no pointer
+            // event on its own padding. Each control inside takes the pointer back.
             className={cn(
               'pointer-events-none max-h-full border border-border bg-popover',
               'text-popover-foreground',

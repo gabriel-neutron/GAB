@@ -1,31 +1,31 @@
 /**
  * The macro reads of the graph: the communities, the isolates, and the largest degree.
  *
- * **The bridge and cut-point analysis is gone** — #82 row A3, Never asked for it, and **#61 is
- * closed with it**. The operator reports that the simple rules of colour and size are enough, and
- * that a red dot for a cut point teaches them nothing. The Tarjan walk, `Bridge`, `cutPoints`,
- * `bridges` and the floor that separated the two left this file, and the `--dissent` hue left
- * `model.ts`. #61 asked where that floor sits, and the question dies with the analysis.
+ * **The bridge and cut-point analysis is gone.** Nobody asked for it, and the question of where
+ * its floor sits is closed with it. The operator reports that the simple rules of colour and size
+ * are enough, and that a red dot for a cut point teaches them nothing. The Tarjan walk, `Bridge`,
+ * `cutPoints`, `bridges` and the floor that separated the two left this file, and the `--dissent`
+ * hue left `model.ts`.
  *
- * **The community run no longer paints anything, and it places every node** — #87. That ticket
- * ruled that a hue is a grouping and never an identity, that a community number is a rank of size
- * which renumbers at each change of the corpus, and that no word on the screen said what a hue
- * meant. So the paint is the type of an entity now, and `layout.ts` is the one reader left.
+ * **The community run no longer paints anything, and it places every node.** The rule is that a
+ * hue is a grouping and never an identity, that a community number is a rank of size which
+ * renumbers at each change of the corpus, and that no word on the screen said what a hue meant.
+ * So the paint is the type of an entity now, and `layout.ts` is the one reader left.
  *
  * **The condition of survival of this file is therefore the placement, and no longer the paint.**
- * #87 said the opposite — "if the community run goes too, the whole file goes with it" — and that
- * was wrong even when it was written. `layout.ts` is scaffolding that dies with **#35**, so this
- * file lives at least that long. `isolates` and `largestDegree` outlive both: `model.ts` reads
- * them for the grey of an isolate and for the size by degree, which #87 keeps.
+ * An earlier note said the opposite — "if the community run goes too, the whole file goes with
+ * it" — and that was wrong even when it was written. `layout.ts` is scaffolding that dies with
+ * the stored position, so this file lives at least that long. `isolates` and `largestDegree`
+ * outlive both: `model.ts` reads them for the grey of an isolate and for the size by degree, and
+ * both are kept.
  *
- * **`communityCount` and `communitySizes` left this shape** — #87. Each was built at every run
- * and read by nobody, and the comment on `communitySizes` claimed that `layout.ts` read it, which
- * was false: `layout.ts` counts the members itself. A comment that lies is obeyed as confidently
- * as a true one.
+ * **`communityCount` and `communitySizes` left this shape.** Each was built at every run and read
+ * by nobody, and the comment on `communitySizes` claimed that `layout.ts` read it, which was
+ * false: `layout.ts` counts the members itself. A comment that lies is obeyed as confidently as a
+ * true one.
  *
- * Built from `docs/graph-surface.md` §4.1 and §8 step 1. UC1 of §2 says that the analyst
- * reads the macro structure with no label read, so this file gives the numbers that the paint
- * of §4.2 uses.
+ * UC1 says that the analyst reads the macro structure with no label read, so this file gives the
+ * numbers that the paint uses.
  *
  * **It holds no state, it reads no module and it imports no library.** It takes the topology as
  * an argument, so the day `src/contract/` exists the caller changes and this file does not.
@@ -36,25 +36,24 @@
  * a copy of that block, over two different node sets, and two copies of an adjacency and a degree
  * can disagree with nobody to see it.
  *
- * **It names its reads and nothing else.** §4.1 gives the `Topology` shape below word for word.
+ * **It names its reads and nothing else.** The `Topology` shape below is given word for word.
  * The file therefore never touches the generic parameters of graphology, and it never depends on
  * the attribute shape of the graph.
  *
- * **It carries its own stack.** §4.1: a recursive depth-first walk of ten thousand nodes
- * overflows the stack of the language. The walk below holds its own stack in two arrays.
+ * **It carries its own stack.** A recursive depth-first walk of ten thousand nodes overflows the
+ * stack of the language. The walk below holds its own stack in two arrays.
  *
- * **It is deterministic.** §4.1: the label propagation walks the nodes in insertion order and
- * breaks a tie on the lowest label, so the same corpus gives the same communities on every open.
- * That determinism is the contrast with the force layout of §3.2, and it is kept.
+ * **It is deterministic.** The label propagation walks the nodes in insertion order and breaks a
+ * tie on the lowest label, so the same corpus gives the same communities on every open. That
+ * determinism is the contrast with the force layout, and it is kept.
  */
 
 /**
  * The reads of a topology. Nothing else is read.
  *
- * **`forEachNeighbor` is gone** — #76. It was declared because §4.1 of `docs/graph-surface.md`
- * quoted this shape word for word, and it was implemented once and called by nobody. That
- * document is deleted, and the line of #74 is interface plus its own machinery: a member that
- * drives no drawing is not machinery.
+ * **`forEachNeighbor` is gone.** It was declared because the surface quoted this shape word for
+ * word, and it was implemented once and called by nobody. That document is deleted, and the rule
+ * is interface plus its own machinery: a member that drives no drawing is not machinery.
  */
 export interface Topology {
   forEachNode(cb: (node: string) => void): void;
@@ -66,7 +65,7 @@ export interface Topology {
  * One relation, as a topology reads it: two endpoints, and nothing else.
  *
  * The caller decides which relation reaches this shape. An M4 relation names a relation at one
- * end, so it has no node there (§4.2 and ADR 0004 §4), and no caller gives it to `topologyOf`.
+ * end, so it has no node there, and no caller gives it to `topologyOf`.
  */
 export interface TopologyLink {
   readonly source: string;
@@ -126,8 +125,8 @@ export interface Structure {
   /**
    * The community of each node. Index 0 is the largest community.
    *
-   * **`layout.ts` reads it, and nothing else does** — #87. It was the paint of a node until that
-   * ticket, and the paint is the type now. So this number places a node and never colours one.
+   * **`layout.ts` reads it, and nothing else does.** It was the paint of a node, and the paint is
+   * the type now. So this number places a node and never colours one.
    *
    * **It is a rank of size, and that is why it stopped being a colour.** The renumbering below
    * puts the largest community at index 0, so one new entity can renumber the whole run. A
@@ -140,9 +139,9 @@ export interface Structure {
    * The largest degree in the graph.
    *
    * `model.ts` reads it to scale the size of a node: the range of the degree grows with the
-   * corpus, so a fixed multiplier gives one size to every node at ten thousand entities. §4.4
-   * puts the list of the rail in the order of the degree for the same reason — the useful head
-   * of a list on a graph is the hubs.
+   * corpus, so a fixed multiplier gives one size to every node at ten thousand entities. The list
+   * of the rail is in the order of the degree for the same reason — the useful head of a list on
+   * a graph is the hubs.
    */
   readonly largestDegree: number;
 }
@@ -153,10 +152,10 @@ export interface Structure {
  * A round that changes no label ends the walk, so this ceiling only holds a corpus whose labels
  * oscillate between two rounds and never settle. **The number is chosen here**: no document
  * gives one, label propagation settles in far fewer rounds on a corpus that is not adversarial,
- * and twenty rounds of ten thousand nodes cost a small part of the 51 ms of §4.1.
+ * and twenty rounds of ten thousand nodes cost a small part of the 51 ms the analysis costs.
  *
- * **#61 owned this number, and #82 A3 closed it.** The bridge analysis is gone, so nothing is
- * left to calibrate here but this ceiling, and no ticket holds it.
+ * **No ticket owns this number any more.** The bridge analysis is gone, so nothing is left to
+ * calibrate here but this ceiling.
  */
 const MAX_ROUNDS = 20;
 
@@ -169,7 +168,7 @@ const MAX_ROUNDS = 20;
  */
 const numberAt = (values: readonly number[], index: number): number => values[index] ?? 0;
 
-/** The most frequent label among the neighbours. A tie goes to the lowest label — §4.1. */
+/** The most frequent label among the neighbours. A tie goes to the lowest label. */
 function bestLabel(labels: readonly number[], neighbours: readonly number[], own: number): number {
   if (neighbours.length === 0) return own;
 

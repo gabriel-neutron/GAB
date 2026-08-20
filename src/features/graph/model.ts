@@ -1,45 +1,43 @@
 /**
  * The graph, and what is attached to it.
  *
- * Built from `docs/graph-surface.md` §4.2, §3.3, §3.4, §4.5 and §8 step 2. It takes the read, the
- * positions and one palette, and it returns one typed graph, the macro reads of `./structure`,
- * three indexes.
+ * It takes the read, the positions and one palette, and it returns one typed graph, the macro
+ * reads of `./structure`, three indexes.
  *
- * **The legend is gone** — #82 rows B1 to B11, Never asked for it. `legendDefinitions`,
- * `legendCounts`, `LegendDefinition`, `LegendCount` and `LegendToken` left this file with it, and
- * #76 holds the reason. Nothing on the graph now states what the paint means: **#87
- * GRAPH-COLOUR-RULE** owns that question.
+ * **The legend is gone.** Nobody asked for it. `legendDefinitions`, `legendCounts`,
+ * `LegendDefinition`, `LegendCount` and `LegendToken` left this file with it, and the tracker
+ * holds the reason. Nothing on the graph now states what the paint means, and the tracker carries
+ * that question.
  *
- * **It computes no position.** `positions` is the seam of **#35**, which is OPEN. §3.2 measured
- * two layouts of one corpus: the displacement is about half the width of the picture, and
- * convergence does not repair it, so a browser layout gives a different picture on every open.
- * This file therefore imports no layout package, and it guesses nothing about where a position
- * is held or what a position carries. It reads a map that the caller gives it, and no more.
+ * **It computes no position.** `positions` is the seam of the stored position, and it is open. A
+ * measurement of two layouts of one corpus: the displacement is about half the width of the
+ * picture, and convergence does not repair it, so a browser layout gives a different picture on
+ * every open. This file therefore imports no layout package, and it guesses nothing about where a
+ * position is held or what a position carries. It reads a map that the caller gives it, and no
+ * more.
  *
  * **An entity with no position is dropped, and each loss is counted with a name of its own.** A
- * surface that drops evidence in silence is worse than one that says how much it dropped — §3.3.
- * A count that carries two losses cannot be read, so each loss has one count.
+ * surface that drops evidence in silence is worse than one that says how much it dropped. A count
+ * that carries two losses cannot be read, so each loss has one count.
  *
- * **The node shape and the edge shape are declared.** §4.2: the graphology default is an index
- * signature of `any`, and a read from it makes an unsafe assignment that nobody may suppress
- * (ADR 0004 §8).
+ * **The node shape and the edge shape are declared.** The graphology default is an index
+ * signature of `any`, and a read from it makes an unsafe assignment that nobody may suppress.
  *
- * **Every colour is `#rrggbb`.** §4.2: Sigma parses hex and `rgb()` on the CPU, and an `hsl()`
- * colour comes out black, for the whole graph, in silence. `CANVAS.md` adds the second half: a
- * CSS custom property never reaches that parser, so the hues of `src/index.css` are copied here
- * as hex. **This is the second copy**, and it is a recorded cost. `src/features/map/projection.ts`
- * holds the first one, for the map. A feature never imports a feature (ADR 0001 §1), so the two
- * copies cannot become one until the operator lifts the hues into `shared/`. A copy that drifts
- * is worse than a lookup.
+ * **Every colour is `#rrggbb`.** Sigma parses hex and `rgb()` on the CPU, and an `hsl()` colour
+ * comes out black, for the whole graph, in silence. The second half: a CSS custom property never
+ * reaches that parser, so the hues of `src/index.css` are copied here as hex. **This is the
+ * second copy**, and it is a recorded cost. `src/features/map/projection.ts` holds the first one,
+ * for the map. A feature never imports a feature, so the two copies cannot become one until the
+ * operator lifts the hues into `shared/`. A copy that drifts is worse than a lookup.
  *
  * **Two palettes, and this file reads neither theme.** The map uses the dark set on every ground,
- * because a point sits on imagery (`CANVAS.md`). **A Sigma canvas has no imagery**: its ground is
- * the container, which is `--background`, and that is near-white in the light theme. The dark
- * entity hues give about 2.2:1 on it, so every node fails the 3:1 that `src/index.css` asks of a
- * mark a person must see. So each theme carries its own record in `GRAPH_PALETTES`, and the
- * caller states which one. **The swap belongs to the `controller` of §4.3**, with the observer on
- * the class of `documentElement` that `CANVAS.md` requires. A derivation reads no class and
- * observes nothing, so this file stays pure.
+ * because a point sits on imagery. **A Sigma canvas has no imagery**: its ground is the
+ * container, which is `--background`, and that is near-white in the light theme. The dark entity
+ * hues give about 2.2:1 on it, so every node fails the 3:1 that `src/index.css` asks of a mark a
+ * person must see. So each theme carries its own record in `GRAPH_PALETTES`, and the caller
+ * states which one. **The swap belongs to `controller.ts`**, with the observer on the class of
+ * `documentElement` that a live canvas requires. A derivation reads no class and observes
+ * nothing, so this file stays pure.
  */
 
 import { MultiDirectedGraph } from 'graphology';
@@ -50,10 +48,10 @@ import type { Corpus, Proposal, Relation } from '@/shared/fixtures/types';
 import { analyseStructure, topologyOf } from './structure';
 
 /**
- * Where one node is drawn. **The seam of #35, and nothing more.**
+ * Where one node is drawn. **The seam of the stored position, and nothing more.**
  *
- * It carries no identity of a layout run, because §3.2 leaves that to #35 and this file settles
- * no open question.
+ * It carries no identity of a layout run, because the store is open and this file settles no open
+ * question.
  */
 export interface NodePosition {
   readonly x: number;
@@ -84,13 +82,13 @@ export interface EdgeAttrs {
 
 /**
  * Every colour the canvas paints, for one ground. Each one is `#rrggbb`, because Sigma parses
- * hex on the CPU and an `hsl()` colour comes out black in silence — §4.2.
+ * hex on the CPU and an `hsl()` colour comes out black in silence.
  */
 export interface GraphPalette {
   /**
-   * The six entity hues, in order. **They are not declared here** — #87. `shared/entity-hues.ts`
-   * holds them for both canvases, and this field states which of its two sets this ground takes.
-   * They **cycle**: a seventh type wears the hue of the first, and #93 ends that.
+   * The six entity hues, in order. **They are not declared here.** `shared/entity-hues.ts` holds
+   * them for both canvases, and this field states which of its two sets this ground takes. They
+   * **cycle**: a seventh type wears the hue of the first, and the tracker carries the end of that.
    */
   readonly types: EntityHueSet;
   readonly isolate: string;
@@ -111,7 +109,7 @@ export type GraphGround = 'light' | 'dark';
  * - `edge`: `--label`, 5.6:1 on each ground. The `--border` hue gives 1.5:1 on the dark ground
  *   and no reader sees a relation painted with it.
  *
- * **The six entity hues are not here** — #87. `shared/entity-hues.ts` holds them for both
+ * **The six entity hues are not here.** `shared/entity-hues.ts` holds them for both
  * canvases, with the ratios of each set. This canvas takes the set of the theme, because its
  * ground is the page and the dark set gives 2.0:1 to 2.3:1 on the light page. The map takes the
  * dark set on both themes, because its ground is imagery.
@@ -173,20 +171,19 @@ export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
  * `relationsByEndpoint`, `m4RelationsByEndpoint`, `entitiesDrawn`, `relationsDrawn`,
  * `m4Relations`, `relationsWithoutEndpoint`, `duplicateEntities` and `duplicateRelations` were
  * built at every model and never read: six of them were build diagnostics that the legend drew,
- * and the legend is gone — #82 B1 to B11. The two indexes were declared for a reach the surface
- * never made.
+ * and the legend is gone. The two indexes were declared for a reach the surface never made.
  *
  * **The behaviour they measured is unchanged.** A duplicate row is still dropped, a relation with
  * no endpoint is still left out, an M4 relation is still kept off the canvas, and an entity with
  * no position is still absent. **Nothing counts any of them any more**, and no surface reports
- * them: **#35** owns what a surface does with what it cannot place.
+ * them: what a surface does with what it cannot place is open.
  */
 export interface GraphModel {
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
   /** UC5: the pending proposals, under the identifier of the element that can carry a marker. */
   readonly pendingByTarget: ReadonlyMap<string, readonly Proposal[]>;
   /**
-   * The hue of each type — #87.
+   * The hue of each type.
    *
    * **The rail reads this and never a node**, so the swatch beside a name and the disc on the
    * canvas cannot disagree. A node would be the wrong source: an isolate wears the grey of an
@@ -205,8 +202,8 @@ export interface GraphModel {
  * outlier to be **found** with no label read. A node of degree 0 is an isolate, which is exactly
  * the node this floor decides.
  *
- * **No ticket owns this number, and it guesses at no open question.** §4.2 gives the rule, "size
- * by degree", so the shape is decided and the range alone is chosen: this is a tuning value.
+ * **No ticket owns this number, and it guesses at no open question.** The rule is "size by
+ * degree", so the shape is decided and the range alone is chosen: this is a tuning value.
  */
 const SIZE_FLOOR = 4;
 
@@ -219,8 +216,8 @@ const SIZE_FLOOR = 4;
  * thousand entities and a picture of dots at twenty-seven. `structure.largestDegree` carries the
  * top of the range, so the same range holds for each corpus.
  *
- * **No ticket owns this number either**, and for the reason the floor above gives: §4.2 gives the
- * rule and only the range is chosen.
+ * **No ticket owns this number either**, and for the reason the floor above gives: the rule is
+ * given and only the range is chosen.
  */
 const SIZE_RANGE = 9;
 
@@ -231,7 +228,7 @@ const isDrawable = (relation: Relation, drawn: ReadonlySet<string>): boolean =>
   drawn.has(relation.srcId) &&
   drawn.has(relation.dstId);
 
-/** M4: a relation that names a relation at one end or at the other. §4.2 keeps it off the edges. */
+/** M4: a relation that names a relation at one end or at the other. It is kept off the edges. */
 const isM4 = (relation: Relation): boolean =>
   relation.srcKind === 'relation' || relation.dstKind === 'relation';
 
@@ -248,7 +245,7 @@ export function buildGraphModel(
 ): GraphModel {
   const drawn = new Set<string>();
   for (const entity of corpus.entities) {
-    // An entity with no position is absent from the graph. Nothing counts it any more — #35.
+    // An entity with no position is absent from the graph. Nothing counts it any more.
     if (!positions.has(entity.id)) continue;
     // The read comes from outside. A repeated identifier makes `addNode` throw, and an exception
     // here takes the canvas with it. So the second row is dropped, in silence.
@@ -256,8 +253,8 @@ export function buildGraphModel(
   }
 
   // **An M4 relation names a relation, so it has no node at one end and the canvas never draws
-  // it** — §4.2 and ADR 0004 §4. It is dropped here, and no index holds it any more: the index
-  // that did was read by nobody.
+  // it.** It is dropped here, and no index holds it any more: the index that did was read by
+  // nobody.
   const rest = corpus.relations.filter((relation) => !isM4(relation));
   const edges: Relation[] = [];
   const edgeKeys = new Set<string>();
@@ -269,7 +266,7 @@ export function buildGraphModel(
     edges.push(relation);
   }
 
-  // The topology of §4.1, built by `./structure`, which declares the shape. The structure is
+  // The topology, built by `./structure`, which declares the shape. The structure is
   // needed for the paint, and the paint is needed for the first node, so the reads come before
   // the graph exists. `edges` already holds an entity at each end, and both are drawn.
   const topology = topologyOf(
@@ -286,8 +283,8 @@ export function buildGraphModel(
   const sizeSpan = Math.log1p(structure.largestDegree);
 
   /**
-   * **The hue of each type, over every type of the corpus** — #87. `shared/entity-hues.ts` states
-   * why the whole corpus and not the drawn set: this file drops an entity with no position and
+   * **The hue of each type, over every type of the corpus.** `shared/entity-hues.ts` states why
+   * the whole corpus and not the drawn set: this file drops an entity with no position and
    * the map drops one with no geometry, so an index taken from a drawn subset would give one
    * type two hues, one per canvas, in silence.
    */
@@ -306,15 +303,15 @@ export function buildGraphModel(
     graph.addNode(entity.id, {
       x: position.x,
       y: position.y,
-      // §4.2 sizes by the degree. The logarithm holds a hub of two thousand relations beside a
+      // The size is by the degree. The logarithm holds a hub of two thousand relations beside a
       // node of two, which a linear size cannot do, and the span of the graph normalises it so
       // that a hub reads as a hub beside a leaf at each size of corpus — UC1. `log1p(0)` is 0, so
       // a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      // **The hue is the type of the entity, and it is no longer its community** — #87. A
-      // community number is a rank of size, so one new entity renumbered the run and repainted
-      // the whole picture; a type never renumbers. The rail names the type beside its hue, so
-      // the words the hue needs are on the screen and no legend comes back.
+      // **The hue is the type of the entity, and it is no longer its community.** A community
+      // number is a rank of size, so one new entity renumbered the run and repainted the whole
+      // picture; a type never renumbers. The rail names the type beside its hue, so the words the
+      // hue needs are on the screen and no legend comes back.
       //
       // **The grey of an isolate wins over the type.** An isolate is out of the structure, and
       // that is the one thing this canvas says which the map does not.
@@ -337,7 +334,7 @@ export function buildGraphModel(
   }
 
   // A marker of UC5 needs an element to sit on. A node is drawn, and a relation that became an
-  // edge is drawn. Anything else carries no marker, and it is counted instead — §3.3.
+  // edge is drawn. Anything else carries no marker, and it is counted instead.
   const pendingByTarget = new Map<string, Proposal[]>();
   for (const proposal of corpus.proposals) {
     if (proposal.status !== 'pending') continue;
