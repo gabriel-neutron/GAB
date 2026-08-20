@@ -7,7 +7,7 @@ This document is the project's memory. Any future decision that contradicts an e
 **Read one entry, not the whole file.** The table below gives each identifier in one line.
 Find the identifier you need, then read that entry only.
 
-An identifier in `spec.md`, `schema.md` or `prd.md` always names a row of this table. The
+An identifier in `spec.md` or `prd.md` always names a row of this table. The
 workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confused with the
 `S` entries here.
 

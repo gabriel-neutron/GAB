@@ -1,8 +1,8 @@
 # Gabriel — Product Requirements Document
 
 **Version** 1.0 · 6 August 2026
-Related documents: `decisions.md` (rationale), `spec.md` (contract), `schema.md` (a
-provisional example of a database, not a contract).
+Related documents: `decisions.md` (rationale) and `spec.md` (contract). The schema itself is
+in `db/`, and no document draws it.
 
 ---
 

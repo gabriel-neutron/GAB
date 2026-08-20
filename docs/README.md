@@ -8,7 +8,6 @@ there.
 | `spec.md` | Always. It holds the invariants, the read path and the write path. |
 | `decisions.md` | A document cites an identifier such as `(M8)` or `(T5)`, and you need the reason or the cost. Start at its index. |
 | `prd.md` | You need the scope: what Gabriel does, and what it refuses to do. |
-| `schema.md` | You need an illustration of how an invariant maps to the database. It is **provisional**: an example, and never the contract. |
 | `agents/issue-tracker.md` | You write to GitHub. |
 | `agents/domain.md` | You explore the code and you need the domain words. |
 | `agents/triage-labels.md` | You apply a triage label. |

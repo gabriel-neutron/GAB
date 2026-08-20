@@ -2,7 +2,7 @@
 
 **Version** 1.4 · 12 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
-This document decides no table and no column. §3 says what `schema.md` is, and what it is not.
+This document decides no table and no column. §3 says where the schema lives.
 
 ## Table of contents
 
@@ -10,7 +10,7 @@ This document decides no table and no column. §3 says what `schema.md` is, and 
 |---|---|---|
 | 1 | Overview | You need the shape of the system. |
 | 2 | Invariants | Always. These rules hold on every write path. |
-| 3 | Schema | You need to know what decides the shape of the database. |
+| 3 | Schema | You need to know where the schema lives. |
 | 4 | Read path | You add a read, a query or a public surface. |
 | 5 | Write path | You add an ingest, an extraction or a promotion path. |
 | 6 | What is not specified here | Before you choose a value that no document gives. |
@@ -80,8 +80,8 @@ each rule when the build reaches it.
 | 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. Settled by #15. |
 | 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
 
-`schema.md` §6, §9 and §2 illustrate one way to build the checks above. That document is
-provisional and it decides nothing. Do not cite it as the authority for an invariant.
+The objects that carry these rules live in `db/migrations/` and `db/apply/`. **Read the SQL for
+the authority on a constraint, and never a document.**
 
 The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database for all six.
 Invariant 5 names the third tier that criterion allows: a **privilege boundary the writing
@@ -103,10 +103,9 @@ behind this, and the six forgeries that decided it.
 `.sql` files the only source of truth. A migration is written when the build needs it, and it
 must satisfy §2 above.
 
-`schema.md` shows one possible shape, produced during the requirements grilling. It is an
-example, it is no part of this contract, and no line of it is decided. Read it for an
-illustration of how an invariant can map to a table, a constraint or a trigger — never as an
-authority.
+`db/README.md` names the two folders and the rule that separates them. **No document draws the
+schema.** A second drawing of a `CREATE TABLE` drifts from the first, so this document holds
+the rules and the `.sql` files hold the shape.
 
 ---
 
@@ -117,8 +116,7 @@ database role, an explicit allowlist, and a graph traversal that runs inside the
 
 **ADR 0003 settles the allowlist.** The role `gabriel_read` gets nothing on `public` — not
 even `USAGE`. It gets `USAGE` on the `api` schema, `SELECT` on the views in it and `EXECUTE`
-on the functions in it, and nothing else. One view per concept, not per surface. `schema.md`
-§15 illustrates a grant on base tables; that illustration is superseded.
+on the functions in it, and nothing else. One view per concept, not per surface.
 
 | Guardrail | Effect |
 |---|---|
@@ -178,8 +176,7 @@ without writing the target — rejected proposals are never deleted, they are th
 what was set aside.
 
 **Review surfaces (P3).** Two reads must stay cheap: the pending proposals attached to one
-graph element, and the full review queue. Each one needs its own index. `schema.md` §9
-illustrates a pair; it settles neither.
+graph element, and the full review queue. Each one needs its own index.
 
 ---
 
@@ -202,5 +199,5 @@ Three rules follow, and each one is a defect if it is broken.
 
 Two kinds of value are deliberately unspecified for ever, and neither is a ticket. An
 **operational parameter** — the confidence threshold, the zoom breakpoints, the buffer radius
-— is calibrated on real data and never written as a code constant. A **provisional shape** —
-every table in `schema.md` — is decided by the first migration that needs it.
+— is calibrated on real data and never written as a code constant. A **provisional shape** — a
+table that no rule above requires — is decided by the first migration that needs it.
