@@ -68,13 +68,38 @@ Read ADR 0003 §7 before you write a role, a grant or a `SECURITY DEFINER` funct
 four rules that each cost a measured failure, above all `SET search_path` on every such
 function and `SET LOCAL ROLE gabriel_owner` at the head of every ordered file.
 
-## Nothing is here yet, and that is on purpose
+## What is here
 
-No migration file exists. **No table, column, constraint or trigger is decided.** ADR 0003
-settles how the schema is applied, not what it contains. `docs/schema.md` stays provisional
-and is an illustration, never an authority. The real schema is written when the build needs
-it, and it must satisfy `docs/spec.md` §2.
+The first schema. Six tables, and the operator settled the shape on 20 August 2026 after the
+model-shape debate on #97 cut it from thirteen.
+
+| Table | Holds |
+|---|---|
+| `documents` | One row per source. The raw file stays in the object store; this is the reference. |
+| `entity_type` | The closed list of entity types, with the two hues a canvas needs. |
+| `attribute_key` | The closed list of attribute keys, with the kind, the unit and the format of each. |
+| `proposals` | The candidate layer **and** the record of every change. The status tells the two apart. |
+| `entities` | M2, with the value in the row: `{"key": {"v": …, "src": [...]}}`. |
+| `relations` | M2 and M4, the same attribute shape, with the two ends and the M6 interval. |
+
+**No document draws this schema.** `docs/schema.md` was deleted on 20 August 2026, because two
+drawings of one `CREATE TABLE` always drift apart. `docs/spec.md` §2 holds the rules that the
+SQL must satisfy, and the SQL holds the shape.
+
+**Two tables of the debate are absent on purpose**, and each one was folded into something
+smaller: the provenance mirror is now the view `api.value_support`, and the touched-elements
+table is now the `proposals.names` column with a GIN index. **One shape, one table.**
+
+## What is not here yet, and who owns it
+
+The agent and workflow chain — five tables — is deferred by the operator. **It must land in the
+same change as the first agent, and never after it**: a rendered prompt cannot be re-derived,
+so a trail that was not captured cannot be backfilled (#16). `proposals` therefore carries no
+`call_id` today.
+
+`doc_chunks` and a job queue (T5), the map layers (#36), and the merge alias and snapshot of
+M12 all wait for the first migration that needs them.
 
 The `db:migrate`, `db:apply` and `db:reset` commands are named by ADR 0003, and they enter
-`package.json` with the first migration, because a command that runs no file reports success
+`package.json` with the migration tool, because a command that runs no file reports success
 and does nothing.
