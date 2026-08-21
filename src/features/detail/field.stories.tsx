@@ -7,20 +7,11 @@ import { cn } from '@/shared/lib/utils';
 import { readClaims } from './claims';
 import { Field } from './field';
 
-/**
- * The four types are legible at full value in both themes, and no value is truncated.
- *
- * **Every row below is invented**, as `src/shared/fixtures/corpus.ts` says of its own rows, and
- * it lives in this file alone. The story calls `readClaims`, which is what the caller of `Field`
- * calls, so both change on the day `src/contract/` replaces the fixtures.
- *
- * Each assertion reads a role, an accessible name, a value or an attribute. A class name and a
- * colour are the interior of the component, and they change with the theme.
- */
+// Each assertion reads a role, an accessible name, a value or an attribute. A class name and a
+// colour are the interior of the component, and they change with the theme.
 
 const claim = (v: AttributeValue): Attribute => ({ v, src: ['doc-probe'] });
 
-/** One of each type of the probe: a yes-or-no, a number, a date, a text and a list. */
 const PROBE: Attributes = {
   crew_certified: claim(true),
   gross_tonnage: claim(32567),
@@ -29,7 +20,6 @@ const PROBE: Attributes = {
   former_names: claim(['Aurora Bay', 'Cape Ferro', 'Nordic Trader']),
 };
 
-/** The five-digit tonnage that a spinner truncated, and a text longer than one cell. */
 const LONG_TEXT =
   'Hull survey of 2024 reports pitting in way of the number three cargo hold, port side.';
 
@@ -40,10 +30,8 @@ const TRUNCATION: Attributes = {
 
 const FORMER_NAMES = 'Aurora Bay, Cape Ferro, Nordic Trader';
 
-/**
- * A cell takes its width from its value: a short value takes 17 rem, and a value longer than 34
- * characters takes the whole line. The stories state the width they measure in.
- */
+// A cell takes its width from its value: a short value takes 17 rem, and a value longer than 34
+// characters takes the whole line.
 const fields = (attrs: Attributes, width = 'w-80') => (
   <div className={cn('flex flex-col gap-1', width)}>
     {readClaims(attrs).map((row) => (
@@ -63,57 +51,24 @@ type Story = StoryObj<typeof meta>;
 
 type PlayContext = Parameters<NonNullable<Story['play']>>[0];
 
-/**
- * The opacity of a read-only control, stated as a story can reach it.
- *
- * **The defect this replaces:** the stories asserted `toHaveValue` and the `title` attribute.
- * Both read the DOM, and both pass while the paint is clipped, so the story could not fail on
- * the defect itself. A disabled shadcn input loses half its opacity and draws the
- * value at about 3.3:1. The computed opacity of a read-only control on this surface is `1`.
- *
- * **The contrast ratio itself is `no story can reach this`.** A ratio needs the two colours and
- * a measurement. The measured ladder in the head of `src/index.css` states each one, and a
- * `visual-qa` pass on the live surface proves the paint.
- */
+// A disabled shadcn input loses half its opacity and draws the value at about 3.3:1, so the
+// computed opacity of a read-only control is asserted at `1`. A contrast ratio itself is out of
+// the reach of a story: it needs the two colours and a measurement.
 const expectFullOpacity = async (control: HTMLElement): Promise<void> => {
   await expect(control).toBeDisabled();
   await expect(getComputedStyle(control).opacity).toBe('1');
 };
 
-/**
- * Truncation is **geometry**, and this is the assertion that reads it.
- *
- * A control whose content is wider than its own box draws part of the value outside that box,
- * and the browser clips it. `scrollWidth` is the width of the content and `clientWidth` is the
- * width of the box, so a value that fits is a value that is not truncated.
- *
- * **The defect this replaces:** the stories asserted `toHaveValue`, the `title` attribute and
- * the computed opacity. All three read the DOM or a non-geometric style, and none of them read a
- * width, so no story of this surface could fail on a clipped value at all. Truncation is
- * geometric and it is not an opacity artefact.
- *
- * **What this assertion sees, measured.** A cell narrowed to 6 rem fails it with
- * `expected 455 to be less than or equal to 94`, so the assertion is live. **The room a spinner
- * reserves it does not see today**: every control is disabled, and Chromium draws no spin button
- * on a disabled input, so the room is zero in this browser. `NO_SPINNER` stays in `./field` for
- * the enabled surface, which the tracker carries, and a person must still look at Firefox, which
- * reads neither `-webkit-` rule.
- */
+// A control whose content is wider than its box draws part of the value outside it, and the
+// browser clips it. `scrollWidth` is the content and `clientWidth` is the box. A cell narrowed to
+// 6 rem fails with `expected 455 to be less than or equal to 94`, so the assertion is live.
 const expectNothingIsClipped = async (control: HTMLElement): Promise<void> => {
   await expect(control.scrollWidth).toBeLessThanOrEqual(control.clientWidth);
 };
 
-/**
- * The assertions of this surface, written once and run on both grounds. It is not exported,
- * because a named export of a CSF file is a story.
- *
- * **The fonts are awaited before the first geometry read.** `src/index.css` records that
- * `Roboto Condensed` and `JetBrains Mono` are not installed yet, so a measurement that did not
- * wait would flake on the day a `@fontsource` package lands.
- *
- * A checkbox holds no text value, so the full word of the value is asserted where the component
- * draws it, under `title`. Every other control carries the whole value.
- */
+// The fonts are awaited before the first geometry read: `Roboto Condensed` and `JetBrains Mono`
+// are not installed yet, so a measurement that did not wait would flake. A checkbox holds no text
+// value, so the whole word is asserted under `title`.
 const expectEveryValue = async ({ canvas }: PlayContext): Promise<void> => {
   await document.fonts.ready;
 
@@ -137,46 +92,26 @@ const expectEveryValue = async ({ canvas }: PlayContext): Promise<void> => {
   await expectNothingIsClipped(imo);
   await expectFullOpacity(imo);
 
-  // A list is joined into the one box, and every member of it stays readable.
   const names = canvas.getByLabelText('Former names');
   await expect(names).toHaveValue(FORMER_NAMES);
   await expectNothingIsClipped(names);
   await expectFullOpacity(names);
 };
 
-/** Every control is disabled, and every value is at its full contrast. */
 export const EveryControlIsLegibleAtItsFullValue: Story = {
   render: () => fields(PROBE),
   play: expectEveryValue,
 };
 
-/**
- * On the dark ground, every read-only control keeps its full opacity too. There is no theme
- * decorator in `.storybook/preview.ts`, so the story sets `.dark` itself.
- *
- * **The defect this name replaces:** the story ran assertions identical to the light one, so it
- * proved that the component mounts under `.dark` and nothing about the paint. The name now says
- * what it proves. **The contrast ratio itself is `no story can reach this`**: the measured ladder
- * in the head of `src/index.css` states each ratio on its own ground, and a `visual-qa` pass
- * proves the live paint.
- */
+// There is no theme decorator in `.storybook/preview.ts`, so the story sets `.dark` itself.
 export const NoValueLosesItsOpacityOnTheDarkGround: Story = {
   render: () => <div className="dark bg-background p-2 text-foreground">{fields(PROBE)}</div>,
   play: expectEveryValue,
 };
 
-/**
- * A number field reserved room for a spinner it never showed, and that room truncated a
- * five-digit tonnage to three digits. The value carries every character, and so does a text
- * longer than its cell.
- *
- * **The fonts are awaited first.** `src/index.css` records that `Roboto Condensed` and
- * `JetBrains Mono` are not installed yet, so a measurement that did not wait would flake on the
- * day a `@fontsource` package lands.
- *
- * A value longer than 34 characters takes the whole line, so the note is measured on a line and
- * not in a 17 rem cell.
- */
+// The fonts are awaited first: `Roboto Condensed` and `JetBrains Mono` are not installed yet, so
+// a measurement that did not wait would flake. A value longer than 34 characters takes the whole
+// line, so the note is measured on a line and not in a 17 rem cell.
 export const NoValueIsTruncated: Story = {
   render: () => fields(TRUNCATION, 'w-[46rem]'),
   play: async ({ canvas }) => {
@@ -185,11 +120,7 @@ export const NoValueIsTruncated: Story = {
     const tonnage = canvas.getByLabelText('Gross tonnage');
     await expect(tonnage).toHaveValue(32567);
     await expect(tonnage).toHaveAttribute('title', '32567');
-    // The spinner room clips the figure and leaves the value in the DOM. Only the geometry
-    // sees that.
     await expectNothingIsClipped(tonnage);
-    // A value that is drawn at half opacity is unreadable, and the assertions above pass
-    // through it. This one does not.
     await expectFullOpacity(tonnage);
 
     const note = canvas.getByLabelText('Condition note');

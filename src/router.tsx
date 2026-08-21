@@ -2,20 +2,12 @@ import { createRouter, useRouter } from '@tanstack/react-router';
 import { Button } from '@/shared/ui/button';
 import { routeTree } from './routeTree.gen';
 
-/**
- * The not-found default of the router answers an unknown **path**. An unknown **entity
- * identifier** is a different fault with a different cause, so `routes/entity.$id.tsx` answers
- * it with its own component and its own words.
- *
- * There is no navigation yet — the layout is deferred to a prototype — so the way back is the
- * history of the browser and not a link to a home page that does not exist.
- */
+// The router default answers an unknown path. An unknown entity identifier is a different
+// fault, and `routes/entity.$id.tsx` answers that one with its own words.
 function PathNotFound() {
   const router = useRouter();
 
-  // The button appears only when there is a page to go back to. A typed address is often the
-  // first entry in the history, and a button that does nothing tells the operator that the
-  // application failed when it did not.
+  // A typed address can be the first entry in the history. Then there is no page to go back to.
   return (
     <div>
       <p>This address does not name a page.</p>

@@ -4,6 +4,8 @@ import { defineConfig } from 'eslint/config';
 import boundaries from 'eslint-plugin-boundaries';
 import tseslint from 'typescript-eslint';
 
+import { LIMITS, measure } from './tools/comment-budget.ts';
+
 /**
  * Every feature entry point that mounts a live canvas. **One list, and the two gates below both
  * read it**, so a third canvas feature is added at one point and cannot reach one gate and miss
@@ -69,6 +71,39 @@ const SHAPES = [
   { pattern: /\brules?\s*\d+\b/gi, kind: 'a numbered rule' },
 ] as const;
 
+// The cap reads the same `measure()` the census reads, so the gate and the report cannot
+// give two numbers. A comment that states a ruling of the operator belongs in the tracker.
+const commentBudget: Rule.RuleModule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      block:
+        'A comment block is {{cap}} lines. This one is {{lines}}. Keep the reason a reader needs, and put the rest in the commit body or in the tracker',
+      long: 'A comment line is {{cap}} characters. This one is {{chars}}',
+    },
+  },
+  create(context) {
+    return {
+      Program() {
+        const found = measure(context.sourceCode.getText());
+        for (const block of found.overBlocks)
+          context.report({
+            loc: { line: block.line, column: 0 },
+            messageId: 'block',
+            data: { cap: String(LIMITS.blockLines), lines: String(block.lines) },
+          });
+        for (const line of found.longLines)
+          context.report({
+            loc: { line: line.line, column: 0 },
+            messageId: 'long',
+            data: { cap: String(LIMITS.lineChars), chars: String(line.chars) },
+          });
+      },
+    };
+  },
+};
+
 const noReferenceInComment: Rule.RuleModule = {
   meta: {
     type: 'problem',
@@ -108,7 +143,16 @@ const noReferenceInComment: Rule.RuleModule = {
 };
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/build', '**/coverage', '**/storybook-static'] },
+  {
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/build',
+      '**/coverage',
+      '**/storybook-static',
+      '.scratch',
+    ],
+  },
 
   // The route tree is generated and carries its own banner. It is excluded by name, never by a
   // pattern that authored code can enter (ADR 0004 §8).
@@ -363,5 +407,14 @@ export default defineConfig(
     files: ['src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx,js,mjs,cjs}'],
     plugins: { local: { rules: { 'no-reference-in-comment': noReferenceInComment } } },
     rules: { 'local/no-reference-in-comment': 'error' },
+  },
+
+  // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
+  // is inside, and the kit takes no exemption — the day a vendored file genuinely fails, the
+  // operator adds that one file name here.
+  {
+    files: ['src/**/*.{ts,tsx,mts,cts}'],
+    plugins: { budget: { rules: { 'comment-budget': commentBudget } } },
+    rules: { 'budget/comment-budget': 'error' },
   },
 );

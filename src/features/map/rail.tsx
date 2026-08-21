@@ -1,47 +1,5 @@
-/**
- * The layer control and the index, on the left of the map.
- *
- * **The two-step rail itself is `src/shared/rail.tsx` now.** The map wrote that control first and
- * the graph wrote it again; two throwaway prototypes may hold one shape twice, and three call
- * sites may not. This file is what stays behind: the state of this surface, the calls of the
- * handle, the index of a type, and everything the surface pins below the list.
- *
- * **This is one control, and not two.** Four items survive the layer panel: an entry per entity
- * type, a colour, a count and visibility. That is the same control as the type filter, so nothing
- * here draws a presentation setting: no opacity, no reorder, no rename and no colour picker. The
- * tracker names a second design of the layer panel as the fault.
- *
- * **It drives the map through the handle, and it touches no library.** `adapter.ts` is the only
- * writer of `hiddenTypes`, so a switch here is a call of `setTypeVisible` and never a write of the
- * workspace. `whenStyleReady` inside the adapter absorbs the window while the style loads, so a
- * control of this file can be clicked at any moment.
- *
- * **The state stays here, and it does not move up to `map-page.tsx`.** The rail is a **sibling** of
- * the canvas, where ordinary React state is permitted, and the author must stop and ask the
- * operator before a value sits in an **ancestor** of the live element. The lift shares the drawing
- * and moves no value upward.
- *
- * **It derives nothing.** `projection.ts` holds `railRows`, `railLegend`, `entitiesMatching` and
- * `linksOfSelection`, and this file turns already-derived arrays into elements.
- *
- * **M9 stays in `row.tsx`.** The blank cell and the header that names the key belong to one line
- * of the index, and this file does not restate them.
- *
- * **The footer is gone, except the ground.** The operator never asked for it. The relations
- * switch, the row that named a chosen relation, the list of the relations of the selection, and
- * the three counts all left this file.
- *
- * **Three reports left the screen with them, and each loss now has an owner.** A relation that
- * cannot be drawn, an entity that carries no geometry, and the count of what is drawn are stated
- * nowhere. The tracker owns what a surface does with an entity it cannot place. **A click on a
- * line of the map names the relation.** The chosen relation is identity, so it is in the address,
- * and the route draws its panel beside the canvas.
- *
- * **The ground switch stays here, and it is the one thing left in the footer.** The operator moves
- * it onto the map as an icon button. It was not deleted with the rest, because deleting a control
- * before its replacement exists removes the capability. The tracker holds the move, and the rule
- * for a control that floats over a canvas.
- */
+// `whenStyleReady` inside the adapter absorbs the window while the style loads, so a control of
+// this file can be clicked at any moment, and never before the style exists.
 
 import { useEffect, useState, type RefObject } from 'react';
 
@@ -53,64 +11,36 @@ import { entitiesOfType, railLegend, railRows, type Projection } from './project
 import { IndexRows } from './row';
 
 export interface RailProps {
-  /** The corpus, reduced to what a map can draw. `./projection` makes it. */
   readonly projection: Projection;
-  /**
-   * The live map, in the ref that the caller holds. Every act of this rail goes through it, and
-   * never through the library.
-   *
-   * **The instance arrives in a ref, and never in React state above the canvas.** "The instance
-   * in React state above the live element" is the named fault. The caller renders this rail only
-   * after its mount effect fills the ref, so `current` holds the live map for the whole life of
-   * this component.
-   */
+  // The caller renders this rail after its mount effect fills the ref, so `current` holds the
+  // live map for the whole life of this component.
   readonly map: RefObject<MapHandle | null>;
-  /** Whether the rail shows the index. The workspace holds it. */
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Which types are unfolded. It dies with the view, so it is React state: the rail is a sibling of
- * the canvas.
- *
- * **More than one may stand open.** The rule that closed one group to open the next is gone.
- *
- * **The two cases are not one empty list.** Until the analyst folds a type open, the rail follows
- * the selection of the map: a rail that only listened opened no group on a reload. After the first
- * fold the choice of the analyst holds, and an empty list then means "the analyst closed every
- * group", which the selection must not undo.
- */
+// The two cases are not one empty list. Until the analyst folds a type open, the rail follows the
+// selection: a rail that only listened opened no group on a reload. After the first fold an empty
+// list means "the analyst closed every group", which the selection must not undo.
 type OpenTypes =
   | { readonly kind: 'follows-selection' }
   | { readonly kind: 'chosen'; readonly types: readonly string[] };
 
 export function Rail({ projection, map, open, onOpenChange }: RailProps) {
-  /**
-   * The legend, as the map holds it at this moment. It is seeded from the handle and it is taken
-   * from the handle again after each switch, so the adapter stays the one truth and this state is
-   * an echo of it that dies with the view.
-   *
-   * The caller mounts this rail after the map exists, so the ref is full at each read below. The
-   * fallback states what a rail with no map draws — everything on — and it invents no setting.
-   */
+  // The legend is an echo of the adapter, which stays the one truth: it is seeded from the handle
+  // and taken from the handle again after each switch. The fallback draws everything on.
   const [legend, setLegend] = useState(() =>
     railLegend(projection, (type) => map.current?.isTypeVisible(type) ?? true),
   );
 
-  /**
-   * **Seed from the current selection, then subscribe.** The seed is here, and the subscription
-   * below is the same read: `handle.onSelect` calls its listener at once with the selection of
-   * that moment, so there is no second path and no window between the two.
-   */
+  // `handle.onSelect` calls its listener at once with the selection of that moment, so the seed
+  // here and the subscription below are the same read, with no window between the two.
   const [selected, setSelected] = useState<string | null>(map.current?.selected ?? null);
 
   const [openTypes, setOpenTypes] = useState<OpenTypes>({ kind: 'follows-selection' });
 
-  // The one effect of this file, and it is a subscription. It returns the unsubscribe of the
-  // handle, so a rail that leaves the screen drives no dead map. The ref is stable, so this list
-  // holds for the whole life of the rail. Each subscription seeds itself, so the two states above
-  // need no second read.
+  // The effect returns the unsubscribe of the handle, so a rail that leaves the screen drives no
+  // dead map. The subscription seeds itself, so the two states above need no second read.
   useEffect(() => {
     const live = map.current;
     if (live === null) return;
@@ -118,7 +48,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   }, [map]);
 
   const selectedType = selected === null ? null : (projection.byId.get(selected)?.type ?? null);
-  // The selection opens its own group until the analyst folds one, and their choice holds after.
   const shownTypes: readonly string[] =
     openTypes.kind === 'follows-selection'
       ? selectedType === null
@@ -126,11 +55,8 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         : [selectedType]
       : openTypes.types;
 
-  /**
-   * **The switch goes through the one writer.** This rail writes no workspace field. The adapter
-   * stores the types that are switched off, drops a selection that the switch would leave undrawn,
-   * and answers `isTypeVisible` after the write.
-   */
+  // The adapter is the one writer: it stores the types that are switched off, drops a selection
+  // that the switch would leave undrawn, and answers `isTypeVisible` after the write.
   const switchType = (type: string, visible: boolean): void => {
     const live = map.current;
     if (live === null) return;
@@ -138,7 +64,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     setLegend(railLegend(projection, live.isTypeVisible));
   };
 
-  /** A row selects an entity and moves the camera to it. */
   const reach = (id: string): void => {
     const live = map.current;
     if (live === null) return;
@@ -146,11 +71,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     live.flyTo(id);
   };
 
-  /**
-   * What the analyst did on the shared control. **The act says what happened**, and this answers
-   * it in the terms of this surface: a type switch is a call of the handle, and never a write of
-   * the workspace.
-   */
   const act = (next: RailAct): void => {
     switch (next.kind) {
       case 'open-rail':
@@ -165,7 +85,6 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        // This adds and removes one name, and never replaces the list.
         setOpenTypes({
           kind: 'chosen',
           types: next.open

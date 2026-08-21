@@ -9,9 +9,9 @@ import { codeOf } from './comment-budget.ts';
 const git = (args: readonly string[]): string =>
   execFileSync('git', [...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 
-const [, , reference = 'HEAD'] = process.argv;
+const [, , reference = 'HEAD', ...only] = process.argv;
 
-const changed = git(['diff', '--name-only', reference, '--', 'src'])
+const changed = git(['diff', '--name-only', reference, '--', ...(only.length > 0 ? only : ['src'])])
   .split('\n')
   .map((line) => line.trim())
   .filter((line) => /\.tsx?$/.test(line));

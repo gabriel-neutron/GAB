@@ -1,41 +1,6 @@
-/**
- * The two-step rail — the layer control that the map and the graph both draw.
- *
- * **Two throwaway prototypes may hold one shape twice; three call sites may not.** The map wrote
- * this control first and the graph wrote it again. This file is the lift, and the two callers are
- * `src/features/map/rail.tsx` and `src/features/graph/graph-page.tsx`.
- *
- * **It separates two acts.** Switching a type is a control and it is always at hand. Reading the
- * entities of one type is asked for, with the chevron. That is the whole of the two steps.
- *
- * **The search field of the first build is gone**, and the empty-result line with it. The
- * operator does not want a search inside this rail. A search across the corpus is a capability of
- * its own, and the tracker holds it. So the second step draws the whole
- * list of the open type, and this file carries no text and no `change-query` act.
- *
- * **It owns the control, and never the row.** The list of entities under an open type is not the
- * same thing on the two surfaces: the map draws a name alone — its one column of values was
- * taken off — and the graph draws a name and a degree, capped, with the remainder on the screen.
- * The rail is the same **control** on the two surfaces, and the row is not. So the caller passes
- * its list in, and this file states nothing about a row.
- *
- * **It derives nothing and it holds no state.** Every row arrives ready, and every act goes back to
- * the caller as one of a closed set. The caller owns the store, so the polarity — the workspace
- * holds the types that are **off** — stays in one place on each surface and never here.
- *
- * **It reads no library and no `localStorage`.** It is a sibling of a live canvas and never an
- * ancestor of one, so the caller may hold ordinary React state beside it.
- *
- * **The differences the graph needs, and this file carries each one in data.** The list is capped
- * and the remainder is on the screen: that is the caller's list. The list is in the order of the
- * degree: that is the caller's list as well.
- *
- * **The first difference is gone.** The graph carried no colour beside a type, because
- * there the hue was the community and not the type. The hue is the type on both canvases now, so
- * both callers give a colour and both rails read the same. `colour` stays nullable all the same:
- * a surface that paints no hue must be able to say so, and the initial then takes the place of
- * the swatch.
- */
+// The layer control that the map and the graph both draw. It owns the control and never the
+// row: the map draws a name alone, the graph a name and a degree, so each caller passes its own
+// list in. It derives nothing, holds no state, and reads no library and no `localStorage`.
 
 import {
   ChevronDown,
@@ -60,47 +25,20 @@ export interface RailTypeRow {
   readonly on: boolean;
   /** Whether the index of this type is unfolded. One type at a time. */
   readonly open: boolean;
-  /**
-   * What being off means on this surface, in words.
-   *
-   * **One icon, two names, and that is why these words survive the eye.** The operator asked for
-   * an eye in place of `on` and `off`, and the same control does two different things: the **map
-   * hides** a layer, the **graph dims** one and never removes it. A struck-out eye reads as
-   * "hidden", which is true on one surface and false on the other. So the icon is hidden from a
-   * reader and these words carry the state instead — the map writes `on` and `off`, the graph
-   * writes `on` and `off, dimmed`.
-   *
-   * **The consequence is a fact of the surface**, so the derivation writes it and this file never
-   * chooses between the two.
-   */
+  // One icon, two names: the map hides a layer and the graph dims one. A struck-out eye claims
+  // the first on both, so the icon is hidden from a reader and these words carry the state.
   readonly stateWord: string;
-  /**
-   * The accessible name of the row in the folded strip, which has no room for the words beside
-   * the count. The caller writes it, so each surface keeps its own voice and a name never says
-   * "on the map" about a graph.
-   */
+  // The accessible name of the row in the folded strip, which has no room for the words beside
+  // the count. The caller writes it, so a name never says "on the map" about a graph.
   readonly name: string;
-  /**
-   * The hue the canvas gives this type, as the canvas parses it, or `null` where the surface
-   * paints no hue. A CSS custom property never reaches a map or a graph style parser, so this is
-   * a colour value and no class can carry it.
-   *
-   * **It is the words that the hue owes a reader who cannot see it**, because a hue is never the
-   * only mark. The name of the type stands beside the swatch, in
-   * the one place that lists every type.
-   */
+  // A CSS custom property never reaches a map or a graph style parser, so this is a colour
+  // value and no class can carry it. `null` where the surface paints no hue.
   readonly colour: string | null;
 }
 
 export interface RailRows {
   readonly types: readonly RailTypeRow[];
-  /**
-   * Every type that stands unfolded.
-   *
-   * **It was one type, and the operator ruled that rule off.** Opening a second type
-   * closed the first, so an analyst could not read two lists beside each other, and nothing on
-   * either surface needed that constraint.
-   */
+  // More than one type may stand unfolded, so an analyst reads two lists beside each other.
   readonly openTypes: readonly string[];
   /** A control that can exclude everything says so, and carries the way back. */
   readonly everyTypeOff: boolean;
@@ -108,23 +46,14 @@ export interface RailRows {
   readonly open: boolean;
 }
 
-/**
- * What the analyst did on the rail. **A closed set**, so no caller can build an act this control
- * cannot make, and no case can be forgotten.
- *
- * **Each act says what happened, and never what the store should become.** `switch-type` carries
- * the type and the state the analyst asked for. The map answers it with one call of its handle,
- * and the graph answers it with a new hidden set. A single act that carried a whole set would put
- * the polarity of one surface into a control that both surfaces use.
- */
+// A closed set, so no caller can build an act this control cannot make. Each act says what
+// happened and never what the store should become: a single act that carried a whole set would
+// put the polarity of one surface into a control that both surfaces use.
 export type RailAct =
   | { readonly kind: 'open-rail'; readonly open: boolean }
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
-  /**
-   * One type was unfolded or folded. **It names the type and the state it asked for**, exactly as
-   * `switch-type` does, because more than one may stand open. The act that stood here
-   * carried `null` to mean "close whatever is open", which only made sense while one could be.
-   */
+  // It names the type and the state it asked for, as `switch-type` does, because more than one
+  // may stand open.
   | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
   | { readonly kind: 'show-every-type' };
 
@@ -132,39 +61,20 @@ export interface RailProps {
   /** Every row the rail draws. The caller's derivation sorted, counted and worded each one. */
   readonly rows: RailRows;
   readonly onAct: (act: RailAct) => void;
-  /**
-   * The list of entities of one open type. The caller draws it, because a row is not the same
-   * component on the two surfaces — see the header.
-   *
-   * **It is a function of the type, and no longer one node.** More than one type may stand
-   * unfolded, so this control asks the caller for each list it has room to draw, and it
-   * never holds a list of its own.
-   */
+  // A function of the type and not of one node: more than one type may stand unfolded, so this
+  // control asks the caller for each list it has room to draw and holds none of its own.
   readonly index: (type: string) => ReactNode;
-  /**
-   * The ground and the width, which the two callers state differently: the map rail is a solid
-   * column beside the canvas, and the graph rail floats over it. A shared file may take
-   * `className` exactly where two callers differ, and this is that case.
-   */
+  // The map rail is a solid column beside the canvas and the graph rail floats over it. A
+  // shared file takes `className` exactly where two callers differ, and this is that case.
   readonly className?: string;
 }
 
 /** The region one fold control opens. One type, one region. */
 const listId = (type: string): string => `rail-index-${type}`;
 
-/**
- * The recipe of every control here: one row at the control height, the focus ring of the kit
- * exactly, and a state change under 120ms.
- *
- * `ring` on its own paints at rest and paints `currentcolor`, so the three focus utilities stay
- * together. The border is transparent and one pixel wide, because `focus-visible:border-ring`
- * paints nothing without a border width.
- *
- * **`pointer-events-auto` is on every control, and it is not decoration.** The graph rail floats
- * over its canvas and takes no pointer event on its own padding, so that a drag which starts there
- * still moves the graph below. Each control takes the pointer back. On the map, where the shell
- * takes its events, this class changes nothing.
- */
+// `ring` on its own paints at rest and paints `currentcolor`, so the three focus utilities stay
+// together, and the border is transparent and one pixel because `focus-visible:border-ring`
+// paints nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
   'pointer-events-auto flex h-6 items-center border border-transparent text-left',
   'transition-colors duration-100 hover:bg-muted',
@@ -179,16 +89,8 @@ interface SwatchProps {
   readonly on: boolean;
 }
 
-/**
- * The colour swatch of one type.
- *
- * **It is the documented exception on the map, and it is absent on the graph.** The entity hues
- * stay on the canvas and out of the chrome, and the legend is the one place that keeps them: a
- * coloured point means nothing without it. Where the hue is not the encoding the caller sends
- * `null`, and the initial takes this place.
- *
- * The state is written in words beside it, so the switch never rests on colour alone.
- */
+// The hue is never the only mark, so the state is written in words beside this swatch. Where
+// the hue is not the encoding the caller sends `null` and the initial takes this place.
 function Swatch({ colour, on }: SwatchProps) {
   return (
     <span
@@ -261,10 +163,9 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           <div key={row.type} data-facet={row.type}>
             {open ? (
               <div className="flex h-6 items-center gap-1 px-1.5">
-                {/* **Two targets on one row, and they are not the same act.** The chevron unfolds
-                    the index; the rest of the row switches the type. The chevron names the region
-                    it opens **only while that region exists**: a closed row that named the region
-                    sent a reader to an element that is not in the tree. */}
+                {/* Two targets on one row. The chevron names the region it opens only while
+                    that region exists: a closed row that named it sent a reader to an element
+                    that is not in the tree. */}
                 <button
                   type="button"
                   aria-expanded={row.open}
@@ -293,14 +194,10 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   <span className="min-w-0 flex-1 truncate" title={row.type}>
                     {row.type}
                   </span>
-                  {/* The count carries on the graph the weight that a colour carries on the map. */}
+                  {/* The count carries on the graph the weight a colour carries on the map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.count}</span>
-                  {/* **The eye the operator asked for, and the words that survive it.** The
-                      glyph is the state for the eye, and it is hidden from a reader: one
-                      icon cannot say "hidden" on the map and "dimmed" on the graph, and a
-                      struck-out eye claims the first on both. The caller wrote the words,
-                      so each surface keeps its own voice, and they reach a reader where the
-                      words used to be drawn. */}
+                  {/* The glyph is hidden from a reader: one icon cannot say "hidden" on the
+                      map and "dimmed" on the graph, so these words carry the state. */}
                   <span className="sr-only">{row.stateWord}</span>
                   {row.on ? (
                     <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
@@ -310,12 +207,9 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 </button>
               </div>
             ) : (
-              /* The strip is a control and not a caption: a click on a colour still switches the
-                 type. The count stays beside it, so the folded rail still says what is drawn.
-
-                 **The name carries the state.** The open rail writes the word beside the count.
-                 The strip has no room for it, so the name says it instead, and the caller wrote
-                 that name. */
+              /* The strip is a control and not a caption: a click on a colour still switches
+                 the type. It has no room for the word, so the name the caller wrote carries
+                 the state instead. */
               <button
                 type="button"
                 aria-pressed={row.on}
@@ -337,10 +231,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
 
             {/* The second step: the index of the type that is unfolded.
 
-                **The field of the first build is gone.** The operator does not want a search
-                inside this rail. A search across the corpus is a capability of its own, and the
-                tracker holds it. A type that is switched off has no
-                index: the surface draws none of it. */}
+                A type that is switched off has no index: the surface draws none of it. */}
             {open && row.open && row.on ? (
               <div id={listId(row.type)} className="px-1.5 pb-1">
                 {index(row.type)}
@@ -349,11 +240,6 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           </div>
         ))}
       </div>
-
-      {/* **This control pins nothing below the list any more.** It took a `footer` node, and the
-          map filled it with the relations switch, the counts and the ground. The operator removed
-          all of those and moved the ground onto the map itself, so the slot had no caller left on
-          either surface. */}
     </aside>
   );
 }

@@ -1,92 +1,33 @@
-/**
- * One value, one control, one size.
- *
- * Every control on this surface stays disabled until the write path is decided.
- *
- * The control comes from `ClaimValue`, which is a closed union on `control`. The guess that
- * chose that control lives in `./claims`, and this file adds no second guess: it draws what it
- * is given.
- */
-
 import { cn } from '@/shared/lib/utils';
 import { Input } from '@/shared/ui/input';
 
 import type { ClaimValue } from './claims';
 
 export interface FieldProps {
-  /** The accessible name of the control. */
   readonly label: string;
-  /** The value, with the control it asks for. */
   readonly value: ClaimValue;
 }
 
-/**
- * The correction is made at the call site, because the kit is closed and is not edited.
- *
- * **The defect this list exists to not repeat:** a shadcn `Input` under `disabled` loses half
- * its opacity, and the value — the most important text on the screen — was drawn at about
- * 3.3:1. A read-only surface says "not editable" with a flat fill, and keeps the data at full
- * contrast. **Do not restore `opacity-50`.**
- *
- * The kit writes `text-base md:text-sm` and a dark fill of its own, so both are beaten here.
- * One class of the pair alone leaves the value at another size, or on another ground, and the
- * surface
- * asks for one size.
- *
- * **The second defect this list exists to not repeat:** the kit also writes
- * `disabled:pointer-events-none`. It killed every `title` on the surface, so the full value of
- * a truncated cell never appeared, and the analyst could not select or copy a value either.
- * `title` is the whole mitigation a truncated value gets. `disabled:pointer-events-auto`
- * gives it back and `disabled` stays, so the rule still holds. **Do not remove it.**
- *
- * A state change lasts under 120ms. The kit writes `transition-colors` with no duration, and
- * the Tailwind default is 150ms, so the duration is stated here.
- */
+// The shadcn kit sets `opacity-50`, `text-base md:text-sm`, a dark fill, and
+// `disabled:pointer-events-none`, which killed every `title`. Each is beaten here. The kit gives
+// `transition-colors` no duration, and the Tailwind default is 150ms, so 100ms is stated here.
 const BOX =
   'h-6 w-full rounded-none border-transparent bg-muted px-1.5 py-0 text-xs duration-100 md:text-xs dark:bg-muted disabled:opacity-100 disabled:bg-muted disabled:text-foreground disabled:cursor-default disabled:pointer-events-auto dark:disabled:bg-muted';
 
-/**
- * Every identifier, count, date and code is monospace, and figures are tabular.
- * A number and a date take it; a text does not.
- *
- * **The figures are not right-aligned.** Alignment is for a *column* of figures, and there is no
- * column here: the name of the claim sits to the left of each cell and the cells flow
- * about 2.6 to a line, so a right edge would land at a different place on every cell and the
- * value would sit far from the name it belongs to. `tabular-nums` still holds the digits on one
- * width.
- */
+// The figures are not right-aligned. Alignment is for a column of figures, and the cells flow
+// about 2.6 to a line, so a right edge would land at a different place on each cell, far from the
+// name it belongs to. `tabular-nums` still holds the digits on one width.
 const FIGURES = 'font-mono tabular-nums';
 
-/**
- * A number field reserves room for a spinner it never shows, and that room truncated a
- * five-digit tonnage to three digits. **Do not restore the spinner.**
- *
- * The two `-webkit-` rules reach Chromium and WebKit. **Firefox reads neither**, so the standard
- * property follows and the correction is not Chromium-only. The suite runs in Chromium alone, so
- * **no story can see the Firefox case**: a person must look at it there.
- */
+// A number field reserves room for a spinner it never shows, and that room truncated a
+// five-digit tonnage to three digits. The two `-webkit-` rules reach Chromium and WebKit, but
+// Firefox reads neither, so the standard property follows.
 const NO_SPINNER =
   '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
-/**
- * A yes-or-no is a real checkbox, so that the state reads without the word beside it, and so
- * that the role, the name and `aria-checked` stay correct.
- *
- * **The defect this list exists to not repeat:** the control was a bare checkbox, and the
- * browser paints a disabled checkbox itself, in its own grey, at about 2 to 3:1. The finding was
- * therefore restored on the one type of the four that got no correction, and
- * `disabled:opacity-100` cannot reach it, because that greying is not opacity. `appearance-none`
- * takes the paint away from the browser and the box is drawn from declared tokens: an `input`
- * edge at 3.4:1 light and 3.2:1 dark, a `muted` ground, and a `foreground` fill for the ticked
- * state at 16:1. **Do not remove `appearance-none`.**
- *
- * **The second defect this pair exists to not repeat:** the tick stood alone at 14 px on a line
- * where every other control is 24 px. `src/index.css` states one control height,
- * `--control-height: 24px`, and the surface asks for one size. A small glyph reads better than
- * a 24 px
- * square, so the glyph keeps 14 px and the **box** takes the row height. **Do not take the box
- * away.**
- */
+// The browser paints a disabled checkbox in its own grey at about 2 to 3:1, and that grey is not
+// opacity, so `disabled:opacity-100` cannot reach it. `appearance-none` takes the paint away and
+// the box uses declared tokens. The glyph keeps 14 px, and the box takes the 24 px row height.
 const TICK_BOX = 'inline-flex h-6 shrink-0 items-center';
 const TICK =
   'size-3.5 shrink-0 appearance-none rounded-none border border-input bg-muted checked:border-foreground checked:bg-foreground disabled:opacity-100 disabled:cursor-default disabled:pointer-events-auto';
@@ -109,14 +50,9 @@ export function Field({ label, value }: FieldProps) {
       );
     case 'number':
       return (
-        // **This is the one point that guesses the control, and it names the two open
-        // questions.** A number control and a date control are permitted, so the control itself
-        // is a guess. What is not settled is the decimal separator and the date format. This is
-        // why it matters: a native field prints in the locale of the machine, so this box shows
-        // `32,26` on one machine and `32.26` on another, and a date box shows the order the
-        // machine chooses. A published surface that must print a decimal point cannot use a
-        // number input at all. **The type of an attribute and what the surface states about
-        // itself are both open, and neither is answered here.**
+        // A native number field prints in the locale of the machine, so this box shows `32,26`
+        // on one machine and `32.26` on another. A surface that must print a decimal point
+        // cannot use a number input.
         <Input
           type="number"
           // The surface writes nothing, so the value is a default and never a bound

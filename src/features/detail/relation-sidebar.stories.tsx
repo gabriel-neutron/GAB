@@ -7,22 +7,6 @@ import { corpus } from '@/shared/fixtures/corpus';
 import { readRelation, type RelationDossier } from './dossier';
 import { RelationSidebar } from './sidebar';
 
-/**
- * The check of the relation view. The component lives in `./sidebar.tsx`, which draws the two
- * things a canvas can select in one pane; this file checks the relation half of it.
- *
- * The operator asked for a view simpler than an entity view: **the entity at each end, the type,
- * and the sources**. Each story below names one of those clauses, or the rule that gave the
- * words: the direction is the one both canvases already draw.
- *
- * **One criterion no story can reach.** "A click on a line opens this panel" needs a live canvas,
- * and no story gets one. The `visual-qa` agent proves it on `/map` and on `/graph` in the running
- * application.
- *
- * The input is `readRelation(corpus, …)`, which is what both routes call, so this file changes on
- * the day `src/contract/` replaces the fixtures. **Nothing here is invented.**
- */
-
 /** MV Northern Ledger, berthed at a terminal. One document, and no interval at all. */
 const BERTHED_ID = 'c3d4e5f6-9a0b-4123-c456-d7e8f90a1b2c';
 
@@ -42,7 +26,7 @@ const CLOSED = read(CLOSED_ID);
 const FROM = 'MV Northern Ledger';
 const TO = 'Maasvlakte bulk terminal, berth 7';
 
-/** The type as the read carries it, and the type as every surface now says it. */
+/** The type as the read carries it, and the type as a surface says it. */
 const RAW_TYPE = 'berthed_at';
 const TYPE = 'berthed at';
 
@@ -54,8 +38,7 @@ const ONE_SOURCE = '1 source document. Open it.';
 const WAY_OUT = 'Open the full page at this source, in a new tab';
 
 /**
- * The popover is portalled to the body, so a scrolling ancestor cannot clip it. It is therefore
- * outside `canvasElement`, and `screen` is what reaches it.
+ * The popover is portalled to the body, so it is outside `canvasElement`. `screen` reaches it.
  */
 const openPopover = async (root: HTMLElement): Promise<HTMLElement> => {
   await userEvent.click(within(root).getByRole('button', { name: ONE_SOURCE }));
@@ -66,8 +49,7 @@ const meta = {
   component: RelationSidebar,
   args: { relation: BERTHED },
   parameters: { layout: 'fullscreen' },
-  // 24 rem is part of the contract, and the panel carries that width itself. The row
-  // below states a height, exactly as the route does, and the panel stretches to it.
+  // The row states a height, exactly as the route does, and the panel stretches to it.
   render: (args) => (
     <div className="flex h-[600px]">
       <RelationSidebar {...args} />
@@ -79,7 +61,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The entity at each end, and the type. Three lines, and one of them is each. */
 export const TheTwoEndsAndTheTypeAreDrawn: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
@@ -89,24 +70,15 @@ export const TheTwoEndsAndTheTypeAreDrawn: Story = {
   },
 };
 
-/**
- * The panel writes no second wording for the direction. The three lines are the three that
- * `shared/canvas-label.ts` gives both canvases, in that order, so a hover over the line and the
- * panel beside it can never disagree about which way the relation points.
- */
+/** The lines come from `shared/canvas-label.ts`, which both canvases draw, so a hover and this
+ * panel can never disagree about the direction. */
 export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
-    // The raw identifier goes into the shared function, exactly as each canvas passes it.
     await expect(heading).toHaveTextContent(relationLines(FROM, RAW_TYPE, TO).join(''));
   },
 };
 
-/**
- * The operator ruled that one relation carries one name on every surface, and that the name is
- * words. **The identifier reaches no screen.** `shared/canvas-label.ts` holds the rule, so the
- * two canvases changed with this panel.
- */
 export const TheTypeReadsInWordsAndNeverAsTheIdentifier: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
@@ -115,10 +87,8 @@ export const TheTypeReadsInWordsAndNeverAsTheIdentifier: Story = {
   },
 };
 
-/**
- * The heading carries the arrow, and the accessible name carries the words. An arrow is a picture
- * of the direction, and a reader who is given the lines hears "down arrow" instead of a relation.
- */
+/** The heading carries the arrow, and the accessible name carries the words. A reader who is
+ * given the lines hears "down arrow" instead of a relation. */
 export const TheNameOfThePanelSaysTheDirectionInWords: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1, name: `${FROM} ${TYPE} ${TO}` });
@@ -129,10 +99,6 @@ export const TheNameOfThePanelSaysTheDirectionInWords: Story = {
   },
 };
 
-/**
- * The sources. The presentation is the one the entity panel already uses — one control that
- * counts the documents, and one popover that opens the same card.
- */
 export const TheSourcesOpenTheSameCardTheEntityPanelOpens: Story = {
   play: async ({ canvasElement }) => {
     const popover = await openPopover(canvasElement);
@@ -140,11 +106,8 @@ export const TheSourcesOpenTheSameCardTheEntityPanelOpens: Story = {
   },
 };
 
-/**
- * A relation has no full page, so the popover carries no way out. A link to the page of an
- * endpoint would open a rail that need not hold this card, and a reader would take that absence
- * for a lost source.
- */
+/** A relation has no full page. A link to the page of an endpoint would open a rail that need
+ * not hold this card, and a reader would take that absence for a lost source. */
 export const ThePopoverOfARelationCarriesNoWayOut: Story = {
   play: async ({ canvasElement }) => {
     const popover = await openPopover(canvasElement);
@@ -152,10 +115,8 @@ export const ThePopoverOfARelationCarriesNoWayOut: Story = {
   },
 };
 
-/**
- * M9: the unknown is a blank cell under a header that names the key. This relation carries no
- * interval, and the row stays on the screen so that the absence never reads as a fault.
- */
+/** M9: the unknown is a blank cell under a header that names the key. The row stays on the
+ * screen, so that the absence never reads as a fault. */
 export const ARelationWithNoIntervalDrawsABlankUnderTheKey: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Validity')).toBeVisible();

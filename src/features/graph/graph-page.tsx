@@ -1,34 +1,3 @@
-/**
- * The graph surface — the live canvas, and the panels beside it.
- *
- * It is the entry point of the feature, so it keeps the `-page` name.
- *
- * **This file owns the two elements, and `./controller` owns the library.** One `ref` for the
- * canvas, one `ref` for the marker overlay, one `useEffect` that calls `mountGraph` and returns
- * `destroy`. That effect is the adapter, which is the one place it is permitted. **The mount is
- * idempotent and the cleanup is complete**: React invokes the effect two times in development,
- * `mountGraph` destroys an instance it finds on the same element, and the cleanup removes the
- * listener and kills the instance.
- *
- * **The live element is inside a memoised child that takes the two refs and nothing else.** A ref
- * is one object for the life of this component, so no later render of this file can build the
- * element again. A second element is a second WebGL context, the browser drops the older one, and
- * the failure looks like a blank canvas and is not one.
- *
- * **The published view is React state, above that memoised child, and the surface sanctions it in
- * as many words:** "The route holds the selection in React state; the canvas is memoised, so a
- * change of the selection never reaches it." React state is refused in an **ancestor** of the
- * live element: the memo is what makes the two agree, and it is a rule and not an improvement of
- * speed. **Do not remove it.**
- *
- * **The selection leaves on an event, and never on a property.** `./controller` calls
- * `emitGraphSelection`, and the route listens. A property from the route is a new function on
- * every render of the route, and that defeats the memoisation above.
- *
- * **`eslint.config.ts` refuses a story for this file by name**, because one story is one live
- * WebGL context. The panels beside the canvas are storied on their own.
- */
-
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { corpus } from '@/shared/fixtures/corpus';
@@ -41,32 +10,19 @@ import type { GraphModel } from './model';
 import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
 import { IndexRows } from './row';
 
-/**
- * What one publish of `./controller` gives this file.
- *
- * The model travels with the view because a theme change builds the model again, and the rows of
- * the rail and the lines of the legend are read from it. `./controller` states that the
- * model is a getter and that a caller reads it again at each publish.
- */
 interface GraphSnapshot {
   readonly view: GraphView;
   readonly model: GraphModel;
 }
 
 interface GraphCanvasProps {
-  /** The element Sigma takes and owns. Its size comes from the layout, never from its content. */
   readonly canvas: RefObject<HTMLDivElement | null>;
-  /** The element that carries the ring and each pending-proposal marker, over the canvas. */
   readonly overlay: RefObject<HTMLDivElement | null>;
 }
 
-/**
- * The live element, and nothing else.
- *
- * **It takes two refs and no value of the view**, so `memo` holds for every render of the page: a
- * ref is the same object at each render. **No React render inside the tree that wraps the live
- * element.**
- */
+// It takes two refs and no value, so `memo` holds at every render: a ref is one object for the
+// life of the component. A render above the live element builds a second element and a second
+// WebGL context; the browser drops the older one and the canvas goes blank.
 const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasProps) {
   return (
     <>
@@ -81,52 +37,27 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
 export function GraphPage() {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
-  /** The handle. The rail and the legend drive the graph through it, and never around it. */
   const controller = useRef<GraphController | null>(null);
 
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(null);
 
-  /**
-   * The filter of the last publish. **It is a ref and not a second store**: the value lives on the
-   * view that `./controller` owns, and this holds the same value only so that a stable callback
-   * can read it. A `useCallback` that took the filter in its list would build a new function on
-   * every filter change, and `GraphCanvas` is memoised on the props it is given.
-   *
-   * The shared rail says what the analyst did — a type, and the state asked for — and the polarity
-   * of the filter is answered here, with `hiddenAfterSwitch`.
-   */
+  // A ref, not a second store: the value lives on the view. A `useCallback` with the filter in its
+  // list would make a new function at each filter change, and `GraphCanvas` is memoised on props.
   const filterNow = useRef<FilterState | null>(null);
 
-  /**
-   * The two steps of the rail. **This value dies with the view**, so React state is where it
-   * belongs, and it is permitted beside a memoised canvas. It is held here, and not in `./rail`,
-   * because `deriveRailRows` needs both fields to build the rows, and a value in two stores is a
-   * fault.
-   */
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
-  /**
-   * The one effect of this file, and it is the adapter. A `useEffect` is permitted in an adapter
-   * and in a subscription, and this is both.
-   *
-   * The list is empty. `corpus` is a module import, and the two refs are stable, so nothing here
-   * can mount a second graph.
-   *
-   * `subscribe` calls its listener at once with the view of that moment, so this file needs no
-   * seeding path of its own: a component that subscribes after the canvas is built has already
-   * missed the restore of the address.
-   */
+  // The list is empty on purpose: `corpus` is a module import and the two refs are stable, so
+  // nothing here can mount a second graph. `subscribe` calls its listener at once with the view of
+  // that moment, so this file needs no seeding path of its own.
   useEffect(() => {
     const element = canvas.current;
     const marks = overlay.current;
-    // Both elements are in the returned tree, so React has attached them before this effect runs.
-    // This test states that, and it invents no second mounting path.
     if (element === null || marks === null) return;
 
-    // **Nothing is selected until this graph says so.** `./bridge` holds the last announcement for
-    // a subscriber that attaches after the mount, and nothing else clears it: a `mountGraph` that
-    // throws — no WebGL context is the real case — announces nothing, and the route is then seeded
-    // with the selection of the **previous** mount and draws an entity that no canvas drew.
+    // `./bridge` holds the last announcement, and nothing else clears it. A `mountGraph` that
+    // throws, and no WebGL context is the real case, announces nothing. The route is then seeded
+    // with the selection of the previous mount, and draws an entity that no canvas drew.
     emitGraphSelection(null);
 
     const handle = mountGraph(element, marks, corpus);
@@ -146,23 +77,12 @@ export function GraphPage() {
     };
   }, []);
 
-  /**
-   * The rows of the rail. The derivation is in `./rail-rows`: this file sorts nothing, caps
-   * nothing and counts nothing.
-   *
-   * **The memo reads the four values the rows are built from, and never the whole snapshot.** A
-   * publish builds a new snapshot object, and a fold of the rail or of the legend is a publish. On
-   * the snapshot this memo therefore ran `deriveRailRows` again for one click on a chevron — two
-   * walks of every node and a sort, which is about twenty thousand iterations at ten thousand
-   * entities. `./controller` keeps the identity of each value that did not change, so the four
-   * dependencies below hold across a fold.
-   */
+  // The memo reads the values the rows are built from, and never the whole snapshot. A publish
+  // makes a new snapshot object, and a fold is a publish. A memo that took the whole snapshot
+  // would run `deriveRailRows` again: two walks and a sort, 20000 iterations at 10000 entities.
   const model = snapshot?.model ?? null;
   const filter = snapshot?.view.filter ?? null;
   const selection = snapshot?.view.selection ?? null;
-  // The fold of the rail is the fifth value the rows are built from, and it is read on its own for
-  // the same reason as the four above: the whole snapshot is a new object at each publish, so a
-  // memo that took it would run the derivation again for one click on a chevron.
   const railOpen = snapshot?.view.railOpen ?? false;
   const rows = useMemo(
     () =>
@@ -191,9 +111,6 @@ export function GraphPage() {
         handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
-        // More than one type may stand unfolded, so this adds and removes one name. **Folding a
-        // type also forgets that its whole list was open**, so opening it again starts at the cap
-        // and states the remainder afresh.
         setStep((held) =>
           next.open
             ? { ...held, openTypes: [...held.openTypes, next.type] }
@@ -206,24 +123,12 @@ export function GraphPage() {
     }
   }, []);
 
-  /**
-   * The line that counted the rows the cap dropped is a control now, and it draws them in the
-   * same order — the hubs first.
-   *
-   * **It is not an act of the shared rail.** The cap belongs to this surface: the map lists every
-   * entity of a type and has nothing to open. An act on the shared control would put a rule of one
-   * surface into a file that both surfaces read.
-   */
   const showWholeList = useCallback((type: string) => {
     setStep((held) =>
       held.wholeList.includes(type) ? held : { ...held, wholeList: [...held.wholeList, type] },
     );
   }, []);
 
-  /**
-   * A **control** may move the camera, and a click on a node may not. A row of the index is that
-   * control, so the selection and the move happen together here.
-   */
   const reach = useCallback((id: string) => {
     const handle = controller.current;
     if (handle === null) return;
@@ -242,7 +147,6 @@ export function GraphPage() {
           <Rail
             rows={rows.rail}
             onAct={act}
-            // The rail asks for each open list, because more than one may stand open.
             index={(type) => {
               const list = rows.lists.get(type);
               return list === undefined ? null : (
@@ -256,8 +160,6 @@ export function GraphPage() {
                 />
               );
             }}
-            // The panel floats over the canvas, so it takes the popover ground and no pointer
-            // event on its own padding. Each control inside takes the pointer back.
             className={cn(
               'pointer-events-none max-h-full border border-border bg-popover',
               'text-popover-foreground',

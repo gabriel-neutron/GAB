@@ -3,18 +3,9 @@ import { Popover as PopoverPrimitive } from 'radix-ui';
 
 import { cn } from '@/shared/lib/utils';
 
-/**
- * Vendored from shadcn, in the `radix-nova` style of the other four parts of the kit. It is
- * added on the instruction of the operator: the sidebar has no room for a rail, so a mark opens
- * its source in a popover.
- *
- * It takes **no** lint exemption. `src/shared/ui/` is a pattern that authored code can enter, so
- * the folder is excluded from nothing.
- *
- * The base classes below are the upstream ones. A caller corrects the scale and the radius at the
- * call site with `cn()`, as it does for `Input` and `Button`. **The shadow stays**: the theme
- * permits a shadow on a true overlay, and this is one.
- */
+// Vendored from shadcn in the `radix-nova` style of the kit. The base classes are upstream, and
+// a caller corrects the scale and the radius with `cn()`. The shadow stays: the theme permits
+// one on a true overlay, and this is one.
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />;
 }
@@ -23,10 +14,7 @@ function PopoverTrigger({ ...props }: React.ComponentProps<typeof PopoverPrimiti
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
 }
 
-/**
- * The content is portalled to the body, so a scrolling ancestor cannot clip it. That is what
- * makes a popover usable from inside the 24 rem sidebar, which holds its own scroll.
- */
+/** Portalled to the body, so a scrolling ancestor cannot clip it inside the 24 rem sidebar. */
 function PopoverContent({
   className,
   align = 'center',
@@ -49,9 +37,6 @@ function PopoverContent({
   );
 }
 
-/**
- * **`PopoverAnchor` is removed on purpose.** Upstream exports it and nothing here imports it.
- * This folder takes no lint exemption, so a vendored file carries no dead surface by right.
- * Vendor it again on the day a caller needs an anchor away from the trigger.
- */
+// `PopoverAnchor` is removed on purpose: upstream exports it and nothing here imports it.
+// Vendor it again on the day a caller needs an anchor away from the trigger.
 export { Popover, PopoverTrigger, PopoverContent };

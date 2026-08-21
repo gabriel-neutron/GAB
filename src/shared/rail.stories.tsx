@@ -3,31 +3,8 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { Rail, type RailRows, type RailTypeRow } from '@/shared/rail';
 
-/**
- * The states of the two-step rail, which the map and the graph both draw.
- *
- * No surface document owns this file: the rail is shared, so its contract is its two call sites —
- * `src/features/map/rail.tsx` and `src/features/graph/graph-page.tsx` — and the rules of the
- * `component` skill. The behaviour it must hold is the one both surfaces state: a type switches
- * off and the count says so. An entity is reached by name in two steps. The folded rail still
- * says what is drawn.
- *
- * **The rows are stated here, and no read module is imported.** A shared file has no surface
- * document and no one read: each caller derives these rows from its own model — `railRows` on the
- * map, `deriveRailRows` on the graph. The shape is the contract, so the shape is what a story
- * states. The two derivations are checked where they live.
- *
- * **Each assertion reads the contract**: a role, an accessible name, `aria-pressed`,
- * `aria-expanded`, `aria-controls`, a `data-` attribute or the text. No story reads a class and
- * none reads a colour.
- *
- * ## What no story of this file can reach
- *
- * - **The list of entities.** The rail takes it as a slot, because a row is not the same component
- *   on the two surfaces. `src/features/map/row.stories.tsx` and
- *   `src/features/graph/row.stories.tsx` hold the two.
- * - **The camera.** A row of the index moves it, and the rail reports the act and moves nothing.
- */
+// Each assertion reads a role, an accessible name, an `aria-` or `data-` attribute, or the text.
+// No story reads a class and none reads a colour.
 
 const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRow => ({
   initial: over.type.slice(0, 1).toUpperCase(),
@@ -57,9 +34,7 @@ const meta = {
     onAct,
     index: (type: string) => <p data-index={type}>The index of {type}</p>,
   },
-  // The width is part of the contract of each caller — 240px open and a 44px strip closed on the
-  // map — and the caller states it. The stories below state a width so that the two shapes are
-  // drawn at the size an analyst meets.
+  // The width is part of the contract of each caller: 240px open, a 44px strip closed on the map.
   parameters: { layout: 'centered' },
 } satisfies Meta<typeof Rail>;
 
@@ -67,13 +42,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * An eye in place of the words `on` and `off`, which the operator asked for.
- *
- * **The eye is hidden from a reader, and the words are not.** One icon cannot say "hidden" on the
- * map and "dimmed" on the graph, and a struck-out eye claims the first on both surfaces. So the
- * glyph is the state for the eye alone, and the caller's own words reach a screen reader.
- */
+/** One icon cannot say "hidden" on the map and "dimmed" on the graph, so words say the state. */
 export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
   args: {
     rows: rows({
@@ -84,7 +53,6 @@ export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
     }),
   },
   play: async ({ canvas, canvasElement }) => {
-    // Two rows, two eyes, and neither is exposed.
     const eyes = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye');
     const shut = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye-off');
     await expect(eyes).toHaveLength(1);
@@ -96,11 +64,7 @@ export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
   },
 };
 
-/**
- * "A type switches off, and the count beside it says so." The count is honest and it does not
- * change where the surface dims, so the row states the consequence in words. A line through the
- * text said it to a reader who sees the strike, and to nobody else.
- */
+/** A line through the text says the state to a reader who sees it, and to nobody else. */
 export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   args: {
     rows: rows({
@@ -121,11 +85,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   },
 };
 
-/**
- * The two acts on one row are not the same act. The chevron unfolds the index; the rest of the row
- * switches the type. A control that conflated them switched a type off whenever the analyst wanted
- * to look inside it.
- */
+/** A control that conflates the two acts switches a type off when the analyst looks inside it. */
 export const TheFoldAndTheSwitchAreTwoActs: Story = {
   play: async ({ canvas, args }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
@@ -142,11 +102,7 @@ export const TheFoldAndTheSwitchAreTwoActs: Story = {
   },
 };
 
-/**
- * One type is unfolded at a time, and the field belongs to it. The fold control names the region
- * it opens **only while that region is in the tree**: a closed row that named it sent a reader to
- * an element that is not there.
- */
+/** A closed row that names its region sends a reader to an element that is not in the tree. */
 export const AnUnfoldedTypeCarriesItsOwnIndex: Story = {
   args: {
     rows: rows({
@@ -163,20 +119,11 @@ export const AnUnfoldedTypeCarriesItsOwnIndex: Story = {
     await expect(closed).toHaveAttribute('aria-expanded', 'false');
     await expect(closed).not.toHaveAttribute('aria-controls');
 
-    // The slot belongs to the open type, and to no other row.
     await expect(canvasElement.querySelectorAll('[data-index]')).toHaveLength(1);
-    // No search field stands in this rail any more.
     await expect(canvasElement.querySelector('input')).toBeNull();
   },
 };
 
-/**
- * **More than one type may stand unfolded.** Opening a second one closed the first, and
- * an analyst could not read two lists beside each other.
- *
- * Each open row asks the caller for its own list, so the two indexes are two elements and never
- * one that the rail moves about.
- */
 export const MoreThanOneTypeStandsUnfolded: Story = {
   args: {
     rows: rows({
@@ -190,7 +137,6 @@ export const MoreThanOneTypeStandsUnfolded: Story = {
     await expect(canvasElement.querySelector('[data-index="vessel"]')).not.toBeNull();
     await expect(canvasElement.querySelector('[data-index="port"]')).not.toBeNull();
 
-    // Folding one names the type and the state it asked for, and it says nothing about the other.
     await userEvent.click(canvas.getByRole('button', { name: 'Close the port list' }));
     await expect(args.onAct).toHaveBeenCalledWith({
       kind: 'open-type',
@@ -200,10 +146,7 @@ export const MoreThanOneTypeStandsUnfolded: Story = {
   },
 };
 
-/**
- * A control that can exclude everything carries the way back. A prototype reached an
- * all-grey screen, and the filter is stored, so that screen survived a reload.
- */
+/** The filter is stored, so a screen with every type off survives a reload. */
 export const AControlThatExcludesEverythingCarriesTheWayBack: Story = {
   args: {
     rows: rows({
@@ -221,15 +164,7 @@ export const AControlThatExcludesEverythingCarriesTheWayBack: Story = {
   },
 };
 
-/**
- * The folded rail still says what is drawn. It keeps the switches and the counts in the strip and
- * loses **only the list**. A sentence does not fit in 44px, so the number stays on the screen
- * and the caller's name says the words to the reader.
- *
- * **This control pins nothing below the list any more.** It took a `footer` node, and the
- * operator emptied it: the relations switch and the counts went, and the ground moved onto the
- * map.
- */
+/** A sentence does not fit in the 44px strip, so the number stays and the name says the words. */
 export const TheFoldedRailStillSaysWhatIsDrawn: Story = {
   args: {
     rows: rows({
@@ -241,18 +176,15 @@ export const TheFoldedRailStillSaysWhatIsDrawn: Story = {
     }),
   },
   play: async ({ canvas, canvasElement }) => {
-    // The switch and its count survive the fold, and the name carries the state.
     const off = canvas.getByRole('button', { name: 'port, 7 off the map' });
     await expect(off).toHaveAttribute('aria-pressed', 'false');
     await expect(off).toHaveTextContent('7');
 
     await expect(canvas.getByRole('button', { name: 'Open the rail' })).toBeVisible();
-    // Only the list is lost.
     await expect(canvasElement.querySelector('[data-index]')).toBeNull();
   },
 };
 
-/** The fold of the rail is an act like any other, and the caller owns the workspace field. */
 export const TheRailReportsItsOwnFold: Story = {
   play: async ({ canvas, args }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Close the rail' }));
@@ -260,10 +192,7 @@ export const TheRailReportsItsOwnFold: Story = {
   },
 };
 
-/**
- * A type that is switched off has no index: the surface draws none of it, so a list of it would
- * name entities that no canvas shows.
- */
+/** A type that is off draws nothing, so a list of it would name entities that no canvas shows. */
 export const ATypeThatIsOffCarriesNoIndex: Story = {
   args: {
     rows: rows({

@@ -1,15 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { readWorkspace, writeWorkspace } from '@/shared/storage';
 
-/**
- * The theme provider of the shadcn documentation, with two changes that this repository forces.
- *
- * 1. The choice is stored under `gab.shell.v1` through the workspace helper, and not under the
- *    `vite-ui-theme` key of the documentation, so one namespace convention holds.
- * 2. The documentation reads the stored value with an unchecked assertion. Under
- *    `strictTypeChecked` with no suppression, the value must be guarded, and a bad value must
- *    fall back.
- */
+/** The value read from `localStorage` is unknown, so a guard checks it before its first use. */
 
 export type Theme = 'dark' | 'light' | 'system';
 
@@ -18,8 +10,6 @@ interface ThemeProviderState {
   setTheme: (theme: Theme) => void;
 }
 
-// The key names the workspace of the shell, not one field of it. A later shell value is added
-// beside `theme` and does not need a second key.
 interface ShellWorkspace {
   theme: Theme;
 }
@@ -52,11 +42,7 @@ export function ThemeProvider({
     const root = window.document.documentElement;
     const query = window.matchMedia('(prefers-color-scheme: dark)');
 
-    // The choice `system` follows the operating system while the page stays open. Reading
-    // `query.matches` one time gives the value at that moment only, so the application must
-    // listen for the change. The listener stays active for all three choices: for `light` and
-    // for `dark` it writes the same class again, which changes nothing, and one code path with
-    // one cleanup is safer than a condition around the subscription.
+    // `system` follows the operating system while the page is open, so the query needs a listener.
     const apply = (): void => {
       root.classList.remove('light', 'dark');
 

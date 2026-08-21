@@ -1,22 +1,3 @@
-/**
- * One cited document, on two lines, with the rest behind one control.
- *
- * The score of the document appears here and nowhere else, and an absent rating is words and
- * not a dash.
- *
- * **The defect this shape exists to not repeat:** a first card drew the title, the kind, the
- * score, the origin, the original address, the archive address, the hash and the date on eight
- * lines. Fourteen of them filled three screens, and the rail became the thing the analyst
- * scrolled instead of the record. **Do not add a third line.**
- *
- * **All three addresses are still given.** The original address is on line 2, and the archive
- * address and the hash open behind the control. The rule asks that a reader gets them, not that
- * a rail repeats them fourteen times.
- *
- * The card draws what `./dossier` derived. It re-derives nothing: the score, the short form of
- * each address and the claims the document holds up all arrive ready.
- */
-
 import { useId, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -28,23 +9,14 @@ export interface SourceCardProps {
   readonly source: SourceCardModel;
 }
 
-/**
- * A link takes the accent, because a reader must see what is reachable. It is the one
- * exception to the rule that leaves the evidentiary layer with no hue at all.
- */
 const LINK = 'min-w-0 truncate text-primary underline underline-offset-2';
 
-/** The name column of the panel behind the control. One width, so the values line up. */
 const NAME = 'w-16 shrink-0 truncate text-label';
 
 export function SourceCard({ source }: SourceCardProps) {
-  // The only view state of this surface is which disclosure is open. It dies with the view, so
-  // React state is where it belongs.
   const [open, setOpen] = useState<boolean>(false);
   const panelId = useId();
 
-  // Invariant 6 keeps the rating and its origin together, so one line carries both. `not rated`
-  // and `rating incomplete` arrive with no origin, and an absence never reads as a low score.
   const scoreWords =
     source.scoreOrigin === '' ? source.score : `${source.score}, ${source.scoreOrigin}`;
 
@@ -52,21 +24,16 @@ export function SourceCard({ source }: SourceCardProps) {
     <article
       aria-label={`Source ${source.number} — ${source.title}`}
       data-source={source.id}
-      // One border level. The hairline separates two cards, and nothing inside the card
-      // carries a second one.
       className="rounded-none border-b border-border px-2 py-1.5"
     >
       <div className="flex items-baseline gap-2">
         <span className="shrink-0 font-mono text-[11px]/4 tabular-nums text-label">
           {source.number}
         </span>
-        {/* The value truncates and the full one appears on hover. `truncate` alone does
-            nothing in a flex row, so `min-w-0` sits beside it. */}
+        {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
         <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
           {source.title}
         </span>
-        {/* The score belongs to the document and appears once, here. It is never repeated
-            on a claim, because one score on twenty claims reads as a score for each claim. */}
         <span
           className="max-w-40 shrink-0 truncate font-mono text-[11px]/4 text-label"
           title={scoreWords}
@@ -77,15 +44,11 @@ export function SourceCard({ source }: SourceCardProps) {
 
       <div className="mt-1 flex items-center gap-2 text-[11px]/4">
         {source.uri === null ? (
-          // An absence is said in words. A scan carries no address, and a dash would read
-          // as a value that the surface lost.
           <span className="min-w-0 flex-1 truncate text-label">No address recorded</span>
         ) : (
           <a
             href={source.uri}
             title={source.uri}
-            // The name says what the link opens. The visible text is the short address, because
-            // a full address does not fit a two-line card.
             aria-label={`Open the original document at ${source.uri}`}
             className={cn(LINK, 'flex-1')}
           >
@@ -104,13 +67,8 @@ export function SourceCard({ source }: SourceCardProps) {
           onClick={() => {
             setOpen(!open);
           }}
-          // A state change lasts under 120ms. `transition-colors` with no duration runs
-          // at the Tailwind default of 150ms, so the duration is stated. The button is a ghost
-          // and carries no edge, so no `border` token reaches a control here.
-          //
-          // **The defect this list exists to not repeat:** the class list carried `h-5` and beat
-          // the `h-6` of `size="xs"`. `src/index.css` states one control height,
-          // `--control-height: 24px`. **Do not state a height here again.**
+          // `transition-colors` with no duration runs at the Tailwind default of 150 ms. A state
+          // change here lasts under 120 ms, so the duration is stated.
           className="shrink-0 rounded-none px-1 text-[11px]/4 transition-colors duration-100"
         >
           {`Claims (${source.holdsUp.length})`}
@@ -118,8 +76,6 @@ export function SourceCard({ source }: SourceCardProps) {
       </div>
 
       {source.missing ? (
-        // A surface that drops evidence in silence is worse than one that says what it dropped.
-        // The row is drawn and never hidden.
         <p className="mt-1 text-[11px]/4 text-dissent">
           This document is cited and it has no row in the record.
         </p>

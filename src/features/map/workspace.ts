@@ -1,16 +1,3 @@
-/**
- * The workspace of the map surface.
- *
- * The workspace lives in `localStorage` under one key per feature, and identity lives in the
- * address. So this file holds the camera, the types that are switched off, the state of the rail
- * and the ground in use.
- *
- * **The selection is not here.** It is identity, and it is in the address.
- *
- * **It holds no React value and causes no render.** The map owns a live canvas, and every value
- * here is read at mount and written on change, outside React.
- */
-
 import { readWorkspace, writeWorkspace } from '@/shared/storage';
 
 const FEATURE = 'map';
@@ -24,15 +11,9 @@ export interface Camera {
 }
 
 export interface MapWorkspace {
-  /** `null` until the first camera is stored, so the first open frames the corpus instead. */
   readonly camera: Camera | null;
-  /**
-   * **The types that are switched OFF, and never the types that are on.**
-   *
-   * The type list is a projection, so the corpus gains a type whenever a document does. A stored
-   * list of the types that are on meets that new type already excluded, hides it on every open,
-   * and says nothing.
-   */
+  // The types that are switched OFF, and never the types that are on. The corpus gains a type
+  // when a document does, and a stored list of the types that are on would hide each new type.
   readonly hiddenTypes: readonly string[];
   readonly linksHidden: boolean;
   readonly railOpen: boolean;
@@ -60,11 +41,8 @@ const isCamera = (value: unknown): value is Camera => {
   );
 };
 
-/**
- * Every key this shape declares. **The compiler holds the list closed**: a key added to
- * `MapWorkspace` and forgotten here fails the type check, so the guard below cannot fall behind
- * the interface it guards.
- */
+// The compiler holds this list closed: a key added to `MapWorkspace` and forgotten here fails the
+// type check, so the guard below cannot fall behind the interface it guards.
 const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   camera: true,
   hiddenTypes: true,
@@ -73,17 +51,9 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   ground: true,
 };
 
-/**
- * **The guard is strict, and a record that carries an undeclared key falls back.** A record of an
- * older shape falls back, which costs one camera position, once. A tolerant guard lets two shapes
- * live under one key, and that is the fault the version in the key exists to prevent.
- *
- * **The defect this deletes: a guard that accepts a superset lets a dead key outlive the code that
- * read it.** The guard tested the required keys alone, so a record with a key this shape shrank
- * away from passed it, `patchMapWorkspace` spread it, and the dead key was written back under one
- * key for ever. The version in the key answers a **later** shape, and never an earlier one.
- * `src/features/graph/workspace.ts` states the same rule.
- */
+// The guard is strict: a record that carries an undeclared key falls back, which costs one camera
+// position, once. A tolerant guard lets a dead key outlive the code that read it, because the
+// patch below spreads the record and writes the dead key back for ever.
 const isWorkspace = (value: unknown): value is MapWorkspace => {
   if (typeof value !== 'object' || value === null) return false;
   const w = value as Record<string, unknown>;
@@ -105,13 +75,7 @@ export function readMapWorkspace(): MapWorkspace {
   return readWorkspace(FEATURE, isWorkspace, DEFAULT_WORKSPACE);
 }
 
-/**
- * **Every writer patches, and never replaces.**
- *
- * There are four writers: the camera, the rail, the ground and the type switches. Two writers
- * that each hold a partial record erase the other's field. Reading before every write costs one
- * `localStorage` read and removes the whole class of fault.
- */
+// Every writer patches, and never replaces: two writers with partial records erase each other.
 export function patchMapWorkspace(patch: Partial<MapWorkspace>): MapWorkspace {
   const next: MapWorkspace = { ...readMapWorkspace(), ...patch };
   writeWorkspace(FEATURE, next);

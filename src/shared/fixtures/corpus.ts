@@ -1,26 +1,5 @@
 /**
- * A small sample corpus for the prototypes. **Synthetic, not the v1 corpus.**
- *
- * The tracker asks whether a sample of the **real** v1 entities is representable in the target
- * model, and it says to take the awkward ones. The v1 corpus is not in this repository, so this
- * file cannot answer that. It prepares the answer: it is shaped like the model the tracker
- * decided, and the awkward cases below are the ones a real sample must also survive.
- *
  * Every row is invented. No claim here is about a real vessel, company or person.
- *
- * The awkward cases it carries on purpose:
- *
- * | Case | Why it is awkward |
- * |---|---|
- * | An attribute with two sources | S1: a rating change must reach every claim that cites it |
- * | An attribute sourced `manual` | M8 permits it for a hand-entered value; invariant 3 refuses it for a machine proposal |
- * | A relation whose endpoint is a relation | M4. Nothing supports it and nothing prevents it |
- * | An entity with no geometry | The map shows only what carries one |
- * | A dated ownership relation | M6 reserves an interval for identity and ownership |
- * | An unrated document | Invariant 6 pairs a rating with its origin, so both are absent together |
- * | A proposal with no dissent and high confidence | The gap S3 and P1 leave open |
- * | A rejected proposal | Never deleted: it is the record of what was set aside |
- * | Two versions of one agent | The old prompt must still be readable |
  */
 
 import type { Corpus } from './types';
@@ -150,31 +129,8 @@ export const corpus: Corpus = {
       promotedFrom: 'b2c1d4e5-0005-4a11-9c33-77e1f2a3b4c5',
     },
 
-    // ---------------------------------------------------------------------------------------
-    // Added for the map prototype, 11 August 2026, by operator decision.
-    //
-    // The five rows above carry the awkward cases, and only two of them carry a geometry. Two
-    // points cannot show whether a map helps an analyst find one entity, so the operator asked
-    // for more. **The five rows above are untouched**, because "an entity with no geometry" is
-    // one of the cases this file exists to carry.
-    //
-    // Every row below is invented, exactly like every row above. No claim here is about a real
-    // vessel, company, person or facility, and no coordinate is a real position.
-    //
-    // Two properties are deliberate:
-    //
-    // - **The points are far apart.** The tile coverage is tiered: the world at low zoom, Russia
-    //   at middle zoom, a buffer around each entity at zoom 15. A corpus in one harbour would
-    //   never show a seam between the bands. Russia is the region of work and the rows above are
-    //   North Sea, so the two regions sit in one corpus on purpose.
-    // - **Each type carries a geometry for a different reason.** A facility is where it stands,
-    //   a vessel is where it was last reported, a company is its registered office, a person is
-    //   a last reported location. The map treats the four the same. Whether it should is a
-    //   question for the map prototype, not an answer this file gives.
-    //
-    // No new document is added, so every source below is one of the five that already exist, so
-    // invariant 2 — every cited source exists in the documents — still holds by inspection.
-    // ---------------------------------------------------------------------------------------
+    // The points are far apart on purpose. The tile coverage is tiered, and a corpus in one
+    // harbour never shows a seam between the bands.
 
     {
       id: 'c5f0a112-3d4e-4a67-9b28-0e1f2a3b4c5d',
@@ -298,8 +254,7 @@ export const corpus: Corpus = {
       label: 'MV Sable Transit',
       attrs: {
         imo: { v: '9388206', src: ['doc_9b0417'] },
-        // Two sources on one attribute, like the row far above. S1 makes this the case that
-        // matters the day a rating moves.
+        // Two sources on one attribute of a vessel. S1: a rating that moves reaches both.
         last_port_call: { v: 'Gdansk', src: ['doc_8f2a41', 'doc_9b0417'] },
       },
       sources: ['doc_9b0417', 'doc_8f2a41'],
@@ -352,8 +307,7 @@ export const corpus: Corpus = {
       label: 'Baltic Freight Nominees OU',
       attrs: { registration_number: { v: 'EE 14992031', src: ['doc_3c1104'] } },
       sources: ['doc_3c1104'],
-      // A company is placed at its registered office. Whether that is the same kind of fact as
-      // a vessel position is a question for the prototype, not an answer given here.
+      // A company is placed at its registered office.
       geom: { lon: 24.7536, lat: 59.437 },
       promotedFrom: 'b2c1d4e5-0117-4a11-9c33-77e1f2a3b4c5',
     },
@@ -382,8 +336,7 @@ export const corpus: Corpus = {
       label: 'I. Kravets',
       attrs: { role_title: { v: 'Port agent', src: ['doc_3c1104'] } },
       sources: ['doc_3c1104'],
-      // A last reported location, not a residence. The map cannot show that difference, which
-      // is itself worth reporting.
+      // A last reported location, and not a residence.
       geom: { lon: 30.3141, lat: 59.9386 },
       promotedFrom: 'b2c1d4e5-0120-4a11-9c33-77e1f2a3b4c5',
     },
@@ -460,17 +413,6 @@ export const corpus: Corpus = {
       validTo: null,
       promotedFrom: 'b2c1d4e5-0009-4a11-9c33-77e1f2a3b4c5',
     },
-
-    // ---------------------------------------------------------------------------------------
-    // Added for the map prototype, 11 August 2026, by operator decision.
-    //
-    // The four rows above carry the awkward cases and they are untouched. These join the
-    // entities added below them: a corpus where two entities of twenty-seven carry a relation
-    // cannot show whether a count of relations is worth a column in a list.
-    //
-    // Every row is invented, like every row above. No claim here is about a real vessel,
-    // company, person or facility.
-    // ---------------------------------------------------------------------------------------
 
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000001',
@@ -634,8 +576,7 @@ export const corpus: Corpus = {
       promotedFrom: 'b2c1d4e5-0211-4a11-9c33-77e1f2a3b4c5',
     },
     {
-      // A second endpoint that is a relation. M4 again: nothing supports it and nothing
-      // prevents it, so one example was never enough.
+      // A second endpoint that is a relation. M4: nothing supports it and nothing prevents it.
       id: 'a10b2c3d-1111-4a11-9c33-000000000013',
       type: 'contradicts',
       srcKind: 'entity',
@@ -696,9 +637,7 @@ export const corpus: Corpus = {
       decidedBy: null,
     },
     {
-      // No dissent, high confidence. **This is the gap the tracker must settle.** S3 does not
-      // send it to review. P1 does not let it through. A prototype must show what it does with this
-      // row, and must not decide it.
+      // No dissent, high confidence. S3 does not send it to review. P1 does not let it through.
       id: '1c2d3e4f-6071-489a-b123-456789abcdef',
       op: 'create_entity',
       targetKind: null,
@@ -762,8 +701,8 @@ export const corpus: Corpus = {
       decidedBy: 'operator',
     },
     {
-      // Written by the operator, not by an agent. An operator edit is a proposal too, and the
-      // writing role is stamped and not stated by the caller. It may cite `manual`.
+      // Written by the operator, and not by an agent. An operator edit is a proposal too, and
+      // the writing role is stamped and not stated by the caller.
       id: '4f506172-93a4-4bcd-e456-789abcdef012',
       op: 'update_attrs',
       targetKind: 'entity',
@@ -855,7 +794,7 @@ export const corpus: Corpus = {
       createdAt: '2026-08-05T08:02:00Z',
     },
     {
-      // Produced by version 3, before the prompt was raised. This row is why versions are kept.
+      // Produced by version 3, and not by version 4. This row is why a version is kept.
       id: 'ca110001-0000-4000-8000-000000000004',
       runId: '4e110001-0000-4000-8000-000000000003',
       agentId: 'a9e70001-0000-4000-8000-000000000001',

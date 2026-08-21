@@ -1,14 +1,3 @@
-/**
- * The full page of one entity: the record on the left, the sources on the right.
- *
- * **It reads no router.** The route reads the address and passes the dossier and the source the
- * reader arrived at. That keeps this file storyable in principle and testable in fact, and it
- * keeps the identity of what is examined in exactly one store.
- *
- * It draws and it derives nothing: `./dossier` decided every list, every word and every order,
- * so this file holds no `.map` at all. Each list belongs to a child.
- */
-
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -28,31 +17,14 @@ export interface DetailPageProps {
 }
 
 /**
- * The shell needs a settled height, or neither pane can hold a scroll of its own and the window
- * scrolls both together.
- *
- * **It asks its parent, and it calculates nothing.** `src/routes/__root.tsx` states the height of
- * the header once and gives `<main>` the rest, so `h-full` is the whole answer. The
- * `calc(100svh - 6rem)` that stood here tracked a padding and a control height that no file
- * declared.
- *
- * **The padding is here because this page is not a canvas.** The shell carries no margin of its
- * own, so a page that wants one states it. The map and the graph want none: a canvas fills the
- * pane.
+ * The parent `__root.tsx` gives `<main>` the rest of the height, so `h-full` settles a pane.
  */
 const SHELL = 'flex h-full gap-4 p-4';
 
 export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
-  // The source the record points at dies with the view, so React state is where it belongs.
-  // The initial value is the arrival.
-  //
-  // **It is never written back to the address.** A two-way binding between the router and a
-  // view is a loop, and one store already holds the identity of what is examined: the path
-  // carries the entity, and `?src=` carries the arrival and nothing after it.
+  // The active source is never written back to the address. Two writers of one identity fight.
   const [activeSource, setActiveSource] = useState<DocId | null>(arrivedAtSource);
 
-  // The mark of every claim, relation and proposal on this surface. The page is the one
-  // caller that knows which source is active and what a click does.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
     <SourceMark sources={sources} activeSource={activeSource} onSelectSource={setActiveSource} />
   );
@@ -81,8 +53,6 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
         </div>
       </div>
 
-      {/* The right pane. The rail holds its own scroll and its own hairline, so this element
-          states the width and nothing else. */}
       <div className="w-96 min-h-0 shrink-0">
         {/* The rail follows `activeSource` on its own, and its mount run is the arrival
             case. `arrivedAtSource` reaches it through the state above and by no other path:

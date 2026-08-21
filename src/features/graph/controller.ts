@@ -1,31 +1,3 @@
-/**
- * One Sigma instance, driven directly.
- *
- * This file owns the instance, the selection, the filter, the camera, the marker layer, the
- * workspace and the disposal. It gives a handle to the other components of the surface.
- * **No other file uses the library.**
- *
- * **This file contains no React value, and it causes no render.** It imports no React module and
- * it holds no JSX. The mount and the cleanup are parts of `mountGraph`.
- *
- * **It computes no position and it stores none.** `./layout` gives a stand-in for each node, and
- * it is scaffolding. The positions are computed one time, at the mount, so that no later act of
- * this file moves a node. A filter dims an element, and it never moves one.
- *
- * **It reads the theme from the class on `documentElement`, with an observer, and never from
- * React.** `./model` holds two palettes, one for each ground, because a Sigma canvas has no
- * imagery and the dark hues cannot be read on the light ground.
- *
- * **The address holds the selection, and this file writes it with `history.replaceState`.** The
- * reason: a write through the router re-renders the route, which destroys the canvas and starts
- * the layout again. **That is a report, and it settles nothing.** The two search keys, `entity`
- * and `relation`, are the smallest extension of the `entity` key that the map already writes;
- * which keys the address carries is open.
- *
- * **This file owns no part of the screen except the marker layer.** It states each count it
- * cannot draw on the view. The legend that drew them is gone.
- */
-
 import Sigma from 'sigma';
 import { createEdgeArrowProgram } from 'sigma/rendering';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
@@ -53,63 +25,17 @@ import {
 } from './model';
 import { patchGraphWorkspace, readGraphWorkspace, type GraphWorkspace } from './workspace';
 
-/**
- * The filter of the surface, in the polarity the workspace gives it.
- *
- * **It is taken from the record that stores it, and it restates no field.** `./workspace` holds
- * the shape and the reason for the polarity, and a copy of both here would let the two disagree.
- *
- * **A degree floor and a pending switch were fields here, and no control wrote either.** A
- * control that can exclude everything carries the way back, and the rail carries it for the types
- * alone: a stored degree floor dimmed the whole corpus on every open with no way back. A pending
- * switch also presumes an answer that the tracker carries, and it is open. Do not restore either
- * without a control and a decision.
- *
- * **The way back from an all-grey screen is `setFilter`**, with each field at the value of
- * `DEFAULT_GRAPH_WORKSPACE` in `./workspace`. The prototype reached a screen with nothing
- * lit, and that screen survived a reload, because the filter is stored. So the control that can
- * exclude everything reads those defaults from that one record, and invents no second set.
- */
 export type FilterState = Pick<GraphWorkspace, 'hiddenTypes'>;
 
-/**
- * What each subscriber reads.
- *
- * **It carries no detail**, because `features/detail` owns that surface. It carries no model
- * either: the model is on the handle, because a rail reads thousands of rows from it and a view
- * that carries them would be copied at each publish.
- *
- * `lit` and `dimmed` count **elements**: a node and an edge each count as one, so the two figures
- * together are the whole picture. The legend that stated them is gone.
- */
 export interface GraphView {
   /** `./bridge` declares it, and the route reads the same declaration. */
   readonly selection: GraphSelection | null;
   readonly filter: FilterState;
   readonly lit: number;
   readonly dimmed: number;
-  /**
-   * Whether the rail is unfolded.
-   *
-   * **They are on the view because they are the workspace, and this file owns the workspace.**
-   * `graph-page.tsx` held them in React state as well, seeded from the same record and patched on
-   * each change, so one value sat in two stores. The quoted view carries neither key; the two keys
-   * are the smallest extension that removes the second store, and it is reported under ASK.
-   */
   readonly railOpen: boolean;
 }
 
-/**
- * What the rail and the route use to drive the graph.
- *
- * **`subscribe` calls its listener at once, with the view of that moment.** A component that
- * subscribes after the canvas is built has already missed the restore of the address. So no
- * caller must remember to read a seed first.
- *
- * **`model` is a getter, and a publish can replace what it answers.** A theme change builds the
- * model again, because the paint of each node is in the model and only `./model` knows the rule
- * that gives a node its colour. A caller that draws from the model reads it again at each publish.
- */
 export interface GraphController {
   readonly model: GraphModel;
   /** A control selects here. **It moves no camera.** `flyTo` is the control that moves it. */
@@ -122,16 +48,8 @@ export interface GraphController {
   readonly destroy: () => void;
 }
 
-/**
- * How many elements carry a marker of a pending proposal at one time.
- *
- * **250 is the number the accepted prototype used, and it is chosen here.** A marker drawn as an
- * element of the page, and positioned over its element on each frame, does not scale. The
- * remainder is stated on the view.
- *
- * **This number guesses at an open question**: how a pending proposal appears, and which 250 carry
- * a marker where the cap bites. The cap is a report to the tracker and not an answer to it.
- */
+// 250 is the cap on markers. It is the number the accepted prototype used. A marker drawn as a
+// page element, and positioned over its element on each frame, does not scale.
 const MARKER_CAP = 250;
 
 /**
@@ -139,37 +57,14 @@ const MARKER_CAP = 250;
  */
 const HOPS = 2;
 
-/**
- * How much of its own colour a dimmed element keeps, on each ground.
- *
- * **A dim that reaches the ground is a hide, and a hide is forbidden.** That was the defect: one
- * value of 0.2, for both grounds, put a dimmed element at the colour of the near-white background
- * of the light theme. A browser check of `/graph` read the canvas as empty while 33 of the 42
- * elements were dimmed by the two hops of a selection. An excluded element goes **faint**, and
- * faint is present and clearly secondary, and never absent.
- *
- * **The two grounds take two values, for the same reason that `./model` holds two palettes.** The
- * light ground blends towards near-white, where a hue loses its separation quickly, so it keeps
- * more of the colour. The dark ground blends towards near-black, where a hue keeps more of it.
- *
- * The numbers are chosen here, against the two backgrounds of `src/index.css`: a dimmed element
- * reads at about 1.9:1 on the light ground and about 2.3:1 on the dark one, against about 4.9:1
- * and 6.7:1 for the same element while it is lit. A lit element therefore still reads as clearly
- * stronger, which is what makes the dim state something.
- *
- * **No ticket owns these two values, and they guess at no open question.** The rule that a filter
- * dims and never hides is given, and the colour rule is given too, so the rule is already
- * decided. The two values are **measured** against each ground, as the ratios above record, and
- * a value that a measurement gives is not a guess. Measure again before you change one.
- */
+// The dim keeps this much of the colour. It is measured against the two grounds of
+// `src/index.css`: a dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
+// 4.9:1 and 6.7:1 while lit. One value of 0.2 for both grounds made the light theme read empty.
 const DIM_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.45, dark: 0.4 };
 
-/**
- * How long this file waits before it stores a camera, in milliseconds. **The number is chosen
- * here.** The camera of Sigma reports `updated` on every frame of a pan, and a write to
- * `localStorage` on every frame blocks the main thread. The store is therefore a trailing wait,
- * and `destroy` writes the camera that is still waiting.
- */
+// The camera of Sigma reports `updated` on every frame of a pan, and a `localStorage` write on
+// every frame blocks the main thread. So the store is a trailing wait, and `destroy` writes the
+// camera that is still waiting.
 const CAMERA_STORE_WAIT = 250;
 
 /** The size that stands for "this file has used no size yet". A box is never negative. */
@@ -178,40 +73,19 @@ const NO_SIZE = -1;
 /** How far outside the canvas an overlay element may sit before it is not drawn, in pixels. */
 const OVERLAY_MARGIN = 32;
 
-/**
- * The layer that carries the ring and the markers. It fills the overlay element and it takes no
- * pointer event, so a drag that starts on it still moves the graph below.
- */
 const LAYER_CLASS = 'pointer-events-none absolute inset-0 overflow-hidden';
 
-/**
- * One marker of a pending proposal. **The appearance is open**, so this is the smallest mark that
- * a person can see: one square of `--candidate`, which is the token for evidence that is not
- * promoted, with a hairline of the ground around it so that it reads on a dark node. A **node
- * program** is asked for instead of an element of the page, and this file writes none: a node
- * program is a WebGL program, a shader pair and a buffer layout, which is a surface of its own
- * and a decision about how a proposal appears. The cost of the element is the cap above.
- *
- * **It sits at the upper right of the dot and no longer on its centre.** The operator ruled the
- * idea right and the form wrong, and chose this shape from three prototypes on the branch
- * `proto/marks-2026-08-18`. A mark on the centre covers the very thing it marks.
- */
+// The mark is a page element and not a node program: a node program is a WebGL program, a shader
+// pair and a buffer layout. The cost of the page element is the cap above.
 const MARKER_CLASS =
   'pointer-events-none absolute top-0 left-0 size-2 rounded-none border border-background bg-candidate';
 
-/**
- * How far the marker stands from the centre of the dot, in pixels, on each axis.
- *
- * It is a fixed offset and not a fraction of the radius of the node: a hub of two thousand
- * relations would otherwise push its badge far out into the picture, and a leaf would keep the
- * badge on top of itself.
- */
+// A fixed offset, and not a fraction of the radius: a hub of two thousand relations would push
+// its badge far out into the picture, and a leaf would keep the badge on top of itself.
 const MARKER_OFFSET = 7;
 
-/**
- * The ring. It is drawn here, and never with the `highlighted` flag of Sigma: that flag
- * makes the library draw its own hover card, in colours that no token of this repository reaches.
- */
+// The ring is never drawn with the `highlighted` flag of Sigma: that flag makes the library draw
+// its own hover card, in colours that no token of this repository reaches.
 const RING_CLASS =
   'pointer-events-none absolute top-0 left-0 rounded-full border-2 border-foreground';
 
@@ -237,25 +111,11 @@ const sameSelection = (one: GraphSelection | null, two: GraphSelection | null): 
 const sameTypes = (one: readonly string[], two: readonly string[]): boolean =>
   one.length === two.length && one.every((type, index) => type === two[index]);
 
-/**
- * Each live mount, by the element that it owns.
- *
- * **The mount does the same thing each time.** React invokes an effect two times in
- * development, and a second instance on one element makes the browser drop the older WebGL
- * context. That looks like a blank canvas, and it is not one. So a second mount destroys the
- * first, and `destroy` removes the entry it owns and no other.
- */
+// React invokes an effect two times in development, and a second instance on one element makes
+// the browser drop the older WebGL context. That looks like a blank canvas. So a second mount
+// destroys the first, and `destroy` removes the entry it owns and no other.
 const mounted = new WeakMap<HTMLElement, GraphController>();
 
-/**
- * Builds the graph, and gives the handle that drives it.
- *
- * `canvas` is the element that Sigma takes and owns. Its size comes from the layout around it,
- * and never from its content.
- *
- * `overlay` is the element that carries the ring and the markers. **It sits over the canvas, at
- * the same place and the same size, and it is positioned** — the layer inside it is absolute.
- */
 export function mountGraph(
   canvas: HTMLElement,
   overlay: HTMLElement,
@@ -288,16 +148,11 @@ export function mountGraph(
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
 
-  /**
-   * What the pointer is over, and the words the label draws for it.
-   *
-   * **It is not on the view, and it never publishes.** A hover changes as fast as the pointer
-   * moves, and a publish on each one would run every subscriber of this handle at that rate. The
-   * label is drawn over the canvas by this file, exactly as the ring and the markers are.
-   */
+  // The hover is not on the view and it never publishes: a hover changes as fast as the pointer
+  // moves, and a publish on each one would run every subscriber of this handle at that rate.
   let hovered: { readonly id: string; readonly lines: readonly string[] } | null = null;
 
-  /** One dimmed colour for each colour of the palette. A reducer runs for each element, each frame. */
+  // A reducer runs for each element on each frame, so a dimmed colour is computed one time.
   const dimCache = new Map<string, string>();
   const dimOf = (colour: string): string => {
     const held = dimCache.get(colour);
@@ -308,12 +163,8 @@ export function mountGraph(
     return made;
   };
 
-  /**
-   * **The filter decides what is in consideration, and the selection decides what is in focus.**
-   * The two dims are not one. An element that the **filter** dims is out of reach, so this test
-   * is the one that a click and a control obey. The two hops of a selection dim as well, and they
-   * must not stop the analyst from selecting a node on the other side of the picture.
-   */
+  // The test is on the dim of the filter, and not on the dim of a selection. The two hops of a
+  // selection dim as well, and they must not stop a click on a node on the other side.
   const passesFilter = (attrs: NodeAttrs): boolean => !hidden.has(attrs.entityType);
 
   const nodePassesFilter = (node: string): boolean =>
@@ -327,23 +178,16 @@ export function mountGraph(
 
   let selection: GraphSelection | null = null;
 
-  /**
-   * **A dimmed element takes no selection, and a filter that excludes the selection drops it.**
-   * Otherwise the marker, the ring and the detail all keep working on an element that the analyst
-   * has just put out of consideration.
-   */
+  // Without this, the marker, the ring and the detail all keep working on an element that the
+  // filter puts out of consideration.
   const acceptable = (candidate: GraphSelection | null): GraphSelection | null => {
     if (candidate === null) return null;
     if (candidate.kind === 'entity') return nodePassesFilter(candidate.id) ? candidate : null;
     return edgePassesFilter(candidate.id) ? candidate : null;
   };
 
-  /**
-   * The nodes within two hops of the selection, or `null` while nothing is selected.
-   *
-   * **The walk steps through the nodes that pass the filter only.** Out of consideration is out of
-   * reach, so an excluded node carries no neighbourhood either.
-   */
+  // The walk steps through the nodes that pass the filter only: out of consideration is out of
+  // reach, so an excluded node carries no neighbourhood.
   const reachOf = (passes: ReadonlySet<string>): ReadonlySet<string> | null => {
     if (selection === null) return null;
     const seeds: string[] = [];
@@ -371,7 +215,6 @@ export function mountGraph(
     return reach;
   };
 
-  /** What is lit, what is dimmed, and what carries a marker. It reads the graph and paints nothing. */
   const recount = (): void => {
     const passes = new Set<string>();
     model.graph.forEachNode((node, attrs) => {
@@ -399,20 +242,12 @@ export function mountGraph(
       if (litNodes.has(target) || litEdges.has(target)) targets.push(target);
     }
     // The order is the order of the read, so the same corpus gives the same 250 on every open.
-    // **Which 250 is open.**
-    //
-    // **The remainder is no longer stated anywhere.** This file counted it and the legend drew it;
-    // the operator removed the legend, so an element over the cap now carries no marker and no
-    // report. **What happens past 250 is open.**
     markerTargets = targets.slice(0, MARKER_CAP);
     sizeMarkerPool(markerTargets.length);
   };
 
-  /**
-   * **A reducer replaces the datum. It does not merge into it.** Each one below spreads the
-   * original, so the position of the node survives. Without the spread Sigma finds no `x` and no
-   * `y`, and it refuses the node with an error.
-   */
+  // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
+  // or Sigma finds no `x` and no `y` and refuses the node with an error.
   const sigma = new Sigma<NodeAttrs, EdgeAttrs>(model.graph, canvas, {
     // The container is measured in the constructor, while the chrome around it is still built.
     // A container of no height throws here. The `ResizeObserver` below gives the true size at the
@@ -424,16 +259,12 @@ export function mountGraph(
     // a label drawn here is unreadable on one of the two grounds.
     renderLabels: false,
 
-    // **The hover card of the library is switched off, and this file draws the name itself.**
-    // `renderLabels: false` does not reach it: the card is drawn by its own path, in the same
-    // fixed colour, and it put black text on a white box over this canvas. The overlay label above
-    // takes its place, in the tokens of the theme and in the recipe the map shares.
+    // `renderLabels: false` does not reach the hover card of Sigma: the card is drawn by its own
+    // path, in one fixed colour, and it put black text on a white box over this canvas.
     defaultDrawNodeHover: () => undefined,
 
-    // **A relation says which way it points.** The head is at the end the relation
-    // arrives at, and `shared/canvas-arrow.ts` states its shape for this canvas and for the map.
-    // Sigma reads the program from the `type` of an edge, and this default reaches every edge that
-    // states none, so no edge datum and no reducer below changes.
+    // Sigma reads the edge program from the `type` of an edge, and this default reaches every
+    // edge that states none, so no edge datum and no reducer below changes.
     defaultEdgeType: 'arrow',
     edgeProgramClasses: {
       // The default export of the arrow program is typed for a graph that declares no attributes
@@ -450,13 +281,9 @@ export function mountGraph(
     // graph cannot draw: an M4 relation has no edge here, so no click can reach it.
     enableEdgeEvents: true,
 
-    // **A line needs a hit box of about 5px on each side.** The default of Sigma is
-    // 1.7, and each edge has `size: 1`, so a relation was near unclickable.
-    //
-    // **The number is the full thickness, and not the half-width.** It was measured in the
-    // browser, and not read from the shader: a click was walked across a relation one pixel at a
-    // time. At 5 the band was 7px, which is 3.5px on each side. At 10 the band is 10px, which is
-    // the rule. Sigma picks on the geometry it draws, so the line is now 10px wide as well.
+    // The default edge hit box of Sigma is 1.7 and each edge has `size: 1`, so a relation was
+    // near unclickable. The number is the full thickness, and it was measured in the browser one
+    // pixel at a time. At 5 the band was 7px. At 10 the band is 10px, which is the rule.
     minEdgeThickness: 10,
 
     // The workspace carries `x`, `y` and `ratio`, and no angle. A rotation that the store
@@ -485,10 +312,6 @@ export function mountGraph(
     camera.setState({ x: stored.camera.x, y: stored.camera.y, ratio: stored.camera.ratio });
   }
 
-  /**
-   * The layer of the overlay. One element carries the ring and each marker, so `destroy` removes
-   * one node and leaves the element of the caller as it found it.
-   */
   const layer = document.createElement('div');
   layer.className = LAYER_CLASS;
   const ring = document.createElement('div');
@@ -496,17 +319,6 @@ export function mountGraph(
   ring.hidden = true;
   layer.append(ring);
 
-  /**
-   * The name a pointer draws.
-   *
-   * **It replaces the hover card of Sigma**, which `renderLabels: false` does not switch off. That
-   * card draws in one fixed colour of the library, so it put black text on a white box over this
-   * dark canvas. `defaultDrawNodeHover` below switches it off, and `shared/canvas-label.ts` states
-   * how this one looks — the same recipe the map reads, so the two surfaces name a thing the same
-   * way.
-   *
-   * **It names a relation as well as a node**, which the operator kept and extended.
-   */
   const hoverLabel = document.createElement('div');
   hoverLabel.className = CANVAS_LABEL_CLASS;
   hoverLabel.hidden = true;
@@ -528,14 +340,9 @@ export function mountGraph(
     }
   }
 
-  /**
-   * Where one element sits, in the **framed** coordinate system.
-   *
-   * **`getNodeDisplayData` answers in that system.** Its answer is paired with
-   * `framedGraphToViewport` below, and **never** with `graphToViewport`. The wrong pair puts every
-   * overlay element near the middle of the canvas, and it looks correct for each node that is near
-   * the origin of the graph.
-   */
+  // `getNodeDisplayData` answers in the framed coordinate system. Its answer is paired with
+  // `framedGraphToViewport` below, and never with `graphToViewport`. The wrong pair puts every
+  // overlay element near the middle of the canvas, and it looks correct for a node near the origin.
   const framedPointOf = (id: string): Coordinates | null => {
     const node = sigma.getNodeDisplayData(id);
     if (node !== undefined) return { x: node.x, y: node.y };
@@ -564,12 +371,6 @@ export function mountGraph(
     element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
   };
 
-  /**
-   * Draws the ring and each marker over the canvas.
-   *
-   * **A ring is drawn only around a lit element.** The test below is on what is lit, and
-   * never on what exists.
-   */
   const drawOverlay = (): void => {
     if (destroyed) return;
 
@@ -622,16 +423,9 @@ export function mountGraph(
     });
   };
 
-  /**
-   * The view of this moment.
-   *
-   * **Each value that did not change keeps its identity.** The view itself is a new object at each
-   * publish, and `filter` and `selection` are not: a publish reads the two variables and builds
-   * neither. `setFilter` below replaces the filter object only where the hidden set differs, and
-   * `acceptable` answers with the selection it was given. A consumer that memoises on the filter
-   * or on the selection is therefore not woken by a publish that only folded a panel — which was
-   * the defect: `graph-page.tsx` derived every row of the rail again for one click on a chevron.
-   */
+  // Each value that did not change keeps its identity, so a consumer that memoises on `filter` or
+  // on `selection` is not woken by a publish that only folded a panel. `graph-page.tsx` derives
+  // every row of the rail from the filter.
   const viewOf = (): GraphView => ({
     selection,
     filter,
@@ -646,20 +440,11 @@ export function mountGraph(
     for (const listener of [...listeners]) listener(view);
   };
 
-  /**
-   * Reads the selection from the address, one time, at the mount.
-   *
-   * **Every value from the address is validated before its first use** — the identifier goes
-   * through `acceptable`, which drops one that names no element of this graph and one that the
-   * filter excludes.
-   */
   const readAddress = (): GraphSelection | null => {
     const params = new URLSearchParams(window.location.search);
-    // **An empty value is not an identifier.** `src/routes/graph.tsx` states that an empty string
-    // is the normal state of this canvas, and the router writes `entity=` into the address for
-    // it. A first version read that empty value as an entity: `acceptable` then dropped it, and
-    // the relation that the address carried beside it was never read at all. **A relation could
-    // not survive a reload**, and the detail view draws one now.
+    // An empty value is not an identifier. The router writes `entity=` into the address for the
+    // normal empty state. Read as an entity, `acceptable` drops it and the relation beside it is
+    // never read, so a relation cannot survive a reload.
     const entity = params.get('entity');
     if (entity !== null && entity !== '') return { kind: 'entity', id: entity };
     const relation = params.get('relation');
@@ -667,11 +452,8 @@ export function mountGraph(
     return null;
   };
 
-  /**
-   * **The write bypasses the router, and it is a report.** A write through the router re-renders
-   * the route, which destroys the canvas and starts the layout again. This settles nothing: where
-   * the view state lives is open.
-   */
+  // The write bypasses the router: a write through the router re-renders the route, which
+  // destroys the canvas and starts the layout again.
   const writeAddress = (current: GraphSelection | null): void => {
     const url = new URL(window.location.href);
     url.searchParams.delete('entity');
@@ -682,14 +464,7 @@ export function mountGraph(
     window.history.replaceState(state, '', url);
   };
 
-  /**
-   * The one path that changes what is on the screen. It takes the selection that is already
-   * accepted, counts again, paints again, and publishes one view.
-   *
-   * **It moves no camera.** The camera never moves for a selection made on the canvas. The
-   * the one control that may move it is `flyTo`, and it is called by a
-   * control of the analyst.
-   */
+  // It moves no camera. `flyTo` is the one control that may move it.
   const settle = (next: GraphSelection | null): void => {
     const changed = !sameSelection(next, selection);
     selection = next;
@@ -713,31 +488,20 @@ export function mountGraph(
     // that the picture and the address never state two different things.
     writeAddress(selection);
   }
-  // **The restore is announced, and that is not optional.** `settle` is the only other caller of
-  // this function, and the restore does not go through it, so nothing said what this graph
-  // accepted. A neighbour that reads the address itself then drew the element this line above
-  // just dropped. `./bridge` holds this value for a subscriber that attaches after the mount:
-  // that seam is required, because the canvas is a child and its effect runs first.
+  // The restore does not go through `settle`, which is the only other caller, so nothing else
+  // announces it. `./bridge` holds the value for a subscriber that attaches after the mount: the
+  // canvas is a child and its effect runs first.
   emitGraphSelection(selection);
   recount();
 
-  /**
-   * **The first render occurs inside the constructor.** This listener is added after it, so
-   * it never hears that first frame. One refresh, after the listener exists, puts the ring and
-   * each marker on the screen at the open.
-   */
+  // The first render occurs inside the constructor of Sigma, so this listener never hears that
+  // first frame. One refresh, after the listener exists, puts the ring and each marker up.
   sigma.on('afterRender', drawOverlay);
   sigma.refresh();
 
-  /**
-   * **A `ResizeObserver` on the container is required, and it is not an optimisation.** **Sigma
-   * registers no observer of its own**: it measures the container in the constructor and never
-   * again. A canvas of the wrong size draws correctly and warns about nothing.
-   *
-   * The sizes are whole numbers, so a change of less than one pixel from a flex layout or from the
-   * zoom of the browser is no change here. The seed is a value that no delivery can report, so the
-   * first delivery always resizes.
-   */
+  // Sigma registers no observer of its own: it measures the container in the constructor and
+  // never again. A canvas of the wrong size draws correctly and warns about nothing. The sizes
+  // are whole numbers, and the seed is a value no delivery reports, so the first one resizes.
   let usedWidth = NO_SIZE;
   let usedHeight = NO_SIZE;
   const sizeObserver = new ResizeObserver((entries) => {
@@ -753,10 +517,8 @@ export function mountGraph(
   });
   sizeObserver.observe(canvas);
 
-  /**
-   * **The camera, the filter and the open panels are the workspace.** Every writer patches, and
-   * never replaces: two writers with two partial records each erase the other's field.
-   */
+  // Every writer patches the workspace and never replaces it: two writers with two partial
+  // records each erase the other's field.
   let cameraTimer: number | null = null;
   const storeCamera = (): void => {
     const state = camera.getState();
@@ -772,13 +534,9 @@ export function mountGraph(
   };
   camera.on('updated', onCameraUpdated);
 
-  /**
-   * **A click on a node selects it, and the camera does not move.** There is no
-   * camera call in this handler, and that absence is the rule.
-   *
-   * The picking layer of the library answers with a dimmed node as well, because a filter dims and
-   * never hides. So the guard is here: out of consideration is out of reach.
-   */
+  // The picking layer of Sigma answers with a dimmed node as well, because a filter dims and
+  // never hides, so the guard is here. There is no camera call in this handler, and that absence
+  // is the rule.
   sigma.on('clickNode', ({ node }) => {
     if (destroyed || !nodePassesFilter(node)) return;
     settle({ kind: 'entity', id: node });
@@ -796,16 +554,7 @@ export function mountGraph(
     settle(null);
   });
 
-  /**
-   * **A pointer names what it is over.** The operator kept it, asked to extend it to a relation,
-   * and asked the map for the same behaviour.
-   *
-   * **The same filter guard as a click.** A dimmed element is out of consideration, so it is out
-   * of reach: naming one would offer the analyst a thing the surface has excluded.
-   *
-   * **A relation is named by its type and its two ends**, because a relation has no name of its
-   * own. What else a relation says on a canvas, and the direction it still does not draw, is open.
-   */
+  // A relation has no name of its own, so it is named by its type and its two ends.
   const nameHover = (next: { id: string; lines: readonly string[] } | null): void => {
     if (destroyed) return;
     hovered = next;
@@ -851,12 +600,8 @@ export function mountGraph(
     if (hovered?.id === edge) nameHover(null);
   });
 
-  /**
-   * The theme observer. **The paint of each element is in the model**, and only `./model` holds
-   * the rule that gives a node its colour, so the model is built again with
-   * the other palette. The positions are not built again, so no node moves, and the camera and the
-   * selection both hold: a node keeps its identifier across the two builds.
-   */
+  // The paint of each element is in the model, so a theme change builds the model again. The
+  // positions are not built again, so no node moves, and the camera and the selection both hold.
   const themeObserver = new MutationObserver(() => {
     if (destroyed) return;
     const next = groundOf();
@@ -869,11 +614,8 @@ export function mountGraph(
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-  /**
-   * **Each member does nothing after `destroy`**, and the cleanup is complete. A call
-   * into a killed Sigma throws, and a write to the workspace from a dead adapter is worse: the
-   * record keeps that value for each later open.
-   */
+  // Each member does nothing after `destroy`: a call into a killed Sigma throws, and a write to
+  // the workspace from a dead adapter keeps that value for each later open.
   const controller: GraphController = {
     get model() {
       return model;

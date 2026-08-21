@@ -1,34 +1,6 @@
-/**
- * A stand-in position for each node. **Scaffolding, and it must not ship.**
- *
- * **Where a position is stored is open, and this file does not answer it.** A measurement of two
- * force layouts of one corpus: the displacement is 0.49 of the width of the picture and the
- * correlation of the pair distances is 0.18 at ten thousand nodes. Convergence does not repair
- * it. So a position must be **precomputed and stored**, and the tracker carries where. This file
- * stores nothing, reads no store, and guesses nothing about what a stored position carries.
- *
- * **What it gives instead is determinism.** The same corpus gives the same coordinates on every
- * open, because a placement here is a pure function of the identifier of the entity, of its
- * community and of its degree, with a seeded generator and no randomness. Determinism is the one
- * property a force layout loses, and the community analysis already keeps it.
- *
- * **It is the same class as the raster stand-in the map carries, and it is deleted the day the
- * store answers.** It is scaffolding that the rebuild leaves behind.
- *
- * **It adds no dependency.** `graphology-layout-forceatlas2` is not installed, and the reason it
- * must not be is 4 536 ms of a blocked main thread at ten thousand nodes.
- *
- * **It takes the corpus as an argument, and it imports the type alone.** `model.ts` and
- * `src/features/map/projection.ts` do the same, so this file imports no read module and the day
- * `src/contract/` replaces the fixtures only the caller changes. The caller is then one line:
- * `buildGraphModel(corpus, standInPositions(corpus), palette)`.
- *
- * **`analyseStructure` runs two times, and the cost is accepted.** It runs here to cluster the
- * placement, and again inside `buildGraphModel` to paint. The analysis measures 51 ms at ten
- * thousand nodes, so the two runs are about 100 ms, against the 4 536 ms of the layout that is
- * refused. **No cache repairs it**: a layout held in a module is scaffolding, and it would make a
- * second place that holds a position. The whole file goes when the store answers.
- */
+// A force layout blocks the main thread 4 536 ms at ten thousand nodes, so a position here is a
+// pure function of the entity id. `analyseStructure` runs two times, 51 ms each: no cache, because
+// a layout held in a module makes a second place that holds a position.
 
 import type { Corpus } from '@/shared/fixtures/types';
 
@@ -36,55 +8,27 @@ import type { NodePosition } from './model';
 import { analyseStructure, topologyOf, type TopologyLink } from './structure';
 
 /**
- * The radius of the disc of a community of one member. A community grows by the square root.
- *
- * **It is a guess**, because this file is a stand-in and the store is open.
+ * The radius of the disc of a community of one member. It is a guess: this file is a stand-in.
  */
 const DISC = 12;
 
-/**
- * The gap between two discs on the ring, so that two communities read as two.
- *
- * **It is a guess**, with the disc above.
- */
+/** The gap between two discs on the ring, so two communities read as two. It is a guess. */
 const GAP = 8;
 
 /**
- * How far a hub is pulled towards the centre of its disc, as a fraction of the radius. The
- * analyst reads the picture with no label, so a hub must sit inside its cluster and not on the
- * edge of it.
- *
- * **It is a guess**, with the disc above.
+ * A hub must sit inside its cluster, not on the edge: this fraction of the radius. It is a guess.
  */
 const HUB_PULL = 0.6;
 
-/**
- * How far outside the structure the band of the isolates sits, as a fraction of the reach of the
- * structure.
- *
- * **An isolate is not a community like the others.** The analysis makes it a community of one,
- * which is right for the count and wrong for the placement. The defect: six lone isolates took
- * six of the thirteen angular slots of the fixture and sat as far from the centre as the four
- * clusters that carry the whole structure. Sigma normalises each coordinate into the viewport, so
- * those six dots set the bounding box and the four clusters were squeezed into about a third of
- * the canvas.
- *
- * **12 % is close enough that the isolates do not set the picture, and far enough that they read
- * as outside the structure.** They sit beyond the outer edge of every disc, and they add about a
- * tenth to the reach of the picture. An outlier must be **found**, and not hidden.
- *
- * **It is a guess**, with the disc above.
- */
+// Six lone isolates took six of the thirteen angular slots of the fixture, set the bounding box
+// that Sigma normalises, and squeezed the four clusters into a third of the canvas. 12 % keeps
+// them outside the structure and adds about a tenth to the reach of the picture.
 const ISOLATE_BAND = 1.12;
 
 const TAU = Math.PI * 2;
 
 /**
- * FNV-1a over the identifier, with a salt, and one final mix.
- *
- * **The seed is the identifier, so no seed is stored.** A stored seed is a stored position under
- * another name, and the store is open. `Math.imul` keeps the multiply in 32 bits, which every
- * engine gives the same answer for.
+ * FNV-1a on the id, with a salt. `Math.imul` keeps the multiply in 32 bits on every engine.
  */
 const hashOf = (id: string, salt: number): number => {
   let hash = 0x811c9dc5 ^ salt;
@@ -101,31 +45,14 @@ const hashOf = (id: string, salt: number): number => {
 /** One number in [0, 1) from the identifier and the salt. */
 const unitOf = (id: string, salt: number): number => hashOf(id, salt) / 0x1_0000_0000;
 
-/**
- * Where each node is drawn, until the store answers.
- *
- * A community that holds the structure is a disc on one ring, and each member sits inside the disc
- * of its community, so the picture reads as macro structure: the clusters, and the bridges between
- * them. Each community takes angular space in proportion to its disc.
- *
- * **An isolate does not go on that ring.** The analysis makes it a community of one, which is
- * right for the count and wrong for the placement. The isolates sit in one band just outside the
- * ring, where the analyst can find them and where they do not set the size of the picture.
- */
 export function standInPositions(corpus: Corpus): ReadonlyMap<string, NodePosition> {
   // **Every entity takes a position**, so the stand-in loses none of them. A repeated identifier
   // is one node, because the read comes from outside and `model.ts` drops the second row too.
   const nodes = new Set(corpus.entities.map((entity) => entity.id));
 
-  // The topology, built by `./structure`, which declares the shape. Only a relation with an
-  // entity at each end joins two nodes: an M4 relation names a relation, so it has no node at one
-  // end. The self-loop and the unknown endpoint are dropped there.
-  //
-  // **A repeated relation identifier is dropped here, because `model.ts` drops it too.** That
-  // file refuses a repeated key on the multigraph and counts the second row as a duplicate, so a
-  // corpus with a repeated relation id gave that pair degree 2 in the placement and degree 1 in
-  // the paint — two topologies that disagree with nobody to see it, which is the fault the one
-  // `topologyOf` exists to prevent. The fixture holds no repeated id, so no count moves today.
+  // Only a relation with an entity at each end joins two nodes. A repeated relation id is dropped
+  // here because `model.ts` drops it too: two topologies that disagree would give one pair degree
+  // 2 in the placement and degree 1 in the paint.
   const links = new Map<string, TopologyLink>();
   for (const relation of corpus.relations) {
     if (relation.srcKind !== 'entity' || relation.dstKind !== 'entity') continue;

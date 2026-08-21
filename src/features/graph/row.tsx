@@ -1,59 +1,27 @@
-/**
- * The index of one type, on the graph — a name and a count of relations, capped.
- *
- * Two differences from the map: the list is capped and **the remainder is on the screen**, and
- * the list is in the order of the degree, because the useful head of a list on a graph is the
- * hubs.
- *
- * **The remainder is a control now.** The line said "n more. Use the field.", which counted the
- * rows the cap dropped and then sent the analyst to a search field that is removed. It opens the
- * list instead, in the same order: the most connected first.
- *
- * **The figure carries its name on the screen.** A bare number at the end of a row does not say
- * what it measures, and the name reached a screen reader alone. One header above the list names
- * the column for every row under it, which is the treatment the map used for its own column (M9)
- * before that column was removed.
- *
- * **It is a sibling of the shared rail, and not a part of it.** `src/shared/rail.tsx` owns the
- * control — the fold, the type rows and the strip — and the row is not the same component on the
- * two surfaces: the map draws a name alone, and this draws a count of relations. The rail is
- * "the same **control** as the map's", and the control is what is shared.
- *
- * **It derives nothing.** `./rail-rows` sorted the list, applied the cap and counted the
- * remainder, so this file turns one already-derived array into elements.
- */
-
 import { cn } from '@/shared/lib/utils';
 
 import type { RailEntityRow } from './rail-rows';
 
 export interface IndexRowsProps {
-  /** The entities of one open type, already sorted and already capped. */
   readonly entities: readonly RailEntityRow[];
-  /** How many entities the cap leaves out. 0 once the whole list is open. */
   readonly remainder: number;
-  /** A row selects an entity, and the caller moves the camera to it. */
   readonly onSelect: (id: string) => void;
-  /** The analyst asked for the rows the cap dropped. */
   readonly onShowWholeList: () => void;
 }
 
-/** One line that acts. It is a real control, so it reaches the keyboard and the reader. */
+/** A row is a `<button>` and not a `<div>` with `onClick`: it must reach the keyboard. */
 const LINE = cn(
   'pointer-events-auto flex h-6 w-full items-center gap-2 px-1 text-left',
   'border border-transparent transition-colors duration-100',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-/** A column of figures — one right edge, and no jump as a digit is added. */
+/** `tabular-nums` holds the right edge still: proportional digits jump as a digit comes. */
 const FIGURE = 'shrink-0 font-mono text-right tabular-nums';
 
 export function IndexRows({ entities, remainder, onSelect, onShowWholeList }: IndexRowsProps) {
   return (
     <div role="group">
-      {/* The column is named once, on the screen, above every row it describes. The word is the
-          reason the list is ordered as it is, so it belongs beside the list and not inside each
-          of sixty rows. */}
       {entities.length === 0 ? null : (
         <p
           data-column=""
@@ -64,7 +32,6 @@ export function IndexRows({ entities, remainder, onSelect, onShowWholeList }: In
         </p>
       )}
 
-      {/* The one `.map` of this file. It is keyed by the identity of the entity. */}
       {entities.map((entity) => (
         <button
           key={entity.id}
@@ -87,11 +54,7 @@ export function IndexRows({ entities, remainder, onSelect, onShowWholeList }: In
         </button>
       ))}
 
-      {/* The list is capped, and **the remainder is on the screen**. A surface that drops rows in
-          silence is worse than one that says how many it dropped.
-
-          **It is the control that draws them.** The name says the whole act, because "Show 47
-          more" alone does not say what they are or in what order they come. */}
+      {/* The `aria-label` overrides the visible text. It adds the order the rows come in. */}
       {remainder === 0 ? null : (
         <button
           type="button"

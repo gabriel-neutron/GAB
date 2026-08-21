@@ -8,42 +8,14 @@ import { deriveRailRows } from './rail-rows';
 import { IndexRows } from './row';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
-/**
- * The index of one type on the graph.
- *
- * Two of the three differences from the map live here: **the list is capped and the remainder is
- * on the screen**, and **the list is in the order of the degree**, because the useful head of a
- * list on a graph is the hubs.
- *
- * **The read comes from the same modules the caller reads.** `./graph-page` builds the model from
- * `@/shared/fixtures/corpus` and derives the rows with `./rail-rows`, and so does this file. A
- * story that wrote its own rows would check a shape that nothing produces.
- *
- * **No story mounts a live canvas.** This is a sibling of the canvas and takes plain values, so
- * it is storied alone.
- *
- * ## What no story of this file can reach
- *
- * **The cap itself.** `LIST_CAP` is 60 in `./rail-rows`, and the fixture holds far fewer entities
- * of any one type. `TheRemainderIsOnTheScreen` therefore proves the half this component owns — the
- * remainder is on the screen, in words — from a remainder it is given. That the cap produces that
- * number is the interior of `./rail-rows`, and a check of it belongs to the level of the test
- * policy, and it is open.
- */
-
-/**
- * Where each node is drawn, for this file only.
- *
- * **This is not a guess about a stored position.** No position reaches a row: it draws a name and
- * a degree. So the story needs a map of the right shape and nothing more.
- */
+/** No position reaches a row. The story needs a map of the right shape and nothing more. */
 const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
 const model = buildGraphModel(corpus, positions, GRAPH_PALETTES.dark);
 
-/** The type with the most entities, so that the list below is worth ordering. */
+/** The most populated type, so that the order of the list below is worth a check. */
 const TYPE = (() => {
   const counts = new Map<string, number>();
   for (const entity of corpus.entities) {
@@ -87,10 +59,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * The third difference: the list is in the order of the degree. The name is the tie-break,
- * so the same corpus gives the same head on every open, which the degree alone does not promise.
- */
+/** The name breaks a tie, so the same corpus gives the same head on every open. */
 export const TheListIsInTheOrderOfTheDegree: Story = {
   play: async ({ canvasElement }) => {
     const drawn = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
@@ -103,19 +72,14 @@ export const TheListIsInTheOrderOfTheDegree: Story = {
   },
 };
 
-/**
- * A bare number at the end of a row does not say what it measures, and the name reached a screen
- * reader alone. One header names the column on the screen, for every row under it.
- */
+/** A bare number does not say what it measures. One header names the column on the screen. */
 export const TheFigureIsNamedOnTheScreen: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText('Relations')).toBeVisible();
-    // One header for the list, and not one word inside each of sixty rows.
     await expect(canvasElement.querySelectorAll('[data-column]')).toHaveLength(1);
   },
 };
 
-/** A row reports the entity, and the caller selects it and moves the camera. */
 export const ARowReportsTheEntity: Story = {
   play: async ({ canvasElement, args }) => {
     const first = canvasElement.querySelector<HTMLElement>('[data-row]');
@@ -125,7 +89,6 @@ export const ARowReportsTheEntity: Story = {
   },
 };
 
-/** The selected row says so to a reader, and not by its colour alone. */
 export const TheSelectedRowSaysSo: Story = {
   args: {
     entities: LIST.entities.map((entity, index) => ({ ...entity, selected: index === 0 })),
@@ -136,13 +99,7 @@ export const TheSelectedRowSaysSo: Story = {
   },
 };
 
-/**
- * The list is capped, and **the remainder is on the screen**.
- *
- * **It is the control that opens them.** The line said "Use the field", and that field is
- * removed, so it pointed at a control which no longer exists. The accessible name says the order,
- * because "Show 47 more" alone does not say which 47.
- */
+/** The accessible name says the order, because "Show 40 more" alone does not say which 40. */
 export const TheRemainderIsTheControlThatOpensTheList: Story = {
   args: { remainder: 40 },
   play: async ({ canvas, args }) => {
@@ -151,7 +108,6 @@ export const TheRemainderIsTheControlThatOpensTheList: Story = {
     });
     await expect(control).toBeVisible();
     await expect(control).toHaveTextContent('Show 40 more');
-    // The field it used to name is gone.
     await expect(control).not.toHaveTextContent('field');
 
     await userEvent.click(control);
@@ -159,12 +115,7 @@ export const TheRemainderIsTheControlThatOpensTheList: Story = {
   },
 };
 
-/**
- * The whole list keeps the order of the capped one — the most connected first.
- *
- * The committed corpus is smaller than the cap, so the two lists are equal here. The assertion is
- * the order and the absence of a remainder, which is what the derivation promises at any size.
- */
+/** The corpus is smaller than the cap, so the two lists are equal here. */
 export const TheWholeListKeepsTheOrder: Story = {
   play: async () => {
     const whole = listOf([TYPE]);
@@ -174,7 +125,6 @@ export const TheWholeListKeepsTheOrder: Story = {
   },
 };
 
-/** No remainder, no line. A count of zero dropped rows is not a message. */
 export const NoRemainderDrawsNoLine: Story = {
   play: async ({ canvasElement }) => {
     await expect(LIST.remainder).toBe(0);
@@ -182,13 +132,6 @@ export const NoRemainderDrawsNoLine: Story = {
   },
 };
 
-/**
- * An empty list draws nothing at all, and not a sentence.
- *
- * **The sentence that stood here answered the search field.** Nobody asked for it. With no field,
- * a type that the canvas draws always has rows, and a type it does not draw has no list at all.
- * The header goes with the rows: a column name over no column says nothing.
- */
 export const AnEmptyListDrawsNothing: Story = {
   args: { entities: [], remainder: 0 },
   play: async ({ canvasElement }) => {

@@ -64,7 +64,12 @@ export const measure = (text: string): Measurement => {
   text.split('\n').forEach((raw, index) => {
     const trimmed = raw.trim();
     const isComment =
-      inBlock || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
+      inBlock ||
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*') ||
+      // A comment in JSX opens with `{/*`, so a test on `/*` alone reads it as a code line.
+      trimmed.startsWith('{/*');
 
     if (inBlock && trimmed.includes('*/')) inBlock = false;
     else if (!inBlock && opens(trimmed)) inBlock = true;
@@ -110,7 +115,12 @@ export const codeOf = (text: string): string => {
   for (const raw of text.split('\n')) {
     const trimmed = raw.trim();
     const isComment =
-      inBlock || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
+      inBlock ||
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*') ||
+      // A comment in JSX opens with `{/*`, so a test on `/*` alone reads it as a code line.
+      trimmed.startsWith('{/*');
 
     if (inBlock && trimmed.includes('*/')) inBlock = false;
     else if (!inBlock && opens(trimmed)) inBlock = true;

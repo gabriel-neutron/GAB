@@ -1,57 +1,3 @@
-/**
- * One MapLibre instance, driven directly.
- *
- * This file owns the instance, the style, the sources, the layers, the hit test, the camera and
- * the disposal. It gives a handle to the other components. **No other file uses the library.**
- *
- * **This file contains no React value, and it causes no render.** It imports no React module. The
- * mount and the cleanup are parts of `mountMap`.
- *
- * **This style has no ground layer, and no tile address.** The two grounds, the switch, the dark
- * paint and the credit belong to step 4, which is `basemap`. No step needs the step after it. The
- * tile path of the map view is open, and the tracker carries it. A tile address in this file is
- * therefore a silent default, and the rules forbid a silent default. The canvas stays transparent.
- * The colour of the container shows through it, and this file invents no background colour.
- *
- * **The handle is the seam.** The `window` event of the prototype is left behind. So there is no
- * `CustomEvent`, and no `declare global`.
- *
- * **This file draws the relations, and it draws them under every point.** A relation never covers
- * the thing it relates. A point wins over a line it crosses, and the one `click` handler below is
- * where that rule lives.
- *
- * **This file holds the chosen relation, and it draws no card.** The card of the prototype was
- * refused until the operator said who owns a relation surface. **The operator answered that**: the
- * route draws a detail panel for a chosen relation, beside the canvas, exactly as it does for a
- * selected entity. This file still draws no card. It brightens the line and it announces the
- * choice.
- *
- * **The chosen relation is identity now, so it is in the address**, which carries the identity of
- * what is examined. Before that decision nothing drew a relation, the choice died with the view,
- * and this closure was the whole of its life. The rule that has not changed is the direction:
- * **this file reads the address one time, at the mount, and never writes it.** The route writes
- * it, from what this file announces, so the canvas stays the one authority on what it drew and the
- * two can never state different things.
- *
- * **This file is the only writer of `hiddenTypes` and of `linksHidden` in the workspace.** The
- * specification names four writers, and the built record carries a fifth field, `linksHidden`.
- * **The specification and the code differ there**, the operator owns that difference, and this
- * file answers it with no second writer. It takes a snapshot of that field at the mount and it writes the whole
- * field at each switch. A second writer of the same field is a fault, and this file does no merge.
- * A stored type that the corpus no longer contains stays in the list, and it goes back to storage.
- * The corpus can gain that type again, and the choice of the analyst must stay valid.
- *
- * **The route of step 5 seeds from `handle.selected`, and never from the address.** This file
- * reads the address one time. It drops a restored identifier that finds no drawn entity. It also
- * drops one that names a type which is switched off. The address can therefore name an entity
- * that the map does not mark. A route that reads the address again shows a different entity from
- * the map, and neither of the two states the difference.
- *
- * **This file owns no part of the screen.** It can show no fault to the analyst, so a fault that
- * it cannot show goes to the console. How a module under `src/` reports such a fault is an open
- * question, and the operator takes it to the tracker.
- */
-
 import {
   AttributionControl,
   GeoJSONSource,
@@ -75,47 +21,19 @@ import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
-/**
- * `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification` again. So this
- * file takes the two shapes from the option that carries them. A copy that a person writes by
- * hand can be different from the shapes of a later version.
- */
+// `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification`. So this file
+// takes the two shapes from the option that carries them.
 type StyleSpec = Exclude<MapOptions['style'], string | undefined>;
 type LayerSpec = StyleSpec['layers'][number];
 
 export interface MountMapOptions {
-  /**
-   * The element that the library takes and owns. One element, one instance.
-   *
-   * **The content of this element must not decide its size.** This file observes the element, and
-   * `map.resize()` writes the size of the canvas inside it. Three elements take their size from
-   * that canvas. They are an `inline-block` element, a flex item with `flex-basis: auto`, and a
-   * track of a grid with the size `auto`. The observer then reads the write of this file as a new
-   * size, and the two make a loop. Give an element whose size the layout around it decides.
-   */
+  // The content of this element must not decide its size. This file writes the canvas size with
+  // `map.resize()`, and a container that sizes to its canvas makes a loop with the observer.
   readonly container: HTMLElement;
-  /**
-   * The corpus, reduced to what a map can draw. `projection.ts` makes it. This file imports no
-   * read module. So, on the day `src/contract/` exists, only the caller changes.
-   */
   readonly projection: Projection;
-  /**
-   * Where the credit sits. **The corner is a parameter.** A bar that floats over the map covers
-   * whichever corner it stands in, and the floating controls of the prototype covered the credit
-   * twice. The rail is on the left, so the default is the corner that no control of this surface
-   * reaches.
-   */
   readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
 
-/**
- * What the other components of the surface use to drive the map.
- *
- * **`selected` is on the handle, so that a caller can start from it.** A component that subscribes
- * after the map is built has already missed the restore of the address. So `onSelect` also calls
- * its listener immediately, with the selection of that moment. After that it calls the listener at
- * each change.
- */
 export interface MapHandle {
   /** The identity of the selected entity, or `null`. Read it to start a control. */
   readonly selected: string | null;
@@ -126,23 +44,11 @@ export interface MapHandle {
   readonly flyTo: (id: string) => void;
   readonly setTypeVisible: (type: string, visible: boolean) => void;
   readonly isTypeVisible: (type: string) => boolean;
-  /**
-   * **The relations have one switch of their own.** They are not an entity type, and the type
-   * list stays a projection of the entity types and nothing else.
-   */
   readonly setLinksVisible: (visible: boolean) => void;
   readonly linksVisible: boolean;
-  /**
-   * The relation the analyst chose with a click on a line, or `null`. **The rail names it, and
-   * nothing opens a card.**
-   */
   readonly chosenLink: GeoLink | null;
   /** Calls the listener immediately with the chosen relation. Gives the unsubscribe. */
   readonly onChooseLink: (listener: (link: GeoLink | null) => void) => () => void;
-  /**
-   * **The ground the map draws.** Both grounds are in the style and one is hidden, so this is a
-   * layout property and never a style that is built again.
-   */
   readonly setGround: (ground: Ground) => void;
   readonly ground: Ground;
   readonly destroy: () => void;
@@ -158,117 +64,46 @@ const layerOfType = (type: string): string => `entity-${type}`;
 /** Every relation that can be drawn. One source, and one layer over it. */
 const LINK_SOURCE = 'links';
 const LINK_LAYER = 'links-line';
-/**
- * The relations of the selected entity, and the relation the analyst chose. The bright lines are
- * then a change of data, and never a change of style — the same shape as the ring above.
- *
- * **Two line layers, and not three.** The chosen relation needs no layer of its own: it is bright
- * for the same reason as a relation of the selection, and one source carries both. A third layer
- * would be a second answer to one question.
- */
 const ACTIVE_LINK_SOURCE = 'links-active';
 const ACTIVE_LINK_LAYER = 'links-active-line';
 
-/**
- * **A relation says which way it points.** One head, at the end it arrives at.
- *
- * **It carries a source of its own, and it is not a symbol on the line source.** MapLibre places a
- * symbol along a line from the start of that line, and it has no expression that reads where a
- * line ends or which way it runs. So the end and the angle are computed here, as a point with a
- * bearing on it, and the layer turns the image by that bearing.
- *
- * `shared/canvas-arrow.ts` holds the shape, and the graph draws the same one.
- */
+// MapLibre places a symbol along a line from the start of that line, and no expression reads
+// where a line ends or which way it runs. So the end point and the bearing are computed here,
+// and the layer turns the image by that bearing.
 const ARROW_SOURCE = 'link-arrows';
 const ARROW_LAYER = 'link-arrow';
 const ARROW_IMAGE = 'link-arrow-head';
 
-/**
- * The one colour of a line, as hex.
- *
- * **A colour must be a colour that the library reads.** MapLibre parses the style itself, so a CSS
- * custom property never reaches it, and the cost of that copy is recorded beside the cost of the
- * entity hues in `projection.ts`.
- *
- * **One hex reads on both grounds, because there is no ground.** Step 4 is blocked, so the canvas
- * is transparent and the colour behind a line is the page: near white in the light theme, and
- * near black in the dark theme. The white line of the prototype came from a dark basemap that
- * this step does not have. **Step 4 must read each value below again**, because a line over
- * imagery is a different question.
- *
- * **The measurements are against `--background` of `src/index.css`, in each theme.** That token is
- * `oklch(0.975 0.003 230)` in the light theme, which is `#f5f7f8`, and `oklch(0.16 0.012 215)` in
- * the dark theme, which is `#070f10`. The bright line is this hex at full opacity, and it has a
- * contrast ratio of 3.55:1 on the light page and 5.08:1 on the dark page.
- *
- * **A relation takes no entity hue.** A line is not an entity, and the six hues belong to the
- * entity types. So the bright line is not a second colour: the quiet line is the same hue at
- * part opacity, and the bright line is the full hue and a greater width.
- */
+// MapLibre parses the style itself, so a CSS custom property never reaches it and the colour must
+// be a hex. Measured against `--background` of `src/index.css`, `#f5f7f8` light and `#070f10`
+// dark, this hue at full opacity gives a ratio of 3.55:1 on light and 5.08:1 on dark.
 const LINK_HUE = '#7b8489';
 
-/**
- * The outline of a point. **Every point carries it, and a selection changes nothing about it.**
- *
- * **The defect it corrects:** a point is one flat disc of an entity hue, and it sits on imagery.
- * Imagery holds every hue there is, so a green point on a field and a blue point on water each
- * lose their edge, and two points that touch read as one shape. The ring of a selection answered
- * this for one point at a time, and the operator asked for the answer on all of them.
- *
- * **It is black, and it is not a token.** It is not a colour of the interface: it is the edge that
- * separates a mark from the ground under it, and a cartographic outline is dark on every ground
- * for that reason. `--foreground` is near white in the dark theme and would read as a second mark.
- * The map uses the dark set on every ground already, so this value follows no theme either.
- *
- * **The hex is stated here and not read from a stylesheet**, for the reason `LINK_HUE` gives above
- * it: a CSS custom property never reaches the style parser of the library.
- */
+// The edge that keeps a point clear of the imagery under it. It is black on every ground, and not
+// a theme token: `--foreground` is near white in the dark theme and would read as a second mark.
+// A CSS custom property never reaches the style parser of MapLibre, so the hex is stated here.
 const POINT_OUTLINE = '#000000';
-/**
- * The quiet line says "a relation is here". The bright line answers "what does this one touch".
- *
- * **The quiet line must stay legible on the light page.** At 0.5 this hue composites over
- * `#f5f7f8` to a contrast ratio of 1.76:1, which is close to invisible at a width of less than one
- * pixel. At 0.8 it has a ratio of 2.63:1 on the light page and 3.64:1 on the dark page, and it
- * stays clearly quieter than the 3.55:1 and 5.08:1 of the bright line. The width ramp below keeps
- * the same difference: the quiet line starts at one pixel, and the bright line is wider at each
- * zoom.
- */
+// At 0.5 this hue over `#f5f7f8` gives a contrast ratio of 1.76:1, which is close to invisible.
+// At 0.8 it gives 2.63:1 on the light page and 3.64:1 on the dark page, and it stays quieter than
+// the 3.55:1 and 5.08:1 of the bright line.
 const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
 
-/**
- * The hit box, in pixels on each side of the pointer. A line of one pixel is otherwise unclickable.
- *
- * **The points take the same box as the lines.** A point is a disc of three pixels at zoom 3, so a
- * bare point query gives it the narrower tolerance of the two, and a click four pixels from a
- * point centre returns the line under it. That click goes to the point.
- */
+// The hit box, in pixels on each side of the pointer. A line of one pixel is otherwise
+// unclickable. A point is a disc of 3px at zoom 3, so a bare point query gives the narrower
+// tolerance and a click 4px from the centre returns the line under it. Points take this box too.
 const HIT_BOX = 5;
 
 /** The padding of a fit, in pixels. It is six steps of the 4px grid of `src/index.css`. */
 const FIT_PADDING = 24;
 
-/**
- * The highest zoom that a fit can reach.
- *
- * A corpus of one entity, or a corpus where each entity is at one coordinate, has bounds of zero
- * width and zero height. The library then computes an infinite zoom and it clamps that value to
- * the maximum zoom of the map, which is 22. The map then shows one street. The analyst gets no
- * view of the area around the entity.
- *
- * **14 is an invented number.** The first camera is a value that nobody decided, and this is a
- * parameter to calibrate. 14 is the top of the two radius ramps of this file, so a point at this
- * zoom already has its full size.
- */
+// The highest zoom a fit can reach. Bounds of zero width give an infinite zoom that the library
+// clamps to 22, which shows one street. 14 is an invented number, and it is the top of the two
+// radius ramps of this file, so a point at this zoom already has its full size.
 const FIT_MAX_ZOOM = 14;
 
-/**
- * The size that stands for "this file has used no size yet".
- *
- * A box of a `ResizeObserver` is never negative, so no delivery can carry this value. The seed of
- * the observer below takes it, and the first delivery therefore always resizes the canvas.
- */
+// A `ResizeObserver` box is never negative, so no delivery can carry this value. The seed of the
+// observer below takes it, and the first delivery therefore always resizes the canvas.
 const NO_SIZE = -1;
 
 /** The unsubscribe that a destroyed handle gives. */
@@ -276,10 +111,8 @@ const NO_OP = (): void => {
   // A destroyed handle registers no listener, so it has nothing to remove.
 };
 
-/**
- * One entity, in the shape that the style parser reads. `id` is the `fid` of the projection,
- * because MapLibre needs a number for a feature identifier. The identity of the row stays `id`.
- */
+// `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
+// The identity of the row stays `id`.
 interface PointFeature {
   readonly type: 'Feature';
   readonly id: number;
@@ -297,13 +130,8 @@ const collect = (features: readonly PointFeature[]): PointCollection => ({
   features,
 });
 
-/**
- * One relation, as a line between its two endpoints. `id` is the `fid` of the projection, for the
- * same reason as a point: MapLibre needs a number for a feature identifier.
- *
- * **Nothing reads a property of a line.** The hit test reads `id` only, and the style filters no
- * line. So the record is empty, and it states no relation type that no layer draws.
- */
+// `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
+// Nothing reads a property of a line, so the record is empty.
 interface LineFeature {
   readonly type: 'Feature';
   readonly id: number;
@@ -319,14 +147,7 @@ interface LineCollection {
   readonly features: readonly LineFeature[];
 }
 
-/**
- * **A relation whose endpoint is not drawn is not drawn either.** A line that runs to a point
- * which no layer draws states a place that the map shows nowhere, which is the lie that the rule
- * refuses for a point. The quiet line states that place as much as the bright line does.
- *
- * The rule was written for the bright lines, and it applies to both. So both line sources, the
- * style literal and the hit test read this one function, and the four cannot drift again.
- */
+// A line that runs to a point which no layer draws states a place the map shows nowhere.
 const isDrawnLink = (link: GeoLink, hidden: ReadonlySet<string>): boolean =>
   !hidden.has(link.from.type) && !hidden.has(link.to.type);
 
@@ -349,17 +170,9 @@ const collectLines = (links: readonly GeoLink[]): LineCollection => ({
   })),
 });
 
-/**
- * One arrowhead, at the end its relation arrives at.
- *
- * A relation is drawn as a straight line between two points, so the end of the line is the
- * position of the target entity and the angle is the plane bearing between the two.
- *
- * **The bearing is the plane angle, and not the great-circle one.** The great-circle bearing is
- * the angle a vessel would steer, and it is not the angle of the straight line that this map
- * draws. At a high latitude the two differ by degrees, and the head would then point off its own
- * line.
- */
+// The bearing is the plane angle, and not the great-circle one. The great-circle bearing is the
+// angle a vessel would steer, and not the angle of the straight line this map draws. At a high
+// latitude the two differ by degrees, and the head would then point off its own line.
 interface ArrowFeature {
   readonly type: 'Feature';
   readonly id: number;
@@ -388,42 +201,18 @@ const collectArrows = (links: readonly GeoLink[]): ArrowCollection => ({
   })),
 });
 
-/**
- * What the hit test found. There are four results, and they are not two.
- *
- * `unknown` is the window before the style loads. In that window the library can answer no query.
- * A caller that reads that silence as `ground` removes a selection that the analyst kept.
- *
- * `link` is not `ground`. The analyst aimed at a relation, so the selection stays. A `link` that
- * this file read as `ground` would clear the selection under the pointer, and the brightened
- * lines would go with it.
- */
+// `unknown` is the window before the style loads, where the library can answer no query. A caller
+// that reads that silence as `ground` removes a selection the analyst kept. `link` is not `ground`
+// either: the analyst aimed at a relation, so the selection stays.
 type Hit =
   | { readonly kind: 'entity'; readonly entity: GeoEntity }
   | { readonly kind: 'link'; readonly link: GeoLink }
   | { readonly kind: 'ground' }
   | { readonly kind: 'unknown' };
 
-/**
- * Each live mount, by the element that it owns.
- *
- * **The mount does the same thing each time.** Two instances on one element make the browser
- * remove the older WebGL context. The map then looks empty, and it is not empty. So a second mount
- * destroys the first.
- *
- * React 19 StrictMode runs the effect two times in development, in this order: setup, cleanup,
- * setup. The cleanup destroys the first handle and it deletes the entry here. The second setup
- * finds no entry, and it builds a new map. React never runs a second setup before the cleanup of
- * the first.
- *
- * The first line of `mountMap` destroys an entry that it finds. That line is therefore defence
- * against a caller that mounts two times on one element with no cleanup between the two calls.
- * The `destroyed` flag stops the whole body of a second `destroy` of one handle.
- *
- * The test `mounted.get(container) === handle` in `destroy` runs at each normal unmount, and it
- * is true there. Only its false branch is not reached today. Keep it: an older handle must not
- * delete the entry of a newer handle, and the test costs one comparison.
- */
+// Two instances on one element make the browser remove the older WebGL context, and the map then
+// looks empty without being empty. So a second mount destroys the first. React 19 StrictMode runs
+// setup, cleanup, setup, and never a second setup before the cleanup of the first.
 const mounted = new WeakMap<HTMLElement, MapHandle>();
 
 export function mountMap({
@@ -435,22 +224,13 @@ export function mountMap({
 
   const stored = readMapWorkspace();
   const hidden = new Set<string>(stored.hiddenTypes);
-  /**
-   * **The store holds the state that is switched off**, as `workspace.ts` states. The field says
-   * that the relations are hidden, and never that they are drawn, so the two switches of this
-   * surface keep one polarity.
-   */
+  // The store holds the state that is switched off, so `linksHidden` says the relations are
+  // hidden and never that they are drawn. The two switches of this surface keep one polarity.
   let linksHidden = stored.linksHidden;
   const colourOfType = new Map(projection.types.map((facet) => [facet.type, facet.colour]));
 
-  /**
-   * **A colour must be a colour that the library reads.** MapLibre reads the style with its own
-   * parser. So a CSS custom property never reaches it. `projection.ts` contains the hex copy of
-   * the entity hues, and the cost of that copy is recorded.
-   *
-   * An entity of a type that carries no facet is not drawn. This file invents no colour for it.
-   * The type list is made from these same entities. So the case is empty today.
-   */
+  // MapLibre reads the style with its own parser, so a CSS custom property never reaches it and
+  // `projection.ts` holds the hex copy. An entity of a type with no facet is drawn nowhere.
   const featuresOf = (entities: readonly GeoEntity[]): PointFeature[] => {
     const features: PointFeature[] = [];
     for (const entity of entities) {
@@ -471,32 +251,21 @@ export function mountMap({
     type: 'circle',
     source: ENTITY_SOURCE,
     filter: ['==', ['get', 'entityType'], facet.type],
-    // **A type is hidden with `visibility`.** It needs no new data. A hidden layer returns nothing
-    // from `queryRenderedFeatures` after the worker parses the tile again. `setLayoutProperty`
-    // only marks the source, and the new parse is asynchronous. In the window between the switch
-    // and the answer of the worker, the old tile still contains the points. The hit test therefore
-    // has a second guard against `hidden` — see `entityAt`.
+    // `setLayoutProperty` only marks the source, and the new parse is asynchronous. In the window
+    // between the switch and the answer of the worker, the old tile still holds the points and
+    // `queryRenderedFeatures` returns them. So the hit test has a second guard against `hidden`.
     layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
     paint: {
       'circle-color': facet.colour,
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 14, 7],
       // **The outline is on every point, and no state removes it** — see `POINT_OUTLINE`.
       'circle-stroke-color': POINT_OUTLINE,
-      // The width follows the zoom with the radius, at a rate that keeps the outline a hairline
-      // and never a second disc. At zoom 3 the point is 3px and the outline is 1px; at zoom 14 it
-      // is 7px and 1.6px. A fixed width would swallow the point at the low zoom that the rule is
-      // about.
+      // The width follows the zoom with the radius, so the outline stays a hairline and never a
+      // second disc. At zoom 3 the point is 3px and the outline 1px; at zoom 14, 7px and 1.6px.
       'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
     },
   }));
 
-  /**
-   * The two line layers, in one list, so that the order below and the hit test read one truth.
-   *
-   * **The width of a line follows the zoom**, like the radius of a point. A line of one width is
-   * a thread at zoom 2 and a band at zoom 14. The brighter line is wider than the neutral one, so
-   * the bright line is not a change of colour alone.
-   */
   const linkLayers: LayerSpec[] = [
     {
       id: LINK_LAYER,
@@ -527,17 +296,9 @@ export function mountMap({
     },
   ];
 
-  /**
-   * The heads of the relations.
-   *
-   * **It is above the lines and below every point**: a relation must never cover the thing it
-   * relates.
-   *
-   * **The collision machinery is switched off.** MapLibre drops a symbol that meets another one,
-   * and a dropped head reads as a relation with no direction — an absence that states something
-   * false about the data. A head that crowds its neighbour is the lesser fault, and it is the one
-   * the analyst can see and answer with a zoom.
-   */
+  // The heads are above the lines and below every point: a relation must never cover the thing it
+  // relates. The collision machinery is off, because MapLibre drops a symbol that meets another
+  // one, and a dropped head reads as a relation with no direction.
   const arrowLayer: LayerSpec = {
     id: ARROW_LAYER,
     type: 'symbol',
@@ -550,10 +311,9 @@ export function mountMap({
       // The image points north, so the bearing on the feature is the whole of the rotation.
       'icon-rotate': ['get', 'bearing'],
       'icon-rotation-alignment': 'map',
-      // **The head stands back from the point it names**, along its own axis, for the reason
-      // `4bbab56` gives for the pending badge: a mark on the centre covers the thing it marks.
-      // The step back is in the units of the image, so it follows `icon-size` and never the
-      // length of the relation: a long line would otherwise leave its head out in open ground.
+      // The head stands back from the point it names, along its own axis: a mark on the centre
+      // covers the thing it marks. The step is in the units of the image, so it follows
+      // `icon-size` and never the length of the relation.
       'icon-offset': [0, 14],
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
@@ -561,10 +321,6 @@ export function mountMap({
     paint: { 'icon-opacity': LINK_OPACITY },
   };
 
-  /**
-   * The theme, from the class on the document element. The theme is read from the class on
-   * `documentElement`, with an observer, and never from React.
-   */
   const isDark = (): boolean => document.documentElement.classList.contains('dark');
 
   /** The layer that draws one ground. One ground, one layer, and one name for both. */
@@ -602,20 +358,9 @@ export function mountMap({
   const style: StyleSpec = {
     version: 8,
     sources: {
-      // **Both grounds live in the style at one time, and one is hidden.** A switch is then a
-      // layout property. A style that is built again drops every source with it, and the
-      // selection, the hidden types and the relations would all have to be applied a second time.
-      //
-      // **The credit is on the source, and MapLibre matches it to what is visible.** The library
-      // drops the attribution of a source that no visible layer uses, and that was checked and not
-      // assumed.
-      //
-      // **`maxzoom` is the ceiling of the server, and it is measured and not assumed.** It is the
-      // one item to check at build time. The OSM servers answer 200 at z19 and **400 at z20**; the
-      // EOX service answers 200 far past its 10 m resolution, because it upsamples on its own.
-      // With the ceiling stated here MapLibre never asks past it and draws the overzoomed parent
-      // tile itself, so the seam is deliberate on both grounds and no request reaches a third
-      // party for a tile that carries nothing new.
+      // `maxzoom` is the ceiling of the server, and it is measured. The OSM servers answer 200 at
+      // z19 and 400 at z20; the EOX service answers 200 far past its 10 m resolution, because it
+      // upsamples. MapLibre then asks no tile past the ceiling and overzooms the parent itself.
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
@@ -633,12 +378,6 @@ export function mountMap({
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
-      // **The two grounds are at the bottom, in the style literal.** The slot that stood here
-      // proposed `addLayer(ground, beforeId)` at run time, with `beforeId` read from the first
-      // layer of the moment. That is not needed and it is more fragile: the name of the first
-      // layer follows the corpus, so it changes on the day the corpus gains a type that sorts
-      // before every other one. A literal has no such name to read, and it cannot be reached
-      // before the style loads. **The lines and the points stay above, in the order below.**
       ...groundLayers,
       // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
@@ -652,17 +391,9 @@ export function mountMap({
         type: 'circle',
         source: SELECTION_SOURCE,
         paint: {
-          // **The ring has no fill, and its size follows the zoom.** A disc of one size shows
-          // as a grey area at low zoom, and it covers each point that stands near it. The mark
-          // then shows two points where the data has one.
-          //
-          // The colour of the fill is stated, and the opacity of the fill is 0. A fill colour
-          // that nobody states takes the value of the parser, which is a colour that nobody
-          // chose here.
-          //
-          // The width of the stroke follows the zoom with the radius, at the same rate. A width
-          // of one value stands against a radius of two values. The weight of the ring then
-          // changes by a factor of two over the range.
+          // The ring has no fill, and its size follows the zoom. A disc of one size reads as a
+          // grey area at low zoom, and it covers each point near it. The fill colour is stated,
+          // because a colour that nobody states takes the value of the parser.
           'circle-color': ['get', 'colour'],
           'circle-opacity': 0,
           'circle-stroke-color': ['get', 'colour'],
@@ -678,8 +409,7 @@ export function mountMap({
   const base = {
     container,
     style,
-    // Step 4 owns the credit and its corner. Nothing is credited while there is no ground. The
-    // default control states a licence that no visible layer uses.
+    // The control is added below, with its corner, so the default one is switched off here.
     attributionControl: false,
   } as const;
   const options: MapOptions =
@@ -692,21 +422,13 @@ export function mountMap({
             fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM },
           }
         : // Nothing can be drawn. So the map shows the world, which states no place that the data
-          // does not contain. The first camera is a value that nobody decided.
+          // does not contain.
           { ...base, center: [0, 0], zoom: 0 };
 
   const map = new MapLibreMap(options);
 
-  /**
-   * **The credit is drawn, and its corner is a parameter.** The default control of the library
-   * was switched off while there was no ground, because it stated a licence that no visible layer
-   * used. There is a ground now, so the control is added, and MapLibre reads the attribution of
-   * each source that a **visible** layer uses. The hidden ground therefore credits nothing, which
-   * is the rule.
-   *
-   * It is not compact. A credit behind a control that a reader must open is an obligation of a
-   * licence that the screen does not meet.
-   */
+  // MapLibre credits each source that a visible layer uses, so the hidden ground credits nothing.
+  // It is not compact: a credit behind a control that a reader must open does not meet a licence.
   map.addControl(new AttributionControl({ compact: false }), creditCorner);
 
   let destroyed = false;
@@ -714,28 +436,17 @@ export function mountMap({
   const queued: (() => void)[] = [];
   const subscriptions: Subscription[] = [];
 
-  /**
-   * **A layout property needs a loaded style.** `setLayoutProperty` throws an error while the
-   * style loads, and the analyst can click a control in that window. `getSource` returns nothing
-   * in the same window, and it reports no fault for that.
-   *
-   * One queue covers both cases, for each caller. A later caller therefore has one pattern to copy.
-   */
+  // `setLayoutProperty` throws while the style loads, and `getSource` returns nothing in the same
+  // window with no fault reported. The analyst can click a control there, so one queue covers both.
   const whenStyleReady = (work: () => void): void => {
     if (destroyed) return;
     if (styleReady) work();
     else queued.push(work);
   };
 
-  /**
-   * The queue runs each task, and one task that throws an error stops no other task.
-   *
-   * The list is emptied into a local list first, and the caller sets `styleReady` to `true` before
-   * it calls this function. A task that asks for more work therefore runs that work immediately,
-   * and it reaches neither the queue nor this loop. Each task runs in its own `try`. An error goes
-   * to the console here, because this file owns no part of the screen. An error that leaves this
-   * function goes into the event dispatcher of the library, which stops the rest of the load.
-   */
+  // Each task runs in its own `try`. An error that leaves this function goes into the event
+  // dispatcher of MapLibre, which stops the rest of the load. The list is emptied into a local
+  // list first, so a task that asks for more work runs it at once and never re-enters this loop.
   const drain = (): void => {
     const tasks = queued.splice(0);
     for (const work of tasks) {
@@ -749,15 +460,11 @@ export function mountMap({
 
   const selectListeners = new Set<(id: string | null) => void>();
 
-  /**
-   * **The restore is one way, and it occurs one time.** This file reads the address here, at the
-   * mount, and never again. It never writes the address. The route owns the navigation and
-   * `replace: true`.
-   */
+  // This file reads the address here, at the mount, and never again. It never writes the address:
+  // the route owns the navigation.
   const address = new URLSearchParams(window.location.search);
-  // **An empty value is not an identifier.** The router writes `entity=` for the empty selection,
-  // which is the normal state of a map, and a first version of the graph read that empty value as
-  // an identifier.
+  // An empty value is not an identifier. The router writes `entity=` for the empty selection,
+  // which is the normal state of a map.
   const wanted = address.get('entity') === '' ? null : address.get('entity');
   const restored = wanted === null ? null : (projection.byId.get(wanted) ?? null);
   // An old identifier gives no selection, and it shows no fault on the screen. The map draws no
@@ -765,20 +472,9 @@ export function mountMap({
   // map does not draw. Such a selection is dropped as well.
   let selected: string | null = restored === null || hidden.has(restored.type) ? null : restored.id;
 
-  /**
-   * The relation the analyst chose with a click on a line, or `null`.
-   *
-   * **It is restored from the address, and a decision put it there.** Before that decision it
-   * started at `null` on every open, because nothing on this surface drew a chosen relation and
-   * the choice died with the view. A relation is now a thing the analyst examines, and the address
-   * carries the identity of what is examined.
-   *
-   * **It is dropped under the same rules as a selected point**, and for the same reason: a panel
-   * that names a relation which this canvas draws nowhere is a lie on the screen. An identifier
-   * that names no drawn relation, a relation with an endpoint of a type that is switched off, and
-   * every relation while the line switch is off, all give `null`. The route then corrects the
-   * address, because `onChooseLink` announces what this file accepted.
-   */
+  // The chosen relation is dropped under the same rules as a selected point: a panel that names a
+  // relation which this canvas draws nowhere is a lie on the screen. The route then corrects the
+  // address, because `onChooseLink` announces what this file accepted.
   const wantedLink = address.get('relation') === '' ? null : address.get('relation');
   const restoredLink =
     wantedLink === null ? null : (projection.links.find((link) => link.id === wantedLink) ?? null);
@@ -802,13 +498,6 @@ export function mountMap({
     });
   };
 
-  /**
-   * The quiet lines, which say "a relation is here".
-   *
-   * **A relation whose endpoint is not drawn is not quiet either** — see `isDrawnLink`. The rule
-   * was written for the bright lines, and it applies to both. So each change of the visibility of
-   * a type paints this source again, with the same queue and the same guard as the bright lines.
-   */
   const paintBaseLinks = (): void => {
     whenStyleReady(() => {
       const source = map.getSource(LINK_SOURCE);
@@ -823,18 +512,9 @@ export function mountMap({
     });
   };
 
-  /**
-   * **The bright lines follow the selection, and they need no click.** They answer "what does
-   * this one touch". A selection that the address restored is painted through the same queue, so
-   * the lines and the ring arrive together once the style loads.
-   *
-   * A type that switches off drops the selection, and this source is emptied with it.
-   *
-   * **A relation whose endpoint is not drawn is not bright.** A line at full opacity that runs to
-   * a point which no layer draws states a place that the map shows nowhere, which is the lie that
-   * the rule refuses for a point. Each change of the visibility of a type therefore calls this
-   * function again.
-   */
+  // A relation whose endpoint is not drawn is not bright either. A line at full opacity that runs
+  // to a point which no layer draws states a place the map shows nowhere. So each change of the
+  // visibility of a type calls this function again.
   const paintActiveLinks = (): void => {
     whenStyleReady(() => {
       const source = map.getSource(ACTIVE_LINK_SOURCE);
@@ -849,10 +529,6 @@ export function mountMap({
     });
   };
 
-  /**
-   * **The chosen relation dies with the view** — see the head of this file. A click on a line
-   * brightens that line, the rail names it, and nothing here opens a card.
-   */
   const setChosenLink = (next: GeoLink | null): void => {
     if (destroyed || next === chosenLink) return;
     chosenLink = next;
@@ -887,25 +563,9 @@ export function mountMap({
   /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
   const linkLayerIds = linkLayers.map((layer) => layer.id);
 
-  /**
-   * The hit test asks the library. It reads `id` only, which contains the `fid` of the projection.
-   * `properties` of a feature that comes back has no type, so nothing here reads it.
-   *
-   * **`fid` is a position in an array, and it is not an identity.** `projection.ts` counts it
-   * after `filter(hasGeometry)`. It is therefore valid against the one `Projection` that made it,
-   * and against no other. The identity of the row is `id`.
-   *
-   * **A point of a type that is switched off gives the result `ground`.** `setLayoutProperty` only
-   * marks the source, and the worker parses the tile again after that. Until the worker answers,
-   * the old tile still contains the points of the hidden layer, and the query returns them. A
-   * hit in that window would select a point that the map draws nowhere, which the rule forbids,
-   * and `handle.select` would refuse the same identifier. The guard on `hidden` makes the two
-   * agree.
-   *
-   * **A point wins over a line it crosses.** The point is the smaller target, and it is the one
-   * the analyst aimed at. So the points are asked first, and the lines only where no point
-   * answered. There is one `click` handler, and this order lives inside it.
-   */
+  // `fid` is a position in an array and not an identity: it is valid against the one `Projection`
+  // that made it. A point of a hidden type gives `ground`, because the old tile still answers
+  // until the worker parses it again. Points are asked first, so a point wins over a line.
   const hitAt = (point: MapMouseEvent['point']): Hit => {
     if (!styleReady) return { kind: 'unknown' };
     // **One box, for the points and for the lines** — see `HIT_BOX`. A point that is asked with a
@@ -931,28 +591,17 @@ export function mountMap({
       const fid = feature.id;
       if (typeof fid !== 'number') continue;
       const link = projection.byLinkFid.get(fid);
-      // **A relation whose endpoint is not drawn gives the result `ground`.** It is the same
-      // window as the guard on the points: the source is marked, and the old tile still answers
-      // until the worker parses it again. A hit in that window would name a relation that runs to
-      // a point the map draws nowhere. The rule was written for the bright lines, and the rail
-      // and the map hold it together here.
+      // A relation whose endpoint is not drawn gives the result `ground`. It is the same window
+      // as the guard on the points: the source is marked, and the old tile still answers until
+      // the worker parses it again.
       if (link !== undefined && isDrawnLink(link, hidden)) return { kind: 'link', link };
     }
     return { kind: 'ground' };
   };
 
-  /**
-   * The arrowhead, given to the library when it asks for it.
-   *
-   * **This style holds no sprite and no glyph server**, because the map draws its own ground and
-   * it has never needed either. So the image the style names must come from here.
-   *
-   * **The `styleimagemissing` event is not the path in `maplibre-gl` 6.** It fires, and the layer
-   * that was already built keeps an empty image: the library warns that the image "could not be
-   * loaded" and draws no head. That was measured in the browser and not assumed. This resolver is
-   * the path of this version, and it is set before the style loads, so the first frame that wants
-   * a head already has one.
-   */
+  // This style holds no sprite and no glyph server, so the image the style names must come from
+  // here. `styleimagemissing` is not the path in `maplibre-gl` 6: it fires, and the layer that was
+  // built keeps an empty image. That was measured in the browser and not assumed.
   map.setMissingStyleImageResolver((id) => {
     if (id !== ARROW_IMAGE || map.hasImage(id)) return;
     map.addImage(id, arrowImage(LINK_HUE));
@@ -965,39 +614,13 @@ export function mountMap({
     }),
   );
 
-  /**
-   * True when the camera is the choice of the analyst. The adapter must then not frame the corpus
-   * over that camera.
-   *
-   * Six places write it. They are the `click` that changes the selection, the `movestart` of a
-   * gesture, the `moveend` of a gesture, `boxzoomstart`, `boxzoomend` and `handle.flyTo`. The two
-   * events of a gesture both write it. The start arms the flag against a drag that a resize
-   * kills, and the end arms it for a move that begins with no `originalEvent`.
-   *
-   * `workspace.ts` keeps `camera` at `null` until a camera is stored, so that the
-   * first open frames the corpus. A camera that this file stores for a move that the analyst did
-   * not make removes that first frame from each later open. The frame of a container of the wrong
-   * size then stays.
-   *
-   * **A caller that sets the first camera through `handle.flyTo` at the mount stops each job of
-   * the observer below.** Those two jobs repair the canvas and the frame of a container of the
-   * wrong size. Such a caller needs a different way to set that camera.
-   */
+  // True when the camera is the choice of the analyst, so the adapter must not frame the corpus
+  // over it. `workspace.ts` keeps `camera` at `null` until a camera is stored, so a camera stored
+  // for a move that the analyst did not make would remove the first frame from each later open.
   let cameraIsAnalystChoice = false;
 
-  /**
-   * The name a pointer draws over this canvas.
-   *
-   * **The operator asked for the hover name of the graph, here.** They liked that design and asked
-   * the two canvases to read as one product. `shared/canvas-label.ts` states how it looks, and the
-   * graph reads the same recipe: the two libraries share no draw call, so one file of words and
-   * one geometry rule is what can be shared.
-   *
-   * **It is a child of the container and not of the canvas.** MapLibre owns the canvas element and
-   * replaces it on a context loss, so an element inside it would go with it.
-   *
-   * **It names a relation as well as a point**, in the same words the graph uses.
-   */
+  // The label is a child of the container and not of the canvas. MapLibre owns the canvas element
+  // and replaces it on a context loss, so an element inside it would go with it.
   const hoverLabel = document.createElement('div');
   hoverLabel.className = CANVAS_LABEL_CLASS;
   hoverLabel.hidden = true;
@@ -1033,13 +656,6 @@ export function mountMap({
     hoverLabel.style.transform = canvasLabelTransform(point.x, point.y);
   };
 
-  /**
-   * **The pointer names what it is over, and it changes no state.**
-   *
-   * It asks the same question as the click, through the one hit test, so the thing that is named
-   * and the thing that a click takes can never disagree. A type that is switched off is hidden on
-   * this surface, and `hitAt` already refuses it.
-   */
   subscriptions.push(
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
@@ -1080,10 +696,8 @@ export function mountMap({
       // The style is not loaded, so the library can say nothing about this point. A click in
       // that window changes no selection. The selection from the address stays.
       if (hit.kind === 'unknown') return;
-      // **A click on a line chooses that relation, and it opens nothing.** The card of the
-      // prototype waits for the operator to say who owns a relation surface. The line is
-      // brightened and the rail names it. The selection stays: a line that cleared it would take
-      // away the bright lines of the entity under the pointer.
+      // The selection stays. A line that cleared it would take away the bright lines of the
+      // entity under the pointer.
       if (hit.kind === 'link') {
         setChosenLink(hit.link);
         return;
@@ -1093,38 +707,25 @@ export function mountMap({
       // selection, for one.
       setChosenLink(null);
       const next = hit.kind === 'entity' ? hit.entity.id : null;
-      // **A click that changes the selection is an act of the analyst**, so it arms the flag. The
-      // sidebar of the route is a flex sibling of the map, so a selection changes the width of the
-      // container. Without this line the observer below frames the corpus again, and it throws
-      // away the frame that the analyst reads.
+      // A selection changes the width of the container, because the sidebar of the route is a
+      // flex sibling of the map. Without this flag the observer below frames the corpus again,
+      // and it throws away the frame that the analyst reads.
       if (next !== selected) cameraIsAnalystChoice = true;
       setSelected(next);
     }),
   );
 
-  /**
-   * **The adapter is one of the four writers of the workspace, and each writer patches.** A writer
-   * that knows one part of the record only removes the field of the other writer.
-   */
+  // Each writer of the workspace patches. A writer that knows one part of the record only would
+  // remove the field of another writer.
   const storeCamera = (): void => {
     if (destroyed) return;
     const centre = map.getCenter();
     patchMapWorkspace({ camera: { lon: centre.lng, lat: centre.lat, zoom: map.getZoom() } });
   };
 
-  /**
-   * **A `moveend` of a gesture carries `originalEvent`, and a `moveend` of the program carries
-   * none.** `MapMovementEvent` declares `originalEvent` as `MouseEvent | TouchEvent | WheelEvent |
-   * undefined`. The handler manager of the library fires each move event of a pointer, a wheel or
-   * a key with the DOM event of that gesture. It gives the same DOM event to the movement that
-   * continues after the analyst releases a drag. `jumpTo`, `easeTo`, `flyTo` and `fitBounds` fire
-   * with the data that the caller gives, which is nothing here.
-   *
-   * This test also keeps `resize` out. `Map.resize` fires `moveend`, and the observer of the
-   * library calls it with the entries of that observer, which carry no `originalEvent`. Without
-   * this test, this file would write `localStorage` on the main thread too often. It would write
-   * at each change of the size of the window, at each open of the rail and at each fit.
-   */
+  // A `moveend` of a gesture carries `originalEvent`, and a `moveend` of the program carries none.
+  // `jumpTo`, `easeTo`, `flyTo` and `fitBounds` fire with the data of the caller, which is nothing
+  // here. This also keeps `resize` out: `Map.resize` fires `moveend` from the observer of MapLibre.
   subscriptions.push(
     map.on('moveend', (event: MapMovementEvent) => {
       if (event.originalEvent === undefined) return;
@@ -1133,17 +734,9 @@ export function mountMap({
     }),
   );
 
-  /**
-   * **A gesture arms the flag at its first frame, and not at its end.** `map.resize()` calls
-   * `stop()` while `Camera._moving` is false. A drag never sets that field, because the library
-   * sets it in `_prepareEase` and in `_afterEase` only. `stop()` resets each handler, and the
-   * handler manager fires no `moveend` for the drag that it kills. So the gesture that arms the
-   * flag on `moveend` is the gesture that a resize destroys, and the flag can never arm. A
-   * `movestart` with `originalEvent` arms it at the first frame, and each later delivery of the
-   * observer below then does nothing.
-   *
-   * This handler stores no camera. The camera at the start of a move is the camera from before it.
-   */
+  // A gesture arms the flag at its first frame, and not at its end. `map.resize()` calls `stop()`
+  // while `Camera._moving` is false, a drag never sets that field, and the handler manager fires
+  // no `moveend` for the drag that it kills. A flag armed on `moveend` could therefore never arm.
   subscriptions.push(
     map.on('movestart', (event: MapMovementEvent) => {
       if (event.originalEvent === undefined) return;
@@ -1151,29 +744,14 @@ export function mountMap({
     }),
   );
 
-  /**
-   * The `moveend` listeners of the camera animations that the rail started and that are not
-   * complete.
-   *
-   * A move that the program starts carries no `originalEvent`, so the handler above stores
-   * nothing for it. The act of the rail, `flyTo`, is an act of the analyst, and it stores its
-   * camera at its own call site, here. `destroy` removes each listener that is still waiting.
-   */
+  // A move that the program starts carries no `originalEvent`, so the handler above stores nothing
+  // for it. `flyTo` from the rail stores its camera at its own call site. `destroy` removes each
+  // listener that is still waiting.
   const pendingMoveEnds = new Set<() => void>();
 
-  /**
-   * Stores the camera at the end of the camera animation that the caller has just started.
-   *
-   * The library begins an animation with `stop()`. `stop()` fires the `moveend` of an animation
-   * that is not complete. That event reaches the listener of the earlier animation, which stores
-   * the camera at the point where the map stopped. That value is correct, because the map was at
-   * that camera. This listener is added after the call, so the earlier event does not reach it.
-   *
-   * An animation that ends inside the call stores its camera at once. `flyTo` becomes a jump when
-   * the setting for reduced motion of the operating system is on. A fit that the library refuses
-   * to compute moves nothing. In both cases no later `moveend` comes, and a listener would then
-   * wait for the move of a different caller.
-   */
+  // The library begins an animation with `stop()`, which fires the `moveend` of an animation that
+  // is not complete. This listener is added after the call, so that event does not reach it. An
+  // animation that ends inside the call stores at once: `flyTo` jumps under reduced motion.
   const storeCameraAfterMove = (): void => {
     if (!map.isMoving()) {
       storeCamera();
@@ -1187,12 +765,9 @@ export function mountMap({
     map.once('moveend', listener);
   };
 
-  /**
-   * **A box zoom arms the flag at its start.** This gesture changes no camera until it ends, so
-   * `movestart` cannot reach it. `BoxZoomHandler` only draws a `<div>` while the analyst drags.
-   * A size delivery in that window calls `map.resize()`, which stops and resets each handler.
-   * The box then goes away under the pointer. `boxzoomend` never fires, and the fit never runs.
-   */
+  // A box zoom arms the flag at its start. The gesture changes no camera until it ends, so
+  // `movestart` cannot reach it. `BoxZoomHandler` only draws a `<div>` while the analyst drags,
+  // and a `map.resize()` in that window resets each handler, so `boxzoomend` never fires.
   subscriptions.push(
     map.on('boxzoomstart', () => {
       cameraIsAnalystChoice = true;
@@ -1202,18 +777,9 @@ export function mountMap({
   /** The `idle` listeners of a box zoom whose fit is not complete. `destroy` removes each one. */
   const pendingIdles = new Set<() => void>();
 
-  /**
-   * **Box zoom is the one gesture with no `originalEvent`.** `BoxZoomHandler.mouseupWindow` ends
-   * the gesture with a call of `fitScreenCoordinates`, and that call gives no event data. The
-   * `moveend` of that fit therefore looks like a move of the program. Box zoom is on by default,
-   * and this file switches it off nowhere. So this one gesture needs its own listener.
-   *
-   * The library fires `boxzoomend` before it starts the fit. The camera at this moment is
-   * therefore the camera from before the gesture, and the store must wait. It waits for `idle`,
-   * which the map fires after the fit ends and after the next render. `moveend` is not safe here.
-   * Before the fit starts, the library stops an animation that is not complete. That stop fires
-   * the `moveend` of the earlier animation.
-   */
+  // Box zoom is the one gesture with no `originalEvent`: `BoxZoomHandler.mouseupWindow` ends it
+  // with `fitScreenCoordinates`, which gives no event data. The library fires `boxzoomend` before
+  // the fit, so the store waits for `idle`. `moveend` is not safe: the fit stops an earlier ease.
   subscriptions.push(
     map.on('boxzoomend', () => {
       cameraIsAnalystChoice = true;
@@ -1226,19 +792,9 @@ export function mountMap({
     }),
   );
 
-  /**
-   * Frames the whole corpus with no animation. The observer below is the one caller, and this
-   * function stores no camera. That caller calls `map.resize()` before it, so the transform of the
-   * map holds the new size of the container already.
-   *
-   * **`duration: 0` makes the frame immediate.** `fitBounds` with no `duration` and no `linear`
-   * becomes a call of `flyTo`, which is a curved animation. Each delivery of the observer starts
-   * that animation again. The map then moves for the whole time that the container changes size,
-   * and the analyst sees that movement.
-   *
-   * `duration: 0` does not avoid `stop()`. `flyTo` calls `stop()` before it reads `duration`.
-   * Under reduced motion the library uses `jumpTo`, which also starts with `stop()`.
-   */
+  // `duration: 0` makes the frame immediate. `fitBounds` with no `duration` and no `linear`
+  // becomes a `flyTo`, which is a curved animation that each delivery of the observer starts
+  // again. It does not avoid `stop()`: `flyTo` calls `stop()` before it reads `duration`.
   const correctCorpusFrame = (): void => {
     if (bounds === null) return;
     map.fitBounds([bounds[0], bounds[1], bounds[2], bounds[3]], {
@@ -1248,55 +804,9 @@ export function mountMap({
     });
   };
 
-  /**
-   * **A `ResizeObserver` on the container is necessary, and it is not an improvement of speed.**
-   * MapLibre measures the container one time, in the constructor, while the browser still builds
-   * the chrome around it. The prototype measured a canvas of 1140 by 97 inside a container of 1140
-   * by 839, and nothing gave a warning. A map draws correctly in a canvas of the wrong size.
-   *
-   * **The observer of the library does not cover that measurement.** It drops its first delivery
-   * always. A container can become stable between the constructor and that delivery. It then
-   * sends its true size in the delivery that the library drops, and no second delivery comes. The
-   * canvas then keeps the measurement of the constructor. This is the recorded fault, and it
-   * survives on the path that most opens take.
-   *
-   * **This observer does two jobs, and the first job runs at each open.**
-   * 1. A size that is different from the size that this file used last calls `map.resize()`. This
-   *    is the job that covers the delivery which the library drops. A returning analyst, an empty
-   *    corpus and each open after the first gesture get this job.
-   * 2. Only while the open found no stored camera and the analyst chose no camera, the same
-   *    delivery also frames the corpus again.
-   *
-   * **After the analyst chooses a camera, this observer does nothing, and it calls no
-   * `map.resize()`.** The observer of the library owns each delivery after the first one, and the
-   * first one is long past at that moment.
-   *
-   * **This file calls `map.resize()` before the fit.** The observer of the library is throttled at
-   * 50ms. That throttle fires on the leading edge, and it fires again on the trailing edge. So the
-   * library can apply the last size of the container up to 50ms after this callback. The fit would
-   * then read a transform of an earlier size, and no later call frames the corpus again.
-   *
-   * **This observer compares sizes, and it counts no deliveries.** A `ResizeObserver` reports only
-   * a box that is different from the box it reported before, and its first recorded box is (0,0).
-   * A container that has `display: none` at the mount gives no delivery at `observe()`. The first
-   * delivery then carries the real size. A rule that drops the first delivery drops that size, and
-   * the map keeps the frame of the measurement of the constructor.
-   *
-   * **The sizes are whole numbers.** `entry.contentRect` gives the content box with a fraction,
-   * and this file rounds each value. A change of less than one pixel, from a flex layout or from
-   * the zoom of the browser, is then no change here. The library sees no change there either.
-   *
-   * **The seed of the last used size is a value that no delivery can report.** The first delivery
-   * therefore always resizes. The two boxes are not the same box. MapLibre measures with
-   * `clientWidth` and `clientHeight`, which give the padding box. The observer reports the content
-   * box. A seed that measures the container can equal a later delivery, and the canvas would then
-   * keep the measurement of the constructor.
-   *
-   * **The container can become stable over three deliveries or more.** A flex layout gets its size
-   * over several frames, and a rail changes the width for the whole time that it opens. A
-   * correction that runs one time frames the corpus against an intermediate size, and it never
-   * repairs that frame.
-   */
+  // MapLibre measures the container one time, in the constructor, and the observer of the library
+  // drops its first delivery. A container that becomes stable between the two keeps the canvas of
+  // the constructor. `map.resize()` runs before the fit, because that observer is throttled 50ms.
   const framesCorpusOnOpen = camera === null && bounds !== null;
   let usedWidth = NO_SIZE;
   let usedHeight = NO_SIZE;
@@ -1314,19 +824,8 @@ export function mountMap({
   });
   observer.observe(container);
 
-  /**
-   * **Each member of the handle does nothing after `destroy`**, so the cleanup is complete. After
-   * `map.remove()` the style of the map is absent, and a call of `setLayoutProperty` throws an
-   * error. A write to the workspace from a dead adapter is worse, because the record keeps that
-   * value for each later open. A guard in `destroy` alone does not reach either fault.
-   */
-  /**
-   * Paints every ground for the theme in force. **The inversion reaches the ground layer only**,
-   * so no entity hue and no relation line moves with the theme.
-   *
-   * It runs through the queue, because `setPaintProperty` needs a loaded style exactly as
-   * `setLayoutProperty` does.
-   */
+  // Every ground is painted for the theme in force, and the inversion reaches the ground layer
+  // only. It runs through the queue, because `setPaintProperty` needs a loaded style.
   const paintGrounds = (): void => {
     whenStyleReady(() => {
       const dark = isDark();
@@ -1343,13 +842,8 @@ export function mountMap({
     });
   };
 
-  /**
-   * **The theme is read from the class on `documentElement`, with an observer, and never from
-   * React.** A React value here would sit in the tree that wraps the live element, which is the
-   * named fault.
-   *
-   * The observer watches one attribute of one element, so it delivers only on a theme change.
-   */
+  // The theme is read from the class on `documentElement` and never from React. A React value here
+  // would sit in the tree that wraps the live element. The filter delivers on a theme change only.
   const themeObserver = new MutationObserver(paintGrounds);
   themeObserver.observe(document.documentElement, {
     attributes: true,
@@ -1384,8 +878,7 @@ export function mountMap({
       // The rail calls this, so the analyst made this move. This line arms the flag before the
       // camera call, so the observer interrupts this animation with no correction of the size.
       cameraIsAnalystChoice = true;
-      // The zoom of the analyst stays. What "near enough" means is a camera value, and nobody has
-      // decided one.
+      // The centre moves and the zoom of the analyst stays.
       map.flyTo({ center: [entity.lon, entity.lat] });
       // The animation carries no gesture of its own, so it stores its camera here.
       storeCameraAfterMove();
@@ -1405,11 +898,9 @@ export function mountMap({
       // type, so a mark on such a point shows a point that is not there.
       const entity = selected === null ? undefined : projection.byId.get(selected);
       if (!visible && entity?.type === type) setSelected(null);
-      // **A relation whose endpoint is not drawn must not stay on the map.** The line then names a
-      // point that the map shows nowhere, which is the lie that the rule refuses for a point. The
-      // rule covers the quiet lines, the chosen relation and every relation of the selection, so
-      // both sets are painted again at each change of this switch, and never at the switch off
-      // alone: a type that comes back brings its lines back with it.
+      // A relation whose endpoint is not drawn must not stay on the map. Both sets are painted
+      // again at each change of this switch, and never at the switch off alone: a type that comes
+      // back brings its lines back with it.
       if (!visible && (chosenLink?.from.type === type || chosenLink?.to.type === type)) {
         setChosenLink(null);
       }
@@ -1418,14 +909,8 @@ export function mountMap({
     },
     // A destroyed handle draws no type.
     isTypeVisible: (type) => !destroyed && !hidden.has(type),
-    /**
-     * **The relations have one switch, and it is not in the type list.** That list stays a
-     * projection of the entity types. This file is the only writer of `linksHidden`, and the rail
-     * calls this member and patches nothing itself.
-     *
-     * The switch drops no selection. A relation is not an entity, so a hidden line leaves no
-     * marked point undrawn, and the rule asks for nothing here.
-     */
+    // The switch drops no selection. A relation is not an entity, so a hidden line leaves no
+    // marked point undrawn.
     setLinksVisible: (visible) => {
       if (destroyed) return;
       linksHidden = !visible;
@@ -1456,14 +941,8 @@ export function mountMap({
       listener(chosenLink);
       return () => chooseLinkListeners.delete(listener);
     },
-    /**
-     * **The switch is a layout property, and never a style that is built again.** Both grounds
-     * are in the style, so this shows one and hides the other, and every source, the selection and
-     * the filter survive it.
-     *
-     * The credit follows on its own: MapLibre reads the attribution of each source that a visible
-     * layer uses, and it drops the one that no visible layer uses.
-     */
+    // Both grounds are in the style, so this shows one and hides the other, and every source, the
+    // selection and the filter survive it. MapLibre then drops the credit of the hidden ground.
     setGround: (next) => {
       if (destroyed) return;
       if (GROUNDS[next].tiles === null) return;

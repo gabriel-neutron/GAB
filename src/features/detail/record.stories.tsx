@@ -14,37 +14,19 @@ import { readDossier, type RecordRow } from './dossier';
 import { SourceMark } from './mark';
 import { EntityRecord } from './record';
 
-/**
- * 100 claims in about 40 lines on the page, and one to a line at 24 rem.
- *
- * **Every row below is invented**, as `src/shared/fixtures/corpus.ts` says of its own rows. The
- * committed fixture carries three claims on its largest entity, and the density cannot be
- * measured on three claims, so this file builds the density probe itself. **Nothing outside this
- * file reads it**: a second module that holds the shape of the read is the fault the skill
- * forbids, and this probe dies with the story.
- *
- * The keys are the ones the group rules of `./claims` match, so the groups on the screen are
- * the ones an analyst would meet. The story calls `readDossier`, which is what the page calls.
- *
- * **The probe is built by a plain loop.** It once used `Object.fromEntries` over a `flatMap` of
- * three `.map` calls. A story that generates a fixture must compute something, and the count is
- * held as low as the fixture allows.
- */
+// The committed fixture has three claims, which cannot show density. This file builds its own
+// probe. No other file reads it.
 
 const PER_FAMILY = 15;
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
-/** Four documents in rotation, and one that exactly one claim cites. */
 const CITED: readonly DocId[] = ['doc-registry', 'doc-class', 'doc-survey', 'doc-broker'];
 
 const cite = (n: number): readonly DocId[] => [CITED[n % CITED.length] ?? 'doc-registry'];
 
-/**
- * Invariant 1: every claim carries at least one source. This one key carries none, so
- * the probe holds the fault that `./mark` must report in words. **Without it the mark story
- * compares 100 to 100 by construction and cannot fail.**
- */
+// This key carries no source on purpose. Without the fault, the mark story compares 100 to 100
+// and cannot fail.
 const UNSOURCED_KEY = 'current_cargo';
 
 const srcFor = (key: string, n: number): readonly DocId[] => {
@@ -84,7 +66,6 @@ const NAMED: readonly (readonly [string, AttributeValue])[] = [
   ['crew_certified', true],
 ];
 
-/** Five families of numbered claims. Each one carries the prefix its group rule matches. */
 const FAMILIES: readonly {
   readonly key: (n: number) => string;
   readonly value: (n: number) => AttributeValue;
@@ -180,17 +161,8 @@ type Story = StoryObj<typeof meta>;
 const claimCells = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-claim]'));
 
-/**
- * The lines the claims occupy **on the page**, headings included.
- *
- * A line of cells is one distinct `offsetTop` among the claim cells. A group heading is
- * `basis-full` and takes a line of its own, and the criterion is "on the page", so each heading
- * counts.
- *
- * **`document.fonts.ready` is awaited first.** The theme declares `Roboto Condensed` and
- * `JetBrains Mono`. The day either one is installed, the text reflows after a measurement that
- * did not wait, and the story flakes.
- */
+// `document.fonts.ready` is awaited first. If a declared font is installed, the text reflows
+// after an early measurement and the story flakes.
 const linesOnThePage = async (root: HTMLElement): Promise<number> => {
   await document.fonts.ready;
 
@@ -202,13 +174,8 @@ const linesOnThePage = async (root: HTMLElement): Promise<number> => {
   return tops.size + root.querySelectorAll('h2').length;
 };
 
-/**
- * The prototype measured about 2.6 claims to a line, which puts 100 claims in about 40 lines.
- *
- * **The bound is closed at both ends.** The assertion was a ceiling alone, and a ceiling alone
- * passes when every cell collapses onto one line, which is the opposite failure and a worse one.
- * The floor states that the claims still flow.
- */
+// The prototype measured about 2.6 claims to a line. 100 claims thus give about 40 lines.
+// The floor is closed too: a ceiling alone passes when all the cells collapse onto one line.
 export const AHundredClaimsReadInAboutFortyLines: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvasElement }) => {
@@ -216,18 +183,12 @@ export const AHundredClaimsReadInAboutFortyLines: Story = {
     await expect(cells).toHaveLength(100);
 
     const lines = await linesOnThePage(canvasElement);
-    // The measured value was 41 with 9 group headings, which are now removed. The band is
-    // "about 40".
+    // The measurement gave 41 lines, and the band is 34 to 46.
     await expect(lines).toBeGreaterThanOrEqual(34);
     await expect(lines).toBeLessThanOrEqual(46);
   },
 };
 
-/**
- * The same component, with no second layout and no appearance prop, fills a 24 rem sidebar with
- * one claim to a line. Each cell is `grow min-w-0` and each basis is wider than the pane, so
- * every claim takes the whole line.
- */
 export const AtTwentyFourRemOneClaimTakesOneLine: Story = {
   parameters: { layout: 'fullscreen' },
   render: (args) => (
@@ -248,11 +209,7 @@ export const AtTwentyFourRemOneClaimTakesOneLine: Story = {
   },
 };
 
-/**
- * A claim never appears without a mark to its source, and no control hides the mark. The
- * one claim of the probe that carries no source says so in words, so the count below is 99 of
- * 100 and the story can fail.
- */
+// The probe holds one claim with no source, so the count is 99 of 100.
 export const EveryClaimCarriesAMarkToItsSource: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas, canvasElement }) => {
@@ -264,20 +221,10 @@ export const EveryClaimCarriesAMarkToItsSource: Story = {
     }
 
     await expect(marked).toBe(cells.length - 1);
-    // The claim with no source is drawn, and the absence is said in words. Never a dash, never
-    // a blank: a surface that drops evidence in silence is worse than one that says what it
-    // dropped.
     await expect(canvas.getByText(/No source recorded/)).toBeInTheDocument();
   },
 };
 
-/**
- * The record is one flat list, and it carries no heading of its own.
- *
- * **The group headings are removed.** Their names — `Identity`, `Ownership`, `Other` — were
- * invented in `./claims` from the prefix of a key, and no data supplies them. The tracker owns
- * any real group.
- */
 export const TheRecordDrawsNoInventedHeading: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas }) => {

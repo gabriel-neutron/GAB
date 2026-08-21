@@ -7,14 +7,7 @@ import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';
 import { Relations } from './relations';
 
-/**
- * The M4 relation is reachable from both ends and marked. M4: a relation carries `src_kind` and
- * `dst_kind` now, for deferred reification. M6 writes an interval at both ends.
- *
- * The input is `readDossier(corpus, …)`, which is what the page calls, so this file changes on
- * the day `src/contract/` replaces the fixtures. **Nothing here is invented**: the committed
- * corpus already carries the trap.
- */
+/** M4: a relation carries `src_kind` and `dst_kind`, for deferred reification. */
 
 /** Meridian Bulk Carriers Ltd. From this end the `contradicts` relation is a **direct** one. */
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
@@ -40,7 +33,6 @@ const lineOf = (relations: readonly RelationLine[], id: string): RelationLine =>
   return held;
 };
 
-/** The words the component states for a relation the graph cannot draw. */
 const NOT_DRAWN = /the graph does not draw this relation/i;
 
 const rowOf = (root: HTMLElement, id: string): HTMLElement => {
@@ -63,8 +55,7 @@ const meta = {
     ),
   },
   parameters: { layout: 'fullscreen' },
-  // A relation is one line, and a line truncates. Each story therefore states the width of the
-  // pane it is measured in.
+  // A relation is one line, and a line truncates, so the width is fixed at 900px.
   render: (args) => (
     <div className="w-[900px] p-2">
       <Relations {...args} />
@@ -76,10 +67,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * The first end: from the vessel the `contradicts` relation is reached as a relation that points
- * at a direct relation.
- */
 export const TheM4RelationIsReachableFromTheRelationEnd: Story = {
   args: { relations: FROM_RELATION_END },
   play: async ({ canvasElement }) => {
@@ -89,13 +76,6 @@ export const TheM4RelationIsReachableFromTheRelationEnd: Story = {
   },
 };
 
-/**
- * The second end, and **this is the story that catches the defect**. From the company the same
- * relation is a **direct** relation: it sits in the middle of ordinary
- * direct relations. A mark taken from the list a relation was placed in vanishes here, and the
- * relation that is direct and invisible at once loses its words. The mark comes from the
- * relation, so the same sentence appears at this end as at the other one.
- */
 export const TheM4RelationIsReachableFromTheEntityEnd: Story = {
   play: async ({ canvasElement }) => {
     const row = rowOf(canvasElement, M4);
@@ -106,10 +86,6 @@ export const TheM4RelationIsReachableFromTheEntityEnd: Story = {
   },
 };
 
-/**
- * The other way round: a mark that is on every row proves nothing. The `appoints` relation
- * stands beside the M4 relation in the same list, and it carries no such words.
- */
 export const AnOrdinaryRelationCarriesNoUndrawableMark: Story = {
   play: async ({ canvasElement }) => {
     await expect(lineOf(FROM_ENTITY_END, APPOINTS).undrawable).toBe(false);
@@ -117,10 +93,7 @@ export const AnOrdinaryRelationCarriesNoUndrawableMark: Story = {
   },
 };
 
-/**
- * M6: an interval is written at both ends, and a closed interval never reads as current. The
- * `appoints` relation ran from 2011-03-09 to 2024-11-30.
- */
+/** M6: an interval is written at both ends, and a closed interval never reads as current. */
 export const AClosedIntervalIsWrittenAtBothEnds: Story = {
   play: async ({ canvasElement }) => {
     const row = rowOf(canvasElement, APPOINTS);
@@ -130,7 +103,6 @@ export const AClosedIntervalIsWrittenAtBothEnds: Story = {
   },
 };
 
-/** Every relation names the documents it comes from, and no control hides the mark. */
 export const EveryRelationNamesItsSources: Story = {
   play: async ({ canvasElement }) => {
     const lines = rows(canvasElement);

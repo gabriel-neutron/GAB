@@ -1,81 +1,27 @@
-/**
- * The hue of an entity type, in one list and one rule for both canvases.
- *
- * **The hues live here because a feature never imports a feature.** Each canvas held its own
- * copy of the six, and two copies of one list drift apart. This is the one list.
- *
- * **The graph paints by type, and no longer by community.** A hue was the community of a node,
- * and three facts closed that:
- *
- * - **A hue is a grouping and never an identity.** Six hues cycle, so a seventh group wears the
- *   hue of the first.
- * - **A community number is a rank of size** — `features/graph/structure.ts` renumbers so that
- *   index 0 is the largest. One new entity renumbers the run, and the whole picture repaints.
- *   **A type never renumbers.**
- * - **No word on the screen said what a hue meant.** The legend that said it is gone, and a hue
- *   may never be the only mark. The rail names the type beside its hue, on both surfaces, so the
- *   words are there and no legend comes back.
- *
- * **The community run stays, and it places the nodes.** That is its only job now.
- *
- * **The order is over every type of the corpus, and not over the types one surface draws.** The
- * map draws no entity without a geometry and the graph draws none without a position, so the two
- * see different entities. An index taken from a drawn subset would give one type two hues, one
- * per canvas, in silence. The rule below takes the whole corpus, so the two agree by
- * construction.
- *
- * **The hue cycles, and it says so.** A seventh type wears the hue of the first. A decided colour
- * on the type row would end the cycle, and the tracker carries that question. This file assumes
- * no answer: it cycles, and it states it.
- */
+// One list for both canvases, because a feature never imports a feature. The index runs over
+// every type of the corpus, never over a drawn subset: a subset gives one type two hues.
 
-/** Which theme the page has. The light theme is on `:root`, the dark theme on `.dark`. */
+/** The light theme is on `:root`, the dark theme on `.dark`. */
 export type HueTheme = 'light' | 'dark';
 
 /** The six hues of one theme, in order. */
 export type EntityHueSet = readonly [string, string, string, string, string, string];
 
-/**
- * The six entity hues of `src/index.css`, converted from `oklch` to hex, in both themes.
- *
- * **A colour must be a colour that the library reads.** Sigma parses hex and `rgb()` on the CPU,
- * and an `hsl()` colour comes out black for the whole graph in silence. MapLibre parses its style
- * with its own parser. The second half is the same rule: **a CSS custom property never reaches
- * either parser**, so the hues of the stylesheet are copied here as hex. This file is that copy,
- * and it is now the only one.
- *
- * **Each surface states which set it takes, and why.** `src/index.css` asks 3:1 of a mark a
- * person must see.
- *
- * - **The dark set gives 7.9:1 to 8.9:1 on the dark page and 2.0:1 to 2.3:1 on the light page.**
- * - **The light set gives 4.6:1 to 5.0:1 on the light page.**
- *
- * So a canvas whose ground follows the theme takes the set of that theme, and a canvas whose
- * ground is imagery takes the dark set on both themes. The second case has one reason: a point
- * sits on imagery, and the light set cannot be read on it.
- */
+// Sigma parses hex and `rgb()` on the CPU: an `hsl()` colour comes out black for the whole
+// graph in silence, and a CSS custom property reaches neither parser. So the hues are hex.
+// Dark set 7.9:1 to 8.9:1 dark and 2.0:1 to 2.3:1 light. Light set 4.6:1 to 5.0:1 light.
 const LIGHT_SET = ['#2971c6', '#007989', '#007d50', '#677000', '#a16100', '#b53c7f'] as const;
 const DARK_SET = ['#70adfb', '#00c2d2', '#53c48e', '#a8b44b', '#df9b44', '#e887b6'] as const;
 
-/**
- * `readonly` is a promise to the compiler, and `Object.freeze` is a lock at run time. This value
- * is one module object that both canvases share, so an importer that writes into it changes the
- * paint of both surfaces in silence. The freeze reaches each list of hues too.
- */
+// `Object.freeze` locks at run time what `readonly` only promises to the compiler. Both
+// canvases share this one object, so an importer that writes into it repaints both, in silence.
 export const ENTITY_HUES: Readonly<Record<HueTheme, EntityHueSet>> = Object.freeze({
   light: Object.freeze(LIGHT_SET),
   dark: Object.freeze(DARK_SET),
 });
 
-/**
- * The hue of each type, for one theme.
- *
- * It takes every type of the corpus, in any order and with repeats, and it answers one map. The
- * sort is the rule that makes the answer the same on the two canvases: a type keeps its hue while
- * the set of types does not change, whichever surface asks.
- *
- * **A caller passes the whole corpus and never its own drawn subset.** See the head of this file.
- */
+// The sort is what makes the two canvases agree: a type keeps its hue while the set of types
+// does not change, whichever surface asks. The caller passes the whole corpus, never a subset.
 export const typeHues = (
   types: readonly string[],
   set: EntityHueSet,

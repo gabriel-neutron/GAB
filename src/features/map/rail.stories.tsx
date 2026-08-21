@@ -9,47 +9,20 @@ import type { Ground } from './workspace';
 import { entitiesOfType, project, type GeoLink } from './projection';
 import { Rail } from './rail';
 
-/**
- * The "Works when" of the rail, and the *Check* of the step that built it.
- *
- * The read arrives through `project()` over `@/shared/fixtures/corpus`, which is what the caller
- * of this component reads. Both change on the day `src/contract/` replaces the fixture.
- *
- * **No story mounts a live canvas.** `MapHandle` is a type, so this file loads no library: the
- * `import type` above is erased, and the double below is a plain object. What a double cannot
- * prove is the camera. "A row selects an entity **and moves the camera to it**" is checked here
- * as far as the seam — the rail asks the map to fly — and the move itself is proved in the
- * running application.
- *
- * **The width is part of the contract.** The rail is 240px open (`w-60`) and a 44px strip closed
- * (`w-11`), and the two stories below measure the two.
- */
+// No story mounts a live canvas: `MapHandle` is a type, so the double below is a plain object.
+// The rail is 240px open (`w-60`) and a 44px strip closed (`w-11`).
 const projection = project(corpus);
 
 interface TestMap {
-  /**
-   * The handle, in a ref. The rail takes the ref, because `map-page.tsx` keeps the instance in a
-   * `useRef` and never in React state above the canvas. A plain object is that ref here: the
-   * rail reads `current`, and it writes nothing.
-   */
+  /** The rail takes a ref, because `map-page.tsx` keeps the handle in a `useRef`. */
   readonly map: RefObject<MapHandle | null>;
-  /** Each identifier the rail asked the map to fly to, in order. */
   readonly flown: string[];
-  /** Each switch the rail asked for. The rail writes no workspace field of its own. */
   readonly switched: { type: string; visible: boolean }[];
-  /** Each switch of the relations. `adapter.ts` is the only writer of `linksHidden`. */
   readonly linksSwitched: boolean[];
-  /** Each ground the rail asked for. `adapter.ts` is the only writer of `ground`. */
   readonly grounds: Ground[];
 }
 
-/**
- * A handle that answers like `adapter.ts` and owns no library.
- *
- * It keeps the two behaviours the rail depends on: `onSelect` calls its listener at once with the
- * selection of that moment, and a type that is switched off drops a selection of that type. It
- * holds the types that are switched **off**, which is the polarity the map keeps.
- */
+/** The double holds the types that are switched off, which is the polarity the map keeps. */
 function testMap(
   hidden: readonly string[],
   selected: string | null,
@@ -68,7 +41,6 @@ function testMap(
 
   const chooseListeners = new Set<(link: GeoLink | null) => void>();
 
-  /** The adapter ends the choice of a relation when it hides each line. The double does too. */
   const dropChoice = (): void => {
     if (chosenLink === null) return;
     chosenLink = null;
@@ -78,7 +50,7 @@ function testMap(
   const announce = (id: string | null): void => {
     if (id === current) return;
     current = id;
-    // A new selection ends the choice of a relation, exactly as `adapter.ts` states.
+    // A new selection ends the choice of a relation, as the adapter does.
     dropChoice();
     for (const listener of listeners) listener(id);
   };
@@ -99,8 +71,7 @@ function testMap(
       };
     },
     flyTo: (id) => {
-      // The adapter refuses a flight to an entity of a type that is switched off, exactly as
-      // `select` refuses the same identifier. The double holds the same rule.
+      // The adapter refuses a flight to an entity of a type that is switched off.
       const entity = projection.byId.get(id);
       if (entity === undefined || off.has(entity.type)) return;
       flown.push(id);
@@ -132,8 +103,6 @@ function testMap(
         chooseListeners.delete(listener);
       };
     },
-    // The ground is a layout property of the live style, so the double holds the value and
-    // records nothing else: the rail reads it to name the switch, and writes it on a click.
     setGround: (next) => {
       currentGround = next;
       grounds.push(next);
@@ -164,13 +133,7 @@ const firstOf = <T,>(list: readonly T[], what: string): T => {
 const rowsIn = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-row]'));
 
-/**
- * The number the reader sees, and never the attribute beside it.
- *
- * A count that is asserted from a `data-` attribute proves the attribute. The number is a separate
- * expression, so a mutation of that expression passes such a test. This helper reads the text of
- * the element that carries the number, which is what the analyst reads.
- */
+/** A count read from a `data-` attribute proves the attribute, and not the shown number. */
 const shownCount = (root: HTMLElement, line: string, what: string): string => {
   const figure = root.querySelector<HTMLElement>(`${line} [data-count]`);
   if (figure === null) throw new Error(`The rail shows no count of ${what}.`);
@@ -213,18 +176,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * Two grounds, and one control between them.
- *
- * **The switch goes through the one writer.** The rail writes no workspace field: it calls the
- * handle, and `adapter.ts` moves the layout property of the two ground layers and stores the
- * choice. The double records each ground the rail asked for.
- *
- * **The credit is not asserted here, and no story can reach it.** MapLibre draws the attribution
- * over the canvas, from the source of whichever ground layer is visible, and a live canvas stays
- * out of every story. The running application is what proves that the credit on screen matches
- * the ground on screen.
- */
+/** No story asserts the credit: MapLibre draws it over a live canvas, which stories never mount. */
 export const TheGroundSwitchesThroughTheOneWriter: Story = {
   args: { map: groundOnly.map },
   play: async ({ canvas, canvasElement }) => {
@@ -243,13 +195,7 @@ export const TheGroundSwitchesThroughTheOneWriter: Story = {
   },
 };
 
-/**
- * Criterion 1: "A type switches off and the count says so."
- *
- * The switch is one control with the type, the count and the word `on`, so the assertion reads
- * the accessible name and `aria-pressed`, and never a class and never a colour. The count that
- * answers the switch is the count of what the map draws now.
- */
+/** The assertion reads the accessible name and `aria-pressed`, never a class or a colour. */
 export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   args: { map: switchOnly.map },
   play: async ({ canvas, canvasElement }) => {
@@ -267,21 +213,12 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     await expect(drawnIn(canvasElement)).toBe(String(projection.entities.length - VESSEL.count));
     await expect(canvas.getByRole('button', { name: /^vessel/, pressed: false })).toBeVisible();
 
-    // The count of the corpus stays beside the type: it says what the corpus holds where the map
-    // now draws nothing.
     await expect(canvas.getByRole('button', { name: /^vessel/ })).toHaveTextContent(
       String(VESSEL.count),
     );
   },
 };
 
-/**
- * The index opens in one step, and a row of it reaches the entity.
- *
- * **The second step used to be a search field, and it is gone.** The operator does not want a
- * search inside this rail, and the tracker holds a search across the corpus. So the chevron opens
- * the whole list of the type, and a row of it selects the entity and moves the camera.
- */
 export const AnEntityIsReachedFromTheOpenList: Story = {
   args: { map: reachOnly.map },
   play: async ({ canvas, canvasElement }) => {
@@ -290,7 +227,6 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
     const drawn = rowsIn(canvasElement);
     await expect(drawn).toHaveLength(VESSELS.length);
-    // The rail carries no field at all.
     await expect(canvasElement.querySelector('input')).toBeNull();
 
     const row = firstOf(drawn, 'row of the index');
@@ -301,14 +237,7 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
   },
 };
 
-/**
- * The first clause of the *Check*: the polarity of the type switches.
- *
- * The map holds the types that are switched **off**. A type the map never names is drawn, so a
- * type that the corpus gains is never hidden by a stale list. The rail keeps that polarity and
- * writes no store of its own: the switch is one call of `setTypeVisible`, which `adapter.ts`
- * declares itself the sole writer for.
- */
+/** The map holds the types that are switched off, so a new type is never hidden. */
 export const TheSwitchGoesThroughTheOneWriter: Story = {
   args: { map: polarityOnly.map },
   play: async ({ canvas }) => {
@@ -329,13 +258,7 @@ export const TheSwitchGoesThroughTheOneWriter: Story = {
   },
 };
 
-/**
- * "A component that subscribes after the map is built has already missed the restore. Seed from
- * the current selection, then subscribe."
- *
- * A rail that only listened opened no group on a reload. The map carries a selection here before
- * the rail exists, and the group of that type is open at the first render.
- */
+/** A component that subscribes after the map is built has already missed the restore. */
 export const ARestoredSelectionOpensItsGroup: Story = {
   args: { map: restoredOnly.map },
   play: async ({ canvas, canvasElement }) => {
