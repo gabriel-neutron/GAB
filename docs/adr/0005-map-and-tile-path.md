@@ -44,8 +44,8 @@ CORS-safelisted header. **`mc cors set` is a dummy call in the community build.*
 **The fallback is the amendment of 17 August 2026.** This ADR previously named the self-hosted
 archive as the only source of the plan ground. The operator ruled that the application must run
 with none, so the address is read from configuration first and falls back to the public servers.
-**#73 holds what must be true before any deployment**: that policy is for casual and low-volume
-use, and it is not a tile service for an application.
+**What must be true before any deployment** is this: that policy is for casual and low-volume
+use, and it is not a tile service for an application. The tracker carries the work.
 
 **Google is refused.** Its terms forbid tile use outside its own client, and its Map Tiles policies
 forbid object detection by name — which is the core work of this system.
@@ -104,7 +104,7 @@ MinIO, and a raster layer above the ground. **No new server component.**
 
 ## Consequences
 
-- The map works on the operator's machine only. A public map needs a deployment, which does not
-  exist, and **#73 gates it**.
+- The map works on the operator's machine only. A public map needs a deployment, and the tile
+  path of §3 must be settled before that deployment. The tracker carries it.
 - Refreshing the coverage of §2 is a job that reads entity geometries and rewrites an archive.
 - The non-commercial condition of §3 now constrains the project.

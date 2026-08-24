@@ -16,9 +16,9 @@ sources of truth.
 
 ### 2. `node-pg-migrate` applies the ordered files
 
-An npm dependency, so no second binary is installed. **It was not run.** If its SQL support does
-not match §3, replace the tool and keep §3: the file convention is the decision, and the tool is
-the smaller half.
+An npm dependency, so no second binary is installed. If its SQL support does not match §3,
+replace the tool and keep §3: the file convention is the decision, and the tool is the smaller
+half.
 
 ### 3. Ordered files, and re-runnable files
 
@@ -50,7 +50,8 @@ pnpm db:apply                                       re-runnable files, every one
 ```
 
 No baseline dump, and no step applied by hand. `pnpm db:reset` destroys the volume and runs the
-three again. **They enter `package.json` with the first migration.**
+three again. A command that reads an empty database proves nothing, so these arrive with the
+schema they apply.
 
 ### 5. A migration is tested against an empty database, never against real data
 
@@ -65,15 +66,13 @@ three again. **They enter `package.json` with the first migration.**
 
 **A grant inside `api` is not always a read.** A view is auto-updatable and runs with the rights of
 **its owner**, so a write grant on a view passes every `REVOKE` on `public`. This was measured: a
-role with no privilege on `public.entities` wrote a row through an ordinary `api` view. Two lines
-in the grants file are the perimeter:
+role with no privilege on `public.entities` wrote a row through an ordinary `api` view.
 
-```sql
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA api FROM gabriel_read;
-```
-
-It covers every view, including the ones nobody has written yet, and it re-runs on every apply, so
-a convenience grant is erased rather than inherited. Each view also carries
+The perimeter is a blanket revoke, in the grants file, of every write on every table of the read
+schema, from every role that is not the owner. **§1 refuses a second copy of the SQL, so this ADR
+quotes none: read the grants file.** The revoke covers every view, including the ones nobody has
+written yet, and it re-runs on every apply, so a convenience grant is erased rather than
+inherited. Each view also carries
 `WITH (security_invoker = true)` as the **second layer, not the guard**.
 
 Two traps recorded so the next reader does not repeat them. `default_transaction_read_only` is
