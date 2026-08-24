@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
   path: '/graph',
@@ -36,12 +42,14 @@ const EntityIdRoute = EntityIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
   '/entity/$id': typeof EntityIdRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
@@ -49,6 +57,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
@@ -56,13 +65,14 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/graph' | '/map' | '/review' | '/entity/$id'
+  fullPaths: '/' | '/graph' | '/map' | '/review' | '/entity/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/graph' | '/map' | '/review' | '/entity/$id'
-  id: '__root__' | '/graph' | '/map' | '/review' | '/entity/$id'
+  to: '/' | '/graph' | '/map' | '/review' | '/entity/$id'
+  id: '__root__' | '/' | '/graph' | '/map' | '/review' | '/entity/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   GraphRoute: typeof GraphRoute
   MapRoute: typeof MapRoute
   ReviewRoute: typeof ReviewRoute
@@ -71,6 +81,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/graph': {
       id: '/graph'
       path: '/graph'
@@ -103,6 +120,7 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   GraphRoute: GraphRoute,
   MapRoute: MapRoute,
   ReviewRoute: ReviewRoute,
