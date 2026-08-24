@@ -1,6 +1,6 @@
-// A force layout blocks the main thread 4 536 ms at ten thousand nodes, so a position here is a
-// pure function of the entity id. `analyseStructure` runs two times, 51 ms each: no cache, because
-// a layout held in a module makes a second place that holds a position.
+// A force layout blocks the main thread at full corpus size, and it draws a different picture on
+// each run, so a position here is a pure function of the entity id. The analysis is not cached: a
+// layout held in a module makes a second place that holds a position.
 
 import type { Corpus } from '@/shared/fixtures/types';
 
