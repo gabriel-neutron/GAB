@@ -455,9 +455,9 @@ export function mountGraph(
 
   const readAddress = (): GraphSelection | null => {
     const params = new URLSearchParams(window.location.search);
-    // An empty value is not an identifier. The router writes `entity=` into the address for the
-    // normal empty state. Read as an entity, `acceptable` drops it and the relation beside it is
-    // never read, so a relation cannot survive a reload.
+    // An empty value is not an identifier, and a typed address can still carry one. Read as an
+    // entity, `acceptable` drops it and the relation beside it is never read, so a relation
+    // cannot survive a reload.
     const entity = params.get('entity');
     if (entity !== null && entity !== '') return { kind: 'entity', id: entity };
     const relation = params.get('relation');

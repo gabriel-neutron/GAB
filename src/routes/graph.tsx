@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 
 import { readDossier, readRelation } from '@/features/detail/dossier';
@@ -38,6 +38,10 @@ export const Route = createFileRoute('/graph')({
     };
   },
 
+  // An empty key never reaches the address bar. The controller reads the address itself, and it
+  // writes a clean one, so without this a link into the graph left a pair of keys that the
+  // canvas removes on its first act, and the two writers stated two different addresses.
+  search: { middlewares: [stripSearchParams({ entity: '', relation: '' })] },
   component: GraphRoute,
   head: () => ({ meta: [{ title: 'Graph · Gabriel' }] }),
 });

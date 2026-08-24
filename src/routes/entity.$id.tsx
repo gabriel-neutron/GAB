@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { createFileRoute, notFound, stripSearchParams } from '@tanstack/react-router';
 import { DetailPage } from '@/features/detail/detail-page';
 import { readDossier } from '@/features/detail/dossier';
 import { corpus } from '@/shared/fixtures/corpus';
@@ -25,6 +25,10 @@ export const Route = createFileRoute('/entity/$id')({
     const src = search['src'];
     return { src: typeof src === 'string' && src.trim() !== '' ? src : null };
   },
+
+  // The normal arrival names no document, and `null` reaches the address bar as the four
+  // characters `null`, which is a document identifier that no corpus holds.
+  search: { middlewares: [stripSearchParams({ src: null })] },
 
   loader: ({ params }) => {
     if (params.id.trim() === '') entityNotFound();
