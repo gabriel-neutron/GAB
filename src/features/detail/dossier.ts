@@ -81,6 +81,9 @@ export interface Dossier {
   readonly entityId: string;
   readonly label: string;
   readonly type: string;
+  /** The map draws a point and nothing else, so an entity that carries no geometry is absent
+   * from it. A link to the map for one of those opens a surface that selects nothing. */
+  readonly drawnOnMap: boolean;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
   readonly sources: readonly SourceCardModel[];
@@ -295,6 +298,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     entityId: entity.id,
     label: entity.label,
     type: entity.type,
+    drawnOnMap: entity.geom !== null,
     rows,
     entitySources,
     sources,

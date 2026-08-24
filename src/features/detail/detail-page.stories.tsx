@@ -104,3 +104,34 @@ export const TheEntityNamesItsOwnSources: Story = {
     }
   },
 };
+
+/** The company of the committed corpus. It carries no geometry, so the map draws no point. */
+const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
+
+const readCompany = (): Dossier => {
+  const held = readDossier(corpus, COMPANY);
+  if (held === null) throw new Error('The committed corpus holds no Meridian Bulk Carriers');
+  return held;
+};
+
+export const TheEntityIsReachedOnBothCanvases: Story = {
+  play: async ({ canvas }) => {
+    await expect(DOSSIER.drawnOnMap).toBe(true);
+
+    const graph = canvas.getByRole('link', { name: 'Show on the graph' });
+    await expect(graph).toHaveAttribute('href', `/graph?entity=${DOSSIER.entityId}`);
+
+    const map = canvas.getByRole('link', { name: 'Show on the map' });
+    await expect(map).toHaveAttribute('href', `/map?entity=${DOSSIER.entityId}`);
+  },
+};
+
+/** A link that opens a surface which then selects nothing states a position the record lacks. */
+export const AnEntityOffTheMapIsReachedOnTheGraphOnly: Story = {
+  args: { dossier: readCompany() },
+  play: async ({ canvas }) => {
+    await expect(readCompany().drawnOnMap).toBe(false);
+    await expect(canvas.getByRole('link', { name: 'Show on the graph' })).toBeVisible();
+    await expect(canvas.queryByRole('link', { name: 'Show on the map' })).toBeNull();
+  },
+};

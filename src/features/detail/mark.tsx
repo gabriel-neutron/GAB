@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib/utils';
 import type { DocId } from '@/shared/fixtures/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 
+import { entityHref } from './address';
 import type { SourceCardModel, SourceRef } from './dossier';
 import { SourceCard } from './source-card';
 
@@ -118,10 +119,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
                   popover then states the document and stops there. */}
               {entityId === null ? null : (
                 <a
-                  // Both values are percent-encoded. No identifier shape is settled, so an
-                  // unencoded `&`, `#`, `?` or space would cut the address short or add a
-                  // parameter, and it does it in silence.
-                  href={`/entity/${encodeURIComponent(entityId)}?src=${encodeURIComponent(source.id)}`}
+                  href={entityHref(entityId, source.id)}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="block truncate px-2 py-1.5 text-[11px]/4 text-primary underline underline-offset-2"

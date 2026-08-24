@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import type { DocId } from '@/shared/fixtures/types';
 
+import { surfaceHref } from './address';
 import type { Dossier, SourceRef } from './dossier';
 import { SourceMark } from './mark';
 import { Pending } from './pending';
@@ -21,6 +22,8 @@ export interface DetailPageProps {
  */
 const SHELL = 'flex h-full gap-4 p-4';
 
+const ON_A_SURFACE = 'shrink-0 text-[11px]/4 text-primary underline underline-offset-2';
+
 export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
   // The active source is never written back to the address. Two writers of one identity fight.
   const [activeSource, setActiveSource] = useState<DocId | null>(arrivedAtSource);
@@ -34,10 +37,26 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
       {/* The left pane. `min-h-0` is what lets a flex child scroll instead of growing, and
           `overscroll-contain` is what stops the window from taking over at the end of it. */}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
-        <h1 className="flex items-baseline gap-2">
-          <span className="text-base">{dossier.label}</span>
-          <span className="text-xs text-label">{dossier.type}</span>
-        </h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="flex min-w-0 items-baseline gap-2">
+            <span className="min-w-0 truncate text-base" title={dossier.label}>
+              {dossier.label}
+            </span>
+            <span className="shrink-0 text-xs text-label">{dossier.type}</span>
+          </h1>
+          {/* The map link is drawn only where the map draws the entity. A link that opens a
+              surface which then selects nothing states a position the record does not hold. */}
+          <nav aria-label="This entity on a canvas" className="ml-auto flex shrink-0 gap-3">
+            <a href={surfaceHref('graph', dossier.entityId)} className={ON_A_SURFACE}>
+              Show on the graph
+            </a>
+            {dossier.drawnOnMap ? (
+              <a href={surfaceHref('map', dossier.entityId)} className={ON_A_SURFACE}>
+                Show on the map
+              </a>
+            ) : null}
+          </nav>
+        </div>
 
         <EntityRecord rows={dossier.rows} mark={mark} />
         <Relations relations={dossier.relations} mark={mark} />

@@ -126,3 +126,12 @@ export const TheSameRecordIsDrawnOneClaimToALine: Story = {
     await expect(tops.size).toBe(DOSSIER.claimCount);
   },
 };
+
+/** The panel holds a record. The page holds the rail of documents that no panel of 24 rem can. */
+export const ThePanelCarriesOneWayOutToThePage: Story = {
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Open the page' });
+    await expect(link).toHaveAttribute('href', `/entity/${DOSSIER.entityId}`);
+    await expect(link.getAttribute('href') ?? '').not.toContain('src=');
+  },
+};

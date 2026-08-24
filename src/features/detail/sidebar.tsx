@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
+import { entityHref } from './address';
 import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
 import { Pending } from './pending';
@@ -11,6 +12,8 @@ import { Relations } from './relations';
 export interface SidebarProps {
   readonly dossier: Dossier;
 }
+
+const WAY_OUT = 'Open the page';
 
 /** 24 rem, which is `w-96`. It states no height: the route states the geometry of the row. */
 const PANE =
@@ -25,10 +28,22 @@ export function Sidebar({ dossier }: SidebarProps) {
 
   return (
     <aside aria-label={dossier.label} className={PANE}>
-      <h1 className="flex items-baseline gap-2">
-        <span className="text-base">{dossier.label}</span>
-        <span className="text-xs text-label">{dossier.type}</span>
-      </h1>
+      <div className="flex items-baseline gap-2">
+        <h1 className="flex min-w-0 items-baseline gap-2">
+          <span className="min-w-0 truncate text-base" title={dossier.label}>
+            {dossier.label}
+          </span>
+          <span className="shrink-0 text-xs text-label">{dossier.type}</span>
+        </h1>
+        {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
+            the rail of documents, which no panel of 24 rem can hold beside a canvas. */}
+        <a
+          href={entityHref(dossier.entityId, null)}
+          className="ml-auto shrink-0 text-[11px]/4 text-primary underline underline-offset-2"
+        >
+          {WAY_OUT}
+        </a>
+      </div>
 
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
