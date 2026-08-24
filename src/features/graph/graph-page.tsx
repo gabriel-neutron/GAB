@@ -6,6 +6,7 @@ import { Rail, type RailAct } from '@/shared/rail';
 
 import { emitGraphSelection } from './bridge';
 import { mountGraph, type FilterState, type GraphController, type GraphView } from './controller';
+import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
 import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
 import { IndexRows } from './row';
@@ -165,6 +166,17 @@ export function GraphPage() {
               'text-popover-foreground',
               rows.rail.open ? 'w-64' : 'w-11',
             )}
+          />
+        )}
+      </div>
+
+      {/* The line corrects the canvas, so it stands on the canvas. The rail folds away and the
+          fold is stored, so a reader could hide this report for good and never meet it again. */}
+      <div className={cn('pointer-events-none absolute right-2 bottom-2 flex')}>
+        {snapshot === null ? null : (
+          <MarkerRemainder
+            drawn={snapshot.view.markersDrawn}
+            remainder={snapshot.view.markersOverCap}
           />
         )}
       </div>
