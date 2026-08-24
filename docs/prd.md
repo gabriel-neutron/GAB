@@ -64,7 +64,7 @@ The technical form of each rule below is an invariant in `spec.md` §2.
 - Two kinds of object: the relational (entities, relations) and the sources (file, URL, API, report) (M2).
 - **Every element is sourced** (M8). A claim with no source attached does not exist in the system. Direct human entry is an explicit source, not an absence of source.
 - Strict **raw / GOLD** separation (T3): the original file is immutable and serves as evidence; the processed data is reworked continuously.
-- **Current-state** model (M5). Exception: identity and ownership relations carry a validity interval (M6).
+- **Current-state** model (M5). Exception: a claim that can change hands carries a bound (M6).
 - The schema tolerates incomplete and heterogeneous information (M2): **no data is distorted to fit into a field**. What serves to link is typed; what describes is free.
 - Every attribute value cites at least one document (M8). A value always exists; the unknown is the absence of a key (M9).
 

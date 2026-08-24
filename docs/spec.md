@@ -1,6 +1,6 @@
 # Gabriel — Technical specification
 
-**Version** 1.4 · 12 August 2026
+**Version** 1.5 · 24 August 2026
 The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
 This document decides no table and no column. §3 says where the schema lives.
 
@@ -74,28 +74,30 @@ each rule when the build reaches it.
 | # | Invariant | Decision | Tier that must carry it |
 |---|---|---|---|
 | 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
-| 2 | Every cited source exists in `documents`. | S2 | Database for `attrs`, through a foreign key. For `entities.sources`, `relations.sources` and `proposals.src` the **format** is carried by the `doc_id` domain; the tier that proves **existence** is **undecided**, and the tracker carries it. |
+| 2 | Every cited source exists in `documents`. | S2 | Database. A list of sources carries no foreign key, so a guard proves each source named by an act, and a check holds the sources of a value inside that list. Invariant 5 then carries the guarantee into the evidentiary layer. |
 | 3 | A machine never signs an act as `manual`. `manual` is reserved to the human operator. | M8 | Database, by a privilege boundary and a stamp. `gabriel_agent` holds `EXECUTE` on no door that signs. A trigger stamps `author_role` from `session_user`, so the caller cannot state it. A check then refuses `manual` in the act. A value cannot hide one, because every source a value cites must also stand in the act. |
 | 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
-| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. Settled by #15. |
+| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. |
 | 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
 
 The objects that carry these rules live in `db/migrations/` and `db/apply/`. **Read the SQL for
 the authority on a constraint, and never a document.**
 
 The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database for all six.
-Invariants 3 and 5 name the third tier that criterion allows: a **privilege boundary the
-writing role cannot cross**, held by ADR 0003 §7. The three columns under invariant 2 are
-further behind: their **format** is carried by the `doc_id` domain, and the tier that proves
-the document **exists** is undecided. The tracker carries that question.
+Invariants 2, 3 and 5 name the third tier that criterion allows: a **privilege boundary the
+writing role cannot cross**, held by ADR 0003 §7.
+
+**Invariant 2 has no foreign key, and it cannot have one.** A source is cited in a list and
+inside a JSON document, and PostgreSQL constrains neither. The guarantee is made at the door
+instead. It holds only while that door stays the one way in, which is invariant 5.
 
 **Invariant 3 is a rule about the signature, and not about the source.** Earlier versions of
 this row read "a machine proposal cites a real document, never `manual`". M8 is not narrowed:
 a machine still cites a real document, because `manual` is refused in the act and in a value,
 and `documents` is read on every proposal. What the row now names is the thing the database
 holds — a machine cannot sign as the operator. **`decided_by` is not in this invariant.** A
-decision signed by a name that nothing proves to be a person is #42, and
-`db/apply/90_grants.sql` states that limit in full.
+decision signed by a name that nothing proves to be a person is an open question, and the
+tracker carries it. The grants file states that limit in full.
 
 **Invariant 5 names one door, not two.** Earlier versions of this row read "or a direct
 operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees with
@@ -167,7 +169,8 @@ every proposal, from either path
 `dissent = true` OR `confidence < threshold`. The threshold is an operational parameter,
 not a code constant.
 
-**What happens to the rest is an open question — #42.** S3 says the operator intervenes only
+**What happens to the rest is an open question, and the tracker carries it.** S3 says the
+operator intervenes only
 on dissent or low confidence. P1 and invariant 5 say nothing reaches the evidentiary layer
 without explicit promotion. The two cannot both hold. Do not settle this in code and do
 not settle it in a document. See §6.

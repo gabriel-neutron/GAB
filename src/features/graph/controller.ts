@@ -33,6 +33,9 @@ export interface GraphView {
   readonly filter: FilterState;
   readonly lit: number;
   readonly dimmed: number;
+  /** How many elements carry a marker, and how many carry pending evidence and none. */
+  readonly markersDrawn: number;
+  readonly markersOverCap: number;
   readonly railOpen: boolean;
 }
 
@@ -48,9 +51,10 @@ export interface GraphController {
   readonly destroy: () => void;
 }
 
-// 250 is the cap on markers. It is the number the accepted prototype used. A marker drawn as a
-// page element, and positioned over its element on each frame, does not scale.
-const MARKER_CAP = 250;
+// 1000 is the cap on markers. A marker is a page element placed over its element on every frame,
+// so the cost is linear and it runs in the render loop. Measured at ten thousand entities: 1500
+// holds 60 Hz, 2000 misses every frame, and 4000 runs at 19 fps. This is half of the wall.
+const MARKER_CAP = 1000;
 
 /**
  * How far a selection lights the graph around itself. Two hops.
@@ -147,6 +151,7 @@ export function mountGraph(
 
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
+  let markersOverCap = 0;
 
   // The hover is not on the view and it never publishes: a hover changes as fast as the pointer
   // moves, and a publish on each one would run every subscriber of this handle at that rate.
@@ -241,8 +246,14 @@ export function mountGraph(
     for (const target of model.pendingByTarget.keys()) {
       if (litNodes.has(target) || litEdges.has(target)) targets.push(target);
     }
-    // The order is the order of the read, so the same corpus gives the same 250 on every open.
+    // The rank is the count of pending proposals, so the cut keeps the elements where the evidence
+    // is thickest. The identifier is the tie-break: a relation carries a marker and holds no
+    // degree, and the same corpus must give the same set on every open.
+    const weightOf = (target: string): number => model.pendingByTarget.get(target)?.length ?? 0;
+    targets.sort((one, two) => weightOf(two) - weightOf(one) || one.localeCompare(two));
+
     markerTargets = targets.slice(0, MARKER_CAP);
+    markersOverCap = targets.length - markerTargets.length;
     sizeMarkerPool(markerTargets.length);
   };
 
@@ -431,6 +442,8 @@ export function mountGraph(
     filter,
     lit,
     dimmed,
+    markersDrawn: markerTargets.length,
+    markersOverCap,
     railOpen,
   });
 

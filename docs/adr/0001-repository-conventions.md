@@ -39,8 +39,8 @@ set added later is answered with suppressions, and this repository allows none.
 
 **The drift check regenerates the database types and fails when the result differs from what is
 committed.** It needs a running database, it is measured by the diff and never by the exit code of
-the generator, and its comparison is scoped to the generated folders. **It enters `package.json`
-with the first migration**, because a step that reads an empty database proves nothing.
+the generator, and its comparison is scoped to the generated folders. A drift check that reads an
+empty database proves nothing, so it is added with the schema it guards.
 
 This step writes, and so does the type check, which generates the route tree. A person who runs
 `pnpm check` may find a generated file in the diff.

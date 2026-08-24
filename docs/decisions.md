@@ -1,6 +1,6 @@
 # Gabriel — Decision Register
 
-**Version** 1.1 · 7 August 2026
+**Version** 1.2 · 24 August 2026
 One entry per locked decision: what is decided, why, what it costs.
 This document is the project's memory. Any future decision that contradicts an entry here must replace it explicitly, not work around it.
 
@@ -23,17 +23,17 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | C6 | Multi-project support is theoretical; no `project_id` | Framing |
 | C7 | The existing corpus is rebuilt, not carried over | Framing |
 | M1 | FollowTheMoney is abandoned; it has no geometric type | Data model |
-| M2 | Two main tables, `entities` and `relations`; typed columns plus JSONB | Data model |
-| M3 | Events are entities, not relations | Data model |
-| M4 | Relations carry `src_kind` / `dst_kind` now, for deferred reification | Data model |
+| M2 | Two tables: typed for what connects, free for what describes | Data model |
+| M3 | An occurrence is not an object | Data model |
+| M4 | A relation can be the end of a relation, from the first day | Data model |
 | M5 | Current-state model, no versioning, no query as of a date | Data model |
-| M6 | Dates in two places only: retrieval date, and identity or ownership interval | Data model |
-| M7 | JSONB contract: every attribute is `{"v": …, "src": [...]}` | Data model |
-| M8 | `src` is never empty; `manual` is a legitimate source, but never for a machine | Data model |
+| M6 | A date is provenance, or a bound on a claim that changes hands | Data model |
+| M7 | One shape for every attribute: a value, and the sources of that value | Data model |
+| M8 | A source is never absent; a person may cite their own authority, a machine may not | Data model |
 | M9 | A value always exists; the unknown is the absence of a key | Data model |
 | M10 | The unit is carried by the key name, such as `coal_stock_t` | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
-| M12 | Entity merges are reversible, through an alias table and a snapshot | Data model |
+| M12 | Entity merges are reversible | Data model |
 | S1 | ADMIRALTY is scored at the document, never at the claim | Sources and scoring |
 | S2 | The source is listed at entity, relation and attribute level | Sources and scoring |
 | S3 | Automated scoring; the operator validates by exception only | Sources and scoring |
@@ -52,8 +52,8 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | T4 | The frontend reads on its own; the backend serves writes only | Technical |
 | T5 | Qdrant and NATS are deferred; pgvector and a job table replace them | Technical |
 | T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
-| T7 | Frontend framework choice deferred; shadcn is adopted either way | Technical |
-| T8 | Cartographic library deferred, but it must be chosen before any rendering code | Technical |
+| T7 | Frontend framework choice — **replaced by ADR 0004** | Technical |
+| T8 | Cartographic library — **replaced by ADR 0005** | Technical |
 
 ---
 
@@ -111,23 +111,24 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Why.** FTM has **no geometric type** — the 20 available property types include neither point, nor polygon, nor coordinates ([reference](https://followthemoney.tech/explorer/types/)). Yet the cartographic pillar is central. PostGIS handles natively what FTM cannot express.
 **Accepted consequence.** Loss of immediate interoperability with OpenSanctions and Aleph, which produce and consume FTM. Any external reuse of the dataset will require conversion work, to be written later if the need arises.
 
-### M2 — Two main tables: entities and relations
+### M2 — Two tables, and one line through them
 
-**Decision.** A minimal relational core — typed columns for what is common to every row (type, label, geometry, dates), JSONB for what is specific to a row.
-**Why.** A rigid schema forces the data to be distorted to fit. A fully free schema makes correlation impossible. The typed/JSONB split puts the boundary in the right place: what serves to connect is typed, what describes is free.
-**Consequence.** JSONB attributes are not individually indexable without effort; attribute searches go through a GIN index and are less performant than a dedicated column. Acceptable at the target volumes.
+**Decision.** An entity table and a relation table. Each row carries typed columns for what every row of its kind shares, and free attributes for what only that row says.
+**Why.** A rigid shape makes the data bend to fit. A completely free shape makes correlation impossible. The line falls in the correct place when what connects is typed, and what describes is free.
+**Consequence.** A free attribute is not indexed one by one. A search through the attributes is slower than a search on a column. This is accepted at the volumes of this project.
 
-### M3 — Events are entities, not relations
+### M3 — An occurrence is not an object
 
-**Decision.** A transfer, a port call, a loading operation are entities.
-**Why.** They carry a place, a date, multiple participants and their own sources. Making them relations would force them to be reified later, at the cost of a migration.
-**Consequence.** The graph has more nodes, some of which have no physical existence. That is the price of a model that does not have to be undone.
+**Replaces the earlier M3**, which made an event an entity.
+**Decision.** A transfer, a port call or a loading operation is a relation between the parties, or an attribute of one of them. No node stands for a moment.
+**Why the earlier entry was wrong.** Its reason was that an event carries a date. M5 makes the graph a statement of the present, and M6 gives a date two meanings, of which neither is "when this occurred". The model thus has no place for the one thing that made an event an object, and no query that would read it.
+**Accepted cost.** An occurrence with three or more parties has no single shape. It becomes two or more relations, and nothing ties them together. A shape for occurrences is a later decision, and it is a real migration.
 
 ### M4 — Minimal reification of relations
 
-**Decision.** The relations table carries two discriminants (`src_kind`, `dst_kind`) allowing `entity` or `relation`, with no immediate use.
-**Why.** The real case is **contradiction between claims**: two documents assert incompatible things about the same link, and the exception mechanism rests entirely on dissent — it needs somewhere to record it. Today that is two columns with a constant value; in six months, a migration over tens of thousands of rows.
-**Consequence.** Polymorphic foreign keys cannot be expressed in SQL. Referential integrity for relations goes through a trigger, which is less robust than a native constraint.
+**Decision.** A relation can be the end of another relation. The schema carries this from the first day, and nothing uses it yet.
+**Why.** The real case is **contradiction between claims**: two documents assert incompatible things about the same link, and the exception mechanism rests entirely on dissent — it needs somewhere to record it. Today it is carried and unused; in six months it is a migration over tens of thousands of rows.
+**Consequence.** An end that can point at two kinds carries no foreign key. Its integrity is held by a guard on the write path, which is weaker than a constraint that the engine owns.
 
 ### M5 — Current-state model, no versioning
 
@@ -135,23 +136,25 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Why.** The cost of a temporal or bi-temporal model — modelling, queries, data-entry ergonomics — exceeds the value it brings given the resources available.
 **Accepted consequence.** It is impossible to demonstrate by query that an asset belonged to X at the time of a fact and then to Y afterwards. Any demonstration of sequence rests on the documents, not on the graph.
 
-### M6 — Dates allowed in two places only
+### M6 — A date is provenance, or a bound
 
-**Decision.** Retrieval date on every document; validity interval on identity and ownership relations only.
-**Why.** Without a retrieval date, an online source that has gone dead no longer proves anything — this is provenance, not temporal modelling. The interval on identity relations documents post-designation laundering, which is a central object of investigation, for the cost of one optional field.
-**Consequence.** These dates are descriptive, not queryable as a temporal model. They do not restore what M5 gives up.
+**Replaces the earlier M6**, which counted places instead of giving a rule.
+**Decision.** The system stores a date for one of two reasons. It says when a source was read. Or it bounds a claim that can change hands, such as who owns a thing, or who a thing is. The system stores no date to record when something occurred.
+**Why.** Without the date a source was read, a link that has died proves nothing. That is provenance, and not a model of time. A bound on ownership documents the transfer that follows a designation, which is a central object of the investigation, for the cost of one optional field.
+**Consequence.** These dates describe. They make no temporal query, and they give back nothing that M5 gives up. Which claims take a bound is a question for the schema, and the schema answers it.
+**The one way that is left.** A date can also be the value of an attribute, because an attribute takes any value. Such a date is a claim like any other, and M7 and M8 govern it, not this entry. M5 still refuses to query it.
 
-### M7 — JSONB contract: a single name / value / source shape
+### M7 — One shape for every attribute
 
-**Decision.** Every attribute is an object `{"v": …, "src": [...]}`. No scalar shortcut, no additional key, zero depth on the value.
-**Why.** A single shape gives one code path, one validation rule, one write behaviour. Any nested structure signals that an entity or a relation was needed, not an attribute.
-**Consequence.** Verbose to enter. Offset by UI generation and automatic validation.
+**Decision.** An attribute is a value, and the sources of that value, always in that one shape. There is no short form, no third part, and no depth in the value.
+**Why.** One shape gives one code path, one rule to validate, and one behaviour on a write. A value that needs depth shows that an entity or a relation was necessary, and not an attribute.
+**Consequence.** It is long to write. The interface writes it, and the database refuses each other shape.
 
-### M8 — `src` is never empty; `manual` is a legitimate source
+### M8 — A source is never absent
 
-**Decision.** Every attribute cites at least one source. Direct human entry uses the reserved source `manual`. **A machine proposal cannot use `manual`**: it must cite a real document.
+**Decision.** Every attribute cites a minimum of one source. A person who asserts on their own authority cites a source reserved for that purpose. **A machine must not use that reserved source**, and must cite a real document.
 **Why.** The "everything is sourced" invariant does not survive a silent exception. The machine/human asymmetry prevents the AI from creating unsupported claims while making explicit what a human has asserted on their own authority.
-**Consequence.** `manual` exists as a document in the database, which makes it possible to score it and to query everything that rests on the operator's authority alone.
+**Consequence.** The reserved source is a source like any other. It can be scored, and everything that stands on the authority of the operator alone is one query.
 
 ### M9 — A value always exists; the unknown is the absence of a key
 
@@ -173,7 +176,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### M12 — Entity merges are reversible
 
-**Decision.** Alias table and merge log with a full snapshot of the absorbed entity.
+**Decision.** A merge keeps the identifier of the entity it absorbs, and it keeps a full copy of everything that entity held.
 **Why.** Identity resolution will produce erroneous merges. Without a snapshot, a merge is a permanent loss of information.
 **Consequence.** Historical identifiers remain resolvable; no external link breaks after a merge.
 
@@ -189,9 +192,9 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### S2 — The source is listed at entity, relation and attribute level
 
-**Decision.** The entity and the relation carry a list of sources; each attribute additionally carries its own `src`.
-**Why.** A list at entity level alone makes it impossible to say which source carries which figure — and it is precisely the figure that an opponent will attack. Per-attribute `src` solves this for the cost of a JSON convention, with no additional table.
-**Consequence.** Referential integrity for `src` values internal to the JSONB requires a mirror table maintained by trigger, since Postgres cannot enforce constraints from inside a JSON document.
+**Decision.** The entity and the relation each carry a list of sources. Each attribute carries its own sources in addition.
+**Why.** A list on the entity alone cannot say which source carries which figure, and the figure is what an opponent attacks. Sources on the attribute answer this for the cost of a convention, and with no added table.
+**Consequence.** Postgres constrains nothing from inside a JSON document, so this integrity is not a foreign key. It costs a guard on the write path, and `spec.md` invariant 2 holds the rule.
 
 ### S3 — Automated scoring, human validation by exception
 
@@ -305,11 +308,13 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### T7 — Frontend framework choice deferred
 
+**Replaced by ADR 0004**, which chooses the framework. The consequence below is kept.
 **Decision.** Postponed until the real volumes, the cartographic library and the graph rendering mode are known.
 **Why.** The T4 constraint already imposes the front/back separation, which removes most of the benefit of a fullstack meta-framework. The remaining choice depends on constraints not yet established.
 **Consequence.** shadcn is adopted regardless of the host framework.
 
 ### T8 — Cartographic library and tile path deferred
 
+**Replaced by ADR 0005**, which chooses the library and the tile path.
 **Decision.** Postponed, without debt: PostGIS prejudges no rendering path.
 **Caution.** The choice must be made **before** any rendering code is written. Leaflet (raster first, no rotation, no native vector tiles) and MapLibre (vector, GPU) do not share the same layer model, and code for one does not carry over to the other.

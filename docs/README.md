@@ -15,13 +15,15 @@ there.
 
 **The surface documents are gone.** `map-surface.md`, `graph-surface.md`, `detail-surface.md` and
 `review-surface.md` were build orders taken from accepted prototypes, and the operator removed them
-on 17 August 2026: three of those surfaces are built, so their documents had become a record, and
-the repository was carrying too much documentation for a project that is building a user interface.
+on 17 August 2026: a document that describes a surface which is already built is a record and not
+an order, and the repository was carrying too much documentation for a project that is building a
+user interface.
 
 **Where their content is now.** The built surfaces carry their rules in the file headers of
 `src/features/`. A header states the rule and the defect that produced it. That is the reason, and
-ADR 0006 makes it the whole header: the header names no document and no section. The review surface
-is not built, so its components and its rules were moved to **#58** before the file was deleted.
+ADR 0006 makes it the whole header: the header names no document and no section. The rules of a
+surface that is not built moved to the tracker, with the ticket that builds it, before the file
+was deleted.
 Every document is in git history at `7dc1eba`.
 
 **A source file names no document.** ADR 0006 decides it: a comment records a reason, and never a
