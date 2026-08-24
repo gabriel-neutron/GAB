@@ -525,7 +525,11 @@ export function mountGraph(
       if (width === usedWidth && height === usedHeight) continue;
       usedWidth = width;
       usedHeight = height;
+      // `resize` sets the width and the height of each canvas, which empties it, and it
+      // schedules no frame. Without the refresh the graph stays blank until the next event of
+      // the pointer, and the panel that opens on a selection is what changes this width.
       sigma.resize();
+      sigma.refresh();
     }
   });
   sizeObserver.observe(canvas);
