@@ -46,9 +46,9 @@ export interface Structure {
   readonly largestDegree: number;
 }
 
-// A round that changes no label ends the walk, so this ceiling holds only a corpus whose labels
-// never settle. Twenty rounds of ten thousand nodes cost a small part of the 51 ms of the
-// analysis.
+// A round that changes no label ends the walk, so this ceiling stops only a walk that never
+// settles. No proof bounds that case and no corpus here reaches twenty, so the number is chosen.
+// It trades a half-settled grouping for a main thread that comes back.
 const MAX_ROUNDS = 20;
 
 // The fallback is never used: every index below comes from the loop that filled the array.
