@@ -31,7 +31,7 @@ export interface SourceCountProps {
  * 1.3:1 and 1.5:1. The duration is stated: the Tailwind default of 150ms is above the 120ms the
  * theme allows. `h-6` is the 24px of `--control-height`. */
 const MARK =
-  'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-input px-1 font-mono text-[11px]/4 text-label transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+  'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-input px-1 font-mono text-small/4 text-label transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /**
  * Invariant 1: a claim never appears without a mark to its source, and M8 gives every attribute
@@ -39,7 +39,7 @@ const MARK =
 const NO_SOURCE = 'No source recorded: invariant 1 asks each claim for at least one.';
 
 function NoSource() {
-  return <span className="shrink-0 text-[11px]/4 text-dissent">{NO_SOURCE}</span>;
+  return <span className="shrink-0 text-small/4 text-dissent">{NO_SOURCE}</span>;
 }
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';
@@ -108,7 +108,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
               {card === undefined ? (
                 // A surface that drops evidence in silence is worse than one that says what it
                 // dropped. This states a fault in the derivation, and never a blank.
-                <p className="p-2 text-[11px]/4 text-dissent">
+                <p className="p-2 text-small/4 text-dissent">
                   {`Source ${source.number} carries no card in this dossier.`}
                 </p>
               ) : (
@@ -122,7 +122,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
                   href={entityHref(entityId, source.id)}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="block truncate px-2 py-1.5 text-[11px]/4 text-primary underline underline-offset-2"
+                  className="block truncate px-2 py-1.5 text-small/4 text-primary underline underline-offset-2"
                 >
                   {WAY_OUT}
                 </a>

@@ -37,7 +37,7 @@ export function Relations({ relations, mark }: RelationsProps) {
                   words, including "and closed". */}
               {relation.interval === null ? null : (
                 <span
-                  className="max-w-64 shrink-0 truncate font-mono text-[11px]/4 tabular-nums text-label"
+                  className="max-w-64 shrink-0 truncate font-mono text-small/4 tabular-nums text-label"
                   title={relation.interval}
                 >
                   {relation.interval}
@@ -47,7 +47,7 @@ export function Relations({ relations, mark }: RelationsProps) {
             </div>
             {/* M4: a relation can have a relation at an endpoint. The mark comes from
                 the relation itself. */}
-            {relation.undrawable ? <p className="text-[11px]/4 text-label">{UNDRAWABLE}</p> : null}
+            {relation.undrawable ? <p className="text-small/4 text-label">{UNDRAWABLE}</p> : null}
           </li>
         ))}
       </ul>

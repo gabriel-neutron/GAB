@@ -113,7 +113,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
     >
       <div className="flex h-6 shrink-0 items-center gap-1 px-1.5">
         {open ? (
-          <span className="min-w-0 flex-1 truncate text-[11px]/4 tracking-[0.06em] text-label uppercase">
+          <span className="min-w-0 flex-1 truncate text-small/4 tracking-caps text-label uppercase">
             Layers
           </span>
         ) : null}
@@ -225,7 +225,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 ) : (
                   <Swatch colour={row.colour} on={row.on} />
                 )}
-                <span className={cn(FIGURE, 'min-w-0 truncate text-[11px]/4')}>{row.count}</span>
+                <span className={cn(FIGURE, 'min-w-0 truncate text-small/4')}>{row.count}</span>
               </button>
             )}
 

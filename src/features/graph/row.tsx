@@ -25,7 +25,7 @@ export function IndexRows({ entities, remainder, onSelect, onShowWholeList }: In
       {entities.length === 0 ? null : (
         <p
           data-column=""
-          className="flex h-6 items-center gap-2 px-1 text-[11px]/4 tracking-[0.06em] text-label uppercase"
+          className="flex h-6 items-center gap-2 px-1 text-small/4 tracking-caps text-label uppercase"
         >
           <span className="min-w-0 flex-1 truncate">Name</span>
           <span className="shrink-0">Relations</span>

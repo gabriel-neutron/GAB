@@ -99,6 +99,10 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* The lint config quotes a class to refuse it. Tailwind scans every file that git tracks, so
+ * without this line the refused class is built into the bundle as a dead rule. */
+@source not '../eslint.config.ts';
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -158,6 +162,20 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* --------------------------------------------------------------- the scale a class reads --- */
+
+/* A namespace is what makes a utility. Tailwind builds `text-*` from a `--text-*` name and
+ * `tracking-*` from a `--tracking-*` name, and from no other name. These two values sat in
+ * `:root` below, one of them under `--size-small`, so no class carried either and 48 places
+ * wrote the length again by hand.
+ *
+ * This block is **not** `inline`. An inline theme writes the literal value into each rule and
+ * emits no custom property at all, and `var(--text-small)` would then resolve to nothing. */
+@theme {
+  --text-small: 11px; /* the floor of the text ladder. Nothing is smaller */
+  --tracking-caps: 0.06em; /* a small uppercase table header only */
 }
 
 /* ------------------------------------------------------------------------------- light --- */
@@ -259,15 +277,13 @@
   /* The radius is 0. One value, everywhere. */
   --radius: 0px;
 
-  /* The density and the type scale. These are not shadcn tokens and no utility reads them, so
-     they stay plain custom properties. A component therefore writes `h-6` and not a class built
-     from `--control-height`. The sizes are in px on purpose: the theme was chosen and measured
-     at these exact sizes. A move to a rem scale is a separate change, and it needs a fresh
-     look. */
+  /* The rest of the density scale. No utility reads these, so they stay plain custom properties:
+     a component writes `h-6` and not a class built from `--control-height`. The two values that
+     a class does read are in the `@theme` block above, because a utility is built from a name
+     and from nothing else. The sizes are in px on purpose: the theme was chosen and measured at
+     these exact sizes. A move to a rem scale is a separate change, and it needs a fresh look. */
   --size-heading: 16px;
   --size-base: 12px;
-  --size-small: 11px; /* the floor. Nothing is smaller. */
-  --tracking-caps: 0.06em; /* a small uppercase table header only */
   --row-height: 24px; /* a table row, a queue row */
   --control-height: 24px; /* a button, an input       */
   --pad: 8px; /* inside a panel           */

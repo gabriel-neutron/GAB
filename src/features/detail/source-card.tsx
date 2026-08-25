@@ -27,7 +27,7 @@ export function SourceCard({ source }: SourceCardProps) {
       className="rounded-none border-b border-border px-2 py-1.5"
     >
       <div className="flex items-baseline gap-2">
-        <span className="shrink-0 font-mono text-[11px]/4 tabular-nums text-label">
+        <span className="shrink-0 font-mono text-small/4 tabular-nums text-label">
           {source.number}
         </span>
         {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
@@ -35,14 +35,14 @@ export function SourceCard({ source }: SourceCardProps) {
           {source.title}
         </span>
         <span
-          className="max-w-40 shrink-0 truncate font-mono text-[11px]/4 text-label"
+          className="max-w-40 shrink-0 truncate font-mono text-small/4 text-label"
           title={scoreWords}
         >
           {scoreWords}
         </span>
       </div>
 
-      <div className="mt-1 flex items-center gap-2 text-[11px]/4">
+      <div className="mt-1 flex items-center gap-2 text-small/4">
         {source.uri === null ? (
           <span className="min-w-0 flex-1 truncate text-label">No address recorded</span>
         ) : (
@@ -69,20 +69,20 @@ export function SourceCard({ source }: SourceCardProps) {
           }}
           // `transition-colors` with no duration runs at the Tailwind default of 150 ms. A state
           // change here lasts under 120 ms, so the duration is stated.
-          className="shrink-0 rounded-none px-1 text-[11px]/4 transition-colors duration-100"
+          className="shrink-0 rounded-none px-1 text-small/4 transition-colors duration-100"
         >
           {`Claims (${source.holdsUp.length})`}
         </Button>
       </div>
 
       {source.missing ? (
-        <p className="mt-1 text-[11px]/4 text-dissent">
+        <p className="mt-1 text-small/4 text-dissent">
           This document is cited and it has no row in the record.
         </p>
       ) : null}
 
       {open ? (
-        <div id={panelId} className="mt-1 space-y-1 text-[11px]/4">
+        <div id={panelId} className="mt-1 space-y-1 text-small/4">
           <div>
             <p className={cn(NAME, 'w-auto')}>
               {`Claims this document holds up (${source.holdsUp.length})`}

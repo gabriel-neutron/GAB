@@ -39,7 +39,7 @@ export function Sidebar({ dossier }: SidebarProps) {
             the rail of documents, which no panel of 24 rem can hold beside a canvas. */}
         <a
           href={entityHref(dossier.entityId, null)}
-          className="ml-auto shrink-0 text-[11px]/4 text-primary underline underline-offset-2"
+          className="ml-auto shrink-0 text-small/4 text-primary underline underline-offset-2"
         >
           {WAY_OUT}
         </a>
@@ -84,7 +84,7 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
       {/* M6 and M9: the interval is written at both ends, and a relation that carries none draws
           a blank under a header that names the key. An absence must never read as a fault, and a
           row that vanishes tells the analyst nothing about what the record holds. */}
-      <div className="flex items-baseline gap-2 text-[11px]/4">
+      <div className="flex items-baseline gap-2 text-small/4">
         <span className="w-20 shrink-0 text-label">Validity</span>
         <span
           title={relation.interval ?? undefined}
@@ -97,7 +97,7 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
       {/* S2: the source is listed at entity, relation and attribute level. M8: `src` is never
           empty, and `./dossier.ts` holds the correction. */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px]/4 tracking-[0.06em] text-label uppercase">
+        <span className="text-small/4 tracking-caps text-label uppercase">
           Sources of this relation
         </span>
         {/* A relation has no full page, so the popover carries no way out. */}

@@ -22,7 +22,7 @@ export interface DetailPageProps {
  */
 const SHELL = 'flex h-full gap-4 p-4';
 
-const ON_A_SURFACE = 'shrink-0 text-[11px]/4 text-primary underline underline-offset-2';
+const ON_A_SURFACE = 'shrink-0 text-small/4 text-primary underline underline-offset-2';
 
 export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
   // The active source is never written back to the address. Two writers of one identity fight.
@@ -65,7 +65,7 @@ export function DetailPage({ dossier, arrivedAtSource }: DetailPageProps) {
         {/* M8: the entity itself names the documents it comes from, and no control hides
             them. The mark is the same one the claims carry. */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px]/4 tracking-[0.06em] text-label uppercase">
+          <span className="text-small/4 tracking-caps text-label uppercase">
             Sources of this entity
           </span>
           {mark(dossier.entitySources)}

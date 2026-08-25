@@ -104,6 +104,110 @@ const commentBudget: Rule.RuleModule = {
   },
 };
 
+/**
+ * **A length that the theme names is written once, in the theme.** `--text-small` and
+ * `--tracking-caps` were declared in `:root`, where Tailwind does not read them, so no class
+ * carried either value and 48 places wrote `text-[11px]/4` by hand. The theme said 11px and
+ * could not enforce it: to move the floor of the text ladder, a person had to edit 48 lines and
+ * hope that none was missed.
+ *
+ * The two values are in an `@theme` block now, under a name of the namespace that builds the
+ * utility. This rule keeps them there.
+ *
+ * **An arbitrary value is not the defect.** `w-[17rem]` for one column and `h-[600px]` for one
+ * story frame are correct: the value carries no meaning that repeats. The defect is a value that
+ * the theme already names, written again in a class, where nothing keeps the two equal.
+ *
+ * `REPLACEMENTS` names the class to write, so each report is a rewrite and never a search.
+ * `HAND_WRITTEN` has no single answer to give, so it names the ladder to read instead. A general
+ * shape is skipped where a replacement already matched at the same place, and one hand-written
+ * length gets one report.
+ *
+ * **The shapes read a string and not an attribute.** A class list reaches `className` through
+ * `cn`, through `cva` and through a variant table, and a rule that reads the attribute alone
+ * sees the last of these and misses the first two.
+ */
+const REPLACEMENTS = [
+  { pattern: /\btext-\[11px\]/g, use: '`text-small`' },
+  { pattern: /\btracking-\[0\.06em\]/g, use: '`tracking-caps`' },
+] as const;
+
+const TINTS =
+  'slate|gray|grey|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
+const PAINTS =
+  'text|bg|border|fill|stroke|ring|shadow|outline|decoration|accent|caret|divide|from|via|to';
+
+const HAND_WRITTEN = [
+  {
+    pattern: /\btext-\[[\d.]+px\]/g,
+    use: 'a text size token of the theme',
+  },
+  {
+    pattern: new RegExp(`\\b(?:${PAINTS})-\\[(?:#[0-9a-fA-F]{3,8}|(?:oklch|rgba?|hsla?)\\()`, 'g'),
+    use: 'a colour token of the theme',
+  },
+  {
+    pattern: new RegExp(`\\b(?:${PAINTS})-(?:${TINTS})-\\d{2,3}\\b`, 'g'),
+    use: 'a colour token of the theme',
+  },
+] as const;
+
+const noHandWrittenToken: Rule.RuleModule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      value:
+        'The theme names this value, and a class must read it: `{{text}}`. Write {{use}}, so that the value moves when the theme moves',
+    },
+  },
+  create(context) {
+    const source = context.sourceCode;
+
+    const read = (text: string, start: number) => {
+      const taken = new Set<number>();
+      const report = (found: RegExpExecArray, use: string) => {
+        const at = source.getLocFromIndex(start + found.index);
+        context.report({
+          loc: { start: at, end: at },
+          messageId: 'value',
+          data: { text: found[0], use },
+        });
+      };
+      for (const shape of REPLACEMENTS) {
+        shape.pattern.lastIndex = 0;
+        let found = shape.pattern.exec(text);
+        while (found !== null) {
+          taken.add(found.index);
+          report(found, shape.use);
+          found = shape.pattern.exec(text);
+        }
+      }
+      for (const shape of HAND_WRITTEN) {
+        shape.pattern.lastIndex = 0;
+        let found = shape.pattern.exec(text);
+        while (found !== null) {
+          if (!taken.has(found.index)) report(found, shape.use);
+          found = shape.pattern.exec(text);
+        }
+      }
+    };
+
+    return {
+      // `range[0]` is the opening quote of a string and the opening delimiter of a template, and
+      // the text of both begins one character later.
+      Literal(node) {
+        if (typeof node.value !== 'string' || node.range === undefined) return;
+        read(node.value, node.range[0] + 1);
+      },
+      TemplateElement(node) {
+        if (node.range === undefined) return;
+        read(node.value.raw, node.range[0] + 1);
+      },
+    };
+  },
+};
+
 const noReferenceInComment: Rule.RuleModule = {
   meta: {
     type: 'problem',
@@ -405,8 +509,18 @@ export default defineConfig(
   // named because they compile under `src/` and reached neither this gate nor the boundaries one.
   {
     files: ['src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx,js,mjs,cjs}'],
-    plugins: { local: { rules: { 'no-reference-in-comment': noReferenceInComment } } },
-    rules: { 'local/no-reference-in-comment': 'error' },
+    plugins: {
+      local: {
+        rules: {
+          'no-reference-in-comment': noReferenceInComment,
+          'no-hand-written-token': noHandWrittenToken,
+        },
+      },
+    },
+    rules: {
+      'local/no-reference-in-comment': 'error',
+      'local/no-hand-written-token': 'error',
+    },
   },
 
   // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
