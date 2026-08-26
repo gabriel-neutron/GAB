@@ -73,7 +73,11 @@
  *   primary               5.3        9.2
  *   primary-foreground    5.5        9.2     (on the primary fill)
  *   candidate             5.1       11.0
+ *   candidate on muted    4.7       10.4
+ *   added                 5.3        8.9
+ *   added on muted        4.8        8.4     (muted is the ground of a selected rail row)
  *   dissent               6.7        6.7
+ *   dissent on muted      6.1        6.3
  *   entity-1 … entity-6   4.6–5.0    7.9–8.9
  *
  * This is what the ladder is for: a disabled shadcn input drew the value at about 3.3:1, below
@@ -114,6 +118,7 @@
      them emits no rule at all and the element keeps the colour it inherited. */
   --color-label: var(--label);
   --color-candidate: var(--candidate);
+  --color-added: var(--added);
   --color-dissent: var(--dissent);
   --color-entity-1: var(--entity-1);
   --color-entity-2: var(--entity-2);
@@ -240,6 +245,11 @@
      On this ground the candidate hue moves from 82 to 90. A dark amber loses its identity on
      paper and drifts towards the dissent red, and it does not on the dark ground. */
   --candidate: oklch(0.52 0.13 90);
+
+  /* The third state of a change on the review surface: an addition. The operator asked for an
+     addition, a modification and a deletion to be told apart by hue, and two hues cannot do it.
+     Measured, and in the ladder above: 5.3 on this ground, and 4.8 on the muted one. */
+  --added: oklch(0.5 0.12 155);
   --dissent: oklch(0.48 0.18 28);
 
   /* An action that destroys data and a disagreement between agents both mean "stop and look",
@@ -323,6 +333,7 @@
   --accent-foreground: oklch(0.94 0.008 215);
 
   --candidate: oklch(0.82 0.13 82);
+  --added: oklch(0.74 0.13 155);
   --dissent: oklch(0.7 0.17 28);
   --destructive: oklch(0.7 0.17 28);
 
