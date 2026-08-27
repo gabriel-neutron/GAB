@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
-import type { DocId } from '@/shared/fixtures/types';
+import { vocabulary } from '@/shared/fixtures/vocabulary';
+import type { DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
@@ -10,7 +11,7 @@ import { SourceCard } from './source-card';
 /** MV Northern Ledger. Its claims cite `doc_9b0417`, `doc_8f2a41` and `manual`. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL)?.sources ?? [];
+const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL, vocabulary)?.sources ?? [];
 
 const sourceOf = (id: DocId): SourceCardModel => {
   const found = SOURCES.find((source) => source.id === id);
@@ -27,6 +28,12 @@ const RATED = sourceOf('doc_8f2a41');
 const UNRATED = sourceOf('manual');
 
 const ORIGINAL = stated(RATED.uri, 'original address for doc_8f2a41');
+
+const HASH = stated(
+  corpus.documents.find((row) => row.id === RATED.id)?.sha256 ?? null,
+  'hash for doc_8f2a41',
+);
+
 const DISCLOSURE = /Claims/;
 
 const meta = {
@@ -46,7 +53,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const TheOriginalAddressIsOnTheCard: Story = {
-  play: async ({ canvas, canvasElement }) => {
+  play: async ({ canvas }) => {
     await expect(canvas.getByRole('link', { name: /original document/ })).toHaveAttribute(
       'href',
       ORIGINAL,
@@ -55,7 +62,7 @@ export const TheOriginalAddressIsOnTheCard: Story = {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
     await expect(canvas.queryByRole('link', { name: /web archive/ })).toBeNull();
-    await expect(canvasElement.querySelector('.font-mono')).toBeNull();
+    await expect(canvas.queryByText(HASH)).toBeNull();
   },
 };
 

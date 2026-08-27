@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { expect, fn } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { vocabulary } from '@/shared/fixtures/vocabulary';
 
+import { recordCells } from './draft';
 import { readDossier, type PendingLine, type RecordRow, type SourceRef } from './dossier';
 import { SourceMark } from './mark';
 import { Pending } from './pending';
@@ -14,7 +16,7 @@ import { EntityRecord } from './record';
  */
 const FACILITY = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const DOSSIER = readDossier(corpus, FACILITY);
+const DOSSIER = readDossier(corpus, FACILITY, vocabulary);
 
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 
@@ -78,7 +80,7 @@ export const ACandidateIsNeverMixedIntoTheRecord: Story = {
   render: (args) => (
     <div className="w-[900px] p-2">
       <section aria-label="The record">
-        <EntityRecord rows={CLAIMS} mark={mark} />
+        <EntityRecord mode="reading" cells={recordCells(CLAIMS, null)} mark={mark} />
       </section>
       <Pending {...args} />
     </div>

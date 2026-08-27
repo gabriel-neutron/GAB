@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import type { DocId } from '@/shared/fixtures/types';
+import type { DocId } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 
 import type { SourceCardModel } from './dossier';

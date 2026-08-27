@@ -1,4 +1,4 @@
-import type { DocId } from '@/shared/fixtures/types';
+import type { DocId } from '@/shared/read/model';
 
 /** The two surfaces that draw one named entity. Each reads the identity from the address. */
 export type Surface = 'map' | 'graph';

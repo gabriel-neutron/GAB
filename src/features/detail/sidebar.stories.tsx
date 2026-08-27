@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { vocabulary } from '@/shared/fixtures/vocabulary';
 
 import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 import { Sidebar } from './sidebar';
@@ -10,15 +11,21 @@ import { Sidebar } from './sidebar';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL);
+  const held = readDossier(corpus, VESSEL, vocabulary);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };
 
 const DOSSIER = read();
 
+// The rows read in the alphabet of the claim key, and `aMark` below takes the first control that
+// states one source. So this reads the same row, and never `DOSSIER.sources[0]`, which is the
+// order the documents were first met and not the order the rows draw.
 const firstCard = (): SourceCardModel => {
-  const held = DOSSIER.sources[0];
+  const oneSource = DOSSIER.rows.find((row) => row.sources.length === 1);
+  if (oneSource === undefined) throw new Error('The committed corpus holds no claim of one source');
+  const ref = oneSource.sources[0];
+  const held = ref === undefined ? undefined : DOSSIER.sources.find((card) => card.id === ref.id);
   if (held === undefined) throw new Error('The committed corpus cites no document on this entity');
   return held;
 };

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
-import type { Corpus, DocumentRow } from '@/shared/fixtures/types';
+import type { Corpus, DocumentRow } from '@/shared/read/model';
 
 import { readDossier, type SourceRef } from './dossier';
 import { SourceMark } from './mark';
@@ -24,6 +24,7 @@ const CORPUS: Corpus = {
     {
       id: 'probe-1',
       type: 'vessel',
+      proposedType: null,
       label: 'Northern Aurora',
       attrs: {},
       sources: [DOCUMENT.id],
@@ -33,11 +34,9 @@ const CORPUS: Corpus = {
   ],
   relations: [],
   proposals: [],
-  agents: [],
-  agentCalls: [],
 };
 
-const SOURCES: readonly SourceRef[] = readDossier(CORPUS, 'probe-1')?.entitySources ?? [];
+const SOURCES: readonly SourceRef[] = readDossier(CORPUS, 'probe-1', [])?.entitySources ?? [];
 
 const first = (): SourceRef => {
   const held = SOURCES[0];

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { vocabulary } from '@/shared/fixtures/vocabulary';
 
 import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';
@@ -22,7 +23,7 @@ const M4 = 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d';
 const APPOINTS = 'a2b3c4d5-8e9f-4012-b345-c6d7e8f90a1b';
 
 const relationsOf = (entityId: string): readonly RelationLine[] =>
-  readDossier(corpus, entityId)?.relations ?? [];
+  readDossier(corpus, entityId, vocabulary)?.relations ?? [];
 
 const FROM_ENTITY_END = relationsOf(COMPANY);
 const FROM_RELATION_END = relationsOf(VESSEL);
@@ -46,6 +47,8 @@ const rows = (root: HTMLElement): readonly HTMLElement[] =>
 
 const onSelectSource = fn();
 
+const onDelete = fn();
+
 const meta = {
   component: Relations,
   args: {
@@ -53,6 +56,7 @@ const meta = {
     mark: (sources) => (
       <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
     ),
+    deleting: { offered: true, busy: false, onDelete },
   },
   parameters: { layout: 'fullscreen' },
   // A relation is one line, and a line truncates, so the width is fixed at 900px.
@@ -107,7 +111,49 @@ export const EveryRelationNamesItsSources: Story = {
   play: async ({ canvasElement }) => {
     const lines = rows(canvasElement);
     await expect(lines.length).toBeGreaterThan(0);
-    const marked = lines.filter((line) => line.querySelector('button') !== null);
+    // The mark is named, and not counted as "a button": each line now carries a delete control
+    // too, and a count of buttons could no longer fail.
+    const marked = lines.filter((line) => line.querySelector('[aria-label^="Source "]') !== null);
     await expect(marked).toHaveLength(lines.length);
+  },
+};
+
+// The row carries the identifier of its own relation. A row that sends the identifier of
+// another row destroys evidence the analyst never looked at.
+export const ARowDeletesTheRelationItDraws: Story = {
+  play: async ({ canvasElement }) => {
+    onDelete.mockClear();
+    const row = rowOf(canvasElement, APPOINTS);
+    const name = lineOf(FROM_ENTITY_END, APPOINTS).sentence;
+
+    await userEvent.click(within(row).getByRole('button', { name: `Delete ${name}` }));
+    await expect(onDelete).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      within(row).getByRole('button', { name: `Confirm the deletion of ${name}` }),
+    );
+    await expect(onDelete).toHaveBeenCalledWith(APPOINTS);
+    await expect(onDelete).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const AnActInFlightTakesNoRowDeletion: Story = {
+  args: { deleting: { offered: true, busy: true, onDelete } },
+  play: async ({ canvasElement }) => {
+    const name = lineOf(FROM_ENTITY_END, APPOINTS).sentence;
+    const row = rowOf(canvasElement, APPOINTS);
+    await expect(within(row).getByRole('button', { name: `Delete ${name}` })).toBeDisabled();
+  },
+};
+
+// A list beside a canvas destroys nothing, so no row carries a delete.
+export const AListThatOffersNoDeletionDrawsNoDeleteControl: Story = {
+  args: { deleting: { offered: false } },
+  play: async ({ canvasElement }) => {
+    const lines = rows(canvasElement);
+    await expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      await expect(within(line).queryByRole('button', { name: /^Delete / })).toBeNull();
+    }
   },
 };

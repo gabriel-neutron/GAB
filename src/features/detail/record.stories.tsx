@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
+
+import { useState } from 'react';
 
 import type {
   Attribute,
@@ -8,11 +10,13 @@ import type {
   Corpus,
   DocId,
   DocumentRow,
-} from '@/shared/fixtures/types';
+  Vocabulary,
+} from '@/shared/read/model';
 
-import { readDossier, type RecordRow } from './dossier';
+import { recordCells, typedInto, type Drafts } from './draft';
+import { readDossier, type RecordRow, type SourceRef } from './dossier';
 import { SourceMark } from './mark';
-import { EntityRecord } from './record';
+import { EntityRecord, type EntityRecordProps } from './record';
 
 // The committed fixture has three claims, which cannot show density. This file builds its own
 // probe. No other file reads it.
@@ -121,6 +125,7 @@ const CORPUS: Corpus = {
     {
       id: 'probe-1',
       type: 'vessel',
+      proposedType: null,
       label: 'Northern Aurora',
       attrs: probeAttributes(),
       sources: ['doc-registry'],
@@ -130,29 +135,30 @@ const CORPUS: Corpus = {
   ],
   relations: [],
   proposals: [],
-  agents: [],
-  agentCalls: [],
 };
 
-const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1')?.rows ?? [];
+// No key of this probe is declared, so the record is read through and never written here.
+const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', [])?.rows ?? [];
 
 const onSelectSource = fn();
 
+const mark = (sources: readonly SourceRef[]) => (
+  <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
+);
+
+/** The arm the args of this file state. A story of the other arm renders it, and takes no args. */
+type Reading = Extract<EntityRecordProps, { mode: 'reading' }>;
+
 const meta = {
   component: EntityRecord,
-  args: {
-    rows: ROWS,
-    mark: (sources) => (
-      <SourceMark sources={sources} activeSource={null} onSelectSource={onSelectSource} />
-    ),
-  },
+  args: { mode: 'reading', cells: recordCells(ROWS, null), mark },
   // The width of the pane is part of the contract, so each story states it.
   render: (args) => (
     <div className="w-[1200px] p-2">
       <EntityRecord {...args} />
     </div>
   ),
-} satisfies Meta<typeof EntityRecord>;
+} satisfies Meta<Reading>;
 
 export default meta;
 
@@ -229,5 +235,89 @@ export const TheRecordDrawsNoInventedHeading: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas }) => {
     await expect(canvas.queryByRole('heading')).toBeNull();
+  },
+};
+
+/** A note is declared as a note. Before, the control was read from the length of the value, and
+ * the 49th character changed it: React then replaced the element and the caret was lost. */
+const NOTE_KEY = 'hull_note';
+
+const NOTE_START = 'Pitting in way of the number three hold';
+
+const NOTE_ADDED = ', and the frames aft of it';
+
+const DECLARED: Vocabulary = [
+  { key: NOTE_KEY, kind: 'note', label: 'Hull note', unit: null, pattern: null, retired: false },
+];
+
+const NOTE_CORPUS: Corpus = {
+  documents: [document_('doc-survey', 'Survey report, 2025')],
+  entities: [
+    {
+      id: 'probe-note',
+      type: 'vessel',
+      proposedType: null,
+      label: 'Northern Aurora',
+      attrs: { [NOTE_KEY]: { v: NOTE_START, src: ['doc-survey'] } },
+      sources: ['doc-survey'],
+      geom: null,
+      promotedFrom: 'proposal-probe-note',
+    },
+  ],
+  relations: [],
+  proposals: [],
+};
+
+const NOTE_ROWS: readonly RecordRow[] =
+  readDossier(NOTE_CORPUS, 'probe-note', DECLARED)?.rows ?? [];
+
+/** The record with the state a page holds for it. A story drives what a page drives. */
+function WritableRecord({ rows }: { rows: readonly RecordRow[] }) {
+  const [drafts, setDrafts] = useState<Drafts>(() => new Map());
+
+  return (
+    <div className="w-[1200px] p-2">
+      <EntityRecord
+        mode="writing"
+        cells={recordCells(rows, drafts)}
+        mark={mark}
+        onEdit={(key, typed) => {
+          setDrafts(typedInto(rows, drafts, key, typed));
+        }}
+      />
+    </div>
+  );
+}
+
+export const TheCaretSurvivesThePastTheOldBoundary: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: () => <WritableRecord rows={NOTE_ROWS} />,
+  play: async ({ canvas }) => {
+    const box = canvas.getByLabelText('Hull note');
+    if (!(box instanceof HTMLInputElement)) throw new Error('The note draws no text control');
+
+    await userEvent.click(box);
+    await userEvent.type(box, NOTE_ADDED);
+
+    const whole = `${NOTE_START}${NOTE_ADDED}`;
+    // The value passes 48 characters, which was the boundary the control used to be read from.
+    await expect(whole.length).toBeGreaterThan(48);
+    await expect(box).toHaveValue(whole);
+    await expect(box).toHaveFocus();
+    await expect(box.selectionStart).toBe(whole.length);
+  },
+};
+
+// A key the vocabulary does not declare takes no value, and the record says so in words.
+export const AnUndeclaredKeyIsReadOnlyAndSaysWhy: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: () => <WritableRecord rows={ROWS} />,
+  play: async ({ canvas }) => {
+    const box = canvas.getByLabelText('Imo number');
+    await expect(box).toBeDisabled();
+    await expect(
+      canvas.getAllByText('The vocabulary declares no such key, and it takes no value here.')
+        .length,
+    ).toBe(100);
   },
 };

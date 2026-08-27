@@ -6,6 +6,7 @@ import { entityHref } from './address';
 import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
 import { Pending } from './pending';
+import { recordCells } from './draft';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
 
@@ -48,9 +49,14 @@ export function Sidebar({ dossier }: SidebarProps) {
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
           previous value. The key makes React build a new record. Do not remove it. */}
-      <EntityRecord key={dossier.entityId} rows={dossier.rows} mark={mark} />
+      <EntityRecord
+        key={dossier.entityId}
+        mode="reading"
+        cells={recordCells(dossier.rows, null)}
+        mark={mark}
+      />
 
-      <Relations relations={dossier.relations} mark={mark} />
+      <Relations relations={dossier.relations} mark={mark} deleting={{ offered: false }} />
       <Pending proposals={dossier.pending} mark={mark} />
     </aside>
   );
@@ -95,7 +101,7 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
       </div>
 
       {/* S2: the source is listed at entity, relation and attribute level. M8: `src` is never
-          empty, and `./dossier.ts` holds the correction. */}
+          empty, and the reading of the record holds the correction. */}
       <div className="flex items-center gap-2">
         <span className="text-small/4 tracking-caps text-label uppercase">
           Sources of this relation

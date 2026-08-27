@@ -4,12 +4,13 @@ import { relationLines, relationTypeWords } from '@/shared/canvas-label';
 import type {
   Corpus,
   DocId,
+  Vocabulary,
   DocumentRow,
   Entity,
   EndpointKind,
   Proposal,
   Relation,
-} from '@/shared/fixtures/types';
+} from '@/shared/read/model';
 
 import { readClaims, type ClaimRow } from './claims';
 
@@ -71,16 +72,34 @@ export interface PendingLine {
   readonly id: string;
   readonly summary: string;
   readonly dissent: boolean;
-  /** Already formatted. A `.tsx` of this surface calls no `toFixed`. */
+  /** Already formatted, and a sentence where the act states none. A `.tsx` here calls no
+   * `toFixed`. */
   readonly confidence: string;
   readonly undecided: boolean;
   readonly sources: readonly SourceRef[];
+}
+
+/** One entity the analyst may put at the other end of a new relation. `name` is the word on the
+ * option, and it is composed here so that no component joins a label to a type. */
+export interface LinkTarget {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** What the new-relation form offers. The record holds no table of relation types, so `types` is
+ * what the corpus already carries and never a closed set. */
+export interface LinkChoices {
+  readonly types: readonly string[];
+  readonly targets: readonly LinkTarget[];
 }
 
 export interface Dossier {
   readonly entityId: string;
   readonly label: string;
   readonly type: string;
+  /** The word the extraction wrote, kept when it was not a live type. The row stands as
+   * `unknown`, and the word must reach the screen or the entry is lost to the reader. */
+  readonly proposedType: string | null;
   /** The map draws a point and nothing else, so an entity that carries no geometry is absent
    * from it. A link to the map for one of those opens a surface that selects nothing. */
   readonly drawnOnMap: boolean;
@@ -90,6 +109,7 @@ export interface Dossier {
   readonly relations: readonly RelationLine[];
   readonly pending: readonly PendingLine[];
   readonly claimCount: number;
+  readonly linkChoices: LinkChoices;
 }
 
 /** No dissent at or above this confidence is the row that neither S3 nor P1 decides. */
@@ -170,7 +190,11 @@ function intervalWords(relation: Relation): string | null {
   return null;
 }
 
-export function readDossier(read: Corpus, entityId: string): Dossier | null {
+export function readDossier(
+  read: Corpus,
+  entityId: string,
+  vocabulary: Vocabulary,
+): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
@@ -199,7 +223,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
 
   const entitySources = refsOf(entity.sources);
 
-  const claims = readClaims(entity.attrs);
+  const claims = readClaims(entity.attrs, vocabulary);
   const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
 
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
@@ -234,16 +258,34 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     sources: refsOf(relation.sources),
   }));
 
+  // The act states the operation and the payload carries no kind of its own, so the operation
+  // decides which keys stand inside it. Those keys keep the spelling the act wrote.
   const names = (proposal: Proposal): boolean => {
     if (proposal.targetKind === 'entity' && proposal.targetId === entityId) return true;
-    switch (proposal.payload.kind) {
-      case 'relation':
-        return proposal.payload.srcId === entityId || proposal.payload.dstId === entityId;
-      case 'merge':
-        return proposal.payload.keepId === entityId || proposal.payload.mergeIds.includes(entityId);
-      case 'entity':
-      case 'attrs':
-      case 'delete':
+    const payload = proposal.payload;
+    switch (proposal.op) {
+      case 'create_relation':
+        return (
+          payload.kind === 'relation' &&
+          (payload.src_id === entityId || payload.dst_id === entityId)
+        );
+      case 'update_relation': {
+        // This act carries attributes and no ends, so the ends come from the relation it names.
+        // A relation the record does not hold puts the act on no page, which is the same answer
+        // the sentence of a missing endpoint gives.
+        const target = proposal.targetKind === 'relation' ? proposal.targetId : null;
+        const held = target === null ? undefined : index.relationById.get(target);
+        return held !== undefined && touches(held);
+      }
+      case 'merge_entities':
+        return (
+          payload.kind === 'merge' &&
+          (payload.keep_id === entityId || payload.merge_ids.includes(entityId))
+        );
+      case 'create_entity':
+      case 'update_attrs':
+      case 'delete_entity':
+      case 'delete_relation':
         return false;
     }
   };
@@ -251,11 +293,14 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
-      const undecided = !proposal.dissent && proposal.confidence >= HIGH_CONFIDENCE;
+      // An act may state no confidence. That is an absence and never a high score, so it is
+      // not the undecided row.
+      const stated = proposal.confidence;
+      const undecided = !proposal.dissent && stated !== null && stated >= HIGH_CONFIDENCE;
       const head = OP_WORDS[proposal.op];
       const keys =
         proposal.payload.kind === 'attrs'
-          ? readClaims(proposal.payload.attrs).map((claim) => claim.label)
+          ? readClaims(proposal.payload.attrs, vocabulary).map((claim) => claim.label)
           : [];
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
@@ -264,7 +309,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
           ? `${body}. No dissent, and the confidence is high: what happens to this proposal is not yet decided.`
           : body,
         dissent: proposal.dissent,
-        confidence: proposal.confidence.toFixed(2),
+        confidence: stated === null ? 'no confidence is stated' : stated.toFixed(2),
         undecided,
         sources: refsOf(proposal.src),
       };
@@ -294,10 +339,21 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     };
   });
 
+  const linkChoices: LinkChoices = {
+    types: [...new Set(read.relations.map((relation) => relation.type))].sort((one, other) =>
+      one.localeCompare(other),
+    ),
+    targets: read.entities
+      .filter((candidate) => candidate.id !== entityId)
+      .map((candidate) => ({ id: candidate.id, name: `${candidate.label} — ${candidate.type}` }))
+      .sort((one, other) => one.name.localeCompare(other.name)),
+  };
+
   return {
     entityId: entity.id,
     label: entity.label,
     type: entity.type,
+    proposedType: entity.proposedType,
     drawnOnMap: entity.geom !== null,
     rows,
     entitySources,
@@ -305,6 +361,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     relations,
     pending,
     claimCount: claims.length,
+    linkChoices,
   };
 }
 

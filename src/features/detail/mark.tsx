@@ -3,7 +3,7 @@
  * one score repeated on twenty claims is the presentation S1 calls false. */
 
 import { cn } from '@/shared/lib/utils';
-import type { DocId } from '@/shared/fixtures/types';
+import type { DocId } from '@/shared/read/model';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 
 import { entityHref } from './address';
