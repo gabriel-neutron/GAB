@@ -103,4 +103,13 @@ RESET ROLE;
 --                 JOIN pg_namespace n ON n.oid = c.relnamespace
 --                WHERE d.deptype = 'e' AND n.nspname = g.table_schema
 --                  AND c.relname = g.table_name);
+--
+--   5. an api function with invoker rights whose body names public. Arms 1 and 2 both filter on
+--      prosecdef, so neither one looks at a function that is NOT a definer. api.neighbourhood
+--      sat here: the GRANT existed, and every call raised `permission denied for schema public`,
+--      because gabriel_read holds nothing on public. A grant that can never succeed reads as a
+--      working door. The api views are the way out, and they run as their owner.
+--      SELECT p.proname FROM pg_proc p
+--       WHERE p.pronamespace = 'api'::regnamespace
+--         AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.';
 -- =============================================================================================

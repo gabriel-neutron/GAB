@@ -413,6 +413,12 @@ END $$;
 -- T4 and docs/spec.md §4: complex read logic lives in a SQL function and never in the client.
 -- The join requires an entity at BOTH ends. Without that, the walk returns the identifier of an
 -- M4 relation in a column named entity_id, and the surface draws a phantom node.
+--
+-- The walk reads api.relation and NOT public.relations. This function has invoker rights, and
+-- gabriel_read holds nothing on public, not even USAGE. Reading the base table raised
+-- `permission denied for schema public` for the only role that is granted EXECUTE. The view
+-- runs with the rights of gabriel_owner, so it answers where the base table cannot, and this
+-- function needs no SECURITY DEFINER to do it.
 CREATE OR REPLACE FUNCTION api.neighbourhood(root uuid, depth int DEFAULT 2)
 RETURNS TABLE (entity_id uuid, hop int)
 LANGUAGE sql STABLE
@@ -422,7 +428,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     UNION
     SELECT CASE WHEN r.src_id = w.entity_id THEN r.dst_id ELSE r.src_id END, w.hop + 1
       FROM walk w
-      JOIN public.relations r
+      JOIN api.relation r
         ON r.src_kind = 'entity' AND r.dst_kind = 'entity'
        AND (r.src_id = w.entity_id OR r.dst_id = w.entity_id)
      WHERE w.hop < depth

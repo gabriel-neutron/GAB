@@ -1,4 +1,4 @@
-// The four audit arms of the perimeter file, plus the facts that keep arm 4 honest. A tool once
+// The five audit arms of the perimeter file, plus the facts that keep arm 4 honest. A tool once
 // added a table to `public` and silenced arm 4 by changing its owner; a person caught it and no
 // check did.
 
@@ -49,6 +49,16 @@ const ARMS = [
                      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
                     WHERE d.deptype = 'e' AND n.nspname = g.table_schema
                       AND c.relname = g.table_name)`,
+  },
+  {
+    fault: 'api function with invoker rights that reads public',
+    // Arms 1 and 2 filter on prosecdef, so a function that is NOT a definer escapes both.
+    // gabriel_read holds nothing on public, so such a function raises for the only role that
+    // may call it, and the GRANT reads as a working door.
+    sql: String.raw`SELECT p.proname AS found
+            FROM pg_catalog.pg_proc p
+           WHERE p.pronamespace = 'api'::regnamespace
+             AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.'`,
   },
 ] as const;
 
@@ -111,4 +121,21 @@ const EIGHT_VIEWS = [
 
 test('gabriel_read holds SELECT on the eight api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(EIGHT_VIEWS);
+});
+
+const NEIGHBOURS = `
+  SELECT n.entity_id::text AS found
+    FROM api.relation r
+   CROSS JOIN LATERAL api.neighbourhood(r.src_id, 1) n
+   WHERE r.src_kind = 'entity' AND r.dst_kind = 'entity'
+   LIMIT 1`;
+
+// A static arm proves a shape. This one proves the door opens. Arm 5 and this test are the two
+// halves of one defect: the read role held EXECUTE on api.neighbourhood and every call raised.
+test('gabriel_read can execute api.neighbourhood, and not only hold the grant', async () => {
+  const found = await probe('read', async (ask) => findings.parse(await ask(NEIGHBOURS)));
+  expect(
+    found.length,
+    'the fixture holds an entity-to-entity relation, so the walk finds one',
+  ).toBe(1);
 });
