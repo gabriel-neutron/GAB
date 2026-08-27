@@ -1,4 +1,4 @@
-# The two services of the first build (T5). See docs/adr/0002-local-runtime.md.
+# The services of the first build (T5). See docs/adr/0002-local-runtime.md.
 #
 # Every port is bound to 127.0.0.1. Nothing is reachable from outside this machine.
 # Every image tag is pinned. An upstream change must arrive through a commit.
@@ -23,6 +23,27 @@ services:
       timeout: 5s
       retries: 12
       start_period: 40s
+
+  # PostgREST connects as gabriel_read and serves the api schema only. The authenticator role and
+  # the anonymous role are the same role: a role may always SET ROLE to itself, so no fifth role
+  # exists.
+  postgrest:
+    image: postgrest/postgrest:v16.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: "postgres://gabriel_read:\
+        ${GABRIEL_READ_PASSWORD:?set GABRIEL_READ_PASSWORD in infra/.env}\
+        @db:5432/gabriel"
+      PGRST_DB_SCHEMAS: api
+      PGRST_DB_ANON_ROLE: gabriel_read
+      PGRST_OPENAPI_MODE: disabled
+      # No row cap is set. The mechanism that exempts the two full reads is still an open question,
+      # and the 5s statement_timeout of gabriel_read already bounds every request.
+    ports:
+      - '127.0.0.1:3000:3000'
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
