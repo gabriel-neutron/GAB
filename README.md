@@ -19,6 +19,10 @@ is shadcn, and the map library is MapLibre. The build decisions live in the ADR 
 [`docs/README.md`](docs/README.md). Open questions live as
 [issues](https://github.com/gabriel-neutron/GAB/issues).
 
+The types of the database are generated from the live schema, and `pnpm check` regenerates them
+and fails on a difference. **It therefore needs a running database**, on every task, and not only
+on one that touches SQL.
+
 Documentation starts at [`docs/README.md`](docs/README.md).
 
 ## License

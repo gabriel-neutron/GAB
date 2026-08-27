@@ -29,8 +29,8 @@
     "allowUnusedLabels": false,
     "noUncheckedSideEffectImports": true,
 
-    // Node runs `tools/*.ts` directly and strips the types, so an import needs the real
-    // extension. Nothing emits here, so the flag costs nothing.
+    // Node runs a command under `tools/` directly and strips the types, so an import needs the
+    // real extension. Nothing emits here, so the flag costs nothing.
     "allowImportingTsExtensions": true,
 
     "erasableSyntaxOnly": true,
@@ -42,5 +42,16 @@
   // `vitest.config.ts` is a root configuration file like the other two, and Vitest reads it the
   // same way Vite reads its own. `.storybook/` is **not** here; it needs the DOM library and it
   // has `tsconfig.storybook.json`.
-  "include": ["vite.config.ts", "eslint.config.ts", "vitest.config.ts", "tools/*.ts"]
+  "include": [
+    "vite.config.ts",
+    "eslint.config.ts",
+    "vitest.config.ts",
+    "tools/**/*.ts",
+    // A command loads the committed fixture, so this target reads it as well as the browser one.
+    // The fixture is typed by the shapes of the record, so this target reads those too.
+    "src/shared/fixtures/*.ts",
+    "src/shared/read/model.ts",
+    // The closed sets of the base tables. A test under `tools/` compares them with the CHECKs.
+    "src/shared/read/closed-set.ts"
+  ]
 }

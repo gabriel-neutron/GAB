@@ -1,3 +1,9 @@
+# The web application stays at the root, and each new deployable part is a folder under
+# `packages/`. The dot is required, or a filter on the root package finds nothing.
+packages:
+  - '.'
+  - 'packages/*'
+
 # pnpm writes this file itself. Two settings live in it.
 #
 # `allowBuilds` lets two packages run their install script. Each script only selects the

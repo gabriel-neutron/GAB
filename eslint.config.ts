@@ -52,6 +52,10 @@ const CANVAS_PAGES = ['map', 'graph'] as const;
  * locked register applies to it — the identifier never travels alone, and every site states the
  * invariant beside the number.
  *
+ * **A module beside the file is an address too.** `./claims` names a file, and a rename or a
+ * move leaves the comment pointing at nothing. The shape with an extension missed every one of
+ * the ten that stood under `src/`, because a relative import carries no extension.
+ *
  * **A stylesheet is out of reach, and it now carries nothing.** ESLint does not read
  * `src/index.css`, so a reference there is refused by nobody. Its rules are no longer numbered and
  * its comments cite none, so there is nothing left for this rule to miss.
@@ -67,6 +71,7 @@ const SHAPES = [
   { pattern: /\b(?:section|sect\.?)\s*\d+(?:\.\d+)*\b/gi, kind: 'a section' },
   { pattern: /\badr[\s._-]*\d{1,4}\b/gi, kind: 'an ADR citation' },
   { pattern: /[\w./-]+\.(?:md|mdx|markdown)(?![\w-])/gi, kind: 'a path to a document' },
+  { pattern: /\.{1,2}\/[\w.-]+/g, kind: 'a path to a file' },
   { pattern: /\bUC\s*\d+\b/g, kind: 'a use case of a deleted document' },
   { pattern: /\brules?\s*\d+\b/gi, kind: 'a numbered rule' },
 ] as const;
@@ -323,7 +328,18 @@ export default defineConfig(
     // `.storybook/` is named as well as `src/`. Without it no rule below reaches that folder,
     // and nothing stops `.storybook/preview.ts` from importing a feature. Every feature would
     // then load into every story (#60).
-    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx}'],
+    //
+    // A workspace package is named as well. The `package` element was declared as a target of an
+    // import only, so no rule below ran **from** a package: one could import a browser feature,
+    // a route or the base tables, and nothing objected.
+    //
+    // `.mts` and `.cts` are named because they compile. A file with either extension belonged to
+    // no element, so `no-unknown-files` passed it and every policy below missed it.
+    files: [
+      'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '.storybook/**/*.{ts,tsx,mts,cts}',
+    ],
 
     // The mount and the router instance, excluded **by name**. An element pattern matches a
     // folder, so neither file can be an element unless `src` itself becomes one — and `src` as
@@ -345,6 +361,17 @@ export default defineConfig(
         },
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
         { type: 'route', pattern: 'src/routes', partialMatch: false },
+
+        // The two generated folders. `contract` is read from the api schema and the user
+        // interface imports it; `base-tables` is read from the public schema and nothing under
+        // `src/` may import it. Both are declared, so a generated file is a known file.
+        { type: 'contract', pattern: 'src/contract', partialMatch: false },
+        { type: 'base-tables', pattern: 'src/db', partialMatch: false },
+
+        // A workspace package. `@gab/proposal` resolves through a symlink in `node_modules`, and
+        // the resolver follows it to the real path, so the target of the import is this folder.
+        // The capture holds the folder name, which is the name of the package after the scope.
+        { type: 'package', pattern: 'packages/*/src', capture: ['pkg'], partialMatch: false },
 
         // The Storybook configuration. It has a target of its own, `tsconfig.storybook.json`.
         // It is not a feature, not the seam and not a route.
@@ -420,6 +447,14 @@ export default defineConfig(
               allow: { to: { element: { types: ['feature', 'shared', 'route'] } } },
             },
 
+            // The contract is the shape of a read, and every part of the user interface reads.
+            // It imports nothing of its own, so it opens no cycle and joins no two features. A
+            // re-export through the seam would be a file that only passes on what it imports.
+            {
+              from: { element: { types: ['shared', 'feature', 'route'] } },
+              allow: { to: { element: { type: 'contract' } } },
+            },
+
             // Storybook reaches the seam, and **never a feature**. A story
             // lives beside its component and imports what that component may import; the
             // configuration folder is not a place to reach across the seam. `main.ts` names
@@ -427,6 +462,69 @@ export default defineConfig(
             {
               from: { element: { type: 'storybook' } },
               allow: { to: { element: { type: 'shared' } } },
+            },
+
+            // A workspace package holds a shape that both sides of the product import. It imports
+            // nothing under `src/`, so it opens no cycle and joins no two features.
+            {
+              from: { element: { types: ['shared', 'feature', 'route'] } },
+              allow: { to: { element: { type: 'package' } } },
+            },
+
+            // A package reaches another package, which is how the writer reads the shape of a
+            // proposal. The refusal below still holds, so this opens no path to the writer.
+            {
+              from: { element: { type: 'package' } },
+              allow: { to: { element: { type: 'package' } } },
+            },
+
+            // ...and nothing under `src/`. A package is a leaf: the browser and the writer both
+            // import it, so a package that reaches into `src/` puts a browser feature inside the
+            // Node backend, and puts `src/` inside every side that imports the package.
+            {
+              from: { element: { type: 'package' } },
+              disallow: {
+                to: {
+                  element: {
+                    types: ['feature', 'route', 'shared', 'contract', 'base-tables', 'storybook'],
+                  },
+                },
+              },
+              message:
+                'A workspace package is a leaf, and it imports nothing under `src/`. Both sides of the product import the package, so what it imports lands in both. Move the shape you need into the package',
+            },
+
+            // ...and never the writer. `@gab/writer` is the Node backend: it reaches the database
+            // and holds the secrets, and a browser file that imports it ships both to the client.
+            // Every side is named, and a package too: a package the browser imports is a browser
+            // file by another name, so `@gab/proposal` reaching the writer ships the same secrets.
+            {
+              from: {
+                element: {
+                  types: [
+                    'shared',
+                    'feature',
+                    'route',
+                    'storybook',
+                    'contract',
+                    'base-tables',
+                    'package',
+                  ],
+                },
+              },
+              disallow: { to: { element: { type: 'package', captured: { pkg: 'writer' } } } },
+              message:
+                'The writer is the Node backend, and the browser never imports it. It reaches the database and holds the secrets. Call it over the wire, and import a shared shape from another workspace package',
+            },
+
+            // The base tables, refused from every side and stated last, so a policy above can
+            // never open it. `default: 'disallow'` already refuses it; a named rule with a
+            // reason reads as a decision, and a silent default reads as an oversight.
+            {
+              from: { element: { types: ['shared', 'feature', 'route', 'storybook', 'contract'] } },
+              disallow: { to: { element: { type: 'base-tables' } } },
+              message:
+                'The base tables are the shape of the storage, and the browser never reaches one. Import the contract, which is the shape of a read',
             },
           ],
         },
@@ -503,12 +601,16 @@ export default defineConfig(
     },
   },
 
-  // The rule above holds the whole of `src/` and the Storybook configuration, and it takes no
-  // exception. `main.tsx` and `router.tsx` are outside the boundaries block and inside this one on
-  // purpose: a reference rots in them exactly as it rots anywhere else. `.mts` and `.cts` are
-  // named because they compile under `src/` and reached neither this gate nor the boundaries one.
+  // The rule above holds `src/`, each workspace package and the Storybook configuration, and it
+  // takes no exception. `main.tsx` and `router.tsx` are outside the boundaries block and inside
+  // this one on purpose: a reference rots in them exactly as it rots anywhere else. `.mts` and
+  // `.cts` are named because they compile, and the boundaries block above names them too.
   {
-    files: ['src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}', '.storybook/**/*.{ts,tsx,js,mjs,cjs}'],
+    files: [
+      'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '.storybook/**/*.{ts,tsx,js,mjs,cjs}',
+    ],
     plugins: {
       local: {
         rules: {
@@ -524,10 +626,10 @@ export default defineConfig(
   },
 
   // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
-  // is inside, and the kit takes no exemption — the day a vendored file genuinely fails, the
-  // operator adds that one file name here.
+  // and under a workspace package is inside, and the kit takes no exemption — the day a vendored
+  // file genuinely fails, the operator adds that one file name here.
   {
-    files: ['src/**/*.{ts,tsx,mts,cts}'],
+    files: ['src/**/*.{ts,tsx,mts,cts}', 'packages/*/src/**/*.{ts,tsx,mts,cts}'],
     plugins: { budget: { rules: { 'comment-budget': commentBudget } } },
     rules: { 'budget/comment-budget': 'error' },
   },
