@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
-import { corpus } from '@/shared/fixtures/corpus';
+import { loadCorpus } from '@/shared/read/corpus';
+import { loadVocabulary } from '@/shared/read/vocabulary';
 
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
@@ -31,6 +32,14 @@ export const Route = createFileRoute('/map')({
   // empty value that stayed there would be read as an identifier, which was the defect found on
   // the graph.
   search: { middlewares: [stripSearchParams({ entity: '', relation: '' })] },
+
+  // The router draws no component until this answer arrives, and every reader below takes the
+  // record from here as a value. So no reader on this surface can meet a record that is absent.
+  loader: async () => {
+    const [corpus, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
+    return { corpus, vocabulary };
+  },
+
   component: MapRoute,
   head: () => ({ meta: [{ title: 'Map · Gabriel' }] }),
 });
@@ -38,6 +47,7 @@ export const Route = createFileRoute('/map')({
 function MapRoute() {
   const { entity, relation } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { corpus, vocabulary } = Route.useLoaderData();
 
   // The address is the one carrier of the selection, and no React state holds a second copy.
   // The list of each callback below must stay `[navigate]`, so the values of this moment arrive
@@ -79,16 +89,21 @@ function MapRoute() {
   // A stale identifier gives `null`, the route composes no sidebar, and the canvas keeps the full
   // width. There is no "not found" screen here: the map is still the answer. The read is memoised
   // because every other render of this route would otherwise walk the whole corpus again.
-  const dossier = useMemo(() => readDossier(corpus, entity), [entity]);
+  const dossier = useMemo(
+    () => readDossier(corpus, entity, vocabulary),
+    [corpus, entity, vocabulary],
+  );
 
-  const chosen = useMemo(() => readRelation(corpus, relation), [relation]);
+  const chosen = useMemo(() => readRelation(corpus, relation), [corpus, relation]);
 
   // No React re-render inside the tree that wraps the live element. Without this memo a selection
-  // change would rebuild the element that owns the canvas. The list holds the two props the canvas
-  // takes, and neither changes on a selection.
+  // change would rebuild the element that owns the canvas. The list holds the three props the
+  // canvas takes, and the record is the only one a selection cannot change.
   const canvas = useMemo(
-    () => <MapPage onSelect={handleSelect} onChooseRelation={handleChooseRelation} />,
-    [handleSelect, handleChooseRelation],
+    () => (
+      <MapPage corpus={corpus} onSelect={handleSelect} onChooseRelation={handleChooseRelation} />
+    ),
+    [corpus, handleSelect, handleChooseRelation],
   );
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so

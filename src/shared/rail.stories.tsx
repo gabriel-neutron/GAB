@@ -89,7 +89,11 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
 export const TheFoldAndTheSwitchAreTwoActs: Story = {
   play: async ({ canvas, args }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
-    await expect(args.onAct).toHaveBeenCalledWith({ kind: 'open-type', type: 'vessel' });
+    await expect(args.onAct).toHaveBeenCalledWith({
+      kind: 'open-type',
+      type: 'vessel',
+      open: true,
+    });
 
     const [onRow] = canvas.getAllByRole('button', { pressed: true });
     if (onRow === undefined) throw new Error('The rail draws no type row that is on');

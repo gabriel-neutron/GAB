@@ -5,7 +5,8 @@ import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { onGraphSelection, type GraphSelection } from '@/features/graph/bridge';
 import { GraphPage } from '@/features/graph/graph-page';
-import { corpus } from '@/shared/fixtures/corpus';
+import { loadCorpus } from '@/shared/read/corpus';
+import { loadVocabulary } from '@/shared/read/vocabulary';
 import { cn } from '@/shared/lib/utils';
 
 // The address is the one store of what is examined. Two carriers of one fact drift apart.
@@ -42,17 +43,27 @@ export const Route = createFileRoute('/graph')({
   // writes a clean one, so without this a link into the graph left a pair of keys that the
   // canvas removes on its first act, and the two writers stated two different addresses.
   search: { middlewares: [stripSearchParams({ entity: '', relation: '' })] },
+
+  // The router draws no component until this answer arrives, and every reader below takes the
+  // record from here as a value. So no reader on this surface can meet a record that is absent.
+  loader: async () => {
+    const [corpus, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
+    return { corpus, vocabulary };
+  },
+
   component: GraphRoute,
   head: () => ({ meta: [{ title: 'Graph · Gabriel' }] }),
 });
 
 function GraphRoute() {
+  const { corpus, vocabulary } = Route.useLoaderData();
+
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
   const [selection, setSelection] = useState<GraphSelection | null>(null);
-  // This state sits in an ancestor of the live canvas. `canvas` below is memoised on an empty
-  // list, so no render of this route rebuilds the element. `onGraphSelection` calls a new
-  // listener at once with the selection of the moment, so the effect below delivers the restore.
+  // This state sits in an ancestor of the live canvas, and `canvas` below is memoised on the
+  // record alone, so no render that follows a selection rebuilds the element. `onGraphSelection`
+  // seeds a new listener with the selection of the moment, so the effect below restores it.
   useEffect(() => onGraphSelection(setSelection), []);
 
   // The read is memoised: every other render of this route would walk the whole corpus again.
@@ -60,20 +71,20 @@ function GraphRoute() {
     () =>
       selection === null || selection.kind === 'relation'
         ? null
-        : readDossier(corpus, selection.id),
-    [selection],
+        : readDossier(corpus, selection.id, vocabulary),
+    [corpus, selection, vocabulary],
   );
 
   const relation = useMemo(
     () =>
       selection === null || selection.kind === 'entity' ? null : readRelation(corpus, selection.id),
-    [selection],
+    [corpus, selection],
   );
 
   // No React render inside the tree that wraps the live element. A change of the selection
   // re-renders this route, and without this memo it would rebuild the element that owns the
-  // canvas. The list is empty because the page takes nothing from this route. Do not remove it.
-  const canvas = useMemo(() => <GraphPage />, []);
+  // canvas. The list holds the record, which a selection never changes. Do not remove it.
+  const canvas = useMemo(() => <GraphPage corpus={corpus} />, [corpus]);
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so
   // `overflow-y-auto` on the sidebar gives no scroll and the window scrolls both panes together.

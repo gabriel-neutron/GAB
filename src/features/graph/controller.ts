@@ -9,7 +9,7 @@ import {
   entityLines,
   relationLines,
 } from '@/shared/canvas-label';
-import type { Corpus } from '@/shared/fixtures/types';
+import type { Corpus } from '@/shared/read/model';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
 import { standInPositions } from './layout';
@@ -28,7 +28,7 @@ import { patchGraphWorkspace, readGraphWorkspace, type GraphWorkspace } from './
 export type FilterState = Pick<GraphWorkspace, 'hiddenTypes'>;
 
 export interface GraphView {
-  /** `./bridge` declares it, and the route reads the same declaration. */
+  /** The bridge declares it, and the route reads the same declaration. */
   readonly selection: GraphSelection | null;
   readonly filter: FilterState;
   readonly lit: number;
@@ -318,7 +318,7 @@ export function mountGraph(
 
   const camera = sigma.getCamera();
   if (stored.camera !== null) {
-    // **The stored camera is read behind a guard.** `./workspace` holds that guard, and it
+    // **The stored camera is read behind a guard.** The workspace holds that guard, and it
     // gives `null` for every record it does not know.
     camera.setState({ x: stored.camera.x, y: stored.camera.y, ratio: stored.camera.ratio });
   }
@@ -502,8 +502,8 @@ export function mountGraph(
     writeAddress(selection);
   }
   // The restore does not go through `settle`, which is the only other caller, so nothing else
-  // announces it. `./bridge` holds the value for a subscriber that attaches after the mount: the
-  // canvas is a child and its effect runs first.
+  // announces it. The bridge holds the value for a subscriber that attaches after the mount:
+  // the canvas is a child and its effect runs first.
   emitGraphSelection(selection);
   recount();
 

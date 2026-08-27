@@ -1,5 +1,5 @@
 import { ENTITY_HUES, typeHues } from '@/shared/entity-hues';
-import type { Attributes, Corpus, Entity, Point } from '@/shared/fixtures/types';
+import type { Attributes, Corpus, Entity, Point } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
 /**

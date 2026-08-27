@@ -1,5 +1,7 @@
-import { createRootRoute, HeadContent, Link, Outlet } from '@tanstack/react-router';
+import { createRootRoute, HeadContent, Link, Outlet, useRouter } from '@tanstack/react-router';
+import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
 import { cn } from '@/shared/lib/utils';
+import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 
@@ -20,7 +22,10 @@ function RootLayout() {
       <div className="flex h-svh flex-col">
         <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
           <SurfaceNav />
-          <ThemeControl />
+          <div className="flex items-center gap-2">
+            <NewEntityControl />
+            <ThemeControl />
+          </div>
         </header>
         {/* `min-h-0` lets this row hold a scroll of its own. Without it, the row grows to its
             content and pushes the window. */}
@@ -67,10 +72,33 @@ function SurfaceNav() {
       >
         Graph
       </Link>
-      <Link to="/review" className={SURFACE_LINK}>
+      <Link
+        to="/review"
+        search={{ subject: '' }}
+        activeOptions={{ includeSearch: false }}
+        className={SURFACE_LINK}
+      >
         Review
       </Link>
     </nav>
+  );
+}
+
+// Making an entity has no entity to hang on, so it hangs on the shell. The router lives here,
+// and the dialog states no address of its own.
+function NewEntityControl() {
+  const router = useRouter();
+  return (
+    <CreateEntityDialog
+      onCreated={() => refreshCorpus(() => router.invalidate())}
+      onOpenEntity={(entityId) => {
+        void router.navigate({
+          to: '/entity/$id',
+          params: { id: entityId },
+          search: { src: null },
+        });
+      }}
+    />
   );
 }
 

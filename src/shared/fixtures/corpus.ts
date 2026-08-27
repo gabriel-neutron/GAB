@@ -1,8 +1,8 @@
 /**
- * Every row is invented. No claim here is about a real vessel, company or person.
- */
+ * Every row is invented. No claim here is about a real vessel, company or person. A story draws
+ * this record; the application draws the read API, so no row here reaches a running surface. */
 
-import type { Corpus } from './types';
+import type { Corpus } from '../read/model';
 
 export const corpus: Corpus = {
   documents: [
@@ -68,6 +68,7 @@ export const corpus: Corpus = {
     {
       id: '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31',
       type: 'company',
+      proposedType: null,
       label: 'Meridian Bulk Carriers Ltd',
       attrs: {
         registration_number: { v: 'HE 418822', src: ['doc_3c1104'] },
@@ -82,6 +83,7 @@ export const corpus: Corpus = {
     {
       id: '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Northern Ledger',
       attrs: {
         imo: { v: '9482137', src: ['doc_9b0417'] },
@@ -97,6 +99,7 @@ export const corpus: Corpus = {
     {
       id: 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8',
       type: 'facility',
+      proposedType: null,
       label: 'Maasvlakte bulk terminal, berth 7',
       attrs: {
         coal_stock_t: { v: 240000, src: ['doc_8f2a41'] },
@@ -109,6 +112,7 @@ export const corpus: Corpus = {
     {
       id: '18e5c740-6a2b-4d93-b1f7-3c8d0e9a2b46',
       type: 'person',
+      proposedType: null,
       label: 'A. Vasilakis',
       attrs: {
         role_title: { v: 'Director', src: ['doc_3c1104'] },
@@ -120,6 +124,7 @@ export const corpus: Corpus = {
     {
       id: '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04',
       type: 'company',
+      proposedType: null,
       label: 'Northern Ledger Shipping SA',
       attrs: {
         registration_number: { v: 'PA 1552-9014', src: ['doc_5e7730'] },
@@ -135,6 +140,7 @@ export const corpus: Corpus = {
     {
       id: 'c5f0a112-3d4e-4a67-9b28-0e1f2a3b4c5d',
       type: 'facility',
+      proposedType: null,
       label: 'Ust-Luga oil terminal, berth 4',
       attrs: { throughput_kt_month: { v: 1850, src: ['doc_8f2a41'] } },
       sources: ['doc_8f2a41'],
@@ -144,6 +150,7 @@ export const corpus: Corpus = {
     {
       id: 'a7b1c233-4e5f-4b78-8c39-1f2a3b4c5d6e',
       type: 'facility',
+      proposedType: null,
       label: 'Primorsk crude jetty',
       attrs: { berth_count: { v: 4, src: ['doc_8f2a41'] } },
       sources: ['doc_8f2a41'],
@@ -153,6 +160,7 @@ export const corpus: Corpus = {
     {
       id: 'e2c3d445-5f60-4c89-9d4a-2a3b4c5d6e7f',
       type: 'facility',
+      proposedType: null,
       label: 'Bolshoy Port Saint Petersburg, container quay',
       attrs: {
         teu_capacity: { v: 1400000, src: ['doc_8f2a41'] },
@@ -166,6 +174,7 @@ export const corpus: Corpus = {
     {
       id: 'b8d4e556-6071-4d9a-8e5b-3b4c5d6e7f80',
       type: 'facility',
+      proposedType: null,
       label: 'Baltiysk naval mole',
       attrs: { mole_length_m: { v: 620, src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -175,6 +184,7 @@ export const corpus: Corpus = {
     {
       id: 'f3e5f667-7182-4eab-9f6c-4c5d6e7f8091',
       type: 'facility',
+      proposedType: null,
       label: 'Murmansk commercial seaport, coal berth 2',
       attrs: { ice_class_required: { v: false, src: ['doc_8f2a41'] } },
       sources: ['doc_8f2a41'],
@@ -184,6 +194,7 @@ export const corpus: Corpus = {
     {
       id: 'd9f60778-8293-4fbc-806d-5d6e7f8091a2',
       type: 'facility',
+      proposedType: null,
       label: 'Arkhangelsk timber quay',
       attrs: { seasonal_closure: { v: true, src: ['doc_5e7730'] } },
       sources: ['doc_5e7730'],
@@ -193,6 +204,7 @@ export const corpus: Corpus = {
     {
       id: 'c0a71889-93a4-40cd-817e-6e7f8091a2b3',
       type: 'facility',
+      proposedType: null,
       label: 'Sheskharis oil jetty, Novorossiysk',
       attrs: { throughput_kt_month: { v: 2400, src: ['doc_8f2a41'] } },
       sources: ['doc_8f2a41'],
@@ -202,6 +214,7 @@ export const corpus: Corpus = {
     {
       id: 'a1b8299a-a4b5-41de-828f-7f8091a2b3c4',
       type: 'facility',
+      proposedType: null,
       label: 'Golden Horn repair yard, Vladivostok',
       attrs: { dry_dock_count: { v: 2, src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -211,6 +224,7 @@ export const corpus: Corpus = {
     {
       id: 'b2c93aab-b5c6-42ef-9390-8091a2b3c4d5',
       type: 'facility',
+      proposedType: null,
       label: 'Vostochny coal berth, Nakhodka',
       attrs: { conveyor_lines: { v: 3, src: ['doc_8f2a41'] } },
       sources: ['doc_8f2a41'],
@@ -220,6 +234,7 @@ export const corpus: Corpus = {
     {
       id: 'c3d04bbc-c6d7-4300-a4a1-91a2b3c4d5e6',
       type: 'facility',
+      proposedType: null,
       label: 'Sabetta LNG jetty',
       attrs: { trains_operating: { v: 4, src: ['doc_5e7730'] } },
       sources: ['doc_5e7730'],
@@ -230,6 +245,7 @@ export const corpus: Corpus = {
     {
       id: 'd4e15ccd-d7e8-4411-b5b2-a2b3c4d5e6f7',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Kestrel Arrow',
       attrs: {
         imo: { v: '9613428', src: ['doc_9b0417'] },
@@ -242,6 +258,7 @@ export const corpus: Corpus = {
     {
       id: 'e5f26dde-e8f9-4522-c6c3-b3c4d5e6f708',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Pale Meridian',
       attrs: { imo: { v: '9744015', src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -251,6 +268,7 @@ export const corpus: Corpus = {
     {
       id: 'f6037eef-f900-4633-d7d4-c4d5e6f70819',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Sable Transit',
       attrs: {
         imo: { v: '9388206', src: ['doc_9b0417'] },
@@ -264,6 +282,7 @@ export const corpus: Corpus = {
     {
       id: '07148ff0-0a11-4744-e8e5-d5e6f708192a',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Grey Anchorage',
       attrs: { imo: { v: '9205613', src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -273,6 +292,7 @@ export const corpus: Corpus = {
     {
       id: '18259001-1b22-4855-f9f6-e6f708192a3b',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Cold Harbour',
       attrs: {
         imo: { v: '9866042', src: ['doc_9b0417'] },
@@ -285,6 +305,7 @@ export const corpus: Corpus = {
     {
       id: '2936a112-2c33-4966-0a07-f708192a3b4c',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Amber Reach',
       attrs: { imo: { v: '9501774', src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -294,6 +315,7 @@ export const corpus: Corpus = {
     {
       id: '3a47b223-3d44-4a77-1b18-08192a3b4c5d',
       type: 'vessel',
+      proposedType: null,
       label: 'MV Ninth Errand',
       attrs: { imo: { v: '9327884', src: ['doc_9b0417'] } },
       sources: ['doc_9b0417'],
@@ -304,6 +326,7 @@ export const corpus: Corpus = {
     {
       id: '4b58c334-4e55-4b88-2c29-192a3b4c5d6e',
       type: 'company',
+      proposedType: null,
       label: 'Baltic Freight Nominees OU',
       attrs: { registration_number: { v: 'EE 14992031', src: ['doc_3c1104'] } },
       sources: ['doc_3c1104'],
@@ -314,6 +337,7 @@ export const corpus: Corpus = {
     {
       id: '5c69d445-5f66-4c99-3d3a-2a3b4c5d6e7f',
       type: 'company',
+      proposedType: null,
       label: 'Pomor Chartering LLC',
       attrs: { registration_number: { v: 'RU 1105190001234', src: ['doc_3c1104'] } },
       sources: ['doc_3c1104'],
@@ -323,6 +347,7 @@ export const corpus: Corpus = {
     {
       id: '6d7ae556-6077-4daa-4e4b-3b4c5d6e7f80',
       type: 'company',
+      proposedType: null,
       label: 'Vostok Bunker Agency',
       attrs: { registration_number: { v: 'RU 1122540007788', src: ['doc_5e7730'] } },
       sources: ['doc_5e7730'],
@@ -333,6 +358,7 @@ export const corpus: Corpus = {
     {
       id: '7e8bf667-7188-4ebb-5f5c-4c5d6e7f8091',
       type: 'person',
+      proposedType: null,
       label: 'I. Kravets',
       attrs: { role_title: { v: 'Port agent', src: ['doc_3c1104'] } },
       sources: ['doc_3c1104'],
@@ -343,6 +369,7 @@ export const corpus: Corpus = {
     {
       id: '8f9c0778-8299-4fcc-606d-5d6e7f8091a2',
       type: 'person',
+      proposedType: null,
       label: 'M. Duarte',
       attrs: { role_title: { v: 'Charter broker', src: ['doc_5e7730'] } },
       sources: ['doc_5e7730'],
@@ -605,11 +632,12 @@ export const corpus: Corpus = {
         attrs: { coal_stock_t: { v: 261500, src: ['doc_5e7730'] } },
       },
       src: ['doc_5e7730'],
+      names: [],
+      priorValue: { kind: 'attrs', attrs: { coal_stock_t: { v: 248000, src: ['doc_3c1104'] } } },
       confidence: 0.82,
       dissent: true,
       authorRole: 'gabriel_agent',
       status: 'pending',
-      callId: 'ca110001-0000-4000-8000-000000000001',
       createdAt: '2026-08-03T09:12:00Z',
       decidedAt: null,
       decidedBy: null,
@@ -623,15 +651,16 @@ export const corpus: Corpus = {
       payload: {
         kind: 'relation',
         type: 'operates',
-        srcId: '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31',
-        dstId: 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8',
+        src_id: '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31',
+        dst_id: 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8',
       },
       src: ['doc_8f2a41'],
+      names: ['3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31', 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8'],
+      priorValue: null,
       confidence: 0.41,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'pending',
-      callId: 'ca110001-0000-4000-8000-000000000002',
       createdAt: '2026-08-04T14:38:00Z',
       decidedAt: null,
       decidedBy: null,
@@ -649,11 +678,12 @@ export const corpus: Corpus = {
         attrs: { registration_number: { v: 'NL 6640112', src: ['doc_8f2a41'] } },
       },
       src: ['doc_8f2a41'],
+      names: [],
+      priorValue: null,
       confidence: 0.96,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'pending',
-      callId: 'ca110001-0000-4000-8000-000000000003',
       createdAt: '2026-08-05T08:02:00Z',
       decidedAt: null,
       decidedBy: null,
@@ -670,11 +700,12 @@ export const corpus: Corpus = {
         attrs: { imo: { v: '9482137', src: ['doc_9b0417'] } },
       },
       src: ['doc_9b0417'],
+      names: [],
+      priorValue: null,
       confidence: 0.91,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'accepted',
-      callId: 'ca110001-0000-4000-8000-000000000004',
       createdAt: '2026-07-22T11:45:00Z',
       decidedAt: '2026-07-22T16:20:00Z',
       decidedBy: 'operator',
@@ -687,15 +718,16 @@ export const corpus: Corpus = {
       targetId: '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04',
       payload: {
         kind: 'merge',
-        keepId: '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04',
-        mergeIds: ['3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31'],
+        keep_id: '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04',
+        merge_ids: ['3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31'],
       },
       src: ['doc_5e7730'],
+      names: ['9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04', '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31'],
+      priorValue: null,
       confidence: 0.73,
       dissent: true,
       authorRole: 'gabriel_agent',
       status: 'rejected',
-      callId: 'ca110001-0000-4000-8000-000000000005',
       createdAt: '2026-07-19T10:05:00Z',
       decidedAt: '2026-07-19T18:41:00Z',
       decidedBy: 'operator',
@@ -712,115 +744,15 @@ export const corpus: Corpus = {
         attrs: { hull_note: { v: 'Repainted funnel, photographed 2026-05', src: ['manual'] } },
       },
       src: ['manual'],
+      names: [],
+      priorValue: { kind: 'attrs', attrs: { hull_note: { v: 'Grey funnel', src: ['manual'] } } },
       confidence: 1,
       dissent: false,
       authorRole: 'gabriel_app',
       status: 'accepted',
-      callId: 'ca110001-0000-4000-8000-000000000006',
       createdAt: '2026-07-25T07:30:00Z',
       decidedAt: '2026-07-25T07:30:00Z',
       decidedBy: 'operator',
-    },
-  ],
-
-  agents: [
-    // Two versions of one agent. The old prompt stays readable after the new one exists.
-    {
-      id: 'a9e70001-0000-4000-8000-000000000001',
-      name: 'extractor',
-      version: 3,
-      role: 'extractor',
-      model: 'model-placeholder',
-      prompt: 'Read the document. Return every company, vessel, facility and person.',
-      createdAt: '2026-06-10T09:00:00Z',
-    },
-    {
-      id: 'a9e70001-0000-4000-8000-000000000002',
-      name: 'extractor',
-      version: 4,
-      role: 'extractor',
-      model: 'model-placeholder',
-      prompt:
-        'Read the document. Return every company, vessel, facility and person. Cite the ' +
-        'document for each attribute. Do not infer a value that the text does not carry.',
-      createdAt: '2026-07-28T09:00:00Z',
-    },
-    {
-      id: 'a9e70001-0000-4000-8000-000000000003',
-      name: 'critic',
-      version: 1,
-      role: 'critic',
-      model: 'model-placeholder',
-      prompt: 'Judge the proposal against the cited text. State a disagreement plainly.',
-      createdAt: '2026-06-10T09:00:00Z',
-    },
-  ],
-
-  agentCalls: [
-    {
-      id: 'ca110001-0000-4000-8000-000000000001',
-      runId: '4e110001-0000-4000-8000-000000000001',
-      agentId: 'a9e70001-0000-4000-8000-000000000002',
-      ord: 1,
-      renderedPrompt:
-        'Read the document. Return every company, vessel, facility and person. Cite the ' +
-        'document for each attribute. Do not infer a value that the text does not carry.\n\n' +
-        'Context (doc_5e7730): "Terminal stocks were reported near 261 500 tonnes at the ' +
-        'close of the quarter, against 240 000 in the official return."',
-      createdAt: '2026-08-03T09:12:00Z',
-    },
-    {
-      id: 'ca110001-0000-4000-8000-000000000002',
-      runId: '4e110001-0000-4000-8000-000000000001',
-      agentId: 'a9e70001-0000-4000-8000-000000000002',
-      ord: 2,
-      renderedPrompt:
-        'Read the document. Return every company, vessel, facility and person. Cite the ' +
-        'document for each attribute. Do not infer a value that the text does not carry.\n\n' +
-        'Context (doc_8f2a41): "Berth 7 is worked under contract by the terminal services ' +
-        'arm of the port group."',
-      createdAt: '2026-08-04T14:38:00Z',
-    },
-    {
-      id: 'ca110001-0000-4000-8000-000000000003',
-      runId: '4e110001-0000-4000-8000-000000000002',
-      agentId: 'a9e70001-0000-4000-8000-000000000002',
-      ord: 1,
-      renderedPrompt:
-        'Read the document. Return every company, vessel, facility and person. Cite the ' +
-        'document for each attribute. Do not infer a value that the text does not carry.\n\n' +
-        'Context (doc_8f2a41): "Maasvlakte Terminal Services BV, registered NL 6640112, ' +
-        'holds the operating concession for berths 5 to 9."',
-      createdAt: '2026-08-05T08:02:00Z',
-    },
-    {
-      // Produced by version 3, and not by version 4. This row is why a version is kept.
-      id: 'ca110001-0000-4000-8000-000000000004',
-      runId: '4e110001-0000-4000-8000-000000000003',
-      agentId: 'a9e70001-0000-4000-8000-000000000001',
-      ord: 1,
-      renderedPrompt:
-        'Read the document. Return every company, vessel, facility and person.\n\n' +
-        'Context (doc_9b0417): "MV NORTHERN LEDGER, IMO 9482137, alongside berth 7."',
-      createdAt: '2026-07-22T11:45:00Z',
-    },
-    {
-      id: 'ca110001-0000-4000-8000-000000000005',
-      runId: '4e110001-0000-4000-8000-000000000003',
-      agentId: 'a9e70001-0000-4000-8000-000000000003',
-      ord: 2,
-      renderedPrompt:
-        'Judge the proposal against the cited text. State a disagreement plainly.\n\n' +
-        'Proposal: merge Meridian Bulk Carriers Ltd into Northern Ledger Shipping SA.',
-      createdAt: '2026-07-19T10:05:00Z',
-    },
-    {
-      id: 'ca110001-0000-4000-8000-000000000006',
-      runId: '4e110001-0000-4000-8000-000000000004',
-      agentId: 'a9e70001-0000-4000-8000-000000000001',
-      ord: 1,
-      renderedPrompt: 'Entered by the analyst. No model was called.',
-      createdAt: '2026-07-25T07:30:00Z',
     },
   ],
 };

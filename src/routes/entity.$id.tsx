@@ -1,8 +1,9 @@
-import { createFileRoute, notFound, stripSearchParams } from '@tanstack/react-router';
+import { createFileRoute, notFound, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { DetailPage } from '@/features/detail/detail-page';
 import { readDossier } from '@/features/detail/dossier';
-import { corpus } from '@/shared/fixtures/corpus';
-import type { DocId } from '@/shared/fixtures/types';
+import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
+import type { DocId } from '@/shared/read/model';
+import { loadVocabulary } from '@/shared/read/vocabulary';
 
 export interface EntitySearch {
   /** The document the reader arrived at. `null` is the normal arrival. */
@@ -30,12 +31,13 @@ export const Route = createFileRoute('/entity/$id')({
   // characters `null`, which is a document identifier that no corpus holds.
   search: { middlewares: [stripSearchParams({ src: null })] },
 
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     if (params.id.trim() === '') entityNotFound();
     // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
-    // exception above is a blank segment, which names no entity under any schema. `readDossier`
-    // takes the corpus as an argument, so the day the read layer exists only that argument changes.
-    return readDossier(corpus, params.id) ?? entityNotFound();
+    // exception above is a blank segment, which names no entity under any schema. The read API
+    // answers the whole corpus, and the router holds this page back until that answer arrives.
+    const [read, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
+    return readDossier(read, params.id, vocabulary) ?? entityNotFound();
   },
 
   component: EntityRoute,
@@ -50,11 +52,22 @@ function EntityRoute() {
   const { id } = Route.useParams();
   const { src } = Route.useSearch();
   const dossier = Route.useLoaderData();
+  const router = useRouter();
 
-  // The defect this key exists to not repeat: every control is read-only and draws its value with
-  // `defaultValue`, which React reads once. A move from one entity to another keeps the same
-  // mounted page, so a field kept the previous entity's value under the correct label.
-  return <DetailPage key={id} dossier={dossier} arrivedAtSource={src} />;
+  // A move to another entity keeps the same mounted page, and the key destroys it instead. A
+  // draft belongs to the entity it was typed on, and it must never arrive on the next one.
+  return (
+    <DetailPage
+      key={id}
+      dossier={dossier}
+      arrivedAtSource={src}
+      onSaved={() => refreshCorpus(() => router.invalidate())}
+      onDeleted={async () => {
+        await router.navigate({ to: '/graph', search: { entity: '', relation: '' } });
+        await refreshCorpus(() => router.invalidate());
+      }}
+    />
+  );
 }
 
 function EntityNotFound() {

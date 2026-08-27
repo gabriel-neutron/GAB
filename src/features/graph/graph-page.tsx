@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
-import { corpus } from '@/shared/fixtures/corpus';
+import type { Corpus } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 
@@ -28,14 +28,20 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
   return (
     <>
       <div ref={canvas} className={cn('absolute inset-0')} />
-      {/* The overlay is positioned, because `./controller` puts an absolute layer inside it. It
-          takes no pointer event, so a drag that starts on it still moves the graph. */}
+      {/* The overlay is positioned, because the controller puts an absolute layer inside it.
+          It takes no pointer event, so a drag that starts on it still moves the graph. */}
       <div ref={overlay} className={cn('pointer-events-none absolute inset-0')} />
     </>
   );
 });
 
-export function GraphPage() {
+export interface GraphPageProps {
+  // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
+  // may hold nothing, and a later read of the record reaches the graph as a new value.
+  readonly corpus: Corpus;
+}
+
+export function GraphPage({ corpus }: GraphPageProps) {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   const controller = useRef<GraphController | null>(null);
@@ -48,15 +54,15 @@ export function GraphPage() {
 
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
-  // The list is empty on purpose: `corpus` is a module import and the two refs are stable, so
-  // nothing here can mount a second graph. `subscribe` calls its listener at once with the view of
-  // that moment, so this file needs no seeding path of its own.
+  // The list holds the record alone: a ref is one object for the life of the component, and this
+  // page takes no other value. A later read of the record mounts a new graph, which is how a
+  // refresh reaches this canvas. `subscribe` seeds a new listener, so this file seeds nothing.
   useEffect(() => {
     const element = canvas.current;
     const marks = overlay.current;
     if (element === null || marks === null) return;
 
-    // `./bridge` holds the last announcement, and nothing else clears it. A `mountGraph` that
+    // The bridge holds the last announcement, and nothing else clears it. A `mountGraph` that
     // throws, and no WebGL context is the real case, announces nothing. The route is then seeded
     // with the selection of the previous mount, and draws an entity that no canvas drew.
     emitGraphSelection(null);
@@ -76,7 +82,7 @@ export function GraphPage() {
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (controller.current === handle) controller.current = null;
     };
-  }, []);
+  }, [corpus]);
 
   // The memo reads the values the rows are built from, and never the whole snapshot. A publish
   // makes a new snapshot object, and a fold is a publish. A memo that took the whole snapshot
@@ -101,8 +107,8 @@ export function GraphPage() {
         handle.setRailOpen(next.open);
         return;
       case 'switch-type': {
-        // The workspace holds the types that are switched **off**. `./rail-rows` holds that
-        // polarity, so the shared control states the act and never the set it produces.
+        // The workspace holds the types that are switched **off**. The rows of the rail hold
+        // that polarity, so the shared control states the act and never the set it produces.
         const filter = filterNow.current;
         if (filter === null) return;
         handle.setFilter({ hiddenTypes: hiddenAfterSwitch(filter, next.type, next.on) });

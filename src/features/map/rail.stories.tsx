@@ -6,6 +6,7 @@ import { corpus } from '@/shared/fixtures/corpus';
 
 import type { MapHandle } from './adapter';
 import type { Ground } from './workspace';
+import { GroundControl } from './ground-control';
 import { entitiesOfType, project, type GeoLink } from './projection';
 import { Rail } from './rail';
 
@@ -179,6 +180,14 @@ type Story = StoryObj<typeof meta>;
 /** No story asserts the credit: MapLibre draws it over a live canvas, which stories never mount. */
 export const TheGroundSwitchesThroughTheOneWriter: Story = {
   args: { map: groundOnly.map },
+  // `map-page.tsx` places this control beside the rail, over the canvas, and not inside the rail.
+  // This story mounts the same pair, so the click below reaches a real control.
+  render: (args) => (
+    <div className="relative flex h-96">
+      <Rail {...args} />
+      <GroundControl map={args.map} />
+    </div>
+  ),
   play: async ({ canvas, canvasElement }) => {
     // The name says the ground in force and the one a click brings, because a glyph alone says
     // neither to a reader who cannot see it.

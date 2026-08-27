@@ -5,7 +5,7 @@
 import { MultiDirectedGraph } from 'graphology';
 
 import { ENTITY_HUES, typeHues, type EntityHueSet } from '@/shared/entity-hues';
-import type { Corpus, Proposal, Relation } from '@/shared/fixtures/types';
+import type { Corpus, Proposal, Relation } from '@/shared/read/model';
 
 import { analyseStructure, topologyOf } from './structure';
 

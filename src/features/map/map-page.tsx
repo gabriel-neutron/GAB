@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { corpus } from '@/shared/fixtures/corpus';
+import type { Corpus } from '@/shared/read/model';
 
 import { mountMap, type MapHandle } from './adapter';
 import { project } from './projection';
@@ -13,6 +13,9 @@ import { Rail } from './rail';
 import { patchMapWorkspace, readMapWorkspace } from './workspace';
 
 export interface MapPageProps {
+  // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
+  // may hold nothing, and a later read of the record reaches the map as a new value.
+  readonly corpus: Corpus;
   // This function must be the same function at each render of the caller. A caller that builds a
   // new function at each render mounts a new map at each render.
   readonly onSelect: (id: string | null) => void;
@@ -25,7 +28,7 @@ export interface MapPageProps {
 // Two React values sit in an ancestor of the canvas: `mapReady` and `railOpen`. Neither is the
 // instance, the camera, the style or the selection, and the element that carries the canvas is
 // memoised on an empty list. So no render of these two can reach the live element.
-export function MapPage({ onSelect, onChooseRelation }: MapPageProps) {
+export function MapPage({ corpus, onSelect, onChooseRelation }: MapPageProps) {
   const host = useRef<HTMLDivElement | null>(null);
   // The rail is a sibling of the canvas, and it drives the map through this ref. The ref itself
   // never changes, so the rail takes a value that no render can replace.
@@ -46,13 +49,14 @@ export function MapPage({ onSelect, onChooseRelation }: MapPageProps) {
     patchMapWorkspace({ railOpen: next });
   }, []);
 
-  // `adapter.ts` keys each feature of the style to the `fid` of this one projection, and `fid` is
-  // a position in its array. A second projection carries identifiers the live map does not hold.
-  const projection = useMemo(() => project(corpus), []);
+  // `adapter.ts` keys each feature of the style to the `fid` of this projection, and `fid` is a
+  // position in its array. So one corpus gives one projection, and a second projection over the
+  // same corpus would carry identifiers the live map does not hold.
+  const projection = useMemo(() => project(corpus), [corpus]);
 
-  // React 19 StrictMode runs setup, cleanup, setup in development. `mountMap` destroys an
-  // instance that it finds on the same element, and this cleanup removes the listener, destroys
-  // the map and drops the handle. So two runs leave one map and no listener.
+  // React 19 StrictMode runs setup, cleanup, setup: `mountMap` destroys an instance it finds on
+  // the element, and this cleanup drops each listener, so two runs leave one map. The list mounts
+  // one map: each callback is stable, and only a later read of the record makes a second map.
   useEffect(() => {
     const container = host.current;
     // The element is memoised below and it is in the returned tree, so React has attached it

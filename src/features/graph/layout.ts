@@ -2,7 +2,7 @@
 // each run, so a position here is a pure function of the entity id. The analysis is not cached: a
 // layout held in a module makes a second place that holds a position.
 
-import type { Corpus } from '@/shared/fixtures/types';
+import type { Corpus } from '@/shared/read/model';
 
 import type { NodePosition } from './model';
 import { analyseStructure, topologyOf, type TopologyLink } from './structure';
