@@ -229,13 +229,6 @@ END $$;
 
 -- THE ONE DOOR INTO THE EVIDENTIARY LAYER. It encodes no rule about WHO may call it, so this
 -- file stays neutral on #42.
---
--- docs/spec.md §5 holds two sentences that disagree about what this function refuses. One says
--- it refuses a proposal that is not already accepted with decided_at and decided_by set; the
--- other says applying a proposal writes the target and then fills those columns. THIS KEEPS THE
--- ATOMIC FORM, because the two-step form leaves a proposal accepted with nothing applied, which
--- is the silent false success #17 (c) calls a defect on the pivotal step. The operator keeps
--- one of the two sentences.
 CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER

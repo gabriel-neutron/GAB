@@ -172,9 +172,8 @@ the evidentiary layer without explicit promotion. The two cannot both hold. Do n
 in code and do not settle it in a document. See §6.
 
 **One door in, and it is a function.** Nothing writes `entities` or `relations` directly. The
-promotion runs inside a function, which holds the privilege alone. It refuses a proposal that
-is not `accepted` with `decided_at` and `decided_by` set. Each evidentiary row carries the
-identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal makes one row.
+promotion runs inside a function, which holds the privilege alone. Each evidentiary row carries
+the identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal makes one row.
 **ADR 0003 §7 holds the mechanism and the roles**, and this paragraph does not repeat it.
 
 **Applying a proposal**: a single transaction that writes the target, moves the proposal to
