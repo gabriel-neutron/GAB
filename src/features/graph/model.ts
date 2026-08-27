@@ -98,6 +98,17 @@ const isDrawable = (relation: Relation, drawn: ReadonlySet<string>): boolean =>
 const isM4 = (relation: Relation): boolean =>
   relation.srcKind === 'relation' || relation.dstKind === 'relation';
 
+// An isolate is painted before its type, because the reader is told which elements stand alone
+// before which kind of thing each one is. The two callers below state the rule one time: a node
+// that the build paints and a node that a ground change repaints must take the same hue.
+const hueOfNode = (
+  attrs: Pick<NodeAttrs, 'isolate' | 'entityType'>,
+  palette: GraphPalette,
+  hueOfType: ReadonlyMap<string, string>,
+  ground: GraphGround,
+): string =>
+  attrs.isolate ? palette.isolate : (hueOfType.get(attrs.entityType) ?? UNDECLARED_HUE[ground]);
+
 function hold<T>(index: Map<string, T[]>, key: string, value: T): void {
   const held = index.get(key);
   if (held === undefined) index.set(key, [value]);
@@ -141,8 +152,6 @@ export function buildGraphModel(
   // Sigma draws nothing for either.
   const sizeSpan = Math.log1p(structure.largestDegree);
 
-  // The declared hue of each type. An isolate is painted before its type below, because the
-  // reader is told which elements stand alone before which kind of thing each one is.
   const hueOfType = typeHues(types, ground);
 
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
@@ -157,7 +166,7 @@ export function buildGraphModel(
       y: position.y,
       // `log1p(0)` is 0, so a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? UNDECLARED_HUE[ground]),
+      color: hueOfNode({ isolate, entityType: entity.type }, palette, hueOfType, ground),
       label: entity.label,
       entityType: entity.type,
       degree,
@@ -185,4 +194,26 @@ export function buildGraphModel(
   }
 
   return { graph, pendingByTarget, hueOfType };
+}
+
+// A palette is a property of a drawing and a topology is a property of the record, so a ground
+// change reaches the paint and never the analysis. The graph is written in place: it carries each
+// position, and a copy of it makes a second place that holds one. The model object is new.
+export function repaintGraphModel(
+  model: GraphModel,
+  types: TypeVocabulary,
+  ground: GraphGround,
+): GraphModel {
+  const palette = GRAPH_PALETTES[ground];
+  const hueOfType = typeHues(types, ground);
+
+  const { graph } = model;
+  graph.forEachNode((node, attrs) => {
+    graph.setNodeAttribute(node, 'color', hueOfNode(attrs, palette, hueOfType, ground));
+  });
+  graph.forEachEdge((edge) => {
+    graph.setEdgeAttribute(edge, 'color', palette.edge);
+  });
+
+  return { ...model, hueOfType };
 }

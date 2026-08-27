@@ -17,6 +17,7 @@ import {
   buildGraphModel,
   dimmedColour,
   GROUND_HUE,
+  repaintGraphModel,
   type EdgeAttrs,
   type GraphGround,
   type GraphModel,
@@ -617,16 +618,16 @@ export function mountGraph(
     if (hovered?.id === edge) nameHover(null);
   });
 
-  // The paint of each element is in the model, so a theme change builds the model again. The
-  // positions are not built again, so no node moves, and the camera and the selection both hold.
+  // A theme change moves the palette and nothing else: the record, the topology and the positions
+  // are the same, so the paint is written over the graph that is already drawn. Nothing is built
+  // again, so no node moves, and the camera and the selection both hold. `settle` refreshes.
   const themeObserver = new MutationObserver(() => {
     if (destroyed) return;
     const next = groundOf();
     if (next === ground) return;
     ground = next;
     dimCache.clear();
-    model = buildGraphModel(corpus, positions, types, ground);
-    sigma.setGraph(model.graph);
+    model = repaintGraphModel(model, types, ground);
     settle(acceptable(selection));
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
