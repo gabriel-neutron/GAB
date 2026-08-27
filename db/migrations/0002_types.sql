@@ -91,3 +91,5 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
              THEN val->'src' ELSE '[]'::jsonb END) AS s(doc)
      WHERE NOT (coalesce(docs, ARRAY[]::text[]) @> ARRAY[s.doc]));
 $$;
+
+RESET ROLE;

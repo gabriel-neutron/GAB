@@ -271,3 +271,5 @@ CREATE TABLE relations (
 CREATE INDEX relations_src_idx  ON relations (src_kind, src_id);
 CREATE INDEX relations_dst_idx  ON relations (dst_kind, dst_id);
 CREATE INDEX relations_type_idx ON relations (type);
+
+RESET ROLE;
