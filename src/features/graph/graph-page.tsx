@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
-import type { Corpus } from '@/shared/read/model';
+import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 
@@ -39,9 +39,11 @@ export interface GraphPageProps {
   // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
   // may hold nothing, and a later read of the record reaches the graph as a new value.
   readonly corpus: Corpus;
+  /** The declared types. The canvas paints a node in the hue its type states. */
+  readonly types: TypeVocabulary;
 }
 
-export function GraphPage({ corpus }: GraphPageProps) {
+export function GraphPage({ corpus, types }: GraphPageProps) {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   const controller = useRef<GraphController | null>(null);
@@ -54,9 +56,9 @@ export function GraphPage({ corpus }: GraphPageProps) {
 
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
-  // The list holds the record alone: a ref is one object for the life of the component, and this
-  // page takes no other value. A later read of the record mounts a new graph, which is how a
-  // refresh reaches this canvas. `subscribe` seeds a new listener, so this file seeds nothing.
+  // The list holds the record and the declared types, and no ref: a ref is one object for the
+  // life of the component. A later read of either one mounts a new graph, which is how a refresh
+  // reaches this canvas. `subscribe` seeds a new listener, so this file seeds nothing.
   useEffect(() => {
     const element = canvas.current;
     const marks = overlay.current;
@@ -67,7 +69,7 @@ export function GraphPage({ corpus }: GraphPageProps) {
     // with the selection of the previous mount, and draws an entity that no canvas drew.
     emitGraphSelection(null);
 
-    const handle = mountGraph(element, marks, corpus);
+    const handle = mountGraph(element, marks, corpus, types);
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
@@ -82,7 +84,7 @@ export function GraphPage({ corpus }: GraphPageProps) {
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (controller.current === handle) controller.current = null;
     };
-  }, [corpus]);
+  }, [corpus, types]);
 
   // The memo reads the values the rows are built from, and never the whole snapshot. A publish
   // makes a new snapshot object, and a fold is a publish. A memo that took the whole snapshot

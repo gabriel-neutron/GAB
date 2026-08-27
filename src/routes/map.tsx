@@ -4,7 +4,7 @@ import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
 import { loadCorpus } from '@/shared/read/corpus';
-import { loadVocabulary } from '@/shared/read/vocabulary';
+import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
 
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
@@ -36,8 +36,12 @@ export const Route = createFileRoute('/map')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
-    return { corpus, vocabulary };
+    const [corpus, vocabulary, types] = await Promise.all([
+      loadCorpus(),
+      loadVocabulary(),
+      loadEntityTypes(),
+    ]);
+    return { corpus, vocabulary, types };
   },
 
   component: MapRoute,
@@ -47,7 +51,7 @@ export const Route = createFileRoute('/map')({
 function MapRoute() {
   const { entity, relation } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, vocabulary } = Route.useLoaderData();
+  const { corpus, vocabulary, types } = Route.useLoaderData();
 
   // The address is the one carrier of the selection, and no React state holds a second copy.
   // The list of each callback below must stay `[navigate]`, so the values of this moment arrive
@@ -101,9 +105,14 @@ function MapRoute() {
   // canvas takes, and the record is the only one a selection cannot change.
   const canvas = useMemo(
     () => (
-      <MapPage corpus={corpus} onSelect={handleSelect} onChooseRelation={handleChooseRelation} />
+      <MapPage
+        corpus={corpus}
+        types={types}
+        onSelect={handleSelect}
+        onChooseRelation={handleChooseRelation}
+      />
     ),
-    [corpus, handleSelect, handleChooseRelation],
+    [corpus, types, handleSelect, handleChooseRelation],
   );
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so

@@ -128,7 +128,10 @@ function byCodePoint(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-function labelOf(key: string): string {
+// The name of a declared key is what `attribute_key.label` states, and this stands in only for a
+// key the vocabulary does not declare — a key nothing can write, and one that carries no name of
+// its own to print.
+function undeclaredLabel(key: string): string {
   const words = key.replaceAll('_', ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
@@ -154,7 +157,7 @@ export function readClaims(attrs: Attributes, vocabulary: Vocabulary): readonly 
               : { editable: true, declaration };
         return {
           key,
-          label: labelOf(key),
+          label: declaration === undefined ? undeclaredLabel(key) : declaration.label,
           value,
           width: widthOf(value),
           edit,

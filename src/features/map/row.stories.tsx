@@ -2,11 +2,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { entityTypes } from '@/shared/fixtures/entity-types';
 
 import { project, type GeoEntity, type TypeFacet } from './projection';
 import { IndexRows } from './row';
 
-const projection = project(corpus);
+const projection = project(corpus, entityTypes);
 
 function facetOf(type: string): TypeFacet {
   const facet = projection.facetByType.get(type);

@@ -1,5 +1,5 @@
-import { ENTITY_HUES, typeHues } from '@/shared/entity-hues';
-import type { Attributes, Corpus, Entity, Point } from '@/shared/read/model';
+import { typeHues, UNDECLARED_HUE } from '@/shared/entity-hues';
+import type { Attributes, Corpus, Entity, Point, TypeVocabulary } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
 /**
@@ -55,10 +55,8 @@ export interface Projection {
   readonly bounds: readonly [number, number, number, number] | null;
 }
 
-/**
- * A point sits on dark imagery, so this surface takes the dark set on the two themes.
- */
-const MAP_HUES = ENTITY_HUES.dark;
+// A point sits on dark imagery, so this surface takes the declared dark hue on the two themes.
+const MAP_GROUND = 'dark';
 
 /** `geom` is nullable on `Entity`, and the narrowing has to survive the `map` below. */
 const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point } =>
@@ -135,21 +133,18 @@ export function entitiesOfType(projection: Projection, type: string): readonly G
   return projection.entities.filter((entity) => entity.type === type);
 }
 
-export function project(read: Corpus): Projection {
+export function project(read: Corpus, declared: TypeVocabulary): Projection {
   const drawn = read.entities.filter(hasGeometry);
 
-  // The hue comes from every type of the corpus, not from the drawn types. This file drops an
-  // entity with no geometry, the graph drops one with no position, so an index from a drawn
-  // subset would give one type two hues, one per canvas. The hue cycles: type seven takes hue one.
-  const hueOfType = typeHues(
-    read.entities.map((entity) => entity.type),
-    MAP_HUES,
-  );
+  // The declared hue of each type. This file drops an entity with no geometry and the graph
+  // drops one with no position; a hue read from the declaration is the same on both, because
+  // neither canvas is what states it.
+  const hueOfType = typeHues(declared, MAP_GROUND);
   const types: readonly TypeFacet[] = [...new Set(drawn.map((entity) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
-      colour: hueOfType.get(type) ?? MAP_HUES[0],
+      colour: hueOfType.get(type) ?? UNDECLARED_HUE,
       count: drawn.filter((entity) => entity.type === type).length,
     }));
 

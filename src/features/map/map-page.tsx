@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { Corpus } from '@/shared/read/model';
+import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
 import { mountMap, type MapHandle } from './adapter';
 import { project } from './projection';
@@ -16,6 +16,8 @@ export interface MapPageProps {
   // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
   // may hold nothing, and a later read of the record reaches the map as a new value.
   readonly corpus: Corpus;
+  /** The declared types. The canvas paints a point in the hue its type states. */
+  readonly types: TypeVocabulary;
   // This function must be the same function at each render of the caller. A caller that builds a
   // new function at each render mounts a new map at each render.
   readonly onSelect: (id: string | null) => void;
@@ -28,7 +30,7 @@ export interface MapPageProps {
 // Two React values sit in an ancestor of the canvas: `mapReady` and `railOpen`. Neither is the
 // instance, the camera, the style or the selection, and the element that carries the canvas is
 // memoised on an empty list. So no render of these two can reach the live element.
-export function MapPage({ corpus, onSelect, onChooseRelation }: MapPageProps) {
+export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPageProps) {
   const host = useRef<HTMLDivElement | null>(null);
   // The rail is a sibling of the canvas, and it drives the map through this ref. The ref itself
   // never changes, so the rail takes a value that no render can replace.
@@ -52,7 +54,7 @@ export function MapPage({ corpus, onSelect, onChooseRelation }: MapPageProps) {
   // `adapter.ts` keys each feature of the style to the `fid` of this projection, and `fid` is a
   // position in its array. So one corpus gives one projection, and a second projection over the
   // same corpus would carry identifiers the live map does not hold.
-  const projection = useMemo(() => project(corpus), [corpus]);
+  const projection = useMemo(() => project(corpus, types), [corpus, types]);
 
   // React 19 StrictMode runs setup, cleanup, setup: `mountMap` destroys an instance it finds on
   // the element, and this cleanup drops each listener, so two runs leave one map. The list mounts

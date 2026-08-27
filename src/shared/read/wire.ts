@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { attributeKey as apiAttributeKey } from '@/contract/api/AttributeKey';
 import { document as apiDocument } from '@/contract/api/Document';
 import { entity as apiEntity } from '@/contract/api/Entity';
+import { entityType as apiEntityType } from '@/contract/api/EntityType';
 import { proposal as apiProposal } from '@/contract/api/Proposal';
 import { relation as apiRelation } from '@/contract/api/Relation';
 
@@ -28,6 +29,17 @@ export const wireRow = {
       kind: z.enum(ATTRIBUTE_KIND, stated('attribute_key.kind')),
       label: text('attribute_key.label'),
       retired: z.boolean(stated('attribute_key.retired')),
+    }),
+  ),
+
+  entityType: apiEntityType.and(
+    z.object({
+      key: text('entity_type.key'),
+      label: text('entity_type.label'),
+      colour_light: text('entity_type.colour_light'),
+      colour_dark: text('entity_type.colour_dark'),
+      ord: z.number(stated('entity_type.ord')),
+      retired: z.boolean(stated('entity_type.retired')),
     }),
   ),
 

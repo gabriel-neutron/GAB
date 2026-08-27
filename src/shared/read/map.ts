@@ -8,6 +8,7 @@ import type {
   Attributes,
   DocumentRow,
   Entity,
+  EntityTypeDeclaration,
   Point,
   PriorValue,
   Proposal,
@@ -141,6 +142,18 @@ function attributeKey(row: unknown): AttributeDeclaration {
   };
 }
 
+function entityType(row: unknown): EntityTypeDeclaration {
+  const read = wireRow.entityType.parse(row);
+  return {
+    key: read.key,
+    label: read.label,
+    colourLight: read.colour_light,
+    colourDark: read.colour_dark,
+    ord: read.ord,
+    retired: read.retired,
+  };
+}
+
 function document(row: unknown): DocumentRow {
   const read = wireRow.document.parse(row);
   return {
@@ -209,4 +222,11 @@ function proposal(row: unknown): Proposal {
 }
 
 /** Each one reads a row of the read API and gives the record row a surface works in. */
-export const toDomain = { attributeKey, document, entity, relation, proposal } as const;
+export const toDomain = {
+  attributeKey,
+  entityType,
+  document,
+  entity,
+  relation,
+  proposal,
+} as const;

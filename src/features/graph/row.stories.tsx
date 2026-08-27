@@ -2,8 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { entityTypes } from '@/shared/fixtures/entity-types';
 
-import { buildGraphModel, GRAPH_PALETTES, type NodePosition } from './model';
+import { buildGraphModel, type NodePosition } from './model';
 import { deriveRailRows } from './rail-rows';
 import { IndexRows } from './row';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
@@ -13,7 +14,7 @@ const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
-const model = buildGraphModel(corpus, positions, GRAPH_PALETTES.dark);
+const model = buildGraphModel(corpus, positions, entityTypes, 'dark');
 
 /** The most populated type, so that the order of the list below is worth a check. */
 const TYPE = (() => {

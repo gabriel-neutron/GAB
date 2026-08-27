@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { expect, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/fixtures/corpus';
+import { entityTypes } from '@/shared/fixtures/entity-types';
 
 import type { MapHandle } from './adapter';
 import type { Ground } from './workspace';
@@ -12,7 +13,7 @@ import { Rail } from './rail';
 
 // No story mounts a live canvas: `MapHandle` is a type, so the double below is a plain object.
 // The rail is 240px open (`w-60`) and a 44px strip closed (`w-11`).
-const projection = project(corpus);
+const projection = project(corpus, entityTypes);
 
 interface TestMap {
   /** The rail takes a ref, because `map-page.tsx` keeps the handle in a `useRef`. */

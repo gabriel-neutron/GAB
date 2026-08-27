@@ -9,7 +9,7 @@ import {
   entityLines,
   relationLines,
 } from '@/shared/canvas-label';
-import type { Corpus } from '@/shared/read/model';
+import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
 import { emitGraphSelection, type GraphSelection } from './bridge';
 import { standInPositions } from './layout';
@@ -17,7 +17,6 @@ import {
   buildGraphModel,
   dimmedColour,
   GROUND_HUE,
-  GRAPH_PALETTES,
   type EdgeAttrs,
   type GraphGround,
   type GraphModel,
@@ -124,6 +123,7 @@ export function mountGraph(
   canvas: HTMLElement,
   overlay: HTMLElement,
   corpus: Corpus,
+  types: TypeVocabulary,
 ): GraphController {
   mounted.get(canvas)?.destroy();
 
@@ -133,7 +133,7 @@ export function mountGraph(
   const positions = standInPositions(corpus);
 
   let ground = groundOf();
-  let model = buildGraphModel(corpus, positions, GRAPH_PALETTES[ground]);
+  let model = buildGraphModel(corpus, positions, types, ground);
 
   const stored = readGraphWorkspace();
   let filter: FilterState = { hiddenTypes: [...stored.hiddenTypes] };
@@ -625,7 +625,7 @@ export function mountGraph(
     if (next === ground) return;
     ground = next;
     dimCache.clear();
-    model = buildGraphModel(corpus, positions, GRAPH_PALETTES[ground]);
+    model = buildGraphModel(corpus, positions, types, ground);
     sigma.setGraph(model.graph);
     settle(acceptable(selection));
   });

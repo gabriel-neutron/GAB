@@ -88,9 +88,8 @@ INSERT INTO attribute_key (key, stem, kind, label, unit, pattern) VALUES
   -- short text
   ('last_port_call',         'last_port_call',         'text',       'Last port call',       NULL,       NULL),
   ('role_title',             'role_title',             'text',       'Role',                 NULL,       NULL),
-  -- notes. THE KIND IS DECLARED AND NEVER GUESSED: src/features/detail/claims.ts decides
-  -- note-or-text from a 48-character test today, and it calls two of these three `text`.
-  -- #80 row B4 asks that the screen speak the DECLARED type, so the change is the point.
+  -- notes. THE KIND IS DECLARED AND NEVER GUESSED. A 48-character test called two of these
+  -- three `text`; the screen now speaks the declared kind, which is what #80 row B4 asks.
   ('crane_note',             'crane_note',             'note',       'Crane note',           NULL,       NULL),
   ('hull_note',              'hull_note',              'note',       'Hull note',            NULL,       NULL),
   ('note',                   'note',                   'note',       'Note',                 NULL,       NULL)

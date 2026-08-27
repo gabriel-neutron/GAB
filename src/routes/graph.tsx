@@ -6,7 +6,7 @@ import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { onGraphSelection, type GraphSelection } from '@/features/graph/bridge';
 import { GraphPage } from '@/features/graph/graph-page';
 import { loadCorpus } from '@/shared/read/corpus';
-import { loadVocabulary } from '@/shared/read/vocabulary';
+import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
 import { cn } from '@/shared/lib/utils';
 
 // The address is the one store of what is examined. Two carriers of one fact drift apart.
@@ -47,8 +47,12 @@ export const Route = createFileRoute('/graph')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
-    return { corpus, vocabulary };
+    const [corpus, vocabulary, types] = await Promise.all([
+      loadCorpus(),
+      loadVocabulary(),
+      loadEntityTypes(),
+    ]);
+    return { corpus, vocabulary, types };
   },
 
   component: GraphRoute,
@@ -56,7 +60,7 @@ export const Route = createFileRoute('/graph')({
 });
 
 function GraphRoute() {
-  const { corpus, vocabulary } = Route.useLoaderData();
+  const { corpus, vocabulary, types } = Route.useLoaderData();
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
@@ -84,7 +88,7 @@ function GraphRoute() {
   // No React render inside the tree that wraps the live element. A change of the selection
   // re-renders this route, and without this memo it would rebuild the element that owns the
   // canvas. The list holds the record, which a selection never changes. Do not remove it.
-  const canvas = useMemo(() => <GraphPage corpus={corpus} />, [corpus]);
+  const canvas = useMemo(() => <GraphPage corpus={corpus} types={types} />, [corpus, types]);
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so
   // `overflow-y-auto` on the sidebar gives no scroll and the window scrolls both panes together.

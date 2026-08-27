@@ -34,6 +34,24 @@ export interface AttributeDeclaration {
 /** Every key the database declares. It is read beside the corpus, and never written by hand. */
 export type Vocabulary = readonly AttributeDeclaration[];
 
+/** What `entity_type` states about one type. A canvas takes the hue from here, and it never
+ * takes one from a position in a list. */
+export interface EntityTypeDeclaration {
+  readonly key: string;
+  readonly label: string;
+  /** Two hues and not one: one hex value fails one of the two pages. A map takes the dark hue on
+   * both themes, because its ground is imagery. */
+  readonly colourLight: string;
+  readonly colourDark: string;
+  readonly ord: number;
+  /** A retired type keeps the rows it already carries, and takes no new row. */
+  readonly retired: boolean;
+}
+
+/** Every entity type the database declares. It is read beside the corpus, and never written by
+ * hand. A retired type stays in it, because a promoted row still carries that word. */
+export type TypeVocabulary = readonly EntityTypeDeclaration[];
+
 export type DocumentKind = 'file' | 'url' | 'api' | 'report' | 'manual';
 export type AdmiraltyOrigin = 'machine' | 'arbitrated' | 'human';
 

@@ -4,7 +4,6 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { entityType } from '@/contract/api/EntityType';
 import { keyUsage } from '@/contract/api/KeyUsage';
 import { valueSupport } from '@/contract/api/ValueSupport';
 
@@ -29,7 +28,12 @@ const VIEWS: readonly View[] = [
     instead: 'vessel',
   },
   { view: 'proposal', read: (row) => toDomain.proposal(row), column: 'status', instead: 'maybe' },
-  { view: 'entity_type', read: (row) => entityType.parse(row), column: 'ord', instead: 'third' },
+  {
+    view: 'entity_type',
+    read: (row) => toDomain.entityType(row),
+    column: 'ord',
+    instead: 'third',
+  },
   {
     view: 'attribute_key',
     read: (row) => toDomain.attributeKey(row),

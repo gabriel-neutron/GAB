@@ -4,8 +4,8 @@
 
 import { MultiDirectedGraph } from 'graphology';
 
-import { ENTITY_HUES, typeHues, type EntityHueSet } from '@/shared/entity-hues';
-import type { Corpus, Proposal, Relation } from '@/shared/read/model';
+import { typeHues, UNDECLARED_HUE } from '@/shared/entity-hues';
+import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
 import { analyseStructure, topologyOf } from './structure';
 
@@ -34,10 +34,10 @@ export interface EdgeAttrs {
   readonly validTo: string | null;
 }
 
-// Every colour the canvas paints, for one ground. Each one is `#rrggbb`: Sigma parses hex on the
-// CPU, and an `hsl()` colour comes out black in silence.
+// The two colours the canvas paints that no type declares. Each one is `#rrggbb`: Sigma parses
+// hex on the CPU, and an `hsl()` colour comes out black in silence. The hue of a type is not
+// here: `entity_type` declares it, and this file reads that declaration.
 export interface GraphPalette {
-  readonly types: EntityHueSet;
   readonly isolate: string;
   readonly edge: string;
 }
@@ -47,9 +47,9 @@ export type GraphGround = 'light' | 'dark';
 
 // Contrast against `--background` of the same ground, where the minimum is 3:1: `isolate` gives
 // 8.6:1 and 8.7:1, `edge` gives 5.6:1. The `--border` hue gives 1.5:1 on the dark ground.
-export const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
-  light: Object.freeze({ types: ENTITY_HUES.light, isolate: '#42494c', edge: '#5e6468' }),
-  dark: Object.freeze({ types: ENTITY_HUES.dark, isolate: '#a9afb1', edge: '#848a8c' }),
+const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
+  light: Object.freeze({ isolate: '#42494c', edge: '#5e6468' }),
+  dark: Object.freeze({ isolate: '#a9afb1', edge: '#848a8c' }),
 });
 
 const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
@@ -107,8 +107,10 @@ function hold<T>(index: Map<string, T[]>, key: string, value: T): void {
 export function buildGraphModel(
   corpus: Corpus,
   positions: ReadonlyMap<string, NodePosition>,
-  palette: GraphPalette,
+  types: TypeVocabulary,
+  ground: GraphGround,
 ): GraphModel {
+  const palette = GRAPH_PALETTES[ground];
   const drawn = new Set<string>();
   for (const entity of corpus.entities) {
     if (!positions.has(entity.id)) continue;
@@ -139,12 +141,9 @@ export function buildGraphModel(
   // Sigma draws nothing for either.
   const sizeSpan = Math.log1p(structure.largestDegree);
 
-  // The index is over every type of the corpus. This file drops an entity with no position and
-  // the map drops one with no geometry, so a drawn subset gives one type two hues, one per canvas.
-  const hueOfType = typeHues(
-    corpus.entities.map((entity) => entity.type),
-    palette.types,
-  );
+  // The declared hue of each type. An isolate is painted before its type, because the reader is
+  // told which elements stand alone before which kind of thing each one is.
+  const hueOfType = typeHues(types, ground);
 
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
   for (const entity of corpus.entities) {
@@ -158,7 +157,7 @@ export function buildGraphModel(
       y: position.y,
       // `log1p(0)` is 0, so a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? palette.isolate),
+      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? UNDECLARED_HUE),
       label: entity.label,
       entityType: entity.type,
       degree,

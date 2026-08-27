@@ -49,8 +49,8 @@ CREATE TABLE entity_type (
   key           text PRIMARY KEY
                 CHECK (key = btrim(key) AND key ~ '^[a-z][a-z0-9_]*$'),
   label         text NOT NULL CHECK (btrim(label) <> ''),   -- what a screen prints
-  -- TWO HUES AND NOT ONE. Measured in src/shared/entity-hues.ts: the dark set holds 7.9:1 to
-  -- 8.9:1 on the dark page and 2.0:1 to 2.3:1 on the light one, so one hex value fails a page.
+  -- TWO HUES AND NOT ONE. The seeded dark set holds 7.9:1 to 8.9:1 on the dark page and 2.0:1
+  -- to 2.3:1 on the light one, so one hex value fails a page. db/apply/95_seed.sql holds them.
   -- Hex, because Sigma paints the whole graph black in silence for an hsl() colour.
   colour_light  text NOT NULL CHECK (colour_light ~ '^#[0-9a-f]{6}$'),
   colour_dark   text NOT NULL CHECK (colour_dark  ~ '^#[0-9a-f]{6}$'),
