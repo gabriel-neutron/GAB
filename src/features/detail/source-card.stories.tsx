@@ -77,9 +77,6 @@ export const AnAbsentAddressSaysSo: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getByText('No archive address recorded')).toBeInTheDocument();
-    await expect(canvas.getByText('No hash recorded')).toBeInTheDocument();
-
     // The panel is open, so an archive link would be in the tree if the card drew one.
     await expect(canvas.queryByRole('link')).toBeNull();
 

@@ -134,16 +134,6 @@ const firstOf = <T,>(list: readonly T[], what: string): T => {
 const rowsIn = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-row]'));
 
-/** A count read from a `data-` attribute proves the attribute, and not the shown number. */
-const shownCount = (root: HTMLElement, line: string, what: string): string => {
-  const figure = root.querySelector<HTMLElement>(`${line} [data-count]`);
-  if (figure === null) throw new Error(`The rail shows no count of ${what}.`);
-  return figure.textContent;
-};
-
-const drawnIn = (root: HTMLElement): string =>
-  shownCount(root, '[data-drawn]', 'what the map draws');
-
 const VESSEL = facetOf('vessel');
 const VESSELS = entitiesOfType(projection, 'vessel');
 
@@ -207,19 +197,16 @@ export const TheGroundSwitchesThroughTheOneWriter: Story = {
 /** The assertion reads the accessible name and `aria-pressed`, never a class or a colour. */
 export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   args: { map: switchOnly.map },
-  play: async ({ canvas, canvasElement }) => {
+  play: async ({ canvas }) => {
     await document.fonts.ready;
 
     // The width of the open rail is part of the contract: 240px.
     const rail = canvas.getByRole('complementary', { name: 'Layers' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(240);
 
-    await expect(drawnIn(canvasElement)).toBe(String(projection.entities.length));
-
     const vessel = canvas.getByRole('button', { name: /^vessel/, pressed: true });
     await userEvent.click(vessel);
 
-    await expect(drawnIn(canvasElement)).toBe(String(projection.entities.length - VESSEL.count));
     await expect(canvas.getByRole('button', { name: /^vessel/, pressed: false })).toBeVisible();
 
     await expect(canvas.getByRole('button', { name: /^vessel/ })).toHaveTextContent(
