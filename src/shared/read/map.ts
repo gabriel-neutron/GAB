@@ -149,8 +149,6 @@ function entityType(row: unknown): EntityTypeDeclaration {
     label: read.label,
     colourLight: read.colour_light,
     colourDark: read.colour_dark,
-    ord: read.ord,
-    retired: read.retired,
   };
 }
 

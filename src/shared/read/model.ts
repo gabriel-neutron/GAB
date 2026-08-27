@@ -43,13 +43,10 @@ export interface EntityTypeDeclaration {
    * both themes, because its ground is imagery. */
   readonly colourLight: string;
   readonly colourDark: string;
-  readonly ord: number;
-  /** A retired type keeps the rows it already carries, and takes no new row. */
-  readonly retired: boolean;
 }
 
-/** Every entity type the database declares. It is read beside the corpus, and never written by
- * hand. A retired type stays in it, because a promoted row still carries that word. */
+/** Every entity type the database declares, retired ones included: a promoted row still carries
+ * that word. It is read beside the corpus, and never written by hand. */
 export type TypeVocabulary = readonly EntityTypeDeclaration[];
 
 export type DocumentKind = 'file' | 'url' | 'api' | 'report' | 'manual';

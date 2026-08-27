@@ -141,8 +141,8 @@ export function buildGraphModel(
   // Sigma draws nothing for either.
   const sizeSpan = Math.log1p(structure.largestDegree);
 
-  // The declared hue of each type. An isolate is painted before its type, because the reader is
-  // told which elements stand alone before which kind of thing each one is.
+  // The declared hue of each type. An isolate is painted before its type below, because the
+  // reader is told which elements stand alone before which kind of thing each one is.
   const hueOfType = typeHues(types, ground);
 
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
@@ -157,7 +157,7 @@ export function buildGraphModel(
       y: position.y,
       // `log1p(0)` is 0, so a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? UNDECLARED_HUE),
+      color: isolate ? palette.isolate : (hueOfType.get(entity.type) ?? UNDECLARED_HUE[ground]),
       label: entity.label,
       entityType: entity.type,
       degree,

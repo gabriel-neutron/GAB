@@ -1,4 +1,4 @@
-import { typeHues, UNDECLARED_HUE } from '@/shared/entity-hues';
+import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
 import type { Attributes, Corpus, Entity, Point, TypeVocabulary } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
@@ -56,7 +56,7 @@ export interface Projection {
 }
 
 // A point sits on dark imagery, so this surface takes the declared dark hue on the two themes.
-const MAP_GROUND = 'dark';
+const MAP_GROUND: HueTheme = 'dark';
 
 /** `geom` is nullable on `Entity`, and the narrowing has to survive the `map` below. */
 const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point } =>
@@ -144,7 +144,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
-      colour: hueOfType.get(type) ?? UNDECLARED_HUE,
+      colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
       count: drawn.filter((entity) => entity.type === type).length,
     }));
 

@@ -11,7 +11,10 @@ export type HueTheme = 'light' | 'dark';
 export const typeHues = (types: TypeVocabulary, theme: HueTheme): ReadonlyMap<string, string> =>
   new Map(types.map((type) => [type.key, theme === 'dark' ? type.colourDark : type.colourLight]));
 
-// The same job: what a canvas paints where the map above holds no hue. `entities.type` carries a
-// foreign key to `entity_type`, so this is the colour of a fault and never of a state, and it is
-// grey so that an element which reaches it never reads as a type or a state of its own.
-export const UNDECLARED_HUE = '#6b7280';
+// The same job: what a canvas paints where the map above holds no hue. NOT A GREY — the seed
+// gives `unknown` a grey and that is a state, so a fault in the same grey would read as that
+// state. These are the two hues of `--dissent`, copied as hex, at 6.7:1 on their own ground.
+export const UNDECLARED_HUE: Readonly<Record<HueTheme, string>> = Object.freeze({
+  light: '#ac1b18',
+  dark: '#f66e60',
+});
