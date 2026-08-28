@@ -1,6 +1,6 @@
 // The two hand-written fixtures against the live vocabularies. A story reaches no database, so
-// each fixture states the seed by hand; nothing compared the two, and that is the drift #108 was
-// raised to end. A story that draws a hue or a name the database does not declare proves nothing.
+// each fixture states the seed by hand, and nothing else compares the two. A story that draws a
+// hue or a name the database does not declare proves nothing.
 
 import { expect, test } from 'vitest';
 
