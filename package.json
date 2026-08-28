@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node tools/bundle-guard.ts",
     "preview": "vite preview",
     "typecheck": "tsr generate && tsc -b",
     "lint": "eslint . --config eslint.config.ts --no-config-lookup --max-warnings=0 --cache --cache-location node_modules/.cache/eslint",
