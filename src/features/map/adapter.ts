@@ -102,6 +102,11 @@ const FIT_PADDING = 24;
 // radius ramps of this file, so a point at this zoom already has its full size.
 const FIT_MAX_ZOOM = 14;
 
+// How near a selection from the rail is approached. A point has its full size at the ceiling
+// above, so this is not the mark: it is the ground around it, where a berth becomes readable.
+// It is invented, and the satellite ground is one step past its own resolution here.
+const REACH_ZOOM = 15;
+
 // A `ResizeObserver` box is never negative, so no delivery can carry this value. The seed of the
 // observer below takes it, and the first delivery therefore always resizes the canvas.
 const NO_SIZE = -1;
@@ -878,8 +883,12 @@ export function mountMap({
       // The rail calls this, so the analyst made this move. This line arms the flag before the
       // camera call, so the observer interrupts this animation with no correction of the size.
       cameraIsAnalystChoice = true;
-      // The centre moves and the zoom of the analyst stays.
-      map.flyTo({ center: [entity.lon, entity.lat] });
+      // The approach only ever moves nearer. An analyst who is already reading one berth keeps
+      // that scale, because a selection that pulled the camera back would undo their work.
+      map.flyTo({
+        center: [entity.lon, entity.lat],
+        zoom: Math.max(map.getZoom(), REACH_ZOOM),
+      });
       // The animation carries no gesture of its own, so it stores its camera here.
       storeCameraAfterMove();
     },
