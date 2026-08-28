@@ -10,8 +10,8 @@ export interface ChangeMarkProps {
   readonly kindWords: string;
 }
 
-/** An addition, a modification and a deletion are three risks, and the operator asked for three
- * hues. A merge takes rows away, so it carries the weight of the family that destroys. */
+/** An addition, a modification and a deletion are three risks, so they take three hues. A merge
+ * takes rows away, so it carries the weight of the family that destroys. */
 export const KIND_PAINT: Readonly<Record<ChangeKind, string>> = {
   add: 'text-added',
   edit: 'text-candidate',

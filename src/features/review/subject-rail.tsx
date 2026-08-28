@@ -24,7 +24,8 @@ const CONTROL = cn(
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-/** The three hues the operator asked for. A merge takes rows away, so it joins the deletion. */
+/** Three risks take three hues, and the rule of a row states them as the mark of a card does. A
+ * merge takes rows away, so it joins the deletion. */
 const RULE: Readonly<Record<ChangeKind, string>> = {
   add: 'border-l-added',
   edit: 'border-l-candidate',
@@ -32,9 +33,9 @@ const RULE: Readonly<Record<ChangeKind, string>> = {
   merge: 'border-l-dissent',
 };
 
-/** The round badge the operator asked for, and the one round shape in a repository whose radius
- * is 0. The ring carries the shape and no fill sits under the figure: a 15 percent tint took the
- * figure to 3.97 on a selected dark row. The bare hue holds 4.69 at worst on the two grounds. */
+/** The one round shape in a repository whose radius is 0. The ring carries the shape and no fill
+ * sits under the figure: a 15 percent tint took the figure to 3.97 on a selected dark row. The
+ * bare hue holds 4.69 at worst on the two grounds. */
 const COUNT = 'inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full border px-1.5';
 
 export function SubjectRail({ queue, onSelect, onSort }: SubjectRailProps) {
