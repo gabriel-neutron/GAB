@@ -67,6 +67,11 @@ const MARKER_CAP = 1000;
  */
 const HOPS = 2;
 
+// How near a selection from the rail is approached. The whole picture stands at a ratio of 1, so
+// this shows a node with the neighbourhood a selection lights and not the corpus. It is invented,
+// and here a nearer camera buys no detail: a node carries the same words at every ratio.
+const REACH_RATIO = 0.4;
+
 // The dim keeps this much of the colour. It is measured against the two grounds of
 // `src/index.css`: a dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
 // 4.9:1 and 6.7:1 while lit. One value of 0.2 for both grounds made the light theme read empty.
@@ -678,9 +683,10 @@ export function mountGraph(
       if (destroyed) return;
       const point = framedPointOf(id);
       if (point === null) return;
-      // A control of the analyst may move the camera. The zoom stays: what "near enough"
-      // means is a camera value that nobody has decided.
-      void camera.animate({ x: point.x, y: point.y });
+      // The approach only ever moves nearer: a smaller ratio is a nearer camera, and a
+      // selection must never undo the zoom the analyst chose.
+      const ratio = Math.min(camera.getState().ratio, REACH_RATIO);
+      void camera.animate({ x: point.x, y: point.y, ratio });
     },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;
