@@ -1,6 +1,6 @@
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
-import type { GraphSelection } from './bridge';
+import type { GraphSelection } from './controller';
 import type { FilterState } from './controller';
 import type { GraphModel } from './model';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';

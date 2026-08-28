@@ -4,8 +4,13 @@ import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 
-import { emitGraphSelection } from './bridge';
-import { mountGraph, type FilterState, type GraphController, type GraphView } from './controller';
+import {
+  mountGraph,
+  type FilterState,
+  type GraphController,
+  type GraphSelection,
+  type GraphView,
+} from './controller';
 import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
 import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
@@ -41,9 +46,12 @@ export interface GraphPageProps {
   readonly corpus: Corpus;
   /** The declared types. The canvas paints a node in the hue its type states. */
   readonly types: TypeVocabulary;
+  // This function must be the same function at each render of the caller. A caller that builds a
+  // new function at each render mounts a new graph at each render.
+  readonly onSelect: (selection: GraphSelection | null) => void;
 }
 
-export function GraphPage({ corpus, types }: GraphPageProps) {
+export function GraphPage({ corpus, types, onSelect }: GraphPageProps) {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   const controller = useRef<GraphController | null>(null);
@@ -56,18 +64,17 @@ export function GraphPage({ corpus, types }: GraphPageProps) {
 
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
-  // The list holds the record and the declared types, and no ref: a ref is one object for the
-  // life of the component. A later read of either one mounts a new graph, which is how a refresh
-  // reaches this canvas. `subscribe` seeds a new listener, so this file seeds nothing.
+  // The list holds the record, the declared types and one stable function, and no ref: a ref is
+  // one object for the life of the component. A later read of the record mounts a new graph,
+  // which is how a refresh reaches this canvas. Each subscription seeds its own listener.
   useEffect(() => {
     const element = canvas.current;
     const marks = overlay.current;
     if (element === null || marks === null) return;
 
-    // The bridge holds the last announcement, and nothing else clears it. A `mountGraph` that
-    // throws, and no WebGL context is the real case, announces nothing. The route is then seeded
-    // with the selection of the previous mount, and draws an entity that no canvas drew.
-    emitGraphSelection(null);
+    // A `mountGraph` that throws, and no WebGL context is the real case, subscribes nothing. The
+    // caller would then keep the selection of the previous mount and draw what no canvas drew.
+    onSelect(null);
 
     const handle = mountGraph(element, marks, corpus, types);
     controller.current = handle;
@@ -75,16 +82,20 @@ export function GraphPage({ corpus, types }: GraphPageProps) {
       filterNow.current = view.filter;
       setSnapshot({ view, model: handle.model });
     });
+    // It calls the listener at once with the selection this mount restored from the address, so
+    // the caller needs no second seeding path.
+    const stopSelecting = handle.onSelect(onSelect);
 
     return () => {
       unsubscribe();
+      stopSelecting();
       handle.destroy();
-      // A destroyed graph answers nothing, so the held announcement goes with it.
-      emitGraphSelection(null);
+      // A destroyed graph answers nothing, so the caller is told that it draws nothing.
+      onSelect(null);
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (controller.current === handle) controller.current = null;
     };
-  }, [corpus, types]);
+  }, [corpus, types, onSelect]);
 
   // The memo reads the values the rows are built from, and never the whole snapshot. A publish
   // makes a new snapshot object, and a fold is a publish. A memo that took the whole snapshot

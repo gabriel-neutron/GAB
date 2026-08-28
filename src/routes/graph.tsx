@@ -1,9 +1,9 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
-import { onGraphSelection, type GraphSelection } from '@/features/graph/bridge';
+import type { GraphSelection } from '@/features/graph/controller';
 import { GraphPage } from '@/features/graph/graph-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
@@ -64,11 +64,8 @@ function GraphRoute() {
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
+  // `setSelection` is the same function at every render, so the canvas below is mounted one time.
   const [selection, setSelection] = useState<GraphSelection | null>(null);
-  // This state sits in an ancestor of the live canvas, and `canvas` below is memoised on the
-  // record alone, so no render that follows a selection rebuilds the element. `onGraphSelection`
-  // seeds a new listener with the selection of the moment, so the effect below restores it.
-  useEffect(() => onGraphSelection(setSelection), []);
 
   // The read is memoised: every other render of this route would walk the whole corpus again.
   const dossier = useMemo(
@@ -88,7 +85,10 @@ function GraphRoute() {
   // No React render inside the tree that wraps the live element. A change of the selection
   // re-renders this route, and without this memo it would rebuild the element that owns the
   // canvas. The list holds the record, which a selection never changes. Do not remove it.
-  const canvas = useMemo(() => <GraphPage corpus={corpus} types={types} />, [corpus, types]);
+  const canvas = useMemo(
+    () => <GraphPage corpus={corpus} types={types} onSelect={setSelection} />,
+    [corpus, types],
+  );
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so
   // `overflow-y-auto` on the sidebar gives no scroll and the window scrolls both panes together.

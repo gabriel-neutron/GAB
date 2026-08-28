@@ -11,7 +11,6 @@ import {
 } from '@/shared/canvas-label';
 import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
-import { emitGraphSelection, type GraphSelection } from './bridge';
 import { standInPositions } from './layout';
 import {
   buildGraphModel,
@@ -25,10 +24,15 @@ import {
 } from './model';
 import { patchGraphWorkspace, readGraphWorkspace, type GraphWorkspace } from './workspace';
 
+/** What is examined. This file is the authority on it, and every reader takes this declaration. */
+export interface GraphSelection {
+  readonly kind: 'entity' | 'relation';
+  readonly id: string;
+}
+
 export type FilterState = Pick<GraphWorkspace, 'hiddenTypes'>;
 
 export interface GraphView {
-  /** The bridge declares it, and the route reads the same declaration. */
   readonly selection: GraphSelection | null;
   readonly filter: FilterState;
   readonly lit: number;
@@ -48,6 +52,8 @@ export interface GraphController {
   readonly setRailOpen: (open: boolean) => void;
   readonly flyTo: (id: string) => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
+  /** The selection alone. A fold of the rail publishes a view and calls no listener of this. */
+  readonly onSelect: (listener: (selection: GraphSelection | null) => void) => () => void;
   readonly destroy: () => void;
 }
 
@@ -143,6 +149,7 @@ export function mountGraph(
 
   let destroyed = false;
   const listeners = new Set<(view: GraphView) => void>();
+  const selectListeners = new Set<(selection: GraphSelection | null) => void>();
 
   // The elements the filter keeps lit, and the elements the two hops of a selection keep lit.
   const litNodes = new Set<string>();
@@ -454,6 +461,10 @@ export function mountGraph(
     for (const listener of [...listeners]) listener(view);
   };
 
+  const announce = (): void => {
+    for (const listener of [...selectListeners]) listener(selection);
+  };
+
   const readAddress = (): GraphSelection | null => {
     const params = new URLSearchParams(window.location.search);
     // An empty value is not an identifier, and a typed address can still carry one. Read as an
@@ -484,9 +495,7 @@ export function mountGraph(
     selection = next;
     if (changed) {
       writeAddress(selection);
-      // The graph announces the selection on an event of the window, so the route needs no
-      // property, and the memoised canvas is never re-rendered.
-      emitGraphSelection(selection);
+      announce();
     }
     recount();
     sigma.refresh();
@@ -502,10 +511,8 @@ export function mountGraph(
     // that the picture and the address never state two different things.
     writeAddress(selection);
   }
-  // The restore does not go through `settle`, which is the only other caller, so nothing else
-  // announces it. The bridge holds the value for a subscriber that attaches after the mount:
-  // the canvas is a child and its effect runs first.
-  emitGraphSelection(selection);
+  // The restore does not go through `settle`, so nothing announces it here. `onSelect` seeds
+  // every listener with the selection of the moment, and no subscriber can arrive too late.
   recount();
 
   // The first render occurs inside the constructor of Sigma, so this listener never hears that
@@ -683,6 +690,14 @@ export function mountGraph(
       listener(viewOf());
       return () => listeners.delete(listener);
     },
+    onSelect: (listener) => {
+      if (destroyed) return NO_OP;
+      selectListeners.add(listener);
+      // A component that subscribes after the canvas is built has already missed the restore of
+      // the address. So the listener is called here with the selection of this moment.
+      listener(selection);
+      return () => selectListeners.delete(listener);
+    },
     destroy: () => {
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written
@@ -698,6 +713,7 @@ export function mountGraph(
       camera.off('updated', onCameraUpdated);
       sigma.off('afterRender', drawOverlay);
       listeners.clear();
+      selectListeners.clear();
       markers.length = 0;
       // The layer is the one node this file added to the element of the caller.
       layer.remove();
