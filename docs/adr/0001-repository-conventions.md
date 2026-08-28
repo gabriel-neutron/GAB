@@ -58,7 +58,8 @@ it.**
 ### 5. Definition of done
 
 An agent reports **DONE** when `pnpm check` passes and the change matches its ticket. **An agent
-never commits, and it never claims more.** The operator accepts a change after reading the diff.
+commits its own work, and it never claims more.** The operator accepts a change after reading the
+diff.
 
 ### 6. When this layout becomes a workspace
 

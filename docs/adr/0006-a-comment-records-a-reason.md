@@ -59,13 +59,14 @@ so it cannot drift.
 
 ### 4. A reference goes to the report, and then to the commit
 
-**An agent puts the reference in its report.** ADR 0001 §5 keeps an agent out of the commit, so the
-report is the only channel an agent has. The ticket a guess guesses at, the ticket an open question
-waits on, the decision a rule comes from: each one goes under FILES or under ASK.
-
-**The operator puts it in the commit message.** A commit is frozen with the code it describes, so a
+**A reference goes in the commit message.** A commit is frozen with the code it describes, so a
 reference there cannot drift: the ticket, the file and the reason stay one object for ever.
-`git log` and `git blame` reach it from any line.
+`git log` and `git blame` reach it from any line. ADR 0001 §5 lets an agent commit its own work, so
+the writer of the code is the writer of that message.
+
+**A reference goes in the report too.** The ticket a guess guesses at, the ticket an open question
+waits on, the decision a rule comes from: each one goes under FILES or under ASK. A report reaches
+the operator before a diff is read, and a commit message reaches every later reader.
 
 **This is why the eviction costs nothing.** The reference is not lost. It moves to the one place
 that holds it and the code together.
