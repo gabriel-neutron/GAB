@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
 
 import { entityHref } from './address';
+import { Band } from './band';
 import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
 import { Pending } from './pending';
@@ -49,15 +50,23 @@ export function Sidebar({ dossier }: SidebarProps) {
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
           previous value. The key makes React build a new record. Do not remove it. */}
-      <EntityRecord
-        key={dossier.entityId}
-        mode="reading"
-        cells={recordCells(dossier.rows, null)}
-        mark={mark}
-      />
+      <Band name="Record" count={dossier.claimCount}>
+        <EntityRecord
+          key={dossier.entityId}
+          mode="reading"
+          cells={recordCells(dossier.rows, null)}
+          mark={mark}
+        />
+      </Band>
 
-      <Relations relations={dossier.relations} mark={mark} deleting={{ offered: false }} />
-      <Pending proposals={dossier.pending} mark={mark} />
+      {/* The panel carries no band of sources. It holds no rail and no line of the sources of
+          the entity, and a band with nothing under it names a part this surface does not hold. */}
+      <Band name="Relations" count={dossier.relations.length}>
+        <Relations relations={dossier.relations} mark={mark} deleting={{ offered: false }} />
+      </Band>
+      <Band name="Pending proposals" count={dossier.pending.length}>
+        <Pending proposals={dossier.pending} mark={mark} />
+      </Band>
     </aside>
   );
 }
