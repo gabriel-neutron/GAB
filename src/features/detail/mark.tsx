@@ -38,8 +38,11 @@ const MARK =
  * at least one source. The words report a fault in the data, never a dash and never a blank. */
 const NO_SOURCE = 'No source recorded: invariant 1 asks each claim for at least one.';
 
+// The sentence wraps and never holds its width. Set to `shrink-0`, it measured 308 px inside a
+// 275 px claim and painted over the value of the claim beside it, so a fault in the data hid a
+// value that was sound.
 function NoSource() {
-  return <span className="shrink-0 text-small/4 text-dissent">{NO_SOURCE}</span>;
+  return <span className="min-w-0 text-small/4 text-dissent">{NO_SOURCE}</span>;
 }
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';

@@ -82,3 +82,25 @@ export const AClaimWithNoSourceSaysSo: Story = {
     await expect(canvas.queryByText('—')).toBeNull();
   },
 };
+
+// A claim cell is a flex row of a fixed width, and the sentence is the widest thing that can
+// stand in one. Held at its own width, it measured 308 px inside a 275 px cell and drew over the
+// value of the claim beside it: a fault in the data then hid a value that was sound.
+export const TheSentenceOfAMissingSourceStaysInsideItsClaim: Story = {
+  args: { sources: [] },
+  render: (args) => (
+    <div data-cell="" className="flex w-[275px] items-center">
+      <SourceMark {...args} />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const cell = canvasElement.querySelector('[data-cell]');
+    if (cell === null) throw new Error('The story drew no cell');
+
+    const sentence = canvas.getByText(/No source recorded/);
+    // A rounding of the layout gives a fraction of a pixel, and one pixel is not an overlap.
+    await expect(sentence.getBoundingClientRect().right).toBeLessThanOrEqual(
+      cell.getBoundingClientRect().right + 1,
+    );
+  },
+};
