@@ -20,7 +20,7 @@ export interface SeparationProps {
   readonly trail: 'beside' | 'below';
 }
 
-const SHELL = 'flex h-full gap-4 p-4';
+const SHELL = 'flex h-full min-w-0 flex-1 gap-4 p-4';
 
 const COLUMN = 'min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain';
 
