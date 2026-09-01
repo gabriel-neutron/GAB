@@ -111,8 +111,8 @@ export const EveryRelationNamesItsSources: Story = {
   play: async ({ canvasElement }) => {
     const lines = rows(canvasElement);
     await expect(lines.length).toBeGreaterThan(0);
-    // The mark is named, and not counted as "a button": each line now carries a delete control
-    // too, and a count of buttons could no longer fail.
+    // The mark is named, and not counted as "a button": a line carries a delete control too, so
+    // a count of buttons cannot fail.
     const marked = lines.filter((line) => line.querySelector('[aria-label^="Source "]') !== null);
     await expect(marked).toHaveLength(lines.length);
   },

@@ -33,13 +33,13 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Only what THIS act lacks is drawn. A hole every act carries told the reader nothing, so it
- * is gone; the disagreement with no argument is real, and it stays. */
+/** Only what THIS act lacks is drawn. A hole every act carries tells the reader nothing; the
+ * disagreement with no argument is real, and it is drawn. */
 export const OnlyWhatThisActLacksIsDrawn: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelector('[data-hole="argument"]')).not.toBeNull();
     await expect(canvas.queryByText(/quoted text/)).toBeNull();
-    // The whole reason survives for a reader, and it is no longer a paragraph on the card.
+    // The whole reason survives for a reader, and the card holds no paragraph of it.
     await expect(canvas.getByText(/neither side of it/)).toBeInTheDocument();
   },
 };
