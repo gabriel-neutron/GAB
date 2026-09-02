@@ -25,7 +25,7 @@ const BY_CODE = new Map<string, string>([
   ['ENOTFOUND', UNREACHABLE],
 ]);
 
-const BY_SHAPE: readonly (readonly [string, string])[] = [
+const BY_SHAPE: readonly (readonly [string | RegExp, string])[] = [
   ['drops a document from the sources', 'the act must keep every document the key already cites'],
   ['is an endpoint of a relation', 'the target is an endpoint of a relation, and it stays'],
   [
@@ -37,8 +37,10 @@ const BY_SHAPE: readonly (readonly [string, string])[] = [
   ['has no write path yet', 'the writer has no path for this act'],
   ['may not write a proposal', 'the writer may not sign this act'],
   ['cites a document that does not exist', 'the act cites a document the archive does not hold'],
-  // Last, and it is the widest shape of the list: a more exact sentence above must win first.
-  ['does not exist', 'the record holds no act under that name'],
+  // Last, and the widest shape of the list: a more exact sentence above must win first. It is
+  // held to the sentence the record raises, because `does not exist` alone also reads a missing
+  // table or a missing function, and those two are a fault of the writer and not of the act.
+  [/^proposal \S+ does not exist$/u, 'the record holds no act under that name'],
 ];
 
 const wordOf = (cause: unknown, key: 'code' | 'message'): string =>
@@ -46,8 +48,11 @@ const wordOf = (cause: unknown, key: 'code' | 'message'): string =>
     ? String(Reflect.get(cause, key) ?? '')
     : '';
 
+const reads = (shape: string | RegExp, message: string): boolean =>
+  typeof shape === 'string' ? message.includes(shape) : shape.test(message);
+
 const knownFrom = (code: string, message: string): string | undefined =>
-  BY_CODE.get(code) ?? BY_SHAPE.find(([shape]) => message.includes(shape))?.[1];
+  BY_CODE.get(code) ?? BY_SHAPE.find(([shape]) => reads(shape, message))?.[1];
 
 const named = (sentence: string, proposalId: string | null): string =>
   proposalId === null ? sentence : `${sentence}, and the act stays pending as ${proposalId}`;

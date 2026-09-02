@@ -474,3 +474,17 @@ test('a lost socket and a stopped server are doubts, whatever code they name', (
     });
   }
 });
+
+// The sentence of a missing act belongs to the decision doors. A missing table and a missing
+// function say the same three words, and they are a fault of the writer and not of the act.
+test('a schema that is missing never reads as an act the record does not hold', () => {
+  for (const shape of [
+    { code: '42P01', message: 'relation "public.proposals" does not exist' },
+    { code: '42883', message: 'function public.promote_proposal(uuid) does not exist' },
+  ]) {
+    expect(failureFrom(shape)).toStrictEqual({
+      raised: true,
+      refusal: 'the database refused the act',
+    });
+  }
+});

@@ -87,8 +87,8 @@ function ReviewRoute() {
             // the queue it holds.
             if (act.verdict === 'deferred') return;
           }
-          // The record can hold a later state than this queue. The act landed, or another
-          // window decided it and the record refused this one. Both end at one read.
+          // The record can hold a later state than this queue. The act landed, another window
+          // decided it, or the record refused the act and it still waits. Each ends at one read.
           await refreshCorpus(() => router.invalidate());
         });
         return;

@@ -1,5 +1,5 @@
-// The one request that changes the record, with a stubbed fetch. It opens no socket: the
-// address the door builds, and the outcome each answer becomes, are all here.
+// The requests that change the record, with a stubbed fetch. They open no socket: the address
+// each door builds, and the outcome each answer becomes, are all here.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
