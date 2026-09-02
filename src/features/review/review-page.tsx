@@ -63,8 +63,8 @@ const SHELL = 'grid h-full grid-cols-[18rem_20rem_minmax(0,1fr)] gap-2 p-2';
 
 const PANE = 'flex min-h-0 flex-col gap-2 border-l border-border pl-2';
 
-// One live region on this page, and it says which surface spoke, because a route composes it
-// beside other regions.
+// Two live regions stand on this page: this one, and the question the controls ask before they
+// send. So this one is named, and a reader knows which of the two spoke.
 const RECORD_SAYS = 'The record';
 
 const SAID = 'text-small/4';

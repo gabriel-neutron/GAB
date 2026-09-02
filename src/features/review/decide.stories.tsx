@@ -55,6 +55,62 @@ export const APromotionIsAskedBeforeItIsWritten: Story = {
   },
 };
 
+/** The press that opens the question must not answer it. The confirm control stands where
+ * `Reject` stood, so a kept node would put `Reject it` under the hand of that same press. */
+export const OnePressOnRejectAsksAndASecondSendsNothing: Story = {
+  // Its own mock: the one above is shared by every story of this file, and a call counted here
+  // must be a call this story made.
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Reject/ }));
+    await expect(canvas.getByRole('alert')).toHaveTextContent(/never waits again/);
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onDecide).not.toHaveBeenCalled();
+    await expect(canvas.getByRole('alert')).toHaveTextContent(/never waits again/);
+  },
+};
+
+/** The way back from the question is kept whole. On the promotion path the hand lands on the
+ * control that keeps the act waiting, so one press cancels and the next asks again. */
+export const TheWayBackFromThePromotionQuestionIsWhole: Story = {
+  // Its own mock: the one above is shared by every story of this file, and a call counted here
+  // must be a call this story made.
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await expect(canvas.getByText(/no door takes it back/)).toBeInTheDocument();
+    await userEvent.keyboard('{Enter}');
+    await expect(canvas.queryByText(/no door takes it back/)).toBeNull();
+    await userEvent.keyboard('{Enter}');
+    await expect(canvas.getByText(/no door takes it back/)).toBeInTheDocument();
+    await expect(args.onDecide).not.toHaveBeenCalled();
+  },
+};
+
+/** The question interrupts. The hand that opened it may stand nowhere, so a reader must meet the
+ * question and never look for it. */
+export const TheQuestionInterruptsTheReader: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      'Promote this act? It writes the row, and no door takes it back.',
+    );
+  },
+};
+
+/** The rule the box waits for is the description of the box, and not a sentence beside it. */
+export const TheBlankHoldNoteDescribesTheBox: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Not yet/ }));
+    const box = canvas.getByLabelText('Why not yet');
+    await expect(box).toHaveAccessibleDescription('A hold takes a written reason.');
+    // The box is empty, and an empty box holds no value the vocabulary refused.
+    await expect(box).not.toHaveAttribute('aria-invalid');
+    await userEvent.type(box, 'The second reading is not in yet');
+    await expect(box).toHaveAccessibleDescription('');
+  },
+};
+
 /** A promotion stands in the record, and no door takes it back. The screen offers none. */
 export const APromotionThatStandsOffersNoWayBack: Story = {
   args: { decision: { verdict: 'promoted', reason: '' } },
