@@ -1,6 +1,6 @@
 {
-  // The Node backend. It reaches the database and holds the secret, and nothing under `src/`
-  // may import it. Nothing is built: Node strips the types itself.
+  // The client of the model service. It holds the API key, and nothing under `src/` may import
+  // it. Nothing is built: Node strips the types itself.
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024"],
@@ -9,7 +9,7 @@
 
     "composite": true,
     "noEmit": true,
-    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.writer.tsbuildinfo",
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.model.tsbuildinfo",
 
     // The block below is the strict set, and every compile target holds the same copy. A base
     // file with `extends` works, and it moves the standard out of the file that a reader opens.

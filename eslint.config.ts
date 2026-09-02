@@ -494,10 +494,9 @@ export default defineConfig(
                 'A workspace package is a leaf, and it imports nothing under `src/`. Both sides of the product import the package, so what it imports lands in both. Move the shape you need into the package',
             },
 
-            // ...and never the writer. `@gab/writer` is the Node backend: it reaches the database
-            // and holds the secrets, and a browser file that imports it ships both to the client.
-            // Every side is named, and a package too: a package the browser imports is a browser
-            // file by another name, so `@gab/proposal` reaching the writer ships the same secrets.
+            // ...and never the writer, and never the model. Each one holds a secret and runs in
+            // Node, and one list names both, because two lists fall out of step. Every importing
+            // side is named too: a package the browser imports is a browser file by another name.
             {
               from: {
                 element: {
@@ -512,9 +511,11 @@ export default defineConfig(
                   ],
                 },
               },
-              disallow: { to: { element: { type: 'package', captured: { pkg: 'writer' } } } },
+              disallow: {
+                to: { element: { type: 'package', captured: { pkg: ['writer', 'model'] } } },
+              },
               message:
-                'The writer is the Node backend, and the browser never imports it. It reaches the database and holds the secrets. Call it over the wire, and import a shared shape from another workspace package',
+                'The writer and the model client run in Node and hold the secrets. The browser imports neither one. A browser file that imports either one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
             },
 
             // The base tables, refused from every side and stated last, so a policy above can
