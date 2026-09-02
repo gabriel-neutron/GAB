@@ -67,6 +67,23 @@ test('every element names the act that promoted it, and no entity is typed unkno
   ]);
 });
 
+const queue = z.array(
+  z.object({ jobs: z.coerce.number(), queued: z.coerce.number(), taken: z.coerce.number() }),
+);
+
+const QUEUE = `
+  SELECT (SELECT count(*) FROM public.jobs)                          AS jobs,
+         (SELECT count(*) FROM public.jobs WHERE status =  'queued') AS queued,
+         (SELECT count(*) FROM public.jobs WHERE status <> 'queued') AS taken`;
+
+// The door queues one job for each document it writes. No path returns a taken row to the queue,
+// so a `taken` above zero is work that a claim removed and nothing gave back. Without this count
+// the loss shows up much later, as a claim test that accuses SKIP LOCKED of a fault it has not.
+test('the load queued one job for each document, and nothing has taken one', async () => {
+  const held = await probe('superuser', async (ask) => queue.parse(await ask(QUEUE)));
+  expect(held).toStrictEqual([{ jobs: 4, queued: 4, taken: 0 }]);
+});
+
 const ends = z.array(z.object({ type: z.string(), src_kind: z.string(), dst_kind: z.string() }));
 
 const RELATION_ENDS = `

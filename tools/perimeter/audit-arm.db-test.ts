@@ -67,6 +67,35 @@ for (const arm of ARMS)
     expect(await foundBy(arm.sql), `the audit arm found a ${arm.fault}`).toStrictEqual([]);
   });
 
+const DEFINER_DOORS = `
+  SELECT n.nspname || '.' || p.proname || ' to '
+         || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
+    FROM pg_catalog.pg_proc p
+    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) AS a
+   WHERE n.nspname IN ('public','api') AND p.prosecdef
+     AND a.privilege_type = 'EXECUTE'
+     AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
+   ORDER BY 1`;
+
+const THE_DOOR_SET = [
+  'public.promote_proposal to gabriel_app',
+  'public.propose_change to gabriel_agent',
+  'public.propose_change to gabriel_app',
+  'public.put_document to gabriel_app',
+  'public.reject_proposal to gabriel_app',
+];
+
+// ARM 6. The five arms above read a table grant, and a SECURITY DEFINER door holds none: the door
+// writes as gabriel_owner, so EXECUTE on one is the right to write a table that arm 4 says the
+// caller cannot touch. The list below is the door set, held by hand, so a door granted to a role
+// later fails here until a person writes it in. claim_job is absent, and that absence is the
+// statement: no role takes a row from the queue while no door gives one back.
+test('every definer door is granted to the roles in this list and to no other', async () => {
+  expect(await foundBy(DEFINER_DOORS)).toStrictEqual(THE_DOOR_SET);
+});
+
 const OUTSIDE_OWNER = `
   SELECT c.relname AS table_name, pg_catalog.pg_get_userbyid(c.relowner) AS owner,
          (SELECT e.extname FROM pg_catalog.pg_depend d

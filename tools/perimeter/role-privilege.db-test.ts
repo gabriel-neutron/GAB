@@ -44,10 +44,20 @@ test('gabriel_agent holds EXECUTE on propose_change and on no other door', async
   });
 });
 
+// THE CALL RUNS INSIDE A TRANSACTION THAT ROLLS BACK, and the reason is measured: this test was
+// first written without one, the grant was still live, and the call it expected to fail took a
+// row into `running` where no door reaches it. A test of a refusal must not act when it passes.
 test('no role can call the claim door, so no row is taken before a release exists', async () => {
   for (const identity of ['app', 'agent'] as const)
     await expect(
-      probe(identity, async (ask) => ask("SELECT * FROM public.claim_job('a perimeter test')")),
+      probe(identity, async (ask) => {
+        await ask('BEGIN');
+        try {
+          return await ask("SELECT * FROM public.claim_job('a perimeter test')");
+        } finally {
+          await ask('ROLLBACK');
+        }
+      }),
     ).rejects.toMatchObject({ code: '42501' });
 });
 

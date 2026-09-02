@@ -142,4 +142,20 @@ RESET ROLE;
 --      SELECT p.proname FROM pg_proc p
 --       WHERE p.pronamespace = 'api'::regnamespace
 --         AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.';
+--
+--   6. THE DOOR SET. Arms 1 to 5 read a table grant, and a SECURITY DEFINER door holds none: a
+--      door writes as gabriel_owner, so EXECUTE on one is the right to write a table that every
+--      other arm says the caller cannot touch. This arm returns the whole door set, and a test
+--      holds the list by hand, so a door granted to a role later fails until a person writes it
+--      in. THE ABSENCE OF claim_job IS PART OF THE LIST: no role may take a row from the queue
+--      while no door gives one back.
+--      SELECT n.nspname || '.' || p.proname || ' to '
+--             || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+--                     ELSE pg_get_userbyid(a.grantee) END
+--        FROM pg_proc p
+--        JOIN pg_namespace n ON n.oid = p.pronamespace
+--        CROSS JOIN LATERAL aclexplode(p.proacl) AS a
+--       WHERE n.nspname IN ('public','api') AND p.prosecdef
+--         AND a.privilege_type = 'EXECUTE'
+--         AND (a.grantee = 0 OR pg_get_userbyid(a.grantee) <> 'gabriel_owner');
 -- =============================================================================================
