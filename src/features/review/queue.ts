@@ -19,7 +19,8 @@ export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge';
 /** What is being changed. The queue lists these, and never one act on its own. */
 export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge';
 
-/** A verdict of the pass. Nothing on this surface writes one to the record. */
+/** A verdict on one act. A promotion and a rejection are written to the record and cannot be
+ * taken back; a hold is a state of this pass, because nothing in the record holds one. */
 export type Verdict = 'promoted' | 'rejected' | 'deferred';
 
 export interface Decision {
@@ -28,7 +29,8 @@ export interface Decision {
   readonly reason: string;
 }
 
-/** Keyed on the identifier of the act. A pass holds it, and a reload loses it. */
+/** Keyed on the identifier of the act, which is the identifier of the proposal. A pass holds
+ * this map, and a reload loses it: a decided act leaves the queue, and a hold is forgotten. */
 export type Verdicts = Readonly<Record<string, Decision>>;
 
 /** The key is an identifier the record supplies, and the record admits any text. An inherited
@@ -635,7 +637,7 @@ export function railRows(subjects: readonly Subject[], verdicts: Verdicts): read
   });
 }
 
-/** Where the act stands on this pass. A line waits, or it carries a verdict and the words of it. */
+/** Where the act stands. A line waits, or it carries a verdict and the words of that verdict. */
 export type LineVerdict =
   | { readonly state: 'waiting' }
   | { readonly state: 'decided'; readonly verdict: Verdict; readonly words: string };
@@ -651,11 +653,11 @@ export interface ChangeLine {
   readonly contested: boolean;
 }
 
-/** The one vocabulary of the three acts. A hold is a state of this pass, and never a row of the
- * record, so every word here says "on this pass". */
+/** The one vocabulary of the three acts. Two of them stand in the record and the third stands
+ * on this pass alone, so each word says where the verdict is held. */
 export const VERDICT_WORDS: Readonly<Record<Verdict, string>> = {
-  promoted: 'Promoted on this pass',
-  rejected: 'Rejected on this pass',
+  promoted: 'Promoted into the record',
+  rejected: 'Rejected in the record',
   deferred: 'Held on this pass',
 };
 

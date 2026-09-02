@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib/utils';
 import { ChangeCard } from './change-card';
 import { ContestedGlyph } from './contested-mark';
 import { Decide } from './decide';
+import { decisionSaid, type DecisionState } from './decision';
 import { NodePane } from './node-pane';
 import {
   changeLines,
@@ -34,8 +35,8 @@ export type ReviewAct =
     }
   | { readonly kind: 'undo'; readonly changeId: string };
 
-/** Everything that waits for a decision, and what this pass decided of it. Nothing here writes
- * a verdict to the record. */
+/** Everything that waits for a decision, and what this pass decided of it. A decided act leaves
+ * the queue when the record is read again, so a verdict here outlives its act by one read. */
 export interface ReviewQueue {
   readonly subjects: readonly Subject[];
   readonly verdicts: Verdicts;
@@ -51,6 +52,9 @@ export interface Examination {
 export interface ReviewPageProps {
   readonly queue: ReviewQueue;
   readonly examination: Examination;
+  /** Where the last verdict stands with the record. The route sends it, and this page draws it:
+   * a promotion that was refused must not read as a promotion that landed. */
+  readonly decision: DecisionState;
   readonly onAct: (act: ReviewAct) => void;
 }
 
@@ -59,13 +63,19 @@ const SHELL = 'grid h-full grid-cols-[18rem_20rem_minmax(0,1fr)] gap-2 p-2';
 
 const PANE = 'flex min-h-0 flex-col gap-2 border-l border-border pl-2';
 
+// One live region on this page, and it says which surface spoke, because a route composes it
+// beside other regions.
+const RECORD_SAYS = 'The record';
+
+const SAID = 'text-small/4';
+
 const TOGGLE = cn(
   'inline-flex h-6 shrink-0 items-center gap-1 border border-input px-2 text-xs',
   'transition-colors duration-100 outline-none focus-visible:border-ring',
   'focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-export function ReviewPage({ queue, examination, onAct }: ReviewPageProps) {
+export function ReviewPage({ queue, examination, decision, onAct }: ReviewPageProps) {
   const { subjects, verdicts } = queue;
   const { subjectId, sort } = examination;
   // Which act the hand is on, and whether two acts stand open. Both die with the view: the
@@ -79,12 +89,26 @@ export function ReviewPage({ queue, examination, onAct }: ReviewPageProps) {
   const { current, beside } = focusOf(subject, focusedId);
   const lines = subject === null ? [] : changeLines(subject, verdicts);
   const open = together && beside.length > 0;
+  const said = decisionSaid(decision, current?.id ?? null);
+
+  // The result of an act must reach a screen reader without a second look at the page. An act
+  // whose result is not known interrupts: the analyst acts on it before anything else.
+  const saidLine = (
+    <p
+      role={said.urgent ? 'alert' : 'status'}
+      aria-label={RECORD_SAYS}
+      className={cn(SAID, said.urgent ? 'text-destructive' : 'text-label')}
+    >
+      {said.sentence}
+    </p>
+  );
 
   // An empty queue is said once, in the pane that states the count. Two more panes that each
   // said it were the same sentence three times, over two empty columns.
   if (subject === null || current === null) {
     return (
-      <div className="flex h-full flex-col p-2">
+      <div className="flex h-full flex-col gap-2 p-2">
+        {saidLine}
         <SubjectRail
           queue={{ rows, currentId: null, sort }}
           onSelect={(id) => {
@@ -165,10 +189,12 @@ export function ReviewPage({ queue, examination, onAct }: ReviewPageProps) {
 
         {/* The controls stay at the foot, whatever stands above them. That is why this layout
             was chosen: the hand goes to one place for every act. */}
-        <footer className="mt-auto shrink-0 border-t border-border pt-2">
+        <footer className="mt-auto shrink-0 space-y-1 border-t border-border pt-2">
+          {saidLine}
           <Decide
             key={current.id}
             decision={verdictOf(verdicts, current.id)}
+            busy={said.busy}
             onDecide={(verdict, reason) => {
               onAct({ kind: 'decide', changeId: current.id, verdict, reason });
             }}

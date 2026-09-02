@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { sendAct, type WriteOutcome } from './door';
+import { sendAct, sendDecision, type WriteOutcome } from './door';
 
 const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
 const TARGET = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -107,6 +107,71 @@ test('a request that never arrived is unknown, and the sentence states the act m
   answers(() => Promise.reject(new Error('the connection was dropped')));
 
   expect(await sendAct('delete_entity', { targetId: TARGET })).toStrictEqual({
+    state: 'unknown',
+    doubt: 'The write service did not answer, and the act may have reached it.',
+  });
+});
+
+// ------------------------------------------------------------------------ the decision door --
+
+test('a decision names its door, and the body carries the act that waits', async () => {
+  said({ proposalId: PROPOSAL, targetId: null, state: 'decided' });
+
+  await sendDecision('reject_proposal', PROPOSAL);
+
+  expect(asked).toStrictEqual([
+    {
+      address: '/write/reject-proposal',
+      method: 'POST',
+      body: `{"proposalId":"${PROPOSAL}"}`,
+    },
+  ]);
+});
+
+test('a promotion that landed carries the row it made', async () => {
+  said({ proposalId: PROPOSAL, targetId: TARGET, state: 'decided' });
+
+  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+    state: 'decided',
+    proposalId: PROPOSAL,
+    targetId: TARGET,
+  });
+});
+
+// The record moved under the analyst. Nothing was written, and the sentence is the writer's.
+test('a decision the record refused is a sentence, and it names no row', async () => {
+  said({ refusal: 'the act is decided already, and a decided act is frozen' }, 409);
+
+  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+    state: 'refused',
+    refusal: 'the act is decided already, and a decided act is frozen',
+  });
+});
+
+// The writer reached the record and cannot say what landed. It names the act again, and the
+// door must carry that doubt whole: a promotion that committed may never read as a refusal.
+test('a decision whose answer names the act again is unknown, and never a refusal', async () => {
+  said({ refusal: 'the record gave no answer to read', proposalId: PROPOSAL }, 409);
+
+  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+    state: 'unknown',
+    doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+  });
+});
+
+test('a decision answered by a gateway is unknown, and the sentence names the status', async () => {
+  said({ error: 'Bad Gateway' }, 502);
+
+  expect(await sendDecision('reject_proposal', PROPOSAL)).toStrictEqual({
+    state: 'unknown',
+    doubt: 'The write service answered 502, and this page cannot read the answer.',
+  });
+});
+
+test('a decision that never arrived is unknown, and the sentence states the act may have run', async () => {
+  answers(() => Promise.reject(new Error('the connection was dropped')));
+
+  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
     state: 'unknown',
     doubt: 'The write service did not answer, and the act may have reached it.',
   });

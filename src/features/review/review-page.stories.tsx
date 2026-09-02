@@ -18,6 +18,7 @@ const meta = {
   args: {
     queue: { subjects: SUBJECTS, verdicts: {} },
     examination: { subjectId: CONTESTED, sort: 'confidence' },
+    decision: { step: 'idle' },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -79,17 +80,83 @@ export const NoCardHidesEvidenceWhenTwoStandOpen: Story = {
   },
 };
 
-/** A verdict of the pass reaches the line of the act, and it writes nothing to the record. */
-export const AVerdictOfThePassReachesTheLineOfTheAct: Story = {
+/** A verdict reaches the line of the act, and the line says where the verdict stands. */
+export const AVerdictReachesTheLineOfTheAct: Story = {
   args: {
     queue: { subjects: SUBJECTS, verdicts: { [FIRST_ACT]: { verdict: 'promoted', reason: '' } } },
   },
   play: async ({ canvas, canvasElement }) => {
     const line = canvasElement.querySelector(`[data-line="${FIRST_ACT}"]`);
     await expect(line?.querySelector('[data-verdict="promoted"]')).toBeInTheDocument();
-    await expect(line).toHaveTextContent('Promoted on this pass');
-    // The foot says it too, for the act the controls hold. The record is written nowhere.
-    await expect(canvas.getAllByText('Promoted on this pass')).toHaveLength(2);
+    await expect(line).toHaveTextContent('Promoted into the record');
+    // The foot says it too, for the act the controls hold.
+    await expect(canvas.getAllByText('Promoted into the record')).toHaveLength(2);
+  },
+};
+
+/** A promotion the record refused must never read as a promotion that landed, and the analyst
+ * must meet the sentence without looking for it. */
+export const ARefusedDecisionInterruptsAndSaysNothingWasWritten: Story = {
+  args: {
+    decision: {
+      step: 'refused',
+      changeId: FIRST_ACT,
+      verdict: 'promoted',
+      refusal: 'the act is decided already, and a decided act is frozen',
+    },
+  },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('alert', { name: 'The record' });
+    await expect(said).toHaveTextContent('Nothing was written');
+    await expect(said).toHaveTextContent('a decided act is frozen');
+    await expect(canvas.getByRole('button', { name: /Promote/ })).toBeEnabled();
+  },
+};
+
+/** A doubt is the gravest sentence on this surface. It interrupts as a refusal does, and it
+ * says neither that the act landed nor that nothing was written. */
+export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
+  args: {
+    decision: {
+      step: 'unknown',
+      changeId: FIRST_ACT,
+      verdict: 'promoted',
+      doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+    },
+  },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('alert', { name: 'The record' });
+    await expect(said).toHaveTextContent('It is not known whether the act was promoted.');
+    await expect(said).toHaveTextContent('the act may have run whole');
+    await expect(said).toHaveTextContent('Read the queue again before you decide.');
+    await expect(said).not.toHaveTextContent('Nothing was written');
+    await expect(canvas.queryByRole('status', { name: 'The record' })).toBeNull();
+  },
+};
+
+/** A promotion that landed says one thing that is true of every act. A promoted deletion makes
+ * no row, so the sentence names none. */
+export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
+  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'promoted' } },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('status', { name: 'The record' });
+    await expect(said).toHaveTextContent(
+      'The act is promoted. The record took it, and no door takes it back.',
+    );
+    await expect(said).not.toHaveTextContent('the row it made');
+  },
+};
+
+/** While one verdict is going to the record, no second verdict is taken: the second would decide
+ * an act on a record the first one has already moved. */
+export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {
+  args: { decision: { step: 'deciding', changeId: FIRST_ACT, verdict: 'promoted' } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status', { name: 'The record' })).toHaveTextContent(
+      'The promotion is going to the record.',
+    );
+    await expect(canvas.getByRole('button', { name: /Promote/ })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: /Reject/ })).toBeDisabled();
   },
 };
 
@@ -118,5 +185,23 @@ export const TheSurfaceHoldsInTheDarkTheme: Story = {
     await expect(
       canvas.getByRole('list', { name: 'What is asked of this row' }),
     ).toBeInTheDocument();
+  },
+};
+
+/** A verdict of one act must never read as the verdict of the act under the controls. The
+ * sentence stays, because a doubt that goes away in silence loses the act that may have landed. */
+export const ASentenceOfAnotherActSaysThatItIsOfAnotherAct: Story = {
+  args: {
+    decision: {
+      step: 'unknown',
+      changeId: 'an act that is not under the controls',
+      verdict: 'promoted',
+      doubt: 'The write service did not answer, and the act may have reached it.',
+    },
+  },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('alert', { name: 'The record' });
+    await expect(said).toHaveTextContent('This is about another act.');
+    await expect(said).toHaveTextContent('It is not known whether the act was promoted.');
   },
 };

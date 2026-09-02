@@ -11,23 +11,55 @@ import { VerdictMark } from './verdict-mark';
 export interface DecideProps {
   /** `null` while the act waits. The three controls act on one act, and never on a group. */
   readonly decision: Decision | null;
+  /** One act reaches the record at a time. A second click sends a second decision on a row the
+   * first one has already moved. */
+  readonly busy: boolean;
   readonly onDecide: (verdict: Verdict, reason: string) => void;
   readonly onUndo: () => void;
 }
 
+/** Where the controls stand. A question and a hold cannot both be open, so one value holds both
+ * and the pair of states that reads "asking to promote while holding" cannot be built. */
+type Stance =
+  | { readonly kind: 'resting' }
+  | { readonly kind: 'holding' }
+  | { readonly kind: 'asking'; readonly verdict: 'promoted' | 'rejected' };
+
+const RESTING: Stance = { kind: 'resting' };
+
 // The kit writes `transition-all` at the Tailwind default of 150ms, and the theme allows 120.
 const KIT = 'duration-100';
 
-/** The promotion is not reversible in the record, so this screen must never be the first place a
- * person learns that a keystroke was final: a verdict of the pass is taken back while it lasts. */
-export function Decide({ decision, onDecide, onUndo }: DecideProps) {
+const ROW = 'flex items-center gap-2';
+
+const QUESTION = 'min-w-0 flex-1 truncate text-small/4 text-destructive';
+
+const NOTE = 'shrink-0 text-small/4 text-label';
+
+/** A hold that carries no words tells the next reader nothing. So the control waits for words,
+ * and the screen says what it waits for. Spaces alone are not words. */
+const BLANK_HOLD = 'A hold takes a written reason.';
+
+const QUESTIONS: Readonly<Record<'promoted' | 'rejected', string>> = {
+  promoted: 'Promote this act? It writes the row, and no door takes it back.',
+  rejected: 'Reject this act? A rejected act is frozen, and it never waits again.',
+};
+
+const CONFIRM: Readonly<Record<'promoted' | 'rejected', string>> = {
+  promoted: 'Promote it',
+  rejected: 'Reject it',
+};
+
+/** A promotion is written the moment it is taken, and the record has no door back. So this
+ * screen asks once before it sends, and it offers the way back only where one exists. */
+export function Decide({ decision, busy, onDecide, onUndo }: DecideProps) {
   const [reason, setReason] = useState('');
-  const [holding, setHolding] = useState(false);
+  const [stance, setStance] = useState<Stance>(RESTING);
 
   if (decision !== null) {
     const words = VERDICT_WORDS[decision.verdict];
     return (
-      <div className="flex items-center gap-2">
+      <div className={ROW}>
         <VerdictMark verdict={decision.verdict} words={words} />
         <span className="shrink-0 text-xs text-foreground">{words}</span>
         {/* The reason was asked for, so it is drawn. A field that is collected and dropped is
@@ -37,17 +69,52 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
             {decision.reason}
           </span>
         )}
-        <Button variant="outline" size="xs" className={cn(KIT, 'ml-auto')} onClick={onUndo}>
-          <Undo2 aria-hidden="true" />
-          Undo
+        {/* Only a hold is taken back. The other two stand in the record, and a control that
+            offered to undo one would state a door that the record does not hold. */}
+        {decision.verdict === 'deferred' ? (
+          <Button variant="outline" size="xs" className={cn(KIT, 'ml-auto')} onClick={onUndo}>
+            <Undo2 aria-hidden="true" />
+            Undo
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (stance.kind === 'asking') {
+    return (
+      <div className={ROW}>
+        <span className={QUESTION}>{QUESTIONS[stance.verdict]}</span>
+        <Button
+          variant={stance.verdict === 'rejected' ? 'destructive' : 'default'}
+          size="xs"
+          className={KIT}
+          disabled={busy}
+          onClick={() => {
+            setStance(RESTING);
+            onDecide(stance.verdict, '');
+          }}
+        >
+          {CONFIRM[stance.verdict]}
+        </Button>
+        <Button
+          variant="outline"
+          size="xs"
+          className={KIT}
+          onClick={() => {
+            setStance(RESTING);
+          }}
+        >
+          Keep it waiting
         </Button>
       </div>
     );
   }
 
-  if (holding) {
+  if (stance.kind === 'holding') {
+    const blank = reason.trim() === '';
     return (
-      <div className="flex items-center gap-2">
+      <div className={ROW}>
         <label htmlFor="review-hold-reason" className="shrink-0 text-xs text-label">
           Why not yet
         </label>
@@ -62,13 +129,15 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
             'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           )}
         />
+        {blank ? <span className={NOTE}>{BLANK_HOLD}</span> : null}
         <Button
           variant="outline"
           size="xs"
           className={KIT}
+          disabled={blank}
           onClick={() => {
             onDecide('deferred', reason);
-            setHolding(false);
+            setStance(RESTING);
             setReason('');
           }}
         >
@@ -79,7 +148,7 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
           size="xs"
           className={KIT}
           onClick={() => {
-            setHolding(false);
+            setStance(RESTING);
           }}
         >
           Cancel
@@ -96,8 +165,9 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
         variant="ghost"
         size="xs"
         className={cn(KIT, 'mr-auto')}
+        disabled={busy}
         onClick={() => {
-          setHolding(true);
+          setStance({ kind: 'holding' });
         }}
       >
         <Clock aria-hidden="true" />
@@ -107,8 +177,9 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
         variant="destructive"
         size="xs"
         className={cn(KIT, 'mr-4')}
+        disabled={busy}
         onClick={() => {
-          onDecide('rejected', '');
+          setStance({ kind: 'asking', verdict: 'rejected' });
         }}
       >
         <X aria-hidden="true" />
@@ -117,8 +188,9 @@ export function Decide({ decision, onDecide, onUndo }: DecideProps) {
       <Button
         size="xs"
         className={KIT}
+        disabled={busy}
         onClick={() => {
-          onDecide('promoted', '');
+          setStance({ kind: 'asking', verdict: 'promoted' });
         }}
       >
         <Check aria-hidden="true" />

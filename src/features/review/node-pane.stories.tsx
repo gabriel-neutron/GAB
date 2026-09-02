@@ -95,7 +95,7 @@ export const EveryActOfTheSubjectDrawsOneLine: Story = {
 export const ASettledActCarriesAMarkInPlaceOfItsConfidence: Story = {
   args: { lines: SETTLED },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('Promoted on this pass')).toBeInTheDocument();
+    await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
   },
 };
 

@@ -9,7 +9,7 @@ const onUndo = fn();
 
 const meta = {
   component: Decide,
-  args: { decision: null, onDecide, onUndo },
+  args: { decision: null, busy: false, onDecide, onUndo },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="w-[560px] border-t border-border p-2">
@@ -41,21 +41,69 @@ export const TheHoldIsReadFirstAndThePromotionLast: Story = {
   },
 };
 
-/** The real promotion cannot be reversed, so a verdict of the pass carries the way back. */
-export const AVerdictOfThePassIsTakenBack: Story = {
-  args: { decision: { verdict: 'promoted', reason: '' } },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText('Promoted on this pass')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
+/** The promotion is written the moment it is taken, so this screen asks once before it sends. */
+export const APromotionIsAskedBeforeItIsWritten: Story = {
+  // Its own mock: the one above is shared by every story of this file, and a call counted here
+  // must be a call this story made.
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await expect(args.onDecide).not.toHaveBeenCalled();
+    await expect(canvas.getByText(/no door takes it back/)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Promote it' }));
+    await expect(args.onDecide).toHaveBeenCalledWith('promoted', '');
   },
 };
 
-/** A reason that is collected is drawn. A field that is asked for and dropped is a lie. */
-export const TheReasonOfAHoldIsDrawn: Story = {
+/** A promotion stands in the record, and no door takes it back. The screen offers none. */
+export const APromotionThatStandsOffersNoWayBack: Story = {
+  args: { decision: { verdict: 'promoted', reason: '' } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /Undo/ })).toBeNull();
+  },
+};
+
+/** One act reaches the record at a time. */
+export const NoActIsTakenWhileOneIsGoing: Story = {
+  args: { busy: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: /Promote/ })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: /Reject/ })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: /Not yet/ })).toBeDisabled();
+  },
+};
+
+/** A hold writes nothing, so it is the one verdict that is taken back while the pass lasts. The
+ * reason is collected, so the same row draws it. */
+export const AHoldDrawsItsReasonAndIsTakenBack: Story = {
   args: { decision: { verdict: 'deferred', reason: 'The second reading is not in yet' } },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Held on this pass')).toBeInTheDocument();
     await expect(canvas.getByText('The second reading is not in yet')).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
+  },
+};
+
+/** A hold takes a written reason. Spaces state nothing, so the control waits, and the screen says
+ * what it waits for. */
+export const AHoldWithABlankReasonIsRefusedAndSaidWhy: Story = {
+  // Its own mock: the one above is shared by every story of this file, and a call counted here
+  // must be a call this story made.
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Not yet/ }));
+    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeDisabled();
+    await expect(canvas.getByText('A hold takes a written reason.')).toBeInTheDocument();
+    await userEvent.type(canvas.getByLabelText('Why not yet'), '   ');
+    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeDisabled();
+    await userEvent.type(canvas.getByLabelText('Why not yet'), 'The second reading is not in yet');
+    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeEnabled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Hold' }));
+    await expect(args.onDecide).toHaveBeenCalledWith(
+      'deferred',
+      '   The second reading is not in yet',
+    );
   },
 };
 

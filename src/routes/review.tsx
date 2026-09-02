@@ -1,10 +1,11 @@
-import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
+import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
+import { decisionSaid, sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
 import { patchSort, readSort } from '@/features/review/workspace';
-import { loadCorpus } from '@/shared/read/corpus';
+import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 
 export interface ReviewSearch {
   /** What is under examination. An empty string opens the queue at its first subject. */
@@ -14,6 +15,8 @@ export interface ReviewSearch {
 /** The confidence threshold is an operational parameter, and never a constant of the source. No
  * path carries one to the browser today, so the screen holds none and says so on each act. */
 const THRESHOLD = null;
+
+const IDLE: DecisionState = { step: 'idle' };
 
 export const Route = createFileRoute('/review')({
   // The address comes from outside, so it is validated before its first use. A stale identifier
@@ -37,19 +40,31 @@ function ReviewRoute() {
   const { subject } = Route.useSearch();
   const navigate = Route.useNavigate();
   const corpus = Route.useLoaderData();
+  const router = useRouter();
 
   const [sort, setSort] = useState<SortKey>(readSort);
 
-  // The verdicts of one pass, and they die with it. The record holds no state between a proposal
-  // and a decision, and this route invents none.
+  // The verdicts of one pass. A promotion and a rejection also stand in the record, and the act
+  // then leaves the queue on the next read; a hold stands here alone and a reload loses it.
   const [verdicts, setVerdicts] = useState<Verdicts>({});
+
+  // Where the last verdict stands with the record, and what the surface says about it.
+  const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
   const subjects = useMemo(() => readQueue(corpus, THRESHOLD), [corpus]);
 
+  // A refusal and a doubt outlive a move of the hand: the analyst must act on each one, and a
+  // doubt names the one act that may stand in the record. A verdict on the way is never lost.
+  const forgetTheSentence = (): void => {
+    const said = decisionSaid(decision, null);
+    if (!said.urgent && !said.busy) setDecision(IDLE);
+  };
+
   const onAct = (act: ReviewAct): void => {
     switch (act.kind) {
       case 'select':
+        forgetTheSentence();
         void navigate({ search: { subject: act.subjectId }, replace: true });
         return;
       case 'sort':
@@ -57,10 +72,21 @@ function ReviewRoute() {
         patchSort(act.sort);
         return;
       case 'decide':
-        setVerdicts((held) => ({
-          ...held,
-          [act.changeId]: { verdict: act.verdict, reason: act.reason },
-        }));
+        // A decision is an event handler and never an effect. The verdict is held only once the
+        // record has taken it, so a refusal never draws as a decision that landed.
+        if (decision.step === 'deciding') return;
+        setDecision({ step: 'deciding', changeId: act.changeId, verdict: act.verdict });
+        void sendVerdict(act.changeId, act.verdict).then(async (state) => {
+          setDecision(state);
+          if (state.step !== 'decided') return;
+          setVerdicts((held) => ({
+            ...held,
+            [act.changeId]: { verdict: act.verdict, reason: act.reason },
+          }));
+          // The record moved, so it is read again and the surface draws what landed. A hold
+          // wrote nothing, and a read that follows one would only cost the analyst the queue.
+          if (act.verdict !== 'deferred') await refreshCorpus(() => router.invalidate());
+        });
         return;
       case 'undo':
         // Rebuilt and not destructured: a discarded binding is an unused variable, and this
@@ -68,6 +94,7 @@ function ReviewRoute() {
         setVerdicts((held) =>
           Object.fromEntries(Object.entries(held).filter(([key]) => key !== act.changeId)),
         );
+        forgetTheSentence();
         return;
     }
   };
@@ -76,6 +103,7 @@ function ReviewRoute() {
     <ReviewPage
       queue={{ subjects, verdicts }}
       examination={{ subjectId: subject === '' ? null : subject, sort }}
+      decision={decision}
       onAct={onAct}
     />
   );

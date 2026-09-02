@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
+import { failureFrom } from './refusal.ts';
 import { writeRoutes } from './routes.ts';
 import { openVocabulary } from './vocabulary.ts';
 
@@ -31,7 +32,7 @@ afterAll(async () => {
 
 const replyShape = z.object({
   proposalId: z.string().optional(),
-  targetId: z.string().optional(),
+  targetId: z.string().nullable().optional(),
   state: z.string().optional(),
   refusal: z.string().optional(),
 });
@@ -81,9 +82,9 @@ const liveRows = async (targetId: string): Promise<number> =>
 
 // Cleanup runs in a `finally`, so a failed assertion leaves no row. The end state is read and
 // never assumed: a delete that a live relation blocks answers 409, and the row would stay.
-const removed = async (...targets: readonly (string | undefined)[]): Promise<void> => {
+const removed = async (...targets: readonly (string | null | undefined)[]): Promise<void> => {
   for (const targetId of targets)
-    if (targetId !== undefined && targetId !== '') {
+    if (targetId !== undefined && targetId !== null && targetId !== '') {
       await post('delete-relation', { targetId });
       await post('delete-entity', { targetId });
       expect({ targetId, live: await liveRows(targetId) }).toStrictEqual({ targetId, live: 0 });
@@ -118,7 +119,7 @@ test('the five gestures reach the evidentiary layer', async () => {
   });
 
   let other = '';
-  let relationId: string | undefined;
+  let relationId: string | null | undefined;
   try {
     expect(entityStatus).toBe(200);
     expect(entityReply.state).toBe('signed');
@@ -260,7 +261,7 @@ test('an update re-cites the document the key already holds', async () => {
 test('a delete of an endpoint is refused and writes no proposal', async () => {
   const source = await signedEntity('Writer test endpoint source');
   const target = await signedEntity('Writer test endpoint target');
-  let relationId: string | undefined;
+  let relationId: string | null | undefined;
   try {
     const [, relation] = await post('create-relation', {
       type: 'berthed_at',
@@ -329,5 +330,147 @@ test('the door states the act, and a body that names another act cannot change i
     expect(await liveRows(target)).toBe(0);
   } finally {
     await removed(target);
+  }
+});
+
+const TARGET_OF_NO_ACT = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
+
+// ------------------------------------------------------------------------ the decision door --
+
+// An act that waits, written through the proposal door alone. `promote_proposal` refuses an act
+// that the calling transaction wrote, so each statement commits on its own.
+const waiting = async (label: string): Promise<string> => {
+  const made = await one(
+    `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+    [JSON.stringify({ type: 'vessel', label })],
+  );
+  return String(made['id']);
+};
+
+const decisionOf = async (proposalId: string): Promise<Record<string, unknown>> =>
+  one('SELECT status, decided_by FROM public.proposals WHERE id = $1::uuid', [proposalId]);
+
+test('the promotion door writes the row, and the record names the act that made it', async () => {
+  const proposalId = await waiting('Writer test promotion door');
+  let targetId: string | null | undefined;
+  try {
+    const [status, reply] = await post('promote-proposal', { proposalId });
+    targetId = reply.targetId;
+    expect([status, reply.state]).toStrictEqual([200, 'decided']);
+    expect(reply.proposalId).toBe(proposalId);
+
+    const made = await one('SELECT promoted_from FROM public.entities WHERE id = $1::uuid', [
+      targetId,
+    ]);
+    expect(made['promoted_from']).toBe(proposalId);
+    expect(await decisionOf(proposalId)).toStrictEqual({
+      status: 'accepted',
+      decided_by: 'the writer door',
+    });
+  } finally {
+    await removed(targetId);
+  }
+});
+
+// A rejected act is never deleted: it is the record of what was set aside.
+test('the rejection door decides the act, and it writes no row', async () => {
+  const proposalId = await waiting('Writer test rejection door');
+  const [status, reply] = await post('reject-proposal', { proposalId });
+
+  expect([status, reply.state, reply.targetId]).toStrictEqual([200, 'decided', null]);
+  expect(await decisionOf(proposalId)).toStrictEqual({
+    status: 'rejected',
+    decided_by: 'the writer door',
+  });
+  expect(
+    Number(
+      (
+        await one('SELECT count(*) AS n FROM public.entities WHERE promoted_from = $1::uuid', [
+          proposalId,
+        ])
+      )['n'],
+    ),
+  ).toBe(0);
+
+  // The queue of a second analyst still holds the act. The second decision writes nothing.
+  const [again, reply2] = await post('promote-proposal', { proposalId });
+  expect(again).toBe(409);
+  expect(reply2.refusal).toBe('the act is decided already, and a decided act is frozen');
+  // A refusal names no act. The browser reads a name as the doubt, and this answer holds none.
+  expect(reply2.proposalId).toBeUndefined();
+});
+
+test('a decision that names no act of the record is refused', async () => {
+  const [status, reply] = await post('promote-proposal', {
+    proposalId: '00000000-0000-4000-8000-000000000000',
+  });
+  expect(status).toBe(409);
+  expect(reply.refusal).toBe('the record holds no act under that name');
+});
+
+test('a decision that names no proposal at all is refused before the record is reached', async () => {
+  const [status, reply] = await post('reject-proposal', { targetId: TARGET_OF_NO_ACT });
+  expect(status).toBe(422);
+  expect(reply.refusal).toBe('the body names no act');
+});
+
+// An act that waits on a row, written through the proposal door alone. The row is deleted after
+// it, so the promotion of this act reaches the record and the record raises.
+const waitingDelete = async (targetId: string): Promise<string> => {
+  const made = await one(
+    `SELECT public.propose_change('delete_entity', '{}'::jsonb, ARRAY['manual']::text[],
+       'entity', $1::uuid) AS id`,
+    [targetId],
+  );
+  return String(made['id']);
+};
+
+test('a promotion whose target is gone is refused, and the answer names no act', async () => {
+  const target = await signedEntity('Writer test target gone');
+  const proposalId = await waitingDelete(target);
+  try {
+    const [gone] = await post('delete-entity', { targetId: target });
+    expect(gone).toBe(200);
+
+    const [status, reply] = await post('promote-proposal', { proposalId });
+    expect(status).toBe(409);
+    expect(reply.refusal).toBe('the target no longer exists, and nothing was applied');
+    // The database raised it, so nothing was written and the act still waits under its name.
+    expect(reply.proposalId).toBeUndefined();
+    expect(await decisionOf(proposalId)).toStrictEqual({ status: 'pending', decided_by: null });
+  } finally {
+    // A proposal is never deleted, so the act that still waits is decided before the test ends.
+    await post('reject-proposal', { proposalId });
+    await removed(target);
+  }
+});
+
+// The two answers are parted by the code that PostgreSQL writes on every error it raises. A
+// failure that carries none reached no statement, and the act may stand in the record.
+test('a failure with no code is a doubt, and a raised failure keeps its refusal', () => {
+  const frozen = Object.assign(
+    new Error('proposal 1 is accepted, and only a pending proposal is applied'),
+    { code: 'P0001' },
+  );
+
+  expect(failureFrom(frozen)).toStrictEqual({
+    raised: true,
+    refusal: 'the act is decided already, and a decided act is frozen',
+  });
+  expect(failureFrom(new Error('the connection was dropped'))).toStrictEqual({
+    raised: false,
+    doubt: 'the record gave no answer to read, and the act may have run whole',
+  });
+});
+
+// A socket that dies after the commit names a code, and the promotion stands in the record. A
+// code that reads as a refusal there tells the analyst that nothing was written, and it lies.
+test('a lost socket and a stopped server are doubts, whatever code they name', () => {
+  for (const code of ['ECONNRESET', 'EPIPE', 'ETIMEDOUT', '08006', '57P01']) {
+    expect({ code, ...failureFrom({ code, message: 'the connection was lost' }) }).toStrictEqual({
+      code,
+      raised: false,
+      doubt: 'the record gave no answer to read, and the act may have run whole',
+    });
   }
 });

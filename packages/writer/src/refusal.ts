@@ -1,6 +1,10 @@
+// Two exports, one job: this file owns every word that a failure becomes, and it owns the one
+// test that parts a refusal from a doubt. No other file reads the shape of a raised error.
+
 const GENERIC = 'the database refused the act';
 const UNREACHABLE = 'the database did not answer, and nothing was written';
 const SLOW = 'the database took too long, and nothing was written';
+const DOUBT = 'the record gave no answer to read, and the act may have run whole';
 
 // Every sentence the caller reads is owned here. A message that PostgreSQL composes carries a
 // ticket number, a path in this repository and the address of the server, and none of those
@@ -33,6 +37,8 @@ const BY_SHAPE: readonly (readonly [string, string])[] = [
   ['has no write path yet', 'the writer has no path for this act'],
   ['may not write a proposal', 'the writer may not sign this act'],
   ['cites a document that does not exist', 'the act cites a document the archive does not hold'],
+  // Last, and it is the widest shape of the list: a more exact sentence above must win first.
+  ['does not exist', 'the record holds no act under that name'],
 ];
 
 const wordOf = (cause: unknown, key: 'code' | 'message'): string =>
@@ -53,4 +59,39 @@ export const refusalFrom = (cause: unknown, proposalId: string | null = null): s
   console.error('the database raised', { code, message, cause });
   const known = knownFrom(code, message);
   return known ?? named(GENERIC, proposalId);
+};
+
+/** What one failure is. A refusal came from a statement, and nothing was written. A doubt came
+ * from no statement, so the act may stand in the record. */
+export type Failure =
+  | { readonly raised: true; readonly refusal: string }
+  | { readonly raised: false; readonly doubt: string };
+
+// A socket that dies and a server that stops each name a code of their own, and neither one
+// says the statement did not run. So a code alone cannot part a refusal from a doubt.
+const DOUBTFUL = new Set([
+  'EPIPE',
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  '57P01',
+  '57P02',
+  '57P03',
+]);
+
+// The database names a five-character state on every error it raises while it reads a
+// statement. The class 08 is the connection, and the answer of a lost connection is not known.
+const STATE = /^[0-9A-Z]{5}$/u;
+
+const raisedBy = (code: string): boolean =>
+  STATE.test(code) && !code.startsWith('08') && !DOUBTFUL.has(code);
+
+/** Read one failure. Only a state that the database raised while it read the statement is a
+ * refusal. Every other failure is a doubt, and no caller may report one as a refusal. */
+export const failureFrom = (cause: unknown): Failure => {
+  if (raisedBy(wordOf(cause, 'code'))) return { raised: true, refusal: refusalFrom(cause) };
+  console.error('the writer lost the answer', { cause });
+  return { raised: false, doubt: DOUBT };
 };

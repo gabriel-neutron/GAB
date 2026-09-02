@@ -3,12 +3,9 @@ import { writeRequest, type WriteRequest, type WRITE_OPS } from '@gab/proposal/r
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
+import { DECIDED_BY } from './decided-by.ts';
 import { refusalFrom } from './refusal.ts';
 import type { VocabularyReader } from './vocabulary.ts';
-
-// The door signs, and it names no person. Nothing authenticates a caller here, so a name would
-// be a fiction that the decided act carries for ever.
-const DECIDED_BY = 'the writer door';
 
 const TABLE = { entity: 'public.entities', relation: 'public.relations' } as const;
 

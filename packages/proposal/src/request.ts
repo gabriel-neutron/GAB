@@ -12,6 +12,15 @@ export const WRITE_OPS = [
   'delete_relation',
 ] as const;
 
+/** The two decisions the operator takes on an act that already stands in the record. A write
+ * makes a proposal and signs it; a decision writes no proposal and names one that waits. */
+export const DECISION_OPS = ['promote_proposal', 'reject_proposal'] as const;
+
+export type DecisionOp = (typeof DECISION_OPS)[number];
+
+/** The body of one decision. The act is taken from the address, as it is for a write. */
+export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
+
 // A relation carries an interval only when it states identity or control. The database holds
 // the same five words in a check constraint, and an interval elsewhere refuses the promotion.
 export const DATED_RELATIONS = ['owns', 'operates', 'flags', 'insures', 'appoints'] as const;
