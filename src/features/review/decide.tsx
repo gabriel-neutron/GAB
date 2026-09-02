@@ -99,7 +99,11 @@ export function Decide({ decision, busy, onDecide, onUndo }: DecideProps) {
           size="xs"
           className={KIT}
           disabled={busy}
-          onClick={() => {
+          onClick={(event) => {
+            // The browser counts the presses of one sequence, and it carries the count over to
+            // the control that takes the place of the one that was pressed. A press above one
+            // opened this question, so it never answers it.
+            if (event.detail > 1) return;
             setStance(RESTING);
             onDecide(stance.verdict, '');
           }}

@@ -70,6 +70,33 @@ export const OnePressOnRejectAsksAndASecondSendsNothing: Story = {
   },
 };
 
+/** The question stands where the control that opened it stood, so the second press of a double
+ * press lands on it. That press belongs to the question and it must never answer it. */
+export const ADoublePressOnRejectAsksAndSendsNothing: Story = {
+  // Its own mock: the one above is shared by every story of this file, and a call counted here
+  // must be a call this story made.
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    const reject = canvas.getByRole('button', { name: /Reject/ });
+    const box = reject.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+
+    await userEvent.click(reject);
+
+    // The second press of the pair lands on whatever now stands under the hand, and the browser
+    // counts it as the second of one sequence.
+    const under = document.elementFromPoint(x, y);
+    await expect(under?.closest('button')).toBeInstanceOf(HTMLButtonElement);
+    under?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, detail: 2, clientX: x, clientY: y }),
+    );
+
+    await expect(args.onDecide).not.toHaveBeenCalled();
+    await expect(canvas.getByRole('alert')).toHaveTextContent(/never waits again/);
+  },
+};
+
 /** The way back from the question is kept whole. On the promotion path the hand lands on the
  * control that keeps the act waiting, so one press cancels and the next asks again. */
 export const TheWayBackFromThePromotionQuestionIsWhole: Story = {
