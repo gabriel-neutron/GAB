@@ -27,17 +27,15 @@ const SECOND_MS = 1000;
 
 const secrets = z.object({ OPENROUTER_API_KEY: z.string().trim().min(1) });
 
-// Every value here is calibrated on real traffic, so no code constant gives one. The three
-// optional values stay absent until the operator measures them.
+// Every value here is calibrated on real traffic, so no code constant gives one. The bound on
+// the wait stays absent until the operator measures one.
 const settings = z.object({
   model: z.string().trim().min(1),
   firstWaitMs: z.number().int().positive(),
   waitGrowth: z.number().min(1),
   maxWaitMs: z.number().int().positive().optional(),
   timeoutMs: z.number().int().positive(),
-  deadlineMs: z.number().int().positive().optional(),
   maxAnswerTokens: z.number().int().positive(),
-  minCallTokens: z.number().int().positive().optional(),
 });
 
 export type AgentModel = z.infer<typeof settings>;
@@ -74,11 +72,10 @@ interface Line {
   readonly agent: AgentModel;
 }
 
-// What one question spends, how many times it reaches the service, and when it starts no more
-// calls. `attempts` on every failure is `calls`, so the number means one thing for every kind.
+// What one question spends and how many times it reaches the service. `attempts` on every
+// failure is `calls`, so the number means one thing for every kind.
 interface Run {
   readonly budget: Budget;
-  readonly until: number | undefined;
   calls: number;
   tokens: number;
 }
@@ -174,19 +171,15 @@ const paidFor = (run: Run, tokens: number): void => {
   run.tokens += tokens;
 };
 
-// An answer the shape of the service refuses is paid for, and the figure is the one the service
-// gives. This code makes no estimate. A body with no figure gives no count, and the log says so.
-const countPaid = (body: unknown, run: Run): void => {
-  const tokens = tokensOf(body);
-  if (tokens === 0) console.error('the model answered and gave no token count');
-  paidFor(run, tokens);
-};
-
 // The client counts the tokens before it reads the answer, because a cut answer costs tokens too.
 const fromBody = (body: unknown, run: Run, text: string): Step => {
   const held = completion.safeParse(body);
   if (!held.success) {
-    countPaid(body, run);
+    // An answer the shape of the service refuses is paid for, and the figure is the one the
+    // service gives. A body with no figure gives no count, and the log says so.
+    const paid = tokensOf(body);
+    if (paid === 0) console.error('the model answered and gave no token count');
+    paidFor(run, paid);
     return again(REASON.unreadable, text);
   }
 
@@ -203,39 +196,33 @@ const fromBody = (body: unknown, run: Run, text: string): Step => {
   return { done: 'said', text: content };
 };
 
-type Fetched =
-  | { readonly ok: true; readonly response: Response; readonly text: string }
-  | { readonly ok: false; readonly why: string };
+const oneStep = async (line: Line, messages: readonly Message[], run: Run): Promise<Step> => {
+  // Every call starts here, and the cap stops each one. One question reaches the service up to
+  // eight times, and a test at the door alone stops none of the calls after the first.
+  if (run.budget.left() <= 0) return { done: 'spent' };
 
-// The call and the reading of the body are the two acts that throw for a fault of the transport.
-// Nothing that counts a token stands inside this guard, so a fault of the count is never hidden.
-const fetched = async (line: Line, messages: readonly Message[]): Promise<Fetched> => {
+  run.calls += 1;
+
+  // The call and the reading of the body are the two acts that throw for a fault of the
+  // transport. Nothing that counts a token stands inside this guard, so a fault of the count is
+  // never reported as a silent fault of the transport.
+  let response: Response;
+  let text: string;
   try {
-    const response = await line.send(ENDPOINT, {
+    response = await line.send(ENDPOINT, {
       method: 'POST',
       headers: { authorization: `Bearer ${line.key}`, 'content-type': 'application/json' },
       body: bodyOf(line.agent, messages),
       signal: AbortSignal.timeout(line.agent.timeoutMs),
     });
-    return { ok: true, response, text: await response.text() };
+    text = await response.text();
   } catch (cause) {
-    return { ok: false, why: sentenceOf(cause) };
+    return again(REASON.network, sentenceOf(cause));
   }
-};
 
-const oneStep = async (line: Line, messages: readonly Message[], run: Run): Promise<Step> => {
-  // Every call starts here, and the cap stops each one. The floor is what the caller says a call
-  // is worth: a call the cap cannot pay for comes back cut, and a cut answer buys nothing.
-  const floor = line.agent.minCallTokens ?? 1;
-  if (run.budget.left() < floor) return { done: 'spent' };
-
-  run.calls += 1;
-  const got = await fetched(line, messages);
-  if (!got.ok) return again(REASON.network, got.why);
-
-  const read = asJson(got.text);
+  const read = asJson(text);
   const body = read.ok ? read.value : null;
-  return got.response.ok ? fromBody(body, run, got.text) : fromStatus(got.response, body, got.text);
+  return response.ok ? fromBody(body, run, text) : fromStatus(response, body, text);
 };
 
 // The service can name a wait of any length, and a wait longer than the job holds the job. The
@@ -244,10 +231,6 @@ const waitOf = (agent: AgentModel, afterMs: number | undefined, tried: number): 
   const asked = afterMs ?? agent.firstWaitMs * agent.waitGrowth ** tried;
   return Math.min(asked, agent.maxWaitMs ?? LONGEST_WAIT_MS, LONGEST_WAIT_MS);
 };
-
-// A question stops between two calls and never inside one, so every question reaches the service
-// at least once. A deadline that has passed already does not cancel the first call.
-const outOfTime = (run: Run): boolean => run.until !== undefined && Date.now() >= run.until;
 
 // One round trip, and the text the model said. The wait grows after each fault, and the service
 // can name a longer wait.
@@ -268,7 +251,7 @@ const roundTrip = async (
     if (step.done === 'spent') return { ok: false, failure: failureOf(REASON.overCap, run.calls) };
     kind = step.kind;
     why = step.why;
-    if (tried === NETWORK_RETRIES || outOfTime(run)) break;
+    if (tried === NETWORK_RETRIES) break;
     await wait(waitOf(line.agent, step.afterMs, tried));
     tried += 1;
   }
@@ -315,7 +298,7 @@ const attempt = async <T>(
   if (judgement.ok) return { ok: true, value: judgement.value };
 
   const { issues } = judgement;
-  if (left === 0 || outOfTime(run))
+  if (left === 0)
     return { ok: false, failure: failureOf(REASON.rejected, run.calls, raw.value, issues) };
 
   const said: Message = { role: 'assistant', content: raw.value };
@@ -330,8 +313,7 @@ export const openModel = (given: AgentModel, send: Send = fetch, env = process.e
 
   return {
     ask: async <T>(question: Question<T>): Promise<Answer<T>> => {
-      const until = agent.deadlineMs === undefined ? undefined : Date.now() + agent.deadlineMs;
-      const run: Run = { budget: question.budget, until, calls: 0, tokens: 0 };
+      const run: Run = { budget: question.budget, calls: 0, tokens: 0 };
       const got = await attempt(line, question, run, question.messages, VALIDATION_RETRIES);
       return got.ok
         ? { ok: true, value: got.value, tokens: run.tokens }

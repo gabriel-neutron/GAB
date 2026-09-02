@@ -84,13 +84,6 @@ describe('a good answer', () => {
     expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: AGENT.maxAnswerTokens });
   });
 
-  it('bounds the answer by the agent limit when the cap leaves more', async () => {
-    const send = always(said('{"claim":"a ship"}'));
-    await ask(send, 1000).run();
-
-    expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: AGENT.maxAnswerTokens });
-  });
-
   it('keeps the compression plugin off on the retry too', async () => {
     const send = vi
       .fn<Send>()
@@ -241,19 +234,6 @@ describe('the network fails', () => {
     await expect(got).resolves.toMatchObject({ ok: true });
   });
 
-  it('starts no new call after the deadline of the whole question', async () => {
-    vi.useFakeTimers();
-    const send = vi.fn<Send>(() => Promise.reject(new Error('socket closed')));
-    const got = ask(send, 1000, { ...PATIENT, deadlineMs: 50 }).run();
-
-    await vi.advanceTimersByTimeAsync(100);
-    expect(send).toHaveBeenCalledTimes(2);
-    await expect(got).resolves.toMatchObject({
-      ok: false,
-      failure: { kind: 'network', attempts: 2 },
-    });
-  });
-
   it('carries no word of the service into the failure', async () => {
     const send = always(refusalBody('provider_x_is_busy'), 503);
     const got = await ask(send).run();
@@ -386,18 +366,7 @@ describe('the spend ceilings', () => {
     expect(got).toMatchObject({ ok: false, failure: { kind: 'over_cap' }, tokens: 60 });
   });
 
-  it('makes no call when the cap leaves less than the caller says a call is worth', async () => {
-    const send = always(said('{"claim":"a ship"}', 'stop', 990));
-    const budget = openBudget(1000);
-    const model = openModel({ ...AGENT, minCallTokens: 20 }, send, ENV);
-    const one = { messages: [{ role: 'user' as const, content: 'go' }], shape: SHAPE, budget };
-
-    expect(await model.ask(one)).toMatchObject({ ok: true });
-    expect(await model.ask(one)).toMatchObject({ ok: false, failure: { kind: 'over_cap' } });
-    expect(send).toHaveBeenCalledTimes(1);
-  });
-
-  it('makes the call when no floor is set and the cap leaves a little', async () => {
+  it('makes the call while the cap still has a token left', async () => {
     const send = always(said('{"claim":"a ship"}', 'stop', 990));
     const budget = openBudget(2000);
     const model = openModel(AGENT, send, ENV);
