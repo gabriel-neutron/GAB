@@ -7,7 +7,7 @@ export const meta = {
   phases: [
     { title: 'Choose', detail: 'one agent reads the tracker and names the questions that block the build' },
     { title: 'Ground', detail: 'one agent states the question and the rules that bind it' },
-    { title: 'Debate', detail: 'three lenses answer: the smallest build, the invariants, the one operator' },
+    { title: 'Debate', detail: 'two lenses answer: the invariants, and the one operator' },
     { title: 'Agree', detail: 'one agent merges the three into one decision' },
     { title: 'Cut', detail: 'the guard attacks the decision and removes each part nobody asked for' },
     { title: 'Settle', detail: 'one agent applies the cuts and writes the decision' },
@@ -15,7 +15,7 @@ export const meta = {
   ],
 }
 
-// Two subjects per run. Each subject costs six or seven agents, and a run that debates every
+// Two subjects per run. Each subject costs five or six agents, and a run that debates every
 // open question at once gives the operator more to read than one sitting holds.
 const MAX_SUBJECTS = 2
 
@@ -49,15 +49,6 @@ A decision names three things: its reason, its cost, and the fact that proves it
 `
 
 const LENSES = [
-  {
-    key: 'smallest',
-    title: 'the smallest build',
-    brief: `
-Argue for the least work that answers the question today. Prefer the option that adds no service,
-no dependency, no table and no file. Prefer a thing already installed over a thing to install.
-Name the version of your answer that a person builds in one sitting. Where the question needs
-nothing built at all, say so: that is a valid answer, and it is often the correct one.`,
-  },
   {
     key: 'invariants',
     title: 'the invariants',
@@ -173,7 +164,6 @@ const AGREED_SCHEMA = {
     'reason',
     'cost',
     'provesItWrong',
-    'agreement',
     'splitOn',
     'verdict',
     'buildNow',
@@ -184,7 +174,6 @@ const AGREED_SCHEMA = {
     reason: { type: 'string' },
     cost: { type: 'string' },
     provesItWrong: { type: 'string', description: 'the fact that would reverse this decision' },
-    agreement: { type: 'string', enum: ['agreed', 'split'] },
     splitOn: { type: 'string', description: 'what the lenses could not settle, or empty' },
     verdict: { type: 'string', enum: ['decided', 'ask-operator'] },
     buildNow: { type: 'array', items: { type: 'string' }, description: 'the smallest list of work' },
@@ -305,7 +294,7 @@ const endorsedFrom = (state, subject) => ({
   verdict: state.agreed.verdict,
   buildNow: state.agreed.buildNow,
   refused: state.agreed.refused,
-  choice: state.agreed.verdict === 'ask-operator' ? state.agreed.splitOn : '',
+  choice: '',
   options: [],
   recommend: '',
   ifWrong: '',
@@ -433,7 +422,7 @@ version of it. Say whether the operator must decide this, and which of the five 
       HOUSE +
         ESCALATION +
         `
-Three experts answered one question. Your work is to agree one decision, and not to report three.
+Two experts answered one question. Your work is to agree one decision, and not to report two.
 
 The question: ` +
         state.ground.question +
@@ -443,9 +432,9 @@ The question: ` +
         table +
         `
 
-Where the three agree, say the decision once. Where two agree and one does not, read the repository
-and break the tie on a fact, and never on a vote. Where the split is real and no fact breaks it,
-the verdict is ask-operator, and you name exactly what they split on.
+Where the two agree, say the decision once. Where they do not, read the repository and break the
+tie on a fact, and never on a count. Where the split is real and no fact breaks it, the verdict
+is ask-operator, and you name exactly what they split on.
 
 Name the work to do now, as the shortest list that answers the question. Name each proposal you
 refused, and why. Give the fact that would prove the decision wrong.`,
@@ -459,7 +448,7 @@ refused, and why. Give the fact that would prove the decision wrong.`,
       HOUSE +
         GUARD +
         `
-Attack this decision. Three experts agreed on it, and agreement grows parts.
+Attack this decision. Two experts agreed on it, and agreement grows parts.
 
 The question: ` +
         state.ground.question +
@@ -494,8 +483,10 @@ one of the five tests below is true. Pull it back from the operator where none i
   (state, subject) => {
     if (state === null) return null
     if (state.settled) return state.settled
-    // The guard endorsed and changed no verdict, so the decision stands as agreed. No agent runs.
-    if (state.cut.endorsed && state.cut.override === 'none') return endorsedFrom(state, subject)
+    // The guard endorsed and changed no verdict, so the decision stands as agreed and no agent
+    // runs. An ask-operator verdict goes on: its four parts are written below and nowhere else.
+    if (state.cut.endorsed && state.cut.override === 'none' && state.agreed.verdict === 'decided')
+      return endorsedFrom(state, subject)
     return agent(
       HOUSE +
         ESCALATION +
@@ -520,6 +511,13 @@ The agreed work:
         `
 The agreed verdict: ` +
         state.agreed.verdict +
+        `
+What proves the agreed decision wrong: ` +
+        state.agreed.provesItWrong +
+        `
+Already refused by the experts, and not to be proposed again:
+` +
+        state.agreed.refused.map((one) => '- ' + one).join('\n') +
         `
 
 The guard cut:

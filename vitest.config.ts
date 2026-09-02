@@ -11,8 +11,8 @@ import { defineConfig } from 'vitest/config';
 const databaseIsReachable = (process.env['GABRIEL_APP_PASSWORD'] ?? '') !== '';
 
 // The object store is a second service with a second credential, and it is up and down on its
-// own. The password of its account is the one signal that says the bucket is reachable.
-const bucketIsReachable = (process.env['MINIO_ROOT_PASSWORD'] ?? '') !== '';
+// own. The secret the store client signs with is the one signal that says the bucket is ready.
+const bucketIsReachable = (process.env['RAW_STORE_SECRET_KEY'] ?? '') !== '';
 
 // The dot in `.db-test.ts` is what holds the two halves apart: `*.test.ts` does not match it.
 // A file renamed to `.db.test.ts` joins the offline half and opens a socket on a machine that

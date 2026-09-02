@@ -22,11 +22,12 @@ const PATH_STYLE = true;
 const CONNECT_MS = 5_000;
 const REQUEST_MS = 30_000;
 
-// The root account of the store, which the compose file is the only account of today. Whether
-// the application gets an account of its own is a question, and the tracker carries it.
+// The account of the application. It may put an object in this bucket, and nothing else: it may
+// not delete one, list the bucket, or make the bucket public. It may write over a key that
+// exists, and the root pair sits in the same process, so neither of those is stopped here.
 const secrets = z.object({
-  MINIO_ROOT_USER: z.string().min(1),
-  MINIO_ROOT_PASSWORD: z.string().min(1),
+  RAW_STORE_ACCESS_KEY: z.string().trim().min(1),
+  RAW_STORE_SECRET_KEY: z.string().trim().min(1),
 });
 
 const ABSENT =
@@ -49,8 +50,8 @@ export const openStore = (): RawStore => {
     region: REGION,
     forcePathStyle: PATH_STYLE,
     credentials: {
-      accessKeyId: held.data.MINIO_ROOT_USER,
-      secretAccessKey: held.data.MINIO_ROOT_PASSWORD,
+      accessKeyId: held.data.RAW_STORE_ACCESS_KEY,
+      secretAccessKey: held.data.RAW_STORE_SECRET_KEY,
     },
     requestHandler: { connectionTimeout: CONNECT_MS, requestTimeout: REQUEST_MS },
   });

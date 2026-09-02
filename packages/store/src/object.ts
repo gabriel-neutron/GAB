@@ -34,8 +34,8 @@ export const putObject = async (store: RawStore, object: RawObject): Promise<str
       }),
     );
   } catch (cause) {
-    // What the store raises names its address and its account, and neither may reach a screen.
-    // The sentence is what a caller shows; the fault rides along, for the log and for a retry.
+    // What the store raises names its address, and an address never reaches a screen. The
+    // sentence is what a caller shows; the fault rides along, for the log and for a retry.
     throw new Error(REFUSED, { cause });
   }
 
