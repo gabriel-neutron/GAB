@@ -10,6 +10,10 @@ import { defineConfig } from 'vitest/config';
  */
 const databaseIsReachable = (process.env['GABRIEL_APP_PASSWORD'] ?? '') !== '';
 
+// The object store is a second service with a second credential, and it is up and down on its
+// own. The secret the store client signs with is the one signal that says the bucket is ready.
+const bucketIsReachable = (process.env['RAW_STORE_SECRET_KEY'] ?? '') !== '';
+
 // The dot in `.db-test.ts` is what holds the two halves apart: `*.test.ts` does not match it.
 // A file renamed to `.db.test.ts` joins the offline half and opens a socket on a machine that
 // has no stack at all.
@@ -18,6 +22,18 @@ const writerProject = {
     name: 'writer',
     environment: 'node',
     include: ['packages/writer/src/**/*.db-test.ts'],
+  },
+};
+
+/**
+ * The raw store as the ingestion door meets it: the object goes in, the key comes back, the
+ * bytes come back unchanged, and nothing reaches the object without a credential.
+ */
+const storeProject = {
+  test: {
+    name: 'store',
+    environment: 'node',
+    include: ['packages/store/src/**/*.db-test.ts'],
   },
 };
 
@@ -147,6 +163,8 @@ export default defineConfig({
           include: ['packages/model/src/**/*.test.ts'],
         },
       },
+
+      ...(bucketIsReachable ? [storeProject] : []),
 
       ...(databaseIsReachable
         ? [

@@ -132,9 +132,10 @@ CREATE TABLE proposals (
   decided_at   timestamptz,
   decided_by   text,
   -- 'superseded' is not a status value: #17 (e) says nothing sets it, and a value nobody writes
-  -- is a value a reader will one day believe. A deferral is not one either — #58 §5.4 keeps the
-  -- transient values of a review pass out of the database, and #33 owns them.
-  -- There is no reject_reason column: #77 owns the set of acts, and it is one ALTER TABLE.
+  -- is a value a reader will one day believe. A deferral is not one either, and that is decided:
+  -- a hold is a state of the review pass, the record keeps none of them, and a reload loses it.
+  -- There is no reject_reason column, and that is decided too: a rejection keeps no written
+  -- reason. Where a held act's transient values live on the screen is #33.
 
   CONSTRAINT proposals_src_shape
     CHECK (array_ndims(src) = 1 AND cardinality(src) >= 1),
@@ -158,7 +159,7 @@ CREATE TABLE proposals (
            OR (op IN ('update_attrs','update_relation') AND attrs_valid(prior_value))
            OR (op IN ('delete_entity','delete_relation')
                AND coalesce(jsonb_typeof(prior_value),'absent') = 'object')),
-  -- #58 §5.3: a deletion names what it destroys.
+  -- A deletion names what it destroys.
   CONSTRAINT proposals_delete_snapshot
     CHECK (status <> 'accepted'
            OR op NOT IN ('delete_entity','delete_relation')

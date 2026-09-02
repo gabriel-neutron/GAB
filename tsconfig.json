@@ -18,6 +18,7 @@
     { "path": "./tsconfig.storybook.json" },
     { "path": "./packages/model" },
     { "path": "./packages/proposal" },
+    { "path": "./packages/store" },
     { "path": "./packages/writer" }
   ]
 }

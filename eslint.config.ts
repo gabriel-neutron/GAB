@@ -267,6 +267,11 @@ export default defineConfig(
   // pattern that authored code can enter (ADR 0004 §8).
   { ignores: ['src/routeTree.gen.ts'] },
 
+  // The harness runs a workflow script inside an async function and supplies its globals, so a
+  // top-level `return` and a top-level `await` are correct there. A parser that reads the file as
+  // a module stops at the first one and reads nothing after it. Nothing here ships.
+  { ignores: ['.claude/workflows/**'] },
+
   // No file may suppress a rule. `gab-coder` requires zero suppressions, so an inline
   // directive is inert and an unused one is an error, not a warning.
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },

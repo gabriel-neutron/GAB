@@ -24,6 +24,7 @@
     "db:types": "node --env-file=infra/.env tools/db-types.ts",
     "db:drift": "node --env-file=infra/.env tools/db-drift.ts",
     "test": "vitest run",
+    "test:store": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project store",
     "test:writer": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project writer",
     "test:contract": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project contract",
     "test:schema": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project schema",
