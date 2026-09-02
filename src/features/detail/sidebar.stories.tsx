@@ -142,3 +142,16 @@ export const ThePanelCarriesOneWayOutToThePage: Story = {
     await expect(link.getAttribute('href') ?? '').not.toContain('src=');
   },
 };
+
+export const ThePanelDrawsTheSameNamedParts: Story = {
+  play: async ({ canvas }) => {
+    const panel = canvas.getByRole('complementary', { name: DOSSIER.label });
+    const names = Array.from(panel.querySelectorAll<HTMLElement>('[data-part]')).map(
+      (part) => part.getAttribute('aria-label') ?? '',
+    );
+
+    // The panel holds no rail and no line of the sources of the entity, so it names three parts
+    // and never a fourth with nothing under it.
+    await expect(names).toEqual(['Record', 'Relations', 'Pending proposals']);
+  },
+};

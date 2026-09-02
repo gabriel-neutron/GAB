@@ -41,8 +41,13 @@ export function EntityRecord(props: EntityRecordProps) {
           data-claim=""
           className={cn('flex min-w-0 grow items-center gap-1.5', WIDTH[cell.width])}
         >
-          {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
-          <span className="w-24 shrink-0 truncate text-xs text-label @md:w-32" title={cell.label}>
+          {/* The name is set against its value. The column has a fixed width, so a name at its
+              left edge leaves its slack beside the value, and it reads as attached to the cell
+              on its left. Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
+          <span
+            className="w-24 shrink-0 truncate text-right text-xs text-label @md:w-32"
+            title={cell.label}
+          >
             {cell.label}
           </span>
           <span className="min-w-0 flex-1">

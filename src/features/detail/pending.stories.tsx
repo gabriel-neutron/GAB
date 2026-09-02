@@ -5,6 +5,7 @@ import { expect, fn } from 'storybook/test';
 import { corpus } from '@/shared/fixtures/corpus';
 import { vocabulary } from '@/shared/fixtures/vocabulary';
 
+import { Band } from './band';
 import { recordCells } from './draft';
 import { readDossier, type PendingLine, type RecordRow, type SourceRef } from './dossier';
 import { SourceMark } from './mark';
@@ -79,10 +80,12 @@ export const NoControlActsOnAProposal: Story = {
 export const ACandidateIsNeverMixedIntoTheRecord: Story = {
   render: (args) => (
     <div className="w-[900px] p-2">
-      <section aria-label="The record">
+      <Band name="The record" count={CLAIMS.length}>
         <EntityRecord mode="reading" cells={recordCells(CLAIMS, null)} mark={mark} />
-      </section>
-      <Pending {...args} />
+      </Band>
+      <Band name="Pending proposals" count={PROPOSALS.length}>
+        <Pending {...args} />
+      </Band>
     </div>
   ),
   play: async ({ canvas }) => {

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { DocId } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 
+import { Band } from './band';
 import { surfaceHref } from './address';
 import type { TypedValue } from './claims';
 import { DeleteControl } from './delete-control';
@@ -163,34 +164,41 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
         <SaveBar sentence={saveWords(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
 
-        <EntityRecord mode="writing" cells={cells} mark={mark} onEdit={onEdit} />
-        <Relations
-          relations={dossier.relations}
-          mark={mark}
-          deleting={{
-            offered: true,
-            busy,
-            onDelete: (relationId) => {
-              onStructure({ op: 'delete_relation', targetId: relationId });
-            },
-          }}
-        />
-        <NewRelation
-          srcId={dossier.entityId}
-          choices={dossier.linkChoices}
-          busy={busy}
-          onCreate={onStructure}
-        />
-        <Pending proposals={dossier.pending} mark={mark} />
+        <Band name="Record" count={dossier.claimCount}>
+          <EntityRecord mode="writing" cells={cells} mark={mark} onEdit={onEdit} />
+        </Band>
+
+        {/* The form that makes a relation is a control of the relations, so it stands inside
+            that part and never between two parts. */}
+        <Band name="Relations" count={dossier.relations.length}>
+          <Relations
+            relations={dossier.relations}
+            mark={mark}
+            deleting={{
+              offered: true,
+              busy,
+              onDelete: (relationId) => {
+                onStructure({ op: 'delete_relation', targetId: relationId });
+              },
+            }}
+          />
+          <NewRelation
+            srcId={dossier.entityId}
+            choices={dossier.linkChoices}
+            busy={busy}
+            onCreate={onStructure}
+          />
+        </Band>
+
+        <Band name="Pending proposals" count={dossier.pending.length}>
+          <Pending proposals={dossier.pending} mark={mark} />
+        </Band>
 
         {/* M8: the entity itself names the documents it comes from, and no control hides
             them. The mark is the same one the claims carry. */}
-        <div className="flex items-center gap-2">
-          <span className="text-small/4 tracking-caps text-label uppercase">
-            Sources of this entity
-          </span>
+        <Band name="Sources of this entity" count={dossier.entitySources.length}>
           {mark(dossier.entitySources)}
-        </div>
+        </Band>
       </div>
 
       <div className="w-96 min-h-0 shrink-0">

@@ -177,12 +177,11 @@ export const NoPlaceholderProseIsDrawn: Story = {
 
 export const TheEntityNamesItsOwnSources: Story = {
   play: async ({ canvas }) => {
-    const row = canvas.getByText('Sources of this entity').parentElement;
-    if (row === null) throw new Error('The row of the entity sources has no element');
+    const part = canvas.getByRole('region', { name: 'Sources of this entity' });
 
     await expect(DOSSIER.entitySources.length).toBeGreaterThan(0);
     for (const source of DOSSIER.entitySources) {
-      await expect(within(row).getByRole('button', { name: source.name })).toBeVisible();
+      await expect(within(part).getByRole('button', { name: source.name })).toBeVisible();
     }
   },
 };
@@ -453,5 +452,50 @@ export const ADeletionInFlightTakesNoSave: Story = {
     await waitFor(async () => {
       await expect(shapeSaidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
+  },
+};
+
+// A part may hold a region of its own, and the form that makes a relation is one. The parts are
+// read from the mark the band carries, and never from the role alone.
+const namesOfPartsIn = (root: HTMLElement): readonly string[] =>
+  Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).map(
+    (part) => part.getAttribute('aria-label') ?? '',
+  );
+
+export const TheFourPartsAreNamedAndSeparated: Story = {
+  play: async ({ canvasElement }) => {
+    const pane = recordPaneOf(canvasElement);
+    await expect(namesOfPartsIn(pane)).toEqual([
+      'Record',
+      'Relations',
+      'Pending proposals',
+      'Sources of this entity',
+    ]);
+  },
+};
+
+export const EachPartStatesItsOwnCount: Story = {
+  play: async ({ canvasElement }) => {
+    const pane = recordPaneOf(canvasElement);
+    const headingOf = (name: string): HTMLElement =>
+      within(within(pane).getByRole('region', { name })).getByRole('heading', { level: 2 });
+
+    await expect(headingOf('Record')).toHaveTextContent(String(DOSSIER.claimCount));
+    await expect(headingOf('Relations')).toHaveTextContent(String(DOSSIER.relations.length));
+    await expect(headingOf('Pending proposals')).toHaveTextContent(String(DOSSIER.pending.length));
+    await expect(headingOf('Sources of this entity')).toHaveTextContent(
+      String(DOSSIER.entitySources.length),
+    );
+  },
+};
+
+/** The vocabulary declares no group, so no name may stand between two claims of the record. */
+export const NoNameGroupsTwoClaimsInsideTheRecord: Story = {
+  play: async ({ canvasElement }) => {
+    const record = within(recordPaneOf(canvasElement)).getByRole('region', { name: 'Record' });
+    const claims = record.querySelectorAll('[data-claim]');
+    await expect(claims.length).toBeGreaterThan(0);
+    // The band states one heading for the whole part. A second one would group the claims.
+    await expect(within(record).getAllByRole('heading')).toHaveLength(1);
   },
 };

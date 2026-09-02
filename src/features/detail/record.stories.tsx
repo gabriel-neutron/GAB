@@ -300,7 +300,7 @@ export const TheCaretSurvivesThePastTheOldBoundary: Story = {
     await userEvent.type(box, NOTE_ADDED);
 
     const whole = `${NOTE_START}${NOTE_ADDED}`;
-    // The value passes 48 characters, which was the boundary the control used to be read from.
+    // The two parts together make a long value, so the caret check below is not a trivial one.
     await expect(whole.length).toBeGreaterThan(48);
     await expect(box).toHaveValue(whole);
     await expect(box).toHaveFocus();

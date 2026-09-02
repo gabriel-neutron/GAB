@@ -2,19 +2,15 @@
  * Gabriel — the visual language
  * ==========================================================================================
  *
- * The operator chose this theme from a layout prototype on 10 August 2026. That prototype is
- * deleted; the palette below is what it produced.
- *
  * **The theme lived in `src/theme.css` and nothing imported it.** A colour utility is built from
  * a `--color-*` name in an `@theme` block, so `text-label`, `text-candidate` and `text-dissent`
  * emitted no rule at all, in silence, and every element kept the colour it inherited. `--radius`
  * stayed at `0.625rem`, so every part of the kit was round. The theme was recorded as adopted,
  * and the repository disagreed with it.
  *
- * The two files are merged here on the instruction of the operator, and `src/theme.css` is
- * deleted. One stylesheet, and no second palette that can win by source order. An `@import` is
- * the wrong tool for this: it is only valid before another rule, so an imported palette lands
- * first and the block below it wins.
+ * The palette and the base rules are one file. One stylesheet, and no second palette that can
+ * win by source order. An `@import` is the wrong tool for this: it is only valid before another
+ * rule, so an imported palette lands first and the block below it wins.
  *
  * The shape follows shadcn: `:root` holds the light theme, `.dark` holds the dark theme, and
  * every token uses a shadcn name where one exists.
@@ -246,8 +242,8 @@
      paper and drifts towards the dissent red, and it does not on the dark ground. */
   --candidate: oklch(0.52 0.13 90);
 
-  /* The third state of a change on the review surface: an addition. The operator asked for an
-     addition, a modification and a deletion to be told apart by hue, and two hues cannot do it.
+  /* The third state of a change on the review surface: an addition. An addition, a modification
+     and a deletion are three states, and two hues cannot tell three states apart.
      Measured, and in the ladder above: 5.3 on this ground, and 4.8 on the muted one. */
   --added: oklch(0.5 0.12 155);
   --dissent: oklch(0.48 0.18 28);
