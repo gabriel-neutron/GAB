@@ -1,11 +1,23 @@
-import type { PoolClient } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { claimJob } from './claim.ts';
-import { openAgentPool } from './pool.ts';
 
-const pool = openAgentPool();
+// NO ROLE HOLDS THE CLAIM DOOR WHILE A CLAIM CANNOT BE RELEASED, so this suite calls it as the
+// owner of the database. What it measures is the lock and the mark, and neither one is a grant:
+// the grants file holds the grant, and a perimeter test holds the refusal of every role.
+const secrets = z.object({ POSTGRES_PASSWORD: z.string().min(1) });
+
+const ownerPool = (): Pool => {
+  const held = secrets.safeParse(process.env);
+  if (!held.success)
+    throw new Error('POSTGRES_PASSWORD is empty or absent. Set it in the environment file.');
+  const password = encodeURIComponent(held.data.POSTGRES_PASSWORD);
+  return new Pool({ connectionString: `postgresql://gabriel:${password}@127.0.0.1:5432/gabriel` });
+};
+
+const pool = ownerPool();
 
 // Every claim below runs inside a transaction that rolls back, so the queue this suite met is
 // the queue it leaves. A claim outside one would mark a row running with nothing to release it.

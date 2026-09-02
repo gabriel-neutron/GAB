@@ -6,9 +6,9 @@ const HOST = '127.0.0.1';
 const PORT = 5432;
 const DATABASE = 'gabriel';
 
-// `gabriel_agent` holds EXECUTE on the claim door and on the proposal door, and no write on any
-// table. A trigger stamps the author of a proposal from this name, so a worker that logged in
-// as the operator's role would sign every machine claim with the operator's name.
+// A trigger stamps the author of a proposal from this name, so a worker that logged in as the
+// operator's role would sign every machine proposal with the operator's name. The claim door
+// reaches this role on the day the door that releases a claim exists.
 const ROLE = 'gabriel_agent';
 
 // The role already stops a statement at 30 seconds, and the pool holds the same deadline. A

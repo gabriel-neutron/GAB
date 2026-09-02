@@ -31,16 +31,24 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
   return Object.fromEntries(rows.map((row) => [row.door, row.held]));
 };
 
-// The two ends of the queue are held by different roles: gabriel_app queues work by putting a
-// document, and gabriel_agent claims it. Neither role holds the other end.
-test('gabriel_agent holds EXECUTE on propose_change and on the claim, and on no other door', async () => {
+// THE CLAIM DOOR IS HELD BY NOBODY. A claim moves a row to `running`, and no door moves one
+// back, so the grant waits for the door that releases one. The role it waits for is written in
+// the grants file: the worker that takes a job is the process that must propose as the machine.
+test('gabriel_agent holds EXECUTE on propose_change and on no other door', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
     promote_proposal: false,
     reject_proposal: false,
-    claim_job: true,
+    claim_job: false,
   });
+});
+
+test('no role can call the claim door, so no row is taken before a release exists', async () => {
+  for (const identity of ['app', 'agent'] as const)
+    await expect(
+      probe(identity, async (ask) => ask("SELECT * FROM public.claim_job('a perimeter test')")),
+    ).rejects.toMatchObject({ code: '42501' });
 });
 
 test('gabriel_app holds EXECUTE on the four acts of the operator, and never on the claim', async () => {

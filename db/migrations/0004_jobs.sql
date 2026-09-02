@@ -23,8 +23,11 @@
 --
 -- A CLAIM IS NEVER RELEASED, SO THE QUEUE IS AT MOST ONCE. claim_job moves a row to `running`,
 -- and no door moves one back. A worker that stops between the claim and the work leaves the row
--- there for ever. Who releases a lost claim, and whether that claim spends an attempt, is on the
--- tracker with #25 and it is not answered by a wait written here.
+-- there for ever, so no role holds the claim door until the door that releases one exists.
+--
+-- A LOST CLAIM SPENDS ITS ATTEMPT. The claim counts the attempt at the hour it takes the row,
+-- and nothing rewrites a count that is already written, so `attempts` counts what was taken and
+-- never what was tried. Who releases a lost claim is on the tracker with #25.
 -- =============================================================================================
 
 SET LOCAL ROLE gabriel_owner;
