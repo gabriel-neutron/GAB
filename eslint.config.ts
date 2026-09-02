@@ -494,10 +494,13 @@ export default defineConfig(
                 'A workspace package is a leaf, and it imports nothing under `src/`. Both sides of the product import the package, so what it imports lands in both. Move the shape you need into the package',
             },
 
-            // ...and never the writer. `@gab/writer` is the Node backend: it reaches the database
-            // and holds the secrets, and a browser file that imports it ships both to the client.
+            // ...and never a Node part. `@gab/writer` and `@gab/worker` each reach the database
+            // and hold a secret, and a browser file that imports one ships both to the client.
             // Every side is named, and a package too: a package the browser imports is a browser
-            // file by another name, so `@gab/proposal` reaching the writer ships the same secrets.
+            // file by another name, so `@gab/proposal` reaching one ships the same secrets.
+            //
+            // ONE ENTRY PER PACKAGE, and never a brace inside the capture. A capture value that
+            // the plugin reads as a literal name refuses nothing and reads as a working gate.
             {
               from: {
                 element: {
@@ -515,6 +518,24 @@ export default defineConfig(
               disallow: { to: { element: { type: 'package', captured: { pkg: 'writer' } } } },
               message:
                 'The writer is the Node backend, and the browser never imports it. It reaches the database and holds the secrets. Call it over the wire, and import a shared shape from another workspace package',
+            },
+            {
+              from: {
+                element: {
+                  types: [
+                    'shared',
+                    'feature',
+                    'route',
+                    'storybook',
+                    'contract',
+                    'base-tables',
+                    'package',
+                  ],
+                },
+              },
+              disallow: { to: { element: { type: 'package', captured: { pkg: 'worker' } } } },
+              message:
+                'The worker claims from the job queue, and the browser never imports it. It reaches the database and holds a secret. Call it over the wire, and import a shared shape from another workspace package',
             },
 
             // The base tables, refused from every side and stated last, so a policy above can

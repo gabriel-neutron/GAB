@@ -22,6 +22,18 @@ const writerProject = {
 };
 
 /**
+ * The claim loop against the live queue. Two clients claim at the same time, and each gesture
+ * rolls back, so the suite leaves the queue it met.
+ */
+const workerProject = {
+  test: {
+    name: 'worker',
+    environment: 'node',
+    include: ['packages/worker/src/**/*.db-test.ts'],
+  },
+};
+
+/**
  * The closed sets of the base tables, against the enums the read client states. A CHECK reaches
  * no generated type and therefore no drift check, so this project reads `pg_constraint` itself.
  */
@@ -141,6 +153,7 @@ export default defineConfig({
       ...(databaseIsReachable
         ? [
             writerProject,
+            workerProject,
             contractProject,
             schemaProject,
             perimeterProject,

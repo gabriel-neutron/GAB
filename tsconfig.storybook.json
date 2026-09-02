@@ -31,8 +31,8 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.storybook.tsbuildinfo",
 
-    // The block below is copied in `tsconfig.app.json` and `tsconfig.node.json`. See the comment
-    // there for the reason. Change one of the three, and change all three.
+    // The block below is copied in the five other targets. See the comment in
+    // `tsconfig.app.json` for the reason. Change one of the six, and change all six.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

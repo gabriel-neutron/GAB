@@ -29,19 +29,20 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 
 -- THE ENUMERATION, AND THE EXACT SCOPE OF THE CLAIM. `REVOKE ALL ON ALL TABLES` is a snapshot
 -- and reaches no later table, so the sentence "no role writes a table" is an enumeration of the
--- six tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
+-- seven tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
 -- the enumeration is still complete after the next migration.
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations
+GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
   TO gabriel_app;
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations
+GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The four doors, and nothing else.
+-- The five doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION claim_job(text)             FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
@@ -49,6 +50,19 @@ GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],nume
   TO gabriel_agent, gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
+
+-- THE TWO ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
+--
+-- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
+-- put_document, so the role that may put a document is the role that may queue work, and there
+-- is no second way in. No role holds INSERT on jobs, so nothing queues work for a document that
+-- did not enter through the door.
+--
+-- CLAIM IS gabriel_agent, AND IT IS THIS GRANT. The worker that takes a job runs the agents and
+-- writes the candidate layer, and a trigger stamps the author of a proposal from session_user:
+-- a worker that logged in as gabriel_app would sign every machine claim with the name the
+-- operator holds. The claim is therefore granted to the role that may only propose.
+GRANT EXECUTE ON FUNCTION claim_job(text) TO gabriel_agent;
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still

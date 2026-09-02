@@ -11,6 +11,7 @@ const DOORS = {
   propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
+  claim_job: 'public.claim_job(text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -30,21 +31,25 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
   return Object.fromEntries(rows.map((row) => [row.door, row.held]));
 };
 
-test('gabriel_agent holds EXECUTE on propose_change and on no other door', async () => {
+// The two ends of the queue are held by different roles: gabriel_app queues work by putting a
+// document, and gabriel_agent claims it. Neither role holds the other end.
+test('gabriel_agent holds EXECUTE on propose_change and on the claim, and on no other door', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
     promote_proposal: false,
     reject_proposal: false,
+    claim_job: true,
   });
 });
 
-test('gabriel_app holds EXECUTE on all four doors', async () => {
+test('gabriel_app holds EXECUTE on the four acts of the operator, and never on the claim', async () => {
   expect(await doorsHeldBy('app')).toStrictEqual({
     put_document: true,
     propose_change: true,
     promote_proposal: true,
     reject_proposal: true,
+    claim_job: false,
   });
 });
 
@@ -61,6 +66,55 @@ test('gabriel_app writes no table, in any schema', async () => {
     writes.parse(await ask(WRITES_OF, ['gabriel_app'])).map((row) => row.found),
   );
   expect(held).toStrictEqual([]);
+});
+
+test('gabriel_agent writes no table, in any schema', async () => {
+  const held = await probe('superuser', async (ask) =>
+    writes.parse(await ask(WRITES_OF, ['gabriel_agent'])).map((row) => row.found),
+  );
+  expect(held).toStrictEqual([]);
+});
+
+// The claim is a door and not a table write. A worker that could mark a row by hand could also
+// put it in a state no claim produced, and the count of the attempts would then prove nothing.
+test('gabriel_agent cannot mark a job by hand', async () => {
+  await expect(
+    probe('agent', async (ask) => ask("UPDATE public.jobs SET status = 'running'")),
+  ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
+});
+
+test('gabriel_app cannot queue work without a document', async () => {
+  await expect(
+    probe('app', async (ask) => ask("INSERT INTO public.jobs (document_id) VALUES ('manual')")),
+  ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
+});
+
+const QUEUED = `SELECT count(*)::int AS n FROM public.jobs
+   WHERE document_id = $1 AND status = 'queued' AND attempts = 0`;
+
+const counted = z.array(z.object({ n: z.number().int() }));
+
+const DOCUMENT = 'doc_perimeter_queue';
+
+const PUT = `SELECT public.put_document($1, 'file', 'A perimeter test of the queue',
+  NULL, NULL, NULL, NULL, NULL, '2026-09-02'::date) AS id`;
+
+// The one way a job appears. The rollback proves the two writes are one act: the document row
+// and the job row leave together, so neither can exist without the other.
+test('the ingestion door queues the work in the transaction that writes the document', async () => {
+  const inside = await probe('app', async (ask) => {
+    await ask('BEGIN');
+    try {
+      await ask(PUT, [DOCUMENT]);
+      return counted.parse(await ask(QUEUED, [DOCUMENT]));
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+  expect(inside).toStrictEqual([{ n: 1 }]);
+
+  const after = await probe('app', async (ask) => counted.parse(await ask(QUEUED, [DOCUMENT])));
+  expect(after).toStrictEqual([{ n: 0 }]);
 });
 
 test('gabriel_read reads no table of public', async () => {
