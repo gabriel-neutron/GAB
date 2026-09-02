@@ -6,12 +6,13 @@ import { openModel, type AgentModel, type Send } from './client.ts';
 
 const AGENT: AgentModel = {
   model: 'a-family/a-model',
-  firstWaitMs: 0,
+  firstWaitMs: 1,
+  waitGrowth: 2,
   timeoutMs: 1000,
   maxAnswerTokens: 500,
 };
 
-// A first wait of zero hides the growth of the wait. The two tests of the wait use this agent.
+// A wait of one millisecond hides the growth of the wait. Every test of a wait uses this agent.
 const PATIENT: AgentModel = { ...AGENT, firstWaitMs: 100 };
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -76,11 +77,11 @@ describe('a good answer', () => {
     });
   });
 
-  it('bounds the answer by the smaller of the agent limit and what the cap leaves', async () => {
+  it('asks for the whole answer limit, because the cap counts a prompt and an answer', async () => {
     const send = always(said('{"claim":"a ship"}'));
     await ask(send, 40).run();
 
-    expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: 40 });
+    expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: AGENT.maxAnswerTokens });
   });
 
   it('bounds the answer by the agent limit when the cap leaves more', async () => {
@@ -189,7 +190,68 @@ describe('the network fails', () => {
     const got = await ask(send).run();
 
     expect(send).toHaveBeenCalledTimes(4);
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'unreadable', attempts: 4 } });
+  });
+
+  it('never says the service did not answer when the service answered', async () => {
+    const paid = { prompt_tokens: 1, completion_tokens: 0, total_tokens: 1 };
+    const send = always(JSON.stringify({ choices: [], usage: paid }));
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(4);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'unreadable', attempts: 4 } });
+  });
+
+  it('retries a rate limit whose sentence names the window, and never reads it as too long', async () => {
+    const body = JSON.stringify({ error: { message: 'maximum context reached, slow down' } });
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(body, 429))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(got).toMatchObject({ ok: true });
+  });
+
+  it('takes the growth of the wait from the caller, and holds no growth of its own', async () => {
+    vi.useFakeTimers();
+    const send = vi.fn<Send>(() => Promise.reject(new Error('socket closed')));
+    const got = ask(send, 1000, { ...PATIENT, waitGrowth: 1 }).run();
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(send).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(send).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(send).toHaveBeenCalledTimes(4);
+    await expect(got).resolves.toMatchObject({ ok: false, failure: { kind: 'network' } });
+  });
+
+  it('never waits longer than the bound the caller gives', async () => {
+    vi.useFakeTimers();
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': '3600' }))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const got = ask(send, 1000, { ...PATIENT, maxWaitMs: 50 }).run();
+
+    await vi.advanceTimersByTimeAsync(50);
+    expect(send).toHaveBeenCalledTimes(2);
+    await expect(got).resolves.toMatchObject({ ok: true });
+  });
+
+  it('starts no new call after the deadline of the whole question', async () => {
+    vi.useFakeTimers();
+    const send = vi.fn<Send>(() => Promise.reject(new Error('socket closed')));
+    const got = ask(send, 1000, { ...PATIENT, deadlineMs: 50 }).run();
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(send).toHaveBeenCalledTimes(2);
+    await expect(got).resolves.toMatchObject({
+      ok: false,
+      failure: { kind: 'network', attempts: 2 },
+    });
   });
 
   it('carries no word of the service into the failure', async () => {
@@ -216,7 +278,7 @@ describe('the boundary refuses the answer', () => {
     const second = bodiesOf(send)[1] as { messages: { role: string; content: string }[] };
     expect(second.messages).toHaveLength(3);
     expect(second.messages[1]?.role).toBe('assistant');
-    expect(second.messages[2]?.content).toContain('refused by the schema');
+    expect(second.messages[2]?.content).toContain('The schema refuses the last answer');
   });
 
   it('counts the tokens of every round trip of one question', async () => {
@@ -245,6 +307,18 @@ describe('the boundary refuses the answer', () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(got).toMatchObject({ ok: false, failure: { kind: 'rejected' } });
+  });
+
+  it('counts every call of the question, and never the answers it judged', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockRejectedValueOnce(new Error('socket closed'))
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":7}')));
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'rejected', attempts: 3 } });
   });
 });
 
@@ -312,6 +386,28 @@ describe('the spend ceilings', () => {
     expect(got).toMatchObject({ ok: false, failure: { kind: 'over_cap' }, tokens: 60 });
   });
 
+  it('makes no call when the cap leaves less than the caller says a call is worth', async () => {
+    const send = always(said('{"claim":"a ship"}', 'stop', 990));
+    const budget = openBudget(1000);
+    const model = openModel({ ...AGENT, minCallTokens: 20 }, send, ENV);
+    const one = { messages: [{ role: 'user' as const, content: 'go' }], shape: SHAPE, budget };
+
+    expect(await model.ask(one)).toMatchObject({ ok: true });
+    expect(await model.ask(one)).toMatchObject({ ok: false, failure: { kind: 'over_cap' } });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes the call when no floor is set and the cap leaves a little', async () => {
+    const send = always(said('{"claim":"a ship"}', 'stop', 990));
+    const budget = openBudget(2000);
+    const model = openModel(AGENT, send, ENV);
+    const one = { messages: [{ role: 'user' as const, content: 'go' }], shape: SHAPE, budget };
+
+    expect(await model.ask(one)).toMatchObject({ ok: true });
+    expect(await model.ask(one)).toMatchObject({ ok: true });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it('counts the tokens of an answer the boundary never keeps', async () => {
     const send = always(said('{"claim":"a shi', 'length', 60));
     const { budget, run } = ask(send);
@@ -325,6 +421,11 @@ describe('the spend ceilings', () => {
 describe('the settings and the key', () => {
   it('throws when the key is absent', () => {
     expect(() => openModel(AGENT, always(said('{}')), {})).toThrow(/OPENROUTER_API_KEY/u);
+  });
+
+  it('throws when the key is only blank space', () => {
+    const held = { OPENROUTER_API_KEY: '   ' };
+    expect(() => openModel(AGENT, always(said('{}')), held)).toThrow(/OPENROUTER_API_KEY/u);
   });
 
   it('refuses a model name that is empty', () => {

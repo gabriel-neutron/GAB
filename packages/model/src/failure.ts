@@ -1,6 +1,7 @@
-/** The eight ways one question to the model stops. Not one of them keeps a part answer. */
+/** The nine ways one question to the model stops. Not one of them keeps a part answer. */
 export const REASON = {
   network: 'network',
+  unreadable: 'unreadable',
   rejected: 'rejected',
   refused: 'refused',
   credits: 'credits',
@@ -16,6 +17,8 @@ export type ReasonKind = (typeof REASON)[keyof typeof REASON];
 // the upstream provider and the account, and neither of those two may reach a job record.
 const SENTENCE: Readonly<Record<ReasonKind, string>> = {
   network: 'the model service did not answer, and nothing was written',
+  unreadable:
+    'the model service answered with something this client cannot read, and nothing was written',
   rejected: 'the model gave an answer the boundary refuses, and nothing was written',
   refused: 'the model refused to answer, and nothing was written',
   credits: 'the model account has no credit left, and nothing was written',
