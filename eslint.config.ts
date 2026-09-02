@@ -267,6 +267,11 @@ export default defineConfig(
   // pattern that authored code can enter (ADR 0004 §8).
   { ignores: ['src/routeTree.gen.ts'] },
 
+  // The harness runs a workflow script inside an async function and supplies its globals, so a
+  // top-level `return` and a top-level `await` are correct there. A parser that reads the file as
+  // a module stops at the first one and reads nothing after it. Nothing here ships.
+  { ignores: ['.claude/workflows/**'] },
+
   // No file may suppress a rule. `gab-coder` requires zero suppressions, so an inline
   // directive is inert and an unused one is an error, not a warning.
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
@@ -536,6 +541,24 @@ export default defineConfig(
               disallow: { to: { element: { type: 'package', captured: { pkg: 'worker' } } } },
               message:
                 'The worker claims from the job queue, and the browser never imports it. It reaches the database and holds a secret. Call it over the wire, and import a shared shape from another workspace package',
+            },
+            {
+              from: {
+                element: {
+                  types: [
+                    'shared',
+                    'feature',
+                    'route',
+                    'storybook',
+                    'contract',
+                    'base-tables',
+                    'package',
+                  ],
+                },
+              },
+              disallow: { to: { element: { type: 'package', captured: { pkg: 'store' } } } },
+              message:
+                'The store writes the raw bucket, and the browser never imports it. It holds the key of the account that may put an object. Call it over the wire, and import a shared shape from another workspace package',
             },
 
             // The base tables, refused from every side and stated last, so a policy above can

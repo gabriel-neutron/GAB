@@ -11,8 +11,8 @@
     "noEmit": true,
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.proposal.tsbuildinfo",
 
-    // The block below is copied in the five other targets, and the copy is deliberate. Every
-    // strict check is on in every target. Change one of the six, and change all six.
+    // The block below is copied in the six other targets, and the copy is deliberate. Every
+    // strict check is on in every target. Change one of the seven, and change all seven.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

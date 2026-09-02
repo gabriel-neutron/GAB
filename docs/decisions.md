@@ -284,8 +284,11 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### T3 — Binary split: raw / GOLD
 
-**Decision.** S3 (MinIO) holds the immutable raw file. PostgreSQL holds the processed and validated data. Between the two, the pipelines and the references.
-**Why.** Two natures, two guarantees: the raw never changes and serves as evidence; the GOLD is continuously reworked. Mixing them loses both guarantees.
+**Replaces the earlier T3**, which called the raw file immutable without saying what held it so.
+**Decision.** S3 (MinIO) holds the raw file. PostgreSQL holds the processed and validated data. Between the two, the pipelines and the references. **The raw file is unchanged by convention, and not by a guarantee the store enforces.** The operator upholds it. No versioning, no object lock and no unique key stand behind it.
+**Why.** Two natures, two guarantees: the raw is not reworked and serves as evidence; the GOLD is continuously reworked. Mixing them loses both guarantees.
+**Why the earlier entry was wrong.** It said "immutable", and the word was measured and found false. The account that writes the bucket may put an object over a key that already exists, which replaces the bytes and deletes nothing. Removing the delete action stops removal and never destruction. Three mechanisms would have made the word true — bucket versioning, object lock at bucket creation, or a key that is the content hash under a unique constraint — and none is built. A guarantee that nothing enforces is a sentence a reader trusts and a machine ignores.
+**Accepted cost.** A source file can be overwritten by a retry, a re-ingest, or a second `documents` row that carries the same key, and nothing warns. Evidence rests on the care of one operator. The day a second person writes to the bucket, or the day the corpus is offered as evidence to somebody else, this entry is replaced again and one of the three mechanisms is built.
 **Consequence.** Every document has an S3 key and a row in the database. Their consistency is the pipeline's responsibility.
 
 ### T4 — Frontend autonomous for reads, backend reserved for writes

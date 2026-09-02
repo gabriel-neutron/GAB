@@ -395,7 +395,8 @@ BEGIN
 END $$;
 
 -- A rejection writes the decision and leaves the row. A rejected act is never deleted: it is
--- the record of what was set aside. It carries no reason — #77 owns the set of acts.
+-- the record of what was set aside. It carries NO REASON, and that is decided and not pending:
+-- the record keeps the status, the hour and the name of a rejection, and nothing else.
 CREATE OR REPLACE FUNCTION reject_proposal(p_id uuid, p_decided_by text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
