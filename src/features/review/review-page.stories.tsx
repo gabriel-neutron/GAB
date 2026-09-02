@@ -147,6 +147,33 @@ export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
   },
 };
 
+/** A hold reaches no door and no column. The one place that ruling is told to the analyst is
+ * this sentence, so the sentence is read here and it is read in no other story. */
+export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
+  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'deferred' } },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('status', { name: 'The record' });
+    await expect(said).toHaveTextContent(
+      'The act is held on this pass. The record holds no hold, so a reload loses it.',
+    );
+    // A closed ruling is not a failure, so it never interrupts.
+    await expect(canvas.queryByRole('alert', { name: 'The record' })).toBeNull();
+  },
+};
+
+/** A rejection freezes the act, and it deletes nothing. The sentence says what stands, because
+ * an analyst who reads "rejected" as "gone" looks for the act in the wrong place. */
+export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
+  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'rejected' } },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('status', { name: 'The record' });
+    await expect(said).toHaveTextContent(
+      'The act is rejected. It stays in the record as what was set aside.',
+    );
+    await expect(said).not.toHaveTextContent('promoted');
+  },
+};
+
 /** While one verdict is going to the record, no second verdict is taken: the second would decide
  * an act on a record the first one has already moved. */
 export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {

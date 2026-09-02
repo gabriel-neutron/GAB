@@ -2,6 +2,8 @@
  * one job, because one state answers both. A hold has no home in the record, so it stays on
  * this pass alone, and it goes through no door. */
 
+import type { DecisionOp } from '@gab/proposal/request';
+
 import { sendDecision } from '@/shared/write/door';
 
 import type { Verdict } from './queue';
@@ -60,6 +62,13 @@ const UNSURE: Readonly<Record<DoorVerdict, string>> = {
   rejected: 'It is not known whether the act was rejected.',
 };
 
+/** The door of each verdict. The lookup is total, so a verdict that the record can take reaches
+ * its own door, and a verdict that reaches no door refuses to compile here and not at the door. */
+const DOOR: Readonly<Record<DoorVerdict, DecisionOp>> = {
+  promoted: 'promote_proposal',
+  rejected: 'reject_proposal',
+};
+
 // The hand moved to another act, and the sentence stays: a refusal and a doubt must not go
 // away in silence. So the sentence says first that it is not about the act below it.
 const ELSEWHERE = 'This is about another act.';
@@ -98,10 +107,7 @@ export function decisionSaid(state: DecisionState, currentId: string | null): De
 export async function sendVerdict(changeId: string, verdict: Verdict): Promise<DecisionState> {
   if (verdict === 'deferred') return { step: 'decided', changeId, verdict };
 
-  const outcome = await sendDecision(
-    verdict === 'promoted' ? 'promote_proposal' : 'reject_proposal',
-    changeId,
-  );
+  const outcome = await sendDecision(DOOR[verdict], changeId);
   if (outcome.state === 'decided') return { step: 'decided', changeId, verdict };
   // The act may have run whole, so this state is never drawn as a refusal and never as a hold.
   if (outcome.state === 'unknown')
