@@ -67,7 +67,8 @@ bucket, and cannot make the bucket public. A read is granted on the day a worker
 environment file whole, so the root pair sits in the same process as the application pair: the
 account bounds the client, and it does not bound the process. And a put over a key that already
 exists destroys the object it replaces, so the account cannot remove the evidence and it can still
-overwrite it. The tracker carries that second one.
+overwrite it. T3 holds that second one: the raw file is unchanged by convention, and this runtime
+enforces nothing. The bucket carries no versioning and no object lock, and neither is an oversight.
 
 ## Consequences
 
