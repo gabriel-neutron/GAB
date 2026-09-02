@@ -53,7 +53,21 @@ Never `latest`. An upstream change must arrive through a commit, never through a
 
 ### 7. Secrets
 
-`infra/.env.example` is committed and holds no value. `infra/.env` holds the values and is ignored.
+`infra/.env.example` is committed and names every variable. `infra/.env` holds the values and is
+ignored. **The example file holds a placeholder where the name is not a secret, and an empty value
+everywhere else.** The first sentence of this section read "holds no value" and the file never
+obeyed it: the database password, the MinIO user and the MinIO password each carry a placeholder.
+
+**The application signs with its own account, and never with root.** The root pair makes the bucket
+and makes that account, and nothing else uses it. `minio-init` grants that account `s3:PutObject` on
+`raw` and nothing more, so a fault in ingestion code cannot remove a source file, cannot list the
+bucket, and cannot make the bucket public. A read is granted on the day a worker needs one.
+
+**Two limits, written down because they are easy to believe away.** Every entry point loads the
+environment file whole, so the root pair sits in the same process as the application pair: the
+account bounds the client, and it does not bound the process. And a put over a key that already
+exists destroys the object it replaces, so the account cannot remove the evidence and it can still
+overwrite it. The tracker carries that second one.
 
 ## Consequences
 
