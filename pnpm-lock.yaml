@@ -183,6 +183,25 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
 
+  packages/worker:
+    dependencies:
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0))
+
   packages/writer:
     dependencies:
       '@gab/proposal':
@@ -7733,7 +7752,7 @@ snapshots:
   extract-pg-schema@5.8.2(@electric-sql/pglite@0.5.7):
     dependencies:
       knex: 3.1.0(pg@8.17.2)
-      knex-pglite: 0.12.1(@electric-sql/pglite@0.5.7)(knex@3.1.0(pg@8.17.2))
+      knex-pglite: 0.12.1(@electric-sql/pglite@0.5.7)(knex@3.1.0(pg@8.23.0))
       pg: 8.17.2
       pg-query-emscripten: 5.1.0
       ramda: 0.31.3
@@ -8106,7 +8125,7 @@ snapshots:
 
   kleur@4.1.5: {}
 
-  knex-pglite@0.12.1(@electric-sql/pglite@0.5.7)(knex@3.1.0(pg@8.17.2)):
+  knex-pglite@0.12.1(@electric-sql/pglite@0.5.7)(knex@3.1.0(pg@8.23.0)):
     dependencies:
       '@electric-sql/pglite': 0.5.7
       knex: 3.1.0(pg@8.17.2)

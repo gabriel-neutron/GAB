@@ -19,6 +19,7 @@
     { "path": "./packages/model" },
     { "path": "./packages/proposal" },
     { "path": "./packages/store" },
-    { "path": "./packages/writer" }
+    { "path": "./packages/writer" },
+    { "path": "./packages/worker" }
   ]
 }

@@ -26,6 +26,18 @@ const writerProject = {
 };
 
 /**
+ * The claim loop against the live queue. Two clients claim at the same time, and each gesture
+ * rolls back, so the suite leaves the queue it met.
+ */
+const workerProject = {
+  test: {
+    name: 'worker',
+    environment: 'node',
+    include: ['packages/worker/src/**/*.db-test.ts'],
+  },
+};
+
+/**
  * The raw store as the ingestion door meets it: the object goes in, the key comes back, the
  * bytes come back unchanged, and nothing reaches the object without a credential.
  */
@@ -169,6 +181,7 @@ export default defineConfig({
       ...(databaseIsReachable
         ? [
             writerProject,
+            workerProject,
             contractProject,
             schemaProject,
             perimeterProject,

@@ -29,19 +29,23 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 
 -- THE ENUMERATION, AND THE EXACT SCOPE OF THE CLAIM. `REVOKE ALL ON ALL TABLES` is a snapshot
 -- and reaches no later table, so the sentence "no role writes a table" is an enumeration of the
--- six tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
+-- seven tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
 -- the enumeration is still complete after the next migration.
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations
+GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
   TO gabriel_app;
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations
+GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The four doors, and nothing else.
+-- The five doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
+-- THE CLAIM DOOR IS TAKEN BACK BY NAME, and not only from PUBLIC. A grant that an earlier apply
+-- gave stays live when the GRANT line is deleted, because a re-runnable file replaces a function
+-- and never a privilege. Measured here: the line went, and gabriel_agent still held EXECUTE.
+REVOKE ALL ON FUNCTION claim_job(text)             FROM PUBLIC, gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
@@ -49,6 +53,32 @@ GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],nume
   TO gabriel_agent, gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
+
+-- THE TWO ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
+--
+-- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
+-- put_document, so the role that may put a document is the role that may queue work, and there
+-- is no second way in. No role holds INSERT on jobs, so nothing queues work for a document that
+-- did not enter through the door.
+--
+-- CLAIM IS gabriel_agent, AND NO ROLE HOLDS IT TODAY. The grant is written below and it is not
+-- executed, because a claim is an act with no way back: claim_job moves a row to `running`, no
+-- door moves one back, no role holds UPDATE on jobs, and gabriel_owner never logs in. A worker
+-- that stopped between the claim and the work would leave that row where only a superuser
+-- session reaches it, and that session is the one act this whole file exists to prevent.
+--
+-- THE GRANT LANDS IN THE COMMIT THAT LANDS THE RELEASE DOOR, and never in a commit of its own.
+--
+-- THE ROLE IS RIGHT, AND ONLY THE HOUR IS WRONG. The worker that takes a job is the same process
+-- that proposes, and a trigger stamps the author of a proposal from session_user: a worker that
+-- logged in as gabriel_app would sign every machine PROPOSAL with the name the operator holds.
+-- The claim door itself signs nothing and reads no session_user.
+--
+-- ONE PROCESS HOLDS ONE SECRET, and that is what carries the grant. A worker that held the
+-- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
+-- which is the whole operator surface, inside the one process that runs a model over untrusted
+-- text. So the claim goes to the narrower secret, which is the one that cannot sign as the
+-- operator.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
@@ -112,4 +142,20 @@ RESET ROLE;
 --      SELECT p.proname FROM pg_proc p
 --       WHERE p.pronamespace = 'api'::regnamespace
 --         AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.';
+--
+--   6. THE DOOR SET. Arms 1 to 5 read a table grant, and a SECURITY DEFINER door holds none: a
+--      door writes as gabriel_owner, so EXECUTE on one is the right to write a table that every
+--      other arm says the caller cannot touch. This arm returns the whole door set, and a test
+--      holds the list by hand, so a door granted to a role later fails until a person writes it
+--      in. THE ABSENCE OF claim_job IS PART OF THE LIST: no role may take a row from the queue
+--      while no door gives one back.
+--      SELECT n.nspname || '.' || p.proname || ' to '
+--             || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+--                     ELSE pg_get_userbyid(a.grantee) END
+--        FROM pg_proc p
+--        JOIN pg_namespace n ON n.oid = p.pronamespace
+--        CROSS JOIN LATERAL aclexplode(p.proacl) AS a
+--       WHERE n.nspname IN ('public','api') AND p.prosecdef
+--         AND a.privilege_type = 'EXECUTE'
+--         AND (a.grantee = 0 OR pg_get_userbyid(a.grantee) <> 'gabriel_owner');
 -- =============================================================================================

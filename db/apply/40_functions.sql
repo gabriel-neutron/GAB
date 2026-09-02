@@ -167,11 +167,11 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Four functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Five functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
--- P6, one ingestion door. The object goes to the store first and the row records it. On the day
--- a job table exists, ITS INSERT GOES INSIDE THIS FUNCTION, in the same transaction: a document
--- row with no queued work is invisible to search, to the agents and to the interface (#27).
+-- P6, one ingestion door. The object goes to the store first, the row records it, and the job
+-- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
+-- to the agents and to the interface, and a queued job with no document row names nothing.
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -197,6 +197,17 @@ BEGIN
     (p_id::doc_id, p_kind, p_title, p_s3_key, p_uri, p_archive_uri, p_sha256, p_mime,
      p_retrieved_at)
   RETURNING id INTO v_id;
+
+  -- The queue takes the identifier and nothing else. What the work IS stays undecided: P6 puts
+  -- two paths behind this door, and no rule says which file takes which one.
+  --
+  -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and the schema decided it before this line:
+  -- doc_retrieved_required lets `manual` alone carry no retrieval date, and such a row carries
+  -- no file and no address. An agent would have nothing to read, so the queue holds no row for
+  -- it, and the queue is therefore not the whole record of what passed the door.
+  INSERT INTO public.jobs (document_id)
+  SELECT v_id::doc_id WHERE p_kind <> 'manual';
+
   RETURN v_id;
   -- It writes NO rating. #19 owns the scoring write path, and no role can write those columns.
 END $$;
@@ -400,6 +411,51 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'proposal % is not pending, and a decided act is frozen', p_id;
   END IF;
+END $$;
+
+
+-- THE CLAIM. It is a door and not a table write, because no role holds UPDATE on any table, and
+-- a worker that could write `jobs` directly could also write it into a state no claim produced.
+--
+-- SKIP LOCKED IS THE WHOLE MECHANISM. The row is locked for the length of the caller's
+-- transaction, so a second worker walks past it instead of waiting behind it. Ordinary FOR
+-- UPDATE would serialise every worker on the oldest row and give one queue with one throat.
+--
+-- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The number of retries per kind of failure is not
+-- decided, so this door refuses no claim on a count.
+CREATE OR REPLACE FUNCTION claim_job(p_worker text)
+RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF p_worker IS NULL OR btrim(p_worker, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a claim names the worker that took it';
+  END IF;
+
+  SELECT j.id INTO v_id
+    FROM public.jobs j
+   WHERE j.status = 'queued'
+   ORDER BY j.created_at, j.id
+   LIMIT 1
+   FOR UPDATE SKIP LOCKED;
+
+  -- An empty queue is not a failure. The caller gets no row and waits.
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.jobs j
+     SET status     = 'running',
+         attempts   = j.attempts + 1,
+         claimed_by = p_worker,
+         claimed_at = now(),
+         updated_at = now()
+   WHERE j.id = v_id
+  RETURNING j.id, j.document_id, j.attempts
+       INTO job_id, job_document, job_attempts;
+
+  RETURN NEXT;
 END $$;
 
 

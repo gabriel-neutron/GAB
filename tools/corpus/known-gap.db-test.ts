@@ -17,6 +17,21 @@ test('no document carries an Admiralty rating', async () => {
   expect(held).toStrictEqual([{ rated_documents: 0 }]);
 });
 
+const documents = z.array(z.object({ id: z.string() }));
+
+const NO_JOB = `
+  SELECT d.id FROM public.documents d
+   WHERE NOT EXISTS (SELECT 1 FROM public.jobs j WHERE j.document_id = d.id)
+   ORDER BY d.id`;
+
+// THE THIRD GAP, AND IT IS DELIBERATE. A hand entry carries no file and no address, so an agent
+// has nothing to read. Two paths agree on it: the seed writes this row straight into the table
+// and never calls the door, and the door itself queues no work for a source of that kind.
+test('exactly one document carries no work, and it is the hand entry', async () => {
+  const held = await probe('superuser', async (ask) => documents.parse(await ask(NO_JOB)));
+  expect(held.map((row) => row.id)).toStrictEqual(['manual']);
+});
+
 const parameters = z.array(z.object({ parameter: z.string() }));
 
 const PUT_DOCUMENT_TAKES = `
