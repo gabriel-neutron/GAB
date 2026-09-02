@@ -128,7 +128,7 @@ export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
     const said = canvas.getByRole('alert', { name: 'The record' });
     await expect(said).toHaveTextContent('It is not known whether the act was promoted.');
     await expect(said).toHaveTextContent('the act may have run whole');
-    await expect(said).toHaveTextContent('Read the queue again before you decide.');
+    await expect(said).toHaveTextContent('The queue is read again.');
     await expect(said).not.toHaveTextContent('Nothing was written');
     await expect(canvas.queryByRole('status', { name: 'The record' })).toBeNull();
   },

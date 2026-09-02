@@ -78,14 +78,18 @@ function ReviewRoute() {
         setDecision({ step: 'deciding', changeId: act.changeId, verdict: act.verdict });
         void sendVerdict(act.changeId, act.verdict).then(async (state) => {
           setDecision(state);
-          if (state.step !== 'decided') return;
-          setVerdicts((held) => ({
-            ...held,
-            [act.changeId]: { verdict: act.verdict, reason: act.reason },
-          }));
-          // The record moved, so it is read again and the surface draws what landed. A hold
-          // wrote nothing, and a read that follows one would only cost the analyst the queue.
-          if (act.verdict !== 'deferred') await refreshCorpus(() => router.invalidate());
+          if (state.step === 'decided') {
+            setVerdicts((held) => ({
+              ...held,
+              [act.changeId]: { verdict: act.verdict, reason: act.reason },
+            }));
+            // A hold wrote nothing, and a read that follows one would only cost the analyst
+            // the queue it holds.
+            if (act.verdict === 'deferred') return;
+          }
+          // The record can hold a later state than this queue. The act landed, or another
+          // window decided it and the record refused this one. Both end at one read.
+          await refreshCorpus(() => router.invalidate());
         });
         return;
       case 'undo':

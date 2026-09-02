@@ -50,8 +50,10 @@ const DONE: Readonly<Record<Verdict, string>> = {
   deferred: 'The act is held on this pass. The record holds no hold, so a reload loses it.',
 };
 
-// The record moved under the analyst, or the answer never came. Both end at the same act.
-const READ_AGAIN = 'Read the queue again before you decide.';
+// The record moved under the analyst, or the answer never came. Both end at one read of the
+// record. The sentence is in the present tense, because the surface paints it before the read
+// finishes: an urgent sentence never waits behind a network read.
+const READ_AGAIN = 'The queue is read again.';
 
 const UNSURE: Readonly<Record<DoorVerdict, string>> = {
   promoted: 'It is not known whether the act was promoted.',
