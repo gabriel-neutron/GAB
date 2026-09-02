@@ -22,4 +22,12 @@ describe('the token cap of a job', () => {
     expect(() => openBudget(-1)).toThrow();
     expect(() => openBudget(1.5)).toThrow();
   });
+
+  it('refuses a count that is not a whole number, zero or above', () => {
+    const budget = openBudget(100);
+    expect(() => budget.add(-1)).toThrow();
+    expect(() => budget.add(1.5)).toThrow();
+    expect(() => budget.add(Number.NaN)).toThrow();
+    expect(budget.spent()).toBe(0);
+  });
 });

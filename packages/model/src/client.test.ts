@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
@@ -10,6 +10,10 @@ const AGENT: AgentModel = {
   timeoutMs: 1000,
   maxAnswerTokens: 500,
 };
+
+// A first wait of zero hides the growth of the wait. The two tests of the wait use this agent.
+const PATIENT: AgentModel = { ...AGENT, firstWaitMs: 100 };
+const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const ENV = { OPENROUTER_API_KEY: 'a-key' };
 const SHAPE = z.object({ claim: z.string() });
@@ -34,9 +38,9 @@ const always = (body: string, status = 200, headers: Record<string, string> = {}
 const bodiesOf = (send: Stub): unknown[] =>
   send.mock.calls.map(([, init]) => JSON.parse(init.body as string) as unknown);
 
-const ask = (send: Stub, cap = 1000) => {
+const ask = (send: Stub, cap = 1000, agent: AgentModel = AGENT) => {
   const budget = openBudget(cap);
-  const model = openModel(AGENT, send, ENV);
+  const model = openModel(agent, send, ENV);
   return {
     budget,
     run: () => model.ask({ messages: [{ role: 'user', content: 'go' }], shape: SHAPE, budget }),
@@ -45,6 +49,10 @@ const ask = (send: Stub, cap = 1000) => {
 
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('a good answer', () => {
@@ -74,6 +82,24 @@ describe('a good answer', () => {
 
     expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: 40 });
   });
+
+  it('bounds the answer by the agent limit when the cap leaves more', async () => {
+    const send = always(said('{"claim":"a ship"}'));
+    await ask(send, 1000).run();
+
+    expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: AGENT.maxAnswerTokens });
+  });
+
+  it('keeps the compression plugin off on the retry too', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    await ask(send).run();
+
+    const off = { model: AGENT.model, plugins: [{ id: 'context-compression', enabled: false }] };
+    expect(bodiesOf(send)).toEqual([expect.objectContaining(off), expect.objectContaining(off)]);
+  });
 });
 
 describe('the network fails', () => {
@@ -85,7 +111,7 @@ describe('the network fails', () => {
     expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
   });
 
-  it('retries a status that time can mend, and honours the wait the service names', async () => {
+  it('retries a status that time can mend', async () => {
     const send = vi
       .fn<Send>()
       .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': '0' }))
@@ -94,6 +120,41 @@ describe('the network fails', () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(got).toMatchObject({ ok: true });
+  });
+
+  it('waits longer after each fault of the transport', async () => {
+    vi.useFakeTimers();
+    const send = vi.fn<Send>(() => Promise.reject(new Error('socket closed')));
+    const got = ask(send, 1000, PATIENT).run();
+
+    await vi.advanceTimersByTimeAsync(99);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(199);
+    expect(send).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(399);
+    expect(send).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(4);
+    await expect(got).resolves.toMatchObject({ ok: false, failure: { kind: 'network' } });
+  });
+
+  it('waits the time the service names, and never a shorter time', async () => {
+    vi.useFakeTimers();
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': '2' }))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const got = ask(send, 1000, PATIENT).run();
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(2);
+    await expect(got).resolves.toMatchObject({ ok: true });
   });
 
   it('retries an answer that does not agree with the shape of the service', async () => {
@@ -105,6 +166,39 @@ describe('the network fails', () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(got).toMatchObject({ ok: true });
+  });
+
+  it('counts an answer the shape of the service refuses, because it is paid for', async () => {
+    const body = JSON.stringify({
+      choices: [],
+      usage: { prompt_tokens: 8, completion_tokens: 2, total_tokens: 10 },
+    });
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(body))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const { budget, run } = ask(send);
+    const got = await run();
+
+    expect(got).toMatchObject({ ok: true });
+    expect(budget.spent()).toBe(22);
+  });
+
+  it('never keeps an empty answer, and asks again', async () => {
+    const send = always(said(''));
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(4);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
+  });
+
+  it('carries no word of the service into the failure', async () => {
+    const send = always(refusalBody('provider_x_is_busy'), 503);
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(4);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
+    expect(JSON.stringify(got)).not.toContain('provider_x');
   });
 });
 
@@ -123,6 +217,18 @@ describe('the boundary refuses the answer', () => {
     expect(second.messages).toHaveLength(3);
     expect(second.messages[1]?.role).toBe('assistant');
     expect(second.messages[2]?.content).toContain('refused by the schema');
+  });
+
+  it('counts the tokens of every round trip of one question', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const { budget, run } = ask(send);
+    const got = await run();
+
+    expect(got).toEqual({ ok: true, value: { claim: 'a ship' }, tokens: 24 });
+    expect(budget.spent()).toBe(24);
   });
 
   it('retries once and never twice, and writes no part answer', async () => {
@@ -195,6 +301,25 @@ describe('the spend ceilings', () => {
     expect(await model.ask(one)).toMatchObject({ ok: false, failure: { kind: 'over_cap' } });
     expect(send).toHaveBeenCalledTimes(1);
   });
+
+  it('stops with the cap when the first answer spends it, and calls no second time', async () => {
+    const send = always(said('{"claim":7}', 'stop', 60));
+    const { budget, run } = ask(send, 50);
+    const got = await run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(budget.spent()).toBe(60);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'over_cap' }, tokens: 60 });
+  });
+
+  it('counts the tokens of an answer the boundary never keeps', async () => {
+    const send = always(said('{"claim":"a shi', 'length', 60));
+    const { budget, run } = ask(send);
+    const got = await run();
+
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'truncated' } });
+    expect(budget.spent()).toBe(60);
+  });
 });
 
 describe('the settings and the key', () => {
@@ -204,6 +329,32 @@ describe('the settings and the key', () => {
 
   it('refuses a model name that is empty', () => {
     expect(() => openModel({ ...AGENT, model: ' ' }, always(said('{}')), ENV)).toThrow();
+  });
+
+  it('reads the key once, and never again during the job', async () => {
+    const env = { OPENROUTER_API_KEY: 'a-key' };
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const model = openModel(AGENT, send, env);
+    env.OPENROUTER_API_KEY = 'another-key';
+    const budget = openBudget(1000);
+    await model.ask({ messages: [{ role: 'user', content: 'go' }], shape: SHAPE, budget });
+
+    const signed = send.mock.calls.map(
+      ([, init]) => (init.headers as Record<string, string>)['authorization'],
+    );
+    expect(signed).toEqual(['Bearer a-key', 'Bearer a-key']);
+  });
+
+  it('sends every call to the one endpoint, and gives it a deadline', async () => {
+    const send = always(said('{"claim":"a ship"}'));
+    await ask(send).run();
+
+    const [call] = send.mock.calls;
+    expect(call?.[0]).toBe(ENDPOINT);
+    expect(call?.[1].signal).toBeInstanceOf(AbortSignal);
   });
 
   it('reports a fault of the key or of the model name as a fault of the configuration', async () => {

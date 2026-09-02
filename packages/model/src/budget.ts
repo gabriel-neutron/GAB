@@ -18,8 +18,12 @@ export const openBudget = (cap: number): Budget => {
     cap,
     spent: () => used,
     left: () => Math.max(cap - used, 0),
+    // A total that is not a number stops the cap for ever, because no test on it is ever true.
+    // The count comes from the service, and a bad count is a fault the caller must see.
     add: (tokens: number) => {
-      used += Math.max(tokens, 0);
+      if (!Number.isInteger(tokens) || tokens < 0)
+        throw new Error('a token count is a whole number, zero or above');
+      used += tokens;
     },
   };
 };

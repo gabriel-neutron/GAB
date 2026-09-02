@@ -44,8 +44,14 @@ export const failureOf = (
   return { kind, reason: SENTENCE[kind], attempts, detail };
 };
 
+// A fetch fault gives the same two words for every cause, and the cause under it names the
+// socket, the name service or the certificate.
 /** The sentence of a thrown transport fault, kept for the log alone. */
 export const sentenceOf = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
-  return typeof cause === 'string' ? cause : 'the call ended with no message';
+  if (!(cause instanceof Error))
+    return typeof cause === 'string' ? cause : 'the call ended with no message';
+
+  const under = cause.cause;
+  if (under instanceof Error && under.message !== '') return `${cause.message}: ${under.message}`;
+  return cause.message;
 };
