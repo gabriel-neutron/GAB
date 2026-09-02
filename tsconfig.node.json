@@ -14,8 +14,9 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
-    // The block below is copied in the six other targets. See the comment in
-    // `tsconfig.app.json` for the reason. Change one of the seven, and change all seven.
+    // The block below is the strict set, and every compile target holds the same copy. A base
+    // file with `extends` works, and it moves the standard out of the file that a reader opens.
+    // Every strict check is on in every target. Change one target, and change every target.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

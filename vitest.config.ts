@@ -166,6 +166,16 @@ export default defineConfig({
         },
       },
 
+      {
+        // The client of the model service, against a stubbed answer. It opens no socket and it
+        // reads no key of the operator, so it runs in Node and it runs everywhere.
+        test: {
+          name: 'model',
+          environment: 'node',
+          include: ['packages/model/src/**/*.test.ts'],
+        },
+      },
+
       ...(bucketIsReachable ? [storeProject] : []),
 
       ...(databaseIsReachable

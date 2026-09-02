@@ -499,13 +499,10 @@ export default defineConfig(
                 'A workspace package is a leaf, and it imports nothing under `src/`. Both sides of the product import the package, so what it imports lands in both. Move the shape you need into the package',
             },
 
-            // ...and never a Node part. `@gab/writer` and `@gab/worker` each reach the database
-            // and hold a secret, and a browser file that imports one ships both to the client.
-            // Every side is named, and a package too: a package the browser imports is a browser
-            // file by another name, so `@gab/proposal` reaching one ships the same secrets.
-            //
-            // ONE ENTRY PER PACKAGE, and never a brace inside the capture. A capture value that
-            // the plugin reads as a literal name refuses nothing and reads as a working gate.
+            // ...and never a Node part. The writer, the worker, the model client and the store
+            // each run in Node and hold a secret, and one list names them all, because two lists
+            // fall out of step. Every importing side is named too: a package the browser imports
+            // is a browser file by another name.
             {
               from: {
                 element: {
@@ -520,45 +517,16 @@ export default defineConfig(
                   ],
                 },
               },
-              disallow: { to: { element: { type: 'package', captured: { pkg: 'writer' } } } },
-              message:
-                'The writer is the Node backend, and the browser never imports it. It reaches the database and holds the secrets. Call it over the wire, and import a shared shape from another workspace package',
-            },
-            {
-              from: {
-                element: {
-                  types: [
-                    'shared',
-                    'feature',
-                    'route',
-                    'storybook',
-                    'contract',
-                    'base-tables',
-                    'package',
-                  ],
+              disallow: {
+                to: {
+                  element: {
+                    type: 'package',
+                    captured: { pkg: ['writer', 'model', 'store', 'worker'] },
+                  },
                 },
               },
-              disallow: { to: { element: { type: 'package', captured: { pkg: 'worker' } } } },
               message:
-                'The worker claims from the job queue, and the browser never imports it. It reaches the database and holds a secret. Call it over the wire, and import a shared shape from another workspace package',
-            },
-            {
-              from: {
-                element: {
-                  types: [
-                    'shared',
-                    'feature',
-                    'route',
-                    'storybook',
-                    'contract',
-                    'base-tables',
-                    'package',
-                  ],
-                },
-              },
-              disallow: { to: { element: { type: 'package', captured: { pkg: 'store' } } } },
-              message:
-                'The store writes the raw bucket, and the browser never imports it. It holds the key of the account that may put an object. Call it over the wire, and import a shared shape from another workspace package',
+                'The writer, the model client, the store and the worker run in Node and hold the secrets. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
             },
 
             // The base tables, refused from every side and stated last, so a policy above can
