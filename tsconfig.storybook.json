@@ -46,6 +46,10 @@
     "allowUnusedLabels": false,
     "noUncheckedSideEffectImports": true,
 
+    // A workspace package is run by Node as it stands, so each import inside it carries the real
+    // extension. The browser target reads that source, so it must permit the extension too.
+    "allowImportingTsExtensions": true,
+
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,

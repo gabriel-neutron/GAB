@@ -1,15 +1,6 @@
-/**
- * The workspace store of ADR 0004 §7.
- *
- * One key per feature, `gab.<feature>.v1`. The version is part of the key, so a later shape
- * writes a later key and never reads this one. A read returns the fallback on every fault the
- * browser can produce: no storage, absent key, broken JSON, or a value that fails the guard.
- * A value that fails the guard is a value of another version, so the two cases are one.
- */
-
-// `index.html` holds a copy of the key `gab.shell.v1`, because the theme class must reach the
-// document before the first paint and no module runs that early. Change this line and that
-// script together. Nothing checks the two.
+// The version is part of the key `gab.<feature>.v1`, so a later shape writes a later key. A read
+// returns the fallback on every browser fault. `index.html` holds a copy of `gab.shell.v1`,
+// because the theme class must reach the document before the first paint. Nothing checks the two.
 const keyOf = (feature: string): string => `gab.${feature}.v1`;
 
 export function readWorkspace<T>(

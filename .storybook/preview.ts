@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/react-vite';
 
-// The one stylesheet of ADR 0001 §1. It holds Tailwind, the shadcn layer and the theme
+// The one stylesheet of the application. It holds Tailwind, the shadcn layer and the theme
 // variables, so a story paints as the application paints.
 //
 // `eslint.config.ts` ignores this import by name, under `boundaries/ignore`. An element pattern
@@ -14,7 +14,7 @@ import '../src/index.css';
  * neither. `ThemeProvider` only reads `localStorage` and writes that class. A story that must
  * prove the dark paint sets the class itself.
  *
- * The design is a later discussion — ADR 0004, "Not decided here". A decorator written before
+ * The design of a decorator is a later discussion, and it is not decided. One written before
  * that discussion would be a guess.
  */
 const preview: Preview = {

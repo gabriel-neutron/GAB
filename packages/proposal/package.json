@@ -1,0 +1,16 @@
+{
+  "name": "@gab/proposal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./attribute-value": "./src/attribute-value.ts",
+    "./payload": "./src/payload.ts",
+    "./request": "./src/request.ts",
+    "./vocabulary": "./src/vocabulary.ts"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

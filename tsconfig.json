@@ -1,10 +1,9 @@
 {
-  // The solution file. It compiles nothing itself. Three targets now exist in one package:
-  // the browser bundle under `src/`, the Node configuration files at the root, and the
-  // Storybook folder, which holds one Node file and one browser file. They need different
-  // `lib` and different `types`, and a single file cannot hold all three. ADR 0004 says this
-  // signal is answered with a TypeScript configuration and not with a workspace, so ADR 0001
-  // §6 still holds and the repository stays one package.
+  // The solution file. It compiles nothing itself. The root package holds three targets: the
+  // browser bundle under `src/`, the Node configuration files at the root, and the Storybook
+  // folder. Each workspace package under `packages/` holds one more. They need different `lib`
+  // and different `types`, and a single file cannot hold them all. ADR 0001 §6 opened the
+  // workspace: the schemas of a proposal are code that the browser and the writer both import.
   //
   // `baseUrl` and `paths` are repeated here because the shadcn CLI reads the root file to
   // resolve the `@/*` alias. Only `tsconfig.app.json` compiles `src/`.
@@ -16,6 +15,8 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.storybook.json" }
+    { "path": "./tsconfig.storybook.json" },
+    { "path": "./packages/proposal" },
+    { "path": "./packages/writer" }
   ]
 }

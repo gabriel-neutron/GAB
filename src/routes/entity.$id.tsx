@@ -1,32 +1,74 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import { createFileRoute, notFound, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { DetailPage } from '@/features/detail/detail-page';
+import { readDossier } from '@/features/detail/dossier';
+import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
+import type { DocId } from '@/shared/read/model';
+import { loadVocabulary } from '@/shared/read/vocabulary';
 
-/**
- * `$id` is an opaque string. No schema is settled (`spec.md` §3), so this file decides nothing
- * about the form of an identifier — no length, no character set, no prefix.
- *
- * The one case it does answer is a segment that is blank once trimmed. A blank string names no
- * entity under any schema, so rejecting it settles nothing. Every other identifier reaches the
- * page. When the read layer exists (#26), this loader asks it, and throws the same `notFound`
- * when the answer is empty.
- *
- * The words below are not the words of an unknown path. An unknown identifier is usually a
- * stale link to a withdrawn document (#28), and a fuzzy match would hide that.
- */
+export interface EntitySearch {
+  /** The document the reader arrived at. `null` is the normal arrival. */
+  readonly src: DocId | null;
+}
+
+// `notFound({ throw: true })` is the documented alternative to `throw notFound()`, used because
+// the value TanStack Router raises is not an `Error` and `only-throw-error` stays on. Its return
+// type is `NotFoundError` and not `never`, so this wrapper states `never` once.
+function entityNotFound(): never {
+  notFound({ throw: true });
+  throw new Error('The router did not raise the not-found answer.');
+}
+
 export const Route = createFileRoute('/entity/$id')({
-  loader: ({ params }) => {
-    // `notFound({ throw: true })` is the documented alternative to `throw notFound()`. It is
-    // used because the value that TanStack Router raises is not an `Error`, and this
-    // repository keeps `only-throw-error` on with no exception.
-    if (params.id.trim() === '') notFound({ throw: true });
+  // The address comes from outside, so it is validated before its first use. It falls back and
+  // it never throws: a stale or a malformed `?src=` opens the page at no card, which is the
+  // normal arrival, and it must never take the whole entity off the screen.
+  validateSearch: (search: Record<string, unknown>): EntitySearch => {
+    const src = search['src'];
+    return { src: typeof src === 'string' && src.trim() !== '' ? src : null };
   },
-  component: DetailPage,
+
+  // The normal arrival names no document, and `null` reaches the address bar as the four
+  // characters `null`, which is a document identifier that no corpus holds.
+  search: { middlewares: [stripSearchParams({ src: null })] },
+
+  loader: async ({ params }) => {
+    if (params.id.trim() === '') entityNotFound();
+    // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
+    // exception above is a blank segment, which names no entity under any schema. The read API
+    // answers the whole corpus, and the router holds this page back until that answer arrives.
+    const [read, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
+    return readDossier(read, params.id, vocabulary) ?? entityNotFound();
+  },
+
+  component: EntityRoute,
   notFoundComponent: EntityNotFound,
 
   // The identifier is in the title. Four routes that all report "Gabriel" tell a screen reader
   // nothing, and an entity page is the one route where the name changes on every visit.
   head: ({ params }) => ({ meta: [{ title: `Entity ${params.id} · Gabriel` }] }),
 });
+
+function EntityRoute() {
+  const { id } = Route.useParams();
+  const { src } = Route.useSearch();
+  const dossier = Route.useLoaderData();
+  const router = useRouter();
+
+  // A move to another entity keeps the same mounted page, and the key destroys it instead. A
+  // draft belongs to the entity it was typed on, and it must never arrive on the next one.
+  return (
+    <DetailPage
+      key={id}
+      dossier={dossier}
+      arrivedAtSource={src}
+      onSaved={() => refreshCorpus(() => router.invalidate())}
+      onDeleted={async () => {
+        await router.navigate({ to: '/graph', search: { entity: '', relation: '' } });
+        await refreshCorpus(() => router.invalidate());
+      }}
+    />
+  );
+}
 
 function EntityNotFound() {
   return (

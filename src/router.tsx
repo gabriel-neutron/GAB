@@ -1,21 +1,14 @@
 import { createRouter, useRouter } from '@tanstack/react-router';
 import { Button } from '@/shared/ui/button';
+import { refreshCorpus } from '@/shared/read/corpus';
 import { routeTree } from './routeTree.gen';
 
-/**
- * The not-found default of the router answers an unknown **path**. An unknown **entity
- * identifier** is a different fault with a different cause, so `routes/entity.$id.tsx` answers
- * it with its own component and its own words.
- *
- * There is no navigation yet — the layout is deferred to a prototype — so the way back is the
- * history of the browser and not a link to a home page that does not exist.
- */
+// The router default answers an unknown path. An unknown entity identifier is a different
+// fault, and `routes/entity.$id.tsx` answers that one with its own words.
 function PathNotFound() {
   const router = useRouter();
 
-  // The button appears only when there is a page to go back to. A typed address is often the
-  // first entry in the history, and a button that does nothing tells the operator that the
-  // application failed when it did not.
+  // A typed address can be the first entry in the history. Then there is no page to go back to.
   return (
     <div>
       <p>This address does not name a page.</p>
@@ -33,17 +26,38 @@ function PathNotFound() {
   );
 }
 
+// Every surface reads the record through one loader, so a read that fails is the usual cause of
+// this screen. `refreshCorpus` forgets the answer that is held and then runs each loader again,
+// so the retry always asks the read API a second time, after a failure and after a success.
 function RouteError({ error }: { error: Error }) {
+  const router = useRouter();
+
   return (
-    <div>
-      <p>This page failed.</p>
-      <pre>{error.message}</pre>
+    <div className="flex h-full flex-col items-start gap-2 overflow-y-auto p-4">
+      <p>
+        This page did not get the record. The read service may be down. Start it, then press Retry.
+      </p>
+      <pre className="text-xs text-label">{error.message}</pre>
+      <Button
+        variant="outline"
+        onClick={() => {
+          void refreshCorpus(() => router.invalidate());
+        }}
+      >
+        Retry
+      </Button>
     </div>
   );
 }
 
+// The container states a height. `<main>` is a flex child of a column, so a bare paragraph here
+// gives the row no height, and the row jumps to its full height when the page arrives.
 function RoutePending() {
-  return <p>Loading…</p>;
+  return (
+    <div className="flex h-full items-center justify-center p-4">
+      <p>Loading…</p>
+    </div>
+  );
 }
 
 export const router = createRouter({

@@ -1,8 +1,8 @@
 # Gabriel — Product Requirements Document
 
 **Version** 1.0 · 6 August 2026
-Related documents: `decisions.md` (rationale), `spec.md` (contract), `schema.md` (a
-provisional example of a database, not a contract).
+Related documents: `decisions.md` (rationale) and `spec.md` (contract). The schema itself is
+in `db/`, and no document draws it.
 
 ---
 
@@ -59,20 +59,18 @@ document always name an entry in `decisions.md`, never a step.
 
 ### 4.1 Data
 
-The technical form of each rule below is an invariant in `spec.md` §2.
+**The data rules are not restated here.** The **Data model** group of `decisions.md` holds each
+one with its reason and its cost, and `spec.md` §2 holds the form each takes on a write path. A
+third statement in this document would drift from both.
 
-- Two kinds of object: the relational (entities, relations) and the sources (file, URL, API, report) (M2).
-- **Every element is sourced** (M8). A claim with no source attached does not exist in the system. Direct human entry is an explicit source, not an absence of source.
-- Strict **raw / GOLD** separation (T3): the original file is immutable and serves as evidence; the processed data is reworked continuously.
-- **Current-state** model (M5). Exception: identity and ownership relations carry a validity interval (M6).
-- The schema tolerates incomplete and heterogeneous information (M2): **no data is distorted to fit into a field**. What serves to link is typed; what describes is free.
-- Every attribute value cites at least one document (M8). A value always exists; the unknown is the absence of a key (M9).
+What the scope adds, and the register does not: the system holds **two kinds of object**, the
+relational and the source. It stores nothing else.
 
 ### 4.2 Visual
 
 - **Two distinct views**: relational graph and map. No unified view.
 - The map is **both an analysis surface and a presentation surface**.
-- The analyst **creates geographic elements and composes layers within Gabriel**, rather than merely consulting them. Creation is **by coordinate entry** — a click on the map, or a typed coordinate — and **by parameter** — a buffer radius is a typed number, a view cone is a bearing and an angle. Measurement of a distance, a bearing or an area is read and discarded, and is never stored. A box or lasso select is a **query** over the entities inside a shape, never stored geometry. The tool provides **no interactive geometry editor** and **no geographic file import** (ADR 0005).
+- The analyst **creates geographic elements and composes layers within Gabriel**, rather than merely consulting them. Creation is **by coordinate entry** — a click on the map, or a typed coordinate — and **by parameter** — a buffer radius is a typed number, a view cone is a bearing and an angle. Measurement of a distance, a bearing or an area is read and discarded, and is never stored. A box or lasso select is a **query** over the entities inside a shape, never stored geometry. The tool provides **no interactive geometry editor** (ADR 0005). A geographic file is not refused: it enters through the one ingestion door, as a mapping proposal (P6).
 - Navigation from an element to its sources, its neighbours, its position.
 - Pending proposals appear as markers on the graph.
 
@@ -107,10 +105,10 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 
 ## 5. What Gabriel does not do
 
-- **No interactive geometry editor, and no geographic file import** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
+- **No interactive geometry editor** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
 - **No OCR** (P5). A scan is converted outside the tool before ingestion.
 - **No audio, no video** (P5).
-- **No heavy satellite imagery processing.** Scope only. No decision entry records a cost.
+- **No heavy satellite imagery processing.** Scope only.
 - **No drafting.** Scope only. Gabriel supplies the material and the references.
 - **No continuous automated collection.** Scope only. No scheduled monitoring, no real-time connector.
 - **No user management** (C5).
@@ -124,18 +122,10 @@ This list is a first-rank deliverable (C3). Every line removed from it is a door
 
 ## 6. Declared limits and accepted risks
 
-Each limit below is the accepted cost of a locked decision. `decisions.md` holds the full
-text, under **Accepted consequence** or **Accepted risks**. It is the single home. Do not
-copy that text back into this document.
-
-| Limit | Entry |
-|---|---|
-| Full publication, candidate layer included | PU1 |
-| ADMIRALTY is a source score, not a claim score | S1 |
-| Automated scoring is unmeasured | S3 |
-| Loss of the temporal dimension | M5 |
-| Attribute key drift — the most likely breaking point of the model | M11 |
-| Absence of interoperability | M1 |
+Every limit of this system is the accepted cost of a locked decision, and `decisions.md`
+holds each one under **Accepted consequence** or **Accepted risks**. **It is the single home,
+and this document keeps no list of them.** A list here is an index of an index: it goes stale
+on the day an entry gains a cost, and the reader then holds two answers to one question.
 
 ---
 
@@ -143,5 +133,5 @@ copy that text back into this document.
 
 1. A sample of entities from the v1 corpus is demonstrated to be representable in the target model.
 2. Every requirement in sections 3 and 4 is justifiable by the arbitration criterion of section 1.
-3. The six invariants of the technical specification are enforced by the database, not merely by application convention. Three tiers count: a constraint, a trigger, or a **privilege boundary the writing role cannot cross**. The third tier was added on 11 August 2026, with invariant 5. That invariant is about how a row arrived, and not about the values in it, so a check on the values cannot carry it. A privilege boundary is not application convention, because the application cannot lift it. The target of this criterion does not change.
+3. **Every** invariant of the technical specification is enforced by the database, not merely by application convention. Three tiers count: a constraint, a trigger, or a **privilege boundary the writing role cannot cross**. An invariant about how a row arrived, and not about the values in it, cannot be carried by a check on the values, so the third tier is not a weaker form of the first two. A privilege boundary is not application convention, because the application cannot lift it.
 4. Section 5 is validated as exhaustive.
