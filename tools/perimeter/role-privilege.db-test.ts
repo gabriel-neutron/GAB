@@ -117,6 +117,28 @@ test('the ingestion door queues the work in the transaction that writes the docu
   expect(after).toStrictEqual([{ n: 0 }]);
 });
 
+const HAND_ENTERED = 'doc_perimeter_manual';
+
+const PUT_MANUAL = `SELECT public.put_document($1, 'manual', 'A perimeter test of a hand entry')
+  AS id`;
+
+const ANY_JOB = 'SELECT count(*)::int AS n FROM public.jobs WHERE document_id = $1';
+
+// A hand-entered source carries no file and no address, so an agent has nothing to read. The
+// queue is the record of the work and not of the door, and this is the one row that proves it.
+test('the ingestion door queues no work for a hand-entered source', async () => {
+  const inside = await probe('app', async (ask) => {
+    await ask('BEGIN');
+    try {
+      await ask(PUT_MANUAL, [HAND_ENTERED]);
+      return counted.parse(await ask(ANY_JOB, [HAND_ENTERED]));
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+  expect(inside).toStrictEqual([{ n: 0 }]);
+});
+
 test('gabriel_read reads no table of public', async () => {
   await expect(
     probe('read', async (ask) => ask('SELECT count(*) FROM public.entities')),

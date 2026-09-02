@@ -200,7 +200,13 @@ BEGIN
 
   -- The queue takes the identifier and nothing else. What the work IS stays undecided: P6 puts
   -- two paths behind this door, and no rule says which file takes which one.
-  INSERT INTO public.jobs (document_id) VALUES (v_id::doc_id);
+  --
+  -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and the schema decided it before this line:
+  -- doc_retrieved_required lets `manual` alone carry no retrieval date, and such a row carries
+  -- no file and no address. An agent would have nothing to read, so the queue holds no row for
+  -- it, and the queue is therefore not the whole record of what passed the door.
+  INSERT INTO public.jobs (document_id)
+  SELECT v_id::doc_id WHERE p_kind <> 'manual';
 
   RETURN v_id;
   -- It writes NO rating. #19 owns the scoring write path, and no role can write those columns.
