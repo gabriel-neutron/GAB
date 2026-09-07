@@ -2,6 +2,20 @@
   "env": {
     "DOCS_INDEX_PATH": "docs/README.md"
   },
+  "permissions": {
+    "deny": [
+      "Write(.claude/skills/**)",
+      "Edit(.claude/skills/**)",
+      "NotebookEdit(.claude/skills/**)",
+      "Write(.claude/agents/**)",
+      "Edit(.claude/agents/**)",
+      "NotebookEdit(.claude/agents/**)",
+      "Write(.claude/settings.json)",
+      "Edit(.claude/settings.json)",
+      "Write(.claude/hooks/**)",
+      "Edit(.claude/hooks/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
