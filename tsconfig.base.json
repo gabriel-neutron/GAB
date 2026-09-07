@@ -1,0 +1,49 @@
+{
+  // The standard that every compile target holds, in one place. A target exists because the
+  // library, the ambient types and the files it reads differ from the next one. The checks do
+  // not differ.
+  //
+  // An option belongs here when its reason is the same in every target. An option stays with the
+  // target when that target owes a reason of its own. `module` and `allowImportingTsExtensions`
+  // hold one value in every target today, and they stay local because the reason is not one
+  // reason: a bundler resolves the browser target, and Node runs a workspace package as it is.
+  //
+  // A relative path written here would resolve against this file and not against the target that
+  // extends it. Nothing here names a path, and `include`, `files`, `baseUrl`, `paths` and
+  // `tsBuildInfoFile` stay with the target that owns them.
+  "compilerOptions": {
+    "target": "ES2024",
+
+    // Nothing is emitted anywhere. Vite emits the browser bundle, and Node strips the types of a
+    // workspace package as it runs the source. `composite` is what a project reference needs.
+    "composite": true,
+    "noEmit": true,
+
+    // The strict set. One copy, so one edit raises the standard in every target at the same
+    // time. No target keeps an older value, and no target is missed.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noUncheckedSideEffectImports": true,
+
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    // A person and an agent both read a type error, and neither can act on `...`. The compiler
+    // shortens a long type, and the shortened part usually names the mismatch.
+    "noErrorTruncation": true,
+
+    // ADR 0004 §9. An error in the type definitions of a dependency is neither ours to fix
+    // nor ours to suppress, and this repository permits no suppression.
+    "skipLibCheck": true
+  }
+}

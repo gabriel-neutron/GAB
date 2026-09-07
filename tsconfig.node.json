@@ -1,7 +1,7 @@
 {
   // The configuration files at the root. They run in Node, not in the browser.
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2024",
     "lib": ["ES2024"],
     // Neither file is loaded by Node directly: Vite reads `vite.config.ts` and jiti reads
     // `eslint.config.ts`, and both resolve like a bundler. `nodenext` would describe a loader
@@ -10,35 +10,11 @@
     "module": "preserve",
     "types": ["node"],
 
-    "composite": true,
-    "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-
-    // The block below is the strict set, and every compile target holds the same copy. A base
-    // file with `extends` works, and it moves the standard out of the file that a reader opens.
-    // Every strict check is on in every target. Change one target, and change every target.
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
-    "noUncheckedSideEffectImports": true,
 
     // Node runs a command under `tools/` directly and strips the types, so an import needs the
     // real extension. Nothing emits here, so the flag costs nothing.
-    "allowImportingTsExtensions": true,
-
-    "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-
-    "skipLibCheck": true
+    "allowImportingTsExtensions": true
   },
   // `vitest.config.ts` is a root configuration file like the other two, and Vitest reads it the
   // same way Vite reads its own. `.storybook/` is **not** here; it needs the DOM library and it
