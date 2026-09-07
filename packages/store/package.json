@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./bucket": "./src/bucket.ts",
+    "./listing": "./src/listing.ts",
     "./object": "./src/object.ts"
   },
   "dependencies": {

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 // The door takes the oldest queued row and marks it running in one transaction of its own. The
 // lock that keeps two workers off one row is inside it, because no role may write the table.
-const CLAIM = 'SELECT job_id, job_document, job_attempts FROM public.claim_job($1)';
+const CLAIM = 'SELECT job_id, job_document, job_attempts FROM public.claim_job()';
 
 const claimed = z
   .array(
@@ -26,9 +26,10 @@ export interface ClaimedJob {
   readonly attempt: number;
 }
 
-/** Takes one job for `worker`, or answers null when no queued job is free to take. */
-export const claimJob = async (on: Queryable, worker: string): Promise<ClaimedJob | null> => {
-  const found = claimed.parse((await on.query(CLAIM, [worker])).rows);
+/** Takes one job for this connection, or answers null when no queued job is free to take. The
+ * taker is the role of the connection: the door reads it and takes no name. */
+export const claimJob = async (on: Queryable): Promise<ClaimedJob | null> => {
+  const found = claimed.parse((await on.query(CLAIM)).rows);
   const row = found[0];
   if (row === undefined) return null;
   return { id: row.job_id, documentId: row.job_document, attempt: row.job_attempts };

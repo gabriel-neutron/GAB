@@ -34,6 +34,7 @@
     "test:service": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project service",
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
+    "layout": "node --env-file=infra/.env packages/worker/src/layout-main.ts",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },
@@ -41,7 +42,6 @@
     "@eslint/js": "^10.0.1",
     "@gab/model": "workspace:*",
     "@gab/store": "workspace:*",
-    "@gab/worker": "workspace:*",
     "@gab/writer": "workspace:*",
     "@storybook/addon-vitest": "^10.5.7",
     "@storybook/react-vite": "^10.5.7",

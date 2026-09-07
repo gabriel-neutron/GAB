@@ -17,6 +17,13 @@ import { LIMITS, measure } from './tools/comment-budget.ts';
 const CANVAS_PAGES = ['map', 'graph'] as const;
 
 /**
+ * The workspace packages that run in Node and hold a secret. **One list, and the two package
+ * policies below both read it**, so the side that is refused to the browser and the side that a
+ * Node part may reach can never fall out of step.
+ */
+const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
+
+/**
  * **A comment records a reason, and never a reference.** A reason is a fact about the code, and it
  * cannot go stale: if the code changes, it changes with it. A reference is an address to something
  * outside the file, and it goes stale in silence when somebody else edits or deletes the thing it
@@ -521,12 +528,22 @@ export default defineConfig(
                 to: {
                   element: {
                     type: 'package',
-                    captured: { pkg: ['writer', 'model', 'store', 'worker'] },
+                    captured: { pkg: [...NODE_PACKAGES] },
                   },
                 },
               },
               message:
                 'The writer, the model client, the store and the worker run in Node and hold the secrets. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
+            },
+
+            // ...and a Node part reaches another Node part. Both sides come from the one list
+            // above, so nothing the browser imports is opened: the worker reads the bucket
+            // through the store, which is the module that holds the address and the account.
+            {
+              from: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
+              allow: {
+                to: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
+              },
             },
 
             // The base tables, refused from every side and stated last, so a policy above can

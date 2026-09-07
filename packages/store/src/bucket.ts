@@ -22,9 +22,9 @@ const PATH_STYLE = true;
 const CONNECT_MS = 5_000;
 const REQUEST_MS = 30_000;
 
-// The account of the application. It may put an object in this bucket, and nothing else: it may
-// not delete one, list the bucket, or make the bucket public. It may write over a key that
-// exists, and the root pair sits in the same process, so neither of those is stopped here.
+// The account of the application. It may put an object in this bucket and list the bucket, and
+// nothing else: it may not delete an object, or make the bucket public. It may write over a key
+// that exists, and the root pair sits in the same process, so neither of those is stopped here.
 const secrets = z.object({
   RAW_STORE_ACCESS_KEY: z.string().trim().min(1),
   RAW_STORE_SECRET_KEY: z.string().trim().min(1),

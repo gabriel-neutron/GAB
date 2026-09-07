@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 import { claimJob } from './claim.ts';
 
-// NO ROLE HOLDS THE CLAIM DOOR WHILE A CLAIM CANNOT BE RELEASED, so this suite calls it as the
-// owner of the database. What it measures is the lock and the mark, and neither one is a grant:
-// the grants file holds the grant, and a perimeter test holds the refusal of every role.
+// THIS SUITE CALLS THE DOOR AS THE OWNER OF THE DATABASE, because it reads the row it claimed to
+// check the mark. What it measures is the lock and the mark, and neither one is a grant: a
+// perimeter test holds who may call the door and who may not.
 const secrets = z.object({ POSTGRES_PASSWORD: z.string().min(1) });
 
 const ownerPool = (): Pool => {
@@ -20,12 +20,8 @@ const ownerPool = (): Pool => {
 const pool = ownerPool();
 
 // Every claim below runs inside a transaction that rolls back, so the queue this suite met is
-// the queue it leaves. A claim outside one would mark a row running with nothing to release it.
-const FIRST = 'the first worker';
-const SECOND = 'the second worker';
-
-// The loaded fixture queues one job per document it puts through the door, and no path empties
-// the queue, so a bound this far above four means a loop that never ends fails as a test.
+// the queue it leaves. The fixture queues one job per document and no path empties the queue, so
+// a bound this far above that count means a loop that never ends fails as a test.
 const BOUND = 1000;
 
 afterAll(async () => {
@@ -52,8 +48,8 @@ const held = async (work: (client: PoolClient) => Promise<void>): Promise<void> 
 test('two workers claim at the same time and never take the same row', async () => {
   await held(async (first) => {
     await held(async (second) => {
-      const taken = await claimJob(first, FIRST);
-      const alsoTaken = await claimJob(second, SECOND);
+      const taken = await claimJob(first);
+      const alsoTaken = await claimJob(second);
       expect(taken, 'the queue of the loaded fixture holds a job').not.toBeNull();
       expect(alsoTaken, 'the second worker steps over the locked row').not.toBeNull();
       expect(taken?.id).not.toBe(alsoTaken?.id);
@@ -66,13 +62,17 @@ const marks = z.array(
 );
 
 const MARK = 'SELECT status, attempts, claimed_by FROM public.jobs WHERE id = $1::uuid';
+const SESSION = z.array(z.object({ session_user: z.string() }));
 
-test('a claim marks the row running, names the worker and counts the attempt', async () => {
+test('a claim marks the row running, stamps the role and counts the attempt', async () => {
   await held(async (client) => {
-    const taken = await claimJob(client, FIRST);
+    const taken = await claimJob(client);
     expect(taken).not.toBeNull();
+    const [session] = SESSION.parse((await client.query('SELECT session_user')).rows);
     const found = marks.parse((await client.query(MARK, [taken?.id])).rows);
-    expect(found).toStrictEqual([{ status: 'running', attempts: 1, claimed_by: FIRST }]);
+    expect(found).toStrictEqual([
+      { status: 'running', attempts: 1, claimed_by: session?.session_user },
+    ]);
   });
 });
 
@@ -80,7 +80,7 @@ test('a worker that has claimed every queued job then gets no row', async () => 
   await held(async (client) => {
     const taken: string[] = [];
     for (let round = 0; round < BOUND; round += 1) {
-      const job = await claimJob(client, FIRST);
+      const job = await claimJob(client);
       if (job === null) break;
       taken.push(job.id);
     }
@@ -88,12 +88,4 @@ test('a worker that has claimed every queued job then gets no row', async () => 
     expect(taken.length).toBeLessThan(BOUND);
     expect(new Set(taken).size, 'no row was claimed twice').toBe(taken.length);
   });
-});
-
-test('a claim that names no worker is refused', async () => {
-  await expect(
-    held(async (client) => {
-      await claimJob(client, '   ');
-    }),
-  ).rejects.toMatchObject({ message: 'a claim names the worker that took it' });
 });
