@@ -163,3 +163,57 @@ test('a value of a relation that carries no source list is refused', async () =>
     constraint: 'relations_attrs_valid',
   });
 });
+
+// ======================================================= the same rule, derived not listed =====
+//
+// The gestures above prove nine rules. This one reads EVERY check of `public` and holds the rule
+// itself, so a check written tomorrow is covered on the day it is written and not on the day
+// somebody remembers to add a gesture for it.
+//
+// The shape it looks for: a check over exactly ONE nullable column, whose text names neither
+// `<col> IS NULL` nor `<col> IS NOT NULL`. Such a check yields NULL for a NULL value, and a NULL
+// check passes. Three checks were in that shape until migration 0008 wrote their guards down.
+//
+// A check over two or more nullable columns is a different form — `(x IS NULL) = (y IS NULL)` is
+// the pattern this schema uses for a pair — so it is not read here.
+
+const EVERY_PUBLIC_CHECK = `
+  SELECT t.relname AS table_name, c.conname AS constraint_name,
+         pg_catalog.pg_get_constraintdef(c.oid) AS definition,
+         (SELECT array_agg(a.attname ORDER BY a.attname)
+            FROM pg_catalog.pg_attribute a
+           WHERE a.attrelid = t.oid AND a.attnum = ANY (c.conkey)
+             AND NOT a.attnotnull)::text[] AS nullable
+    FROM pg_catalog.pg_constraint c
+    JOIN pg_catalog.pg_class t ON t.oid = c.conrelid
+    JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+   WHERE c.contype = 'c' AND n.nspname = 'public'
+   ORDER BY t.relname, c.conname`;
+
+const checks = z.array(
+  z.object({
+    table_name: z.string(),
+    constraint_name: z.string(),
+    definition: z.string(),
+    nullable: z.array(z.string()).nullable(),
+  }),
+);
+
+test('every check over one nullable column states its own NULL guard', async () => {
+  const declared = checks.parse(await probe('app', (ask) => ask(EVERY_PUBLIC_CHECK)));
+
+  const unguarded = declared
+    .filter((check) => (check.nullable ?? []).length === 1)
+    .filter((check) => {
+      const column = check.nullable?.[0] ?? '';
+      return (
+        !check.definition.includes(`${column} IS NULL`) &&
+        !check.definition.includes(`${column} IS NOT NULL`)
+      );
+    })
+    .map((check) => `${check.table_name}.${check.constraint_name}`);
+
+  // The count is asserted too: a query that returns nothing also passes an empty expectation.
+  expect(declared.length).toBeGreaterThan(50);
+  expect(unguarded).toStrictEqual([]);
+});
