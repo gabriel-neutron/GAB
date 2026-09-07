@@ -7,7 +7,8 @@ import { connectionString } from './db-runtime.ts';
 
 type Identity = 'superuser' | 'app' | 'agent' | 'read';
 
-type Ask = (text: string, values?: readonly unknown[]) => Promise<readonly unknown[]>;
+/** One statement on the open connection of a probe. */
+export type Ask = (text: string, values?: readonly unknown[]) => Promise<readonly unknown[]>;
 
 export const probe = async <T>(identity: Identity, work: (ask: Ask) => Promise<T>): Promise<T> => {
   const client = new Client({ connectionString: connectionString(identity) });
