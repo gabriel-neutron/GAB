@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { vocabulary } from '@/shared/fixtures/vocabulary';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';

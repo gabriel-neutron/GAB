@@ -2,7 +2,7 @@
  * confidence, and one that cites a document the record does not hold. Every row they name is a
  * row of the shared corpus, because a second copy is a second description of one record. */
 
-import { corpus } from '@/shared/fixtures/corpus';
+import { corpus } from '@/shared/committed-fixture/corpus';
 import type { Corpus, Proposal } from '@/shared/read/model';
 
 import { readQueue, type Change, type Subject } from './queue';

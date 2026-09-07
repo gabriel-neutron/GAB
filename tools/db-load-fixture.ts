@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Client } from 'pg';
 
-import { corpus } from '../src/shared/fixtures/corpus.ts';
+import { corpus } from '../src/shared/committed-fixture/corpus.ts';
 import type {
   Attributes,
   DocId,

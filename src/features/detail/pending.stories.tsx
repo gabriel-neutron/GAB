@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ReactNode } from 'react';
 import { expect, fn } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { vocabulary } from '@/shared/fixtures/vocabulary';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { Band } from './band';
 import { recordCells } from './draft';

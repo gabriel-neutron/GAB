@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { vocabulary } from '@/shared/fixtures/vocabulary';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 import type { DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';

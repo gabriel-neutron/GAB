@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RefObject } from 'react';
 import { expect, userEvent } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { entityTypes } from '@/shared/fixtures/entity-types';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import type { MapHandle } from './adapter';
 import type { Ground } from './workspace';

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, within } from 'storybook/test';
 
 import { relationLines } from '@/shared/canvas-label';
-import { corpus } from '@/shared/fixtures/corpus';
+import { corpus } from '@/shared/committed-fixture/corpus';
 
 import { readRelation, type RelationDossier } from './dossier';
 import { RelationSidebar } from './sidebar';

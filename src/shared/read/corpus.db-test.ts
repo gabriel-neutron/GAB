@@ -3,7 +3,7 @@
 
 import { expect, test } from 'vitest';
 
-import { corpus as fixture } from '../fixtures/corpus';
+import { corpus as fixture } from '../committed-fixture/corpus';
 import { loadCorpus } from './corpus';
 import type { Corpus, Point } from './model';
 

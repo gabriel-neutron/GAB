@@ -50,7 +50,7 @@
     "tools/**/*.ts",
     // A command loads the committed fixture, so this target reads it as well as the browser one.
     // The fixture is typed by the shapes of the record, so this target reads those too.
-    "src/shared/fixtures/*.ts",
+    "src/shared/committed-fixture/*.ts",
     "src/shared/read/model.ts",
     // The closed sets of the base tables. A test under `tools/` compares them with the CHECKs.
     "src/shared/read/closed-set.ts"

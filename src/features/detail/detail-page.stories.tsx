@@ -10,8 +10,8 @@ import {
   within,
 } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { vocabulary } from '@/shared/fixtures/vocabulary';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { DetailPage } from './detail-page';
 import { readDossier, type Dossier, type SourceCardModel } from './dossier';

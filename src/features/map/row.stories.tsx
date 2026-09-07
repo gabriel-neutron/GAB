@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
-import { corpus } from '@/shared/fixtures/corpus';
-import { entityTypes } from '@/shared/fixtures/entity-types';
+import { corpus } from '@/shared/committed-fixture/corpus';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { project, type GeoEntity, type TypeFacet } from './projection';
 import { IndexRows } from './row';

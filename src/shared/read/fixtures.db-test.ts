@@ -4,8 +4,8 @@
 
 import { expect, test } from 'vitest';
 
-import { entityTypes } from '../fixtures/entity-types';
-import { vocabulary } from '../fixtures/vocabulary';
+import { entityTypes } from '../committed-fixture/entity-types';
+import { vocabulary } from '../committed-fixture/vocabulary';
 import type { AttributeDeclaration, EntityTypeDeclaration } from './model';
 import { loadEntityTypes, loadVocabulary } from './vocabulary';
 
