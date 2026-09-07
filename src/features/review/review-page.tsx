@@ -2,6 +2,7 @@ import { Columns2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { SaidLine } from '@/shared/said-line';
 
 import { ChangeCard } from './change-card';
 import { ContestedGlyph } from './contested-mark';
@@ -67,8 +68,6 @@ const PANE = 'flex min-h-0 flex-col gap-2 border-l border-border pl-2';
 // send. So this one is named, and a reader knows which of the two spoke.
 const RECORD_SAYS = 'The record';
 
-const SAID = 'text-small/4';
-
 const TOGGLE = cn(
   'inline-flex h-6 shrink-0 items-center gap-1 border border-input px-2 text-xs',
   'transition-colors duration-100 outline-none focus-visible:border-ring',
@@ -91,17 +90,7 @@ export function ReviewPage({ queue, examination, decision, onAct }: ReviewPagePr
   const open = together && beside.length > 0;
   const said = decisionSaid(decision, current?.id ?? null);
 
-  // The result of an act must reach a screen reader without a second look at the page. An act
-  // whose result is not known interrupts: the analyst acts on it before anything else.
-  const saidLine = (
-    <p
-      role={said.urgent ? 'alert' : 'status'}
-      aria-label={RECORD_SAYS}
-      className={cn(SAID, said.urgent ? 'text-destructive' : 'text-label')}
-    >
-      {said.sentence}
-    </p>
-  );
+  const saidLine = <SaidLine said={said} label={RECORD_SAYS} />;
 
   // An empty queue is said once, in the pane that states the count. Two more panes that each
   // said it were the same sentence three times, over two empty columns.

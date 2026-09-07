@@ -3,7 +3,7 @@ import { writeRequest, type WriteRequest, type WRITE_OPS } from '@gab/proposal/r
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
-import { DECIDED_BY } from './decided-by.ts';
+import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
 import { refusalFrom } from './refusal.ts';
 import type { VocabularyReader } from './vocabulary.ts';
 
@@ -82,10 +82,7 @@ const propose = async (client: PoolClient, act: ProposalAct): Promise<string> =>
 };
 
 const promote = async (client: PoolClient, proposalId: string): Promise<string> => {
-  const found = await rows(client, 'SELECT public.promote_proposal($1::uuid, $2::text) AS id', [
-    proposalId,
-    DECIDED_BY,
-  ]);
+  const found = await rows(client, PROMOTE_PROPOSAL, [proposalId, DECIDED_BY]);
   return identifier.parse(found[0]?.['id']);
 };
 

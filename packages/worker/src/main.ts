@@ -5,7 +5,8 @@ const NO_WORK = [
   'The worker claims nothing today.',
   'The work behind the ingestion door is not built, and a claim is never released:',
   'one run would take one job out of the queue for ever.',
-  'The claim loop stands beside this file, and it starts on the day that work exists.',
+  'A loop that cannot release a claim and cannot mark a job failed is not the loop this queue needs,',
+  'so it is written by the commit that opens the release door.',
 ].join(' ');
 
 console.error(NO_WORK);

@@ -1,4 +1,4 @@
-import { readWorkspace, writeWorkspace } from '@/shared/storage';
+import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
 const FEATURE = 'map';
 
@@ -51,15 +51,10 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   ground: true,
 };
 
-// The guard is strict: a record that carries an undeclared key falls back, which costs one camera
-// position, once. A tolerant guard lets a dead key outlive the code that read it, because the
-// patch below spreads the record and writes the dead key back for ever.
+// The cost of the strict guard here is one camera position, one time.
 const isWorkspace = (value: unknown): value is MapWorkspace => {
-  if (typeof value !== 'object' || value === null) return false;
-  const w = value as Record<string, unknown>;
-  for (const key of Object.keys(w)) {
-    if (!Object.hasOwn(DECLARED_KEYS, key)) return false;
-  }
+  if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
+  const w = value;
   const hidden = w['hiddenTypes'];
   return (
     (w['camera'] === null || isCamera(w['camera'])) &&

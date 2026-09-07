@@ -1,8 +1,9 @@
-/** The sample this surface needs: two acts that contest one key, a deletion, an act that states
- * no confidence, and an act that cites a document the record does not hold. Every row is
- * invented. No claim here is about a real vessel, company or person. */
+/** The acts this surface needs: two that contest one key, a deletion, one that states no
+ * confidence, and one that cites a document the record does not hold. Every row they name is a
+ * row of the shared corpus, because a second copy is a second description of one record. */
 
-import type { Corpus, DocumentRow, Entity, Proposal, Relation } from '@/shared/read/model';
+import { corpus } from '@/shared/fixtures/corpus';
+import type { Corpus, Proposal } from '@/shared/read/model';
 
 import { readQueue, type Change, type Subject } from './queue';
 
@@ -11,7 +12,7 @@ const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 const ABSORBED = '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04';
 
-/** The three subjects a story names. They are one job with the rows below: the sample. */
+/** The two subjects a story names. Each one is the target of an act below. */
 export const SAMPLE = {
   /** Four acts, and two of them read one key. */
   contestedRow: TERMINAL,
@@ -19,126 +20,8 @@ export const SAMPLE = {
   destroyedRow: VESSEL,
 } as const;
 
-const documents: readonly DocumentRow[] = [
-  {
-    id: 'manual',
-    kind: 'manual',
-    title: 'Direct entry by the analyst',
-    uri: null,
-    archiveUri: null,
-    sha256: null,
-    retrievedAt: null,
-    admiralty: null,
-    admiraltyOrigin: null,
-  },
-  {
-    id: 'doc_8f2a41',
-    kind: 'report',
-    title: 'Port of Rotterdam — bulk cargo throughput, Q2 2026',
-    uri: 'https://example.invalid/rotterdam/q2-2026.pdf',
-    archiveUri: 'https://web.archive.example.invalid/2026/rotterdam-q2.pdf',
-    sha256: '9f2b7c1d4e8a3506b1c9d7e2f4a86035c1d9e7b2f4a8603591c7d2e4f8a60351',
-    retrievedAt: '2026-07-14',
-    admiralty: 'B2',
-    admiraltyOrigin: 'machine',
-  },
-  {
-    id: 'doc_3c1104',
-    kind: 'url',
-    title: 'Corporate registry extract — Meridian Bulk Carriers Ltd',
-    uri: 'https://example.invalid/registry/meridian-bulk',
-    archiveUri: 'https://web.archive.example.invalid/2026/registry-meridian',
-    sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
-    retrievedAt: '2026-06-02',
-    admiralty: 'A1',
-    admiraltyOrigin: 'human',
-  },
-  {
-    id: 'doc_9b0417',
-    kind: 'file',
-    title: 'Vessel movement log, scanned',
-    uri: null,
-    archiveUri: null,
-    sha256: 'c7d2e4f8a60351a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071829',
-    retrievedAt: '2026-05-21',
-    admiralty: 'D4',
-    admiraltyOrigin: 'arbitrated',
-  },
-  {
-    // An unrated document. Invariant 6 pairs the rating with its origin, so both are absent.
-    id: 'doc_5e7730',
-    kind: 'url',
-    title: 'Trade press article, unverified',
-    uri: 'https://example.invalid/press/bulk-market-note',
-    archiveUri: 'https://web.archive.example.invalid/2026/bulk-market-note',
-    sha256: '0718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6',
-    retrievedAt: '2026-07-30',
-    admiralty: null,
-    admiraltyOrigin: null,
-  },
-];
-
-const entities: readonly Entity[] = [
-  {
-    id: TERMINAL,
-    type: 'facility',
-    proposedType: null,
-    label: 'Maasvlakte bulk terminal, berth 7',
-    attrs: {
-      coal_stock_t: { v: 240000, src: ['doc_8f2a41'] },
-      operator_confirmed: { v: true, src: ['doc_8f2a41'] },
-    },
-    sources: ['doc_8f2a41'],
-    geom: { lon: 4.0361, lat: 51.9553 },
-    promotedFrom: 'b2c1d4e5-0003-4a11-9c33-77e1f2a3b4c5',
-  },
-  {
-    id: VESSEL,
-    type: 'vessel',
-    proposedType: null,
-    label: 'MV Northern Ledger',
-    attrs: {
-      imo: { v: '9482137', src: ['doc_9b0417'] },
-      // A flat list value. M7 permits a list of scalars and nothing nested.
-      known_flags: { v: ['PA', 'MN'], src: ['doc_9b0417', 'doc_8f2a41'] },
-      // Hand entered by the analyst. M8 makes `manual` a real document.
-      hull_note: { v: 'Repainted funnel, photographed 2026-05', src: ['manual'] },
-    },
-    sources: ['doc_9b0417', 'manual'],
-    geom: { lon: 4.4777, lat: 51.9244 },
-    promotedFrom: 'b2c1d4e5-0002-4a11-9c33-77e1f2a3b4c5',
-  },
-  {
-    id: COMPANY,
-    type: 'company',
-    proposedType: null,
-    label: 'Meridian Bulk Carriers Ltd',
-    attrs: {
-      registration_number: { v: 'HE 418822', src: ['doc_3c1104'] },
-      incorporated_on: { v: '2011-03-09', src: ['doc_3c1104'] },
-      beneficial_owner_count: { v: 3, src: ['doc_3c1104', 'doc_5e7730'] },
-    },
-    sources: ['doc_3c1104'],
-    geom: null,
-    promotedFrom: 'b2c1d4e5-0001-4a11-9c33-77e1f2a3b4c5',
-  },
-  {
-    id: ABSORBED,
-    type: 'company',
-    proposedType: null,
-    label: 'Northern Ledger Shipping SA',
-    attrs: {
-      registration_number: { v: 'PA 1552-9014', src: ['doc_5e7730'] },
-    },
-    sources: ['doc_5e7730'],
-    geom: null,
-    promotedFrom: 'b2c1d4e5-0005-4a11-9c33-77e1f2a3b4c5',
-  },
-];
-
-/** No act of this sample names a link, so a link would reach no screen the stories read. */
-const relations: readonly Relation[] = [];
-
+// NO ACT BELOW NAMES A LINK, so the queue draws no link subject, and the relations of the corpus
+// reach no screen a story reads. An act on a relation belongs here on the day one is drawn.
 const proposals: readonly Proposal[] = [
   {
     // Dissent. S3 sends it to review whatever the confidence is.
@@ -261,7 +144,7 @@ const proposals: readonly Proposal[] = [
   },
 ];
 
-export const reviewSample: Corpus = { documents, entities, relations, proposals };
+export const reviewSample: Corpus = { ...corpus, proposals };
 
 /** A story reads the derivation the route reads, so it never draws a shape it cannot produce. */
 export function sampleSubject(id: string): Subject {

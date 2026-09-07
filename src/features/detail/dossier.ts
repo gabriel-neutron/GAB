@@ -5,12 +5,13 @@ import type {
   Corpus,
   DocId,
   Vocabulary,
-  DocumentRow,
   Entity,
   EndpointKind,
   Proposal,
   Relation,
 } from '@/shared/read/model';
+
+import { readRating } from '@/shared/read/rating';
 
 import { readClaims, type ClaimRow } from './claims';
 
@@ -75,7 +76,6 @@ export interface PendingLine {
   /** Already formatted, and a sentence where the act states none. A `.tsx` here calls no
    * `toFixed`. */
   readonly confidence: string;
-  readonly undecided: boolean;
   readonly sources: readonly SourceRef[];
 }
 
@@ -112,9 +112,6 @@ export interface Dossier {
   readonly linkChoices: LinkChoices;
 }
 
-/** No dissent at or above this confidence is the row that neither S3 nor P1 decides. */
-const HIGH_CONFIDENCE = 0.9;
-
 /** A long address does not fit a two-line card, so the card carries a short form too. */
 const URI_LENGTH = 44;
 
@@ -134,28 +131,6 @@ function shorten(uri: string | null): string | null {
   if (uri === null) return null;
   const bare = uri.replace(/^https?:\/\//, '');
   return bare.length <= URI_LENGTH ? bare : `${bare.slice(0, URI_LENGTH - 1)}…`;
-}
-
-/**
- * Invariant 6: the rating and its origin are absent together. An unrated document says
- * `not rated` in words, because an absence must never read as a low score. */
-function readRating(row: DocumentRow | undefined): {
-  rated: boolean;
-  score: string;
-  scoreOrigin: string;
-} {
-  if (row === undefined) return { rated: false, score: 'not rated', scoreOrigin: '' };
-  if (row.admiralty !== null && row.admiraltyOrigin !== null) {
-    return { rated: true, score: row.admiralty, scoreOrigin: row.admiraltyOrigin };
-  }
-  if (row.admiralty === null && row.admiraltyOrigin === null) {
-    return { rated: false, score: 'not rated', scoreOrigin: '' };
-  }
-  return {
-    rated: false,
-    score: 'rating incomplete',
-    scoreOrigin: 'invariant 6: a rating and its origin are absent together',
-  };
 }
 
 interface Index {
@@ -293,10 +268,10 @@ export function readDossier(
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
-      // An act may state no confidence. That is an absence and never a high score, so it is
-      // not the undecided row.
+      // THIS LINE STATES NO VERDICT ON WHY THE ACT WAITS. The threshold that sends an act to
+      // review is calibrated on real data, and no path carries one to the browser, so a figure
+      // written here would settle an open question in code.
       const stated = proposal.confidence;
-      const undecided = !proposal.dissent && stated !== null && stated >= HIGH_CONFIDENCE;
       const head = OP_WORDS[proposal.op];
       const keys =
         proposal.payload.kind === 'attrs'
@@ -305,12 +280,9 @@ export function readDossier(
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
         id: proposal.id,
-        summary: undecided
-          ? `${body}. No dissent, and the confidence is high: what happens to this proposal is not yet decided.`
-          : body,
+        summary: body,
         dissent: proposal.dissent,
         confidence: stated === null ? 'no confidence is stated' : stated.toFixed(2),
-        undecided,
         sources: refsOf(proposal.src),
       };
     });

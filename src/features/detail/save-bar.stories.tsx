@@ -3,7 +3,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import type { PendingEdit } from './draft';
 import { SaveBar } from './save-bar';
-import { saveWords } from './save';
+import { saveSaid } from './save';
 
 const onSave = fn();
 
@@ -15,7 +15,7 @@ const NOTHING: PendingEdit = { ready: false, reason: 'Nothing is changed.' };
 
 const meta = {
   component: SaveBar,
-  args: { sentence: saveWords({ step: 'idle' }, CHANGED), canSave: true, onSave },
+  args: { said: saveSaid({ step: 'idle' }, CHANGED), canSave: true, onSave },
 } satisfies Meta<typeof SaveBar>;
 
 export default meta;
@@ -23,7 +23,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const NothingChangedTakesNoSave: Story = {
-  args: { sentence: saveWords({ step: 'idle' }, NOTHING), canSave: false },
+  args: { said: saveSaid({ step: 'idle' }, NOTHING), canSave: false },
   play: async ({ canvas }) => {
     const button = canvas.getByRole('button', { name: 'Save' });
     await expect(button).toBeDisabled();
@@ -45,7 +45,7 @@ export const OneChangeIsSavedOnce: Story = {
 // One act on the screen, two things in the record: the proposal, and the value it promoted.
 export const ASignedActNamesItsProposal: Story = {
   args: {
-    sentence: saveWords({ step: 'signed', proposalId: PROPOSAL }, NOTHING),
+    said: saveSaid({ step: 'signed', proposalId: PROPOSAL }, NOTHING),
     canSave: false,
   },
   play: async ({ canvas }) => {
@@ -59,14 +59,16 @@ export const ASignedActNamesItsProposal: Story = {
 // names it, because that name is the only way back to it.
 export const AnUndecidedActSaysItWasNotSigned: Story = {
   args: {
-    sentence: saveWords(
+    said: saveSaid(
       { step: 'undecided', proposalId: PROPOSAL, refusal: 'the target no longer exists' },
       NOTHING,
     ),
     canSave: false,
   },
   play: async ({ canvas }) => {
-    const said = canvas.getByRole('status');
+    // The act may stand in the record under a name the analyst has not seen. A sentence that
+    // waits its turn is a sentence a reader of the screen never hears.
+    const said = canvas.getByRole('alert');
     await expect(said).toHaveTextContent('it was not signed');
     await expect(said).toHaveTextContent(PROPOSAL);
   },
@@ -74,10 +76,7 @@ export const AnUndecidedActSaysItWasNotSigned: Story = {
 
 export const ARefusalWritesNothing: Story = {
   args: {
-    sentence: saveWords(
-      { step: 'refused', refusal: 'the value of imo is not identifier' },
-      NOTHING,
-    ),
+    said: saveSaid({ step: 'refused', refusal: 'the value of imo is not identifier' }, NOTHING),
     canSave: false,
   },
   play: async ({ canvas }) => {
@@ -89,7 +88,7 @@ export const ARefusalWritesNothing: Story = {
 // states neither end and it asks for a second reading of the record.
 export const AnUnknownResultTellsTheOperatorToReadAgain: Story = {
   args: {
-    sentence: saveWords(
+    said: saveSaid(
       {
         step: 'unknown',
         doubt: 'The write service did not answer, and the act may have reached it.',
@@ -99,7 +98,7 @@ export const AnUnknownResultTellsTheOperatorToReadAgain: Story = {
     canSave: false,
   },
   play: async ({ canvas }) => {
-    const said = canvas.getByRole('status');
+    const said = canvas.getByRole('alert');
     await expect(said).toHaveTextContent(
       'It is not known whether the change was written. Read the record again before you act.',
     );
@@ -112,7 +111,7 @@ export const AnUnknownResultTellsTheOperatorToReadAgain: Story = {
 };
 
 export const AnActOnTheWayTakesNoSecondSave: Story = {
-  args: { sentence: saveWords({ step: 'saving' }, CHANGED), canSave: false },
+  args: { said: saveSaid({ step: 'saving' }, CHANGED), canSave: false },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeDisabled();
     await expect(canvas.getByRole('status')).toHaveTextContent(

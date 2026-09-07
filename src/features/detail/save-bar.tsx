@@ -1,8 +1,11 @@
+import { SaidLine } from '@/shared/said-line';
+import type { Said } from '@/shared/said';
 import { Button } from '@/shared/ui/button';
 
 export interface SaveBarProps {
-  /** The one sentence of the act. It is derived before it arrives, and this file composes none. */
-  readonly sentence: string;
+  /** What the act said, and whether it interrupts. Both are derived before they arrive, and
+   * this file composes neither. */
+  readonly said: Said;
   readonly canSave: boolean;
   readonly onSave: () => void;
 }
@@ -10,16 +13,13 @@ export interface SaveBarProps {
 // Two live regions stand on the detail page, and a reader needs to know which one spoke.
 const SAYS = 'The saving of the claims';
 
-export function SaveBar({ sentence, canSave, onSave }: SaveBarProps) {
+export function SaveBar({ said, canSave, onSave }: SaveBarProps) {
   return (
     <div className="flex items-center gap-2">
       <Button type="button" variant="outline" size="sm" disabled={!canSave} onClick={onSave}>
         Save
       </Button>
-      {/* The result of an act must reach a screen reader without a second look at the page. */}
-      <p role="status" aria-label={SAYS} className="min-w-0 text-small/4 text-label">
-        {sentence}
-      </p>
+      <SaidLine said={said} label={SAYS} />
     </div>
   );
 }

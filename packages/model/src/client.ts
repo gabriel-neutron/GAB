@@ -7,7 +7,8 @@ import { failureOf, REASON, sentenceOf, type Failure, type ReasonKind } from './
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Both counts are decided and neither is calibrated. The transport gets one attempt and three
-// retries. A refusal of the boundary gets one retry, and that retry carries the fault back.
+// retries, and a refusal of the boundary gets one retry that carries the fault back. They bound
+// one question to the model, and what a job does when this chain ends is not decided.
 const NETWORK_RETRIES = 3;
 const VALIDATION_RETRIES = 1;
 

@@ -9,12 +9,13 @@
 -- and no rule says which file takes which path. A kind written here would settle that in a
 -- default value, and the worker that routes is the one that earns the column.
 --
--- THE ROW HOLDS THE HISTORY OF A RETRY AND IT RUNS NONE. #25 proposes three retries on a
--- network failure, one retry on a rejected proposal with the validation error fed back, then
--- `failed` with the reason stored. THAT RULE IS NOT DECIDED, so no number is written here and
--- nothing counts down: the columns below can carry that history on the day the operator settles
--- it. The per-job token cap of the same ticket is proposed and not decided either, and it is
--- absent for the same reason.
+-- THE ROW HOLDS THE HISTORY OF A RETRY AND IT RUNS NONE. Two counts of #25 are decided, and they
+-- bound ONE CALL to the model: three retries after a network failure, and one retry of an answer
+-- the boundary refuses, with the fault fed back. The client of the model service holds both.
+-- WHAT A JOB DOES WHEN THAT CHAIN ENDS IS NOT DECIDED, so no number is written here, nothing
+-- counts down, and no path writes `failed`: the columns below can carry that history on the day
+-- the operator settles it. The per-job token cap of the same ticket is proposed and not decided
+-- either, and it is absent for the same reason.
 --
 -- THE ROW HOLDS THE COUNTS AND THE LAST FAILURE, AND NEVER THE WHOLE HISTORY. One reason column
 -- is overwritten by the next failure, and no column holds the hour of a try, so the growing wait

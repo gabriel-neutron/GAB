@@ -3,6 +3,7 @@
 
 import { readRows } from './http';
 import { toDomain } from './map';
+import { readOnce } from './once';
 import type { Corpus } from './model';
 
 // Only the pending acts are read. Every surface filters on that status, and the decided acts are
@@ -23,22 +24,14 @@ async function read(): Promise<Corpus> {
   };
 }
 
-let reading: Promise<Corpus> | null = null;
+const memory = readOnce(read);
 
-/** The read runs once, and a failure clears the memory: a rejected promise that stayed would
- * answer every later attempt with the first failure. */
-export function loadCorpus(): Promise<Corpus> {
-  reading ??= read().catch((reason: unknown) => {
-    reading = null;
-    throw reason;
-  });
-  return reading;
-}
+export const loadCorpus = memory.load;
 
 /** Forget the answer, then run the loaders again through `reload`. The order is the whole
  * function: a loader that ran first would take the answer that is held, and each surface would
  * draw the record of the read before it. */
 export async function refreshCorpus(reload: () => Promise<void>): Promise<void> {
-  reading = null;
+  memory.forget();
   await reload();
 }

@@ -3,6 +3,7 @@
 
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
+import { calm, interrupt, type Said } from '@/shared/said';
 import { writeAttributes } from '@/shared/write/attributes';
 
 import type { PendingEdit } from './draft';
@@ -31,21 +32,22 @@ const signedWords = (proposalId: string): string =>
 const undecidedWords = (proposalId: string, refusal: string): string =>
   `The change was written as the proposal ${proposalId}, and it was not signed. ${refusal}`;
 
-/** The one sentence the panel reads. It is derived here, and never composed in the view. */
-export function saveWords(state: SaveState, edit: PendingEdit): string {
+/** The one sentence the panel reads, and whether it interrupts. It is derived here, and never
+ * composed in the view. */
+export function saveSaid(state: SaveState, edit: PendingEdit): Said {
   switch (state.step) {
     case 'saving':
-      return SAVING;
+      return calm(SAVING);
     case 'signed':
-      return signedWords(state.proposalId);
+      return calm(signedWords(state.proposalId));
     case 'refused':
-      return `Nothing was written. ${state.refusal}`;
+      return calm(`Nothing was written. ${state.refusal}`);
     case 'undecided':
-      return undecidedWords(state.proposalId, state.refusal);
+      return interrupt(undecidedWords(state.proposalId, state.refusal));
     case 'unknown':
-      return `${UNSURE} ${state.doubt}`;
+      return interrupt(`${UNSURE} ${state.doubt}`);
     case 'idle':
-      return edit.ready ? ready(edit.count) : edit.reason;
+      return calm(edit.ready ? ready(edit.count) : edit.reason);
   }
 }
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { readWorkspace, writeWorkspace } from '@/shared/storage';
+import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
 /** The value read from `localStorage` is unknown, so a guard checks it before its first use. */
 
@@ -17,11 +17,15 @@ interface ShellWorkspace {
 export const isTheme = (value: unknown): value is Theme =>
   value === 'dark' || value === 'light' || value === 'system';
 
-// The guard reads `theme` and rejects nothing else, so a record that holds a later value beside
-// it passes and reaches the caller complete. Do not make this guard exact: `setTheme` copies the
-// record it reads, and an exact guard would drop every field it does not name.
+// The compiler holds this list closed: a key added to `ShellWorkspace` and forgotten here fails
+// the type check, so the guard below cannot fall behind the interface it guards.
+const DECLARED_KEYS: Readonly<Record<keyof ShellWorkspace, true>> = { theme: true };
+
+// The guard is strict, as every other workspace guard is: a record that carries a key the code
+// no longer declares falls back, and the cost here is one theme, one time. The record holds one
+// field, so the write below states it whole and carries nothing forward.
 const isShellWorkspace = (value: unknown): value is ShellWorkspace =>
-  typeof value === 'object' && value !== null && 'theme' in value && isTheme(value.theme);
+  holdsOnlyDeclaredKeys(value, DECLARED_KEYS) && isTheme(value['theme']);
 
 // The default is `undefined`, and not a stub state, so that a component used outside the
 // provider fails loudly instead of silently reading a theme nobody set.
@@ -65,8 +69,8 @@ export function ThemeProvider({
   const value: ThemeProviderState = {
     theme,
     setTheme: (next: Theme) => {
-      // The key holds the whole workspace of the shell. Read the record first, so that a value
-      // another part of the shell wrote beside `theme` stays after a change of theme.
+      // The record is read before it is written. It holds one field today, and a second writer
+      // of a second field must not lose it to a change of theme.
       const current = readWorkspace('shell', isShellWorkspace, { theme: next });
       writeWorkspace('shell', { ...current, theme: next });
       setTheme(next);

@@ -102,6 +102,24 @@ export const ASignedEntityNamesItsProposal: Story = {
   },
 };
 
+// The request left the browser and no answer came back. The entity may stand in the record, so
+// the sentence interrupts: a reader who hears it after the next act reads it about that act.
+export const AnUnknownResultInterrupts: Story = {
+  play: async () => {
+    spyOn(globalThis, 'fetch').mockRejectedValue(new Error('the connection dropped'));
+    await openIt();
+    await userEvent.type(panel().getByLabelText('Type'), 'warehouse');
+    await userEvent.type(panel().getByLabelText('Name'), 'Pier 9 shed');
+    await userEvent.click(panel().getByRole('button', { name: 'Create' }));
+
+    await waitFor(async () => {
+      const said = panel().getByRole('alert');
+      await expect(said).toHaveTextContent('It is not known whether the entity was made.');
+      await expect(said).not.toHaveTextContent('Nothing was written.');
+    });
+  },
+};
+
 export const ARefusalWritesNothing: Story = {
   play: async () => {
     doorAnswering({ refusal: 'type: the value is blank' });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type { DocId } from '@/shared/read/model';
-import { cn } from '@/shared/lib/utils';
+import { SaidLine } from '@/shared/said-line';
 
 import { Band } from './band';
 import { surfaceHref } from './address';
@@ -17,7 +17,7 @@ import { Rail } from './rail';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
 import { SaveBar } from './save-bar';
-import { saveClaims, saveWords, type SaveState } from './save';
+import { saveClaims, saveSaid, type SaveState } from './save';
 import {
   changeStructure,
   structureSaid,
@@ -45,8 +45,6 @@ const ON_A_SURFACE = 'shrink-0 text-small/4 text-primary underline underline-off
 
 // Two live regions stand on this page, and a reader needs to know which one spoke.
 const STRUCTURE_SAYS = 'The shape of the record';
-
-const SAID = 'text-small/4';
 
 export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: DetailPageProps) {
   // The active source is never written back to the address. Two writers of one identity fight.
@@ -152,17 +150,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           </div>
         </div>
 
-        {/* The result of an act must reach a screen reader without a second look at the page.
-            An act whose result is not known interrupts: the analyst acts on it before anything. */}
-        <p
-          role={said.urgent ? 'alert' : 'status'}
-          aria-label={STRUCTURE_SAYS}
-          className={cn(SAID, said.urgent ? 'text-destructive' : 'text-label')}
-        >
-          {said.sentence}
-        </p>
+        <SaidLine said={said} label={STRUCTURE_SAYS} />
 
-        <SaveBar sentence={saveWords(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
+        <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
 
         <Band name="Record" count={dossier.claimCount}>
           <EntityRecord mode="writing" cells={cells} mark={mark} onEdit={onEdit} />

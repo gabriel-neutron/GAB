@@ -94,6 +94,9 @@ const shapeSaidIn = (root: HTMLElement): HTMLElement =>
 const shapeAlarmIn = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('alert', { name: 'The shape of the record' });
 
+const saveAlarmIn = (root: HTMLElement): HTMLElement =>
+  within(root).getByRole('alert', { name: 'The saving of the claims' });
+
 const onDeleted = fn(() => Promise.resolve());
 
 const firstRelation = (): string => {
@@ -288,9 +291,9 @@ export const AnUndecidedActNamesItsProposal: Story = {
     door.open();
 
     await waitFor(async () => {
-      await expect(saidIn(canvasElement)).toHaveTextContent('it was not signed');
+      await expect(saveAlarmIn(canvasElement)).toHaveTextContent('it was not signed');
     });
-    await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    await expect(saveAlarmIn(canvasElement)).toHaveTextContent(PROPOSAL);
   },
 };
 

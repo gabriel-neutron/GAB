@@ -1,6 +1,7 @@
 /** The queue, in domain words. It groups what waits by what is changed, and it decides nothing:
  * where the record cannot answer, it returns the hole as a sentence and the view prints it. */
 
+import { readRating } from '@/shared/read/rating';
 import type {
   AttributeValue,
   Attributes,
@@ -195,42 +196,6 @@ function words(value: AttributeValue): string {
   return String(value);
 }
 
-/** A value the record states, or `null`. A string of spaces states nothing a reader can read. */
-const statedText = (value: string | null): string | null =>
-  value === null || value.trim() === '' ? null : value;
-
-/** The letter is the reliability of the source and the figure the credibility of the report.
- * The last two bands of each are the poor ones, and they carry the hue. */
-function poorBand(admiralty: string): boolean {
-  const [letter, digit] = [admiralty.slice(0, 1).toUpperCase(), Number(admiralty.slice(1, 2))];
-  return ['D', 'E', 'F'].includes(letter) || (Number.isFinite(digit) && digit >= 4);
-}
-
-/** The rating and its origin are absent together. An unrated document says so in words, because
- * an absence that reads as a low score turns a hole into a judgement. */
-function rating(row: DocumentRow | undefined): {
-  rated: boolean;
-  score: string;
-  scoreOrigin: string;
-  poor: boolean;
-} {
-  const absent = { rated: false, score: 'not rated', scoreOrigin: '', poor: false };
-  if (row === undefined) return absent;
-  // A blank string is an absent rating and never a rating: a badge drawn from one carries no word.
-  const held = statedText(row.admiralty);
-  const origin = statedText(row.admiraltyOrigin);
-  if (held !== null && origin !== null) {
-    return { rated: true, score: held, scoreOrigin: origin, poor: poorBand(held) };
-  }
-  if (held === null && origin === null) return absent;
-  return {
-    rated: false,
-    score: 'rating incomplete',
-    scoreOrigin: 'a rating and its origin are absent together',
-    poor: false,
-  };
-}
-
 interface Index {
   readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly entityById: ReadonlyMap<string, Entity>;
@@ -245,7 +210,7 @@ const entityWords = (index: Index, id: string | null): string =>
 function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocument[] {
   return ids.map((id) => {
     const row = index.documentById.get(id);
-    const held = rating(row);
+    const held = readRating(row);
     const title = row?.title ?? `Cited document ${id}, absent from the record`;
     const origin = held.scoreOrigin === '' ? '' : `, rated by the ${held.scoreOrigin}`;
     return {

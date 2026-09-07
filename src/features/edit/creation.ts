@@ -1,6 +1,7 @@
 /** One act on the screen, two things in the record: a proposal, and the entity it promoted. This
  * file holds the states that act passes through and the sentence each one reads. */
 
+import { calm, interrupt, type Said } from '@/shared/said';
 import { writeElement, type ElementAct } from '@/shared/write/elements';
 
 import type { EntityDraft } from './entity-draft';
@@ -27,21 +28,24 @@ const UNSURE = 'It is not known whether the entity was made. Read the record aga
 const signedWords = (proposalId: string): string =>
   `The entity is signed manual. It is in the record as one proposal, ${proposalId}.`;
 
-/** The one sentence the dialog reads. It is derived here, and never composed in the view. */
-export function creationWords(state: CreateState, draft: EntityDraft): string {
+/** The one sentence the dialog reads, and whether it interrupts. It is derived here, and never
+ * composed in the view. */
+export function creationSaid(state: CreateState, draft: EntityDraft): Said {
   switch (state.step) {
     case 'working':
-      return WORKING;
+      return calm(WORKING);
     case 'signed':
-      return signedWords(state.proposalId);
+      return calm(signedWords(state.proposalId));
     case 'refused':
-      return `Nothing was written. ${state.refusal}.`;
+      return calm(`Nothing was written. ${state.refusal}.`);
     case 'undecided':
-      return `The entity is not made, and an unsigned proposal to make it is in the record. The proposal is ${state.proposalId}. ${state.refusal}.`;
+      return interrupt(
+        `The entity is not made, and an unsigned proposal to make it is in the record. The proposal is ${state.proposalId}. ${state.refusal}.`,
+      );
     case 'unknown':
-      return `${UNSURE} ${state.doubt}`;
+      return interrupt(`${UNSURE} ${state.doubt}`);
     case 'idle':
-      return draft.ready ? READY : draft.reason;
+      return calm(draft.ready ? READY : draft.reason);
   }
 }
 

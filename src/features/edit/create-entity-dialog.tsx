@@ -1,10 +1,11 @@
 import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 
+import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 
-import { createEntity, creationWords, type CreateState } from './creation';
+import { createEntity, creationSaid, type CreateState } from './creation';
 import { readEntityDraft, type EntityForm } from './entity-draft';
 
 export interface CreateEntityDialogProps {
@@ -25,6 +26,9 @@ const PANEL =
 const BOX = 'h-6 rounded-none px-1.5 py-0 text-xs md:text-xs';
 const CAPTION = 'block text-small/4 tracking-caps text-label uppercase';
 const SENTENCE = 'block min-w-0 text-small/4 text-label';
+
+// The dialog holds one live region, and it never had a name of its own.
+const SAYS = 'The making of the entity';
 
 export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDialogProps) {
   const [open, setOpen] = useState(false);
@@ -103,10 +107,7 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
             />
           </div>
 
-          {/* The result of an act must reach a screen reader without a second look at the page. */}
-          <p role="status" className={SENTENCE}>
-            {creationWords(state, draft)}
-          </p>
+          <SaidLine said={creationSaid(state, draft)} label={SAYS} />
 
           <div className="flex items-center gap-2">
             {made === null ? (

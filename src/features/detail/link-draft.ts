@@ -1,7 +1,7 @@
 /** The boxes of a new relation, read into one act or into one sentence. The database is the
  * second tier and refuses what this misses; this tier gives a sentence before a round trip. */
 
-import { DATED_RELATIONS } from '@gab/proposal/request';
+import { DATED_RELATIONS, DAY } from '@gab/proposal/request';
 
 import type { ElementAct } from '@/shared/write/elements';
 
@@ -17,10 +17,6 @@ export interface LinkForm {
 export type LinkDraft =
   | { readonly ready: true; readonly act: Extract<ElementAct, { op: 'create_relation' }> }
   | { readonly ready: false; readonly reason: string };
-
-// A day control gives these ten characters, and a browser that draws no day control gives
-// plain text. The database holds a date and reads nothing else.
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const NO_TYPE = 'Write the type of the relation.';
 const NO_TARGET = 'Choose the entity at the other end.';

@@ -4,6 +4,7 @@
 
 import type { DecisionOp } from '@gab/proposal/request';
 
+import { calm, interrupt, type Said } from '@/shared/said';
 import { sendDecision } from '@/shared/write/door';
 
 import type { Verdict } from './queue';
@@ -30,11 +31,9 @@ export type DecisionState =
       readonly doubt: string;
     };
 
-/** What the surface reads: the one sentence, whether the analyst must act on it now, and
- * whether a second verdict must wait. One state answers the three, so they travel as one. */
-export interface DecisionSaid {
-  readonly sentence: string;
-  readonly urgent: boolean;
+/** What the surface reads: the sentence and its urgency, and whether a second verdict must
+ * wait. One state answers the three, so they travel as one. */
+export interface DecisionSaid extends Said {
   readonly busy: boolean;
 }
 
@@ -79,24 +78,22 @@ const about = (elsewhere: boolean, sentence: string): string =>
 /** The one sentence the surface reads. It is derived here, and never composed in the view. The
  * act under the controls is read, because a verdict of one act never reads as the next one. */
 export function decisionSaid(state: DecisionState, currentId: string | null): DecisionSaid {
-  if (state.step === 'idle') return { sentence: '', urgent: false, busy: false };
+  if (state.step === 'idle') return { ...calm(''), busy: false };
 
   const elsewhere = currentId !== null && state.changeId !== currentId;
   switch (state.step) {
     case 'deciding':
-      return { sentence: about(elsewhere, GOING[state.verdict]), urgent: false, busy: true };
+      return { ...calm(about(elsewhere, GOING[state.verdict])), busy: true };
     case 'decided':
-      return { sentence: about(elsewhere, DONE[state.verdict]), urgent: false, busy: false };
+      return { ...calm(about(elsewhere, DONE[state.verdict])), busy: false };
     case 'refused':
       return {
-        sentence: about(elsewhere, `Nothing was written. ${state.refusal}. ${READ_AGAIN}`),
-        urgent: true,
+        ...interrupt(about(elsewhere, `Nothing was written. ${state.refusal}. ${READ_AGAIN}`)),
         busy: false,
       };
     case 'unknown':
       return {
-        sentence: about(elsewhere, `${UNSURE[state.verdict]} ${state.doubt} ${READ_AGAIN}`),
-        urgent: true,
+        ...interrupt(about(elsewhere, `${UNSURE[state.verdict]} ${state.doubt} ${READ_AGAIN}`)),
         busy: false,
       };
   }

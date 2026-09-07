@@ -26,7 +26,12 @@ export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
 export const DATED_RELATIONS = ['owns', 'operates', 'flags', 'insures', 'appoints'] as const;
 
 const endpointKind = z.enum(['entity', 'relation']);
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// A day control gives these ten characters, and a browser that draws no day control gives plain
+// text. The database holds a date and reads nothing else, so the browser reads the same shape
+// before it spends a round trip on one that cannot land.
+export const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const day = z.string().regex(DAY);
 const position = z.array(z.number()).min(2).max(3);
 
 const geometry = z.discriminatedUnion('type', [

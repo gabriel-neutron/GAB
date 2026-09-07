@@ -34,3 +34,14 @@ export function writeWorkspace(feature: string, value: unknown): void {
     // never the source of truth, so a failed write is not an error the operator can act on.
   }
 }
+
+/** Every key of the stored record is a key the code still declares. A record that carries any
+ * other key falls back, because a guard that admits one lets the patch below write that dead key
+ * back for ever, long after the code that read it was deleted. */
+export function holdsOnlyDeclaredKeys(
+  value: unknown,
+  declared: Readonly<Record<string, true>>,
+): value is Readonly<Record<string, unknown>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  return Object.keys(value).every((key) => Object.hasOwn(declared, key));
+}

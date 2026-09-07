@@ -54,6 +54,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
 | T7 | Frontend framework choice — **replaced by ADR 0004** | Technical |
 | T8 | Cartographic library — **replaced by ADR 0005** | Technical |
+| T9 | One call to the model is retried; what a job does after that is not decided | Technical |
 
 ---
 
@@ -321,3 +322,9 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Replaced by ADR 0005**, which chooses the library and the tile path.
 **Decision.** Postponed, without debt: PostGIS prejudges no rendering path.
 **Caution.** The choice must be made **before** any rendering code is written. Leaflet (raster first, no rotation, no native vector tiles) and MapLibre (vector, GPU) do not share the same layer model, and code for one does not carry over to the other.
+
+### T9 — The retry of one call to the model
+
+**Decision.** One question to the model gets one attempt and three retries after a network failure, and one retry of an answer the boundary refuses, with the fault fed back. The client of the model service holds both counts. What a **job** does when that chain ends is not decided, and no number for it is written anywhere.
+**Why.** The two counts bound one call, and they are known without measurement: a transport that fails four times is down, and a model that breaks its schema twice will break it again. The job-level rule is a different question — how many times a document is taken up again, how long the wait grows, and when a job is marked failed — and it needs real traffic to answer.
+**Consequence.** The two counts stay in the code and are not caller configuration, so a caller cannot weaken them. The job table carries columns for a retry history that nothing writes yet, and the migration says so.

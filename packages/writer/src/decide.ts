@@ -2,7 +2,7 @@ import { decisionRequest, type DecisionOp } from '@gab/proposal/request';
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
-import { DECIDED_BY } from './decided-by.ts';
+import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
 import { failureFrom, refusalFrom } from './refusal.ts';
 
 /** What one decision became. `blocked` is the act the record refused, and nothing was written.
@@ -31,7 +31,7 @@ export type DecidedAct =
 const identifier = z.uuid();
 
 const STATEMENT: Readonly<Record<DecisionOp, string>> = {
-  promote_proposal: 'SELECT public.promote_proposal($1::uuid, $2::text) AS id',
+  promote_proposal: PROMOTE_PROPOSAL,
   reject_proposal: 'SELECT public.reject_proposal($1::uuid, $2::text)',
 };
 

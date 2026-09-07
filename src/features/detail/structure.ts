@@ -1,6 +1,7 @@
 /** The acts that change the shape of the record around one entity: a relation is made, and an
  * element is destroyed. This file holds the states such an act passes through and its sentence. */
 
+import { calm, interrupt, type Said } from '@/shared/said';
 import { writeElement, type ElementAct } from '@/shared/write/elements';
 
 /** The three acts this page offers. Making an entity has no entity to hang on, so it is absent. */
@@ -20,13 +21,6 @@ export type StructureState =
       readonly proposalId: string;
     }
   | { readonly step: 'unknown'; readonly deed: StructureDeed; readonly doubt: string };
-
-/** The one sentence the page reads, and whether the analyst must act on it now. The two are one
- * job: the state that reads gravest is the state that must interrupt and take the hue. */
-export interface StructureSaid {
-  readonly sentence: string;
-  readonly urgent: boolean;
-}
 
 const WORKING: Readonly<Record<StructureDeed, string>> = {
   create_relation: 'The new relation is going to the record.',
@@ -78,10 +72,8 @@ const refusedWords = (deed: StructureDeed, refusal: string): string => {
   return `Nothing was written. ${refusal}.${next}`;
 };
 
-const calm = (sentence: string): StructureSaid => ({ sentence, urgent: false });
-
 /** The one sentence the page reads. It is derived here, and never composed in the view. */
-export function structureSaid(state: StructureState): StructureSaid {
+export function structureSaid(state: StructureState): Said {
   switch (state.step) {
     case 'idle':
       return calm('');
@@ -94,12 +86,11 @@ export function structureSaid(state: StructureState): StructureSaid {
     case 'refused':
       return calm(refusedWords(state.deed, state.refusal));
     case 'undecided':
-      return {
-        sentence: `${UNSIGNED[state.deed]} The proposal is ${state.proposalId}. ${state.refusal}.`,
-        urgent: true,
-      };
+      return interrupt(
+        `${UNSIGNED[state.deed]} The proposal is ${state.proposalId}. ${state.refusal}.`,
+      );
     case 'unknown':
-      return { sentence: `${UNSURE[state.deed]} ${READ_AGAIN} ${state.doubt}`, urgent: true };
+      return interrupt(`${UNSURE[state.deed]} ${READ_AGAIN} ${state.doubt}`);
   }
 }
 
