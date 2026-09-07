@@ -80,18 +80,21 @@ const DEFINER_DOORS = `
    ORDER BY 1`;
 
 const THE_DOOR_SET = [
+  'public.claim_job to gabriel_agent',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
   'public.put_document to gabriel_app',
   'public.reject_proposal to gabriel_app',
+  'public.release_expired_claims to gabriel_app',
+  'public.set_entity_layout to gabriel_agent',
 ];
 
 // ARM 6. The five arms above read a table grant, and a SECURITY DEFINER door holds none: the door
 // writes as gabriel_owner, so EXECUTE on one is the right to write a table that arm 4 says the
 // caller cannot touch. The list below is the door set, held by hand, so a door granted to a role
-// later fails here until a person writes it in. claim_job is absent, and that absence is the
-// statement: no role takes a row from the queue while no door gives one back.
+// later fails here until a person writes it in. The two ends of the queue are both here, and
+// they belong to different roles: one takes a row, and the other gives a lost one back.
 test('every definer door is granted to the roles in this list and to no other', async () => {
   expect(await foundBy(DEFINER_DOORS)).toStrictEqual(THE_DOOR_SET);
 });
@@ -137,19 +140,21 @@ const READ_HOLDS = `
    WHERE g.grantee = 'gabriel_read'
    ORDER BY 1`;
 
-const EIGHT_VIEWS = [
+const TEN_VIEWS = [
   'api.attribute_key SELECT',
   'api.document SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
+  'api.job SELECT',
   'api.key_usage SELECT',
+  'api.layout SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the eight api views and nothing else', async () => {
-  expect(await foundBy(READ_HOLDS)).toStrictEqual(EIGHT_VIEWS);
+test('gabriel_read holds SELECT on the ten api views and nothing else', async () => {
+  expect(await foundBy(READ_HOLDS)).toStrictEqual(TEN_VIEWS);
 });
 
 const NEIGHBOURS = `

@@ -11,7 +11,9 @@ const DOORS = {
   propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
-  claim_job: 'public.claim_job(text)',
+  claim_job: 'public.claim_job()',
+  release_expired_claims: 'public.release_expired_claims()',
+  set_entity_layout: 'public.set_entity_layout(jsonb)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -31,43 +33,55 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
   return Object.fromEntries(rows.map((row) => [row.door, row.held]));
 };
 
-// THE CLAIM DOOR IS HELD BY NOBODY. A claim moves a row to `running`, and no door moves one
-// back, so the grant waits for the door that releases one. The role it waits for is written in
-// the grants file: the worker that takes a job is the process that must propose as the machine.
-test('gabriel_agent holds EXECUTE on propose_change and on no other door', async () => {
+// THE TWO ENDS OF THE QUEUE ARE HELD BY DIFFERENT ROLES. The worker takes a row with the
+// narrower secret, and the role that owns the doors of the operator is the one that gives a
+// lost row back, so neither one holds both halves.
+
+// The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
+// this role: the one that cannot sign as the operator.
+test('gabriel_agent holds EXECUTE on propose_change, the layout door and the claim', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
     promote_proposal: false,
     reject_proposal: false,
-    claim_job: false,
+    claim_job: true,
+    release_expired_claims: false,
+    set_entity_layout: true,
   });
 });
 
-// THE CALL RUNS INSIDE A TRANSACTION THAT ROLLS BACK, and the reason is measured: this test was
+const REFUSED = [
+  { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
+  { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
+] as const;
+
+// EACH CALL RUNS INSIDE A TRANSACTION THAT ROLLS BACK, and the reason is measured: this test was
 // first written without one, the grant was still live, and the call it expected to fail took a
-// row into `running` where no door reaches it. A test of a refusal must not act when it passes.
-test('no role can call the claim door, so no row is taken before a release exists', async () => {
-  for (const identity of ['app', 'agent'] as const)
+// row into `running`. A test of a refusal must not act when it passes.
+for (const refused of REFUSED)
+  test(`${refused.identity} cannot call the other end of the queue`, async () => {
     await expect(
-      probe(identity, async (ask) => {
+      probe(refused.identity, async (ask) => {
         await ask('BEGIN');
         try {
-          return await ask("SELECT * FROM public.claim_job('a perimeter test')");
+          return await ask(refused.call);
         } finally {
           await ask('ROLLBACK');
         }
       }),
     ).rejects.toMatchObject({ code: '42501' });
-});
+  });
 
-test('gabriel_app holds EXECUTE on the four acts of the operator, and never on the claim', async () => {
+test('gabriel_app holds EXECUTE on the four acts of the operator and on the release', async () => {
   expect(await doorsHeldBy('app')).toStrictEqual({
     put_document: true,
     propose_change: true,
     promote_proposal: true,
     reject_proposal: true,
     claim_job: false,
+    release_expired_claims: true,
+    set_entity_layout: false,
   });
 });
 
