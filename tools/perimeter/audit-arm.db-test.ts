@@ -140,11 +140,13 @@ const READ_HOLDS = `
    WHERE g.grantee = 'gabriel_read'
    ORDER BY 1`;
 
-const TEN_VIEWS = [
+const TWELVE_VIEWS = [
   'api.attribute_key SELECT',
   'api.document SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
+  'api.full_graph SELECT',
+  'api.full_map SELECT',
   'api.job SELECT',
   'api.key_usage SELECT',
   'api.layout SELECT',
@@ -153,8 +155,8 @@ const TEN_VIEWS = [
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the ten api views and nothing else', async () => {
-  expect(await foundBy(READ_HOLDS)).toStrictEqual(TEN_VIEWS);
+test('gabriel_read holds SELECT on the twelve api views and nothing else', async () => {
+  expect(await foundBy(READ_HOLDS)).toStrictEqual(TWELVE_VIEWS);
 });
 
 const NEIGHBOURS = `

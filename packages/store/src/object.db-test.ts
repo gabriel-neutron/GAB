@@ -1,7 +1,6 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
-  ListObjectsV2Command,
   PutBucketPolicyCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -9,6 +8,7 @@ import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openStore } from './bucket.ts';
+import { listKeys } from './listing.ts';
 import { putObject } from './object.ts';
 
 const store = openStore();
@@ -87,9 +87,9 @@ test('the object exists, and it is not readable without a credential', async () 
   expect(anonymous.status).toBe(FORBIDDEN);
 });
 
-// The policy grants one action, and this test is what keeps every other action refused. Widen
+// The policy grants two actions, and this test is what keeps every other action refused. Widen
 // the policy by hand, and nothing else in this repository fails.
-test('the account may not read, delete, list, or open the bucket', async () => {
+test('the account may not read, delete, or open the bucket', async () => {
   await expect(
     store.client.send(new GetObjectCommand({ Bucket: store.bucket, Key: key })),
   ).rejects.toMatchObject(DENIED);
@@ -99,10 +99,14 @@ test('the account may not read, delete, list, or open the bucket', async () => {
   ).rejects.toMatchObject(DENIED);
 
   await expect(
-    store.client.send(new ListObjectsV2Command({ Bucket: store.bucket })),
-  ).rejects.toMatchObject(DENIED);
-
-  await expect(
     store.client.send(new PutBucketPolicyCommand({ Bucket: store.bucket, Policy: OPEN_TO_ALL })),
   ).rejects.toMatchObject(DENIED);
+});
+
+// The second action the policy grants. The reconciliation reads every key to find the object the
+// database does not know, so a listing that is refused stops that door and no other test says so.
+test('the account may list the bucket, and the key it wrote is in the listing', async () => {
+  await putObject(store, { key, bytes, mime: MIME });
+
+  await expect(listKeys(store)).resolves.toContain(key);
 });
