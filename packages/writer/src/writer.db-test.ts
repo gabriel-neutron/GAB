@@ -280,6 +280,26 @@ test('a delete of an endpoint is refused and writes no proposal', async () => {
   }
 });
 
+// An update that names no attribute applied nothing, committed as accepted, and still moved the
+// target's `updated_at`. The door refuses it now, so it never reaches the queue.
+test('an update that names no attribute is refused and writes no proposal', async () => {
+  const target = await signedEntity('Writer test empty update');
+  try {
+    const before = await proposalsFor(target);
+    const [status, reply] = await post('update-attrs', {
+      targetKind: 'entity',
+      targetId: target,
+      attrs: {},
+    });
+    expect(status).toBe(422);
+    // The door names the path before the sentence, as it does for every other refusal.
+    expect(reply.refusal).toBe('attrs: an update names at least one attribute');
+    expect(await proposalsFor(target)).toBe(before);
+  } finally {
+    await removed(target);
+  }
+});
+
 test('an identifier written as a number is refused and writes no proposal', async () => {
   const target = await signedEntity('Writer test declared kind');
   try {

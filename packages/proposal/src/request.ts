@@ -46,6 +46,8 @@ const geometry = z.discriminatedUnion('type', [
   }),
 ]);
 
+const NAMES_ATTRS = 'an update names at least one attribute';
+
 /** The body of one write, with the act taken from the address and never from the caller. */
 export const writeRequest = (vocabulary: AttributeVocabulary) => {
   const attrs = attributeEdit(vocabulary);
@@ -78,12 +80,20 @@ export const writeRequest = (vocabulary: AttributeVocabulary) => {
         { message: `an interval belongs to one of ${DATED_RELATIONS.join(', ')}` },
       ),
 
-    z.strictObject({
-      op: z.literal('update_attrs'),
-      targetKind: endpointKind,
-      targetId: z.uuid(),
-      attrs,
-    }),
+    // The same rule as proposals_update_names_attrs, at the door, so the caller reads a 422 and
+    // not a constraint violation. Before it existed, an update that named no attribute was
+    // accepted, applied nothing, and still moved the target's `updated_at`.
+    z
+      .strictObject({
+        op: z.literal('update_attrs'),
+        targetKind: endpointKind,
+        targetId: z.uuid(),
+        attrs,
+      })
+      .refine((act) => Object.keys(act.attrs).length > 0, {
+        message: NAMES_ATTRS,
+        path: ['attrs'],
+      }),
 
     z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
     z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),

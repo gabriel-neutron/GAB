@@ -128,3 +128,12 @@ test('the act comes from the address, and a body that states another act is refu
     path: 'op',
   });
 });
+
+// An update that names no attribute applied nothing and still committed as accepted. Migration
+// 0007 refuses it, and the door refuses it here, so the caller reads a 422.
+test('an update that names no attribute is refused', () => {
+  const update = { op: 'update_attrs', targetKind: 'entity', targetId: SRC_ID };
+  expect(messageOf({ ...update, attrs: {} })).toBe('an update names at least one attribute');
+  expect(faultOf({ ...update, attrs: {} })).toStrictEqual({ code: 'custom', path: 'attrs' });
+  expect(body.safeParse({ ...update, attrs: { coal_stock_t: { v: 4 } } }).success).toBe(true);
+});
