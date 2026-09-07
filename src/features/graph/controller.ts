@@ -9,9 +9,8 @@ import {
   entityLines,
   relationLines,
 } from '@/shared/canvas-label';
-import type { Corpus, TypeVocabulary } from '@/shared/read/model';
+import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 
-import { standInPositions } from './layout';
 import {
   buildGraphModel,
   dimmedColour,
@@ -22,6 +21,7 @@ import {
   type GraphModel,
   type NodeAttrs,
 } from './model';
+import { graphPositions } from './positions';
 import { patchGraphWorkspace, readGraphWorkspace, type GraphWorkspace } from './workspace';
 
 /** What is examined. This file is the authority on it, and every reader takes this declaration. */
@@ -135,14 +135,15 @@ export function mountGraph(
   canvas: HTMLElement,
   overlay: HTMLElement,
   corpus: Corpus,
+  layout: ReadonlyMap<string, EntityPosition>,
   types: TypeVocabulary,
 ): GraphController {
   mounted.get(canvas)?.destroy();
 
-  // **The positions are computed one time.** A filter never moves a position, and a second run of
-  // a layout gives another picture. So nothing below computes them again, and a theme change
-  // keeps them.
-  const positions = standInPositions(corpus);
+  // **The positions are read one time.** A filter never moves a position, and an entity the
+  // layout run did not place must stand in one place while the canvas lives. So nothing below
+  // builds them again, and a theme change keeps them.
+  const positions = graphPositions(corpus.entities, layout);
 
   let ground = groundOf();
   let model = buildGraphModel(corpus, positions, types, ground);

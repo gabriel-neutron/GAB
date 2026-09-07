@@ -9,6 +9,7 @@ import { attributeKey as apiAttributeKey } from '@/contract/api/AttributeKey';
 import { document as apiDocument } from '@/contract/api/Document';
 import { entity as apiEntity } from '@/contract/api/Entity';
 import { entityType as apiEntityType } from '@/contract/api/EntityType';
+import { layout as apiLayout } from '@/contract/api/Layout';
 import { proposal as apiProposal } from '@/contract/api/Proposal';
 import { relation as apiRelation } from '@/contract/api/Relation';
 
@@ -74,6 +75,16 @@ export const wireRow = {
       dst_id: text('relation.dst_id'),
       sources: docIds('relation.sources'),
       promoted_from: text('relation.promoted_from'),
+    }),
+  ),
+
+  // x and y stand or fall together: the view reads them from one row, so a position with one
+  // half is a row the base table cannot hold.
+  layout: apiLayout.and(
+    z.object({
+      entity_id: text('layout.entity_id'),
+      x: z.number(stated('entity_layout.x')).nullable(),
+      y: z.number(stated('entity_layout.y')).nullable(),
     }),
   ),
 

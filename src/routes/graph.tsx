@@ -6,6 +6,7 @@ import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import type { GraphSelection } from '@/features/graph/controller';
 import { GraphPage } from '@/features/graph/graph-page';
 import { loadCorpus } from '@/shared/read/corpus';
+import { loadLayout } from '@/shared/read/layout';
 import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
 import { cn } from '@/shared/lib/utils';
 
@@ -47,12 +48,13 @@ export const Route = createFileRoute('/graph')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, vocabulary, types] = await Promise.all([
+    const [corpus, vocabulary, types, layout] = await Promise.all([
       loadCorpus(),
       loadVocabulary(),
       loadEntityTypes(),
+      loadLayout(),
     ]);
-    return { corpus, vocabulary, types };
+    return { corpus, vocabulary, types, layout };
   },
 
   component: GraphRoute,
@@ -60,7 +62,7 @@ export const Route = createFileRoute('/graph')({
 });
 
 function GraphRoute() {
-  const { corpus, vocabulary, types } = Route.useLoaderData();
+  const { corpus, vocabulary, types, layout } = Route.useLoaderData();
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
@@ -86,8 +88,8 @@ function GraphRoute() {
   // re-renders this route, and without this memo it would rebuild the element that owns the
   // canvas. The list holds the record, which a selection never changes. Do not remove it.
   const canvas = useMemo(
-    () => <GraphPage corpus={corpus} types={types} onSelect={setSelection} />,
-    [corpus, types],
+    () => <GraphPage corpus={corpus} types={types} layout={layout} onSelect={setSelection} />,
+    [corpus, types, layout],
   );
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so

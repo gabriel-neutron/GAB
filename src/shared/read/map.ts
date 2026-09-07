@@ -8,6 +8,7 @@ import type {
   Attributes,
   DocumentRow,
   Entity,
+  EntityPlacement,
   EntityTypeDeclaration,
   Point,
   PriorValue,
@@ -219,6 +220,17 @@ function proposal(row: unknown): Proposal {
   };
 }
 
+// A run places an entity or it does not, so one half of a position is not a state the record
+// can hold: a row that carries one of the two arrives here as no position at all.
+function placement(row: unknown): EntityPlacement {
+  const read = wireRow.layout.parse(row);
+  const { x, y } = read;
+  return {
+    entityId: read.entity_id,
+    position: x === null || y === null ? null : { x, y },
+  };
+}
+
 /** Each one reads a row of the read API and gives the record row a surface works in. */
 export const toDomain = {
   attributeKey,
@@ -227,4 +239,5 @@ export const toDomain = {
   entity,
   relation,
   proposal,
+  placement,
 } as const;

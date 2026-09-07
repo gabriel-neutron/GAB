@@ -71,6 +71,19 @@ export interface Point {
   readonly lat: number;
 }
 
+/** Where the graph draws one entity. It is derived from the record, and no source holds it up. */
+export interface EntityPosition {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** One entity, and the position the last layout run gave it. A run that did not place it leaves
+ * `position` null, and the surface then places that entity itself. */
+export interface EntityPlacement {
+  readonly entityId: string;
+  readonly position: EntityPosition | null;
+}
+
 export interface Entity {
   readonly id: string;
   readonly type: string;

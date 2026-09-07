@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
-import type { Corpus, TypeVocabulary } from '@/shared/read/model';
+import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 
@@ -46,12 +46,15 @@ export interface GraphPageProps {
   readonly corpus: Corpus;
   /** The declared types. The canvas paints a node in the hue its type states. */
   readonly types: TypeVocabulary;
+  // Where the layout run placed each entity. An entity it did not place is absent, and the canvas
+  // then places it at a position read from its identifier.
+  readonly layout: ReadonlyMap<string, EntityPosition>;
   // This function must be the same function at each render of the caller. A caller that builds a
   // new function at each render mounts a new graph at each render.
   readonly onSelect: (selection: GraphSelection | null) => void;
 }
 
-export function GraphPage({ corpus, types, onSelect }: GraphPageProps) {
+export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   const controller = useRef<GraphController | null>(null);
@@ -76,7 +79,7 @@ export function GraphPage({ corpus, types, onSelect }: GraphPageProps) {
     // caller would then keep the selection of the previous mount and draw what no canvas drew.
     onSelect(null);
 
-    const handle = mountGraph(element, marks, corpus, types);
+    const handle = mountGraph(element, marks, corpus, layout, types);
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
@@ -95,7 +98,7 @@ export function GraphPage({ corpus, types, onSelect }: GraphPageProps) {
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (controller.current === handle) controller.current = null;
     };
-  }, [corpus, types, onSelect]);
+  }, [corpus, types, layout, onSelect]);
 
   // The memo reads the values the rows are built from, and never the whole snapshot. A publish
   // makes a new snapshot object, and a fold is a publish. A memo that took the whole snapshot
