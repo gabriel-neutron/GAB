@@ -21,6 +21,10 @@
 SET ROLE gabriel_owner;
 
 -- ------------------------------------------------------------------------------------------
+DROP VIEW IF EXISTS api.full_map;
+DROP VIEW IF EXISTS api.full_graph;
+DROP VIEW IF EXISTS api.layout;
+DROP VIEW IF EXISTS api.job;
 DROP VIEW IF EXISTS api.key_usage;
 DROP VIEW IF EXISTS api.value_support;
 DROP VIEW IF EXISTS api.proposal;
@@ -140,5 +144,52 @@ CREATE VIEW api.key_usage AS
 COMMENT ON VIEW api.key_usage IS
   'How often each declared key is used, by entity type. A low count is a typo or a semantic '
   'duplicate that survived the vocabulary. Read it periodically.';
+
+-- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
+-- place carries NULL here, which is not an error: the surface places it itself and the next run
+-- gives it a stored position.
+CREATE VIEW api.layout AS
+  SELECT e.id AS entity_id, l.x, l.y
+    FROM public.entities e
+    LEFT JOIN public.entity_layout l ON l.entity_id = e.id;
+COMMENT ON VIEW api.layout IS
+  'Where the graph draws each entity. A position is presentation and never data: it is derived '
+  'from the record, no source holds it up, and a rating that moves does not touch it. x and y '
+  'are NULL for an entity the last run did not place, and the surface then places that entity '
+  'itself. Every position of one run belongs beside the others of the same run.';
+
+
+-- THE QUEUE IS READABLE, OR IT HOLDS A STATE NOBODY CAN SEE. A row stuck in `running` is the
+-- one thing the operator must be able to find, and the release door acts on the same rows.
+-- It publishes no payload: a job carries an identifier, a state and the history of its claims.
+CREATE VIEW api.job AS
+  SELECT id, document_id, status, attempts, claimed_by, claimed_at
+    FROM public.jobs;
+COMMENT ON VIEW api.job IS
+  'One unit of work behind the ingestion door, and one row per document that entered it. '
+  'A hand-entered source queues nothing, so this is not the whole record of what passed the '
+  'door. claimed_by is the CONNECTION ROLE that took the row and never a person or a process. '
+  '`attempts` counts every claim, including the ones a lease released, so it counts what was '
+  'taken and never what was tried.';
+
+-- THE TWO READS THAT RETURN EVERY ROW, AND HOW THEY ESCAPE THE ROW CEILING. PostgREST caps rows
+-- per role and never per view, so the one read role carries no row cap at all, and there is no
+-- second role. The guard is time alone: statement_timeout on that role stops a read that runs away.
+CREATE VIEW api.full_graph AS
+  SELECT e.id, e.type, e.label, l.x, l.y
+    FROM api.entity e
+    LEFT JOIN api.layout l ON l.entity_id = e.id;
+COMMENT ON VIEW api.full_graph IS
+  'Every entity of the graph with the position the graph draws it at, in one read. The edges '
+  'come from api.relation, which returns every relation under the same rule. Read '
+  'api.layout for the meaning of a null position.';
+
+
+CREATE VIEW api.full_map AS
+  SELECT id, type, label, geom FROM api.entity WHERE geom IS NOT NULL;
+COMMENT ON VIEW api.full_map IS
+  'Every entity that carries a geometry, which is every entity the map can draw. The type is '
+  'here because the layer panel filters on it. A geometry that is not a point still arrives, '
+  'and a surface that draws a dot reads it as no position at all.';
 
 RESET ROLE;

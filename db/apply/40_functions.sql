@@ -96,6 +96,20 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- THE SAME WITNESS ON THE QUEUE. A name a worker passed for claimed_by proved nothing about
+-- who holds the row, so the taker is the connection role. The release writes no hour, and the
+-- name goes with it: the two columns move as one pair.
+CREATE OR REPLACE FUNCTION stamp_claimed_by() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NEW.claimed_at IS NULL THEN
+    NEW.claimed_by := NULL;
+  ELSE
+    NEW.claimed_by := session_user;
+  END IF;
+  RETURN NEW;
+END $$;
+
 -- INVARIANT 2 for proposals.src. An array cannot carry a foreign key, so a trigger carries it.
 CREATE OR REPLACE FUNCTION proposals_src_exists_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
@@ -167,7 +181,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Five functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Seven functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
@@ -423,16 +437,17 @@ END $$;
 --
 -- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The number of retries per kind of failure is not
 -- decided, so this door refuses no claim on a count.
-CREATE OR REPLACE FUNCTION claim_job(p_worker text)
+--
+-- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
+-- caller supplies proves nothing about who holds the row. The earlier signature is dropped
+-- here: a re-runnable file that only replaces would leave the two side by side.
+DROP FUNCTION IF EXISTS claim_job(text);
+CREATE OR REPLACE FUNCTION claim_job()
 RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
-  IF p_worker IS NULL OR btrim(p_worker, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a claim names the worker that took it';
-  END IF;
-
   SELECT j.id INTO v_id
     FROM public.jobs j
    WHERE j.status = 'queued'
@@ -448,7 +463,6 @@ BEGIN
   UPDATE public.jobs j
      SET status     = 'running',
          attempts   = j.attempts + 1,
-         claimed_by = p_worker,
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
@@ -456,6 +470,59 @@ BEGIN
        INTO job_id, job_document, job_attempts;
 
   RETURN NEXT;
+END $$;
+
+
+-- THE WAY BACK. Without it a worker that stops between the claim and the work holds its row for
+-- ever, and the queue delivers at most once.
+--
+-- THE ATTEMPT IS SPENT. The claim counted it at the hour it took the row, and nothing here
+-- rewrites a count that is already written.
+--
+-- THE LEASE IS A ROW AND NOT A NUMBER IN THIS FILE, and STRICT is the point: an absent lease
+-- stops the release loudly instead of releasing every running row or none of them.
+CREATE OR REPLACE FUNCTION release_expired_claims()
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_lease    interval;
+  v_released int;
+BEGIN
+  SELECT make_interval(secs => p.value::double precision) INTO STRICT v_lease
+    FROM public.parameter p WHERE p.key = 'job_claim_lease_seconds';
+
+  UPDATE public.jobs j
+     SET status     = 'queued',
+         claimed_at = NULL,
+         updated_at = now()
+   WHERE j.status = 'running'
+     AND j.claimed_at + v_lease < now();
+
+  GET DIAGNOSTICS v_released = ROW_COUNT;
+  RETURN v_released;
+END $$;
+
+
+-- THE LAYOUT DOOR. A position is derived and no role writes the table it lands in, so the whole
+-- set arrives here, as an array of {"id","x","y"}, and this function writes it as gabriel_owner.
+--
+-- ONE RUN REPLACES THE RUN BEFORE IT. A position has a meaning only beside the positions of the
+-- same run: two runs mixed in one table give a picture that is correct in no frame. So the set
+-- is emptied and refilled in one transaction, and an entity the run left out loses its position.
+--
+-- AN UNKNOWN IDENTIFIER STOPS THE WHOLE RUN, by the foreign key. A run reads the entities and
+-- places them, so an identifier that no entity carries says the run and the record disagree.
+CREATE OR REPLACE FUNCTION set_entity_layout(p_layout jsonb)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  DELETE FROM public.entity_layout;
+
+  INSERT INTO public.entity_layout (entity_id, x, y)
+  SELECT p.id, p.x, p.y
+    FROM jsonb_to_recordset(p_layout) AS p(id uuid, x double precision, y double precision);
 END $$;
 
 

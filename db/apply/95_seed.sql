@@ -100,4 +100,17 @@ ON CONFLICT (key) DO UPDATE SET
   unit    = EXCLUDED.unit,
   pattern = EXCLUDED.pattern;
 
+-- ============================================================================== parameter ===
+-- THE SEED WRITES A NUMBER AND NEVER REWRITES ONE. The whole point of the table is that the
+-- operator changes a number in the live database, and an apply that restored the value below
+-- would undo that change on the next routine run.
+--
+-- FIFTEEN MINUTES, AND IT IS A CHOICE AND NOT A MEASUREMENT. No real job has run, so no
+-- duration of the work is known. It is long enough that a slow job is never released under the
+-- worker that holds it, and short enough that a stopped worker frees its row within one break.
+INSERT INTO parameter (key, value) VALUES
+  ('job_claim_lease_seconds', 900)
+ON CONFLICT (key) DO NOTHING;
+
+
 RESET ROLE;

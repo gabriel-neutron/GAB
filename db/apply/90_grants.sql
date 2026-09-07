@@ -36,16 +36,15 @@ GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, rela
 GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The five doors, and nothing else.
+-- The seven doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
--- THE CLAIM DOOR IS TAKEN BACK BY NAME, and not only from PUBLIC. A grant that an earlier apply
--- gave stays live when the GRANT line is deleted, because a re-runnable file replaces a function
--- and never a privilege. Measured here: the line went, and gabriel_agent still held EXECUTE.
-REVOKE ALL ON FUNCTION claim_job(text)             FROM PUBLIC, gabriel_agent;
+REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
@@ -54,31 +53,36 @@ GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],nume
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
 
--- THE TWO ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
+-- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
+-- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
+-- process that runs it is the worker, and the worker's secret is gabriel_agent: the one that
+-- cannot sign as the operator. This door reaches entity_layout alone, which carries no evidence,
+-- so it opens nothing of the evidentiary layer.
+GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
+
+GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
+
+-- THE THREE ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
 -- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
 -- put_document, so the role that may put a document is the role that may queue work, and there
 -- is no second way in. No role holds INSERT on jobs, so nothing queues work for a document that
 -- did not enter through the door.
 --
--- CLAIM IS gabriel_agent, AND NO ROLE HOLDS IT TODAY. The grant is written below and it is not
--- executed, because a claim is an act with no way back: claim_job moves a row to `running`, no
--- door moves one back, no role holds UPDATE on jobs, and gabriel_owner never logs in. A worker
--- that stopped between the claim and the work would leave that row where only a superuser
--- session reaches it, and that session is the one act this whole file exists to prevent.
---
--- THE GRANT LANDS IN THE COMMIT THAT LANDS THE RELEASE DOOR, and never in a commit of its own.
---
--- THE ROLE IS RIGHT, AND ONLY THE HOUR IS WRONG. The worker that takes a job is the same process
--- that proposes, and a trigger stamps the author of a proposal from session_user: a worker that
--- logged in as gabriel_app would sign every machine PROPOSAL with the name the operator holds.
--- The claim door itself signs nothing and reads no session_user.
---
--- ONE PROCESS HOLDS ONE SECRET, and that is what carries the grant. A worker that held the
+-- ONE PROCESS HOLDS ONE SECRET, and that is what carries the claim. A worker that held the
 -- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
 -- which is the whole operator surface, inside the one process that runs a model over untrusted
 -- text. So the claim goes to the narrower secret, which is the one that cannot sign as the
--- operator.
+-- operator. The claim door itself signs nothing; a trigger stamps the taker from session_user.
+--
+-- THE RELEASE IS gabriel_app, AND IT IS THE ONE THAT MAKES THE CLAIM SAFE TO GRANT. A claim now
+-- has a way back: a row whose lease expired returns to `queued`, and no superuser session is
+-- needed to free it. The release is an act of the operator over the queue and not of the worker
+-- that lost the row, so it is held by the role that owns the door of the queue.
+--
+-- A RELEASE SPENDS THE ATTEMPT, and the release door is the only way back: no role holds UPDATE
+-- on jobs, and nothing moves a row into a state a door did not produce.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
@@ -147,8 +151,8 @@ RESET ROLE;
 --      door writes as gabriel_owner, so EXECUTE on one is the right to write a table that every
 --      other arm says the caller cannot touch. This arm returns the whole door set, and a test
 --      holds the list by hand, so a door granted to a role later fails until a person writes it
---      in. THE ABSENCE OF claim_job IS PART OF THE LIST: no role may take a row from the queue
---      while no door gives one back.
+--      in. THE CLAIM DOOR AND THE RELEASE DOOR ARE BOTH IN THE LIST, and they belong to
+--      different roles: one takes a row from the queue, and the other gives it back.
 --      SELECT n.nspname || '.' || p.proname || ' to '
 --             || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
 --                     ELSE pg_get_userbyid(a.grantee) END

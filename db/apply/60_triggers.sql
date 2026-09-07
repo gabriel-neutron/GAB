@@ -39,6 +39,11 @@ CREATE OR REPLACE TRIGGER proposals_append_only
   BEFORE UPDATE OR DELETE ON proposals
   FOR EACH ROW EXECUTE FUNCTION proposals_append_only_fn();
 
+-- The taker of a job, from the connection and never from a label the caller passed.
+CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
+  BEFORE UPDATE OF claimed_at ON jobs
+  FOR EACH ROW EXECUTE FUNCTION stamp_claimed_by();
+
 -- M4, the price of a polymorphic endpoint.
 CREATE OR REPLACE TRIGGER relations_endpoints
   BEFORE INSERT OR UPDATE OF src_id, dst_id, src_kind, dst_kind ON relations
@@ -51,5 +56,6 @@ ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
+ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 
 RESET ROLE;
