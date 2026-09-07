@@ -4,15 +4,32 @@ import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 /**
- * The suite of `pnpm test`, which the fast check command never runs. A project that reaches the
- * local stack is collected only when the password of `gabriel_app` is in the environment, and
- * that password is the one signal which says the compose file is up.
+ * The suite of `pnpm test`, which the fast check command never runs. The password of
+ * `gabriel_app` is the one signal which says the compose file is up.
  */
 const databaseIsReachable = (process.env['GABRIEL_APP_PASSWORD'] ?? '') !== '';
 
 // The object store is a second service with a second credential, and it is up and down on its
 // own. The secret the store client signs with is the one signal that says the bucket is ready.
 const bucketIsReachable = (process.env['RAW_STORE_SECRET_KEY'] ?? '') !== '';
+
+/**
+ * A missing credential removed the projects that reach the stack, and the run then reported
+ * green over the part of the suite it had dropped. A project that nobody registers has nothing
+ * to report, so nothing was printed.
+ *
+ * A gate fails, or it is not a gate. `OFFLINE` is the one word that asks for the smaller suite.
+ * Without it, an absent credential is a refusal and never a smaller run.
+ */
+const offlineWasAsked = (process.env['OFFLINE'] ?? '') !== '';
+
+if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
+  throw new Error(
+    'The suite reaches the local stack, and this shell holds no credential for it. Start the ' +
+      'compose file, and run the suite through `infra/.env` so GABRIEL_APP_PASSWORD and ' +
+      'RAW_STORE_SECRET_KEY are set. To run the offline part on purpose, set OFFLINE=1 — that ' +
+      'part proves no perimeter, no role, no grant and no row of the corpus.',
+  );
 
 // The dot in `.db-test.ts` is what holds the two halves apart: `*.test.ts` does not match it.
 // A file renamed to `.db.test.ts` joins the offline half and opens a socket on a machine that
@@ -176,10 +193,13 @@ export default defineConfig({
         },
       },
 
-      ...(bucketIsReachable ? [storeProject] : []),
-
-      ...(databaseIsReachable
-        ? [
+      // One list and one condition. Two conditions, one for the database and one for the bucket,
+      // let a shell with one credential drop the projects of the other and say nothing. The
+      // refusal above proves both credentials are here, so this list is whole or it is empty.
+      ...(offlineWasAsked
+        ? []
+        : [
+            storeProject,
             writerProject,
             workerProject,
             contractProject,
@@ -187,8 +207,7 @@ export default defineConfig({
             perimeterProject,
             corpusProject,
             serviceProject,
-          ]
-        : []),
+          ]),
     ],
   },
 });

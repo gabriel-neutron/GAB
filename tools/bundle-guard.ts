@@ -20,20 +20,25 @@ const HEAVY: Record<string, readonly string[]> = {
   graphology: ['graph'],
 };
 
-// Measured on 28 August 2026, and each ceiling is the measurement plus about a fifth. A number
-// here is a gate and not a record: a chunk that grows past it stops the build, and the person
-// who grew it either shrinks it again or writes a new number and says why. The build warning of
-// the bundler is switched off in `vite.config.ts`, because it fired on every run and a warning
-// that is always present is a warning nobody reads.
+// Each ceiling is a measurement plus about a fifth, and the comment beside it holds the number
+// that was measured. A number here is a gate and not a record: a chunk that grows past it stops
+// the build, and the person who grew it either shrinks it again or writes a new number and says
+// why. The build warning of the bundler is switched off in `vite.config.ts`, because it fired on
+// every run and a warning that is always present is a warning nobody reads.
 const CEILING: Record<string, number> = {
   index: 300_000, //           251 188
   'preload-helper': 220_000, //  184 744
   map: 1_100_000, //           942 697
   graph: 220_000, //           175 496
+
+  // The review route carries the schemas of a proposal and the overlay primitives it decides
+  // in. It loads with that route and with no other, so its weight is a decision and not a
+  // fault. No gate read the build on the day it grew, so the guard met it later.
+  rating: 225_000, //          185 614
 };
 
-// The eager set of the four routes together: 448 170 bytes on the same day. A chunk under this
-// floor needs no verdict. A chunk above it must be named in CEILING, so a new heavy dependency
+// The eager set of the four routes together: 448 170 bytes when it was measured. A chunk under
+// this floor needs no verdict. A chunk above it must be named in CEILING, so a new heavy dependency
 // cannot land without one.
 const EAGER_CEILING = 540_000;
 const VERDICT_FLOOR = 100_000;

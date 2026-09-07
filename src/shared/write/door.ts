@@ -1,7 +1,7 @@
 // The requests that change the record. The address, the method, the headers, the status codes
 // and the shape of the answer stay inside; a caller names an act and the body it carries.
 
-import { type DecisionOp, WRITE_OPS } from '@gab/proposal/request';
+import { type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
 /** The five acts the writer signs. The door of each one is derived here and named by no caller. */

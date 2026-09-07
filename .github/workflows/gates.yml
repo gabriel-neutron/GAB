@@ -1,0 +1,67 @@
+# The gates that nobody has to remember. Every command below already existed in `package.json`,
+# and every one of them was voluntary: no hook and no runner called them.
+#
+# The name is not `check`. `pnpm check` is defined in ADR 0001 §3 and it begins with the drift
+# check, which needs the database. Nothing here reaches the database, so this workflow runs
+# `check:static` — `pnpm check` without that first step — and then the build and the suite as
+# steps of their own. A weaker gate must not carry the name of the stronger one.
+#
+# `OFFLINE` is a default here and it is a word the operator types anywhere else. The database
+# part of the suite needs Postgres, MinIO, the migrations and the fixture corpus, so it stays
+# with the operator. This workflow proves no perimeter, no role, no grant and no row.
+
+name: gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  no-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      # The version comes from `.nvmrc`, so the runner and the workstation read one number.
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # Frozen, because a lockfile that a runner may rewrite proves nothing about the tree the
+      # operator installed.
+      - run: pnpm install --frozen-lockfile
+
+      # The story project runs in a real Chromium. Only that browser is installed: the suite
+      # asks for no other, and each one costs a download on every run.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # The type check, the lint and the format check.
+      - run: pnpm run check:static
+
+      # The bundle guard reads the emitted chunks, so the build is the only way to reach it.
+      - run: pnpm run build
+
+      # `tsr generate` runs inside the type check and writes the route tree. `--porcelain` names
+      # an untracked file as well as a changed one, so a new generated route fails here too. A
+      # tree that differs from the committed one is a stale file and not a silent repair.
+      - name: the generated files match the committed ones
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            git diff
+            exit 1
+          fi
+
+      - run: pnpm test
+        env:
+          OFFLINE: '1'

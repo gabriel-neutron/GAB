@@ -1,6 +1,6 @@
 // The shapes of the record, in domain words. Every surface reads these and never a wire row.
 
-import { ATTRIBUTE_KIND } from '@gab/proposal/vocabulary';
+import { type ATTRIBUTE_KIND } from '@gab/proposal/vocabulary';
 
 export type DocId = string;
 

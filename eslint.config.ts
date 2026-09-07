@@ -1,7 +1,9 @@
 import js from '@eslint/js';
+import vitest from '@vitest/eslint-plugin';
 import type { Rule } from 'eslint';
 import { defineConfig } from 'eslint/config';
 import boundaries from 'eslint-plugin-boundaries';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 import { LIMITS, measure } from './tools/comment-budget.ts';
@@ -320,6 +322,16 @@ export default defineConfig(
       '@typescript-eslint/ban-ts-comment': [
         'error',
         { 'ts-expect-error': true, 'ts-ignore': true, 'ts-nocheck': true },
+      ],
+
+      // `verbatimModuleSyntax` is on in all seven targets, so the compiler erases exactly the
+      // imports that carry the word `type` and keeps every other one. An import of a type
+      // written without the word therefore survives into the emitted module and pulls its file
+      // in at runtime. The compiler cannot report that: both forms are legal. This rule makes
+      // the word mandatory, so what the bundle loads is what the author asked for.
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
     },
   },
@@ -661,5 +673,39 @@ export default defineConfig(
     files: ['src/**/*.{ts,tsx,mts,cts}', 'packages/*/src/**/*.{ts,tsx,mts,cts}'],
     plugins: { budget: { rules: { 'comment-budget': commentBudget } } },
     rules: { 'budget/comment-budget': 'error' },
+  },
+
+  // A dependency array that lies, a hook behind a condition, a component declared inside another
+  // component, a ref read while the body renders. Each one is legal TypeScript and each one is
+  // wrong at run time. No compiler flag and no boundary rule reaches any of them, and every
+  // panel of this application is a function component.
+  //
+  // `.storybook/` is outside: `preview.ts` and `main.ts` declare no component.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat.recommended],
+  },
+
+  // A test that no assertion reaches, a focused test that hides the tests beside it, and two
+  // tests under one name. Each one is a suite that reports a safety it does not give. This suite
+  // is the only proof that the live database keeps its perimeter, so it needs a reader of its
+  // own. A story is a test here too, and `play` carries its assertions.
+  //
+  // The first pattern reaches every package and `tools/` already. A story has its own name.
+  {
+    files: ['**/*.{test,db-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
+    plugins: { vitest },
+    rules: {
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-identical-title': 'error',
+      'vitest/no-conditional-tests': 'error',
+      'vitest/valid-expect': 'error',
+      'vitest/valid-describe-callback': 'error',
+      // `afterAll` is named because a suite against the live database ends by counting the rows
+      // it met. An assertion there is the residue guard, and it fails the suite that leaves a
+      // row behind. Without the name, that guard reads as an expectation nobody runs.
+      'vitest/no-standalone-expect': ['error', { additionalTestBlockFunctions: ['afterAll'] }],
+    },
   },
 );
