@@ -42,6 +42,8 @@ An ADR records one build decision and its cost. This register is the only list o
 | [0004](adr/0004-frontend-stack.md) | Frontend stack | Accepted | You write a file under `src/`, you add a feature, or you place a piece of view state. |
 | [0005](adr/0005-map-and-tile-path.md) | Cartographic library and tile path | Accepted | You render a map, you touch a tile or an imagery source, or you change the `layers` table. |
 | [0006](adr/0006-a-comment-records-a-reason.md) | A comment records a reason | Accepted | You write a comment or a file header, or you must decide whether a pointer belongs in the code. |
+| [0007](adr/0007-object-store-end-of-life.md) | The object store stays MinIO, and its successor is chosen | Accepted | You touch the object store, you change its image, or you meet a fault in it. |
+| [0008](adr/0008-the-read-role-carries-no-row-cap.md) | The read role carries no row cap | Accepted | You add a read that returns every row, or you set a row limit on the read role. |
 
 The section numbers of an ADR are cited from one document to another — `authoring.md` cites them,
 and the ADRs cite each other — so they are stable. **Keep them stable** when an ADR is edited:
