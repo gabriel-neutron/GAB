@@ -33,16 +33,19 @@ export const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const day = z.string().regex(DAY);
 const position = z.array(z.number()).min(2).max(3);
 
+// An empty list carries no position, and PostGIS stores `LINESTRING EMPTY` for one. The
+// database refuses it. Without the minimum the caller reads a constraint violation, not a 422.
+const positions = z.array(position).min(1);
+const rings = z.array(positions).min(1);
+const surfaces = z.array(rings).min(1);
+
 const geometry = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('Point'), coordinates: position }),
-  z.strictObject({ type: z.literal('MultiPoint'), coordinates: z.array(position) }),
-  z.strictObject({ type: z.literal('LineString'), coordinates: z.array(position) }),
-  z.strictObject({ type: z.literal('MultiLineString'), coordinates: z.array(z.array(position)) }),
-  z.strictObject({ type: z.literal('Polygon'), coordinates: z.array(z.array(position)) }),
-  z.strictObject({
-    type: z.literal('MultiPolygon'),
-    coordinates: z.array(z.array(z.array(position))),
-  }),
+  z.strictObject({ type: z.literal('MultiPoint'), coordinates: positions }),
+  z.strictObject({ type: z.literal('LineString'), coordinates: positions }),
+  z.strictObject({ type: z.literal('MultiLineString'), coordinates: rings }),
+  z.strictObject({ type: z.literal('Polygon'), coordinates: rings }),
+  z.strictObject({ type: z.literal('MultiPolygon'), coordinates: surfaces }),
 ]);
 
 const NAMES_ATTRS = 'an update names at least one attribute';

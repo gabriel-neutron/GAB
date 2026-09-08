@@ -3,9 +3,13 @@
 // tidy-up that drops an `IS NOT NULL`, a `coalesce` or a `cardinality` half restores the hole in
 // silence, because a hole accepts a row and fails no other test.
 //
+// THE SECOND FAULT THE FILE NOW HOLDS. A key whose value is a JSON null is not a missing key.
+// A rule keyed on the presence of the key alone accepts it. The geometry of an act was written
+// that way, and #127 measured it. The two faults share one sentence: a null is never a value.
+//
 // Each test opens a transaction, makes one gesture, asserts the SQLSTATE and the constraint that
 // refused, and rolls back. The proposals ledger is append-only and a trigger refuses a delete, so
-// the rollback is the only way back.
+// the rollback is the only way back. One gesture asserts a success instead, and it says so.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -84,6 +88,91 @@ test('a value of an act that carries no source list is refused', async () => {
     code: '23514',
     constraint: 'proposals_payload_attrs',
   });
+});
+
+// ================================================================ the geometry of an act =====
+//
+// M9 for the position: the unknown is the absence of the key. A JSON null under `geom` answers
+// `payload ? 'geom'`. So the promotion built a geometry from a null, and it raised XX000 inside
+// PostGIS. The act then stayed pending, and nothing could ever apply it. Migration 0012 moved
+// the refusal to the proposal.
+//
+// THE RULE READS SIX THINGS, AND THE FIRST DRAFT READ ONLY ONE. `{"geom": {}}` is an object,
+// and the promotion raised `invalid GeoJSON representation`. Each gesture below carries one
+// shape that a loader writes. A gesture is not one test each: `{}` fails the type test and the
+// coordinates test at the same time, and its name says so.
+//
+// FOUR GESTURES HOLD A FAULT THAT RAISED NOTHING AT ALL. `["",""]` promoted to `POINT(0 0)`,
+// and a false position on the map announces itself to nobody. An empty list promoted to
+// `POINT EMPTY`. That is an absence the key does not announce. A `crs` member named a system
+// that the promotion ignored. Only a number is a coordinate, no list is empty, no third key
+// stands.
+//
+// THE LAST GESTURE ASSERTS A SUCCESS AND NO SQLSTATE. The rule reads the shape and never the
+// content. Nothing else here proves that it did not shut the door on a real geometry. It is a
+// control: it passes with the constraint, and it passes without it.
+
+const withGeom = (geom: string): string =>
+  `{"type":"${TYPE}","label":"A null test","geom":${geom}}`;
+
+const POINT = `{"type":"Point","coordinates":[4.05,51.95]}`;
+
+const refusedGeom = async (geom: string): Promise<void> => {
+  await expect(proposedBy(withGeom(geom), CITED)).rejects.toMatchObject({
+    code: '23514',
+    constraint: 'proposals_payload_geom',
+  });
+};
+
+test('an act that carries a null in place of a geometry is refused', async () => {
+  await refusedGeom('null');
+});
+
+test('an act whose geometry is not an object is refused', async () => {
+  await refusedGeom('"POINT(4.05 51.95)"');
+});
+
+test('an act whose geometry names no type and no coordinates is refused', async () => {
+  await refusedGeom('{}');
+});
+
+test('an act whose geometry names a type that no door states is refused', async () => {
+  await refusedGeom('{"type":"Bogus","coordinates":[4.05,51.95]}');
+});
+
+test('an act whose geometry carries a null in place of its coordinates is refused', async () => {
+  await refusedGeom('{"type":"Point","coordinates":null}');
+});
+
+test('an act that hides a null inside its coordinates is refused', async () => {
+  await refusedGeom('{"type":"MultiPoint","coordinates":[[4.05,51.95],null]}');
+});
+
+test('an act whose coordinates are not numbers is refused', async () => {
+  await refusedGeom('{"type":"Point","coordinates":["",""]}');
+});
+
+test('an act whose list of coordinates is empty is refused', async () => {
+  await refusedGeom('{"type":"Point","coordinates":[]}');
+});
+
+test('an act that hides an empty list inside its coordinates is refused', async () => {
+  await refusedGeom('{"type":"Polygon","coordinates":[[]]}');
+});
+
+// The one gesture here that stored a row and raised nothing. `crs` names EPSG:3857 to PostGIS,
+// which returns that SRID, and `ST_SetSRID(..., 4326)` then relabels the geometry and moves
+// nothing. The store kept the metres of the act, and it called them degrees. The act named
+// `POINT(4.0514 51.1056)`, and no reader can see that it was lost.
+test('an act whose geometry carries a third key is refused', async () => {
+  await refusedGeom(
+    '{"type":"Point","coordinates":[451000,6640000],' +
+      '"crs":{"type":"name","properties":{"name":"EPSG:3857"}}}',
+  );
+});
+
+test('an act that carries a geometry object stands', async () => {
+  expect(await proposedBy(withGeom(POINT), CITED)).toHaveLength(1);
 });
 
 // ===================================================== the source list of a promoted row =====

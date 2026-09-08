@@ -112,6 +112,19 @@ test('a position of one number is refused, and a height is accepted', () => {
   );
 });
 
+// The database refuses an empty list as `proposals_payload_geom`, so a door that took one
+// would answer a 23514 in place of a 422. Measured on #127: `[]` stores `LINESTRING EMPTY`.
+test('an empty list of positions is refused, at every depth', () => {
+  const empty: readonly (readonly [string, unknown])[] = [
+    ['MultiPoint', { type: 'MultiPoint', coordinates: [] }],
+    ['LineString', { type: 'LineString', coordinates: [] }],
+    ['Polygon', { type: 'Polygon', coordinates: [[]] }],
+    ['MultiPolygon', { type: 'MultiPolygon', coordinates: [[[]]] }],
+  ];
+  for (const [name, geom] of empty)
+    expect({ name, ok: body.safeParse(entity(geom)).success }).toEqual({ name, ok: false });
+});
+
 test('a geometry that carries a key beside the type and the coordinates is refused', () => {
   const extra = { type: 'Point', coordinates: [4.05, 51.95], crs: 'EPSG:4326' };
   expect(faultOf(entity(extra))).toStrictEqual({ code: 'unrecognized_keys', path: 'geom' });
