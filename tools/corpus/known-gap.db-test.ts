@@ -24,12 +24,13 @@ const NO_JOB = `
    WHERE NOT EXISTS (SELECT 1 FROM public.jobs j WHERE j.document_id = d.id)
    ORDER BY d.id`;
 
-// THE THIRD GAP, AND IT IS DELIBERATE. A hand entry carries no file and no address, so an agent
-// has nothing to read. Two paths agree on it: the seed writes this row straight into the table
-// and never calls the door, and the door itself queues no work for a source of that kind.
-test('exactly one document carries no work, and it is the hand entry', async () => {
+// THE THIRD GAP, AND IT IS DELIBERATE. A reserved source carries no file and no address, so an
+// agent has nothing to read. Two paths agree on it: the seed writes both rows straight into the
+// table and never calls the door, and the door itself queues no work for a source of that kind.
+// `inherited` is the second one, and it says that no document supports the value at all.
+test('only the reserved documents carry no work', async () => {
   const held = await probe('superuser', async (ask) => documents.parse(await ask(NO_JOB)));
-  expect(held.map((row) => row.id)).toStrictEqual(['manual']);
+  expect(held.map((row) => row.id)).toStrictEqual(['inherited', 'manual']);
 });
 
 const parameters = z.array(z.object({ parameter: z.string() }));

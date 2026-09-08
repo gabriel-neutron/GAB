@@ -18,5 +18,6 @@ export const entityTypes: TypeVocabulary = [
   declared('facility', 'Facility', '#007989', '#00c2d2'),
   declared('company', 'Company', '#007d50', '#53c48e'),
   declared('person', 'Person', '#677000', '#a8b44b'),
+  declared('military_unit', 'Military unit', '#8254c4', '#b7a0e4'),
   declared('unknown', 'Unknown', '#6b7280', '#9ca3af'),
 ];

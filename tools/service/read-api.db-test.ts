@@ -8,8 +8,8 @@ import { askReadApi } from './read-api.ts';
 const STATED = [
   { path: 'entity', total: 27 },
   { path: 'relation', total: 17 },
-  { path: 'document', total: 5 },
-  { path: 'attribute_key', total: 24 },
+  { path: 'document', total: 6 },
+  { path: 'attribute_key', total: 35 },
   { path: 'proposal?status=eq.pending', total: 3 },
 ] as const;
 

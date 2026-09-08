@@ -5,6 +5,7 @@
 import type { Vocabulary } from '../read/model';
 
 const DAY = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
+const PRECISION = '^(exact|approximate|inherited)$';
 
 const declared = (
   key: string,
@@ -39,4 +40,17 @@ export const vocabulary: Vocabulary = [
   declared('crane_note', 'note', 'Crane note'),
   declared('hull_note', 'note', 'Hull note'),
   declared('note', 'note', 'Note'),
+  // The eleven keys of the v1 corpus. The committed fixture uses none of them, and this list
+  // states every live key, so a story that draws one draws what the database declares.
+  declared('unit_type', 'text', 'Unit type'),
+  declared('echelon', 'text', 'Echelon'),
+  declared('domain', 'text', 'Domain'),
+  declared('organisation_type', 'text', 'Organisation type'),
+  declared('military_unit_id', 'identifier', 'Military unit number'),
+  declared('osm_relation_id', 'identifier', 'OSM relation'),
+  declared('v1_id', 'identifier', 'v1 identifier'),
+  declared('src_scope', 'text', 'Source scope'),
+  declared('src_inherit_depth', 'quantity', 'Source inheritance depth'),
+  declared('src_inherited_from', 'identifier', 'Source inherited from'),
+  declared('position_precision', 'text', 'Position precision', null, PRECISION),
 ];

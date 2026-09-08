@@ -23,7 +23,7 @@ const COUNTS = `
 
 test('the loaded corpus holds the counts the fixture states', async () => {
   const held = await probe('superuser', async (ask) => counts.parse(await ask(COUNTS)));
-  expect(held).toStrictEqual([{ entities: 27, relations: 17, documents: 5, pending: 3 }]);
+  expect(held).toStrictEqual([{ entities: 27, relations: 17, documents: 6, pending: 3 }]);
 });
 
 const authors = z.array(z.object({ status: z.string(), author_role: z.string() }));

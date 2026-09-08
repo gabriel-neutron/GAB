@@ -200,33 +200,43 @@ test('gabriel_read carries a five second statement timeout', async () => {
   expect(held).toStrictEqual([{ statement_timeout: '5s' }]);
 });
 
-const CITES_MANUAL = `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['manual']::text[]) AS id`;
+// Both reserved documents, and not `manual` alone. Migration 0009 widened the two rules to the
+// set, because a second reserved word named by neither rule was one the machine layer could sign
+// with. `inherited` says no document supports the value, and that is a claim only a person makes.
+const RESERVED = ['manual', 'inherited'] as const;
+
+const cites = (document: string): string => `SELECT public.propose_change('create_entity',
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
 // Every call below runs inside a transaction that rolls back, because the proposals ledger is
 // append-only and a trigger refuses a delete.
-const proposeCitingManual = async (identity: 'app' | 'agent'): Promise<readonly unknown[]> =>
+const proposeCiting = async (
+  identity: 'app' | 'agent',
+  document: string,
+): Promise<readonly unknown[]> =>
   probe(identity, async (ask) => {
     await ask('BEGIN');
     try {
-      return await ask(CITES_MANUAL);
+      return await ask(cites(document));
     } finally {
       await ask('ROLLBACK');
     }
   });
 
-test('a machine proposal that cites manual is refused', async () => {
-  await expect(proposeCitingManual('agent')).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_machine_not_manual',
-    message:
-      'new row for relation "proposals" violates check constraint ' +
-      '"proposals_machine_not_manual"',
+for (const document of RESERVED) {
+  test(`a machine proposal that cites ${document} is refused`, async () => {
+    await expect(proposeCiting('agent', document)).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'proposals_machine_not_reserved',
+      message:
+        'new row for relation "proposals" violates check constraint ' +
+        '"proposals_machine_not_reserved"',
+    });
   });
-});
 
-test('an operator proposal that cites manual is accepted', async () => {
-  expect(made.parse(await proposeCitingManual('app'))).toHaveLength(1);
-});
+  test(`an operator proposal that cites ${document} is accepted`, async () => {
+    expect(made.parse(await proposeCiting('app', document))).toHaveLength(1);
+  });
+}

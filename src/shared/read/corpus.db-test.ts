@@ -26,7 +26,7 @@ const counted = (read: Corpus): Readonly<Record<string, number>> => ({
 
 test('the live service gives the record the surfaces draw', async () => {
   expect(counted(await loadCorpus())).toStrictEqual({
-    documents: 5,
+    documents: 6,
     entities: 27,
     relations: 17,
     proposals: 3,
