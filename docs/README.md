@@ -11,6 +11,7 @@ there.
 | `agents/issue-tracker.md` | You write to GitHub. |
 | `agents/domain.md` | You explore the code and you need the domain words. |
 | `agents/triage-labels.md` | You apply a triage label. |
+| `agents/commit.md` | You write a commit message. |
 | `authoring.md` | You write a document, you propose one, or you must decide where a sentence belongs. |
 
 **The surface documents are gone.** `map-surface.md`, `graph-surface.md`, `detail-surface.md` and
