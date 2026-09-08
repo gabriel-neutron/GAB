@@ -9,20 +9,30 @@
 SET ROLE gabriel_owner;
 
 -- =========================================================================== THE VOCABULARY ==
--- attrs_declared is the FORMAT TIER. A CHECK cannot use a subquery, so nothing but a trigger
--- can reach attribute_key. prd.md §7.3 counts a trigger as a tier.
--- It returns NULL when the object is legal, and the reason when it is not.
+-- attrs_declared is the FORMAT TIER, AND IT IS NOT AN AUTHORISATION LIST. A key nobody declared
+-- is written and never refused. The operator ruled it: the free half of the model (M2) exists so
+-- that a person or an agent can say a thing the schema never anticipated, and a key that must be
+-- added by hand to a .sql file before the value can be written takes that away.
+--
+-- SO attribute_key SAYS WHAT A KEY MEANS, AND NEVER WHICH KEYS EXIST. Where a key is declared
+-- and in service, its `kind` and its `pattern` are enforced here, because a declaration that
+-- nothing holds is a comment. Where a key is undeclared, or declared and retired, the value
+-- passes and only its shape is held — `attrs_valid` still demands {v, src}, a value that is
+-- never null and at least one source, so M7, M8 and M9 are untouched by this.
+--
+-- AN UNDECLARED KEY IS ACCEPTED AND THEN VISIBLE. api.key_usage names it beside the declared
+-- ones, with `declared` reading false, so the drift M11 predicted is a worklist and not a wall.
+-- That view is the whole mitigation, and it makes the problem visible rather than impossible.
+--
+-- A CHECK cannot use a subquery, so nothing but a trigger can reach attribute_key.
+-- prd.md §7.3 counts a trigger as a tier. It returns NULL when the object is legal, and the
+-- reason when it is not.
 CREATE OR REPLACE FUNCTION attrs_declared(a jsonb) RETURNS text
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE bad text;
 BEGIN
   SELECT string_agg(q.msg, '; ' ORDER BY q.msg) INTO bad FROM (
     SELECT CASE
-      WHEN k.key IS NULL THEN
-        format('%L is not a declared attribute key. Add it to db/apply/95_seed.sql and run '
-               'pnpm db:apply', e.k)
-      WHEN k.retired THEN
-        format('the attribute key %L is retired and takes no new value', e.k)
       WHEN NOT (CASE k.kind
                   WHEN 'quantity' THEN coalesce(jsonb_typeof(e.val->'v'),'absent') = 'number'
                   WHEN 'boolean'  THEN coalesce(jsonb_typeof(e.val->'v'),'absent') = 'boolean'
@@ -42,8 +52,12 @@ BEGIN
         format('an element of %L does not match the declared format %L', e.k, k.pattern)
       ELSE NULL
     END AS msg
+      -- AN INNER JOIN, AND THAT IS THE WHOLE CHANGE OF RULE. A key with no row here produces no
+      -- row at all, so it produces no reason and the write passes. `retired` is on the join for
+      -- the same reason: a word out of service describes nothing, so it holds nothing either,
+      -- and it stays out of service by leaving the screen and releasing its stem.
       FROM jsonb_each(coalesce(a, '{}'::jsonb)) AS e(k, val)
-      LEFT JOIN public.attribute_key k ON k.key = e.k
+      JOIN public.attribute_key k ON k.key = e.k AND NOT k.retired
   ) q
    WHERE q.msg IS NOT NULL;
 

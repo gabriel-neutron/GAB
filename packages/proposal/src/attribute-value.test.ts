@@ -5,6 +5,7 @@ import { ATTRIBUTE_KIND, type AttributeVocabulary } from './vocabulary.ts';
 
 // The five declarations below stand for the live rows of `attribute_key`, one per rule the
 // edit applies: a kind that holds a number, one that holds a word, a format and a retirement.
+// A key that appears in no row of this list is an undeclared key, and it is accepted.
 const VOCABULARY: AttributeVocabulary = [
   { key: 'imo', kind: ATTRIBUTE_KIND.identifier, pattern: '^[0-9]{7}$', retired: false },
   { key: 'coal_stock_t', kind: ATTRIBUTE_KIND.quantity, pattern: null, retired: false },
@@ -44,12 +45,17 @@ test('a caller that cites a document is refused, and the writer alone composes a
   expect(refusalOf({ imo: { v: '9482137', src: ['doc_9b0417'] } }).code).toBe('unrecognized_keys');
 });
 
-test('a key that the database does not declare is refused by that name', () => {
-  expect(refusalOf({ berth_count: { v: 2 } }).message).toBe('berth_count is not a declared key');
+// The vocabulary says what a key MEANS and never which keys exist. A person or an agent writes
+// a key the schema never anticipated, the write is accepted, and api.key_usage shows it with
+// `declared` false. These two tests are what keeps that door open.
+test('a key that the database does not declare is accepted, whatever its value', () => {
+  const given = { berth_count: { v: 2 }, russian_designation: { v: 'v/ch 03333' } };
+  expect(edit.parse(given)).toEqual(given);
 });
 
-test('a key that the database retired is refused by that name', () => {
-  expect(refusalOf({ call_sign: { v: 'PBNL' } }).message).toBe('call_sign is retired');
+test('a key that the database retired is accepted, and its old format holds nothing', () => {
+  const given = { call_sign: { v: 'PBNL' } };
+  expect(edit.parse(given)).toEqual(given);
 });
 
 test('a value of the wrong kind is refused, and the sentence names the kind the key states', () => {

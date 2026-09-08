@@ -132,18 +132,39 @@ COMMENT ON VIEW api.value_support IS
   'that cite the same document, read api.proposal with src=cs.{the id}.';
 
 
--- The monitoring view M11 asked for. It survives the vocabulary as a backstop, because the
--- database stops every program from drifting and cannot stop a person who declares two stems
--- for one concept.
+-- The monitoring view M11 asked for, AND IT IS NOW THE RULE AND NOT A BACKSTOP. attrs_declared
+-- refuses no undeclared key, so this view is the only thing that shows one. A key that appears
+-- here with `declared` false is a key a person or an agent minted at the moment of writing: it
+-- is either a real concept that wants a declaration, or a typo beside a key that already exists.
+--
+-- IT READS BOTH TABLES THAT CARRY ATTRIBUTES. A view over entities alone would leave a key
+-- written on a relation invisible, and a worklist with a hole is not a worklist.
+--
+-- A LEFT JOIN, because the undeclared key is the row this view exists to show. The declared
+-- columns are NULL on such a row, which is the honest answer: nothing says what it means.
 CREATE VIEW api.key_usage AS
-  SELECT k.key, k.stem, k.kind, k.unit, k.retired, e.type AS entity_type, count(*) AS claims
-    FROM public.entities e
-    CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS ok(key)
-    JOIN public.attribute_key k ON k.key = ok.key
-   GROUP BY k.key, k.stem, k.kind, k.unit, k.retired, e.type;
+  WITH used AS (
+    SELECT 'entity' AS owner_kind, e.type AS owner_type, ok.key
+      FROM public.entities e
+      CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS ok(key)
+    UNION ALL
+    SELECT 'relation', r.type, ok.key
+      FROM public.relations r
+      CROSS JOIN LATERAL jsonb_object_keys(r.attrs) AS ok(key)
+  )
+  SELECT u.key, u.owner_kind, u.owner_type,
+         (k.key IS NOT NULL) AS declared,
+         k.stem, k.kind, k.unit, k.retired,
+         count(*) AS claims
+    FROM used u
+    LEFT JOIN public.attribute_key k ON k.key = u.key
+   GROUP BY u.key, u.owner_kind, u.owner_type, k.key, k.stem, k.kind, k.unit, k.retired;
 COMMENT ON VIEW api.key_usage IS
-  'How often each declared key is used, by entity type. A low count is a typo or a semantic '
-  'duplicate that survived the vocabulary. Read it periodically.';
+  'Every attribute key in use, on an entity or on a relation, with how often it is used and by '
+  'which type. `declared` false marks a key that no row of attribute_key describes: the write '
+  'was accepted, and nothing states what the key means or what shape its value takes. That is '
+  'the worklist. A low count on a declared key is a typo or a semantic duplicate beside a key '
+  'that already exists. Read it periodically.';
 
 -- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
 -- place carries NULL here, which is not an error: the surface places it itself and the next run

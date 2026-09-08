@@ -24,21 +24,17 @@ const breaksPattern = (pattern: string, value: z.infer<typeof edited>['v']): boo
   return false;
 };
 
-/** The attributes of one edit, checked against the live vocabulary of the database. */
+/** The attributes of one edit, against the live vocabulary. An undeclared or retired key passes:
+ * the vocabulary says what a key means and never which keys exist, and `attrs_declared` in the
+ * database answers the same way, because T6 asks the two tiers for one answer and not two. */
 export const attributeEdit = (vocabulary: AttributeVocabulary) => {
   const declared = new Map(vocabulary.map((entry) => [entry.key, entry]));
 
   return z.record(z.string(), edited).superRefine((edit, ctx) => {
     for (const [key, value] of Object.entries(edit)) {
       const entry = declared.get(key);
-      if (entry === undefined) {
-        ctx.addIssue({ code: 'custom', path: [key], message: `${key} is not a declared key` });
-        continue;
-      }
-      if (entry.retired) {
-        ctx.addIssue({ code: 'custom', path: [key], message: `${key} is retired` });
-        continue;
-      }
+      // Nothing describes this key, so nothing here can hold its value to a shape.
+      if (entry === undefined || entry.retired) continue;
       if (!kindHolds(entry.kind, value.v)) {
         ctx.addIssue({
           code: 'custom',
