@@ -308,16 +308,28 @@ export const TheCaretSurvivesThePastTheOldBoundary: Story = {
   },
 };
 
-// A key the vocabulary does not declare takes no value, and the record says so in words.
-export const AnUndeclaredKeyIsReadOnlyAndSaysWhy: Story = {
+// A key the vocabulary describes with nothing is written like any other. The database accepts it,
+// so a record that refused it would be the one tier that says no, and the analyst could not
+// correct a value an agent wrote. Every key of this probe is undeclared.
+export const AnUndeclaredKeyIsWrittenLikeAnyOther: Story = {
   parameters: { layout: 'fullscreen' },
   render: () => <WritableRecord rows={ROWS} />,
   play: async ({ canvas }) => {
     const box = canvas.getByLabelText('Imo number');
-    await expect(box).toBeDisabled();
+    await expect(box).toBeEnabled();
+
+    await userEvent.click(box);
+    await userEvent.type(box, '0');
+    await expect(box).toHaveValue('94821370');
+
+    // The kind it arrived with still holds it: a number takes digits and nothing else.
+    const tonnage = canvas.getByLabelText('Gross tonnage');
+    await userEvent.click(tonnage);
+    await userEvent.type(tonnage, 'x');
     await expect(
-      canvas.getAllByText('The vocabulary declares no such key, and it takes no value here.')
-        .length,
-    ).toBe(100);
+      canvas.getByText(
+        'This key takes a number. Write digits, and a decimal point where you need one.',
+      ),
+    ).toBeInTheDocument();
   },
 };

@@ -23,17 +23,14 @@ export type ClaimValue =
 /** What a control emits: a checkbox gives a yes or a no, and every other control gives text. */
 export type TypedValue = string | boolean;
 
-/** Whether the analyst may write this key here, and the sentence that says why not. */
-export type ClaimEdit =
-  | { readonly editable: true; readonly declaration: AttributeDeclaration }
-  | { readonly editable: false; readonly reason: string };
-
 export interface ClaimRow {
   readonly key: string;
   readonly label: string;
   readonly value: ClaimValue;
   readonly width: ClaimWidth;
-  readonly edit: ClaimEdit;
+  /** What the value is read against. A key the vocabulary does not describe carries an inferred
+   * declaration, so every claim on the screen is written the same way. */
+  readonly declaration: AttributeDeclaration;
   /** M8: every claim carries the documents it comes from. No control hides them. */
   readonly sources: readonly DocId[];
 }
@@ -41,13 +38,21 @@ export interface ClaimRow {
 /** The separator of a list, in the box and back out of it. */
 export const LIST_SEPARATOR = ', ';
 
-const NOT_DECLARED = 'The vocabulary declares no such key, and it takes no value here.';
-const RETIRED = 'This key is retired. It keeps its history, and it takes no new value.';
-
 /** The seven declared kinds, on the six controls a claim is drawn with. */
 const CONTROL_OF_KIND: Readonly<Record<AttributeKind, ClaimControl>> = {
   quantity: 'number',
   identifier: 'text',
+  text: 'text',
+  note: 'note',
+  date: 'date',
+  boolean: 'boolean',
+  list: 'list',
+};
+
+/** The way back, for a key the vocabulary describes with nothing. `identifier` never appears
+ * here: it is a rule about a value, and an inferred kind states no rule. */
+const KIND_OF_CONTROL: Readonly<Record<ClaimControl, AttributeKind>> = {
+  number: 'quantity',
   text: 'text',
   note: 'note',
   date: 'date',
@@ -85,7 +90,7 @@ function shapeOf(value: AttributeValue): ClaimValue {
 }
 
 /** The stored value, drawn in the control the declared kind names. The shape of the value is
- * read only where the key is undeclared, which is a key nothing can write anyway. */
+ * read instead where the key is undeclared or retired, because nothing states a kind for it. */
 function drawnAs(control: ClaimControl, value: AttributeValue): ClaimValue {
   if (control === 'boolean') {
     const checked = value === true;
@@ -128,13 +133,24 @@ function byCodePoint(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-// The name of a declared key is what `attribute_key.label` states, and this stands in only for a
-// key the vocabulary does not declare — a key nothing can write, and one that carries no name of
-// its own to print.
+// The name of a declared key is what `attribute_key.label` states, and this stands in where the
+// vocabulary describes the key with nothing, so a key that arrived from an agent still prints.
 function undeclaredLabel(key: string): string {
   const words = key.replaceAll('_', ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/** The declaration an undeclared or retired key stands on: the kind its stored value already
+ * has, and no format. The screen holds such a value to the kind it arrived with, because nothing
+ * states a kind for it and a changed kind is a claim nobody made. */
+const inferredDeclaration = (key: string, value: ClaimValue): AttributeDeclaration => ({
+  key,
+  kind: KIND_OF_CONTROL[value.control],
+  label: undeclaredLabel(key),
+  unit: null,
+  pattern: null,
+  retired: false,
+});
 
 export function readClaims(attrs: Attributes, vocabulary: Vocabulary): readonly ClaimRow[] {
   const declared = new Map(vocabulary.map((entry) => [entry.key, entry]));
@@ -144,23 +160,19 @@ export function readClaims(attrs: Attributes, vocabulary: Vocabulary): readonly 
       // No order arrives from the model. The alphabet stands in.
       .sort(([a], [b]) => byCodePoint(a, b))
       .map(([key, attribute]) => {
-        const declaration = declared.get(key);
+        const held = declared.get(key);
+        // A retired word describes nothing, and the database accepts it like any undeclared key.
+        const live = held !== undefined && !held.retired ? held : undefined;
         const value =
-          declaration === undefined
+          live === undefined
             ? shapeOf(attribute.v)
-            : drawnAs(CONTROL_OF_KIND[declaration.kind], attribute.v);
-        const edit: ClaimEdit =
-          declaration === undefined
-            ? { editable: false, reason: NOT_DECLARED }
-            : declaration.retired
-              ? { editable: false, reason: RETIRED }
-              : { editable: true, declaration };
+            : drawnAs(CONTROL_OF_KIND[live.kind], attribute.v);
         return {
           key,
-          label: declaration === undefined ? undeclaredLabel(key) : declaration.label,
+          label: held?.label ?? undeclaredLabel(key),
           value,
           width: widthOf(value),
-          edit,
+          declaration: live ?? inferredDeclaration(key, value),
           sources: attribute.src,
         };
       })

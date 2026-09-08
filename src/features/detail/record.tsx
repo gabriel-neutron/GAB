@@ -61,7 +61,7 @@ export function EntityRecord(props: EntityRecordProps) {
                 }}
               />
             ) : (
-              <Field mode="reading" label={cell.label} value={cell.value} note={cell.note} />
+              <Field mode="reading" label={cell.label} value={cell.value} note={null} />
             )}
           </span>
           {props.mark(cell.sources)}

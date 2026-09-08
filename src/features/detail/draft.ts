@@ -25,8 +25,8 @@ export interface RecordCell {
   readonly value: ClaimValue;
   /** The sentence the last keystroke earned, and `null` while the value stands. */
   readonly refusal: string | null;
-  /** Why this key takes no value here. It is drawn in words, beside the control. */
-  readonly note: string | null;
+  /** Whether the record is offered for writing at all. Every claim of a written record is
+   * written: a key the vocabulary describes with nothing is held to the kind it arrived with. */
   readonly editable: boolean;
   readonly sources: readonly SourceRef[];
 }
@@ -49,15 +49,13 @@ export function recordCells(
   return rows.map((row) => {
     const claim = row.claim;
     const draft = drafts?.get(claim.key);
-    const editable = drafts !== null && claim.edit.editable;
     return {
       key: claim.key,
       label: claim.label,
       width: claim.width,
       value: draft?.value ?? claim.value,
       refusal: draft?.refusal ?? null,
-      note: drafts === null || claim.edit.editable ? null : claim.edit.reason,
-      editable,
+      editable: drafts !== null,
       sources: row.sources,
     };
   });
@@ -73,9 +71,8 @@ export function typedInto(
 ): Drafts {
   const claim = rows.find((candidate) => candidate.claim.key === key)?.claim;
   if (claim === undefined) return drafts;
-  if (!claim.edit.editable) return drafts;
 
-  const read = readEntry(claim.edit.declaration, typed);
+  const read = readEntry(claim.declaration, typed);
   const next = new Map(drafts);
   next.set(key, {
     value: typedValue(claim.value.control, typed),
@@ -110,13 +107,13 @@ export function pendingEdit(rows: readonly RecordRow[], drafts: Drafts): Pending
   for (const row of rows) {
     const claim = row.claim;
     const draft = drafts.get(claim.key);
-    if (draft === undefined || !claim.edit.editable) continue;
+    if (draft === undefined) continue;
     if (draft.refusal !== null) {
       refused = true;
       continue;
     }
     if (draft.value.text === claim.value.text) continue;
-    const read = readEntry(claim.edit.declaration, entered(draft));
+    const read = readEntry(claim.declaration, entered(draft));
     if (!read.held) {
       refused = true;
       continue;
