@@ -9,84 +9,30 @@
 SET ROLE gabriel_owner;
 
 -- =========================================================================== THE VOCABULARY ==
--- attrs_declared is the FORMAT TIER, AND IT IS NOT AN AUTHORISATION LIST. A key nobody declared
--- is written and never refused. The operator ruled it: the free half of the model (M2) exists so
--- that a person or an agent can say a thing the schema never anticipated, and a key that must be
--- added by hand to a .sql file before the value can be written takes that away.
+-- THERE IS NO VOCABULARY TIER, AND THAT IS M11 AND NOT AN OVERSIGHT. `attrs_declared`,
+-- `attrs_gate` and `proposals_vocabulary_gate` stood here. They held a value to the `kind` and
+-- the `pattern` that `attribute_key` declared for its key, and they refused an undeclared key.
 --
--- SO attribute_key SAYS WHAT A KEY MEANS, AND NEVER WHICH KEYS EXIST. Where a key is declared
--- and in service, its `kind` and its `pattern` are enforced here, because a declaration that
--- nothing holds is a comment. Where a key is undeclared, or declared and retired, the value
--- passes and only its shape is held — `attrs_valid` still demands {v, src}, a value that is
--- never null and at least one source, so M7, M8 and M9 are untouched by this.
+-- THE OPERATOR'S RULE, 8 September 2026: the only rules on the free half of the model are the
+-- SHAPE of the key and the SHAPE of the attribute. A key is lower snake case, 63 characters at
+-- most; an attribute is exactly {v, src}, `v` is never null and never an object, a list holds
+-- scalars, and `src` is a non-empty array. `attrs_valid` carries all of it, on the column, so no
+-- write path avoids it. Nothing else is a rule. A value is not held to a kind, to a format, or
+-- to a list of permitted keys.
 --
--- AN UNDECLARED KEY IS ACCEPTED AND THEN VISIBLE. api.key_usage names it beside the declared
--- ones, with `declared` reading false, so the drift M11 predicted is a worklist and not a wall.
--- That view is the whole mitigation, and it makes the problem visible rather than impossible.
+-- WHAT `attribute_key` IS NOW. It describes what a key means for a reader — a label, a unit, a
+-- kind a control is drawn from. It permits nothing and it refuses nothing. `api.key_usage` shows
+-- every key in use with `declared` beside it, and that view is the whole of M11's mitigation:
+-- it makes the drift visible, and it does not prevent it.
 --
--- A CHECK cannot use a subquery, so nothing but a trigger can reach attribute_key.
--- prd.md §7.3 counts a trigger as a tier. It returns NULL when the object is legal, and the
--- reason when it is not.
-CREATE OR REPLACE FUNCTION attrs_declared(a jsonb) RETURNS text
-LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE bad text;
-BEGIN
-  SELECT string_agg(q.msg, '; ' ORDER BY q.msg) INTO bad FROM (
-    SELECT CASE
-      WHEN NOT (CASE k.kind
-                  WHEN 'quantity' THEN coalesce(jsonb_typeof(e.val->'v'),'absent') = 'number'
-                  WHEN 'boolean'  THEN coalesce(jsonb_typeof(e.val->'v'),'absent') = 'boolean'
-                  WHEN 'list'     THEN coalesce(jsonb_typeof(e.val->'v'),'absent') = 'array'
-                  ELSE coalesce(jsonb_typeof(e.val->'v'),'absent') = 'string'
-                END) THEN
-        format('%L is declared %s and the value is a %s',
-               e.k, k.kind, coalesce(jsonb_typeof(e.val->'v'), 'absent'))
-      WHEN k.pattern IS NOT NULL
-           AND jsonb_typeof(e.val->'v') = 'string'
-           AND (e.val->>'v') !~ k.pattern THEN
-        format('%L does not match the declared format %L', e.k, k.pattern)
-      WHEN k.pattern IS NOT NULL
-           AND jsonb_typeof(e.val->'v') = 'array'
-           AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(e.val->'v') AS x(t)
-                        WHERE x.t !~ k.pattern) THEN
-        format('an element of %L does not match the declared format %L', e.k, k.pattern)
-      ELSE NULL
-    END AS msg
-      -- AN INNER JOIN, AND THAT IS THE WHOLE CHANGE OF RULE. A key with no row here produces no
-      -- row at all, so it produces no reason and the write passes. `retired` is on the join for
-      -- the same reason: a word out of service describes nothing, so it holds nothing either,
-      -- and it stays out of service by leaving the screen and releasing its stem.
-      FROM jsonb_each(coalesce(a, '{}'::jsonb)) AS e(k, val)
-      JOIN public.attribute_key k ON k.key = e.k AND NOT k.retired
-  ) q
-   WHERE q.msg IS NOT NULL;
-
-  RETURN bad;
-END $$;
-
-CREATE OR REPLACE FUNCTION attrs_gate() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE bad text;
-BEGIN
-  bad := public.attrs_declared(NEW.attrs);
-  IF bad IS NOT NULL THEN
-    RAISE EXCEPTION 'attrs refused: %', bad USING ERRCODE = 'check_violation';
-  END IF;
-  RETURN NEW;
-END $$;
-
--- The same rule at the door. M11's own consequence names agent volume as the failure point, so
--- an undeclared key is refused when the agent proposes it and not forty promotions later.
-CREATE OR REPLACE FUNCTION proposals_vocabulary_gate() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE bad text;
-BEGIN
-  bad := public.attrs_declared(coalesce(NEW.payload->'attrs', '{}'::jsonb));
-  IF bad IS NOT NULL THEN
-    RAISE EXCEPTION 'proposal refused: %', bad USING ERRCODE = 'check_violation';
-  END IF;
-  RETURN NEW;
-END $$;
+-- THE COST IS M11's OWN, ACCEPTED IN WRITING. `coal_stock`, `coalStock` and `coal_stock_tonnes`
+-- may stand on three entities of one type, all three valid.
+--
+-- The drop below is what removes the functions from a database that already holds them, because
+-- this file is re-runnable and a function nobody replaces would otherwise survive for ever.
+DROP FUNCTION IF EXISTS attrs_gate() CASCADE;
+DROP FUNCTION IF EXISTS proposals_vocabulary_gate() CASCADE;
+DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 
 
 -- ============================================================================== THE WITNESS ==

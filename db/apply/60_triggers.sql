@@ -12,18 +12,13 @@
 
 SET ROLE gabriel_owner;
 
--- The vocabulary, at the write and at the door.
-CREATE OR REPLACE TRIGGER entities_attrs_gate
-  BEFORE INSERT OR UPDATE OF attrs ON entities
-  FOR EACH ROW EXECUTE FUNCTION attrs_gate();
-
-CREATE OR REPLACE TRIGGER relations_attrs_gate
-  BEFORE INSERT OR UPDATE OF attrs ON relations
-  FOR EACH ROW EXECUTE FUNCTION attrs_gate();
-
-CREATE OR REPLACE TRIGGER proposals_vocabulary
-  BEFORE INSERT ON proposals
-  FOR EACH ROW EXECUTE FUNCTION proposals_vocabulary_gate();
+-- THREE TRIGGERS ARE GONE, AND THEY ARE NOT COMING BACK BY ACCIDENT. entities_attrs_gate,
+-- relations_attrs_gate and proposals_vocabulary held the declared kind and the declared format
+-- of a value. M11 stands: no key allowlist and no rule on a value beyond its shape, which
+-- `attrs_valid` carries on the column. The drop below runs on a database that still holds them.
+DROP TRIGGER IF EXISTS entities_attrs_gate   ON entities;
+DROP TRIGGER IF EXISTS relations_attrs_gate  ON relations;
+DROP TRIGGER IF EXISTS proposals_vocabulary  ON proposals;
 
 -- The witness, and invariant 2 for an array.
 CREATE OR REPLACE TRIGGER proposals_stamp_author
@@ -49,9 +44,6 @@ CREATE OR REPLACE TRIGGER relations_endpoints
   BEFORE INSERT OR UPDATE OF src_id, dst_id, src_kind, dst_kind ON relations
   FOR EACH ROW EXECUTE FUNCTION check_relation_endpoints();
 
-ALTER TABLE entities  ENABLE ALWAYS TRIGGER entities_attrs_gate;
-ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_attrs_gate;
-ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_vocabulary;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;

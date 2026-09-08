@@ -34,27 +34,23 @@ const held = (value: AttributeValue): ClaimEntry => ({ held: true, value });
 
 const refused = (refusal: string): ClaimEntry => ({ held: false, refusal });
 
-const breaksPattern = (declaration: AttributeDeclaration, value: string): boolean =>
-  declaration.pattern !== null && !new RegExp(declaration.pattern).test(value);
+// NOTHING HERE READS `pattern`: a format describes a key and holds no value, and M11 leaves the
+// free half of the model with no rule beyond the shape. What remains turns typed text into the
+// JSON type its control emits, which is a conversion and not a rule.
 
-const format = (declaration: AttributeDeclaration): string =>
-  `The value does not agree with the format the key declares: ${declaration.pattern ?? ''}`;
-
-const readNumber = (declaration: AttributeDeclaration, typed: string): ClaimEntry => {
+const readNumber = (typed: string): ClaimEntry => {
   if (typed.includes(',')) return refused(COMMA);
   if (!DECIMAL.test(typed)) return refused(NOT_A_NUMBER);
-  if (breaksPattern(declaration, typed)) return refused(format(declaration));
   return held(Number(typed));
 };
 
 // The comma separates two values, and the space beside it is written back into the box and is
 // never required in it. A trailing blank is the state of the box between two values, so it is
 // dropped and never refused: a list must not flash red at each comma the analyst types.
-const readList = (declaration: AttributeDeclaration, typed: string): ClaimEntry => {
+const readList = (typed: string): ClaimEntry => {
   const parts = typed.split(',').map((part) => part.trim());
   const written = parts.at(-1) === '' ? parts.slice(0, -1) : parts;
   if (written.length === 0 || written.includes('')) return refused(EMPTY_ELEMENT);
-  if (written.some((part) => breaksPattern(declaration, part))) return refused(format(declaration));
   return held(written);
 };
 
@@ -64,18 +60,15 @@ const leapYear = (year: number): boolean =>
   (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 
 // The shape alone admits `2019-99-99`, so each part is counted against the calendar.
-const readDay = (declaration: AttributeDeclaration, typed: string): ClaimEntry => {
+const readDay = (typed: string): ClaimEntry => {
   if (!DATE_ONLY.test(typed)) return refused(NOT_A_DAY);
   const year = Number(typed.slice(0, 4));
   const month = Number(typed.slice(5, 7));
   const day = Number(typed.slice(8, 10));
   const last = month === 2 && leapYear(year) ? 29 : LAST_DAY[month - 1];
   if (last === undefined || day < 1 || day > last) return refused(NOT_A_DAY);
-  return breaksPattern(declaration, typed) ? refused(format(declaration)) : held(typed);
+  return held(typed);
 };
-
-const readText = (declaration: AttributeDeclaration, typed: string): ClaimEntry =>
-  breaksPattern(declaration, typed) ? refused(format(declaration)) : held(typed);
 
 /** One typed value, read against the kind and the format its key declares. */
 export function readEntry(declaration: AttributeDeclaration, typed: TypedValue): ClaimEntry {
@@ -88,17 +81,17 @@ export function readEntry(declaration: AttributeDeclaration, typed: TypedValue):
 
   switch (declaration.kind) {
     case 'quantity':
-      return readNumber(declaration, trimmed);
+      return readNumber(trimmed);
     case 'date':
       // A browser that draws no day control leaves plain text in the box, and the declared
       // format is null on some keys, so this tier reads the day itself. The writer holds a date
       // as a string alone, so a day that is not read here reaches the record unread.
-      return readDay(declaration, trimmed);
+      return readDay(trimmed);
     case 'list':
-      return readList(declaration, trimmed);
+      return readList(trimmed);
     case 'identifier':
     case 'text':
     case 'note':
-      return readText(declaration, trimmed);
+      return held(trimmed);
   }
 }

@@ -1,43 +1,33 @@
 import { expect, test } from 'vitest';
 
 import { attributeEdit } from './attribute-value.ts';
-import { ATTRIBUTE_KIND, type AttributeVocabulary } from './vocabulary.ts';
 
-// The five declarations below stand for the live rows of `attribute_key`, one per rule the
-// edit applies: a kind that holds a number, one that holds a word, a format and a retirement.
-// A key that appears in no row of this list is an undeclared key, and it is accepted.
-const VOCABULARY: AttributeVocabulary = [
-  { key: 'imo', kind: ATTRIBUTE_KIND.identifier, pattern: '^[0-9]{7}$', retired: false },
-  { key: 'coal_stock_t', kind: ATTRIBUTE_KIND.quantity, pattern: null, retired: false },
-  { key: 'is_dark_fleet', kind: ATTRIBUTE_KIND.boolean, pattern: null, retired: false },
-  { key: 'aliases', kind: ATTRIBUTE_KIND.list, pattern: null, retired: false },
-  { key: 'call_sign', kind: ATTRIBUTE_KIND.text, pattern: null, retired: true },
-];
+// THE SHAPE IS THE WHOLE RULE. M11 stands: no key allowlist, and no rule on a value beyond its
+// shape. These tests hold the line in both directions — the first two prove the door takes a key
+// and a value nobody described, and the last three prove it still refuses a malformed attribute.
+const edit = attributeEdit();
 
-const edit = attributeEdit(VOCABULARY);
-
-type Edit = ReturnType<typeof attributeEdit>;
-
-const refusedBy = (
-  schema: Edit,
-  given: unknown,
-): { readonly code: string; readonly message: string } => {
-  const held = schema.safeParse(given);
+const refusalOf = (given: unknown): { readonly code: string; readonly message: string } => {
+  const held = edit.safeParse(given);
   if (held.success) throw new Error('the edit accepted attributes that it must refuse');
   const issue = held.error.issues[0];
   return { code: issue?.code ?? '', message: issue?.message ?? '' };
 };
 
-const refusalOf = (given: unknown): { readonly code: string; readonly message: string } =>
-  refusedBy(edit, given);
-
-test('an edit of a declared key, in the kind and the format the key states, is accepted', () => {
+test('a key nobody described is accepted, in whatever kind its value has', () => {
   const given = {
-    imo: { v: '9482137' },
-    coal_stock_t: { v: 41200 },
-    is_dark_fleet: { v: true },
-    aliases: { v: ['Northern Ledger', 'Nordic Ledger'] },
+    russian_designation: { v: 'v/ch 03333' },
+    crew_aboard: { v: 41 },
+    under_way: { v: true },
+    port_calls: { v: ['Rotterdam', 'Hamburg'] },
   };
+  expect(edit.parse(given)).toEqual(given);
+});
+
+// The key `imo` carries the shape of an IMO number in the seed, and no tier holds a value to it.
+// A format is a description of a key and never a rule on a value.
+test('a value that breaks the shape its key is described with is accepted', () => {
+  const given = { imo: { v: '948213' } };
   expect(edit.parse(given)).toEqual(given);
 });
 
@@ -45,37 +35,10 @@ test('a caller that cites a document is refused, and the writer alone composes a
   expect(refusalOf({ imo: { v: '9482137', src: ['doc_9b0417'] } }).code).toBe('unrecognized_keys');
 });
 
-// The vocabulary says what a key MEANS and never which keys exist. A person or an agent writes
-// a key the schema never anticipated, the write is accepted, and api.key_usage shows it with
-// `declared` false. These two tests are what keeps that door open.
-test('a key that the database does not declare is accepted, whatever its value', () => {
-  const given = { berth_count: { v: 2 }, russian_designation: { v: 'v/ch 03333' } };
-  expect(edit.parse(given)).toEqual(given);
+test('an attribute that carries no value is refused', () => {
+  expect(refusalOf({ imo: {} }).code).toBe('invalid_union');
 });
 
-test('a key that the database retired is accepted, and its old format holds nothing', () => {
-  const given = { call_sign: { v: 'PBNL' } };
-  expect(edit.parse(given)).toEqual(given);
-});
-
-test('a value of the wrong kind is refused, and the sentence names the kind the key states', () => {
-  expect(refusalOf({ imo: { v: 9482137 } }).message).toBe(
-    'the value of imo is not identifier, which the key declares',
-  );
-});
-
-test('a value that breaks the format is refused, and the sentence states the format', () => {
-  expect(refusalOf({ imo: { v: '948213' } }).message).toBe(
-    'imo does not match the format ^[0-9]{7}$',
-  );
-});
-
-test('a format applies to each element of a list, and one bad element refuses the edit', () => {
-  const shaped = attributeEdit([
-    { key: 'imo_list', kind: ATTRIBUTE_KIND.list, pattern: '^[0-9]{7}$', retired: false },
-  ]);
-  expect(refusedBy(shaped, { imo_list: { v: ['9482137', '948213'] } }).message).toBe(
-    'imo_list does not match the format ^[0-9]{7}$',
-  );
-  expect(shaped.safeParse({ imo_list: { v: ['9482137', '9482138'] } }).success).toBe(true);
+test('a value that is an object is refused, because M7 leaves no depth in a value', () => {
+  expect(refusalOf({ imo: { v: { number: '9482137' } } }).code).toBe('invalid_union');
 });

@@ -1,13 +1,8 @@
 import { expect, test } from 'vitest';
 
 import { writeRequest } from './request.ts';
-import { ATTRIBUTE_KIND, type AttributeVocabulary } from './vocabulary.ts';
 
-const VOCABULARY: AttributeVocabulary = [
-  { key: 'coal_stock_t', kind: ATTRIBUTE_KIND.quantity, pattern: null, retired: false },
-];
-
-const body = writeRequest(VOCABULARY);
+const body = writeRequest();
 
 const SRC_ID = '0ea482d0-cd00-4c77-911e-419dd2d1779f';
 const DST_ID = 'e0a8a817-0dac-49db-8627-a342609a3092';

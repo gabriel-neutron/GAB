@@ -1,17 +1,12 @@
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
 import { failureFrom } from './refusal.ts';
 import { writeRoutes } from './routes.ts';
-import { openVocabulary } from './vocabulary.ts';
 
 const pool = openPool();
-let app: ReturnType<typeof writeRoutes>;
-
-beforeAll(async () => {
-  app = writeRoutes(pool, await openVocabulary(pool));
-});
+const app = writeRoutes(pool);
 
 // The committed fixture holds these two counts, and every gesture below undoes itself. The
 // accepted proposals stay: the ledger is append-only, and a trigger refuses a delete.
@@ -300,20 +295,20 @@ test('an update that names no attribute is refused and writes no proposal', asyn
   }
 });
 
-test('an identifier written as a number is refused and writes no proposal', async () => {
-  const target = await signedEntity('Writer test declared kind');
+// `imo` is described `identifier` in the seed and carries the shape of an IMO number. NEITHER
+// HOLDS THE VALUE: M11 leaves the free half of the model with no rule beyond the shape, so the
+// door writes the number as it was given and the database takes it.
+test('a value that disagrees with the description of its key is written', async () => {
+  const target = await signedEntity('Writer test described kind');
   try {
     const before = await proposalsFor(target);
-    const [status, reply] = await post('update-attrs', {
+    const [status] = await post('update-attrs', {
       targetKind: 'entity',
       targetId: target,
       attrs: { imo: { v: 9482137 } },
     });
-    expect(status).toBe(422);
-    // The door refuses `imo` for four separate reasons, and each one answers 422. Only the whole
-    // sentence says which rule fired.
-    expect(reply.refusal).toBe('the value of imo is not identifier, which the key declares');
-    expect(await proposalsFor(target)).toBe(before);
+    expect(status).toBe(200);
+    expect(await proposalsFor(target)).toBe(before + 1);
   } finally {
     await removed(target);
   }

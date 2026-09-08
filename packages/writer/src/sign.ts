@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
 import { refusalFrom } from './refusal.ts';
-import type { VocabularyReader } from './vocabulary.ts';
 
 const TABLE = { entity: 'public.entities', relation: 'public.relations' } as const;
 
@@ -41,7 +40,6 @@ const unavailable = (refusal: string): SignedAct => ({
 const identifier = z.uuid();
 const counted = z.coerce.number();
 const objectBody = z.record(z.string(), z.unknown());
-const offered = z.object({ attrs: z.record(z.string(), z.unknown()) });
 
 const rows = async (
   client: PoolClient,
@@ -163,30 +161,17 @@ const faulted = (issue: { readonly path: PropertyKey[]; readonly message: string
   return `${first}: ${issue.message}`;
 };
 
-const keysOffered = (given: unknown): readonly string[] => {
-  const held = offered.safeParse(given);
-  return held.success ? Object.keys(held.data.attrs) : [];
-};
-
 // One act, in two transactions. `promote_proposal` refuses a proposal that the calling
 // transaction wrote, so the proposal commits first and the promotion opens a second one.
 export const sign = async (
   pool: Pool,
-  vocabulary: VocabularyReader,
   op: (typeof WRITE_OPS)[number],
   raw: string,
 ): Promise<SignedAct> => {
   const given = objectBody.safeParse(readBody(raw));
   if (!given.success) return refused('the body is not a JSON object');
 
-  let schema: ReturnType<typeof writeRequest>;
-  try {
-    schema = writeRequest(await vocabulary.forKeys(keysOffered(given.data)));
-  } catch (cause) {
-    return unavailable(refusalFrom(cause));
-  }
-
-  const request = schema.safeParse({ ...given.data, op });
+  const request = writeRequest().safeParse({ ...given.data, op });
   if (!request.success) return refused(request.error.issues.map(faulted).join('; '));
 
   // A pool that cannot give a client has written nothing, and the reason belongs to the same

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
-import { type AttributeVocabulary } from './vocabulary.ts';
 
 /** The five acts the operator may sign. A merge is absent: no promotion path applies one. */
 export const WRITE_OPS = [
@@ -49,8 +48,8 @@ const geometry = z.discriminatedUnion('type', [
 const NAMES_ATTRS = 'an update names at least one attribute';
 
 /** The body of one write, with the act taken from the address and never from the caller. */
-export const writeRequest = (vocabulary: AttributeVocabulary) => {
-  const attrs = attributeEdit(vocabulary);
+export const writeRequest = () => {
+  const attrs = attributeEdit();
 
   return z.discriminatedUnion('op', [
     z.strictObject({

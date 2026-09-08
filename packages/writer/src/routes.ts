@@ -5,7 +5,6 @@ import type { Pool } from 'pg';
 import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
 import { sign } from './sign.ts';
-import type { VocabularyReader } from './vocabulary.ts';
 
 const STATUS = {
   signed: 200,
@@ -20,18 +19,18 @@ const STATUS = {
 const doorOf = (op: string): string => `/write/${op.replaceAll('_', '-')}`;
 
 /** The seven doors. No address here answers a GET: the writer serves no read and returns no row. */
-export const writeRoutes = (pool: Pool, vocabulary: VocabularyReader): Hono => {
+export const writeRoutes = (pool: Pool): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
 
   for (const op of WRITE_OPS)
     app.post(doorOf(op), async (context) => {
-      const act = await sign(pool, vocabulary, op, await context.req.text());
+      const act = await sign(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
 
   // A decision writes no proposal: it names one that waits, and it opens the promotion door of
-  // the record or the rejection door. Neither one reads a vocabulary.
+  // the record or the rejection door.
   for (const op of DECISION_OPS)
     app.post(doorOf(op), async (context) => {
       const act = await decide(pool, op, await context.req.text());

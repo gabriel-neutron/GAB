@@ -1,16 +1,16 @@
-// The vocabulary says what a key MEANS, and never which keys exist. A key nobody declared is
-// written and never refused, because the free half of the model exists so that a person or an
-// agent can say a thing the schema never anticipated, and a key that must reach a .sql file
-// before the value can be written takes that away.
+// THE SHAPE IS THE WHOLE RULE ON THE FREE HALF OF THE MODEL. M11 stands: no key allowlist, and
+// no rule on a value beyond its shape. `attribute_key` describes what a key means for a reader
+// and permits nothing, so a key nobody described is written, and a value that disagrees with the
+// description of its key is written too.
 //
-// THE DOOR IS OPEN AND THE ENVELOPE IS NOT. `attrs_valid` still demands {v, src}, a value that is
-// never null and at least one source, so M7, M8 and M9 are untouched. The first three tests would
-// pass just as well if every rule had been deleted, and the last five are what stops that reading.
+// THE ENVELOPE IS NOT OPEN, and the last three tests are what stops that reading. `attrs_valid`
+// still demands {v, src}, a value that is never null, at least one source, and a key that is a
+// lower snake case identifier. M7, M8 and M9 are untouched.
 //
 // Each gesture opens a transaction, makes its calls and rolls back. The proposals ledger is
 // append-only and a trigger refuses a delete, so the rollback is the only way back. The probe
 // logs in as the superuser and then takes the identity of gabriel_app, because `propose_change`
-// stamps the author from session_user and only the superuser may retire a word.
+// stamps the author from session_user.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -44,14 +44,14 @@ const propose = (attrs: string): Promise<readonly unknown[]> =>
     return ask(proposal(attrs));
   });
 
-// ================================================================ a key nobody declared =====
+// ============================================================== a key nobody described ======
 
 test('a key that no row of attribute_key describes is accepted', async () => {
   const held = await propose(`{"russian_designation":{"v":"v/ch 03333",${CITED}}}`);
   expect(made.parse(held)).toHaveLength(1);
 });
 
-test('an undeclared key takes a value of any kind, because nothing declares its kind', async () => {
+test('an undescribed key takes a value of any kind', async () => {
   const held = await propose(
     `{"crew_aboard":{"v":41,${CITED}},
       "under_way":{"v":true,${CITED}},
@@ -60,34 +60,20 @@ test('an undeclared key takes a value of any kind, because nothing declares its 
   expect(made.parse(held)).toHaveLength(1);
 });
 
-// A retired word describes nothing, so it holds nothing either. It leaves service by leaving the
-// screen and releasing its stem, and never by refusing a write.
-test('a key the vocabulary retired is accepted like any undeclared key', async () => {
-  const held = await gesture(async (ask) => {
-    await ask(`UPDATE public.attribute_key SET retired = true WHERE key = 'berth_count'`);
-    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-    return ask(proposal(`{"berth_count":{"v":"two",${CITED}}}`));
-  });
-  expect(made.parse(held)).toHaveLength(1);
+// ================================ a key that IS described is held to nothing either ==========
+// `berth_count` is described `quantity` and `imo` carries the shape of an IMO number. A
+// description is not a rule: M11 leaves the free half of the model with no rule beyond the
+// shape, so both values below land exactly as they were written.
+
+test('a value of another kind than its key is described with is accepted', async () => {
+  expect(made.parse(await propose(`{"berth_count":{"v":"two",${CITED}}}`))).toHaveLength(1);
 });
 
-// ========================================== a key that IS declared keeps its declaration ====
-
-test('a declared key still holds its value to the kind it declares', async () => {
-  await expect(propose(`{"berth_count":{"v":"two",${CITED}}}`)).rejects.toMatchObject({
-    code: '23514',
-    message: "proposal refused: 'berth_count' is declared quantity and the value is a string",
-  });
+test('a value that breaks the shape its key is described with is accepted', async () => {
+  expect(made.parse(await propose(`{"imo":{"v":"948213",${CITED}}}`))).toHaveLength(1);
 });
 
-test('a declared key still holds its value to the format it declares', async () => {
-  await expect(propose(`{"imo":{"v":"948213",${CITED}}}`)).rejects.toMatchObject({
-    code: '23514',
-    message: "proposal refused: 'imo' does not match the declared format '^[0-9]{7}$'",
-  });
-});
-
-// ============================================= the envelope, which this change did not open ==
+// =========================================== the envelope, which no ruling has opened ========
 
 test('an undeclared key carries no null value, because a value always exists', async () => {
   await expect(propose(`{"russian_designation":{"v":null,${CITED}}}`)).rejects.toMatchObject({

@@ -1,17 +1,12 @@
 import { WRITE_OPS } from '@gab/proposal/request';
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
 import { writeRoutes } from './routes.ts';
-import { openVocabulary } from './vocabulary.ts';
 
 const pool = openPool();
-let app: ReturnType<typeof writeRoutes>;
-
-beforeAll(async () => {
-  app = writeRoutes(pool, await openVocabulary(pool));
-});
+const app = writeRoutes(pool);
 
 afterAll(async () => {
   await pool.end();
