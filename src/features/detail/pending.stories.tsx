@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { expect, fn } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
-import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { Band } from './band';
 import { recordCells } from './draft';
@@ -17,7 +16,7 @@ import { EntityRecord } from './record';
  */
 const FACILITY = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const DOSSIER = readDossier(corpus, FACILITY, vocabulary);
+const DOSSIER = readDossier(corpus, FACILITY);
 
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 

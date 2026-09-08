@@ -11,8 +11,6 @@ export type FieldProps =
       readonly mode: 'reading';
       readonly label: string;
       readonly value: ClaimValue;
-      /** Why the value stands and takes no change here. It is drawn in words. */
-      readonly note: string | null;
     }
   | {
       readonly mode: 'writing';
@@ -183,14 +181,9 @@ function WritingField({
 export function Field(props: FieldProps) {
   const said = useId();
 
-  if (props.mode === 'reading') {
-    return (
-      <span className="block">
-        <ReadOnlyField label={props.label} value={props.value} />
-        {props.note === null ? null : <span className={cn(SENTENCE)}>{props.note}</span>}
-      </span>
-    );
-  }
+  // A read-only claim states no sentence beside it. Nothing makes a claim unwritable now, so a
+  // record that is read through is read through whole, and never one refused row at a time.
+  if (props.mode === 'reading') return <ReadOnlyField label={props.label} value={props.value} />;
 
   const refusal = props.draft.refusal;
   return (

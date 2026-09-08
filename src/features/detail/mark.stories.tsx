@@ -36,7 +36,7 @@ const CORPUS: Corpus = {
   proposals: [],
 };
 
-const SOURCES: readonly SourceRef[] = readDossier(CORPUS, 'probe-1', [])?.entitySources ?? [];
+const SOURCES: readonly SourceRef[] = readDossier(CORPUS, 'probe-1')?.entitySources ?? [];
 
 const first = (): SourceRef => {
   const held = SOURCES[0];

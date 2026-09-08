@@ -4,7 +4,6 @@
 import { z } from 'zod';
 
 import type {
-  AttributeDeclaration,
   Attributes,
   DocumentRow,
   Entity,
@@ -131,18 +130,6 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
   }
 }
 
-function attributeKey(row: unknown): AttributeDeclaration {
-  const read = wireRow.attributeKey.parse(row);
-  return {
-    key: read.key,
-    kind: read.kind,
-    label: read.label,
-    unit: read.unit,
-    pattern: read.pattern,
-    retired: read.retired,
-  };
-}
-
 function entityType(row: unknown): EntityTypeDeclaration {
   const read = wireRow.entityType.parse(row);
   return {
@@ -233,7 +220,6 @@ function placement(row: unknown): EntityPlacement {
 
 /** Each one reads a row of the read API and gives the record row a surface works in. */
 export const toDomain = {
-  attributeKey,
   entityType,
   document,
   entity,

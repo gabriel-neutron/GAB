@@ -1,9 +1,9 @@
-/** Typed text back into an attribute value, against the declaration of its key. The database is
+/** Typed text back into an attribute value, in the control it was typed into. The database is
  * the second tier and refuses what this misses; this tier gives a sentence before a round trip. */
 
-import type { AttributeDeclaration, AttributeValue } from '@/shared/read/model';
+import type { AttributeValue } from '@/shared/read/model';
 
-import { DATE_ONLY, type TypedValue } from './claims';
+import { DATE_ONLY, type ClaimControl, type TypedValue } from './claims';
 
 /** The value the act will carry, or the one sentence the analyst reads. */
 export type ClaimEntry =
@@ -34,9 +34,9 @@ const held = (value: AttributeValue): ClaimEntry => ({ held: true, value });
 
 const refused = (refusal: string): ClaimEntry => ({ held: false, refusal });
 
-// NOTHING HERE READS `pattern`: a format describes a key and holds no value, and M11 leaves the
-// free half of the model with no rule beyond the shape. What remains turns typed text into the
-// JSON type its control emits, which is a conversion and not a rule.
+// NOTHING HERE IS A RULE ON A VALUE. M11 leaves the free half of the model with none. What
+// remains turns typed text into the JSON type its control emits, and a box must write a number
+// or a string and cannot write both.
 
 const readNumber = (typed: string): ClaimEntry => {
   if (typed.includes(',')) return refused(COMMA);
@@ -70,26 +70,25 @@ const readDay = (typed: string): ClaimEntry => {
   return held(typed);
 };
 
-/** One typed value, read against the kind and the format its key declares. */
-export function readEntry(declaration: AttributeDeclaration, typed: TypedValue): ClaimEntry {
-  if (declaration.kind === 'boolean')
+/** One typed value, read in the control that emitted it. */
+export function readEntry(control: ClaimControl, typed: TypedValue): ClaimEntry {
+  if (control === 'boolean')
     return typeof typed === 'boolean' ? held(typed) : refused(NOT_A_YES_OR_NO);
   if (typeof typed !== 'string') return refused(NOT_A_YES_OR_NO);
 
-  const trimmed = declaration.kind === 'note' ? typed : typed.trim();
+  const trimmed = control === 'note' ? typed : typed.trim();
   if (trimmed.trim() === '') return refused(EMPTY);
 
-  switch (declaration.kind) {
-    case 'quantity':
+  switch (control) {
+    case 'number':
       return readNumber(trimmed);
     case 'date':
-      // A browser that draws no day control leaves plain text in the box, and the declared
-      // format is null on some keys, so this tier reads the day itself. The writer holds a date
-      // as a string alone, so a day that is not read here reaches the record unread.
+      // A browser that draws no day control leaves plain text in the box, so this tier reads the
+      // day itself. The record holds a day as a string, and one that is not read here lands
+      // unread.
       return readDay(trimmed);
     case 'list':
       return readList(trimmed);
-    case 'identifier':
     case 'text':
     case 'note':
       return held(trimmed);

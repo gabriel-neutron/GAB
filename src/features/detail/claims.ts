@@ -1,14 +1,7 @@
-/** The control of a claim comes from the kind the database declares for its key. A value never
- * states its own type: a seven-digit IMO number is an identifier and not a quantity. */
+/** The control of a claim comes from the shape of its value. Nothing declares what a key means
+ * (M11), so a seven-digit IMO number is drawn as the text it is and never as a quantity. */
 
-import type {
-  AttributeDeclaration,
-  AttributeKind,
-  AttributeValue,
-  Attributes,
-  DocId,
-  Vocabulary,
-} from '@/shared/read/model';
+import type { AttributeValue, Attributes, DocId } from '@/shared/read/model';
 
 export type ClaimControl = 'boolean' | 'number' | 'date' | 'text' | 'note' | 'list';
 
@@ -28,9 +21,6 @@ export interface ClaimRow {
   readonly label: string;
   readonly value: ClaimValue;
   readonly width: ClaimWidth;
-  /** What the value is read against. A key the vocabulary does not describe carries an inferred
-   * declaration, so every claim on the screen is written the same way. */
-  readonly declaration: AttributeDeclaration;
   /** M8: every claim carries the documents it comes from. No control hides them. */
   readonly sources: readonly DocId[];
 }
@@ -38,30 +28,7 @@ export interface ClaimRow {
 /** The separator of a list, in the box and back out of it. */
 export const LIST_SEPARATOR = ', ';
 
-/** The seven declared kinds, on the six controls a claim is drawn with. */
-const CONTROL_OF_KIND: Readonly<Record<AttributeKind, ClaimControl>> = {
-  quantity: 'number',
-  identifier: 'text',
-  text: 'text',
-  note: 'note',
-  date: 'date',
-  boolean: 'boolean',
-  list: 'list',
-};
-
-/** The way back, for a key the vocabulary describes with nothing. `identifier` never appears
- * here: it is a rule about a value, and an inferred kind states no rule. */
-const KIND_OF_CONTROL: Readonly<Record<ClaimControl, AttributeKind>> = {
-  number: 'quantity',
-  text: 'text',
-  note: 'note',
-  date: 'date',
-  boolean: 'boolean',
-  list: 'list',
-};
-
-/** The shape of a day. A declared date is read against it, and a text of this shape stands in
- * for a date where no key is declared. */
+/** The shape of a day. A text of this shape is drawn and read as a day. */
 export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Longer than this, or with a line break, and the text is read as a note. A stand-in value. */
@@ -87,20 +54,6 @@ function shapeOf(value: AttributeValue): ClaimValue {
   }
   // M7 leaves a flat list of scalars, and nothing else. It is joined into the one box.
   return { control: 'list', text: value.join(LIST_SEPARATOR), count: value.length };
-}
-
-/** The stored value, drawn in the control the declared kind names. The shape of the value is
- * read instead where the key is undeclared or retired, because nothing states a kind for it. */
-function drawnAs(control: ClaimControl, value: AttributeValue): ClaimValue {
-  if (control === 'boolean') {
-    const checked = value === true;
-    return { control, checked, text: checked ? 'yes' : 'no' };
-  }
-  if (control === 'list') {
-    const parts = Array.isArray(value) ? value.map(String) : [String(value)];
-    return { control, text: parts.join(LIST_SEPARATOR), count: parts.length };
-  }
-  return { control, text: String(value) };
 }
 
 /** What the analyst has typed, in the control it was typed into. The text is kept as it stands,
@@ -133,48 +86,21 @@ function byCodePoint(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-// The name of a declared key is what `attribute_key.label` states, and this stands in where the
-// vocabulary describes the key with nothing, so a key that arrived from an agent still prints.
-function undeclaredLabel(key: string): string {
+// NOTHING NAMES A KEY BUT THE KEY. There is no label column and no vocabulary, so the printed
+// name is the key with its underscores opened out and its first letter raised.
+function labelOf(key: string): string {
   const words = key.replaceAll('_', ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** The declaration an undeclared or retired key stands on: the kind its stored value already
- * has, and no format. The screen holds such a value to the kind it arrived with, because nothing
- * states a kind for it and a changed kind is a claim nobody made. */
-const inferredDeclaration = (key: string, value: ClaimValue): AttributeDeclaration => ({
-  key,
-  kind: KIND_OF_CONTROL[value.control],
-  label: undeclaredLabel(key),
-  unit: null,
-  pattern: null,
-  retired: false,
-});
-
-export function readClaims(attrs: Attributes, vocabulary: Vocabulary): readonly ClaimRow[] {
-  const declared = new Map(vocabulary.map((entry) => [entry.key, entry]));
-
+export function readClaims(attrs: Attributes): readonly ClaimRow[] {
   return (
     Object.entries(attrs)
       // No order arrives from the model. The alphabet stands in.
       .sort(([a], [b]) => byCodePoint(a, b))
       .map(([key, attribute]) => {
-        const held = declared.get(key);
-        // A retired word describes nothing, and the database accepts it like any undeclared key.
-        const live = held !== undefined && !held.retired ? held : undefined;
-        const value =
-          live === undefined
-            ? shapeOf(attribute.v)
-            : drawnAs(CONTROL_OF_KIND[live.kind], attribute.v);
-        return {
-          key,
-          label: held?.label ?? undeclaredLabel(key),
-          value,
-          width: widthOf(value),
-          declaration: live ?? inferredDeclaration(key, value),
-          sources: attribute.src,
-        };
+        const value = shapeOf(attribute.v);
+        return { key, label: labelOf(key), value, width: widthOf(value), sources: attribute.src };
       })
   );
 }

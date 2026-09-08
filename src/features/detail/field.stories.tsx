@@ -3,13 +3,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { useState } from 'react';
 
-import type {
-  Attribute,
-  Attributes,
-  AttributeDeclaration,
-  AttributeValue,
-  Vocabulary,
-} from '@/shared/read/model';
+import type { Attribute, Attributes, AttributeValue } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 
 import { readClaims, typedValue, type ClaimValue, type TypedValue } from './claims';
@@ -44,36 +38,22 @@ const FORMER_NAMES = 'Aurora Bay, Cape Ferro, Nordic Trader';
 // characters takes the whole line.
 const fields = (attrs: Attributes, width = 'w-80') => (
   <div className={cn('flex flex-col gap-1', width)}>
-    {/* No key of this probe is declared, so each control draws the shape of its value. */}
-    {readClaims(attrs, NO_VOCABULARY).map((row) => (
-      <Field key={row.key} mode="reading" label={row.label} value={row.value} note={null} />
+    {/* Each control draws the shape of its value: nothing declares a kind for a key. */}
+    {readClaims(attrs).map((row) => (
+      <Field key={row.key} mode="reading" label={row.label} value={row.value} />
     ))}
   </div>
 );
 
-const NO_VOCABULARY: Vocabulary = [];
-
-const declared = (
-  key: string,
-  kind: AttributeDeclaration['kind'],
-  pattern: string | null = null,
-): AttributeDeclaration => ({ key, kind, label: key, unit: null, pattern, retired: false });
-
 const onTyped = fn();
-
-const UNDECLARED = 'The vocabulary declares no such key, and it takes no value here.';
-
-const QUANTITY = declared('coal_stock_t', 'quantity');
-const FLAG = declared('seasonal_closure', 'boolean');
-const IDENTIFIER = declared('imo', 'identifier', '^[0-9]{7}$');
 
 /** One writable control, with the state a page holds for it. A story drives what a page drives. */
 function OneField({
-  declaration,
+  label,
   start,
   onTyped,
 }: {
-  declaration: AttributeDeclaration;
+  label: string;
   start: ClaimValue;
   onTyped: (typed: TypedValue) => void;
 }) {
@@ -83,11 +63,11 @@ function OneField({
     <div className="w-80 p-2">
       <Field
         mode="writing"
-        label={declaration.key}
+        label={label}
         draft={draft}
         onEdit={(typed) => {
           onTyped(typed);
-          const read = readEntry(declaration, typed);
+          const read = readEntry(start.control, typed);
           setDraft({
             value: typedValue(start.control, typed),
             refusal: read.held ? null : read.refusal,
@@ -106,7 +86,6 @@ const READING: Reading = {
   mode: 'reading',
   label: 'Gross tonnage',
   value: { control: 'number', text: '32567' },
-  note: null,
 };
 
 const WRITING: Extract<FieldProps, { mode: 'writing' }> = {
@@ -213,11 +192,7 @@ export const NoValueIsTruncated: Story = {
 export const ATypedValueReachesTheHandler: Story = {
   args: WRITING,
   render: () => (
-    <OneField
-      declaration={IDENTIFIER}
-      start={{ control: 'text', text: '9482137' }}
-      onTyped={onTyped}
-    />
+    <OneField label="imo" start={{ control: 'text', text: '9482137' }} onTyped={onTyped} />
   ),
   play: async ({ canvas }) => {
     onTyped.mockClear();
@@ -234,11 +209,7 @@ export const ATypedValueReachesTheHandler: Story = {
 export const ANumberRefusesALocaleComma: Story = {
   args: WRITING,
   render: () => (
-    <OneField
-      declaration={QUANTITY}
-      start={{ control: 'number', text: '41200' }}
-      onTyped={onTyped}
-    />
+    <OneField label="coal_stock_t" start={{ control: 'number', text: '41200' }} onTyped={onTyped} />
   ),
   play: async ({ canvas }) => {
     const box = canvas.getByLabelText('coal_stock_t');
@@ -261,7 +232,7 @@ export const ACheckboxEmitsItsBoolean: Story = {
   args: WRITING,
   render: () => (
     <OneField
-      declaration={FLAG}
+      label="seasonal_closure"
       start={{ control: 'boolean', checked: false, text: 'no' }}
       onTyped={onTyped}
     />
@@ -277,26 +248,5 @@ export const ACheckboxEmitsItsBoolean: Story = {
 
     await userEvent.click(tick);
     await expect(onTyped).toHaveBeenLastCalledWith(false);
-  },
-};
-
-// A key the vocabulary does not declare cannot be written: the database refuses it. The screen
-// says so in words, and it never leaves the reader to read that out of a grey box.
-export const AnUndeclaredKeyIsReadOnlyAndSaysWhy: Story = {
-  args: READING,
-  render: () => (
-    <div className="w-80 p-2">
-      <Field
-        mode="reading"
-        label="Berth count"
-        value={{ control: 'number', text: '4' }}
-        note={UNDECLARED}
-      />
-    </div>
-  ),
-  play: async ({ canvas }) => {
-    const box = canvas.getByLabelText('Berth count');
-    await expect(box).toBeDisabled();
-    await expect(canvas.getByText(UNDECLARED)).toBeInTheDocument();
   },
 };

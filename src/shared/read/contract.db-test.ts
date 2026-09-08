@@ -35,12 +35,6 @@ const VIEWS: readonly View[] = [
     instead: 'third',
   },
   {
-    view: 'attribute_key',
-    read: (row) => toDomain.attributeKey(row),
-    column: 'kind',
-    instead: 'colour',
-  },
-  {
     view: 'value_support',
     read: (row) => valueSupport.parse(row),
     column: 'owner_id',

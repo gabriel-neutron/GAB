@@ -6,10 +6,7 @@ import { join } from 'node:path';
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import type {
-  SeededAttributeKey,
-  SeededEntityType,
-} from '../src/shared/vocabulary/declarations.ts';
+import type { SeededEntityType } from '../src/shared/vocabulary/declarations.ts';
 import { seededVocabulary } from '../src/shared/vocabulary/declarations.ts';
 
 const SEED = join(import.meta.dirname, '..', 'db', 'apply', '95_seed.sql');
@@ -66,24 +63,14 @@ const statement = (
     '',
   ].join('\n');
 
-/** The two INSERT statements the seed carries, keyed by the table each one fills. */
-export const vocabularyStatements = (
-  entityTypes: readonly SeededEntityType[],
-  attributeKeys: readonly SeededAttributeKey[],
-): { readonly entity_type: string; readonly attribute_key: string } => ({
-  entity_type: statement(
+/** The one INSERT statement the seed carries. */
+export const vocabularyStatement = (entityTypes: readonly SeededEntityType[]): string =>
+  statement(
     'entity_type',
     ['key', 'label', 'colour_light', 'colour_dark', 'ord'],
     entityTypes.map((row) => [row.key, row.label, row.colourLight, row.colourDark, row.ord]),
     4,
-  ),
-  attribute_key: statement(
-    'attribute_key',
-    ['key', 'stem', 'kind', 'label', 'unit', 'pattern'],
-    attributeKeys.map((row) => [row.key, row.stem, row.kind, row.label, row.unit, row.pattern]),
-    6,
-  ),
-});
+  );
 
 const spliced = (seed: string, table: string, body: string): string => {
   const open = `-- >>> GENERATED ${table}\n`;
@@ -94,27 +81,15 @@ const spliced = (seed: string, table: string, body: string): string => {
   return seed.slice(0, start + open.length) + body + seed.slice(end);
 };
 
-/** The seed file with each marked region replaced. Every other line comes back unchanged. */
+/** The seed file with the marked region replaced. Every other line comes back unchanged. */
 export const seedWithVocabulary = (
   seed: string,
   entityTypes: readonly SeededEntityType[],
-  attributeKeys: readonly SeededAttributeKey[],
-): string => {
-  const statements = vocabularyStatements(entityTypes, attributeKeys);
-  return spliced(
-    spliced(seed, 'entity_type', statements.entity_type),
-    'attribute_key',
-    statements.attribute_key,
-  );
-};
+): string => spliced(seed, 'entity_type', vocabularyStatement(entityTypes));
 
 if (argv[1] === fileURLToPath(import.meta.url)) {
   const seed = await readFile(SEED, 'utf8');
-  const written = seedWithVocabulary(
-    seed,
-    seededVocabulary.entityTypes,
-    seededVocabulary.attributeKeys,
-  );
+  const written = seedWithVocabulary(seed, seededVocabulary.entityTypes);
   await writeFile(SEED, written, 'utf8');
   console.log(written === seed ? 'seed unchanged' : 'seed rewritten');
 }

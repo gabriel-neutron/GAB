@@ -4,7 +4,7 @@ import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
 import { loadCorpus } from '@/shared/read/corpus';
-import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
+import { loadEntityTypes } from '@/shared/read/vocabulary';
 
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
@@ -36,12 +36,8 @@ export const Route = createFileRoute('/map')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, vocabulary, types] = await Promise.all([
-      loadCorpus(),
-      loadVocabulary(),
-      loadEntityTypes(),
-    ]);
-    return { corpus, vocabulary, types };
+    const [corpus, types] = await Promise.all([loadCorpus(), loadEntityTypes()]);
+    return { corpus, types };
   },
 
   component: MapRoute,
@@ -51,7 +47,7 @@ export const Route = createFileRoute('/map')({
 function MapRoute() {
   const { entity, relation } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, vocabulary, types } = Route.useLoaderData();
+  const { corpus, types } = Route.useLoaderData();
 
   // The address is the one carrier of the selection, and no React state holds a second copy.
   // The list of each callback below must stay `[navigate]`, so the values of this moment arrive
@@ -93,10 +89,7 @@ function MapRoute() {
   // A stale identifier gives `null`, the route composes no sidebar, and the canvas keeps the full
   // width. There is no "not found" screen here: the map is still the answer. The read is memoised
   // because every other render of this route would otherwise walk the whole corpus again.
-  const dossier = useMemo(
-    () => readDossier(corpus, entity, vocabulary),
-    [corpus, entity, vocabulary],
-  );
+  const dossier = useMemo(() => readDossier(corpus, entity), [corpus, entity]);
 
   const chosen = useMemo(() => readRelation(corpus, relation), [corpus, relation]);
 

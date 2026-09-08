@@ -31,9 +31,9 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- and reaches no later table, so the sentence "no role writes a table" is an enumeration of the
 -- seven tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
 -- the enumeration is still complete after the next migration.
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
+GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_app;
-GRANT SELECT ON documents, entity_type, attribute_key, proposals, entities, relations, jobs
+GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
 -- The seven doors, and nothing else.

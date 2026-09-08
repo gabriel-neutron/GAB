@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
-import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 import { Sidebar } from './sidebar';
@@ -11,7 +10,7 @@ import { Sidebar } from './sidebar';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL, vocabulary);
+  const held = readDossier(corpus, VESSEL);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };

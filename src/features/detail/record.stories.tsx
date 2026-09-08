@@ -10,7 +10,6 @@ import type {
   Corpus,
   DocId,
   DocumentRow,
-  Vocabulary,
 } from '@/shared/read/model';
 
 import { recordCells, typedInto, type Drafts } from './draft';
@@ -137,8 +136,7 @@ const CORPUS: Corpus = {
   proposals: [],
 };
 
-// No key of this probe is declared, so the record is read through and never written here.
-const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', [])?.rows ?? [];
+const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1')?.rows ?? [];
 
 const onSelectSource = fn();
 
@@ -238,17 +236,14 @@ export const TheRecordDrawsNoInventedHeading: Story = {
   },
 };
 
-/** A note is declared as a note. Before, the control was read from the length of the value, and
- * the 49th character changed it: React then replaced the element and the caret was lost. */
+/** THE CONTROL IS FIXED BY THE STORED VALUE AND NEVER BY WHAT IS TYPED. The value below is 38
+ * characters and draws a text box; typing past the 48th does not exchange the element, so the
+ * caret survives. Before, the length of the DRAFT chose the control and React replaced it. */
 const NOTE_KEY = 'hull_note';
 
 const NOTE_START = 'Pitting in way of the number three hold';
 
 const NOTE_ADDED = ', and the frames aft of it';
-
-const DECLARED: Vocabulary = [
-  { key: NOTE_KEY, kind: 'note', label: 'Hull note', unit: null, pattern: null, retired: false },
-];
 
 const NOTE_CORPUS: Corpus = {
   documents: [document_('doc-survey', 'Survey report, 2025')],
@@ -268,8 +263,7 @@ const NOTE_CORPUS: Corpus = {
   proposals: [],
 };
 
-const NOTE_ROWS: readonly RecordRow[] =
-  readDossier(NOTE_CORPUS, 'probe-note', DECLARED)?.rows ?? [];
+const NOTE_ROWS: readonly RecordRow[] = readDossier(NOTE_CORPUS, 'probe-note')?.rows ?? [];
 
 /** The record with the state a page holds for it. A story drives what a page drives. */
 function WritableRecord({ rows }: { rows: readonly RecordRow[] }) {

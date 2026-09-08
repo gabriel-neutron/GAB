@@ -1,7 +1,5 @@
 // The shapes of the record, in domain words. Every surface reads these and never a wire row.
 
-import { type ATTRIBUTE_KIND } from '@gab/proposal/vocabulary';
-
 export type DocId = string;
 
 export type AttributeValue = string | number | boolean | readonly string[] | readonly number[];
@@ -13,26 +11,6 @@ export interface Attribute {
 }
 
 export type Attributes = Readonly<Record<string, Attribute>>;
-
-/** The seven kinds a key is declared with. The database holds the same seven in a check. */
-export type AttributeKind = (typeof ATTRIBUTE_KIND)[keyof typeof ATTRIBUTE_KIND];
-
-/** What `attribute_key` states about one key. A surface takes the control from `kind`, and it
- * never reads a type out of the shape of a value. */
-export interface AttributeDeclaration {
-  readonly key: string;
-  readonly kind: AttributeKind;
-  readonly label: string;
-  /** The printable symbol of the unit of record, where the key carries one. */
-  readonly unit: string | null;
-  /** A regular expression the value must satisfy, written by the seed. */
-  readonly pattern: string | null;
-  /** A retired key keeps its history and takes no new value. */
-  readonly retired: boolean;
-}
-
-/** Every key the database declares. It is read beside the corpus, and never written by hand. */
-export type Vocabulary = readonly AttributeDeclaration[];
 
 /** What `entity_type` states about one type. A canvas takes the hue from here, and it never
  * takes one from a position in a list. */

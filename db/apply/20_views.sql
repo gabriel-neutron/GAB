@@ -30,7 +30,6 @@ DROP VIEW IF EXISTS api.value_support;
 DROP VIEW IF EXISTS api.proposal;
 DROP VIEW IF EXISTS api.relation;
 DROP VIEW IF EXISTS api.entity;
-DROP VIEW IF EXISTS api.attribute_key;
 DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
 
@@ -52,15 +51,6 @@ COMMENT ON VIEW api.entity_type IS
   'The closed list of entity types. Filter retired=is.false for the live vocabulary. Two hues '
   'and not one: a single hex value fails one of the two pages. A map takes colour_dark on both '
   'themes, because its ground is imagery.';
-
-
-CREATE VIEW api.attribute_key AS
-  SELECT key, stem, kind, label, unit, pattern, retired FROM public.attribute_key;
-COMMENT ON VIEW api.attribute_key IS
-  'The closed list of attribute keys. READ THIS BEFORE READING ANY attrs: it declares what each '
-  'key means, the kind of its value, its unit and its format. Never infer a type from the shape '
-  'of a value — 9482137 is an IMO identifier and not a quantity. `stem` is the concept, so two '
-  'keys can never name one concept.';
 
 
 CREATE VIEW api.entity AS
@@ -107,23 +97,20 @@ COMMENT ON VIEW api.proposal IS
 -- A row with attr_key IS NULL is the source list of the ROW ITSELF, not of a value.
 CREATE VIEW api.value_support AS
       SELECT 'entity'::text AS owner_kind, e.id AS owner_id, e.label AS owner_label,
-             s.doc AS doc_id, c.key AS attr_key, k.label AS key_label, k.kind, k.unit,
-             c.val -> 'v' AS value
+             s.doc AS doc_id, c.key AS attr_key, c.val -> 'v' AS value
         FROM public.entities e
         CROSS JOIN LATERAL jsonb_each(e.attrs) AS c(key, val)
         CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-        LEFT JOIN public.attribute_key k ON k.key = c.key
 UNION ALL
-      SELECT 'entity', e.id, e.label, d, NULL, NULL, NULL, NULL, NULL
+      SELECT 'entity', e.id, e.label, d, NULL, NULL
         FROM public.entities e CROSS JOIN LATERAL unnest(e.sources) AS d
 UNION ALL
-      SELECT 'relation', r.id, r.type, s.doc, c.key, k.label, k.kind, k.unit, c.val -> 'v'
+      SELECT 'relation', r.id, r.type, s.doc, c.key, c.val -> 'v'
         FROM public.relations r
         CROSS JOIN LATERAL jsonb_each(r.attrs) AS c(key, val)
         CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-        LEFT JOIN public.attribute_key k ON k.key = c.key
 UNION ALL
-      SELECT 'relation', r.id, r.type, d, NULL, NULL, NULL, NULL, NULL
+      SELECT 'relation', r.id, r.type, d, NULL, NULL
         FROM public.relations r CROSS JOIN LATERAL unnest(r.sources) AS d;
 COMMENT ON VIEW api.value_support IS
   'Which PUBLISHED values a document holds up. Filter on doc_id when an ADMIRALTY rating moves. '
@@ -132,16 +119,13 @@ COMMENT ON VIEW api.value_support IS
   'that cite the same document, read api.proposal with src=cs.{the id}.';
 
 
--- The monitoring view M11 asked for, AND IT IS NOW THE RULE AND NOT A BACKSTOP. attrs_declared
--- refuses no undeclared key, so this view is the only thing that shows one. A key that appears
--- here with `declared` false is a key a person or an agent minted at the moment of writing: it
--- is either a real concept that wants a declaration, or a typo beside a key that already exists.
+-- THE MONITORING VIEW M11 ASKED FOR, AND NOW THE WHOLE OF WHAT M11 LEFT. There is no vocabulary
+-- table and no rule on a key beyond its shape, so this view is the only thing that shows which
+-- keys the record carries. Two spellings of one concept stand side by side here, and reading it
+-- is the only way anybody finds them.
 --
 -- IT READS BOTH TABLES THAT CARRY ATTRIBUTES. A view over entities alone would leave a key
 -- written on a relation invisible, and a worklist with a hole is not a worklist.
---
--- A LEFT JOIN, because the undeclared key is the row this view exists to show. The declared
--- columns are NULL on such a row, which is the honest answer: nothing says what it means.
 CREATE VIEW api.key_usage AS
   WITH used AS (
     SELECT 'entity' AS owner_kind, e.type AS owner_type, ok.key
@@ -152,19 +136,14 @@ CREATE VIEW api.key_usage AS
       FROM public.relations r
       CROSS JOIN LATERAL jsonb_object_keys(r.attrs) AS ok(key)
   )
-  SELECT u.key, u.owner_kind, u.owner_type,
-         (k.key IS NOT NULL) AS declared,
-         k.stem, k.kind, k.unit, k.retired,
-         count(*) AS claims
+  SELECT u.key, u.owner_kind, u.owner_type, count(*) AS claims
     FROM used u
-    LEFT JOIN public.attribute_key k ON k.key = u.key
-   GROUP BY u.key, u.owner_kind, u.owner_type, k.key, k.stem, k.kind, k.unit, k.retired;
+   GROUP BY u.key, u.owner_kind, u.owner_type;
 COMMENT ON VIEW api.key_usage IS
   'Every attribute key in use, on an entity or on a relation, with how often it is used and by '
-  'which type. `declared` false marks a key that no row of attribute_key describes: the write '
-  'was accepted, and nothing states what the key means or what shape its value takes. That is '
-  'the worklist. A low count on a declared key is a typo or a semantic duplicate beside a key '
-  'that already exists. Read it periodically.';
+  'which type. Nothing declares a key, so this is the one place a semantic duplicate — '
+  'coal_stock beside coal_stock_tonnes — becomes visible. A low count is a typo. M11 accepted '
+  'that this makes the drift visible and prevents none of it. Read it periodically.';
 
 -- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
 -- place carries NULL here, which is not an error: the surface places it itself and the next run

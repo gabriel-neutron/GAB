@@ -7,7 +7,7 @@ import type { GraphSelection } from '@/features/graph/controller';
 import { GraphPage } from '@/features/graph/graph-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadLayout } from '@/shared/read/layout';
-import { loadEntityTypes, loadVocabulary } from '@/shared/read/vocabulary';
+import { loadEntityTypes } from '@/shared/read/vocabulary';
 import { cn } from '@/shared/lib/utils';
 
 // The address is the one store of what is examined. Two carriers of one fact drift apart.
@@ -48,13 +48,12 @@ export const Route = createFileRoute('/graph')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, vocabulary, types, layout] = await Promise.all([
+    const [corpus, types, layout] = await Promise.all([
       loadCorpus(),
-      loadVocabulary(),
       loadEntityTypes(),
       loadLayout(),
     ]);
-    return { corpus, vocabulary, types, layout };
+    return { corpus, types, layout };
   },
 
   component: GraphRoute,
@@ -62,7 +61,7 @@ export const Route = createFileRoute('/graph')({
 });
 
 function GraphRoute() {
-  const { corpus, vocabulary, types, layout } = Route.useLoaderData();
+  const { corpus, types, layout } = Route.useLoaderData();
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
@@ -74,8 +73,8 @@ function GraphRoute() {
     () =>
       selection === null || selection.kind === 'relation'
         ? null
-        : readDossier(corpus, selection.id, vocabulary),
-    [corpus, selection, vocabulary],
+        : readDossier(corpus, selection.id),
+    [corpus, selection],
   );
 
   const relation = useMemo(

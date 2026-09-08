@@ -1,15 +1,7 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { relationLines, relationTypeWords } from '@/shared/canvas-label';
-import type {
-  Corpus,
-  DocId,
-  Vocabulary,
-  Entity,
-  EndpointKind,
-  Proposal,
-  Relation,
-} from '@/shared/read/model';
+import type { Corpus, DocId, Entity, EndpointKind, Proposal, Relation } from '@/shared/read/model';
 
 import { readBand, readRating } from '@/shared/read/rating';
 
@@ -170,11 +162,7 @@ function intervalWords(relation: Relation): string | null {
   return null;
 }
 
-export function readDossier(
-  read: Corpus,
-  entityId: string,
-  vocabulary: Vocabulary,
-): Dossier | null {
+export function readDossier(read: Corpus, entityId: string): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
@@ -203,7 +191,7 @@ export function readDossier(
 
   const entitySources = refsOf(entity.sources);
 
-  const claims = readClaims(entity.attrs, vocabulary);
+  const claims = readClaims(entity.attrs);
   const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
 
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
@@ -280,7 +268,7 @@ export function readDossier(
       const head = OP_WORDS[proposal.op];
       const keys =
         proposal.payload.kind === 'attrs'
-          ? readClaims(proposal.payload.attrs, vocabulary).map((claim) => claim.label)
+          ? readClaims(proposal.payload.attrs).map((claim) => claim.label)
           : [];
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {

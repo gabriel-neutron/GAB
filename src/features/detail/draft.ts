@@ -72,7 +72,7 @@ export function typedInto(
   const claim = rows.find((candidate) => candidate.claim.key === key)?.claim;
   if (claim === undefined) return drafts;
 
-  const read = readEntry(claim.declaration, typed);
+  const read = readEntry(claim.value.control, typed);
   const next = new Map(drafts);
   next.set(key, {
     value: typedValue(claim.value.control, typed),
@@ -113,7 +113,7 @@ export function pendingEdit(rows: readonly RecordRow[], drafts: Drafts): Pending
       continue;
     }
     if (draft.value.text === claim.value.text) continue;
-    const read = readEntry(claim.declaration, entered(draft));
+    const read = readEntry(claim.value.control, entered(draft));
     if (!read.held) {
       refused = true;
       continue;

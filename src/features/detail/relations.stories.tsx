@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
-import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 
 import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';
@@ -23,7 +22,7 @@ const M4 = 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d';
 const APPOINTS = 'a2b3c4d5-8e9f-4012-b345-c6d7e8f90a1b';
 
 const relationsOf = (entityId: string): readonly RelationLine[] =>
-  readDossier(corpus, entityId, vocabulary)?.relations ?? [];
+  readDossier(corpus, entityId)?.relations ?? [];
 
 const FROM_ENTITY_END = relationsOf(COMPANY);
 const FROM_RELATION_END = relationsOf(VESSEL);

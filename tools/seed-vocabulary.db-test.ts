@@ -19,23 +19,10 @@ const entityTypeRows = z.array(
   }),
 );
 
-const attributeKeyRows = z.array(
-  z.object({
-    key: z.string(),
-    stem: z.string(),
-    kind: z.string(),
-    label: z.string(),
-    unit: z.string().nullable(),
-    pattern: z.string().nullable(),
-    retired: z.boolean(),
-  }),
-);
-
 const ENTITY_TYPES = `
   SELECT key, label, colour_light, colour_dark, ord, retired FROM public.entity_type`;
 
-const ATTRIBUTE_KEYS = `
-  SELECT key, stem, kind, label, unit, pattern, retired FROM public.attribute_key`;
+const present = z.array(z.object({ held: z.boolean() }));
 
 // The database orders under its own collation, so both sides are ordered here instead.
 const byKey = <T extends { readonly key: string }>(rows: readonly T[]): readonly T[] =>
@@ -60,20 +47,12 @@ test('entity_type holds every declared type and no other', async () => {
   );
 });
 
-test('attribute_key holds every declared key and no other', async () => {
-  const live = await probe('superuser', async (ask) =>
-    attributeKeyRows.parse(await ask(ATTRIBUTE_KEYS)),
+// THE TABLE IS GONE, AND THIS IS WHAT SAYS SO. M11 leaves the free half of the model with no
+// vocabulary at all, and migration 0010 dropped `attribute_key`. A later migration that brought
+// it back would pass every other test in this repository and fail here.
+test('no attribute vocabulary exists', async () => {
+  const held = await probe('superuser', async (ask) =>
+    present.parse(await ask(`SELECT to_regclass('public.attribute_key') IS NOT NULL AS held`)),
   );
-
-  expect(byKey(live)).toStrictEqual(
-    byKey(seededVocabulary.attributeKeys).map((row) => ({
-      key: row.key,
-      stem: row.stem,
-      kind: row.kind,
-      label: row.label,
-      unit: row.unit,
-      pattern: row.pattern,
-      retired: retiredWhenSeeded,
-    })),
-  );
+  expect(held).toStrictEqual([{ held: false }]);
 });

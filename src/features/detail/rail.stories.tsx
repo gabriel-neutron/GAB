@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { expect, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
-import { vocabulary } from '@/shared/committed-fixture/vocabulary';
 import type { DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';
@@ -13,7 +12,7 @@ import { Rail } from './rail';
 // mount the record and the rail on one page.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL, vocabulary)?.sources ?? [];
+const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL)?.sources ?? [];
 
 // The density needs fourteen documents, and the committed corpus cites fewer. These rows are
 // invented for this story only. No other file reads them.

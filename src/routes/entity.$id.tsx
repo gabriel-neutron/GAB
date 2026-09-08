@@ -3,7 +3,6 @@ import { DetailPage } from '@/features/detail/detail-page';
 import { readDossier } from '@/features/detail/dossier';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import type { DocId } from '@/shared/read/model';
-import { loadVocabulary } from '@/shared/read/vocabulary';
 
 export interface EntitySearch {
   /** The document the reader arrived at. `null` is the normal arrival. */
@@ -36,8 +35,7 @@ export const Route = createFileRoute('/entity/$id')({
     // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
     // exception above is a blank segment, which names no entity under any schema. The read API
     // answers the whole corpus, and the router holds this page back until that answer arrives.
-    const [read, vocabulary] = await Promise.all([loadCorpus(), loadVocabulary()]);
-    return readDossier(read, params.id, vocabulary) ?? entityNotFound();
+    return readDossier(await loadCorpus(), params.id) ?? entityNotFound();
   },
 
   component: EntityRoute,

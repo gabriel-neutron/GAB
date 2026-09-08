@@ -2,10 +2,8 @@
 // schema narrows what the base table declares NOT NULL and the closed sets its checks allow,
 // and it names the column, so a broken read says which one broke.
 
-import { ATTRIBUTE_KIND } from '@gab/proposal/vocabulary';
 import { z } from 'zod';
 
-import { attributeKey as apiAttributeKey } from '@/contract/api/AttributeKey';
 import { document as apiDocument } from '@/contract/api/Document';
 import { entity as apiEntity } from '@/contract/api/Entity';
 import { entityType as apiEntityType } from '@/contract/api/EntityType';
@@ -24,15 +22,6 @@ const text = (column: string): z.ZodString => z.string(stated(column));
 const docIds = (column: string): z.ZodArray<z.ZodString> => z.array(z.string(), stated(column));
 
 export const wireRow = {
-  attributeKey: apiAttributeKey.and(
-    z.object({
-      key: text('attribute_key.key'),
-      kind: z.enum(ATTRIBUTE_KIND, stated('attribute_key.kind')),
-      label: text('attribute_key.label'),
-      retired: z.boolean(stated('attribute_key.retired')),
-    }),
-  ),
-
   entityType: apiEntityType.and(
     z.object({
       key: text('entity_type.key'),
