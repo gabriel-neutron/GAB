@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent } from 'storybook/test';
 
-import type { CitedDocument } from './queue';
+import type { Corpus, DocId } from '@/shared/read/model';
+
+import { readQueue, type CitedDocument, type Subject } from './queue';
+import { reviewSample } from './sample';
 import { SourceBadge } from './sources';
 
 const RATED: CitedDocument = {
@@ -13,6 +16,7 @@ const RATED: CitedDocument = {
   scoreOrigin: 'human',
   poor: false,
   missing: false,
+  band: 'A1',
   name: 'Corporate registry extract — Meridian Bulk Carriers Ltd. A1, rated by the human.',
 };
 
@@ -25,6 +29,7 @@ const POOR: CitedDocument = {
   scoreOrigin: 'arbitrated',
   poor: true,
   missing: false,
+  band: 'D4',
   name: 'Vessel movement log, scanned. D4, rated by the arbitrated.',
 };
 
@@ -37,6 +42,7 @@ const UNRATED: CitedDocument = {
   scoreOrigin: '',
   poor: false,
   missing: false,
+  band: 'not rated',
   name: 'Trade press article, unverified. not rated.',
 };
 
@@ -49,8 +55,32 @@ const ABSENT: CitedDocument = {
   scoreOrigin: '',
   poor: false,
   missing: true,
+  band: 'missing',
   name: 'Cited document doc_0000ff, absent from the record. not rated.',
 };
+
+const INCOMPLETE_ID: DocId = 'doc_5e7730';
+
+// A CHECK pairs the rating with its origin, so no row of the record carries one without the
+// other. The corpus below is read by `readQueue`, which builds every badge this surface draws.
+const WITHOUT_RATING: Corpus = {
+  ...reviewSample,
+  documents: reviewSample.documents.map((row) =>
+    row.id === INCOMPLETE_ID ? { ...row, admiraltyOrigin: 'human' } : row,
+  ),
+};
+
+const citedIn = (subjects: readonly Subject[], id: DocId): CitedDocument => {
+  const found = subjects
+    .flatMap((subject) => subject.changes)
+    .flatMap((change) => change.rows)
+    .flatMap((row) => [...row.standingSources, ...row.proposedSources])
+    .find((source) => source.id === id);
+  if (found === undefined) throw new Error(`No act of the review sample cites ${id}`);
+  return found;
+};
+
+const INCOMPLETE: CitedDocument = citedIn(readQueue(WITHOUT_RATING, null), INCOMPLETE_ID);
 
 const meta = {
   component: SourceBadge,
@@ -124,6 +154,17 @@ export const ACitedDocumentWithNoRowIsDrawn: Story = {
     await expect(
       await screen.findByText('This document is cited, and the record holds no row for it.'),
     ).toBeInTheDocument();
+  },
+};
+
+/** A rating that stands without its origin is neither a rating nor an absence, and the badge
+ * says so in one word. The name a screen reader gets stays a sentence, with no origin clause. */
+export const ARatingWithNoOriginIsNeitherOfTheTwo: Story = {
+  args: { source: INCOMPLETE },
+  play: async ({ canvas }) => {
+    const badge = canvas.getByRole('button', { name: /Trade press article/ });
+    await expect(badge).toHaveAttribute('data-band', 'rating incomplete');
+    await expect(badge).toHaveAccessibleName('Trade press article, unverified. rating incomplete.');
   },
 };
 

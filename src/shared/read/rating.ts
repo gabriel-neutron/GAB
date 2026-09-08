@@ -22,6 +22,12 @@ const poorBand = (admiralty: string): boolean => {
   return ['D', 'E', 'F'].includes(letter) || (Number.isFinite(digit) && digit >= 4);
 };
 
+/** The one word a surface stands a cited document under: `missing` where the record holds no row,
+ * and the word of the rating in every other case. It is the second reading of one rating, so it
+ * lives beside the first and never at a call site, where two surfaces would drift apart. */
+export const readBand = (row: DocumentRow | undefined): string =>
+  row === undefined ? 'missing' : readRating(row).score;
+
 /** The rating and its origin are absent together. An unrated document says so in words, because
  * an absence that reads as a low score turns a hole into a judgement. */
 export function readRating(row: DocumentRow | undefined): Rating {

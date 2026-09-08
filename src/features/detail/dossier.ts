@@ -11,7 +11,7 @@ import type {
   Relation,
 } from '@/shared/read/model';
 
-import { readRating } from '@/shared/read/rating';
+import { readBand, readRating } from '@/shared/read/rating';
 
 import { readClaims, type ClaimRow } from './claims';
 
@@ -41,6 +41,11 @@ export interface SourceCardModel {
   /** `not rated` when it is not rated. Never a dash, never `0`. */
   readonly score: string;
   readonly scoreOrigin: string;
+  /** A low letter or a high figure. The hue marks this, and never the absence of a rating. */
+  readonly poor: boolean;
+  /** What the card stands for, in one word: `missing`, a rating, `not rated`, or
+   * `rating incomplete`. A check reads this, and the hue alone never says it. */
+  readonly band: string;
   readonly uri: string | null;
   readonly uriShort: string | null;
   readonly retrievedAt: string | null;
@@ -297,6 +302,8 @@ export function readDossier(
       rated: rating.rated,
       score: rating.score,
       scoreOrigin: rating.scoreOrigin,
+      poor: rating.poor,
+      band: readBand(row),
       uri: row?.uri ?? null,
       uriShort: shorten(row?.uri ?? null),
       retrievedAt: row?.retrievedAt ?? null,
@@ -399,6 +406,8 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
       rated: rating.rated,
       score: rating.score,
       scoreOrigin: rating.scoreOrigin,
+      poor: rating.poor,
+      band: readBand(row),
       uri: row?.uri ?? null,
       uriShort: shorten(row?.uri ?? null),
       retrievedAt: row?.retrievedAt ?? null,

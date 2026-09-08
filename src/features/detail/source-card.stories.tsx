@@ -3,7 +3,7 @@ import { expect, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { vocabulary } from '@/shared/committed-fixture/vocabulary';
-import type { DocId } from '@/shared/read/model';
+import type { Corpus, DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
@@ -11,12 +11,33 @@ import { SourceCard } from './source-card';
 /** MV Northern Ledger. Its claims cite `doc_9b0417`, `doc_8f2a41` and `manual`. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL, vocabulary)?.sources ?? [];
+const cardsOf = (read: Corpus): readonly SourceCardModel[] =>
+  readDossier(read, VESSEL, vocabulary)?.sources ?? [];
 
-const sourceOf = (id: DocId): SourceCardModel => {
-  const found = SOURCES.find((source) => source.id === id);
-  if (found === undefined) throw new Error(`The committed corpus does not cite ${id} here`);
+const SOURCES: readonly SourceCardModel[] = cardsOf(corpus);
+
+const sourceIn = (cards: readonly SourceCardModel[], id: DocId): SourceCardModel => {
+  const found = cards.find((source) => source.id === id);
+  if (found === undefined) throw new Error(`The corpus of this story does not cite ${id} here`);
   return found;
+};
+
+const sourceOf = (id: DocId): SourceCardModel => sourceIn(SOURCES, id);
+
+const POOR_ID: DocId = 'doc_9b0417';
+
+// A CHECK pairs the rating with its origin, and a second one holds every cited document to a
+// row, so the committed corpus reaches neither state. Each corpus below is read by `readDossier`.
+const WITHOUT_ORIGIN: Corpus = {
+  ...corpus,
+  documents: corpus.documents.map((row) =>
+    row.id === POOR_ID ? { ...row, admiraltyOrigin: null } : row,
+  ),
+};
+
+const WITHOUT_ROW: Corpus = {
+  ...corpus,
+  documents: corpus.documents.filter((row) => row.id !== POOR_ID),
 };
 
 const stated = (value: string | null, what: string): string => {
@@ -26,6 +47,9 @@ const stated = (value: string | null, what: string): string => {
 
 const RATED = sourceOf('doc_8f2a41');
 const UNRATED = sourceOf('manual');
+const POOR = sourceOf(POOR_ID);
+const INCOMPLETE = sourceIn(cardsOf(WITHOUT_ORIGIN), POOR_ID);
+const MISSING = sourceIn(cardsOf(WITHOUT_ROW), POOR_ID);
 
 const ORIGINAL = stated(RATED.uri, 'original address for doc_8f2a41');
 
@@ -91,6 +115,36 @@ export const AnUnratedDocumentSaysNotRated: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('not rated')).toBeInTheDocument();
     await expect(canvas.queryByText(/^[A-F][1-6]$/)).toBeNull();
+    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'not rated');
+  },
+};
+
+export const ARatedDocumentCarriesItsScore: Story = {
+  args: { source: POOR },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'D4');
+    await expect(canvas.getByText('D4, arbitrated')).toBeInTheDocument();
+  },
+};
+
+export const ARatingWithNoOriginSaysSo: Story = {
+  args: { source: INCOMPLETE },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'rating incomplete');
+    await expect(
+      canvas.getByText('rating incomplete, a rating and its origin are absent together'),
+    ).toBeInTheDocument();
+  },
+};
+
+export const AMissingDocumentSaysMissing: Story = {
+  args: { source: MISSING },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'missing');
+    await expect(canvas.getByText('not rated')).toBeInTheDocument();
+    await expect(
+      canvas.getByText('This document is cited and it has no row in the record.'),
+    ).toBeInTheDocument();
   },
 };
 

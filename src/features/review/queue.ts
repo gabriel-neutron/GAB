@@ -1,7 +1,7 @@
 /** The queue, in domain words. It groups what waits by what is changed, and it decides nothing:
  * where the record cannot answer, it returns the hole as a sentence and the view prints it. */
 
-import { readRating } from '@/shared/read/rating';
+import { readBand, readRating } from '@/shared/read/rating';
 import type {
   AttributeValue,
   Attributes,
@@ -65,6 +65,9 @@ export interface CitedDocument {
   readonly scoreOrigin: string;
   /** A low letter or a high figure. The hue marks this, and never the absence of a rating. */
   readonly poor: boolean;
+  /** What the badge stands for, in one word: `missing`, a rating, `not rated`, or
+   * `rating incomplete`. A check reads this, and the hue alone never says it. */
+  readonly band: string;
   /** Cited, and with no row in the record. It is drawn, because dropped evidence is worse. */
   readonly missing: boolean;
   /** The whole line, for the badge that draws the rating alone. */
@@ -212,7 +215,9 @@ function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocu
     const row = index.documentById.get(id);
     const held = readRating(row);
     const title = row?.title ?? `Cited document ${id}, absent from the record`;
-    const origin = held.scoreOrigin === '' ? '' : `, rated by the ${held.scoreOrigin}`;
+    // A state that is neither a rating nor an absence carries a sentence as its origin, and a
+    // name is all a screen reader gets, so the clause is written for a rating only.
+    const origin = held.rated ? `, rated by the ${held.scoreOrigin}` : '';
     return {
       id,
       title,
@@ -221,6 +226,7 @@ function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocu
       score: held.score,
       scoreOrigin: held.scoreOrigin,
       poor: held.poor,
+      band: readBand(row),
       missing: row === undefined,
       name: `${title}. ${held.score}${origin}.`,
     };

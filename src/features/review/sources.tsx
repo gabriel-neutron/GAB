@@ -14,7 +14,7 @@ export function SourceBadge({ source }: SourceBadgeProps) {
   return (
     <SourceMark
       name={source.name}
-      band={source.missing ? 'missing' : source.rated ? source.score : 'not rated'}
+      band={source.band}
       className={source.poor || source.missing ? 'border-dissent text-dissent' : undefined}
       label={
         source.missing ? (

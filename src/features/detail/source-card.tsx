@@ -1,3 +1,4 @@
+import { CircleDashed, FileX } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -24,6 +25,7 @@ export function SourceCard({ source }: SourceCardProps) {
     <article
       aria-label={`Source ${source.number} — ${source.title}`}
       data-source={source.id}
+      data-band={source.band}
       className="rounded-none border-b border-border px-2 py-1.5"
     >
       <div className="flex items-baseline gap-2">
@@ -35,10 +37,19 @@ export function SourceCard({ source }: SourceCardProps) {
           {source.title}
         </span>
         <span
-          className="max-w-40 shrink-0 truncate font-mono text-small/4 text-label"
+          className={cn(
+            'flex max-w-40 shrink-0 items-center gap-1 font-mono text-small/4',
+            source.poor || source.missing ? 'text-dissent' : 'text-label',
+          )}
           title={scoreWords}
         >
-          {scoreWords}
+          {/* A row the record does not hold and a row with no rating are two absences, so each
+           * one takes its own mark and the hue alone never tells them apart. */}
+          {source.missing ? <FileX size={14} aria-hidden="true" className="shrink-0" /> : null}
+          {source.rated || source.missing ? null : (
+            <CircleDashed size={14} aria-hidden="true" className="shrink-0" />
+          )}
+          <span className="truncate min-w-0">{scoreWords}</span>
         </span>
       </div>
 
