@@ -295,6 +295,43 @@ test('an update that names no attribute is refused and writes no proposal', asyn
   }
 });
 
+// THE KEY HAS A SHAPE, AND THE SHAPE IS NOT A VOCABULARY. The record refused this key before,
+// and the caller read a sentence about the kind of a value, which named no key. The round trip
+// is saved too. M11 stands: the door holds no list of permitted words.
+test('a key the record refuses is named by the door, and no round trip is spent', async () => {
+  const target = await signedEntity('Writer test minted key');
+  try {
+    const before = await proposalsFor(target);
+    const [status, reply] = await post('update-attrs', {
+      targetKind: 'entity',
+      targetId: target,
+      attrs: { 'Coal Stock': { v: 41.5 } },
+    });
+    expect(status).toBe(422);
+    expect(reply.refusal).toContain('a key is lower case words of letters and digits');
+    expect(await proposalsFor(target)).toBe(before);
+
+    // The sentence of the key never answers a body whose `attrs` is not a record at all.
+    const [wrongShape, wrongReply] = await post('update-attrs', {
+      targetKind: 'entity',
+      targetId: target,
+      attrs: 'coal_stock_t',
+    });
+    expect(wrongShape).toBe(422);
+    expect(wrongReply.refusal).toBe('attrs: Invalid input: expected record, received string');
+
+    const [minted] = await post('update-attrs', {
+      targetKind: 'entity',
+      targetId: target,
+      attrs: { coal_stock_t: { v: 41.5 } },
+    });
+    expect(minted).toBe(200);
+    expect(await proposalsFor(target)).toBe(before + 1);
+  } finally {
+    await removed(target);
+  }
+});
+
 // `imo` is described `identifier` in the seed and carries the shape of an IMO number. NEITHER
 // HOLDS THE VALUE: M11 leaves the free half of the model with no rule beyond the shape, so the
 // door writes the number as it was given and the database takes it.

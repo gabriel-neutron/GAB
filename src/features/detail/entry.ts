@@ -1,9 +1,11 @@
 /** Typed text back into an attribute value, in the control it was typed into. The database is
- * the second tier and refuses what this misses; this tier gives a sentence before a round trip. */
+ * the second tier and refuses what this misses; this tier gives a sentence before a round trip.
+ * The reader of the kind stands here too, and it names the control that `readEntry` reads. */
 
 import type { AttributeValue } from '@/shared/read/model';
 
-import { DATE_ONLY, type ClaimControl, type TypedValue } from './claims';
+import { type ClaimControl, type TypedValue } from './claims';
+import { isDay } from './day';
 
 /** The value the act will carry, or the one sentence the analyst reads. */
 export type ClaimEntry =
@@ -24,9 +26,12 @@ const NOT_A_NUMBER =
   'This key takes a number. Write digits, and a decimal point where you need one.';
 
 const NOT_A_DAY =
-  'Write a day of the calendar as a year, a month and a day, with a hyphen between each part.';
+  'Write a day the calendar holds, as a year, a month and a day, with a hyphen between each part.';
 
 const NOT_A_YES_OR_NO = 'This key takes a yes or a no.';
+
+// The record holds a jsonb numeric, which takes far more. The browser is the tier that loses it.
+const TOO_LARGE = 'The browser cannot hold a number of that many digits. Write it with fewer.';
 
 const EMPTY_ELEMENT = 'A value of the list is blank. Remove the comma that has no value beside it.';
 
@@ -41,7 +46,10 @@ const refused = (refusal: string): ClaimEntry => ({ held: false, refusal });
 const readNumber = (typed: string): ClaimEntry => {
   if (typed.includes(',')) return refused(COMMA);
   if (!DECIMAL.test(typed)) return refused(NOT_A_NUMBER);
-  return held(Number(typed));
+  const value = Number(typed);
+  // 310 digits or more give Infinity, and the door then refuses it with `Invalid input`.
+  if (!Number.isFinite(value)) return refused(TOO_LARGE);
+  return held(value);
 };
 
 // The comma separates two values, and the space beside it is written back into the box and is
@@ -54,21 +62,19 @@ const readList = (typed: string): ClaimEntry => {
   return held(written);
 };
 
-const LAST_DAY = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const readDay = (typed: string): ClaimEntry => (isDay(typed) ? held(typed) : refused(NOT_A_DAY));
 
-const leapYear = (year: number): boolean =>
-  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-
-// The shape alone admits `2019-99-99`, so each part is counted against the calendar.
-const readDay = (typed: string): ClaimEntry => {
-  if (!DATE_ONLY.test(typed)) return refused(NOT_A_DAY);
-  const year = Number(typed.slice(0, 4));
-  const month = Number(typed.slice(5, 7));
-  const day = Number(typed.slice(8, 10));
-  const last = month === 2 && leapYear(year) ? 29 : LAST_DAY[month - 1];
-  if (last === undefined || day < 1 || day > last) return refused(NOT_A_DAY);
-  return held(typed);
-};
+// A key that nobody declared has no kind, so the kind is read from the text (M11). A yes or a
+// no, a plain decimal and a day of the calendar each name themselves. A text that names none of
+// the three is text, and `2019-02-30` is one of them: no such day stands in the calendar.
+export function controlOfTyped(typed: string, noteLength: number): ClaimControl {
+  const trimmed = typed.trim();
+  if (trimmed === 'yes' || trimmed === 'no') return 'boolean';
+  if (DECIMAL.test(trimmed)) return 'number';
+  if (isDay(trimmed)) return 'date';
+  if (typed.length > noteLength || typed.includes('\n')) return 'note';
+  return 'text';
+}
 
 /** One typed value, read in the control that emitted it. */
 export function readEntry(control: ClaimControl, typed: TypedValue): ClaimEntry {

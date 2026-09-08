@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 
 import type { LinkChoices } from './dossier';
+import { ENTRY_ROW } from './entry-row';
 import { linkWords, readLinkDraft, type LinkForm } from './link-draft';
 import type { StructureAct } from './structure';
 
@@ -17,10 +18,6 @@ export interface NewRelationProps {
 }
 
 const BLANK: LinkForm = { type: '', dstId: '', validFrom: '', validTo: '' };
-
-const BOX = 'h-6 rounded-none px-1.5 py-0 text-xs md:text-xs';
-const CAPTION = 'block text-small/4 tracking-caps text-label uppercase';
-const SENTENCE = 'block text-small/4 text-label';
 
 // The kit has no native select, and the edge of a control comes from `input` and never `border`.
 // The `focus-visible` recipe is the kit's own, copied whole: `ring` alone paints `currentcolor`.
@@ -46,13 +43,11 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
 
   return (
     <section aria-label="New relation from this entity" className="space-y-1 pt-2">
-      <p className="text-small/4 tracking-caps text-label uppercase">
-        New relation from this entity
-      </p>
+      <p className={ENTRY_ROW.caption}>New relation from this entity</p>
 
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1 space-y-0.5">
-          <label htmlFor={typeBox} className={CAPTION}>
+          <label htmlFor={typeBox} className={ENTRY_ROW.caption}>
             Type
           </label>
           {/* The record holds no table of relation types, so the list is what the corpus already
@@ -60,7 +55,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           <Input
             id={typeBox}
             list={typeList}
-            className={BOX}
+            className={ENTRY_ROW.box}
             value={form.type}
             disabled={busy}
             onChange={(event) => {
@@ -75,7 +70,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
         </div>
 
         <div className="min-w-0 flex-1 space-y-0.5">
-          <label htmlFor={targetBox} className={CAPTION}>
+          <label htmlFor={targetBox} className={ENTRY_ROW.caption}>
             Other end
           </label>
           <select
@@ -97,13 +92,13 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
         </div>
 
         <div className="w-32 space-y-0.5">
-          <label htmlFor={fromBox} className={CAPTION}>
+          <label htmlFor={fromBox} className={ENTRY_ROW.caption}>
             From
           </label>
           <Input
             id={fromBox}
             type="date"
-            className={BOX}
+            className={ENTRY_ROW.box}
             value={form.validFrom}
             disabled={busy}
             onChange={(event) => {
@@ -113,13 +108,13 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
         </div>
 
         <div className="w-32 space-y-0.5">
-          <label htmlFor={toBox} className={CAPTION}>
+          <label htmlFor={toBox} className={ENTRY_ROW.caption}>
             To
           </label>
           <Input
             id={toBox}
             type="date"
-            className={BOX}
+            className={ENTRY_ROW.box}
             value={form.validTo}
             disabled={busy}
             onChange={(event) => {
@@ -133,7 +128,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
         </Button>
       </div>
 
-      <p className={SENTENCE}>{linkWords(draft)}</p>
+      <p className={ENTRY_ROW.sentence}>{linkWords(draft)}</p>
     </section>
   );
 }

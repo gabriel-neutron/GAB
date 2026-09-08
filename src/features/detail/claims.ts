@@ -1,7 +1,9 @@
-/** The control of a claim comes from the shape of its value. Nothing declares what a key means
- * (M11), so a seven-digit IMO number is drawn as the text it is and never as a quantity. */
+/** The control of a claim comes from the shape of its value, and never from the key. Nothing
+ * declares what a key means (M11), so a number that was stored as text is drawn as text. */
 
 import type { AttributeValue, Attributes, DocId } from '@/shared/read/model';
+
+import { isDay } from './day';
 
 export type ClaimControl = 'boolean' | 'number' | 'date' | 'text' | 'note' | 'list';
 
@@ -28,11 +30,9 @@ export interface ClaimRow {
 /** The separator of a list, in the box and back out of it. */
 export const LIST_SEPARATOR = ', ';
 
-/** The shape of a day. A text of this shape is drawn and read as a day. */
-export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Longer than this, or with a line break, and the text is read as a note. A stand-in value. */
-const NOTE_LENGTH = 48;
+/** Longer than this, or with a line break, and the text is read as a note. A stand-in value.
+ * The reader of a minted claim takes the same length, so what is typed draws as it was seen. */
+export const NOTE_LENGTH = 48;
 
 /** A yes-or-no, or a text up to this length, takes the 17 rem cell. */
 const SHORT_LENGTH = 12;
@@ -48,7 +48,9 @@ function shapeOf(value: AttributeValue): ClaimValue {
     return { control: 'number', text: String(value) };
   }
   if (typeof value === 'string') {
-    if (DATE_ONLY.test(value)) return { control: 'date', text: value };
+    // A day control empties itself for a text it cannot read, and the cell then reads as a
+    // blank. An agent may write `2019-02-30`, so the calendar is counted before the control.
+    if (isDay(value)) return { control: 'date', text: value };
     if (value.length > NOTE_LENGTH || value.includes('\n')) return { control: 'note', text: value };
     return { control: 'text', text: value };
   }

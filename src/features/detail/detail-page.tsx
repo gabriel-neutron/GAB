@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
+import type { AttributeEdit } from '@gab/proposal/attribute-value';
+
 import type { DocId } from '@/shared/read/model';
 import { SaidLine } from '@/shared/said-line';
 
@@ -11,6 +13,7 @@ import { DeleteControl } from './delete-control';
 import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } from './draft';
 import type { Dossier, SourceRef } from './dossier';
 import { SourceMark } from './mark';
+import { NewClaim } from './new-claim';
 import { NewRelation } from './new-relation';
 import { Pending } from './pending';
 import { Rail } from './rail';
@@ -89,6 +92,18 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     });
   };
 
+  // A minted claim is its own act, as a new relation is. It carries a key the record does not
+  // hold, so no draft of the record stands for it and none is cleared when it lands.
+  const onMint = (attrs: AttributeEdit): void => {
+    if (busy) return;
+    setSave({ step: 'saving' });
+    void saveClaims(dossier.entityId, attrs).then(async (state) => {
+      setSave(state);
+      if (state.step !== 'signed') return;
+      await onSaved();
+    });
+  };
+
   // A deleted entity leaves no page to draw, so the route takes the analyst away. Every other
   // act reads the record again, and the page then draws what landed and not what was sent.
   const onStructure = (act: StructureAct): void => {
@@ -154,8 +169,11 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
         <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
 
+        {/* The control that mints a key is a control of the record, so it stands inside that
+            part and never between two parts. */}
         <Band name="Record" count={dossier.claimCount}>
           <EntityRecord mode="writing" cells={cells} mark={mark} onEdit={onEdit} />
+          <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} />
         </Band>
 
         {/* The form that makes a relation is a control of the relations, so it stands inside

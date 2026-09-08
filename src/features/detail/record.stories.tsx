@@ -327,3 +327,41 @@ export const AnUndeclaredKeyIsWrittenLikeAnyOther: Story = {
     ).toBeInTheDocument();
   },
 };
+
+// A day drawn as text, because the calendar does not hold it. A day control empties itself for
+// a text it cannot read, so the cell would read as a blank. M9 keeps a blank for the unknown
+// alone, and an agent may write such a value.
+const NO_SUCH_DAY = '2019-02-30';
+
+const NO_SUCH_DAY_CORPUS: Corpus = {
+  documents: [document_('doc-survey', 'Survey report, 2025')],
+  entities: [
+    {
+      id: 'probe-day',
+      type: 'vessel',
+      proposedType: null,
+      label: 'Northern Aurora',
+      attrs: { keel_laid: { v: NO_SUCH_DAY, src: ['doc-survey'] } },
+      sources: ['doc-survey'],
+      geom: null,
+      promotedFrom: 'proposal-probe-day',
+    },
+  ],
+  relations: [],
+  proposals: [],
+};
+
+const NO_SUCH_DAY_ROWS: readonly RecordRow[] =
+  readDossier(NO_SUCH_DAY_CORPUS, 'probe-day')?.rows ?? [];
+
+export const ADayTheCalendarDoesNotHoldDrawsAsTextAndStands: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: () => <WritableRecord rows={NO_SUCH_DAY_ROWS} />,
+  play: async ({ canvas }) => {
+    const box = canvas.getByLabelText('Keel laid');
+    if (!(box instanceof HTMLInputElement)) throw new Error('The claim draws no control');
+
+    await expect(box.type).toBe('text');
+    await expect(box).toHaveValue(NO_SUCH_DAY);
+  },
+};
