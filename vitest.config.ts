@@ -193,6 +193,16 @@ export default defineConfig({
         },
       },
 
+      {
+        // The committed seed against the module that declares its vocabulary. It reads one file
+        // of the repository and no row of a database, so it runs in Node and it runs everywhere.
+        test: {
+          name: 'seed',
+          environment: 'node',
+          include: ['tools/*.test.ts'],
+        },
+      },
+
       // One list and one condition. Two conditions, one for the database and one for the bucket,
       // let a shell with one credential drop the projects of the other and say nothing. The
       // refusal above proves both credentials are here, so this list is whole or it is empty.

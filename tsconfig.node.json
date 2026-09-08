@@ -27,6 +27,9 @@
     // A command loads the committed fixture, so this target reads it as well as the browser one.
     // The fixture is typed by the shapes of the record, so this target reads those too.
     "src/shared/committed-fixture/*.ts",
+    // The one place a type or an attribute key is declared. A command under `tools/` writes the
+    // seed file from it, and a test reads both.
+    "src/shared/vocabulary/*.ts",
     "src/shared/read/model.ts",
     // The closed sets of the base tables. A test under `tools/` compares them with the CHECKs.
     "src/shared/read/closed-set.ts"

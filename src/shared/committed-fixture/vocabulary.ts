@@ -3,54 +3,16 @@
  * database, so it carries this; the application reads the live rows and never this file. */
 
 import type { Vocabulary } from '../read/model';
+import { seededVocabulary } from '../vocabulary/declarations.ts';
 
-const DAY = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
-const PRECISION = '^(exact|approximate|inherited)$';
-
-const declared = (
-  key: string,
-  kind: Vocabulary[number]['kind'],
-  label: string,
-  unit: string | null = null,
-  pattern: string | null = null,
-): Vocabulary[number] => ({ key, kind, label, unit, pattern, retired: false });
-
-export const vocabulary: Vocabulary = [
-  declared('imo', 'identifier', 'IMO number', null, '^[0-9]{7}$'),
-  declared('registration_number', 'identifier', 'Registration number'),
-  declared('ice_class', 'identifier', 'Ice class'),
-  declared('incorporated_on', 'date', 'Incorporated on', null, DAY),
-  declared('observed_on', 'date', 'Observed on', null, DAY),
-  declared('beneficial_owner_count', 'quantity', 'Beneficial owners'),
-  declared('berth_count', 'quantity', 'Berths'),
-  declared('coal_stock_t', 'quantity', 'Coal stock', 't'),
-  declared('conveyor_lines', 'quantity', 'Conveyor lines'),
-  declared('dry_dock_count', 'quantity', 'Dry docks'),
-  declared('mole_length_m', 'quantity', 'Mole length', 'm'),
-  declared('share_pct', 'quantity', 'Shareholding', '%'),
-  declared('teu_capacity', 'quantity', 'TEU capacity', 'TEU'),
-  declared('throughput_kt_month', 'quantity', 'Throughput', 'kt/month'),
-  declared('trains_operating', 'quantity', 'Trains operating'),
-  declared('ice_class_required', 'boolean', 'Ice class required'),
-  declared('operator_confirmed', 'boolean', 'Operator confirmed'),
-  declared('seasonal_closure', 'boolean', 'Seasonal closure'),
-  declared('known_flags', 'list', 'Known flags', null, '^[A-Z]{2}$'),
-  declared('last_port_call', 'text', 'Last port call'),
-  declared('role_title', 'text', 'Role'),
-  declared('crane_note', 'note', 'Crane note'),
-  declared('hull_note', 'note', 'Hull note'),
-  declared('note', 'note', 'Note'),
-  // The eleven keys of the v1 corpus. The committed fixture uses none of them, and this list
-  // states every live key, so a story that draws one draws what the database declares.
-  declared('unit_type', 'text', 'Unit type'),
-  declared('echelon', 'text', 'Echelon'),
-  declared('domain', 'text', 'Domain'),
-  declared('organisation_type', 'text', 'Organisation type'),
-  declared('military_unit_id', 'identifier', 'Military unit number'),
-  declared('osm_relation_id', 'identifier', 'OSM relation'),
-  declared('v1_id', 'identifier', 'v1 identifier'),
-  declared('src_scope', 'text', 'Source scope'),
-  declared('src_inherit_depth', 'quantity', 'Source inheritance depth'),
-  declared('src_inherited_from', 'identifier', 'Source inherited from'),
-  declared('position_precision', 'text', 'Position precision', null, PRECISION),
-];
+// A story states every live key, and `stem` reaches no surface, so it is dropped here.
+export const vocabulary: Vocabulary = seededVocabulary.attributeKeys.map(
+  ({ key, kind, label, unit, pattern }) => ({
+    key,
+    kind,
+    label,
+    unit,
+    pattern,
+    retired: seededVocabulary.retiredWhenSeeded,
+  }),
+);
