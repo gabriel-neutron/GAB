@@ -1,7 +1,7 @@
 // `whenStyleReady` inside the adapter absorbs the window while the style loads, so a control of
 // this file can be clicked at any moment, and never before the style exists.
 
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
@@ -19,13 +19,6 @@ export interface RailProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-// The two cases are not one empty list. Until the analyst folds a type open, the rail follows the
-// selection: a rail that only listened opened no group on a reload. After the first fold an empty
-// list means "the analyst closed every group", which the selection must not undo.
-type OpenTypes =
-  | { readonly kind: 'follows-selection' }
-  | { readonly kind: 'chosen'; readonly types: readonly string[] };
-
 export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   // The legend is an echo of the adapter, which stays the one truth: it is seeded from the handle
   // and taken from the handle again after each switch. The fallback draws everything on.
@@ -37,23 +30,30 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   // here and the subscription below are the same read, with no window between the two.
   const [selected, setSelected] = useState<string | null>(map.current?.selected ?? null);
 
-  const [openTypes, setOpenTypes] = useState<OpenTypes>({ kind: 'follows-selection' });
+  // A selection always shows itself. The fold is a preference of the view, and a selection made on
+  // the map outranks it: the group of the selected type opens, and the analyst can fold it again.
+  const [openTypes, setOpenTypes] = useState<readonly string[]>([]);
+
+  // The listener reads the corpus of the moment through this ref, and never through its closure.
+  // A new corpus must not re-run the effect below: the page nulls the handle in the same flush,
+  // so the second setup would find no map, and the rail would stay deaf for the rest of its life.
+  const corpus = useRef(projection);
+  useEffect(() => {
+    corpus.current = projection;
+  }, [projection]);
 
   // The effect returns the unsubscribe of the handle, so a rail that leaves the screen drives no
-  // dead map. The subscription seeds itself, so the two states above need no second read.
+  // dead map.
   useEffect(() => {
-    const live = map.current;
-    if (live === null) return;
-    return live.onSelect(setSelected);
+    const handle = map.current;
+    if (handle === null) return;
+    return handle.onSelect((id) => {
+      setSelected(id);
+      const type = id === null ? undefined : corpus.current.byId.get(id)?.type;
+      if (type === undefined) return;
+      setOpenTypes((types) => (types.includes(type) ? types : [...types, type]));
+    });
   }, [map]);
-
-  const selectedType = selected === null ? null : (projection.byId.get(selected)?.type ?? null);
-  const shownTypes: readonly string[] =
-    openTypes.kind === 'follows-selection'
-      ? selectedType === null
-        ? []
-        : [selectedType]
-      : openTypes.types;
 
   // The adapter is the one writer: it stores the types that are switched off, drops a selection
   // that the switch would leave undrawn, and answers `isTypeVisible` after the write.
@@ -85,19 +85,18 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        setOpenTypes({
-          kind: 'chosen',
-          types: next.open
-            ? [...shownTypes, next.type]
-            : shownTypes.filter((type) => type !== next.type),
-        });
+        // The updater reads the list of the moment: a selection made on the map may still be
+        // queued when this click lands, and a read of the render closure would drop it.
+        setOpenTypes((types) =>
+          next.open ? [...types, next.type] : types.filter((type) => type !== next.type),
+        );
         return;
     }
   };
 
   return (
     <TwoStepRail
-      rows={railRows(legend, shownTypes, open)}
+      rows={railRows(legend, openTypes, open)}
       onAct={act}
       // The rail asks for each open list, because more than one may stand open.
       index={(type) => {

@@ -20,6 +20,12 @@ const LINE = 'flex h-6 w-full items-center gap-2 rounded-none px-1.5 text-left t
 // long parent label never crowds out the name the analyst is reading.
 const FROM = 'max-w-[45%] shrink-0 truncate text-muted-foreground';
 
+// `block: 'nearest'` moves the index alone, and only as far as it must, so a row already on the
+// screen stays where it stands, and a click in the rail scrolls nothing.
+const revealRow = (node: HTMLButtonElement | null): void => {
+  node?.scrollIntoView({ block: 'nearest' });
+};
+
 export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsProps) {
   return (
     <div role="group" aria-label={facet.type} data-type={facet.type}>
@@ -28,6 +34,7 @@ export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsPr
         <button
           key={entity.id}
           type="button"
+          ref={entity.id === selectedId ? revealRow : undefined}
           data-row=""
           data-id={entity.id}
           aria-current={entity.id === selectedId ? 'true' : undefined}

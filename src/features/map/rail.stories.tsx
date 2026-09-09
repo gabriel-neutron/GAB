@@ -135,8 +135,36 @@ const firstOf = <T,>(list: readonly T[], what: string): T => {
 const rowsIn = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-row]'));
 
+const rowsOnScreen = (
+  scroller: HTMLElement,
+  rows: readonly HTMLElement[],
+): readonly HTMLElement[] => {
+  const box = scroller.getBoundingClientRect();
+  return rows.filter((row) => {
+    const at = row.getBoundingClientRect();
+    return at.top >= box.top && at.bottom <= box.bottom;
+  });
+};
+
+/** The index scrolls inside the rail, and the element that holds the type rows is that scroller. */
+const scrollerIn = (root: HTMLElement): HTMLElement => {
+  const scroller = root.querySelector<HTMLElement>('[data-facet]')?.parentElement ?? null;
+  if (scroller === null) throw new Error('The rail drew no type row.');
+  return scroller;
+};
+
+const markedRowIn = (root: HTMLElement): HTMLElement => {
+  const row = root.querySelector<HTMLElement>('[data-row][aria-current="true"]');
+  if (row === null) throw new Error('The index marks no row.');
+  return row;
+};
+
 const VESSEL = facetOf('vessel');
 const VESSELS = entitiesOfType(projection, 'vessel');
+const UNIT = firstOf(entitiesOfType(projection, 'military_unit'), 'military unit');
+
+/** The map, and never the rail, makes the selection this control asks for. */
+const ON_THE_MAP = 'Select the unit on the map';
 
 const switchOnly = testMap([], null);
 const reachOnly = testMap([], null);
@@ -144,6 +172,9 @@ const reachOnly = testMap([], null);
 const groundOnly = testMap([], null);
 const polarityOnly = testMap(['vessel'], null);
 const restoredOnly = testMap([], firstOf(VESSELS, 'vessel').id);
+const revealOnly = testMap([], null);
+const afterFoldOnly = testMap([], null);
+const noJumpOnly = testMap([], null);
 
 const meta = {
   component: Rail,
@@ -270,5 +301,87 @@ export const ARestoredSelectionOpensItsGroup: Story = {
     const row = firstOf(rowsIn(canvasElement), 'row of the index');
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(row).toHaveTextContent(restored.label);
+  },
+};
+
+// The rail is one screen of four rows here, and `military_unit` is the third of five types, so
+// the group opens below the fold and the index must scroll to answer the selection.
+export const AMapSelectionPutsItsRowOnScreen: Story = {
+  args: { map: revealOnly.map },
+  render: (args) => (
+    <div className="flex h-24">
+      <Rail {...args} />
+      <button
+        type="button"
+        onClick={() => {
+          revealOnly.map.current?.select(UNIT.id);
+        }}
+      >
+        {ON_THE_MAP}
+      </button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    await document.fonts.ready;
+
+    const scroller = scrollerIn(canvasElement);
+    await expect(scroller.scrollTop).toBe(0);
+
+    await userEvent.click(canvas.getByRole('button', { name: ON_THE_MAP }));
+
+    await expect(
+      canvas.getByRole('button', { name: 'Close the military_unit list' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    const row = markedRowIn(canvasElement);
+    await expect(row).toHaveTextContent(UNIT.label);
+    await expect(rowsOnScreen(scroller, [row])).toHaveLength(1);
+  },
+};
+
+export const AFoldedGroupOpensForAMapSelection: Story = {
+  args: { map: afterFoldOnly.map },
+  render: (args) => (
+    <div className="flex h-96">
+      <Rail {...args} />
+      <button
+        type="button"
+        onClick={() => {
+          afterFoldOnly.map.current?.select(UNIT.id);
+        }}
+      >
+        {ON_THE_MAP}
+      </button>
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the military_unit list' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Close the military_unit list' }));
+
+    await userEvent.click(canvas.getByRole('button', { name: ON_THE_MAP }));
+
+    await expect(
+      canvas.getByRole('button', { name: 'Close the military_unit list' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    await expect(markedRowIn(canvasElement)).toHaveTextContent(UNIT.label);
+  },
+};
+
+/** The list of one type is longer than the rail, so a scroll of the index is measurable here. */
+export const AClickInTheRailLeavesTheIndexWhereItStands: Story = {
+  args: { map: noJumpOnly.map },
+  play: async ({ canvas, canvasElement }) => {
+    await document.fonts.ready;
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the facility list' }));
+    const scroller = scrollerIn(canvasElement);
+    scroller.scrollTop = 60;
+    const before = scroller.scrollTop;
+    await expect(before).toBeGreaterThan(0);
+
+    const row = firstOf(rowsOnScreen(scroller, rowsIn(canvasElement)), 'row on the screen');
+    await userEvent.click(row);
+
+    await expect(row).toHaveAttribute('aria-current', 'true');
+    await expect(scroller.scrollTop).toBe(before);
   },
 };
