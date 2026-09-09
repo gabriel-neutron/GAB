@@ -185,11 +185,79 @@ COMMENT ON VIEW api.full_graph IS
   'api.layout for the meaning of a null position.';
 
 
+-- THE FILTER IS GONE, AND THE ROW COUNT IS NOW EVERY ENTITY. An entity that states
+-- `position_precision` = `inherited` carries no geometry of its own. A filter on the geometry
+-- hid the very rows this view exists to place.
+--
+-- THE COST WAS MEASURED, ON 9 SEPTEMBER 2026, IN A TRANSACTION THAT ROLLED BACK. 10,027
+-- entities and 9,999 `subordinate_to` relations, of which 7,996 rows took an inherited point:
+-- 145 to 155 ms. ADR 0008 measured the shape this one replaces, and the statement timeout of
+-- five seconds is the only bound either one has.
+--
+-- THE WALK STANDS HERE AND NOT IN A FUNCTION, AND THAT WAS MEASURED. #126 asked for a function
+-- of the shape of `api.neighbourhood`. A function that this view calls must exist before the
+-- view, so it takes a file that runs before 20. It must then read `api.entity`, which 20
+-- creates. The two files each need the other: `pnpm db:reset` stopped with `relation
+-- "api.entity" does not exist`, and only a database built from zero showed it. ADR 0009 records
+-- the whole of it.
+--
+-- IT KEYS ON THE WORD AND NEVER ON A NULL GEOMETRY, and the corpus that waits measured it.
+-- Every unpositioned unit has a positioned ancestor. A rule of the shape "no geometry, plus a
+-- parent with a point" draws 740 units where 142 make the claim. The word is a judgement of the
+-- analyst, and the graph cannot reproduce it.
+--
+-- FOUR HOPS, BECAUSE THE UNIT TREE IS FOUR DEEP. The 142 need three at most, so the bound has
+-- margin. It is not the whole cycle guard: it stops the recursion, and the guard against an
+-- entity that becomes its own parent is the test on the two identifiers below. No CHECK refuses
+-- a relation from a row to itself, and none refuses a ring of three.
+--
+-- ONLY A POINT IS TAKEN, AT BOTH ENDS. An ancestor that carries an area is walked through, and
+-- an entity that carries an area takes the inherited point over its own area. A surface that
+-- draws a dot reads any other geometry as no position at all.
+--
+-- DISTINCT ON, AND NOT min(hop) ALONE. Two ancestors may stand at one distance, and a bare
+-- min(hop) would answer with two rows for one entity. The tie is broken on the identifier, so
+-- the answer is the same on every run.
+--
+-- A ROW MAY STILL CARRY NO POSITION, and that is not a fault. `geom` is null for an entity
+-- nobody located and for one whose ancestors carry no point. A surface draws what it can.
 CREATE VIEW api.full_map AS
-  SELECT id, type, label, geom FROM api.entity WHERE geom IS NOT NULL;
+  WITH RECURSIVE claimed AS (
+    SELECT e.id FROM api.entity e WHERE e.attrs #>> '{position_precision,v}' = 'inherited'
+  ),
+  walk(entity_id, ancestor_id, hop) AS (
+    SELECT c.id, c.id, 0 FROM claimed c
+    UNION
+    SELECT w.entity_id, r.dst_id, w.hop + 1
+      FROM walk w
+      JOIN api.relation r
+        ON r.type = 'subordinate_to'
+       AND r.src_kind = 'entity' AND r.dst_kind = 'entity'
+       AND r.src_id = w.ancestor_id
+     WHERE w.hop < 4
+  ),
+  inherited AS (
+    SELECT DISTINCT ON (w.entity_id)
+           w.entity_id, w.ancestor_id AS parent_id, a.geom
+      FROM walk w
+      JOIN api.entity a ON a.id = w.ancestor_id
+     WHERE w.hop > 0
+       AND w.ancestor_id <> w.entity_id
+       AND a.geom->>'type' = 'Point'
+     ORDER BY w.entity_id, w.hop, w.ancestor_id
+  )
+  SELECT e.id, e.type, e.label,
+         CASE WHEN e.geom->>'type' = 'Point' THEN e.geom
+              ELSE coalesce(i.geom, e.geom) END AS geom,
+         e.attrs #>> '{position_precision,v}' AS position_precision,
+         CASE WHEN e.geom->>'type' = 'Point' THEN NULL ELSE i.parent_id END AS parent_id
+    FROM api.entity e
+    LEFT JOIN inherited i ON i.entity_id = e.id;
 COMMENT ON VIEW api.full_map IS
-  'Every entity that carries a geometry, which is every entity the map can draw. The type is '
-  'here because the layer panel filters on it. A geometry that is not a point still arrives, '
-  'and a surface that draws a dot reads it as no position at all.';
+  'Every entity, with the point the map draws it at. `geom` is the own point of the entity, or '
+  'the point of the nearest ancestor through subordinate_to when position_precision is '
+  'inherited. parent_id names that ancestor, and it is null when the entity stands at its own '
+  'point. A null geom is an entity the map cannot place. The word is a claim of the analyst. It '
+  'may be absent, and a surface must then draw the cautious state and never a measured one.';
 
 RESET ROLE;

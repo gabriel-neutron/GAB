@@ -34,6 +34,9 @@ const CORPUS: Corpus = {
   ],
   relations: [],
   proposals: [],
+  // The entity carries no geometry and no ancestor, so `api.full_map` places it nowhere.
+  // These stories draw a card and never a canvas.
+  positions: [],
 };
 
 const SOURCES: readonly SourceRef[] = readDossier(CORPUS, 'probe-1')?.entitySources ?? [];

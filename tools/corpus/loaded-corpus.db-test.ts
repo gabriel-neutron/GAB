@@ -1,5 +1,5 @@
-// What the fixture loader put in the live database. The corpus is the ground every surface and
-// every other database test stands on, and nothing measured it.
+// What the two loads put in the live database: the committed fixture, and the v1 corpus above
+// it. The record is the ground every surface and every other database test stands on.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -23,7 +23,9 @@ const COUNTS = `
 
 test('the loaded corpus holds the counts the fixture states', async () => {
   const held = await probe('superuser', async (ask) => counts.parse(await ask(COUNTS)));
-  expect(held).toStrictEqual([{ entities: 27, relations: 17, documents: 6, pending: 3 }]);
+  // The fixture holds 29 entities and 18 relations, and the v1 corpus adds 1,149 and 1,160.
+  // The three pending acts are the deliberate examples of the fixture, and no load settles them.
+  expect(held).toStrictEqual([{ entities: 1178, relations: 1178, documents: 255, pending: 3 }]);
 });
 
 const authors = z.array(z.object({ status: z.string(), author_role: z.string() }));
@@ -81,7 +83,7 @@ const QUEUE = `
 // the loss shows up much later, as a claim test that accuses SKIP LOCKED of a fault it has not.
 test('the load queued one job for each document, and nothing has taken one', async () => {
   const held = await probe('superuser', async (ask) => queue.parse(await ask(QUEUE)));
-  expect(held).toStrictEqual([{ jobs: 4, queued: 4, taken: 0 }]);
+  expect(held).toStrictEqual([{ jobs: 253, queued: 253, taken: 0 }]);
 });
 
 const ends = z.array(z.object({ type: z.string(), src_kind: z.string(), dst_kind: z.string() }));

@@ -1,6 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
-import { relationLines, relationTypeWords } from '@/shared/canvas-label';
+import { positionFromWords, relationLines, relationTypeWords } from '@/shared/canvas-label';
 import type { Corpus, DocId, Entity, EndpointKind, Proposal, Relation } from '@/shared/read/model';
 
 import { readBand, readRating } from '@/shared/read/rating';
@@ -97,9 +97,13 @@ export interface Dossier {
   /** The word the extraction wrote, kept when it was not a live type. The row stands as
    * `unknown`, and the word must reach the screen or the entry is lost to the reader. */
   readonly proposedType: string | null;
-  /** The map draws a point and nothing else, so an entity that carries no geometry is absent
-   * from it. A link to the map for one of those opens a surface that selects nothing. */
+  /** The resolved position decides this, and never `Entity.geom`: an entity that inherits its
+   * point carries no geometry of its own AND the map draws it. A link to the map for an entity
+   * the map draws nowhere opens a surface that selects nothing. */
   readonly drawnOnMap: boolean;
+  /** `position from <parent label>`, or null for an entity that stands at its own point. The
+   * panel draws no canvas, so these words are the only place it can state a borrowed position. */
+  readonly positionFrom: string | null;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
   readonly sources: readonly SourceCardModel[];
@@ -316,12 +320,20 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       .sort((one, other) => one.name.localeCompare(other.name)),
   };
 
+  // Where the map draws this entity, and whose point it borrowed. T4 puts the walk in SQL, so
+  // this file reads the answer and repeats no rule of it.
+  const at = read.positions.find((row) => row.entityId === entity.id);
+  const borrowed = at?.parentId ?? null;
+  const parentLabel =
+    borrowed === null ? null : (read.entities.find((row) => row.id === borrowed)?.label ?? null);
+
   return {
     entityId: entity.id,
     label: entity.label,
     type: entity.type,
     proposedType: entity.proposedType,
-    drawnOnMap: entity.geom !== null,
+    drawnOnMap: (at?.point ?? null) !== null,
+    positionFrom: parentLabel === null ? null : positionFromWords(parentLabel),
     rows,
     entitySources,
     sources,

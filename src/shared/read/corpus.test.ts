@@ -1,4 +1,4 @@
-// The memory of the corpus, with a stubbed fetch. One read of the four views serves every
+// The memory of the corpus, with a stubbed fetch. One read of the five views serves every
 // caller, a failure clears the memory, and a refresh reads again.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -39,6 +39,17 @@ const SOUTHERN = {
   label: 'MV Southern Ledger',
 };
 
+// A row of `full_map` for one entity. It stands at its own point, so it borrows from nobody and
+// it names no parent. The word is absent: the fixture states nothing about this position.
+const placedAt = (entity: { id: string; geom: unknown }): unknown => ({
+  id: entity.id,
+  type: 'vessel',
+  label: 'MV Northern Ledger',
+  geom: entity.geom,
+  position_precision: null,
+  parent_id: null,
+});
+
 const RELATION_ROW = {
   id: 'e0a8a817-0dac-49db-8627-a342609a3092',
   type: 'operates',
@@ -73,7 +84,7 @@ const PROPOSAL_ROW = {
   decided_by: null,
 };
 
-let entityRows: readonly unknown[] = [NORTHERN];
+let entityRows: readonly (typeof NORTHERN)[] = [NORTHERN];
 let refuseEntity = false;
 
 const listed = (body: unknown, status = 200): Response =>
@@ -83,6 +94,8 @@ const rowsOf = (view: string): readonly unknown[] => {
   if (view === 'document') return [DOCUMENT_ROW];
   if (view === 'entity') return entityRows;
   if (view === 'relation') return [RELATION_ROW];
+  // The view answers for every entity, so its rows follow the entity rows of the moment.
+  if (view === 'full_map') return entityRows.map((row) => placedAt(row));
   return [PROPOSAL_ROW];
 };
 
@@ -95,7 +108,7 @@ const stub = vi.fn((input: URL): Promise<Response> => {
 const viewsRead = (): readonly string[] =>
   stub.mock.calls.map(([input]) => input.pathname.slice(1)).sort();
 
-const READ_ONCE = ['document', 'entity', 'proposal', 'relation'];
+const READ_ONCE = ['document', 'entity', 'full_map', 'proposal', 'relation'];
 
 // The whole sentence of a refusal, so a test cannot pass on a failure of another kind.
 const refusalOf = async (run: () => Promise<unknown>): Promise<string> => {
@@ -154,7 +167,7 @@ test('a read that fails clears the memory, so the next caller reads again and ar
   expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE].sort());
 });
 
-test('a refresh reads the four views again, and gives the later record', async () => {
+test('a refresh reads the five views again, and gives the later record', async () => {
   const { loadCorpus, refreshCorpus } = await import('./corpus');
 
   const before = await loadCorpus();

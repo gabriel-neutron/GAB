@@ -9,6 +9,7 @@ import type {
   Entity,
   EntityPlacement,
   EntityTypeDeclaration,
+  MapPosition,
   Point,
   PriorValue,
   Proposal,
@@ -218,6 +219,19 @@ function placement(row: unknown): EntityPlacement {
   };
 }
 
+// `api.full_map` already walked to the ancestor, so this function chooses nothing: it renames
+// four columns. A default word here would invent a measured position for a row the analyst said
+// nothing about, so `precision` passes through and it is never coalesced.
+function mapPosition(row: unknown): MapPosition {
+  const read = wireRow.fullMap.parse(row);
+  return {
+    entityId: read.id,
+    point: pointOf(read.geom),
+    precision: read.position_precision,
+    parentId: read.parent_id,
+  };
+}
+
 /** Each one reads a row of the read API and gives the record row a surface works in. */
 export const toDomain = {
   entityType,
@@ -226,4 +240,5 @@ export const toDomain = {
   relation,
   proposal,
   placement,
+  mapPosition,
 } as const;

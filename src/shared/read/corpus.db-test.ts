@@ -22,14 +22,18 @@ const counted = (read: Corpus): Readonly<Record<string, number>> => ({
   entities: read.entities.length,
   relations: read.relations.length,
   proposals: read.proposals.length,
+  // The map read answers for every entity, so a count below the entity count is the filter on
+  // the geometry, come back.
+  positions: read.positions.length,
 });
 
 test('the live service gives the record the surfaces draw', async () => {
   expect(counted(await loadCorpus())).toStrictEqual({
-    documents: 6,
-    entities: 27,
-    relations: 17,
+    documents: 255,
+    entities: 1178,
+    relations: 1178,
     proposals: 3,
+    positions: 1178,
   });
 });
 

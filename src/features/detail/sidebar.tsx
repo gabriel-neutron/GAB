@@ -47,6 +47,15 @@ export function Sidebar({ dossier }: SidebarProps) {
         </a>
       </div>
 
+      {/* On its own line, and not beside the type: this pane is 24 rem, and a third word in that
+          row truncates the name. The canvas beside it draws the halo, and these words are what
+          name the ancestor the halo cannot name. */}
+      {dossier.positionFrom === null ? null : (
+        <p className="text-small/4 text-label" data-position-from="">
+          {dossier.positionFrom}
+        </p>
+      )}
+
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
           previous value. The key makes React build a new record. Do not remove it. */}

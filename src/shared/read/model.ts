@@ -62,6 +62,23 @@ export interface EntityPlacement {
   readonly position: EntityPosition | null;
 }
 
+/** Where the map draws one entity: its own point, or the point of the nearest ancestor through
+ * `subordinate_to` when it states `position_precision` as `inherited`. T4 puts that walk in SQL,
+ * so no surface repeats it. */
+export interface MapPosition {
+  readonly entityId: string;
+  /** Null for an entity nobody located and whose ancestors carry no point either. A row arrives
+   * for EVERY entity, and not for the drawn ones alone. */
+  readonly point: Point | null;
+  /** The word the analyst wrote about the position: `exact`, `approximate` or `inherited`. It
+   * may be ABSENT, and an absence is never a measured position. No surface may supply a default
+   * word here: a row that states nothing must draw and read as the cautious state. */
+  readonly precision: string | null;
+  /** The ancestor the point was taken from. It is null when the entity stands at its own point,
+   * so a surface never states an origin that the point never had. */
+  readonly parentId: string | null;
+}
+
 export interface Entity {
   readonly id: string;
   readonly type: string;
@@ -164,4 +181,8 @@ export interface Corpus {
   readonly entities: readonly Entity[];
   readonly relations: readonly Relation[];
   readonly proposals: readonly Proposal[];
+  /** One row per entity. The map reads this and never `Entity.geom`: the geometry column of an
+   * entity says where it was located, and this says where the map draws it. The two differ for
+   * the entity that inherits its point, and that difference is the whole reason this exists. */
+  readonly positions: readonly MapPosition[];
 }

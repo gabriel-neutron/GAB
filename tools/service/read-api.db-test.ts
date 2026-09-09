@@ -6,10 +6,13 @@ import { expect, test } from 'vitest';
 import { askReadApi } from './read-api.ts';
 
 const STATED = [
-  { path: 'entity', total: 27 },
-  { path: 'relation', total: 17 },
-  { path: 'document', total: 6 },
+  { path: 'entity', total: 1178 },
+  { path: 'relation', total: 1178 },
+  { path: 'document', total: 255 },
   { path: 'proposal?status=eq.pending', total: 3 },
+  // The map read answers for EVERY entity, and no longer for the ones that carry a geometry.
+  // A count under the entity count here is the filter on the geometry, come back.
+  { path: 'full_map', total: 1178 },
 ] as const;
 
 for (const { path, total } of STATED)
@@ -26,6 +29,7 @@ const VIEWS = [
   'entity_type',
   'value_support',
   'key_usage',
+  'full_map',
 ] as const;
 
 // A cache taken before a reset answers 404, and one taken after a drop answers an empty list.

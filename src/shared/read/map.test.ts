@@ -201,3 +201,54 @@ test('the two ends of a proposed relation keep the spelling the act wrote', () =
 test('an act that states no confidence survives the mapper', () => {
   expect(toDomain.proposal({ ...PROPOSAL_ROW, confidence: null }).confidence).toBeNull();
 });
+
+// A row of `api.full_map`, copied whole. The view resolved the point already, so the mapper
+// renames four columns and it decides nothing.
+const MAP_ROW = {
+  id: '94172363-dab1-4fc3-ae2a-16e3430879be',
+  type: 'military_unit',
+  label: '3rd Reconnaissance Company',
+  geom: { type: 'Point', coordinates: [19.902, 54.65] },
+  position_precision: 'inherited',
+  parent_id: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
+};
+
+test('a borrowed position keeps its word and names the ancestor it came from', () => {
+  expect(toDomain.mapPosition(MAP_ROW)).toStrictEqual({
+    entityId: '94172363-dab1-4fc3-ae2a-16e3430879be',
+    point: { lon: 19.902, lat: 54.65 },
+    precision: 'inherited',
+    parentId: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
+  });
+});
+
+// An entity that carries a point and states no word must reach the surface with no word at all.
+// A default of `exact` here would draw an unstated position as a measured one.
+test('a position that states no word arrives with none, and no word is supplied for it', () => {
+  const row = { ...MAP_ROW, position_precision: null, parent_id: null };
+  expect(toDomain.mapPosition(row).precision).toBeNull();
+  expect(toDomain.mapPosition(row).parentId).toBeNull();
+});
+
+// The view answers for every entity, and an entity nobody located and whose ancestors carry no
+// point is a row with no geometry. It is not a fault, and the map draws it nowhere.
+test('an entity that no walk could place arrives with no point', () => {
+  expect(toDomain.mapPosition({ ...MAP_ROW, geom: null }).point).toBeNull();
+});
+
+// A geometry column holds a point, a line or a polygon. A surface that draws a dot reads any
+// other shape as no position at all, and the map read is no exception.
+test('a position that is not a point is no position at all', () => {
+  const area = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+  };
+  expect(toDomain.mapPosition({ ...MAP_ROW, geom: area }).point).toBeNull();
+});

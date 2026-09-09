@@ -45,6 +45,7 @@ An ADR records one build decision and its cost. This register is the only list o
 | [0006](adr/0006-a-comment-records-a-reason.md) | A comment records a reason | Accepted | You write a comment or a file header, or you must decide whether a pointer belongs in the code. |
 | [0007](adr/0007-object-store-end-of-life.md) | The object store stays MinIO, and its successor is chosen | Accepted | You touch the object store, you change its image, or you meet a fault in it. |
 | [0008](adr/0008-the-read-role-carries-no-row-cap.md) | The read role carries no row cap | Accepted | You add a read that returns every row, or you set a row limit on the read role. |
+| [0009](adr/0009-the-map-read-resolves-a-borrowed-position.md) | The map read resolves a borrowed position | Accepted | You touch `api.full_map`, you draw or word a position on a surface, or you decide what a missing precision word means. |
 
 The section numbers of an ADR are cited from one document to another — `authoring.md` cites them,
 and the ADRs cite each other — so they are stable. **Keep them stable** when an ADR is edited:

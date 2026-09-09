@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { document as apiDocument } from '@/contract/api/Document';
 import { entity as apiEntity } from '@/contract/api/Entity';
 import { entityType as apiEntityType } from '@/contract/api/EntityType';
+import { fullMap as apiFullMap } from '@/contract/api/FullMap';
 import { layout as apiLayout } from '@/contract/api/Layout';
 import { proposal as apiProposal } from '@/contract/api/Proposal';
 import { relation as apiRelation } from '@/contract/api/Relation';
@@ -64,6 +65,16 @@ export const wireRow = {
       dst_id: text('relation.dst_id'),
       sources: docIds('relation.sources'),
       promoted_from: text('relation.promoted_from'),
+    }),
+  ),
+
+  // `geom`, the word and the parent are each a real absence: an entity nobody placed, an entity
+  // the analyst said nothing about, an entity at its own point. So only the two columns the base
+  // table declares NOT NULL narrow here, and the generated nullable stands for the other three.
+  fullMap: apiFullMap.and(
+    z.object({
+      id: text('full_map.id'),
+      type: text('full_map.type'),
     }),
   ),
 

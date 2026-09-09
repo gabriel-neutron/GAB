@@ -8,6 +8,10 @@ export default interface FullMap {
   label: string | null;
 
   geom: unknown;
+
+  position_precision: string | null;
+
+  parent_id: string | null;
 }
 
 export const fullMap = z.object({
@@ -15,4 +19,6 @@ export const fullMap = z.object({
   type: z.string().nullable(),
   label: z.string().nullable(),
   geom: z.unknown(),
+  position_precision: z.string().nullable(),
+  parent_id: z.uuid().nullable(),
 });

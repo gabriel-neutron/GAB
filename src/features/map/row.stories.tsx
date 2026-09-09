@@ -19,7 +19,16 @@ function entitiesOf(type: string): readonly GeoEntity[] {
   return projection.entities.filter((entity) => entity.type === type);
 }
 
+// A row is keyed by identity and never by a position in a list, so a story that names an entity
+// by its label must find that identity first.
+function idOf(label: string): string {
+  const held = projection.entities.find((entity) => entity.label === label);
+  if (held === undefined) throw new Error(`The fixture draws no entity labelled ${label}.`);
+  return held.id;
+}
+
 const VESSELS = entitiesOf('vessel');
+const UNITS = entitiesOf('military_unit');
 
 const meta = {
   component: IndexRows,
@@ -67,5 +76,32 @@ export const ARowSelectsItsEntity: Story = {
 
     await userEvent.click(second);
     await expect(args.onSelect).toHaveBeenCalledWith(VESSELS[1]?.id);
+  },
+};
+
+// The parent was located and the child was not, so the child is drawn at the point of the parent.
+// The canvas says THAT with a halo; this row draws no canvas, so these words are the only thing
+// that can say it here, and they must name the parent and never the child.
+export const ABorrowedPositionNamesTheParent: Story = {
+  args: { facet: facetOf('military_unit'), entities: UNITS },
+  play: async ({ canvasElement }) => {
+    const said = (label: string): string | null => {
+      const row = canvasElement.querySelector<HTMLElement>(`[data-id="${idOf(label)}"]`);
+      if (row === null) throw new Error(`The index draws no row for ${label}.`);
+      return row.querySelector<HTMLElement>('[data-position-from]')?.textContent ?? null;
+    };
+
+    await expect(said('3rd Reconnaissance Company')).toBe('position from 92nd Coastal Battery');
+    // The parent stands at its own point, so it borrows from nobody and states nothing.
+    await expect(said('92nd Coastal Battery')).toBeNull();
+  },
+};
+
+// An entity that carries a point and states no word must read as the cautious state. The words
+// of a borrowed position are a claim, and an absent claim is never a measured one.
+export const AnEntityThatStatesNoWordSaysNothingAboutItsPosition: Story = {
+  args: { facet: facetOf('vessel'), entities: VESSELS },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-position-from]')).toBeNull();
   },
 };

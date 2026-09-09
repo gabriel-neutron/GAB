@@ -1,5 +1,13 @@
+import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
-import type { Attributes, Corpus, Entity, Point, TypeVocabulary } from '@/shared/read/model';
+import type {
+  Attributes,
+  Corpus,
+  Entity,
+  MapPosition,
+  Point,
+  TypeVocabulary,
+} from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
 /**
@@ -15,6 +23,13 @@ export interface GeoEntity {
   readonly sources: readonly string[];
   /** M7 and M8: a value, and the documents that carry it. The index rows read these. */
   readonly attrs: Attributes;
+  /** The ancestor this point was taken from, and null when the entity stands at its own point.
+   * **The halo is drawn from this and never from the words.** The map read already weighed the
+   * `inherited` word against the geometry, and a label that no row supplies must not undraw it. */
+  readonly parentId: string | null;
+  /** The borrowed position, worded, or null. The derivation words it so that every surface says
+   * it the same way and none of them words it twice. */
+  readonly positionFrom: string | null;
 }
 
 /**
@@ -58,9 +73,12 @@ export interface Projection {
 // A point sits on dark imagery, so this surface takes the declared dark hue on the two themes.
 const MAP_GROUND: HueTheme = 'dark';
 
-/** `geom` is nullable on `Entity`, and the narrowing has to survive the `map` below. */
-const hasGeometry = (entity: Entity): entity is Entity & { readonly geom: Point } =>
-  entity.geom !== null;
+/** One entity, and the row `api.full_map` gave it. The narrowing has to survive the `map` below,
+ * because `point` is nullable for an entity that no walk could place. */
+interface Drawn {
+  readonly entity: Entity;
+  readonly at: MapPosition & { readonly point: Point };
+}
 
 /**
  * The polarity is inverted: the field says which type is hidden, and not which types are on.
@@ -134,29 +152,46 @@ export function entitiesOfType(projection: Projection, type: string): readonly G
 }
 
 export function project(read: Corpus, declared: TypeVocabulary): Projection {
-  const drawn = read.entities.filter(hasGeometry);
+  // The label of every entity, and not of the drawn ones alone: an ancestor that lends its point
+  // may carry no point in a later read, and the child would then name nobody.
+  const labelOfEntity = new Map(read.entities.map((entity) => [entity.id, entity.label]));
 
-  // The declared hue of each type. This file drops an entity with no geometry and the graph
-  // drops one with no position; a hue read from the declaration is the same on both, because
-  // neither canvas is what states it.
+  // The resolved position decides what is drawn, and `Entity.geom` no longer does. The two
+  // disagree by design for an entity that inherits its point: it carries no geometry, and it has
+  // a position. An entity with no row at all is drawn nowhere.
+  const positionOf = new Map(read.positions.map((at) => [at.entityId, at]));
+  const drawn: readonly Drawn[] = read.entities.flatMap((entity) => {
+    const at = positionOf.get(entity.id);
+    const point = at?.point ?? null;
+    return at === undefined || point === null ? [] : [{ entity, at: { ...at, point } }];
+  });
+
+  // The declared hue of each type. This file drops an entity the walk could not place and the
+  // graph drops one with no position; a hue read from the declaration is the same on both,
+  // because neither canvas is what states it.
   const hueOfType = typeHues(declared, MAP_GROUND);
-  const types: readonly TypeFacet[] = [...new Set(drawn.map((entity) => entity.type))]
+  const types: readonly TypeFacet[] = [...new Set(drawn.map(({ entity }) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
       colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
-      count: drawn.filter((entity) => entity.type === type).length,
+      count: drawn.filter(({ entity }) => entity.type === type).length,
     }));
 
-  const entities: readonly GeoEntity[] = drawn.map((entity, fid) => ({
+  const entities: readonly GeoEntity[] = drawn.map(({ entity, at }, fid) => ({
     fid,
     id: entity.id,
     type: entity.type,
     label: entity.label,
-    lon: entity.geom.lon,
-    lat: entity.geom.lat,
+    lon: at.point.lon,
+    lat: at.point.lat,
     sources: entity.sources,
     attrs: entity.attrs,
+    // The identity and the words are separate on purpose. An ancestor that the entity list does
+    // not hold still borrowed the point, so the halo stands and only the words fall away.
+    parentId: at.parentId,
+    positionFrom:
+      at.parentId === null ? null : positionFromWords(labelOfEntity.get(at.parentId) ?? 'a parent'),
   }));
 
   const byId = new Map(entities.map((entity) => [entity.id, entity]));

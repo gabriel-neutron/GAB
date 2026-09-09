@@ -10,7 +10,7 @@ const app = writeRoutes(pool);
 
 // The committed fixture holds these two counts, and every gesture below undoes itself. The
 // accepted proposals stay: the ledger is append-only, and a trigger refuses a delete.
-const FIXTURE = { entities: 27, relations: 17 };
+const FIXTURE = { entities: 1178, relations: 1178 };
 
 afterAll(async () => {
   const left = await one(

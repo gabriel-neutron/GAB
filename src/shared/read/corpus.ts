@@ -9,11 +9,14 @@ import type { Corpus } from './model';
 // Only the pending acts are read. Every surface filters on that status, and the decided acts are
 // a log that no surface draws.
 async function read(): Promise<Corpus> {
-  const [documents, entities, relations, proposals] = await Promise.all([
+  const [documents, entities, relations, proposals, positions] = await Promise.all([
     readRows('document'),
     readRows('entity'),
     readRows('relation'),
     readRows('proposal', { status: 'pending' }),
+    // A fifth read and not a column of `entity`: the point it carries is walked and not stored.
+    // It is as long as the entity list, and the two carry the same exemption from a row cap.
+    readRows('full_map'),
   ]);
 
   return {
@@ -21,6 +24,7 @@ async function read(): Promise<Corpus> {
     entities: entities.map((row) => toDomain.entity(row)),
     relations: relations.map((row) => toDomain.relation(row)),
     proposals: proposals.map((row) => toDomain.proposal(row)),
+    positions: positions.map((row) => toDomain.mapPosition(row)),
   };
 }
 

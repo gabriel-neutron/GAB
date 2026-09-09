@@ -41,6 +41,7 @@ const VIEWS: readonly View[] = [
     instead: 'the northern ledger',
   },
   { view: 'key_usage', read: (row) => keyUsage.parse(row), column: 'claims', instead: 'many' },
+  { view: 'full_map', read: (row) => toDomain.mapPosition(row), column: 'type', instead: null },
 ];
 
 const named = (view: string, cause: unknown): Error =>

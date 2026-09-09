@@ -21,12 +21,24 @@ export const relationLines = (
 // identifier then appears on no screen, which is the cost of one wording.
 export const relationTypeWords = (type: string): string => type.replaceAll('_', ' ');
 
+// The one wording of a borrowed position, for the hover label, the map index row and the detail
+// panel. An entity drawn at the point of its parent is NOT at that point, and the halo says only
+// that a position is borrowed. These words say whose it is.
+export const positionFromWords = (parentLabel: string): string => `position from ${parentLabel}`;
+
 // The count is the words the size owes a reader: the graph sizes a node by degree, and a size
 // alone cannot be read by anyone who cannot compare two discs. The map draws one radius, so the
 // count states what the picture never draws. A bare figure under a name reads as a year.
-export const entityLines = (label: string, relations: number): readonly string[] => [
+export const entityLines = (
+  label: string,
+  relations: number,
+  // The borrowed position, already worded, and absent for an entity at its own point. The graph
+  // passes nothing: it places an unplaced node at a hash of its own identifier, so none borrows.
+  positionFrom: string | null = null,
+): readonly string[] => [
   label,
   relations === 1 ? '1 relation' : `${relations} relations`,
+  ...(positionFrom === null ? [] : [positionFrom]),
 ];
 
 // The label is placed by its bottom centre, so it stands clear of the dot and of the pointer.

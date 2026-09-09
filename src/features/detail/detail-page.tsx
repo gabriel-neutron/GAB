@@ -141,6 +141,14 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 {`proposed as ${dossier.proposedType}`}
               </span>
             )}
+            {/* The canvas draws a halo for this, and this panel draws no canvas. The words stand
+                beside the type, because they say what the entity IS and not what a reader may do
+                with it: this position was borrowed, and it was borrowed from that entity. */}
+            {dossier.positionFrom === null ? null : (
+              <span className="shrink-0 text-small/4 text-label" data-position-from="">
+                {dossier.positionFrom}
+              </span>
+            )}
           </h1>
           <div className="ml-auto flex shrink-0 items-center gap-3">
             {/* The map link is drawn only where the map draws the entity. A link that opens a

@@ -2,9 +2,77 @@
  * Every row is invented. No claim here is about a real vessel, company or person. A story draws
  * this record; the application draws the read API, so no row here reaches a running surface. */
 
-import type { Corpus } from '../read/model';
+import type { Corpus, Entity, MapPosition, Point, Relation } from '../read/model';
 
-export const corpus: Corpus = {
+/** T4 puts the walk in SQL and no surface repeats it. This is the ONE walk in TypeScript here,
+ * and a fixture earns it by BEING the database of a story: it stands in for the view, and it
+ * answers for every entity as the view does. */
+const MAX_HOPS = 4;
+
+// The four rules of the view, and no fifth: the word alone borrows a point, an own point wins,
+// only a point is taken at either end, and the climb stops after four hops.
+function resolvePositions(
+  entities: readonly Entity[],
+  relations: readonly Relation[],
+): readonly MapPosition[] {
+  const byId = new Map(entities.map((entity) => [entity.id, entity]));
+
+  // **A row may name more than one parent, and a map of one parent each would silently keep the
+  // last.** The view walks every edge, so this holds every edge too.
+  const parentsOf = new Map<string, string[]>();
+  for (const relation of relations) {
+    if (relation.type !== 'subordinate_to') continue;
+    if (relation.srcKind !== 'entity' || relation.dstKind !== 'entity') continue;
+    const held = parentsOf.get(relation.srcId);
+    if (held === undefined) parentsOf.set(relation.srcId, [relation.dstId]);
+    else held.push(relation.dstId);
+  }
+
+  // The ancestor the view would choose: nearest first, then the lower identifier. A climb one
+  // parent at a time answers differently the moment two parents stand at one distance, and a
+  // database test now holds this answer against the answer of the view.
+  const borrowedFrom = (id: string): { readonly at: Point; readonly parentId: string } | null => {
+    const reached: { readonly parentId: string; readonly hop: number }[] = [];
+    // The entity is seeded as seen, which is the `ancestor_id <> entity_id` of the view, and it
+    // is what stops a ring. `Entity.geom` is a point or nothing, so an area is climbed through.
+    const seen = new Set<string>([id]);
+    let frontier = [id];
+    for (let hop = 1; hop <= MAX_HOPS; hop += 1) {
+      const next: string[] = [];
+      for (const held of frontier) {
+        for (const parent of parentsOf.get(held) ?? []) {
+          if (seen.has(parent)) continue;
+          seen.add(parent);
+          next.push(parent);
+          reached.push({ parentId: parent, hop });
+        }
+      }
+      frontier = next;
+    }
+
+    const [first] = reached
+      .filter((step) => (byId.get(step.parentId)?.geom ?? null) !== null)
+      .sort((one, other) => one.hop - other.hop || one.parentId.localeCompare(other.parentId));
+    const at = first === undefined ? null : (byId.get(first.parentId)?.geom ?? null);
+    return first === undefined || at === null ? null : { at, parentId: first.parentId };
+  };
+
+  return entities.map((entity) => {
+    const precision = entity.attrs['position_precision']?.v ?? null;
+    const borrows = precision === 'inherited' && entity.geom === null;
+    const found = borrows ? borrowedFrom(entity.id) : null;
+    return {
+      entityId: entity.id,
+      point: entity.geom ?? found?.at ?? null,
+      // The word passes through, and an absent word stays absent. The view supplies no default
+      // here either, because a default would draw an unstated position as a measured one.
+      precision: typeof precision === 'string' ? precision : null,
+      parentId: found?.parentId ?? null,
+    };
+  });
+}
+
+const record: Omit<Corpus, 'positions'> = {
   documents: [
     {
       id: 'manual',
@@ -376,6 +444,41 @@ export const corpus: Corpus = {
       geom: { lon: 4.4792, lat: 51.9225 },
       promotedFrom: 'b2c1d4e5-0121-4a11-9c33-77e1f2a3b4c5',
     },
+
+    // THE BORROWED POSITION, AND THE ONLY PLACE A STORY MEETS IT. The parent was located and the
+    // child was not. The child states `position_precision = 'inherited'`, so the map draws it at
+    // the point of the parent, under a halo, with the words that name the parent.
+    {
+      id: '9b0c1d2e-3f40-4511-8622-a3b4c5d6e7f8',
+      type: 'military_unit',
+      proposedType: null,
+      label: '92nd Coastal Battery',
+      attrs: {
+        // The parent was located, so it says how well. `exact` is a claim, and an absent word
+        // would be no claim at all.
+        position_precision: { v: 'exact', src: ['doc_8f2a41'] },
+      },
+      sources: ['doc_8f2a41'],
+      geom: { lon: 19.902, lat: 54.65 },
+      promotedFrom: 'b2c1d4e5-0300-4a11-9c33-77e1f2a3b4c5',
+    },
+    {
+      id: 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809',
+      type: 'military_unit',
+      proposedType: null,
+      label: '3rd Reconnaissance Company',
+      attrs: {
+        // The word carries the `manual` document, because no source states this position: the
+        // analyst judged that the best available statement is the position of the parent. M8
+        // makes `manual` a real document, and a fabricated citation is what it prevents.
+        position_precision: { v: 'inherited', src: ['manual'] },
+        strength_reported: { v: 110, src: ['doc_5e7730'] },
+      },
+      sources: ['doc_5e7730', 'manual'],
+      // Nobody located it. The map draws it all the same, and that is the whole of the state.
+      geom: null,
+      promotedFrom: 'b2c1d4e5-0301-4a11-9c33-77e1f2a3b4c5',
+    },
   ],
 
   relations: [
@@ -618,6 +721,23 @@ export const corpus: Corpus = {
       validTo: null,
       promotedFrom: 'b2c1d4e5-0212-4a11-9c33-77e1f2a3b4c5',
     },
+
+    // THE RELATION THE WALK READS. `api.full_map` climbs `subordinate_to`, from the child to the
+    // parent, and no other type. Without this row the child states the word and reaches no
+    // ancestor, so it is drawn nowhere and a borrowed position appears in no story at all.
+    {
+      id: 'a10b2c3d-1111-4a11-9c33-000000000030',
+      type: 'subordinate_to',
+      srcKind: 'entity',
+      srcId: 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809',
+      dstKind: 'entity',
+      dstId: '9b0c1d2e-3f40-4511-8622-a3b4c5d6e7f8',
+      attrs: {},
+      sources: ['doc_5e7730'],
+      validFrom: null,
+      validTo: null,
+      promotedFrom: 'b2c1d4e5-0302-4a11-9c33-77e1f2a3b4c5',
+    },
   ],
 
   proposals: [
@@ -755,4 +875,9 @@ export const corpus: Corpus = {
       decidedBy: 'operator',
     },
   ],
+};
+
+export const corpus: Corpus = {
+  ...record,
+  positions: resolvePositions(record.entities, record.relations),
 };

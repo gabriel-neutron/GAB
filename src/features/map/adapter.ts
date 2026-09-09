@@ -60,6 +60,8 @@ const ENTITY_SOURCE = 'entities';
 const SELECTION_SOURCE = 'selection';
 const SELECTION_LAYER = 'selection-ring';
 const layerOfType = (type: string): string => `entity-${type}`;
+/** The halo of one type. It reads the one point source, so it costs no second query. */
+const haloOfType = (type: string): string => `inherited-${type}`;
 
 /** Every relation that can be drawn. One source, and one layer over it. */
 const LINK_SOURCE = 'links';
@@ -88,6 +90,11 @@ const POINT_OUTLINE = '#000000';
 // the 3.55:1 and 5.08:1 of the bright line.
 const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
+
+// The mark of a borrowed position, and **it adds ink where a fade would remove it**. Opacity
+// already says `type off` in the rail and `outside the neighbourhood` in the graph, so this is a
+// second disc UNDER the point and the point keeps its colour, its outline and its radius.
+const HALO_OPACITY = 0.3;
 
 // The hit box, in pixels on each side of the pointer. A line of one pixel is otherwise
 // unclickable. A point is a disc of 3px at zoom 3, so a bare point query gives the narrower
@@ -122,7 +129,14 @@ interface PointFeature {
   readonly type: 'Feature';
   readonly id: number;
   readonly geometry: { readonly type: 'Point'; readonly coordinates: readonly number[] };
-  readonly properties: { readonly entityType: string; readonly colour: string };
+  readonly properties: {
+    readonly entityType: string;
+    readonly colour: string;
+    // The halo layer filters on this. One source and one property, and not a second source: a
+    // panel of thirty types must not make sixty queries, and two sources of one point would
+    // drift the day one of the two was written and the other was not.
+    readonly inherited: boolean;
+  };
 }
 
 interface PointCollection {
@@ -245,7 +259,9 @@ export function mountMap({
         type: 'Feature',
         id: entity.fid,
         geometry: { type: 'Point', coordinates: [entity.lon, entity.lat] },
-        properties: { entityType: entity.type, colour },
+        // The ancestor identity is the test, and never the words. A label that no row supplies
+        // must not remove the halo from a position that was still borrowed.
+        properties: { entityType: entity.type, colour, inherited: entity.parentId !== null },
       });
     }
     return features;
@@ -268,6 +284,27 @@ export function mountMap({
       // The width follows the zoom with the radius, so the outline stays a hairline and never a
       // second disc. At zoom 3 the point is 3px and the outline 1px; at zoom 14, 7px and 1.6px.
       'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
+    },
+  }));
+
+  // One halo layer per type, exactly beside the point layer of that type: the two carry the same
+  // filter and the same visibility, so a type that switches off takes its haloes with its points
+  // and no second truth about what is drawn can appear.
+  const haloLayers: LayerSpec[] = projection.types.map((facet) => ({
+    id: haloOfType(facet.type),
+    type: 'circle',
+    source: ENTITY_SOURCE,
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['==', ['get', 'inherited'], true]],
+    layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
+    paint: {
+      'circle-color': facet.colour,
+      'circle-opacity': HALO_OPACITY,
+      // Twice the radius of the point at each stop of its ramp, so the point stands inside the
+      // halo at every zoom and the halo never becomes a mark of its own.
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 6, 14, 14],
+      // No stroke. A stroke would read as a second outline beside the black one of the point,
+      // and the point is what the analyst clicks.
+      'circle-stroke-width': 0,
     },
   }));
 
@@ -387,6 +424,9 @@ export function mountMap({
       // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
       arrowLayer,
+      // **The haloes are under every point.** A halo over a point would dim the mark it belongs
+      // to, and it would cover a neighbouring point that stands inside its radius.
+      ...haloLayers,
       ...pointLayers,
       {
         // **The ring is above each point layer.** One slot cannot do two jobs. A point that
@@ -669,7 +709,12 @@ export function mountMap({
         // draws every point at one radius, so the count is not a second reading of the picture
         // here: it is the one place the map states it at all.
         nameHover(
-          entityLines(hit.entity.label, (projection.linksByEntity.get(hit.entity.id) ?? []).length),
+          entityLines(
+            hit.entity.label,
+            (projection.linksByEntity.get(hit.entity.id) ?? []).length,
+            // The halo says THAT a position is borrowed. Only these words say whose it is.
+            hit.entity.positionFrom,
+          ),
           event.point,
         );
         return;
@@ -901,7 +946,11 @@ export function mountMap({
       else hidden.add(type);
       patchMapWorkspace({ hiddenTypes: [...hidden] });
       whenStyleReady(() => {
-        map.setLayoutProperty(layerOfType(type), 'visibility', visible ? 'visible' : 'none');
+        // The halo of a type switches with the points of that type. A halo left behind is a
+        // coloured disc with no mark inside it, and it states a position the map draws nowhere.
+        for (const id of [layerOfType(type), haloOfType(type)]) {
+          map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+        }
       });
       // **A type that is switched off drops the selection.** The map draws no point for that
       // type, so a mark on such a point shows a point that is not there.
