@@ -40,14 +40,22 @@ const reachOf = (stored: ReadonlyMap<string, EntityPosition>): number => {
   return furthest === 0 ? BARE_REACH : furthest;
 };
 
+/** Where the canvas draws each entity, and how many of them the layout run never placed and the
+ * band therefore holds. */
+export interface GraphPlacement {
+  readonly positions: ReadonlyMap<string, NodePosition>;
+  readonly unplaced: number;
+}
+
 /** Where the canvas draws each entity: the stored position where the layout run gave one, and a
  * place read from the identifier where it gave none. */
 export function graphPositions(
   entities: readonly Entity[],
   stored: ReadonlyMap<string, EntityPosition>,
-): ReadonlyMap<string, NodePosition> {
+): GraphPlacement {
   const reach = reachOf(stored);
   const positions = new Map<string, NodePosition>();
+  let unplaced = 0;
 
   for (const entity of entities) {
     const held = stored.get(entity.id);
@@ -58,7 +66,8 @@ export function graphPositions(
     const angle = TAU * unitOf(entity.id, 1);
     const band = reach * (BAND_INNER + BAND_DEPTH * unitOf(entity.id, 2));
     positions.set(entity.id, { x: band * Math.cos(angle), y: band * Math.sin(angle) });
+    unplaced += 1;
   }
 
-  return positions;
+  return { positions, unplaced };
 }

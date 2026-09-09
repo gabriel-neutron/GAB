@@ -40,6 +40,8 @@ export interface GraphView {
   /** How many elements carry a marker, and how many carry pending evidence and none. */
   readonly markersDrawn: number;
   readonly markersOverCap: number;
+  /** How many entities the layout run never placed, and the canvas draws on the band. */
+  readonly unplaced: number;
   readonly railOpen: boolean;
 }
 
@@ -143,7 +145,8 @@ export function mountGraph(
   // **The positions are read one time.** A filter never moves a position, and an entity the
   // layout run did not place must stand in one place while the canvas lives. So nothing below
   // builds them again, and a theme change keeps them.
-  const positions = graphPositions(corpus.entities, layout);
+  const placement = graphPositions(corpus.entities, layout);
+  const positions = placement.positions;
 
   let ground = groundOf();
   let model = buildGraphModel(corpus, positions, types, ground);
@@ -458,6 +461,7 @@ export function mountGraph(
     dimmed,
     markersDrawn: markerTargets.length,
     markersOverCap,
+    unplaced: placement.unplaced,
     railOpen,
   });
 

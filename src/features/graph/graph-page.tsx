@@ -15,6 +15,7 @@ import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
 import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
 import { IndexRows } from './row';
+import { UnplacedCount } from './unplaced-count';
 
 interface GraphSnapshot {
   readonly view: GraphView;
@@ -194,12 +195,15 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
 
       {/* The line corrects the canvas, so it stands on the canvas. The rail folds away and the
           fold is stored, so a reader could hide this report for good and never meet it again. */}
-      <div className={cn('pointer-events-none absolute right-2 bottom-2 flex')}>
+      <div className={cn('pointer-events-none absolute right-2 bottom-2 flex flex-col gap-2')}>
         {snapshot === null ? null : (
-          <MarkerRemainder
-            drawn={snapshot.view.markersDrawn}
-            remainder={snapshot.view.markersOverCap}
-          />
+          <>
+            <MarkerRemainder
+              drawn={snapshot.view.markersDrawn}
+              remainder={snapshot.view.markersOverCap}
+            />
+            <UnplacedCount unplaced={snapshot.view.unplaced} />
+          </>
         )}
       </div>
     </div>

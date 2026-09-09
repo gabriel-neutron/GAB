@@ -32,6 +32,10 @@
     "src/shared/vocabulary/*.ts",
     "src/shared/read/model.ts",
     // The closed sets of the base tables. A test under `tools/` compares them with the CHECKs.
-    "src/shared/read/closed-set.ts"
+    "src/shared/read/closed-set.ts",
+    // The load command computes the picture through the layout door of the worker. A project
+    // reference cannot carry it: a referenced project may not disable emit, and none emits.
+    "packages/worker/src/layout-job.ts",
+    "packages/worker/src/layout.ts"
   ]
 }

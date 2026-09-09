@@ -19,6 +19,8 @@ import type {
   Relation,
 } from '../src/shared/read/model.ts';
 
+import { runLayout } from '../packages/worker/src/layout-job.ts';
+
 import { connectionString } from './db-runtime.ts';
 
 // The schema seeds this document, so a second insert of it fails on the primary key.
@@ -290,11 +292,15 @@ export const main = async (): Promise<void> => {
     const entities = await loadEntities(operator);
     const relations = await loadRelations(operator, entities);
     const candidates = await loadCandidates(machine, entities, relations);
+    // The corpus moved, so the picture is computed here. gabriel_agent alone holds EXECUTE on
+    // the layout door, and the machine connection is the one that has it.
+    const placed = await runLayout(machine);
 
     console.log(`documents  ${documents}`);
     console.log(`entities   ${entities.size}`);
     console.log(`relations  ${relations.size}`);
     console.log(`candidates ${candidates}`);
+    console.log(`placed     ${placed}`);
   } finally {
     await operator.end();
     await machine.end();
