@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RefObject } from 'react';
-import { expect, userEvent } from 'storybook/test';
+import { expect, fireEvent, userEvent, waitFor } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
@@ -137,6 +137,13 @@ const rowsIn = (root: HTMLElement): readonly HTMLElement[] =>
 
 const VESSEL = facetOf('vessel');
 const VESSELS = entitiesOfType(projection, 'vessel');
+const UNITS = entitiesOfType(projection, 'military_unit');
+
+const onScreen = (row: HTMLElement, rail: HTMLElement): boolean => {
+  const held = row.getBoundingClientRect();
+  const box = rail.getBoundingClientRect();
+  return held.top >= box.top && held.bottom <= box.bottom;
+};
 
 const switchOnly = testMap([], null);
 const reachOnly = testMap([], null);
@@ -144,6 +151,10 @@ const reachOnly = testMap([], null);
 const groundOnly = testMap([], null);
 const polarityOnly = testMap(['vessel'], null);
 const restoredOnly = testMap([], firstOf(VESSELS, 'vessel').id);
+const revealOnly = testMap([], UNITS[1]?.id ?? null);
+const foldedOnly = testMap([], firstOf(UNITS, 'military unit').id);
+const clickedOnly = testMap([], null);
+const linksOnly = testMap([], null);
 
 const meta = {
   component: Rail,
@@ -192,6 +203,22 @@ export const TheGroundSwitchesThroughTheOneWriter: Story = {
       canvas.getByRole('button', { name: 'Ground: imagery. Change to plan.' }),
     ).toBeVisible();
     await expect(canvasElement.querySelector('[data-ground="imagery"]')).not.toBeNull();
+  },
+};
+
+// The store holds the choice, and the adapter is what writes it. A double holds nothing across a
+// reload, so no story can reach that clause.
+export const TheRelationLinesSwitchOffFromTheRail: Story = {
+  args: { map: linksOnly.map },
+  play: async ({ canvas }) => {
+    const control = canvas.getByRole('button', { name: 'relation lines, on the map' });
+
+    await userEvent.click(control);
+
+    await expect(linksOnly.linksSwitched).toStrictEqual([false]);
+    await expect(
+      canvas.getByRole('button', { name: 'relation lines, off the map', pressed: false }),
+    ).toBeVisible();
   },
 };
 
@@ -270,5 +297,80 @@ export const ARestoredSelectionOpensItsGroup: Story = {
     const row = firstOf(rowsIn(canvasElement), 'row of the index');
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(row).toHaveTextContent(restored.label);
+  },
+};
+
+// The fixture draws five types and two military units, so a rail of 80px puts every row of the
+// index below the fold: the header takes 24px, and the five type rows take 120px more.
+const SHORT: Story['render'] = (args) => (
+  <div className="flex h-20">
+    <Rail {...args} />
+  </div>
+);
+
+export const AMapSelectionShowsItsRowOnScreen: Story = {
+  args: { map: revealOnly.map },
+  render: SHORT,
+  play: async ({ canvas, canvasElement }) => {
+    const marked = UNITS[1];
+    if (marked === undefined) throw new Error('The fixture draws fewer than two military units.');
+
+    await expect(
+      canvas.getByRole('button', { name: 'Close the military_unit list' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+
+    const row = canvasElement.querySelector<HTMLElement>(`[data-id="${marked.id}"]`);
+    if (row === null) throw new Error('The index draws no row for the selected unit.');
+    await expect(row).toHaveAttribute('aria-current', 'true');
+    await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Layers' }))).toBe(true);
+  },
+};
+
+export const AFoldedGroupOpensForAMapSelection: Story = {
+  args: { map: foldedOnly.map },
+  render: SHORT,
+  play: async ({ canvas, canvasElement }) => {
+    const next = UNITS[1];
+    if (next === undefined) throw new Error('The fixture draws fewer than two military units.');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Close the military_unit list' }));
+    await expect(rowsIn(canvasElement)).toHaveLength(0);
+
+    foldedOnly.map.current?.select(next.id);
+
+    await waitFor(async () => {
+      const row = canvasElement.querySelector<HTMLElement>(`[data-id="${next.id}"]`);
+      if (row === null) throw new Error('The index draws no row for the selected unit.');
+      await expect(row).toHaveAttribute('aria-current', 'true');
+      await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Layers' }))).toBe(true);
+    });
+  },
+};
+
+export const AClickInTheRailDoesNotMoveTheList: Story = {
+  args: { map: clickedOnly.map },
+  // 192px shows the header, the five type rows and two rows of the open list, and the list of
+  // nine vessels runs past the fold, so the list can move and the analyst can click a row.
+  render: (args) => (
+    <div className="flex h-48">
+      <Rail {...args} />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
+
+    const box = canvas.getByRole('complementary', { name: 'Layers' });
+    const row = rowsIn(canvasElement).find((held) => onScreen(held, box));
+    if (row === undefined) throw new Error('The open list draws no row on the screen.');
+    const scroller = row.closest('[data-facet]')?.parentElement ?? null;
+    if (scroller === null) throw new Error('The index sits in no scroller.');
+    const held = scroller.scrollTop;
+
+    // A click of the user event driver puts the row on the screen first, and the focus of a
+    // button does it again, so neither can say whether this component moved the list.
+    await fireEvent.click(row);
+
+    await expect(row).toHaveAttribute('aria-current', 'true');
+    await expect(scroller.scrollTop).toBe(held);
   },
 };

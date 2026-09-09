@@ -126,7 +126,7 @@ export function deriveRailRows(
   }
 
   return {
-    rail: { types, openTypes: step.openTypes, everyTypeOff, open },
+    rail: { types, links: null, openTypes: step.openTypes, everyTypeOff, open },
     lists,
   };
 }

@@ -36,8 +36,19 @@ export interface RailTypeRow {
   readonly colour: string | null;
 }
 
+/** The master control of the relation lines. The caller writes every word of it. */
+export interface RailLinksRow {
+  readonly on: boolean;
+  /** The words beside the control, where the rail is open. */
+  readonly label: string;
+  /** The accessible name, which says the state as well: the strip has no room for a word. */
+  readonly name: string;
+}
+
 export interface RailRows {
   readonly types: readonly RailTypeRow[];
+  /** `null` where the surface draws no relation line, and that surface gets no control. */
+  readonly links: RailLinksRow | null;
   // More than one type may stand unfolded, so an analyst reads two lists beside each other.
   readonly openTypes: readonly string[];
   /** A control that can exclude everything says so, and carries the way back. */
@@ -52,6 +63,7 @@ export interface RailRows {
 export type RailAct =
   | { readonly kind: 'open-rail'; readonly open: boolean }
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
+  | { readonly kind: 'switch-links'; readonly on: boolean }
   // It names the type and the state it asked for, as `switch-type` does, because more than one
   // may stand open.
   | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
@@ -102,7 +114,7 @@ function Swatch({ colour, on }: SwatchProps) {
 }
 
 export function Rail({ rows, onAct, index, className }: RailProps) {
-  const { open } = rows;
+  const { open, links } = rows;
 
   return (
     <aside
@@ -135,6 +147,33 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           )}
         </button>
       </div>
+
+      {/* The master control of the lines: off draws none, on draws the lines of the selection.
+          It sits over the types, because it outranks each one of them. */}
+      {links === null ? null : (
+        <button
+          type="button"
+          aria-pressed={links.on}
+          aria-label={links.name}
+          title={links.name}
+          onClick={() => {
+            onAct({ kind: 'switch-links', on: !links.on });
+          }}
+          className={cn(
+            CONTROL,
+            'shrink-0 border-b border-b-border',
+            open ? 'gap-1.5 px-1.5' : 'justify-center px-1',
+          )}
+        >
+          {open ? <span className="min-w-0 flex-1 truncate">{links.label}</span> : null}
+          {/* The glyph is hidden from a reader, and the accessible name carries the state. */}
+          {links.on ? (
+            <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
+          ) : (
+            <EyeOff size={14} aria-hidden="true" className="shrink-0 text-label" />
+          )}
+        </button>
+      )}
 
       {/* A control that can exclude everything carries the way back. A prototype reached an
           all-grey screen, and the filter is stored, so that screen survived a reload. The sentence

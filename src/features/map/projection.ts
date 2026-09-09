@@ -125,6 +125,7 @@ export function railRows(
   legend: RailLegend,
   openTypes: readonly string[],
   open: boolean,
+  linksOn: boolean,
 ): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
@@ -141,6 +142,13 @@ export function railRows(
 
   return {
     types,
+    // The lines are drawn for the selection alone, and the name says what the control does and
+    // never how far it reaches.
+    links: {
+      on: linksOn,
+      label: 'Relation lines',
+      name: `relation lines, ${linksOn ? 'on' : 'off'} the map`,
+    },
     openTypes,
     everyTypeOff: types.length > 0 && types.every((row) => !row.on),
     open,

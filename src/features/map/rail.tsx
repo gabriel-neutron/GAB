@@ -19,13 +19,6 @@ export interface RailProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-// The two cases are not one empty list. Until the analyst folds a type open, the rail follows the
-// selection: a rail that only listened opened no group on a reload. After the first fold an empty
-// list means "the analyst closed every group", which the selection must not undo.
-type OpenTypes =
-  | { readonly kind: 'follows-selection' }
-  | { readonly kind: 'chosen'; readonly types: readonly string[] };
-
 export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   // The legend is an echo of the adapter, which stays the one truth: it is seeded from the handle
   // and taken from the handle again after each switch. The fallback draws everything on.
@@ -37,23 +30,26 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   // here and the subscription below are the same read, with no window between the two.
   const [selected, setSelected] = useState<string | null>(map.current?.selected ?? null);
 
-  const [openTypes, setOpenTypes] = useState<OpenTypes>({ kind: 'follows-selection' });
+  // The master control of the lines, echoed from the adapter as the legend above is: the adapter
+  // is the one holder of the state and the one writer of the store.
+  const [linksOn, setLinksOn] = useState(() => map.current?.linksVisible ?? true);
+
+  // A fold is a preference of the view and a selection on the map outranks it: each selection
+  // opens the group of its type, and the analyst may fold that group again until the next one.
+  const [openTypes, setOpenTypes] = useState<readonly string[]>([]);
 
   // The effect returns the unsubscribe of the handle, so a rail that leaves the screen drives no
-  // dead map. The subscription seeds itself, so the two states above need no second read.
+  // dead map. The subscription seeds itself, so no state above needs a second read.
   useEffect(() => {
     const live = map.current;
     if (live === null) return;
-    return live.onSelect(setSelected);
-  }, [map]);
-
-  const selectedType = selected === null ? null : (projection.byId.get(selected)?.type ?? null);
-  const shownTypes: readonly string[] =
-    openTypes.kind === 'follows-selection'
-      ? selectedType === null
-        ? []
-        : [selectedType]
-      : openTypes.types;
+    return live.onSelect((id) => {
+      setSelected(id);
+      const type = id === null ? null : (projection.byId.get(id)?.type ?? null);
+      if (type === null) return;
+      setOpenTypes((held) => (held.includes(type) ? held : [...held, type]));
+    });
+  }, [map, projection]);
 
   // The adapter is the one writer: it stores the types that are switched off, drops a selection
   // that the switch would leave undrawn, and answers `isTypeVisible` after the write.
@@ -79,25 +75,29 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
       case 'switch-type':
         switchType(next.type, next.on);
         return;
+      case 'switch-links': {
+        const live = map.current;
+        if (live === null) return;
+        live.setLinksVisible(next.on);
+        setLinksOn(live.linksVisible);
+        return;
+      }
       case 'show-every-type':
         // The way back from a screen that excludes everything. Each type goes on through the one
         // writer, so the adapter stays the only holder of `hiddenTypes`.
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        setOpenTypes({
-          kind: 'chosen',
-          types: next.open
-            ? [...shownTypes, next.type]
-            : shownTypes.filter((type) => type !== next.type),
-        });
+        setOpenTypes((held) =>
+          next.open ? [...held, next.type] : held.filter((type) => type !== next.type),
+        );
         return;
     }
   };
 
   return (
     <TwoStepRail
-      rows={railRows(legend, shownTypes, open)}
+      rows={railRows(legend, openTypes, open, linksOn)}
       onAct={act}
       // The rail asks for each open list, because more than one may stand open.
       index={(type) => {

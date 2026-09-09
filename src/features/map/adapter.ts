@@ -19,6 +19,7 @@ import {
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
 import type { GeoEntity, GeoLink, Projection } from './projection';
+import { relationsInReach } from './reach';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
 // `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification`. So this file
@@ -406,17 +407,11 @@ export function mountMap({
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
-      // The store can hold a type that is already switched off, so the first frame must not draw
-      // a line that runs to a point which no layer draws. The literal reads the same predicate as
-      // the two paint functions below.
-      [LINK_SOURCE]: { type: 'geojson', data: collectLines(drawnLinks(projection.links, hidden)) },
+      // The lines belong to a selection, which the address restores below this style. So the
+      // first frame carries none, and `paintBaseLinks` fills the two sources through the queue.
+      [LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
       [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
-      // The heads read the same list as the quiet lines, so a type that switches off takes its
-      // heads with its lines and no second truth about what is drawn can appear.
-      [ARROW_SOURCE]: {
-        type: 'geojson',
-        data: collectArrows(drawnLinks(projection.links, hidden)),
-      },
+      [ARROW_SOURCE]: { type: 'geojson', data: collectArrows([]) },
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
@@ -548,7 +543,7 @@ export function mountMap({
       const source = map.getSource(LINK_SOURCE);
       // The test on the class gives the type that declares `setData`, exactly as above.
       if (!(source instanceof GeoJSONSource)) return;
-      const drawn = drawnLinks(projection.links, hidden);
+      const drawn = drawnLinks(relationsInReach(projection, selected), hidden);
       void source.setData(collectLines(drawn));
       // The heads follow the same list, in the same queue, so a line and its head can never
       // disagree about which relations are drawn.
@@ -584,6 +579,7 @@ export function mountMap({
 
   // The selection that comes from the address is drawn at the load, through the same queue.
   paintSelection();
+  paintBaseLinks();
   paintActiveLinks();
 
   const setSelected = (next: string | null): void => {
@@ -594,6 +590,7 @@ export function mountMap({
     const droppedLink = chosenLink;
     chosenLink = null;
     paintSelection();
+    paintBaseLinks();
     paintActiveLinks();
     if (droppedLink !== null) for (const listener of chooseLinkListeners) listener(null);
     // Each listener reads the value of this call, and never the live variable. A listener can

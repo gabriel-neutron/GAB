@@ -9,6 +9,13 @@ export interface IndexRowsProps {
   readonly onSelect: (id: string) => void;
 }
 
+// This callback is one module constant, so React runs it only when the selection moves to another
+// row. `nearest` moves the index alone and leaves every ancestor of it still, and it moves nothing
+// at all for a row that is already on the screen, such as the row the analyst just clicked.
+const reveal = (node: HTMLElement | null): void => {
+  node?.scrollIntoView({ block: 'nearest' });
+};
+
 /** In a flex row `truncate` needs `min-w-0`: the item defaults to `min-width: auto`. */
 const NAME = 'min-w-0 flex-1 truncate';
 
@@ -30,6 +37,7 @@ export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsPr
           type="button"
           data-row=""
           data-id={entity.id}
+          ref={entity.id === selectedId ? reveal : undefined}
           aria-current={entity.id === selectedId ? 'true' : undefined}
           onClick={() => {
             onSelect(entity.id);

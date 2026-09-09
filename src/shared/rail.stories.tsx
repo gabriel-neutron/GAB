@@ -19,6 +19,7 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
 
 const rows = (over: Partial<RailRows> = {}): RailRows => ({
   types: [row({ type: 'vessel' }), row({ type: 'port', count: 7 })],
+  links: null,
   openTypes: [],
   everyTypeOff: false,
   open: true,
