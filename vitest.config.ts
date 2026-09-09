@@ -31,12 +31,22 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
       'part proves no perimeter, no role, no grant and no row of the corpus.',
   );
 
+// **The suite needs more than the five seconds Vitest gives a test, and the reason is the machine
+// and not a socket.** Measured on 9 September 2026 over 1,178 entities: every view answers inside
+// 100 ms in SQL, so nothing here is slow. Nine projects in parallel is what passes five seconds.
+//
+// **A project does not inherit this from the root**, so every project states it. An offline test
+// starved of a core by a live project fails the same way a live one does, and a test that times
+// out leaves its stubbed calls to land inside the next test, which then fails for a false reason.
+const TEST_TIMEOUT = 30_000;
+
 // The dot in `.db-test.ts` is what holds the two halves apart: `*.test.ts` does not match it.
 // A file renamed to `.db.test.ts` joins the offline half and opens a socket on a machine that
 // has no stack at all.
 const writerProject = {
   test: {
     name: 'writer',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['packages/writer/src/**/*.db-test.ts'],
   },
@@ -49,6 +59,7 @@ const writerProject = {
 const workerProject = {
   test: {
     name: 'worker',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['packages/worker/src/**/*.db-test.ts'],
   },
@@ -61,6 +72,7 @@ const workerProject = {
 const storeProject = {
   test: {
     name: 'store',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['packages/store/src/**/*.db-test.ts'],
   },
@@ -73,6 +85,7 @@ const storeProject = {
 const schemaProject = {
   test: {
     name: 'schema',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['tools/*.db-test.ts'],
   },
@@ -85,6 +98,7 @@ const schemaProject = {
 const perimeterProject = {
   test: {
     name: 'perimeter',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['tools/perimeter/*.db-test.ts'],
   },
@@ -97,6 +111,7 @@ const perimeterProject = {
 const corpusProject = {
   test: {
     name: 'corpus',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['tools/corpus/*.db-test.ts'],
   },
@@ -109,6 +124,7 @@ const corpusProject = {
 const serviceProject = {
   test: {
     name: 'service',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['tools/service/*.db-test.ts'],
   },
@@ -121,6 +137,7 @@ const serviceProject = {
 const contractProject = {
   test: {
     name: 'contract',
+    testTimeout: TEST_TIMEOUT,
     environment: 'node',
     include: ['src/shared/read/**/*.db-test.ts'],
   },
@@ -141,6 +158,7 @@ export default defineConfig({
 
         test: {
           name: 'storybook',
+          testTimeout: TEST_TIMEOUT,
           browser: {
             enabled: true,
             headless: true,
@@ -156,6 +174,7 @@ export default defineConfig({
         // The alias is stated here, because this project needs no plugin of the application.
         test: {
           name: 'read',
+          testTimeout: TEST_TIMEOUT,
           environment: 'node',
           include: ['src/shared/read/**/*.test.ts', 'src/shared/*.test.ts'],
         },
@@ -167,6 +186,7 @@ export default defineConfig({
         // runs in Node beside the read client.
         test: {
           name: 'write',
+          testTimeout: TEST_TIMEOUT,
           environment: 'node',
           include: ['src/shared/write/**/*.test.ts'],
         },
@@ -178,6 +198,7 @@ export default defineConfig({
         // and they run everywhere, beside the package that declares them.
         test: {
           name: 'proposal',
+          testTimeout: TEST_TIMEOUT,
           environment: 'node',
           include: ['packages/proposal/src/**/*.test.ts'],
         },
@@ -188,6 +209,7 @@ export default defineConfig({
         // reads no key of the operator, so it runs in Node and it runs everywhere.
         test: {
           name: 'model',
+          testTimeout: TEST_TIMEOUT,
           environment: 'node',
           include: ['packages/model/src/**/*.test.ts'],
         },
@@ -198,6 +220,7 @@ export default defineConfig({
         // of the repository and no row of a database, so it runs in Node and it runs everywhere.
         test: {
           name: 'seed',
+          testTimeout: TEST_TIMEOUT,
           environment: 'node',
           include: ['tools/*.test.ts'],
         },

@@ -71,7 +71,7 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
  */
 const SHAPES = [
   {
-    pattern: /(?<!#)#(?:\s+\d+|(?!(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![\w-]))\d+)\b/g,
+    pattern: /(?<!#)#(?:\s+\d+|(?![0-9a-fA-F]{6}(?![\w-]))\d+)\b/g,
     kind: 'a ticket number',
   },
   { pattern: /\b(?:issues?|pulls?|PR|ticket)[\s/#:-]*\d+\b/gi, kind: 'a ticket number' },

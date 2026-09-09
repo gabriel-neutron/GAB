@@ -113,7 +113,7 @@ test('a position of one number is refused, and a height is accepted', () => {
 });
 
 // The database refuses an empty list as `proposals_payload_geom`, so a door that took one
-// would answer a 23514 in place of a 422. Measured on #127: `[]` stores `LINESTRING EMPTY`.
+// would answer a 23514 in place of a 422. Measured: `[]` stores `LINESTRING EMPTY`.
 test('an empty list of positions is refused, at every depth', () => {
   const empty: readonly (readonly [string, unknown])[] = [
     ['MultiPoint', { type: 'MultiPoint', coordinates: [] }],
