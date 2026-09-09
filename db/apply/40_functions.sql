@@ -175,10 +175,13 @@ BEGIN
   -- The queue takes the identifier and nothing else. What the work IS stays undecided: P6 puts
   -- two paths behind this door, and no rule says which file takes which one.
   --
-  -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and the schema decided it before this line:
-  -- doc_retrieved_required lets `manual` alone carry no retrieval date, and such a row carries
-  -- no file and no address. An agent would have nothing to read, so the queue holds no row for
-  -- it, and the queue is therefore not the whole record of what passed the door.
+  -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and it is a rule of this line alone. A `manual`
+  -- row carries no file and no address, so an agent would have nothing to read and the queue
+  -- holds no row for it. The queue is therefore not the whole record of what passed the door.
+  --
+  -- THE DATE IS NOT WHAT DECIDES IT. Since migration 0011 the retrieval date is demanded of the
+  -- BYTES and not of the kind (doc_retrieved_with_bytes), so a `url` row with no date is a
+  -- lawful row that names an address nobody has read yet. Such a row DOES earn a job.
   INSERT INTO public.jobs (document_id)
   SELECT v_id::doc_id WHERE p_kind <> 'manual';
 

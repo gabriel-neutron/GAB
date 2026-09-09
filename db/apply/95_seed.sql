@@ -39,8 +39,11 @@ ON CONFLICT (id) DO NOTHING;
 -- here, and the claim stands on an ancestor which `src_inherited_from` names. The v1 corpus
 -- needs it for 742 units, and inventing a citation for them would be a fabrication.
 --
--- ITS KIND IS `manual`, so it carries no retrieval date and `put_document` queues no work for
--- it. Nothing is there to fetch. Migration 0009 refuses it to the machine role beside `manual`.
+-- IT CARRIES NO RETRIEVAL DATE, AND THE ROW AND NOT THE KIND IS WHY. Since migration 0011
+-- doc_retrieved_with_bytes demands a date of the BYTES, and this row holds no s3_key and no
+-- sha256, so it needs none. Its kind is `manual`, which is a separate rule and it decides one
+-- separate thing: `put_document` queues no work for it, because nothing is there to fetch.
+-- Migration 0009 refuses it to the machine role beside `manual`.
 INSERT INTO documents (id, kind, title)
 VALUES ('inherited', 'manual',
         'No document supports this value; it is inherited from an ancestor')
