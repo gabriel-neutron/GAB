@@ -17,7 +17,8 @@ import {
   relationLines,
 } from '@/shared/canvas-label';
 
-import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
+import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './basemap';
+import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
 import type { GeoEntity, GeoLink, Projection } from './projection';
 import { relationsInReach } from './reach';
@@ -28,6 +29,7 @@ import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 // takes the two shapes from the option that carries them.
 type StyleSpec = Exclude<MapOptions['style'], string | undefined>;
 type LayerSpec = StyleSpec['layers'][number];
+type SourceSpec = StyleSpec['sources'][string];
 
 export interface MountMapOptions {
   // The content of this element must not decide its size. This file writes the canvas size with
@@ -54,6 +56,9 @@ export interface MapHandle {
   readonly onChooseLink: (listener: (link: GeoLink | null) => void) => () => void;
   readonly setGround: (ground: Ground) => void;
   readonly ground: Ground;
+  /** Changes the source or the date of the imagery ground. The plan ground is untouched. */
+  readonly setImagery: (imagery: Imagery) => void;
+  readonly imagery: Imagery;
   readonly destroy: () => void;
 }
 
@@ -427,40 +432,37 @@ export function mountMap({
   const groundLayerId = (ground: Ground): string => `ground-${ground}`;
 
   let ground: Ground = stored.ground;
+  let imagery: Imagery = stored.imagery;
+
+  // `maxzoom` is the ceiling of the server, and it is measured. The OSM servers answer 200 at
+  // z19 and 400 at z20; the EOX service answers 200 far past its 10 m resolution, because it
+  // upsamples. MapLibre then asks no tile past the ceiling and overzooms the parent itself.
+  const rasterSourceOf = (source: GroundSource): SourceSpec => ({
+    type: 'raster',
+    tiles: [source.tiles],
+    tileSize: source.tileSize,
+    maxzoom: source.maxZoom,
+    attribution: source.attribution,
+  });
+
+  // One ground is drawn and the other waits. The switch is this property and nothing else.
+  const groundLayerOf = (name: Ground): LayerSpec => ({
+    id: groundLayerId(name),
+    type: 'raster',
+    source: groundLayerId(name),
+    layout: { visibility: name === ground ? 'visible' : 'none' },
+    paint: { ...groundPaint(name, isDark()) },
+  });
 
   const groundSources = Object.fromEntries(
-    EVERY_GROUND.filter((name) => GROUNDS[name].tiles !== null).map((name) => {
-      const source = GROUNDS[name];
-      return [
-        groundLayerId(name),
-        {
-          type: 'raster' as const,
-          tiles: [source.tiles ?? ''],
-          tileSize: source.tileSize,
-          maxzoom: source.maxZoom,
-          attribution: source.attribution,
-        },
-      ];
-    }),
+    EVERY_GROUND.map((name) => [groundLayerId(name), rasterSourceOf(groundSource(name, imagery))]),
   );
 
-  const groundLayers: LayerSpec[] = EVERY_GROUND.filter((name) => GROUNDS[name].tiles !== null).map(
-    (name) => ({
-      id: groundLayerId(name),
-      type: 'raster',
-      source: groundLayerId(name),
-      // One ground is drawn and the other waits. The switch is this property and nothing else.
-      layout: { visibility: name === ground ? 'visible' : 'none' },
-      paint: { ...groundPaint(name, isDark()) },
-    }),
-  );
+  const groundLayers: LayerSpec[] = EVERY_GROUND.map(groundLayerOf);
 
   const style: StyleSpec = {
     version: 8,
     sources: {
-      // `maxzoom` is the ceiling of the server, and it is measured. The OSM servers answer 200 at
-      // z19 and 400 at z20; the EOX service answers 200 far past its 10 m resolution, because it
-      // upsamples. MapLibre then asks no tile past the ceiling and overzooms the parent itself.
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
@@ -948,7 +950,6 @@ export function mountMap({
     whenStyleReady(() => {
       const dark = isDark();
       for (const name of EVERY_GROUND) {
-        if (GROUNDS[name].tiles === null) continue;
         const paint = groundPaint(name, dark);
         const id = groundLayerId(name);
         // The three keys are written one at a time, and each one is a literal, because the paint
@@ -1072,12 +1073,10 @@ export function mountMap({
     // selection and the filter survive it. MapLibre then drops the credit of the hidden ground.
     setGround: (next) => {
       if (destroyed) return;
-      if (GROUNDS[next].tiles === null) return;
       ground = next;
       patchMapWorkspace({ ground: next });
       whenStyleReady(() => {
         for (const name of EVERY_GROUND) {
-          if (GROUNDS[name].tiles === null) continue;
           map.setLayoutProperty(
             groundLayerId(name),
             'visibility',
@@ -1088,6 +1087,24 @@ export function mountMap({
     },
     get ground() {
       return ground;
+    },
+    // `setTiles` on a raster source resets its attribution from the options it was built with, so
+    // a new date would keep the old credit. The source and its layer are rebuilt instead, at the
+    // same place in the stack, so the grounds stay under every line and every point.
+    setImagery: (next) => {
+      if (destroyed) return;
+      imagery = next;
+      patchMapWorkspace({ imagery: next });
+      whenStyleReady(() => {
+        const id = groundLayerId('imagery');
+        if (map.getLayer(id) !== undefined) map.removeLayer(id);
+        if (map.getSource(id) !== undefined) map.removeSource(id);
+        map.addSource(id, rasterSourceOf(groundSource('imagery', next)));
+        map.addLayer(groundLayerOf('imagery'), LINK_LAYER);
+      });
+    },
+    get imagery() {
+      return imagery;
     },
     destroy: () => {
       if (destroyed) return;

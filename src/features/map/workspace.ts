@@ -1,5 +1,7 @@
 import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
+import { DEFAULT_IMAGERY, isImagery, type Imagery } from './imagery';
+
 const FEATURE = 'map';
 
 export type Ground = 'plan' | 'imagery';
@@ -18,6 +20,7 @@ export interface MapWorkspace {
   readonly linksHidden: boolean;
   readonly railOpen: boolean;
   readonly ground: Ground;
+  readonly imagery: Imagery;
 }
 
 export const DEFAULT_WORKSPACE: MapWorkspace = {
@@ -26,6 +29,7 @@ export const DEFAULT_WORKSPACE: MapWorkspace = {
   linksHidden: false,
   railOpen: true,
   ground: 'plan',
+  imagery: DEFAULT_IMAGERY,
 };
 
 const isCamera = (value: unknown): value is Camera => {
@@ -49,6 +53,7 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   linksHidden: true,
   railOpen: true,
   ground: true,
+  imagery: true,
 };
 
 // The cost of the strict guard here is one camera position, one time.
@@ -62,7 +67,8 @@ const isWorkspace = (value: unknown): value is MapWorkspace => {
     hidden.every((type) => typeof type === 'string') &&
     typeof w['linksHidden'] === 'boolean' &&
     typeof w['railOpen'] === 'boolean' &&
-    (w['ground'] === 'plan' || w['ground'] === 'imagery')
+    (w['ground'] === 'plan' || w['ground'] === 'imagery') &&
+    isImagery(w['imagery'])
   );
 };
 

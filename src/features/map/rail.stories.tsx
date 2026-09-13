@@ -6,6 +6,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import type { MapHandle } from './adapter';
+import { DEFAULT_IMAGERY, type Imagery } from './imagery';
 import type { Ground } from './workspace';
 import { GroundControl } from './ground-control';
 import { entitiesOfType, project, type GeoLink } from './projection';
@@ -38,6 +39,7 @@ function testMap(
   const grounds: Ground[] = [];
   let current = selected;
   let currentGround: Ground = 'plan';
+  let currentImagery: Imagery = DEFAULT_IMAGERY;
   let linksHidden = false;
   let chosenLink = chosen;
 
@@ -111,6 +113,12 @@ function testMap(
     },
     get ground() {
       return currentGround;
+    },
+    setImagery: (next) => {
+      currentImagery = next;
+    },
+    get imagery() {
+      return currentImagery;
     },
     destroy: () => {
       // The double owns nothing, so it releases nothing.

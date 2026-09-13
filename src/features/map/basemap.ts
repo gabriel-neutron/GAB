@@ -1,3 +1,4 @@
+import { imageryGround, type Imagery } from './imagery';
 import type { Ground } from './workspace';
 
 // Vite replaces `import.meta.env` at build time, so an absent key is the empty string and never
@@ -14,43 +15,27 @@ const hosted = (): string | null => {
 // asks for a tile that does not exist.
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-// EOX Sentinel-2 cloudless 2025 is WMTS: the path is `{z}/{y}/{x}`, not `{z}/{x}/{y}`. The last
-// two exchanged draw a world mirrored about its diagonal, and report no fault.
-const EOX_TILES =
-  'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg';
-
 export interface GroundSource {
-  readonly tiles: string | null;
+  readonly tiles: string;
   readonly tileSize: number;
   readonly maxZoom: number;
   // An attribution is an obligation of a licence and not a caption. Do not shorten this string
   // and do not reword it.
   readonly attribution: string;
-  readonly invertsInDark: boolean;
-  readonly missing: string;
 }
 
-// Both grounds live in the style at one time and one is hidden. A style built again drops every
-// source with it, and the selection, the hidden types and the relations must be applied again.
-export const GROUNDS: Readonly<Record<Ground, GroundSource>> = {
-  plan: {
-    tiles: hosted() ?? OSM_TILES,
-    tileSize: 256,
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors',
-    invertsInDark: true,
-    missing: 'No plan ground is configured.',
-  },
-  imagery: {
-    tiles: EOX_TILES,
-    tileSize: 256,
-    maxZoom: 14,
-    attribution:
-      'EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)',
-    invertsInDark: false,
-    missing: 'No imagery ground is configured.',
-  },
+const PLAN: GroundSource = {
+  tiles: hosted() ?? OSM_TILES,
+  tileSize: 256,
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors',
 };
+
+// Both grounds live in the style at one time and one is hidden. A style built again drops every
+// source with it, so a change of imagery rebuilds one source and one layer, and never the style.
+export function groundSource(ground: Ground, imagery: Imagery): GroundSource {
+  return ground === 'plan' ? PLAN : imageryGround(imagery);
+}
 
 export const planIsHosted = (): boolean => hosted() !== null;
 
@@ -65,11 +50,14 @@ export interface GroundPaint {
   readonly 'raster-hue-rotate': number;
 }
 
+// The inversion is a property of the ground and not of one date: a plan reads inverted, and any
+// satellite image dims. So the table is by ground, and no imagery states it a second time.
+const INVERTS_IN_DARK: Readonly<Record<Ground, boolean>> = { plan: true, imagery: false };
+
 export function groundPaint(ground: Ground, dark: boolean): GroundPaint {
-  const source = GROUNDS[ground];
   if (!dark)
     return { 'raster-brightness-min': 0, 'raster-brightness-max': 1, 'raster-hue-rotate': 0 };
-  if (!source.invertsInDark) {
+  if (!INVERTS_IN_DARK[ground]) {
     return {
       'raster-brightness-min': 0,
       'raster-brightness-max': IMAGERY_DARK,

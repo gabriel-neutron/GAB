@@ -169,14 +169,18 @@ export default defineConfig({
       },
 
       {
-        // The read client parses a literal row of the read API, and the workspace store reads a
-        // record of the browser. Neither touches a database or a network, so both run in Node.
-        // The alias is stated here, because this project needs no plugin of the application.
+        // The read client parses a literal row of the read API, the workspace store reads a record
+        // of the browser, and a derivation of a feature reads a value. None touches a database or a
+        // network, so all run in Node. The alias is stated here: this project needs no plugin.
         test: {
           name: 'read',
           testTimeout: TEST_TIMEOUT,
           environment: 'node',
-          include: ['src/shared/read/**/*.test.ts', 'src/shared/*.test.ts'],
+          include: [
+            'src/shared/read/**/*.test.ts',
+            'src/shared/*.test.ts',
+            'src/features/**/*.test.ts',
+          ],
         },
         resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
       },
