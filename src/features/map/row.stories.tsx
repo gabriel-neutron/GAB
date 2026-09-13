@@ -97,6 +97,31 @@ export const ABorrowedPositionNamesTheParent: Story = {
   },
 };
 
+// The graphic is a military symbol, and most readers read none. So the row carries the echelon
+// and the domain in words beside it, and a unit that recorded no domain says nothing about one.
+export const TheRowNamesTheEchelonAndTheDomainInWords: Story = {
+  args: { facet: facetOf('military_unit'), entities: UNITS },
+  play: async ({ canvasElement }) => {
+    const said = (label: string): string | null => {
+      const row = canvasElement.querySelector<HTMLElement>(`[data-id="${idOf(label)}"]`);
+      if (row === null) throw new Error(`The index draws no row for ${label}.`);
+      return row.querySelector<HTMLElement>('[data-symbol-words]')?.textContent ?? null;
+    };
+
+    await expect(said('92nd Coastal Battery')).toBe('Company/battery/troop, Ground');
+    await expect(said('3rd Reconnaissance Company')).toBe('Battalion/squadron');
+  },
+};
+
+// A vessel is not a unit, so no row of a vessel is given a frame or the words that go with one.
+export const AVesselIsGivenNoUnitFrame: Story = {
+  args: { facet: facetOf('vessel'), entities: VESSELS },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-unit-symbol]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-symbol-words]')).toBeNull();
+  },
+};
+
 // An entity that carries a point and states no word must read as the cautious state. The words
 // of a borrowed position are a claim, and an absent claim is never a measured one.
 export const AnEntityThatStatesNoWordSaysNothingAboutItsPosition: Story = {

@@ -457,6 +457,9 @@ const record: Omit<Corpus, 'positions'> = {
         // The parent was located, so it says how well. `exact` is a claim, and an absent word
         // would be no claim at all.
         position_precision: { v: 'exact', src: ['doc_8f2a41'] },
+        affiliation: { v: 'Hostile', src: ['doc_8f2a41'] },
+        echelon: { v: 'Company/battery/troop', src: ['doc_8f2a41'] },
+        domain: { v: 'Ground', src: ['doc_8f2a41'] },
       },
       sources: ['doc_8f2a41'],
       geom: { lon: 19.902, lat: 54.65 },
@@ -473,6 +476,10 @@ const record: Omit<Corpus, 'positions'> = {
         // makes `manual` a real document, and a fabricated citation is what it prevents.
         position_precision: { v: 'inherited', src: ['manual'] },
         strength_reported: { v: 110, src: ['doc_5e7730'] },
+        affiliation: { v: 'Hostile', src: ['doc_5e7730'] },
+        echelon: { v: 'Battalion/squadron', src: ['doc_5e7730'] },
+        // THE ABSENT DOMAIN, AND THE ONLY PLACE A STORY MEETS IT. Two thirds of the units of the
+        // corpus record none, so the symbol of this one carries no domain mark at all.
       },
       sources: ['doc_5e7730', 'manual'],
       // Nobody located it. The map draws it all the same, and that is the whole of the state.

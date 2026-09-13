@@ -10,6 +10,8 @@ import type {
 } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
+import { natoSymbol, type NatoSymbol } from './nato-symbol';
+
 /**
  * MapLibre wants a number for a feature id: `fid` is an array position. `id` identifies the row.
  */
@@ -30,6 +32,9 @@ export interface GeoEntity {
   /** The borrowed position, worded, or null. The derivation words it so that every surface says
    * it the same way and none of them words it twice. */
   readonly positionFrom: string | null;
+  /** The military marks, and null for every entity that is not a unit. The frame, the marks and
+   * the words are read here once, so the index row and the hover label cannot disagree. */
+  readonly symbol: NatoSymbol | null;
 }
 
 /**
@@ -200,6 +205,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     parentId: at.parentId,
     positionFrom:
       at.parentId === null ? null : positionFromWords(labelOfEntity.get(at.parentId) ?? 'a parent'),
+    symbol: natoSymbol(entity.type, entity.attrs),
   }));
 
   const byId = new Map(entities.map((entity) => [entity.id, entity]));

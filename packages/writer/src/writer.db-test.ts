@@ -1,4 +1,4 @@
-import { afterAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
@@ -8,21 +8,32 @@ import { writeRoutes } from './routes.ts';
 const pool = openPool();
 const app = writeRoutes(pool);
 
-// The committed fixture holds these two counts, and every gesture below undoes itself. The
-// accepted proposals stay: the ledger is append-only, and a trigger refuses a delete.
-const FIXTURE = { entities: 1178, relations: 1178 };
+interface Held {
+  readonly entities: number;
+  readonly relations: number;
+}
+
+const LIVE_COUNTS =
+  'SELECT (SELECT count(*) FROM public.entities) AS entities,' +
+  ' (SELECT count(*) FROM public.relations) AS relations';
+
+const liveCounts = async (): Promise<Held> => {
+  const held = await one(LIVE_COUNTS, []);
+  return { entities: Number(held['entities']), relations: Number(held['relations']) };
+};
+
+// Every gesture below undoes itself, so the record ends where it began, whatever was loaded into
+// it. The accepted proposals stay: the ledger is append-only, and a trigger refuses a delete.
+let began: Held | null = null;
+
+beforeAll(async () => {
+  began = await liveCounts();
+});
 
 afterAll(async () => {
-  const left = await one(
-    'SELECT (SELECT count(*) FROM public.entities) AS entities,' +
-      ' (SELECT count(*) FROM public.relations) AS relations',
-    [],
-  );
+  const left = await liveCounts();
   await pool.end();
-  expect({
-    entities: Number(left['entities']),
-    relations: Number(left['relations']),
-  }).toStrictEqual(FIXTURE);
+  expect(left).toStrictEqual(began);
 });
 
 const replyShape = z.object({

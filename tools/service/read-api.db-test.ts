@@ -3,23 +3,32 @@
 
 import { expect, test } from 'vitest';
 
+import { fixtureSize } from '../../src/shared/committed-fixture/size.ts';
+
 import { askReadApi } from './read-api.ts';
 
-const STATED = [
-  { path: 'entity', total: 1178 },
-  { path: 'relation', total: 1178 },
-  { path: 'document', total: 255 },
-  { path: 'proposal?status=eq.pending', total: 3 },
-  // The map read answers for EVERY entity, and no longer for the ones that carry a geometry.
-  // A count under the entity count here is the filter on the geometry, come back.
-  { path: 'full_map', total: 1178 },
-] as const;
-
-for (const { path, total } of STATED)
-  test(`the read service counts ${total} rows at ${path}`, async () => {
-    const answer = await askReadApi(path, { count: true });
-    expect({ status: answer.status, total: answer.total }).toStrictEqual({ status: 200, total });
+// The map read answers for EVERY entity, and no longer for the ones that carry a geometry. A
+// count under the entity count here is the filter on the geometry, come back.
+test('the read service counts one map row for each entity', async () => {
+  const [entities, drawn] = await Promise.all([
+    askReadApi('entity', { count: true }),
+    askReadApi('full_map', { count: true }),
+  ]);
+  expect(entities.status).toBe(200);
+  expect(entities.total).toBeGreaterThan(0);
+  expect({ status: drawn.status, total: drawn.total }).toStrictEqual({
+    status: 200,
+    total: entities.total,
   });
+});
+
+test('the read service counts the acts the committed fixture leaves waiting', async () => {
+  const answer = await askReadApi('proposal?status=eq.pending', { count: true });
+  expect({ status: answer.status, total: answer.total }).toStrictEqual({
+    status: 200,
+    total: fixtureSize.pending,
+  });
+});
 
 const VIEWS = [
   'document',

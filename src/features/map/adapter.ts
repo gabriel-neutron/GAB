@@ -18,8 +18,10 @@ import {
 } from '@/shared/canvas-label';
 
 import { EVERY_GROUND, GROUNDS, groundPaint } from './basemap';
+import type { NatoSymbol } from './nato-symbol';
 import type { GeoEntity, GeoLink, Projection } from './projection';
 import { relationsInReach } from './reach';
+import { unitSymbolImage, unitSymbolImageId } from './unit-symbol-image';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
 // `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification`. So this file
@@ -63,6 +65,8 @@ const SELECTION_LAYER = 'selection-ring';
 const layerOfType = (type: string): string => `entity-${type}`;
 /** The halo of one type. It reads the one point source, so it costs no second query. */
 const haloOfType = (type: string): string => `inherited-${type}`;
+/** The military marks of one type. It reads the same source, under the same rule. */
+const symbolOfType = (type: string): string => `symbol-${type}`;
 
 /** Every relation that can be drawn. One source, and one layer over it. */
 const LINK_SOURCE = 'links';
@@ -137,6 +141,10 @@ interface PointFeature {
     // panel of thirty types must not make sixty queries, and two sources of one point would
     // drift the day one of the two was written and the other was not.
     readonly inherited: boolean;
+    // The image of the military marks. **The key is absent for an entity that draws none**, and
+    // the two layers filter on `has`: a value that stood for an absence would be a second way to
+    // say nothing, and the style parser compares no null.
+    readonly symbolImage?: string;
   };
 }
 
@@ -249,6 +257,21 @@ export function mountMap({
   let linksHidden = stored.linksHidden;
   const colourOfType = new Map(projection.types.map((facet) => [facet.type, facet.colour]));
 
+  // One raster per drawing, and never one per unit. The resolver below reads this record, so an
+  // image can only be asked for by a name that an entity of this projection produced.
+  const symbolVariants = new Map<
+    string,
+    { readonly symbol: NatoSymbol; readonly colour: string }
+  >();
+  for (const entity of projection.entities) {
+    const colour = colourOfType.get(entity.type);
+    if (entity.symbol === null || colour === undefined) continue;
+    symbolVariants.set(unitSymbolImageId(entity.type, entity.symbol), {
+      symbol: entity.symbol,
+      colour,
+    });
+  }
+
   // MapLibre reads the style with its own parser, so a CSS custom property never reaches it and
   // `projection.ts` holds the hex copy. An entity of a type with no facet is drawn nowhere.
   const featuresOf = (entities: readonly GeoEntity[]): PointFeature[] => {
@@ -262,17 +285,26 @@ export function mountMap({
         geometry: { type: 'Point', coordinates: [entity.lon, entity.lat] },
         // The ancestor identity is the test, and never the words. A label that no row supplies
         // must not remove the halo from a position that was still borrowed.
-        properties: { entityType: entity.type, colour, inherited: entity.parentId !== null },
+        properties: {
+          entityType: entity.type,
+          colour,
+          inherited: entity.parentId !== null,
+          ...(entity.symbol === null
+            ? {}
+            : { symbolImage: unitSymbolImageId(entity.type, entity.symbol) }),
+        },
       });
     }
     return features;
   };
 
+  // **A point that draws its military marks draws no disc under them.** The two filters are
+  // complementary over one property, so one entity is one mark and the map states its kind once.
   const pointLayers: LayerSpec[] = projection.types.map((facet) => ({
     id: layerOfType(facet.type),
     type: 'circle',
     source: ENTITY_SOURCE,
-    filter: ['==', ['get', 'entityType'], facet.type],
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['!', ['has', 'symbolImage']]],
     // `setLayoutProperty` only marks the source, and the new parse is asynchronous. In the window
     // between the switch and the answer of the worker, the old tile still holds the points and
     // `queryRenderedFeatures` returns them. So the hit test has a second guard against `hidden`.
@@ -306,6 +338,31 @@ export function mountMap({
       // No stroke. A stroke would read as a second outline beside the black one of the point,
       // and the point is what the analyst clicks.
       'circle-stroke-width': 0,
+    },
+  }));
+
+  // One symbol layer per type, beside the point layer of that type and under the same rule as the
+  // halo: one filter, one visibility. A unit draws here and the disc layer drops it, so the two
+  // can never draw one entity twice or leave it undrawn.
+  const symbolLayers: LayerSpec[] = projection.types.map((facet) => ({
+    id: symbolOfType(facet.type),
+    type: 'symbol',
+    source: ENTITY_SOURCE,
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['has', 'symbolImage']],
+    layout: {
+      visibility: hidden.has(facet.type) ? 'none' : 'visible',
+      'icon-image': ['get', 'symbolImage'],
+      // The raster is four pixels to the unit, and the diamond is 13 units across in it. This
+      // ramp therefore draws that diamond at 8px at zoom 3 and 18px at zoom 14, which is the
+      // width of the disc of a point at each end of its own ramp.
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.15, 14, 0.35],
+      // The symbol stands upright on a rotated map: a military mark that turned with the ground
+      // would read as another mark.
+      'icon-rotation-alignment': 'viewport',
+      // The collision machinery is off. MapLibre drops a symbol that meets another one, and a
+      // dropped symbol is a unit the map shows nowhere.
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
   }));
 
@@ -423,6 +480,9 @@ export function mountMap({
       // to, and it would cover a neighbouring point that stands inside its radius.
       ...haloLayers,
       ...pointLayers,
+      // The marks stand above every disc. They are the mark of the unit itself, and a disc of a
+      // neighbouring type that covered one would hide what that unit is.
+      ...symbolLayers,
       {
         // **The ring is above each point layer.** One slot cannot do two jobs. A point that
         // stands near the selected point covers a ring below the points. This occurs at the low
@@ -599,8 +659,10 @@ export function mountMap({
     for (const listener of selectListeners) listener(next);
   };
 
-  /** The identifiers of the point layers, taken from the layers themselves. One list, one truth. */
-  const pointLayerIds = pointLayers.map((layer) => layer.id);
+  // The identifiers of the layers that draw an entity, taken from the layers themselves. One list,
+  // one truth. The symbol layers are in it because a unit is clicked on its marks: it draws no
+  // disc, so a hit test over the discs alone would make every unit unclickable.
+  const pointLayerIds = [...pointLayers, ...symbolLayers].map((layer) => layer.id);
 
   /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
   const linkLayerIds = linkLayers.map((layer) => layer.id);
@@ -645,8 +707,16 @@ export function mountMap({
   // here. `styleimagemissing` is not the path in `maplibre-gl` 6: it fires, and the layer that was
   // built keeps an empty image. That was measured in the browser and not assumed.
   map.setMissingStyleImageResolver((id) => {
-    if (id !== ARROW_IMAGE || map.hasImage(id)) return;
-    map.addImage(id, arrowImage(LINK_HUE));
+    if (map.hasImage(id)) return;
+    if (id === ARROW_IMAGE) {
+      map.addImage(id, arrowImage(LINK_HUE));
+      return;
+    }
+    // A name no entity of this projection produced draws nothing. The image is built here at the
+    // first request and kept by the library, so a corpus of one drawing costs one raster.
+    const variant = symbolVariants.get(id);
+    if (variant === undefined) return;
+    map.addImage(id, unitSymbolImage(variant.symbol, variant.colour, POINT_OUTLINE));
   });
 
   subscriptions.push(
@@ -705,15 +775,16 @@ export function mountMap({
         // **The name carries the count of relations, in the words the graph uses.** This canvas
         // draws every point at one radius, so the count is not a second reading of the picture
         // here: it is the one place the map states it at all.
-        nameHover(
-          entityLines(
-            hit.entity.label,
-            (projection.linksByEntity.get(hit.entity.id) ?? []).length,
-            // The halo says THAT a position is borrowed. Only these words say whose it is.
-            hit.entity.positionFrom,
-          ),
-          event.point,
+        const lines = entityLines(
+          hit.entity.label,
+          (projection.linksByEntity.get(hit.entity.id) ?? []).length,
+          // The halo says THAT a position is borrowed. Only these words say whose it is.
+          hit.entity.positionFrom,
         );
+        // The echelon and the domain, for a reader who reads no military symbol. An entity that
+        // recorded neither adds no line, so an absence stays blank and states nothing.
+        const said = hit.entity.symbol?.words ?? null;
+        nameHover(said === null ? lines : [...lines, said], event.point);
         return;
       }
       if (hit.kind === 'link') {
@@ -943,9 +1014,10 @@ export function mountMap({
       else hidden.add(type);
       patchMapWorkspace({ hiddenTypes: [...hidden] });
       whenStyleReady(() => {
-        // The halo of a type switches with the points of that type. A halo left behind is a
-        // coloured disc with no mark inside it, and it states a position the map draws nowhere.
-        for (const id of [layerOfType(type), haloOfType(type)]) {
+        // The halo and the marks of a type switch with the points of that type. A halo left
+        // behind is a coloured disc with no mark inside it, and a symbol left behind is a unit at
+        // a position the map draws nowhere.
+        for (const id of [layerOfType(type), haloOfType(type), symbolOfType(type)]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });

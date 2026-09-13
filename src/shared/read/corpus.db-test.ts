@@ -4,6 +4,7 @@
 import { expect, test } from 'vitest';
 
 import { corpus as fixture } from '../committed-fixture/corpus';
+import { fixtureSize } from '../committed-fixture/size';
 import { loadCorpus } from './corpus';
 import type { Corpus, Point } from './model';
 
@@ -17,24 +18,43 @@ const onTheGlobe = (point: Point): boolean =>
   Math.abs(point.lon) <= 180 &&
   Math.abs(point.lat) <= 90;
 
-const counted = (read: Corpus): Readonly<Record<string, number>> => ({
-  documents: read.documents.length,
-  entities: read.entities.length,
-  relations: read.relations.length,
-  proposals: read.proposals.length,
-  // The map read answers for every entity, so a count below the entity count is the filter on
-  // the geometry, come back.
-  positions: read.positions.length,
+// A corpus entity carries the identifier it held in the record it came from, and a fixture row
+// carries none. A corpus relation carries no such mark, so an end of it is what names it.
+const counted = (read: Corpus): Readonly<Record<string, number>> => {
+  const loaded = new Set(
+    read.entities
+      .filter((entity) => entity.attrs['v1_id'] !== undefined)
+      .map((entity) => entity.id),
+  );
+  return {
+    entities: read.entities.filter((entity) => !loaded.has(entity.id)).length,
+    relations: read.relations.filter(
+      (relation) => !loaded.has(relation.srcId) && !loaded.has(relation.dstId),
+    ).length,
+    proposals: read.proposals.length,
+  };
+};
+
+test('the live service gives the committed fixture whole', async () => {
+  expect(counted(await loadCorpus())).toStrictEqual({
+    entities: fixtureSize.entities,
+    relations: fixtureSize.relations,
+    proposals: fixtureSize.pending,
+  });
 });
 
-test('the live service gives the record the surfaces draw', async () => {
-  expect(counted(await loadCorpus())).toStrictEqual({
-    documents: 255,
-    entities: 1178,
-    relations: 1178,
-    proposals: 3,
-    positions: 1178,
-  });
+test('every document the fixture states arrived at the surfaces', async () => {
+  const read = await loadCorpus();
+  const held = new Set(read.documents.map((document) => document.id));
+  expect(fixture.documents.filter((document) => !held.has(document.id))).toStrictEqual([]);
+});
+
+// The map read answers for every entity, so a count below the entity count is the filter on the
+// geometry, come back.
+test('the map read answers once for every entity the service gives', async () => {
+  const read = await loadCorpus();
+  expect(read.entities.length).toBeGreaterThan(0);
+  expect(read.positions).toHaveLength(read.entities.length);
 });
 
 test('every entity carries a label and a type, which each surface prints', async () => {

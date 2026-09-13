@@ -13,6 +13,10 @@
 # notes of the analyst. It is the input to the corpus load and it is never an artefact of it.
 *.gpkg
 
+# Local database backups. The repository is public, and a backup carries the same corpus a
+# .gpkg does. Never commit one.
+infra/backups/
+
 # Python bytecode (the docs hook runs under python)
 __pycache__/
 *.py[cod]
