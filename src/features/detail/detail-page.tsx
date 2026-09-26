@@ -40,6 +40,11 @@ export interface DetailPageProps {
   readonly onDeleted: () => Promise<void>;
 }
 
+interface SourceSelection {
+  readonly source: DocId | null;
+  readonly count: number;
+}
+
 const IDLE: SaveState = { step: 'idle' };
 const NO_ACT: StructureState = { step: 'idle' };
 
@@ -52,8 +57,17 @@ const ON_A_SURFACE = 'shrink-0 text-small/4 text-primary underline underline-off
 const STRUCTURE_SAYS = 'The shape of the record';
 
 export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: DetailPageProps) {
-  // The active source is never written back to the address. Two writers of one identity fight.
-  const [activeSource, setActiveSource] = useState<DocId | null>(arrivedAtSource);
+  // Departure: the active source is never written back to the address. Two writers of one
+  // identity fight.
+  const [selection, setSelection] = useState<SourceSelection>({
+    source: arrivedAtSource,
+    count: 0,
+  });
+  const activeSource = selection.source;
+
+  const onSelectSource = (source: DocId): void => {
+    setSelection((current) => ({ source, count: current.count + 1 }));
+  };
 
   // A half-typed value dies with the view. An identifier restored from storage three days later
   // is worse than one that was lost, because nothing on the screen says how old it is.
@@ -124,7 +138,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   };
 
   const mark = (sources: readonly SourceRef[]): ReactNode => (
-    <SourceMark sources={sources} activeSource={activeSource} onSelectSource={setActiveSource} />
+    <SourceMark sources={sources} activeSource={activeSource} onSelectSource={onSelectSource} />
   );
 
   return (
@@ -258,10 +272,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
       </div>
 
       <div className="w-96 min-h-0 shrink-0">
-        {/* The rail follows `activeSource` on its own, and its mount run is the arrival
-            case. `arrivedAtSource` reaches it through the state above and by no other path:
-            two writers of one scroll position fight each other. */}
-        <Rail sources={dossier.sources} activeSource={activeSource} />
+        {/* Departure: the rail follows `activeSource` on its own, and its mount run is the
+            arrival case. `arrivedAtSource` reaches it through the state above and by no other
+            path: two writers of one scroll position fight each other. */}
+        <Rail sources={dossier.sources} activeSource={activeSource} selections={selection.count} />
       </div>
     </div>
   );
