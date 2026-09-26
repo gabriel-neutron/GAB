@@ -27,6 +27,12 @@ describe('the ADMIRALTY rating of one document', () => {
     expect(readRating(row('B5', 'machine')).poor, 'a high figure is a poor band').toBe(true);
   });
 
+  it('marks a low letter poor with a good figure, and a mid letter and mid figure not poor', () => {
+    expect(readRating(row('D1', 'human')).poor, 'the letter alone makes the band poor').toBe(true);
+    expect(readRating(row('C3', 'human')).poor, 'C and 3 are the last good bands').toBe(false);
+    expect(readRating(row('C4', 'human')).poor, '4 is the first poor figure').toBe(true);
+  });
+
   it('says an unrated document and an absent row are not rated, and neither is poor', () => {
     const absent = { rated: false, score: 'not rated', scoreOrigin: '', poor: false };
     expect(readRating(row(null, null))).toStrictEqual(absent);
