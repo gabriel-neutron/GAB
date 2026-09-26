@@ -74,7 +74,7 @@ function SurfaceNav() {
       </Link>
       <Link
         to="/review"
-        search={{ subject: '' }}
+        search={{ subject: '', view: 'queue' }}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >

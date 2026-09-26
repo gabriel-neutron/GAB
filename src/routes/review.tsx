@@ -1,15 +1,19 @@
 import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
+import { readDecided } from '@/features/review/decided';
 import { decisionSaid, sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
+import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
 import { patchSort, readSort } from '@/features/review/workspace';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
+import { loadDecidedActs } from '@/shared/read/decided-acts';
 
 export interface ReviewSearch {
   /** What is under examination. An empty string opens the queue at its first subject. */
   readonly subject: string;
+  readonly view: ReviewView;
 }
 
 /** The confidence threshold is an operational parameter, and never a constant of the source. No
@@ -23,23 +27,30 @@ export const Route = createFileRoute('/review')({
   // opens the queue at its first subject, and it never takes the surface off the screen.
   validateSearch: (search: Record<string, unknown>): ReviewSearch => {
     const subject = search['subject'];
-    return { subject: typeof subject === 'string' ? subject : '' };
+    return {
+      subject: typeof subject === 'string' ? subject : '',
+      view: search['view'] === 'decided' ? 'decided' : 'queue',
+    };
   },
 
-  search: { middlewares: [stripSearchParams({ subject: '' })] },
+  search: { middlewares: [stripSearchParams({ subject: '', view: 'queue' })] },
 
-  // The router draws no component until this answer arrives, so the queue below is read from a
-  // corpus that is already held.
-  loader: () => loadCorpus(),
+  // The router draws no component until these answers arrive, so the queue and the history below
+  // are read from answers that are already held. The view is no dependency of the loader: a
+  // reload keyed on it draws the pending screen, and that screen would end the pass.
+  loader: async () => {
+    const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
+    return { corpus, decided };
+  },
 
   component: ReviewRoute,
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
 function ReviewRoute() {
-  const { subject } = Route.useSearch();
+  const { subject, view } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const corpus = Route.useLoaderData();
+  const { corpus, decided } = Route.useLoaderData();
   const router = useRouter();
 
   const [sort, setSort] = useState<SortKey>(readSort);
@@ -48,11 +59,11 @@ function ReviewRoute() {
   // then leaves the queue on the next read; a hold stands here alone and a reload loses it.
   const [verdicts, setVerdicts] = useState<Verdicts>({});
 
-  // Where the last verdict stands with the record, and what the surface says about it.
   const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
   const subjects = useMemo(() => readQueue(corpus, THRESHOLD), [corpus]);
+  const history = useMemo(() => readDecided(corpus, decided), [corpus, decided]);
 
   // A refusal and a doubt outlive a move of the hand: the analyst must act on each one, and a
   // doubt names the one act that may stand in the record. A verdict on the way is never lost.
@@ -65,7 +76,7 @@ function ReviewRoute() {
     switch (act.kind) {
       case 'select':
         forgetTheSentence();
-        void navigate({ search: { subject: act.subjectId }, replace: true });
+        void navigate({ search: (held) => ({ ...held, subject: act.subjectId }), replace: true });
         return;
       case 'sort':
         setSort(act.sort);
@@ -104,11 +115,20 @@ function ReviewRoute() {
   };
 
   return (
-    <ReviewPage
-      queue={{ subjects, verdicts }}
-      examination={{ subjectId: subject === '' ? null : subject, sort }}
-      decision={decision}
-      onAct={onAct}
+    <ReviewSurface
+      view={view}
+      onView={(next) => {
+        void navigate({ search: (held) => ({ ...held, view: next }), replace: true });
+      }}
+      decided={history}
+      queue={
+        <ReviewPage
+          queue={{ subjects, verdicts }}
+          examination={{ subjectId: subject === '' ? null : subject, sort }}
+          decision={decision}
+          onAct={onAct}
+        />
+      }
     />
   );
 }

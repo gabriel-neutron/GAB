@@ -1,13 +1,14 @@
 // The corpus, read once and held. A caller awaits `loadCorpus`; a caller that has changed the
 // record calls `refreshCorpus`, which is the one way a later state reaches a surface.
 
+import { forgetDecidedActs } from './decided-acts';
 import { readRows } from './http';
 import { toDomain } from './map';
 import { readOnce } from './once';
 import type { Corpus } from './model';
 
-// Only the pending acts are read. Every surface filters on that status, and the decided acts are
-// a log that no surface draws.
+// Only the pending acts are read. Every surface of the corpus filters on that status, and the
+// history of the review reads the decided acts on its own.
 async function read(): Promise<Corpus> {
   const [documents, entities, relations, proposals, positions] = await Promise.all([
     readRows('document'),
@@ -32,10 +33,11 @@ const memory = readOnce(read);
 
 export const loadCorpus = memory.load;
 
-/** Forget the answer, then run the loaders again through `reload`. The order is the whole
- * function: a loader that ran first would take the answer that is held, and each surface would
- * draw the record of the read before it. */
+/** Forget each held answer, the decided acts too, then run the loaders again through `reload`.
+ * The order is the whole function: a loader that ran first would take the answer that is held,
+ * and each surface would draw the record of the read before it. */
 export async function refreshCorpus(reload: () => Promise<void>): Promise<void> {
   memory.forget();
+  forgetDecidedActs();
   await reload();
 }

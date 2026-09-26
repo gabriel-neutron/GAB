@@ -27,7 +27,7 @@ function PathNotFound() {
 }
 
 // Every surface reads the record through one loader, so a read that fails is the usual cause of
-// this screen. `refreshCorpus` forgets the answer that is held and then runs each loader again,
+// this screen. `refreshCorpus` forgets each answer that is held and then runs each loader again,
 // so the retry always asks the read API a second time, after a failure and after a success.
 function RouteError({ error }: { error: Error }) {
   const router = useRouter();
