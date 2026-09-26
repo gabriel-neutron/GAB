@@ -42,6 +42,13 @@ const VIEWS: readonly View[] = [
   },
   { view: 'key_usage', read: (row) => keyUsage.parse(row), column: 'claims', instead: 'many' },
   { view: 'full_map', read: (row) => toDomain.mapPosition(row), column: 'type', instead: null },
+  // Departure: x and y are null on an entity the last run did not place, so only the key breaks.
+  {
+    view: 'layout',
+    read: (row) => toDomain.placement(row),
+    column: 'entity_id',
+    instead: null,
+  },
 ];
 
 const named = (view: string, cause: unknown): Error =>
