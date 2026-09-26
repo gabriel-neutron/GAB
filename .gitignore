@@ -9,6 +9,9 @@
 # Scratch
 .scratch/
 
+# Local files that must never enter the repository
+.private/
+
 # The v1 source record. This repository is public, and the file holds the gazetteer and the
 # notes of the analyst. It is the input to the corpus load and it is never an artefact of it.
 *.gpkg
