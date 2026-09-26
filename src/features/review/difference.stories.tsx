@@ -11,7 +11,7 @@ const REMOVAL = focusOf(sampleSubject(SAMPLE.destroyedRow), null).current;
 
 const meta = {
   component: Difference,
-  args: { rows: CHANGE.rows },
+  args: { rows: CHANGE.rows, rowSources: CHANGE.rowSources },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="w-[420px] p-2">
@@ -63,6 +63,42 @@ export const AKeyTheRecordDoesNotHoldIsAnAddition: Story = {
     await expect(canvasElement.querySelector('[data-op="add"]')).not.toBeNull();
     await expect(canvas.queryByText('—')).toBeNull();
     await expect(canvas.getByText('340')).toBeInTheDocument();
+  },
+};
+
+/** A name change replaces the list that also backs the type and the location, so the card says
+ * so on its own line, with the list that stands and the list that replaces it. */
+export const ANameChangeShowsTheListItReplaces: Story = {
+  args: {
+    rows: [
+      {
+        key: 'Name',
+        op: 'edit',
+        standing: 'Old name',
+        standingSources: CHANGE.sources,
+        proposed: 'New name',
+        proposedSources: [],
+      },
+    ],
+    rowSources: {
+      words: 'Sources of the name, the type and the map location',
+      before: CHANGE.sources,
+      after: [],
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByText(/the type and the map location/)).toBeInTheDocument();
+    const before = canvas.getByText('the list the record holds').parentElement;
+    await expect(before?.querySelectorAll('button')).toHaveLength(CHANGE.sources.length);
+    await expect(canvasElement.querySelectorAll('[data-row-sources]')).toHaveLength(1);
+  },
+};
+
+/** Where the act leaves the list as it stands, no line says it is replaced. */
+export const NoLineWhenTheListStands: Story = {
+  args: { rowSources: null },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-row-sources]')).toBeNull();
   },
 };
 

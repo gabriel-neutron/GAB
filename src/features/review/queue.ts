@@ -118,6 +118,13 @@ export interface Change {
   /** The keys this act names, for the line of one act in a list. Blank where it names none. */
   readonly keysWords: string;
   readonly rows: readonly DifferenceRow[];
+  /** The promotion replaces this list whole, and it also backs the location the act does not
+   * name. Null where the act leaves the list as it stands, or names no column. */
+  readonly rowSources: {
+    readonly words: string;
+    readonly before: readonly CitedDocument[];
+    readonly after: readonly CitedDocument[];
+  } | null;
   readonly confidenceReport: ConfidenceReport;
   /** The confidence as the record states it. The sort reads this, and never the printed figure. */
   readonly score: number | null;
@@ -269,8 +276,8 @@ function differenceOf(
 type ColumnsPayload = Extract<Proposal['payload'], { readonly kind: 'columns' }>;
 
 /** The difference of an act on the name or the type. The row-level list of the entity backs
- * both columns, so it stands beside each standing value. An upper case key is one that no
- * attribute can take, so the two lines never read as contested with a claim. */
+ * the name, the type and the location, so it stands beside each standing value. An upper case
+ * key is one that no attribute can take, so the two lines never read as contested with a claim. */
 function columnsDifference(
   index: Index,
   standing: Entity | null,
@@ -291,6 +298,27 @@ function columnsDifference(
     ...(proposed.label === null ? [] : [row('Name', standing?.label ?? null, proposed.label)]),
     ...(proposed.type === null ? [] : [row('Type', standing?.type ?? null, proposed.type)]),
   ];
+}
+
+const sameSources = (a: readonly DocId[], b: readonly DocId[]): boolean => {
+  const held = new Set(a);
+  const cited = new Set(b);
+  return held.size === cited.size && [...cited].every((id) => held.has(id));
+};
+
+/** The line that says the act replaces the list behind the columns it does not name. Order and
+ * repeats in a list change nothing that a list backs, so the two lists compare as sets. */
+function rowSourcesOf(
+  index: Index,
+  standing: Entity | null,
+  src: readonly DocId[],
+): Change['rowSources'] {
+  if (standing === null || sameSources(standing.sources, src)) return null;
+  return {
+    words: 'Sources of the name, the type and the map location',
+    before: citedDocuments(index, standing.sources),
+    after: citedDocuments(index, src),
+  };
 }
 
 /** What a deletion destroys, named key by key. A deletion judged on one side is not judged. */
@@ -416,6 +444,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
 
   let headline = '';
   let rows: readonly DifferenceRow[] = [];
+  let rowSources: Change['rowSources'] = null;
 
   switch (payload.kind) {
     case 'attrs':
@@ -428,6 +457,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       const entity =
         proposal.targetId === null ? undefined : index.entityById.get(proposal.targetId);
       rows = columnsDifference(index, entity ?? null, payload, proposal.src);
+      rowSources = rows.length === 0 ? null : rowSourcesOf(index, entity ?? null, proposal.src);
       if (proposal.targetId !== null && entity === undefined) holes.push(HOLE['absent-row']);
       break;
     }
@@ -461,6 +491,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
     headline,
     keysWords: rows.map((row) => row.key).join(', '),
     rows,
+    rowSources,
     confidenceReport: report,
     score: proposal.confidence,
     routing,

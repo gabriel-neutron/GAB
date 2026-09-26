@@ -2,11 +2,12 @@ import { ArrowRight, Minus, Pencil, Plus } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 
-import type { CitedDocument, DifferenceRow, RowOp } from './queue';
+import type { Change, CitedDocument, DifferenceRow, RowOp } from './queue';
 import { SourceBadge } from './sources';
 
 export interface DifferenceProps {
   readonly rows: readonly DifferenceRow[];
+  readonly rowSources: Change['rowSources'];
 }
 
 /** A value takes the flat fill of a read-only control, and keeps its own contrast. */
@@ -14,6 +15,8 @@ const VALUE = 'block min-w-0 flex-1 truncate px-1.5 font-mono text-xs tabular-nu
 
 const STANDING_SIDE = 'the value the record holds';
 const PROPOSED_SIDE = 'the value this act asks for';
+const STANDING_LIST = 'the list the record holds';
+const PROPOSED_LIST = 'the list that replaces it';
 
 const OP_GLYPH: Readonly<Record<RowOp, typeof Plus>> = {
   add: Plus,
@@ -57,7 +60,7 @@ function Side({ value, sources, side, className }: SideProps) {
 /** The mark before the key says what the act does to it, so no header names a column, and each
  * side that is drawn says its own name to a reader who hears the row. Each side carries the
  * documents that hold that side up, and the two are never one list. */
-export function Difference({ rows }: DifferenceProps) {
+export function Difference({ rows, rowSources }: DifferenceProps) {
   return (
     <div className="max-w-[32rem] space-y-1.5">
       {rows.map((row) => {
@@ -107,6 +110,19 @@ export function Difference({ rows }: DifferenceProps) {
           </div>
         );
       })}
+
+      {rowSources === null ? null : (
+        <div data-row-sources="" className="space-y-0.5">
+          <span className="block truncate text-small/4 text-label" title={rowSources.words}>
+            {rowSources.words}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Side value={null} sources={rowSources.before} side={STANDING_LIST} className="" />
+            <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-label" />
+            <Side value={null} sources={rowSources.after} side={PROPOSED_LIST} className="" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

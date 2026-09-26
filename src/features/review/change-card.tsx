@@ -95,7 +95,9 @@ export function ChangeCard({ change, current }: ChangeCardProps) {
         </div>
       ) : null}
 
-      {change.rows.length === 0 ? null : <Difference rows={change.rows} />}
+      {change.rows.length === 0 ? null : (
+        <Difference rows={change.rows} rowSources={change.rowSources} />
+      )}
 
       <Holes holes={change.holes} />
     </article>
