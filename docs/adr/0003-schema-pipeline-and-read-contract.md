@@ -49,13 +49,18 @@ pnpm db:migrate                                     ordered files, 0001 upward
 pnpm db:apply                                       re-runnable files, every one
 ```
 
-No baseline dump, and no step applied by hand. `pnpm db:reset` destroys the volume and runs the
-three again. A command that reads an empty database proves nothing, so these arrive with the
+No baseline dump, and no step applied by hand. `pnpm db:reset` drops and makes `gabriel_test`
+again, runs the ordered and re-runnable files on it, and loads the committed fixture. It never
+touches the record. A command that reads an empty database proves nothing, so these arrive with the
 schema they apply.
 
 ### 5. A migration is tested against an empty database, never against real data
 
-`pnpm db:reset`, then the three commands, then the tests.
+`pnpm db:reset`, then the tests. The tests run on `gabriel_test` only. After a new migration, run
+`pnpm db:reset` again: no check tells a test run that `gabriel_test` is behind the record.
+**`pnpm check` runs `db:drift`, and `db:drift` applies the re-runnable files to `gabriel` unless
+`GABRIEL_DATABASE` names another database.** A plain `pnpm check` therefore deploys `db/apply` to
+the record.
 
 ### 6. Two schemas. The read role never touches a base table
 

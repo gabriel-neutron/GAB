@@ -34,7 +34,8 @@ normal state, not a fault.
 docker compose -f infra/docker-compose.yml down -v
 ```
 
-`-v` removes the volumes. There is no undo. This is what `pnpm db:reset` will call.
+`-v` removes the volumes. There is no undo. `pnpm db:reset` does not call it: it builds only the
+test database, `gabriel_test`, again.
 
 ## What is where
 
@@ -42,6 +43,7 @@ docker compose -f infra/docker-compose.yml down -v
 |---|---|
 | `127.0.0.1:5432` | PostgreSQL 17, with PostGIS and pgvector |
 | `127.0.0.1:3000` | The PostgREST read API, over the `api` schema |
+| `127.0.0.1:3001` | The same read API over `gabriel_test`, for the tests |
 | `127.0.0.1:9000` | The S3 API |
 | `127.0.0.1:9001` | The MinIO console, in a browser |
 
