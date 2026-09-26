@@ -106,6 +106,10 @@ const firstRelation = (): string => {
 
 const RELATION = firstRelation();
 
+const toggleView = async (root: HTMLElement): Promise<void> => {
+  await userEvent.click(within(root).getByRole('button', { name: 'Edit' }));
+};
+
 const askToDelete = async (root: HTMLElement, name: string): Promise<void> => {
   await userEvent.click(within(root).getByRole('button', { name: `Delete ${name}` }));
   await userEvent.click(
@@ -225,6 +229,7 @@ export const AnEntityOffTheMapIsReachedOnTheGraphOnly: Story = {
 // that cite `manual` in the record, under the one sentence the analyst reads.
 export const TwoClicksOnOneChangeWriteOneAct: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering(SIGNED);
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
 
@@ -248,6 +253,7 @@ export const TwoClicksOnOneChangeWriteOneAct: Story = {
 // goes back to the stored value.
 export const ADraftTypedDuringASaveSurvives: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering(SIGNED);
     const note = canvas.getByLabelText('Hull note');
     await userEvent.type(note, ' and starboard');
@@ -269,6 +275,7 @@ export const ADraftTypedDuringASaveSurvives: Story = {
 
 export const ARefusalKeepsTheTypedValue: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering({ refusal: NOT_AN_IDENTIFIER });
     const note = canvas.getByLabelText('Hull note');
     await userEvent.type(note, ' and starboard');
@@ -286,6 +293,7 @@ export const ARefusalKeepsTheTypedValue: Story = {
 // The proposal is committed and the promotion refused it. That name is the only way back to it.
 export const AnUndecidedActNamesItsProposal: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering({ refusal: 'the target no longer exists', proposalId: PROPOSAL });
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
@@ -301,6 +309,7 @@ export const AnUndecidedActNamesItsProposal: Story = {
 // The comma between two values is the punctuation, and the space beside it is not.
 export const AListTakesACommaWithNoSpace: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const flags = canvas.getByLabelText('Known flags');
     await userEvent.clear(flags);
     await userEvent.type(flags, 'GB,NO');
@@ -315,6 +324,7 @@ export const AListTakesACommaWithNoSpace: Story = {
 // The count and the next step of the analyst must both reach the screen.
 export const ARefusedDeletionNamesTheCount: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering({
       refusal: 'the entity is an endpoint of 3 relations, and it is not deleted',
     });
@@ -336,6 +346,7 @@ export const ARefusedDeletionNamesTheCount: Story = {
 // A relation the analyst makes reaches the record as one signed proposal.
 export const ANewRelationNamesItsProposal: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering(SIGNED);
     await userEvent.type(canvas.getByLabelText('Type'), 'berthed_at');
     await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
@@ -358,6 +369,7 @@ export const ANewRelationNamesItsProposal: Story = {
 // that is still in the record, with an unsigned proposal to destroy it beside it.
 export const AnUndecidedDeletionSaysTheEntityStands: Story = {
   play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering({ refusal: 'the promotion did not run', proposalId: PROPOSAL });
     await askToDelete(canvasElement, DOSSIER.label);
     door.open();
@@ -374,6 +386,7 @@ export const AnUndecidedDeletionSaysTheEntityStands: Story = {
 
 export const AnUndecidedRelationDeletionSaysTheRelationStands: Story = {
   play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering({ refusal: 'the promotion did not run', proposalId: PROPOSAL });
     await askToDelete(canvasElement, RELATION);
     door.open();
@@ -389,6 +402,7 @@ export const AnUndecidedRelationDeletionSaysTheRelationStands: Story = {
 // have signed and committed, so the page claims neither end.
 export const ADeletionWithNoAnswerClaimsNothing: Story = {
   play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorGiving(NO_ANSWER);
     await askToDelete(canvasElement, DOSSIER.label);
     door.open();
@@ -409,6 +423,7 @@ export const ADeletionWithNoAnswerClaimsNothing: Story = {
 // probably finished the act. That answer is no refusal.
 export const AGatewayAnswerIsNoRefusal: Story = {
   play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorGiving(GATEWAY_TIMEOUT);
     await askToDelete(canvasElement, DOSSIER.label);
     door.open();
@@ -428,6 +443,7 @@ export const AGatewayAnswerIsNoRefusal: Story = {
 // that claim was written to, and the analyst is told nothing.
 export const ASaveInFlightTakesNoDeletion: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering(SIGNED);
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
@@ -445,6 +461,7 @@ export const ASaveInFlightTakesNoDeletion: Story = {
 
 export const ADeletionInFlightTakesNoSave: Story = {
   play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
     const door = doorAnswering(SIGNED);
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeEnabled();
@@ -501,5 +518,67 @@ export const NoNameGroupsTwoClaimsInsideTheRecord: Story = {
     await expect(claims.length).toBeGreaterThan(0);
     // The band states one heading for the whole part. A second one would group the claims.
     await expect(within(record).getAllByRole('heading')).toHaveLength(1);
+  },
+};
+
+// The page opens on the evidence. A control that writes stands in the writing view only.
+export const ThePageOpensInTheReadingView: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(canvas.getByLabelText('Hull note')).toBeDisabled();
+    await expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: `Delete ${RELATION}` })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Make the relation' })).toBeNull();
+  },
+};
+
+export const TheEditSwitchOpensTheWritingView: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(canvas.getByLabelText('Hull note')).toBeEnabled();
+    await expect(canvas.getByRole('button', { name: 'Save' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Make the relation' })).toBeVisible();
+  },
+};
+
+// The reading view draws the stored record, and the typed value waits for the writing view.
+export const ADraftSurvivesTheReadingView: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
+
+    await toggleView(canvasElement);
+    await expect(canvas.getByLabelText('Hull note')).toHaveValue(HULL_NOTE);
+
+    await toggleView(canvasElement);
+    await expect(canvas.getByLabelText('Hull note')).toHaveValue(`${HULL_NOTE} and starboard`);
+  },
+};
+
+// The sentence of an act in flight stands in the writing view only, so the view holds.
+export const AnActInFlightHoldsTheView: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering(SIGNED);
+    await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeDisabled();
+
+    door.open();
+    await waitFor(async () => {
+      await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    });
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeEnabled();
   },
 };
