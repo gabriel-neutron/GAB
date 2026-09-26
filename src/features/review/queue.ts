@@ -320,7 +320,8 @@ const ROUTING_WORDS: Readonly<Record<Routing, string>> = {
   'low-confidence': 'Here because the confidence is under the threshold in force.',
   both: 'Here because the agents disagreed, and the confidence is under the threshold.',
   neither: 'Neither condition sends this act to review, and no act is promoted without a person.',
-  unstated: 'This screen holds no threshold, so it cannot say why the act is in front of you.',
+  unstated:
+    'No disagreement is recorded, and no confidence is compared with a threshold here, so this screen cannot say why the act is in front of you.',
 };
 
 const ROUTING_SHORT: Readonly<Record<Routing, string>> = {
