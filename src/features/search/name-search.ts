@@ -1,5 +1,7 @@
 import type { Entity } from '@/shared/read/model';
 
+import { folded } from './text-fold';
+
 export interface NameHit {
   readonly entityId: string;
   readonly label: string;
@@ -10,11 +12,6 @@ export type NameSearchAnswer =
   | { readonly kind: 'no-query'; readonly entityCount: number }
   | { readonly kind: 'no-match'; readonly query: string }
   | { readonly kind: 'matches'; readonly query: string; readonly hits: readonly NameHit[] };
-
-const COMBINING_MARK = /\p{M}/gu;
-
-const folded = (text: string): string =>
-  text.normalize('NFD').replace(COMBINING_MARK, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 const byLabel = (a: NameHit, b: NameHit): number =>
   a.label.localeCompare(b.label) || a.entityId.localeCompare(b.entityId);
