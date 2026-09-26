@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import { expect, within } from 'storybook/test';
 
 import { ChangeCard } from './change-card';
 import { focusOf } from './queue';
@@ -82,6 +82,13 @@ export const TheCurrentCardIsMarkedByItsStateAndNotByAPrintedWord: Story = {
   },
 };
 
+/** An update carries its documents on its own rows, so the card shows them once and not twice. */
+export const AnUpdateShowsItsDocumentsOnItsRowsOnly: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByText('The documents this act stands on')).toBeNull();
+  },
+};
+
 export const ACardReadBesideAnotherCarriesNoRule: Story = {
   args: { change: BESIDE, current: false },
   play: async ({ canvas, canvasElement }) => {
@@ -98,6 +105,12 @@ export const ADeletionNamesTheRowItDestroys: Story = {
     const taken = canvasElement.querySelectorAll('[data-op="remove"]');
     await expect(taken.length).toBeGreaterThan(0);
     await expect(canvasElement.querySelectorAll('[data-op="edit"]')).toHaveLength(0);
+    const cited = canvas.getByText('The documents this act stands on').parentElement;
+    await expect(cited).not.toBeNull();
+    const badge = within(cited ?? canvasElement).getByRole('button', {
+      name: /^Vessel movement log, scanned\. D4/,
+    });
+    await expect(badge).toHaveTextContent('D4');
   },
 };
 
