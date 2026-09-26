@@ -8,8 +8,8 @@ Machine output never becomes evidence on its own. Agents write freely into a **c
 layer**; only an explicit act of promotion by the analyst moves anything into the
 **evidentiary layer** that feeds reports, datasets, and public maps.
 
-**Status: build started.** The scoping phase is closed and the specifications below are
-settled. Open decisions are tracked as issues.
+**Status: MVP shipped.** The core screens, the worker, and the database gate all pass. Open
+work items stay tracked as issues.
 
 ## Shape
 
