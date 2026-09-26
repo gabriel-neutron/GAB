@@ -2,10 +2,11 @@ import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-r
 import { useMemo, useState } from 'react';
 
 import { readDecided } from '@/features/review/decided';
-import { decisionSaid, sendVerdict, type DecisionState } from '@/features/review/decision';
+import { sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
+import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/review/verdict-flow';
 import { patchSort, readSort } from '@/features/review/workspace';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadDecidedActs } from '@/shared/read/decided-acts';
@@ -65,11 +66,8 @@ function ReviewRoute() {
   const subjects = useMemo(() => readQueue(corpus, THRESHOLD), [corpus]);
   const history = useMemo(() => readDecided(corpus, decided), [corpus, decided]);
 
-  // A refusal and a doubt outlive a move of the hand: the analyst must act on each one, and a
-  // doubt names the one act that may stand in the record. A verdict on the way is never lost.
   const forgetTheSentence = (): void => {
-    const said = decisionSaid(decision, null);
-    if (!said.urgent && !said.busy) setDecision(IDLE);
+    setDecision(decisionAfterMove(decision));
   };
 
   const onAct = (act: ReviewAct): void => {
@@ -82,27 +80,19 @@ function ReviewRoute() {
         setSort(act.sort);
         patchSort(act.sort);
         return;
-      case 'decide':
-        // A decision is an event handler and never an effect. The verdict is held only once the
-        // record has taken it, so a refusal never draws as a decision that landed.
-        if (decision.step === 'deciding') return;
-        setDecision({ step: 'deciding', changeId: act.changeId, verdict: act.verdict });
-        void sendVerdict(act.changeId, act.verdict).then(async (state) => {
-          setDecision(state);
-          if (state.step === 'decided') {
-            setVerdicts((held) => ({
-              ...held,
-              [act.changeId]: { verdict: act.verdict, reason: act.reason },
-            }));
-            // A hold wrote nothing, and a read that follows one would only cost the analyst
-            // the queue it holds.
-            if (act.verdict === 'deferred') return;
-          }
-          // The record can hold a later state than this queue. The act landed, another window
-          // decided it, or the record refused the act and it still waits. Each ends at one read.
-          await refreshCorpus(() => router.invalidate());
+      case 'decide': {
+        // A decision is an event handler and never an effect.
+        const deciding = beginVerdict(decision, act);
+        if (deciding === null) return;
+        setDecision(deciding);
+        void sendVerdict(act.changeId, act.verdict).then(async (answer) => {
+          const { held, readAgain } = settleVerdict(answer, act);
+          setDecision(answer);
+          if (held !== null) setVerdicts((all) => ({ ...all, [act.changeId]: held }));
+          if (readAgain) await refreshCorpus(() => router.invalidate());
         });
         return;
+      }
       case 'undo':
         // Rebuilt and not destructured: a discarded binding is an unused variable, and this
         // repository permits no suppression of one.
