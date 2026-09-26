@@ -32,6 +32,10 @@ const BY_SHAPE: readonly (readonly [string | RegExp, string])[] = [
     'no longer exists, and nothing was applied',
     'the target no longer exists, and nothing was applied',
   ],
+  [
+    'changes neither the name nor the type',
+    'the act changes neither the name nor the type of the entity',
+  ],
   ['only a pending proposal is applied', 'the act is decided already, and a decided act is frozen'],
   ['a decided act is frozen', 'the act is decided already, and a decided act is frozen'],
   ['has no write path yet', 'the writer has no path for this act'],

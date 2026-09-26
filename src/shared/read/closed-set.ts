@@ -13,6 +13,7 @@ export const CLOSED_SET = {
   'proposals.op': [
     'create_entity',
     'update_attrs',
+    'update_entity',
     'delete_entity',
     'create_relation',
     'update_relation',

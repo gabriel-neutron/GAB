@@ -20,6 +20,7 @@ import { Pending } from './pending';
 import { Rail } from './rail';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
+import { Rename } from './rename';
 import { SaveBar } from './save-bar';
 import { saveClaims, saveSaid, type SaveState } from './save';
 import {
@@ -184,6 +185,13 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
         {writing ? (
           <>
+            <Rename
+              entityId={dossier.entityId}
+              stored={{ label: dossier.label, type: dossier.type }}
+              choices={dossier.typeChoices}
+              busy={busy}
+              onRename={onStructure}
+            />
             <SaidLine said={said} label={STRUCTURE_SAYS} />
             <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
           </>

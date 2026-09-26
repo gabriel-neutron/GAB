@@ -73,8 +73,8 @@ function GraphRoute() {
     () =>
       selection === null || selection.kind === 'relation'
         ? null
-        : readDossier(corpus, selection.id),
-    [corpus, selection],
+        : readDossier(corpus, selection.id, types),
+    [corpus, selection, types],
   );
 
   const relation = useMemo(

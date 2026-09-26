@@ -2,11 +2,12 @@ import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
 
-/** The five acts the operator may sign. A merge is absent: no promotion path applies one. */
+/** The six acts the operator may sign. A merge is absent: no promotion path applies one. */
 export const WRITE_OPS = [
   'create_entity',
   'create_relation',
   'update_attrs',
+  'update_entity',
   'delete_entity',
   'delete_relation',
 ] as const;
@@ -49,6 +50,8 @@ const geometry = z.discriminatedUnion('type', [
 ]);
 
 const NAMES_ATTRS = 'an update names at least one attribute';
+
+const NAMES_COLUMN = 'the act names a new name, a new type, or both';
 
 /** The body of one write, with the act taken from the address and never from the caller. */
 export const writeRequest = () => {
@@ -95,6 +98,18 @@ export const writeRequest = () => {
       .refine((act) => Object.keys(act.attrs).length > 0, {
         message: NAMES_ATTRS,
         path: ['attrs'],
+      }),
+
+    // The same rule as proposals_update_entity_shape, at the door, so the caller reads a 422.
+    z
+      .strictObject({
+        op: z.literal('update_entity'),
+        targetId: z.uuid(),
+        label: z.string().trim().min(1).optional(),
+        type: z.string().trim().min(1).optional(),
+      })
+      .refine((act) => act.label !== undefined || act.type !== undefined, {
+        message: NAMES_COLUMN,
       }),
 
     z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),

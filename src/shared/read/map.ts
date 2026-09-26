@@ -49,6 +49,7 @@ function pointOf(value: unknown): Point | null {
 const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   create_entity: 'entity',
   update_attrs: 'attrs',
+  update_entity: 'columns',
   delete_entity: 'delete',
   create_relation: 'relation',
   update_relation: 'attrs',
@@ -62,6 +63,10 @@ const entityPayload = z.looseObject({
   attrs: z.unknown().optional(),
 });
 const attrsPayload = z.looseObject({ attrs: z.unknown().optional() });
+const columnsPayload = z.looseObject({
+  label: z.string().nullish(),
+  type: z.string().nullish(),
+});
 const relationPayload = z.looseObject({
   type: z.string().nullish(),
   src_id: z.string().nullish(),
@@ -89,6 +94,10 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = attrsPayload.parse(value);
       return { kind, attrs: attributesOf(held.attrs) };
     }
+    case 'columns': {
+      const held = columnsPayload.parse(value);
+      return { kind, label: held.label ?? null, type: held.type ?? null };
+    }
     case 'relation': {
       const held = relationPayload.parse(value);
       return {
@@ -109,8 +118,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
   }
 }
 
-// The whole row a deletion destroyed. It is any object the table held, and never an attribute
-// object, so this reads the keys and states no shape for them.
+// The whole row a deletion destroyed, or the columns an act on the name or the type replaced.
+// Neither is an attribute object, so this reads the keys and states no shape for them.
 const priorRow = z.record(z.string(), z.unknown());
 
 // A snapshot stands on an update and on a delete, and on no other act: the check on the column
@@ -121,6 +130,7 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
     case 'update_attrs':
     case 'update_relation':
       return { kind: 'attrs', attrs: attributeObject.parse(value) };
+    case 'update_entity':
     case 'delete_entity':
     case 'delete_relation':
       return { kind: 'row', row: priorRow.parse(value) };
@@ -138,6 +148,7 @@ function entityType(row: unknown): EntityTypeDeclaration {
     label: read.label,
     colourLight: read.colour_light,
     colourDark: read.colour_dark,
+    retired: read.retired,
   };
 }
 

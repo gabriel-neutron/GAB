@@ -6,12 +6,13 @@ import type { Corpus, DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 /** MV Northern Ledger. Its claims cite `doc_9b0417`, `doc_8f2a41` and `manual`. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const cardsOf = (read: Corpus): readonly SourceCardModel[] =>
-  readDossier(read, VESSEL)?.sources ?? [];
+  readDossier(read, VESSEL, entityTypes)?.sources ?? [];
 
 const SOURCES: readonly SourceCardModel[] = cardsOf(corpus);
 

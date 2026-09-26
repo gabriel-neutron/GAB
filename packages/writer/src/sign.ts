@@ -107,6 +107,36 @@ type Ground =
 
 const ready: Ground = { ready: true, prior: null };
 
+const COLUMNS = `SELECT e.label, e.type, e.proposed_type,
+  EXISTS (SELECT 1 FROM public.entity_type t WHERE t.key = $2::text AND NOT t.retired) AS live
+  FROM public.entities e WHERE e.id = $1::uuid`;
+
+const columnsRow = z.object({
+  label: z.string(),
+  type: z.string(),
+  proposed_type: z.string().nullable(),
+  live: z.boolean(),
+});
+
+const UNCHANGED = 'the act changes neither the name nor the type of the entity';
+
+type ColumnsAct = Extract<WriteRequest, { op: 'update_entity' }>;
+
+// The promotion resolves a word that is not a live type to `unknown`, and keeps the word beside
+// it. The same resolution is read here, so an act that would change nothing is never written.
+const groundOfColumns = async (client: PoolClient, request: ColumnsAct): Promise<Ground> => {
+  const found = (await rows(client, COLUMNS, [request.targetId, request.type ?? null]))[0];
+  if (found === undefined)
+    return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
+  const held = columnsRow.parse(found);
+  const type = request.type === undefined ? held.type : held.live ? request.type : 'unknown';
+  const word = request.type === undefined ? held.proposed_type : held.live ? null : request.type;
+  const label = request.label ?? held.label;
+  if (label === held.label && type === held.type && word === held.proposed_type)
+    return { ready: false, act: refused(UNCHANGED) };
+  return ready;
+};
+
 // Every read below removes a failure that `promote_proposal` raises after the proposal is
 // already committed, which would strand an undecided act for a fault that nobody chose.
 const groundOf = async (client: PoolClient, request: WriteRequest): Promise<Ground> => {
@@ -124,6 +154,8 @@ const groundOf = async (client: PoolClient, request: WriteRequest): Promise<Grou
       return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
     return { ready: true, prior };
   }
+
+  if (request.op === 'update_entity') return groundOfColumns(client, request);
 
   if (request.op === 'delete_entity' || request.op === 'delete_relation') {
     const kind: Endpoint = request.op === 'delete_entity' ? 'entity' : 'relation';

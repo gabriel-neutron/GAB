@@ -325,6 +325,47 @@ BEGIN
     -- real, written by the creating act. #86 is open on what the two lists assert.
     v_id := p.target_id;
 
+  -- ------------------------------------------------------------------------ name and type --
+  ELSIF p.op = 'update_entity' THEN
+    SELECT to_jsonb(e) INTO v_old FROM public.entities e WHERE id = p.target_id FOR UPDATE;
+    IF v_old IS NULL THEN
+      RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+    END IF;
+
+    SELECT t.key INTO v_type FROM public.entity_type t
+      WHERE t.key = p.payload->>'type' AND NOT t.retired;
+
+    v_prior := jsonb_build_object('sources', v_old->'sources');
+    IF p.payload ? 'label' THEN
+      v_prior := v_prior || jsonb_build_object('label', v_old->'label');
+    END IF;
+    IF p.payload ? 'type' THEN
+      v_prior := v_prior || jsonb_build_object('type', v_old->'type',
+                                               'proposed_type', v_old->'proposed_type');
+    END IF;
+
+    UPDATE public.entities e
+       SET label         = coalesce(p.payload->>'label', e.label),
+           type          = CASE WHEN p.payload ? 'type'
+                                THEN coalesce(v_type, 'unknown') ELSE e.type END,
+           proposed_type = CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
+                                WHEN v_type IS NULL THEN p.payload->>'type' END,
+           -- The row-level list backs the name, the type and the location together, so an
+           -- act that changes one of them replaces the whole list with its own sources.
+           sources       = p.src,
+           updated_at    = now()
+     WHERE e.id = p.target_id
+       AND (e.label, e.type, e.proposed_type) IS DISTINCT FROM
+           (coalesce(p.payload->>'label', e.label),
+            CASE WHEN p.payload ? 'type' THEN coalesce(v_type, 'unknown') ELSE e.type END,
+            CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
+                 WHEN v_type IS NULL THEN p.payload->>'type' END);
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'the act changes neither the name nor the type of %, and nothing was '
+                      'applied', p.target_id;
+    END IF;
+    v_id := p.target_id;
+
   -- ------------------------------------------------------------------------------ deletes --
   ELSIF p.op IN ('delete_entity','delete_relation') THEN
     IF p.target_kind = 'entity' THEN

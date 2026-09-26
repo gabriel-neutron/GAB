@@ -11,6 +11,7 @@ import {
 } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { DetailPage } from './detail-page';
 import { readDossier, type Dossier, type SourceCardModel } from './dossier';
@@ -19,7 +20,7 @@ import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL);
+  const held = readDossier(corpus, VESSEL, entityTypes);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };
@@ -198,7 +199,7 @@ export const TheEntityNamesItsOwnSources: Story = {
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 
 const readCompany = (): Dossier => {
-  const held = readDossier(corpus, COMPANY);
+  const held = readDossier(corpus, COMPANY, entityTypes);
   if (held === null) throw new Error('The committed corpus holds no Meridian Bulk Carriers');
   return held;
 };
@@ -533,6 +534,7 @@ export const ThePageOpensInTheReadingView: Story = {
     await expect(canvas.queryByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeNull();
     await expect(canvas.queryByRole('button', { name: `Delete ${RELATION}` })).toBeNull();
     await expect(canvas.queryByRole('button', { name: 'Make the relation' })).toBeNull();
+    await expect(canvas.queryByLabelText('Entity name')).toBeNull();
   },
 };
 
@@ -548,6 +550,29 @@ export const TheEditSwitchOpensTheWritingView: Story = {
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Make the relation' })).toBeVisible();
+    await expect(canvas.getByLabelText('Entity name')).toHaveValue(DOSSIER.label);
+    await expect(canvas.getByLabelText('Entity type')).toHaveValue(DOSSIER.type);
+  },
+};
+
+export const ANewTypeNamesItsProposal: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering(SIGNED);
+    await userEvent.selectOptions(canvas.getByLabelText('Entity type'), 'company');
+    await userEvent.click(canvas.getByRole('button', { name: 'Save the name and the type' }));
+
+    await expect(shapeSaidIn(canvasElement)).toHaveTextContent(
+      'The new name or type is going to the record.',
+    );
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeDisabled();
+    door.open();
+
+    await waitFor(async () => {
+      await expect(shapeSaidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    });
+    await expect(shapeSaidIn(canvasElement)).toHaveTextContent('The name and the type are saved');
+    await expect(knock).toHaveBeenCalledTimes(1);
   },
 };
 

@@ -362,6 +362,78 @@ test('a value that disagrees with the description of its key is written', async 
   }
 });
 
+// `sources` is `doc_id[]`, a domain over `text[]`. node-postgres parses only the built-in array
+// OIDs, so a domain array comes back as its literal, `{manual}`, unless it is cast down here.
+const COLUMNS_OF =
+  'SELECT label, type, proposed_type, sources::text[] AS sources FROM public.entities WHERE id = $1::uuid';
+
+const NO_ENTITY = '5b7e2c90-1d4a-4e36-9f08-2a6c3d8e1f47';
+
+test('the name and the type change by one act, and a word with no type waits as unknown', async () => {
+  const [, made] = await post('create-entity', { type: 'tanker', label: 'Writer test retype' });
+  const target = made.targetId ?? '';
+  try {
+    expect(await one(COLUMNS_OF, [target])).toMatchObject({
+      type: 'unknown',
+      proposed_type: 'tanker',
+    });
+
+    const [status, reply] = await post('update-entity', {
+      targetId: target,
+      label: 'Writer test retyped',
+      type: 'vessel',
+    });
+    expect([status, reply.state, reply.targetId]).toStrictEqual([200, 'signed', target]);
+    expect(await one(COLUMNS_OF, [target])).toStrictEqual({
+      label: 'Writer test retyped',
+      type: 'vessel',
+      proposed_type: null,
+      sources: ['manual'],
+    });
+    expect((await decided(reply.proposalId))['prior_value']).toStrictEqual({
+      label: 'Writer test retype',
+      type: 'unknown',
+      proposed_type: 'tanker',
+      sources: ['manual'],
+    });
+
+    const [back] = await post('update-entity', { targetId: target, type: 'shipyard' });
+    expect(back).toBe(200);
+    expect(await one(COLUMNS_OF, [target])).toMatchObject({
+      type: 'unknown',
+      proposed_type: 'shipyard',
+    });
+  } finally {
+    await removed(target);
+  }
+});
+
+test('an act that changes neither the name nor the type is refused and writes nothing', async () => {
+  const target = await signedEntity('Writer test same name');
+  try {
+    const before = await proposalsFor(target);
+    const [status, reply] = await post('update-entity', {
+      targetId: target,
+      label: 'Writer test same name',
+      type: 'vessel',
+    });
+    expect(status).toBe(422);
+    expect(reply.refusal).toBe('the act changes neither the name nor the type of the entity');
+    expect(await proposalsFor(target)).toBe(before);
+
+    const [gone, goneReply] = await post('update-entity', {
+      targetId: NO_ENTITY,
+      label: 'Nobody',
+    });
+    expect([gone, goneReply.refusal]).toStrictEqual([
+      404,
+      `the target ${NO_ENTITY} does not exist`,
+    ]);
+  } finally {
+    await removed(target);
+  }
+});
+
 // The whole sentence, because it is the witness: the create door read the body against the
 // create schema, and it named the key of the other act as one it does not know.
 const CREATE_DOOR_REFUSAL =

@@ -32,6 +32,7 @@ const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {
   create_entity: 'New entity',
   create_relation: 'New relation',
   update_attrs: 'Modification',
+  update_entity: 'Change of the name or the type',
   update_relation: 'Modification of a relation',
   delete_entity: 'Deletion',
   delete_relation: 'Deletion of a relation',
@@ -80,6 +81,7 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
     case 'merge':
       return `${payload.merge_ids.map((id) => entityWords(names, id)).join(', ')} into ${entityWords(names, payload.keep_id)}`;
     case 'attrs':
+    case 'columns':
     case 'delete': {
       if (act.targetId === null) return 'An element the act does not name';
       if (act.targetKind === 'relation') return relationWords(names, act.targetId);
@@ -94,6 +96,10 @@ function keysOf(act: DecidedAct['act']): string {
   const payload = act.payload;
   if (payload.kind === 'attrs' || payload.kind === 'entity') {
     return Object.keys(payload.attrs).join(', ');
+  }
+  if (payload.kind === 'columns') {
+    const named = [payload.label === null ? '' : 'Name', payload.type === null ? '' : 'Type'];
+    return named.filter((word) => word !== '').join(', ');
   }
   return '';
 }

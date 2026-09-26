@@ -4,6 +4,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 import { ATTRIBUTE_KEY_LENGTH } from '@gab/proposal/attribute-value';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { readDossier, type RecordRow } from './dossier';
 import { NewClaim } from './new-claim';
@@ -12,7 +13,7 @@ import { NewClaim } from './new-claim';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): readonly RecordRow[] => {
-  const held = readDossier(corpus, VESSEL);
+  const held = readDossier(corpus, VESSEL, entityTypes);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held.rows;
 };

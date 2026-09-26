@@ -132,6 +132,12 @@ const ACTS: readonly {
     read: { kind: 'attrs', attrs: { coal_stock_t: { v: 41200, src: ['doc_8f2a41'] } } },
   },
   {
+    op: 'update_entity',
+    targetKind: 'entity',
+    payload: { type: 'vessel' },
+    read: { kind: 'columns', label: null, type: 'vessel' },
+  },
+  {
     op: 'delete_entity',
     targetKind: 'entity',
     payload: { reason: 'the row repeats another row' },
@@ -196,6 +202,22 @@ test('the two ends of a proposed relation keep the spelling the act wrote', () =
     src_id: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
     dst_id: 'e0a8a817-0dac-49db-8627-a342609a3092',
   });
+});
+
+test('an act on the name or the type keeps the columns it replaced as a row', () => {
+  const prior = { label: 'MV Old Name', sources: ['doc_8f2a41'] };
+  const row = {
+    ...PROPOSAL_ROW,
+    op: 'update_entity',
+    target_kind: 'entity',
+    target_id: SRC_ID,
+    payload: { label: 'MV New Name' },
+    prior_value: prior,
+    status: 'accepted',
+    decided_at: '2026-08-25T03:30:00+00:00',
+    decided_by: 'the writer door',
+  };
+  expect(toDomain.proposal(row).priorValue).toStrictEqual({ kind: 'row', row: prior });
 });
 
 test('an act that states no confidence survives the mapper', () => {
