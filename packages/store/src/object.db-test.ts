@@ -13,8 +13,8 @@ import { putObject } from './object.ts';
 
 const store = openStore();
 
-// One key per run, so two runs never write over each other. Each object stays: this account may
-// not delete one, and a reset of the volume is what removes them.
+// Departure: one key per run, so two runs never write over each other. Each object stays: this
+// account may not delete one, and a reset of the volume is what removes them.
 const key = `test/store/${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
 const bytes = new TextEncoder().encode('the bytes exactly as they arrived');
 const MIME = 'text/plain';
@@ -23,20 +23,27 @@ const FORBIDDEN = 403;
 
 const DENIED = { name: 'AccessDenied' };
 
-const OPEN_TO_ALL = JSON.stringify({
+// Departure: the refusal is proved with a policy that grants nothing. If the store accepts it by
+// mistake, it opens no key, and its one Deny names a prefix that no writer uses.
+const GRANTS_NOTHING = {
   Version: '2012-10-17',
   Statement: [
-    { Effect: 'Allow', Principal: '*', Action: ['s3:GetObject'], Resource: ['arn:aws:s3:::raw/*'] },
+    {
+      Effect: 'Deny',
+      Principal: '*',
+      Action: ['s3:GetObject'],
+      Resource: ['arn:aws:s3:::raw/test/store/no-writer-uses-this-prefix/*'],
+    },
   ],
-});
+};
 
 const root = z.object({
   MINIO_ROOT_USER: z.string().trim().min(1),
   MINIO_ROOT_PASSWORD: z.string().trim().min(1),
 });
 
-// The account under test may write and may not read, so the round trip is checked by the account
-// that administers the store. Reading back is not a thing the ingestion door is allowed to do.
+// External constraint: the account under test may write and may not read, so the account that
+// administers the store checks the round trip.
 const asRoot = (): S3Client => {
   const held = root.parse(process.env);
   return new S3Client({
@@ -76,9 +83,9 @@ test('an empty key writes nothing', async () => {
   );
 });
 
-// The store answers an anonymous caller 403 before it looks for the key, so a 403 alone proves
-// nothing about this object. The credentialed read above is what proves the key exists, and the
-// pair of them is what says the object is there and is private.
+// External constraint: the store answers an anonymous caller 403 before it looks for the key, so
+// a 403 alone proves nothing. The credentialed read proves the key exists, and the pair of them
+// says the object is there and is private.
 test('the object exists, and it is not readable without a credential', async () => {
   const found = await reader.send(new GetObjectCommand({ Bucket: store.bucket, Key: key }));
   expect(found.ContentLength).toBe(bytes.length);
@@ -87,9 +94,11 @@ test('the object exists, and it is not readable without a credential', async () 
   expect(anonymous.status).toBe(FORBIDDEN);
 });
 
-// The policy grants two actions, and this test is what keeps every other action refused. Widen
-// the policy by hand, and nothing else in this repository fails.
+// Departure: the account policy grants two actions, and only this test keeps every other action
+// refused. Widen the policy by hand, and nothing else in this repository fails.
 test('the account may not read, delete, or open the bucket', async () => {
+  expect(GRANTS_NOTHING.Statement.map((statement) => statement.Effect)).not.toContain('Allow');
+
   await expect(
     store.client.send(new GetObjectCommand({ Bucket: store.bucket, Key: key })),
   ).rejects.toMatchObject(DENIED);
@@ -99,12 +108,14 @@ test('the account may not read, delete, or open the bucket', async () => {
   ).rejects.toMatchObject(DENIED);
 
   await expect(
-    store.client.send(new PutBucketPolicyCommand({ Bucket: store.bucket, Policy: OPEN_TO_ALL })),
+    store.client.send(
+      new PutBucketPolicyCommand({ Bucket: store.bucket, Policy: JSON.stringify(GRANTS_NOTHING) }),
+    ),
   ).rejects.toMatchObject(DENIED);
 });
 
-// The second action the policy grants. The reconciliation reads every key to find the object the
-// database does not know, so a listing that is refused stops that door and no other test says so.
+// Departure: the second action the account policy grants. The reconciliation reads every key, so
+// a listing that is refused stops that door and no other test says so.
 test('the account may list the bucket, and the key it wrote is in the listing', async () => {
   await putObject(store, { key, bytes, mime: MIME });
 
