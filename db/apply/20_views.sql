@@ -159,18 +159,19 @@ COMMENT ON VIEW api.layout IS
   'itself. Every position of one run belongs beside the others of the same run.';
 
 
--- THE QUEUE IS READABLE, OR IT HOLDS A STATE NOBODY CAN SEE. A row stuck in `running` is the
--- one thing the operator must be able to find, and the release door acts on the same rows.
--- It publishes no payload: a job carries an identifier, a state and the history of its claims.
+-- Departure: the queue is readable, or a row stuck in `running` is a state nobody can find.
+-- It publishes no payload: a job carries an identifier, a state, the history of its claims,
+-- and the reason and the hour it ended.
 CREATE VIEW api.job AS
-  SELECT id, document_id, status, attempts, claimed_by, claimed_at
+  SELECT id, document_id, status, attempts, claimed_by, claimed_at, failure_reason, finished_at
     FROM public.jobs;
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '
   'door. claimed_by is the CONNECTION ROLE that took the row and never a person or a process. '
   '`attempts` counts every claim, including the ones a lease released, so it counts what was '
-  'taken and never what was tried.';
+  'taken and never what was tried. A failed job always states its reason in '
+  'failure_reason. finished_at is the hour a job ended, and NULL while it can still run.';
 
 -- THE TWO READS THAT RETURN EVERY ROW, AND HOW THEY ESCAPE THE ROW CEILING. PostgREST caps rows
 -- per role and never per view, so the one read role carries no row cap at all, and there is no
