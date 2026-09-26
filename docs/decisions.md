@@ -54,7 +54,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
 | T7 | Frontend framework choice — **replaced by ADR 0004** | Technical |
 | T8 | Cartographic library — **replaced by ADR 0005** | Technical |
-| T9 | One call to the model is retried; what a job does after that is not decided | Technical |
+| T9 | One call to the model is retried; the job-level count is set in T9a | Technical |
 
 ---
 
@@ -325,6 +325,12 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### T9 — The retry of one call to the model
 
-**Decision.** One question to the model gets one attempt and three retries after a network failure, and one retry of an answer the boundary refuses, with the fault fed back. The client of the model service holds both counts. What a **job** does when that chain ends is not decided, and no number for it is written anywhere.
+**Decision.** One question to the model gets one attempt and three retries after a network failure, and one retry of an answer the boundary refuses, with the fault fed back. The client of the model service holds both counts. What a **job** does when that chain ends is set in T9a, below, and not here.
 **Why.** The two counts bound one call, and they are known without measurement: a transport that fails four times is down, and a model that breaks its schema twice will break it again. The job-level rule is a different question — how many times a document is taken up again, how long the wait grows, and when a job is marked failed — and it needs real traffic to answer.
 **Consequence.** The two counts stay in the code and are not caller configuration, so a caller cannot weaken them. The job table carries columns for a retry history that nothing writes yet, and the migration says so.
+
+### T9a — The job-level retry limit, 26 September 2026
+
+**Decision.** A job gets 3 total attempts (claims). A failure on the 1st or 2nd attempt leaves the row `running`, and the existing lease expiry requeues it. A failure on the 3rd attempt marks the job `failed`, with the error message as `failure_reason`, through a new door, `fail_job`.
+**Why.** T9 left this number undecided for lack of real traffic. The operator now sets it directly, at a small number that matches the model client's own retry counts, so one job does not loop through the queue far longer than one call to the model already does. `failure_kind` stays NULL for this path: it is a job-exhaustion reason, not one of the three call-level kinds the column is checked against.
+**Consequence.** `fail_job(uuid, text)` is the eighth door and the first to write `status = 'failed'`. It is granted to `gabriel_agent`, the same role that holds `claim_job`, since the worker is the one that knows a job has run out of attempts.

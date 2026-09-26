@@ -11,11 +11,17 @@ type Queryable = Pick<Pool, 'query'>;
 
 // The queries a claimed job triggers run in a fixed order: claim.ts issues one, then the kind's
 // own runner issues its own. A response per call, in that order, is enough to fake the driver.
-const fakeQueryable = (responses: readonly unknown[][]): Queryable => {
+// An error in the list is the fault of the call at that place.
+const fakeQueryable = (
+  responses: readonly (unknown[] | Error)[],
+): Queryable & { readonly calls: unknown[][] } => {
   let call = 0;
-  const query = (): Promise<QueryArrayResult> => {
+  const calls: unknown[][] = [];
+  const query = (text: string, values?: unknown[]): Promise<QueryArrayResult> => {
     const rows = responses[call] ?? [];
     call += 1;
+    calls.push([text, values]);
+    if (rows instanceof Error) return Promise.reject(rows);
     return Promise.resolve({
       rows,
       fields: [],
@@ -24,7 +30,7 @@ const fakeQueryable = (responses: readonly unknown[][]): Queryable => {
       oid: 0,
     } as QueryArrayResult);
   };
-  return { query: query as Queryable['query'] };
+  return { query: query as Queryable['query'], calls };
 };
 
 const fakeStore = (): RawStore =>
@@ -94,4 +100,30 @@ test('a lost claim waits longer before this worker acts again', async () => {
   const report = await promise;
 
   expect(report).toBe('The layout run placed 1 entities.');
+});
+
+const FAIL = 'SELECT public.fail_job($1, $2)';
+
+test('a job that fails on its last attempt is marked failed, and the fault reaches the caller', async () => {
+  const claimed = [{ job_id: JOB_ID, job_document: DOCUMENT_ID, job_attempts: 3 }];
+  const on = fakeQueryable([claimed, new Error('the entity read failed'), []]);
+
+  await Promise.all([
+    expect(runOnce('layout', on, fakeStore)).rejects.toThrow('the entity read failed'),
+    vi.runAllTimersAsync(),
+  ]);
+
+  expect(on.calls).toContainEqual([FAIL, [JOB_ID, 'the entity read failed']]);
+});
+
+test('a job that fails before its last attempt stays running for the lease to return', async () => {
+  const claimed = [{ job_id: JOB_ID, job_document: DOCUMENT_ID, job_attempts: 1 }];
+  const on = fakeQueryable([claimed, new Error('the entity read failed'), []]);
+
+  await Promise.all([
+    expect(runOnce('layout', on, fakeStore)).rejects.toThrow('the entity read failed'),
+    vi.runAllTimersAsync(),
+  ]);
+
+  expect(on.calls.map(([text]) => text)).not.toContain(FAIL);
 });

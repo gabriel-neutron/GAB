@@ -81,6 +81,7 @@ const DEFINER_DOORS = `
 
 const THE_DOOR_SET = [
   'public.claim_job to gabriel_agent',
+  'public.fail_job to gabriel_agent',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',

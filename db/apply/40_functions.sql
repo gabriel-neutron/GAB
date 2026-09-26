@@ -141,7 +141,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Seven functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Eight functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
@@ -398,8 +398,8 @@ END $$;
 -- transaction, so a second worker walks past it instead of waiting behind it. Ordinary FOR
 -- UPDATE would serialise every worker on the oldest row and give one queue with one throat.
 --
--- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The number of retries per kind of failure is not
--- decided, so this door refuses no claim on a count.
+-- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The worker reads the count and closes a job that
+-- fails on its last attempt, so this door refuses no claim on a count.
 --
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
 -- caller supplies proves nothing about who holds the row. The earlier signature is dropped
@@ -464,6 +464,29 @@ BEGIN
 
   GET DIAGNOSTICS v_released = ROW_COUNT;
   RETURN v_released;
+END $$;
+
+
+-- THE END OF A JOB THAT FAILED. Without it a job that fails on each claim returns to the queue
+-- for ever, and the operator sees no reason. The worker calls it on the last attempt only.
+--
+-- ONLY A RUNNING ROW ENDS, and the reason is required: a `failed` row with no reason gives the
+-- operator nothing to act on. No failure kind is written, because the three kinds name the fault
+-- of one call to the model, and this is the end of the job.
+CREATE OR REPLACE FUNCTION fail_job(p_id uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a failed job states why it failed';
+  END IF;
+  UPDATE public.jobs
+     SET status = 'failed', failure_reason = p_reason, finished_at = now(), updated_at = now()
+   WHERE id = p_id AND status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running, and only a running job fails', p_id;
+  END IF;
 END $$;
 
 

@@ -36,7 +36,7 @@ GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The seven doors, and nothing else.
+-- The eight doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
   FROM PUBLIC;
@@ -44,6 +44,7 @@ REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
+REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
@@ -62,8 +63,9 @@ GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
+GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 
--- THE THREE ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
+-- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
 -- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
 -- put_document, so the role that may put a document is the role that may queue work, and there
@@ -83,6 +85,9 @@ GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
 --
 -- A RELEASE SPENDS THE ATTEMPT, and the release door is the only way back: no role holds UPDATE
 -- on jobs, and nothing moves a row into a state a door did not produce.
+--
+-- THE FAILURE IS gabriel_agent, BESIDE THE CLAIM. Only the worker that ran the job knows why it
+-- failed, and the door ends a running row alone, so it opens nothing of the operator surface.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still

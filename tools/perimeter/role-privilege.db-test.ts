@@ -13,6 +13,7 @@ const DOORS = {
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
   release_expired_claims: 'public.release_expired_claims()',
+  fail_job: 'public.fail_job(uuid,text)',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
 } as const;
 
@@ -39,7 +40,7 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
 
 // The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
 // this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on propose_change, the layout door and the claim', async () => {
+test('gabriel_agent holds EXECUTE on propose_change, the layout door, the claim and the failure', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
@@ -47,6 +48,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the layout door and the cla
     reject_proposal: false,
     claim_job: true,
     release_expired_claims: false,
+    fail_job: true,
     set_entity_layout: true,
   });
 });
@@ -54,6 +56,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the layout door and the cla
 const REFUSED = [
   { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
   { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
+  { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
 ] as const;
 
 // EACH CALL RUNS INSIDE A TRANSACTION THAT ROLLS BACK, and the reason is measured: this test was
@@ -81,6 +84,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     reject_proposal: true,
     claim_job: false,
     release_expired_claims: true,
+    fail_job: false,
     set_entity_layout: false,
   });
 });
