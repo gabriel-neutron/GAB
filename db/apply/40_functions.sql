@@ -186,7 +186,8 @@ BEGIN
   SELECT v_id::doc_id WHERE p_kind <> 'manual';
 
   RETURN v_id;
-  -- It writes NO rating. #19 owns the scoring write path, and no role can write those columns.
+  -- It writes NO rating, and no role can write those columns. The scoring write path is decided,
+  -- a rate_document act, and it is built with the first caller that scores a document.
 END $$;
 
 -- The candidate layer. gabriel_agent and gabriel_app may call it. The author role is stamped by
