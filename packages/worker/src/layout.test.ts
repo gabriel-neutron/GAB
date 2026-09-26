@@ -2,10 +2,8 @@ import { expect, test } from 'vitest';
 
 import { entityLayout, type LayoutLink } from './layout.ts';
 
-// THE PLACEMENT RULES ARE THE WHOLE CONTRACT. entityLayout never promises one exact coordinate,
-// because a relaxation and a spiral pack are both iterative. It promises: one position per
-// entity, a self-loop and a dangling link joining nothing, the largest component centred on the
-// origin, and a run that repeats without a random seed to drift it.
+// entityLayout never promises one exact coordinate, because a relaxation and a spiral pack are
+// both iterative. It promises one position per entity, every id placed, and a repeatable run.
 
 const link = (source: string, target: string): LayoutLink => ({ source, target });
 
@@ -48,16 +46,11 @@ test('the run is deterministic: the same entities and relations give the same pi
 });
 
 test('the largest component is centred on the origin', () => {
-  const placed = entityLayout(
-    ['a', 'b', 'c', 'lone'],
-    [link('a', 'b'), link('b', 'c')],
-  );
+  const placed = entityLayout(['a', 'b', 'c', 'lone'], [link('a', 'b'), link('b', 'c')]);
   const byId = new Map(placed.map((position) => [position.id, position]));
   const group = ['a', 'b', 'c'].map((id) => byId.get(id));
-  const middleX =
-    group.reduce((total, position) => total + (position?.x ?? 0), 0) / group.length;
-  const middleY =
-    group.reduce((total, position) => total + (position?.y ?? 0), 0) / group.length;
+  const middleX = group.reduce((total, position) => total + (position?.x ?? 0), 0) / group.length;
+  const middleY = group.reduce((total, position) => total + (position?.y ?? 0), 0) / group.length;
 
   expect(middleX).toBeCloseTo(0, 5);
   expect(middleY).toBeCloseTo(0, 5);
@@ -78,10 +71,7 @@ test('two components never land on the same point', () => {
 });
 
 test('an entity connected to the rest sits closer to its neighbour than an unconnected one', () => {
-  const placed = entityLayout(
-    ['a', 'b', 'far'],
-    [link('a', 'b')],
-  );
+  const placed = entityLayout(['a', 'b', 'far'], [link('a', 'b')]);
   const byId = new Map(placed.map((position) => [position.id, position]));
   const a = byId.get('a');
   const b = byId.get('b');
