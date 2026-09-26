@@ -80,6 +80,9 @@ function SurfaceNav() {
       >
         Review
       </Link>
+      <Link to="/search" className={SURFACE_LINK}>
+        Search
+      </Link>
     </nav>
   );
 }
