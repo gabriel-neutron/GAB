@@ -2,6 +2,7 @@ import { useId } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Input } from '@/shared/ui/input';
+import { Textarea } from '@/shared/ui/textarea';
 
 import type { ClaimValue, TypedValue } from './claims';
 import type { ClaimDraft } from './draft';
@@ -21,8 +22,13 @@ export type FieldProps =
 
 // The geometry both arms share. The kit gives `transition-colors` no duration, and the Tailwind
 // default is 150ms, so 100ms is stated here.
-const BOX =
-  'h-6 w-full rounded-none border-transparent bg-muted px-1.5 py-0 text-xs duration-100 md:text-xs dark:bg-muted';
+const SURFACE =
+  'w-full rounded-none border-transparent bg-muted px-1.5 text-xs duration-100 md:text-xs dark:bg-muted';
+const BOX = cn(SURFACE, 'h-6 py-0');
+
+// A text box removes each line break from its value, so a note takes a textarea. One line of
+// `text-xs` is 16 px, and `py-1` adds 8 px, so one line stands at the 24 px of the other boxes.
+const NOTE = cn(SURFACE, 'min-h-6 resize-none py-1');
 
 // A story reads no colour and no class, so a read-only control states in a word that it takes no
 // edit and that the fade of the kit is beaten.
@@ -100,8 +106,18 @@ function ReadOnlyField({ label, value }: { label: string; value: ClaimValue }) {
           className={cn(BOX, READING, FIGURES)}
         />
       );
-    case 'text':
     case 'note':
+      return (
+        <Textarea
+          defaultValue={value.text}
+          disabled
+          aria-label={label}
+          title={value.text}
+          data-reading={UNFADED}
+          className={cn(NOTE, READING)}
+        />
+      );
+    case 'text':
     case 'list':
       // A list is already joined into the one text of the value, and no control splits it here.
       return (
@@ -154,6 +170,20 @@ function WritingField({
   const typed = (event: { readonly target: { readonly value: string } }): void => {
     onEdit(event.target.value);
   };
+
+  if (value.control === 'note') {
+    return (
+      <Textarea
+        value={value.text}
+        onChange={typed}
+        aria-label={label}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        title={value.text}
+        className={cn(NOTE, WRITING)}
+      />
+    );
+  }
 
   // A number takes a text box with a decimal input mode. A native number control reads and
   // prints in the locale of the machine, and `43,5` then reaches the record as `NaN`.
