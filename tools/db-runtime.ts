@@ -19,11 +19,15 @@ const PORT = 5432;
 // The bootstrap superuser owns the schema. gabriel_app holds EXECUTE on the promoted acts, and
 // gabriel_agent holds EXECUTE on the proposal door only, so the machine layer stays separate.
 // gabriel_read reads the api schema only, and a test of the perimeter must log in as it.
-const LOGIN = {
-  superuser: { role: 'gabriel', variable: 'POSTGRES_PASSWORD' },
+const LOGIN_ROLES = {
   app: { role: 'gabriel_app', variable: 'GABRIEL_APP_PASSWORD' },
   agent: { role: 'gabriel_agent', variable: 'GABRIEL_AGENT_PASSWORD' },
   read: { role: 'gabriel_read', variable: 'GABRIEL_READ_PASSWORD' },
+} as const;
+
+const LOGIN = {
+  superuser: { role: 'gabriel', variable: 'POSTGRES_PASSWORD' },
+  ...LOGIN_ROLES,
 } as const;
 
 // A first boot runs the init scripts of the image after the healthcheck reports ready.
@@ -31,8 +35,7 @@ const LOGIN = {
 const READY_DEADLINE_MS = 120_000;
 const READY_INTERVAL_MS = 1_000;
 
-/** The value of one secret of the environment. It throws when the variable is empty or absent. */
-export const secret = (variable: string): string => {
+const secret = (variable: string): string => {
   const value = process.env[variable];
   if (value === undefined || value === '') {
     throw new Error(`The variable ${variable} is empty or absent. Set it in infra/.env.`);
@@ -54,6 +57,10 @@ export const connectionString = (
   const password = encodeURIComponent(secret(variable));
   return `postgresql://${role}:${password}@${HOST}:${PORT}/${database}`;
 };
+
+/** The password of each login role other than the superuser. An absent secret throws. */
+export const loginPasswords = (): readonly { role: string; password: string }[] =>
+  Object.values(LOGIN_ROLES).map(({ role, variable }) => ({ role, password: secret(variable) }));
 
 /** Runs one `docker compose` command against the local stack, and writes `input` to its stdin. */
 export const compose = (args: readonly string[], input?: string): Promise<void> =>
