@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, screen, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
@@ -17,6 +18,38 @@ const read = (): Dossier => {
 };
 
 const DOSSIER = read();
+
+/** MV Kestrel Arrow. A second vessel, and its `imo` claim has the same key and another value. */
+const NEXT_VESSEL = 'd4e15ccd-d7e8-4411-b5b2-a2b3c4d5e6f7';
+
+const readNext = (): Dossier => {
+  const held = readDossier(corpus, NEXT_VESSEL, entityTypes);
+  if (held === null) throw new Error('The committed corpus holds no MV Kestrel Arrow');
+  return held;
+};
+
+const NEXT_DOSSIER = readNext();
+
+const SWAP = 'Select the next vessel';
+
+/** One mounted sidebar that gets a new dossier, as a new selection on a canvas gives it. */
+function SwappedSidebar() {
+  const [dossier, setDossier] = useState<Dossier>(DOSSIER);
+
+  return (
+    <div className="flex h-[600px]">
+      <button
+        type="button"
+        onClick={() => {
+          setDossier(NEXT_DOSSIER);
+        }}
+      >
+        {SWAP}
+      </button>
+      <Sidebar dossier={dossier} />
+    </div>
+  );
+}
 
 // The rows read in the alphabet of the claim key, and `aMark` below takes the first control that
 // states one source. So this reads the same row, and never `DOSSIER.sources[0]`, which is the
@@ -153,5 +186,18 @@ export const ThePanelDrawsTheSameNamedParts: Story = {
     // The panel holds no rail and no line of the sources of the entity, so it names three parts
     // and never a fourth with nothing under it.
     await expect(names).toEqual(['Record', 'Relations', 'Pending proposals']);
+  },
+};
+
+export const ANewSelectionDrawsTheValuesOfTheNewEntity: Story = {
+  render: () => <SwappedSidebar />,
+  play: async ({ canvas }) => {
+    await expect(canvas.getByDisplayValue('9482137')).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: SWAP }));
+
+    await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent(NEXT_DOSSIER.label);
+    await expect(canvas.getByDisplayValue('9613428')).toBeInTheDocument();
+    await expect(canvas.queryByDisplayValue('9482137')).toBeNull();
   },
 };
