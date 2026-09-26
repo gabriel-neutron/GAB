@@ -3,9 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/main.ts"
-  },
   "dependencies": {
     "@gab/store": "workspace:*",
     "pg": "^8.23.0",

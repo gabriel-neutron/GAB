@@ -1,8 +1,11 @@
+import { openStore } from '@gab/store/bucket';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { claimJob } from './claim.ts';
+import { runLayout } from './layout-job.ts';
+import { reconcileCorpus } from './reconcile.ts';
 
 // THIS SUITE CALLS THE DOOR AS THE OWNER OF THE DATABASE, because it reads the row it claimed to
 // check the mark. What it measures is the lock and the mark, and neither one is a grant: a
@@ -82,6 +85,20 @@ test('a claim marks the row running, stamps the role and counts the attempt', as
     expect(found).toStrictEqual([
       { status: 'running', attempts: 1, claimed_by: session?.session_user },
     ]);
+  });
+});
+
+const queue = z.array(z.object({ id: z.uuid(), status: z.string(), attempts: z.number().int() }));
+const QUEUE = 'SELECT id, status, attempts FROM public.jobs ORDER BY id';
+
+test('a layout run and a reconcile run leave every job as they met it', async () => {
+  await held(async (client) => {
+    const before = queue.parse((await client.query(QUEUE)).rows);
+    await runLayout(client);
+    await reconcileCorpus(client, openStore());
+    const after = queue.parse((await client.query(QUEUE)).rows);
+    expect(before.some((job) => job.status === 'queued' && job.attempts === 0)).toBe(true);
+    expect(after).toStrictEqual(before);
   });
 });
 
