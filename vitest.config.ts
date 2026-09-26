@@ -3,6 +3,8 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
+import { testRunDatabase } from './tools/test-database.ts';
+
 /**
  * The suite of `pnpm test`, which the fast check command never runs. The password of
  * `gabriel_app` is the one signal which says the compose file is up.
@@ -31,6 +33,13 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
       'part proves no perimeter, no role, no grant and no row of the corpus.',
   );
 
+// The guard runs before any project exists, so a refused run opens no socket. The second read
+// service serves the test database, and the compose file publishes it on this port.
+const LIVE_TARGET = {
+  GABRIEL_DATABASE: testRunDatabase(process.env),
+  VITE_API_URL: 'http://127.0.0.1:3001',
+};
+
 // **The suite needs more than the five seconds Vitest gives a test, and the reason is the machine
 // and not a socket.** Measured on 9 September 2026 over 1,178 entities: every view answers inside
 // 100 ms in SQL, so nothing here is slow. Nine projects in parallel is what passes five seconds.
@@ -48,6 +57,7 @@ const writerProject = {
     name: 'writer',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['packages/writer/src/**/*.db-test.ts'],
   },
 };
@@ -61,6 +71,7 @@ const workerProject = {
     name: 'worker',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['packages/worker/src/**/*.db-test.ts'],
   },
 };
@@ -87,6 +98,7 @@ const schemaProject = {
     name: 'schema',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['tools/*.db-test.ts'],
   },
 };
@@ -100,12 +112,13 @@ const perimeterProject = {
     name: 'perimeter',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['tools/perimeter/*.db-test.ts'],
   },
 };
 
 /**
- * What the fixture loader put in the live database, and the two losses that load is known to
+ * What the fixture loader put in the test database, and the two losses that load is known to
  * carry. A stated gap fails on the day somebody closes it, and a comment cannot.
  */
 const corpusProject = {
@@ -113,6 +126,7 @@ const corpusProject = {
     name: 'corpus',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['tools/corpus/*.db-test.ts'],
   },
 };
@@ -126,6 +140,7 @@ const serviceProject = {
     name: 'service',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['tools/service/*.db-test.ts'],
   },
 };
@@ -139,6 +154,7 @@ const contractProject = {
     name: 'contract',
     testTimeout: TEST_TIMEOUT,
     environment: 'node',
+    env: LIVE_TARGET,
     include: ['src/shared/read/**/*.db-test.ts'],
   },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },

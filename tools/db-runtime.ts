@@ -5,15 +5,16 @@ import { join } from 'node:path';
 
 import { Client } from 'pg';
 
+import { chosenDatabase, type DatabaseName } from './test-database.ts';
+
 const ROOT = join(import.meta.dirname, '..');
 const COMPOSE_FILE = join(ROOT, 'infra', 'docker-compose.yml');
 const ENV_FILE = join(ROOT, 'infra', '.env');
 const PROJECT = 'gab';
 
-// The host, the port and the database name are fixed by the compose file.
+// The host and the port are fixed by the compose file.
 const HOST = '127.0.0.1';
 const PORT = 5432;
-const DATABASE = 'gabriel';
 
 // The bootstrap superuser owns the schema. gabriel_app holds EXECUTE on the promoted acts, and
 // gabriel_agent holds EXECUTE on the proposal door only, so the machine layer stays separate.
@@ -44,11 +45,14 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
-/** The URL of one named identity of the local database, with its password. */
-export const connectionString = (identity: keyof typeof LOGIN): string => {
+/** The URL of one named identity of one local database, with its password. */
+export const connectionString = (
+  identity: keyof typeof LOGIN,
+  database: DatabaseName = chosenDatabase(process.env),
+): string => {
   const { role, variable } = LOGIN[identity];
   const password = encodeURIComponent(secret(variable));
-  return `postgresql://${role}:${password}@${HOST}:${PORT}/${DATABASE}`;
+  return `postgresql://${role}:${password}@${HOST}:${PORT}/${database}`;
 };
 
 /** Runs one `docker compose` command against the local stack, and writes `input` to its stdin. */
@@ -83,8 +87,10 @@ const accepts = async (url: string): Promise<boolean> => {
 };
 
 /** Waits until the database accepts a connection, because the healthcheck reports ready first. */
-export const waitForDatabase = async (): Promise<void> => {
-  const url = connectionString('superuser');
+export const waitForDatabase = async (
+  database: DatabaseName = chosenDatabase(process.env),
+): Promise<void> => {
+  const url = connectionString('superuser', database);
   const deadline = Date.now() + READY_DEADLINE_MS;
 
   for (;;) {
