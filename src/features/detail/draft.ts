@@ -25,9 +25,6 @@ export interface RecordCell {
   readonly value: ClaimValue;
   /** The sentence the last keystroke earned, and `null` while the value stands. */
   readonly refusal: string | null;
-  /** Whether the record is offered for writing at all. Every claim of a written record is
-   * written: a key the vocabulary describes with nothing is held to the kind it arrived with. */
-  readonly editable: boolean;
   readonly sources: readonly SourceRef[];
 }
 
@@ -39,9 +36,7 @@ export type PendingEdit =
   | { readonly ready: true; readonly attrs: AttributeEdit; readonly count: number }
   | { readonly ready: false; readonly reason: string };
 
-/**
- * The cells of the record. `null` drafts draw a record that is read through and never written,
- * and such a record states no sentence about editing, because it offers none. */
+/** The cells of the record. `null` drafts give each claim at its stored value. */
 export function recordCells(
   rows: readonly RecordRow[],
   drafts: Drafts | null,
@@ -55,7 +50,6 @@ export function recordCells(
       width: claim.width,
       value: draft?.value ?? claim.value,
       refusal: draft?.refusal ?? null,
-      editable: drafts !== null,
       sources: row.sources,
     };
   });

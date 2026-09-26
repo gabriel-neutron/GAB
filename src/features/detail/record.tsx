@@ -51,7 +51,7 @@ export function EntityRecord(props: EntityRecordProps) {
             {cell.label}
           </span>
           <span className="min-w-0 flex-1">
-            {cell.editable && onEdit !== null ? (
+            {onEdit !== null ? (
               <Field
                 mode="writing"
                 label={cell.label}
