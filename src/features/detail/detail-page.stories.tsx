@@ -14,7 +14,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { DetailPage } from './detail-page';
-import { readDossier, type Dossier, type SourceCardModel } from './dossier';
+import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
 
 // A lint gate refuses a page story that mounts a live canvas. This page mounts none.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -46,7 +46,18 @@ const recordPaneOf = (root: HTMLElement): HTMLElement => {
   return pane;
 };
 
-const knock = fn();
+const knock = fn<(address: string, body: unknown) => void>();
+
+const addressOf = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+};
+
+const bodyOf = (init: RequestInit | undefined): unknown => {
+  if (typeof init?.body !== 'string') return undefined;
+  const parsed: unknown = JSON.parse(init.body);
+  return parsed;
+};
 
 /** The write door of the browser, answered by the story. The answer is held until `open` runs,
  * so the analyst can act while one act is in flight. */
@@ -57,18 +68,41 @@ const doorGiving = (reply: () => Response): { readonly open: () => void } => {
       settle();
     };
   });
-  spyOn(globalThis, 'fetch').mockImplementation(async () => {
-    knock();
+  spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    knock(addressOf(input), bodyOf(init));
     await answered;
     return reply();
   });
   return { open };
 };
 
-const doorAnswering = (body: unknown): { readonly open: () => void } =>
-  doorGiving(
-    () => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } }),
-  );
+const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
+
+type WriterSays =
+  | { readonly said: 'signed' }
+  | { readonly said: 'refused'; readonly refusal: string }
+  | { readonly said: 'blocked'; readonly refusal: string }
+  | { readonly said: 'undecided'; readonly refusal: string };
+
+const json = (status: number, body: unknown): Response =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+// The statuses are the ones the writer routes give each outcome.
+const answerOf = (says: WriterSays): Response => {
+  switch (says.said) {
+    case 'signed':
+      return json(200, { state: 'signed', proposalId: PROPOSAL, targetId: VESSEL });
+    case 'refused':
+      return json(422, { refusal: says.refusal });
+    case 'blocked':
+      return json(409, { refusal: says.refusal });
+    case 'undecided':
+      return json(409, { refusal: says.refusal, proposalId: PROPOSAL });
+  }
+};
+
+const doorAnswering = (says: WriterSays): { readonly open: () => void } =>
+  doorGiving(() => answerOf(says));
 
 // The shape a dropped connection takes in the browser: the request left, and no answer came.
 const NO_ANSWER = (): Response => {
@@ -77,9 +111,7 @@ const NO_ANSWER = (): Response => {
 
 const GATEWAY_TIMEOUT = (): Response => new Response('<html>504</html>', { status: 504 });
 
-const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
-
-const SIGNED = { state: 'signed', proposalId: PROPOSAL, targetId: VESSEL };
+const SIGNED: WriterSays = { said: 'signed' };
 
 const NOT_AN_IDENTIFIER = 'the value of imo is not identifier, which the key declares';
 
@@ -99,13 +131,15 @@ const saveAlarmIn = (root: HTMLElement): HTMLElement =>
 
 const onDeleted = fn(() => Promise.resolve());
 
-const firstRelation = (): string => {
+const firstRelation = (): RelationLine => {
   const held = DOSSIER.relations[0];
   if (held === undefined) throw new Error('The vessel carries no relation');
-  return held.sentence;
+  return held;
 };
 
-const RELATION = firstRelation();
+const RELATION = firstRelation().sentence;
+
+const RELATION_ID = firstRelation().id;
 
 const toggleView = async (root: HTMLElement): Promise<void> => {
   await userEvent.click(within(root).getByRole('button', { name: 'Edit' }));
@@ -240,6 +274,11 @@ export const TwoClicksOnOneChangeWriteOneAct: Story = {
     await Promise.all([fireEvent.click(save), fireEvent.click(save)]);
 
     await expect(knock).toHaveBeenCalledTimes(1);
+    await expect(knock).toHaveBeenCalledWith('/write/update-attrs', {
+      targetKind: 'entity',
+      targetId: VESSEL,
+      attrs: { hull_note: { v: `${HULL_NOTE} and starboard` } },
+    });
     await expect(save).toBeDisabled();
     await expect(saidIn(canvasElement)).toHaveTextContent('The change is going to the record.');
 
@@ -277,7 +316,7 @@ export const ADraftTypedDuringASaveSurvives: Story = {
 export const ARefusalKeepsTheTypedValue: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ refusal: NOT_AN_IDENTIFIER });
+    const door = doorAnswering({ said: 'refused', refusal: NOT_AN_IDENTIFIER });
     const note = canvas.getByLabelText('Hull note');
     await userEvent.type(note, ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
@@ -295,7 +334,7 @@ export const ARefusalKeepsTheTypedValue: Story = {
 export const AnUndecidedActNamesItsProposal: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ refusal: 'the target no longer exists', proposalId: PROPOSAL });
+    const door = doorAnswering({ said: 'undecided', refusal: 'the target no longer exists' });
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
     door.open();
@@ -318,6 +357,18 @@ export const AListTakesACommaWithNoSpace: Story = {
     await expect(canvas.queryByRole('alert')).toBeNull();
     await expect(saidIn(canvasElement)).toHaveTextContent('One value stands ready to save.');
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeEnabled();
+
+    const door = doorAnswering(SIGNED);
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+    await expect(knock).toHaveBeenCalledWith('/write/update-attrs', {
+      targetKind: 'entity',
+      targetId: VESSEL,
+      attrs: { known_flags: { v: ['GB', 'NO'] } },
+    });
+    door.open();
+    await waitFor(async () => {
+      await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    });
   },
 };
 
@@ -327,12 +378,14 @@ export const ARefusedDeletionNamesTheCount: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
     const door = doorAnswering({
+      said: 'blocked',
       refusal: 'the entity is an endpoint of 3 relations, and it is not deleted',
     });
     await userEvent.click(canvas.getByRole('button', { name: `Delete ${DOSSIER.label}` }));
     await userEvent.click(
       canvas.getByRole('button', { name: `Confirm the deletion of ${DOSSIER.label}` }),
     );
+    await expect(knock).toHaveBeenCalledWith('/write/delete-entity', { targetId: VESSEL });
     door.open();
 
     await waitFor(async () => {
@@ -371,7 +424,7 @@ export const ANewRelationNamesItsProposal: Story = {
 export const AnUndecidedDeletionSaysTheEntityStands: Story = {
   play: async ({ canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ refusal: 'the promotion did not run', proposalId: PROPOSAL });
+    const door = doorAnswering({ said: 'undecided', refusal: 'the promotion did not run' });
     await askToDelete(canvasElement, DOSSIER.label);
     door.open();
 
@@ -388,8 +441,9 @@ export const AnUndecidedDeletionSaysTheEntityStands: Story = {
 export const AnUndecidedRelationDeletionSaysTheRelationStands: Story = {
   play: async ({ canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ refusal: 'the promotion did not run', proposalId: PROPOSAL });
+    const door = doorAnswering({ said: 'undecided', refusal: 'the promotion did not run' });
     await askToDelete(canvasElement, RELATION);
+    await expect(knock).toHaveBeenCalledWith('/write/delete-relation', { targetId: RELATION_ID });
     door.open();
 
     await waitFor(async () => {
