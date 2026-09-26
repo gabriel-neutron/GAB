@@ -137,6 +137,34 @@ test('the act comes from the address, and a body that states another act is refu
   });
 });
 
+const renamed = (given: Readonly<Record<string, unknown>>): unknown => ({
+  op: 'update_entity',
+  targetId: SRC_ID,
+  ...given,
+});
+
+test('an act on the name and the type takes a name, a type, or both', () => {
+  expect(body.parse(renamed({ label: ' MV Northern Star ' }))).toStrictEqual({
+    op: 'update_entity',
+    targetId: SRC_ID,
+    label: 'MV Northern Star',
+  });
+  expect(body.safeParse(renamed({ type: 'vessel' })).success).toBe(true);
+  expect(body.safeParse(renamed({ label: 'MV Northern Star', type: 'vessel' })).success).toBe(true);
+});
+
+test('an act on the name and the type that names neither is refused', () => {
+  expect(messageOf(renamed({}))).toBe('the act names a new name, a new type, or both');
+  expect(faultOf(renamed({ label: '   ' }))).toStrictEqual({ code: 'too_small', path: 'label' });
+});
+
+test('an act on the name and the type takes no attribute and no location', () => {
+  expect(faultOf(renamed({ label: 'MV Northern Star', attrs: {} }))).toStrictEqual({
+    code: 'unrecognized_keys',
+    path: '',
+  });
+});
+
 // An update that names no attribute applied nothing and still committed as accepted. Migration
 // 0007 refuses it, and the door refuses it here, so the caller reads a 422.
 test('an update that names no attribute is refused', () => {

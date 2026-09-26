@@ -214,6 +214,11 @@ const candidatePayload = (
       return { type: payload.type, label: payload.label, attrs: payload.attrs };
     case 'attrs':
       return { attrs: payload.attrs };
+    case 'columns':
+      return {
+        ...(payload.label === null ? {} : { label: payload.label }),
+        ...(payload.type === null ? {} : { type: payload.type }),
+      };
     case 'relation': {
       const srcId = payload.src_id === null ? undefined : entities.get(payload.src_id);
       const dstId = payload.dst_id === null ? undefined : entities.get(payload.dst_id);

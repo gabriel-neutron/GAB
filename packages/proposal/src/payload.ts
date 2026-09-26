@@ -105,6 +105,19 @@ export const proposalAct = (request: WriteRequest, prior: unknown): ProposalDraf
       });
     }
 
+    case 'update_entity':
+      return drafted({
+        op: request.op,
+        payload: {
+          ...(request.label === undefined ? {} : { label: request.label }),
+          ...(request.type === undefined ? {} : { type: request.type }),
+        },
+        src: [MANUAL],
+        names: [],
+        targetKind: 'entity',
+        targetId: request.targetId,
+      });
+
     case 'delete_entity':
       return drafted({
         op: request.op,

@@ -1,7 +1,15 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { positionFromWords, relationLines, relationTypeWords } from '@/shared/canvas-label';
-import type { Corpus, DocId, Entity, EndpointKind, Proposal, Relation } from '@/shared/read/model';
+import type {
+  Corpus,
+  DocId,
+  Entity,
+  EndpointKind,
+  Proposal,
+  Relation,
+  TypeVocabulary,
+} from '@/shared/read/model';
 
 import { readBand, readRating } from '@/shared/read/rating';
 
@@ -90,6 +98,11 @@ export interface LinkChoices {
   readonly targets: readonly LinkTarget[];
 }
 
+interface TypeChoice {
+  readonly key: string;
+  readonly name: string;
+}
+
 export interface Dossier {
   readonly entityId: string;
   readonly label: string;
@@ -111,6 +124,9 @@ export interface Dossier {
   readonly pending: readonly PendingLine[];
   readonly claimCount: number;
   readonly linkChoices: LinkChoices;
+  /** A retired type the entity holds stays offered, or the chooser would draw a type the entity
+   * does not hold. */
+  readonly typeChoices: readonly TypeChoice[];
 }
 
 /** A long address does not fit a two-line card, so the card carries a short form too. */
@@ -119,6 +135,7 @@ const URI_LENGTH = 44;
 const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   create_entity: 'Creates an entity',
   update_attrs: 'Changes an attribute',
+  update_entity: 'Changes the name or the type',
   delete_entity: 'Deletes an entity',
   create_relation: 'Creates a relation',
   update_relation: 'Changes a relation',
@@ -127,6 +144,15 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
 };
 
 const typeWords = relationTypeWords;
+
+function keysOf(payload: Proposal['payload']): readonly string[] {
+  if (payload.kind === 'attrs') return readClaims(payload.attrs).map((claim) => claim.label);
+  if (payload.kind !== 'columns') return [];
+  return [
+    ...(payload.label === null ? [] : [`name ${payload.label}`]),
+    ...(payload.type === null ? [] : [`type ${payload.type}`]),
+  ];
+}
 
 function shorten(uri: string | null): string | null {
   if (uri === null) return null;
@@ -166,7 +192,16 @@ function intervalWords(relation: Relation): string | null {
   return null;
 }
 
-export function readDossier(read: Corpus, entityId: string): Dossier | null {
+function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice[] {
+  const offered = types.filter((type) => !type.retired || type.key === held);
+  const choices = offered.map((type) => ({ key: type.key, name: type.label }));
+  const holds = choices.some((choice) => choice.key === held);
+  return [...choices, ...(holds ? [] : [{ key: held, name: held }])].sort((one, other) =>
+    one.name.localeCompare(other.name),
+  );
+}
+
+export function readDossier(read: Corpus, entityId: string, types: TypeVocabulary): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
@@ -256,6 +291,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
         );
       case 'create_entity':
       case 'update_attrs':
+      case 'update_entity':
       case 'delete_entity':
       case 'delete_relation':
         return false;
@@ -270,10 +306,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
       // written here would settle an open question in code.
       const stated = proposal.confidence;
       const head = OP_WORDS[proposal.op];
-      const keys =
-        proposal.payload.kind === 'attrs'
-          ? readClaims(proposal.payload.attrs).map((claim) => claim.label)
-          : [];
+      const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
         id: proposal.id,
@@ -341,6 +374,7 @@ export function readDossier(read: Corpus, entityId: string): Dossier | null {
     pending,
     claimCount: claims.length,
     linkChoices,
+    typeChoices: typeChoicesOf(types, entity.type),
   };
 }
 

@@ -174,6 +174,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
   create_entity: 'add',
   create_relation: 'add',
   update_attrs: 'edit',
+  update_entity: 'edit',
   update_relation: 'edit',
   delete_entity: 'delete',
   delete_relation: 'delete',
@@ -265,6 +266,33 @@ function differenceOf(
   });
 }
 
+type ColumnsPayload = Extract<Proposal['payload'], { readonly kind: 'columns' }>;
+
+/** The difference of an act on the name or the type. The row-level list of the entity backs
+ * both columns, so it stands beside each standing value. An upper case key is one that no
+ * attribute can take, so the two lines never read as contested with a claim. */
+function columnsDifference(
+  index: Index,
+  standing: Entity | null,
+  proposed: ColumnsPayload,
+  src: readonly DocId[],
+): readonly DifferenceRow[] {
+  const before = standing === null ? [] : citedDocuments(index, standing.sources);
+  const after = citedDocuments(index, src);
+  const row = (key: string, was: string | null, will: string): DifferenceRow => ({
+    key,
+    op: was === null ? 'add' : 'edit',
+    standing: was,
+    standingSources: was === null ? [] : before,
+    proposed: will,
+    proposedSources: after,
+  });
+  return [
+    ...(proposed.label === null ? [] : [row('Name', standing?.label ?? null, proposed.label)]),
+    ...(proposed.type === null ? [] : [row('Type', standing?.type ?? null, proposed.type)]),
+  ];
+}
+
 /** What a deletion destroys, named key by key. A deletion judged on one side is not judged. */
 function destroyed(index: Index, attrs: Attributes): readonly DifferenceRow[] {
   return Object.entries(attrs).map(([key, before]) => ({
@@ -351,6 +379,7 @@ function filingOf(proposal: Proposal): Filing {
     case 'relation':
       return { key: proposal.targetId ?? proposal.id, kind: 'link' };
     case 'attrs':
+    case 'columns':
     case 'delete':
       if (proposal.targetKind === 'relation' && proposal.targetId !== null) {
         return { key: proposal.targetId, kind: 'link' };
@@ -394,6 +423,13 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       // The kind stays what the keys say, and this hole carries the fault the kind cannot.
       if (proposal.targetId !== null && target === null) holes.push(HOLE['absent-row']);
       break;
+    case 'columns': {
+      const entity =
+        proposal.targetId === null ? undefined : index.entityById.get(proposal.targetId);
+      rows = columnsDifference(index, entity ?? null, payload, proposal.src);
+      if (proposal.targetId !== null && entity === undefined) holes.push(HOLE['absent-row']);
+      break;
+    }
     case 'entity':
       headline = `A new ${payload.type ?? 'entity, of a type the act does not name'}`;
       rows = differenceOf(index, null, payload.attrs);

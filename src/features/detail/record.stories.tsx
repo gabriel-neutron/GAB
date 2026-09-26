@@ -16,6 +16,7 @@ import { recordCells, typedInto, type Drafts } from './draft';
 import { readDossier, type RecordRow, type SourceRef } from './dossier';
 import { SourceMark } from './mark';
 import { EntityRecord, type EntityRecordProps } from './record';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 // The committed fixture has three claims, which cannot show density. This file builds its own
 // probe. No other file reads it.
@@ -139,7 +140,7 @@ const CORPUS: Corpus = {
   positions: [],
 };
 
-const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1')?.rows ?? [];
+const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', entityTypes)?.rows ?? [];
 
 const onSelectSource = fn();
 
@@ -269,7 +270,8 @@ const NOTE_CORPUS: Corpus = {
   positions: [],
 };
 
-const NOTE_ROWS: readonly RecordRow[] = readDossier(NOTE_CORPUS, 'probe-note')?.rows ?? [];
+const NOTE_ROWS: readonly RecordRow[] =
+  readDossier(NOTE_CORPUS, 'probe-note', entityTypes)?.rows ?? [];
 
 /** The record with the state a page holds for it. A story drives what a page drives. */
 function WritableRecord({ rows }: { rows: readonly RecordRow[] }) {
@@ -361,7 +363,7 @@ const NO_SUCH_DAY_CORPUS: Corpus = {
 };
 
 const NO_SUCH_DAY_ROWS: readonly RecordRow[] =
-  readDossier(NO_SUCH_DAY_CORPUS, 'probe-day')?.rows ?? [];
+  readDossier(NO_SUCH_DAY_CORPUS, 'probe-day', entityTypes)?.rows ?? [];
 
 export const ADayTheCalendarDoesNotHoldDrawsAsTextAndStands: Story = {
   parameters: { layout: 'fullscreen' },

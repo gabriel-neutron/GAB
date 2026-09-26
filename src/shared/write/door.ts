@@ -4,7 +4,7 @@
 import { type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
-/** The five acts the writer signs. The door of each one is derived here and named by no caller. */
+/** The six acts the writer signs. The door of each one is derived here and named by no caller. */
 export type WriteOp = (typeof WRITE_OPS)[number];
 
 /** What one request became. `undecided` is the act that reached the record and was not signed.

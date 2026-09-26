@@ -19,11 +19,6 @@ export interface NewRelationProps {
 
 const BLANK: LinkForm = { type: '', dstId: '', validFrom: '', validTo: '' };
 
-// The kit has no native select, and the edge of a control comes from `input` and never `border`.
-// The `focus-visible` recipe is the kit's own, copied whole: `ring` alone paints `currentcolor`.
-const CHOOSER =
-  'h-6 w-full min-w-0 rounded-none border border-input bg-transparent px-1.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50';
-
 export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps) {
   // A half-typed relation dies with the view, exactly as a half-typed claim does.
   const [form, setForm] = useState<LinkForm>(BLANK);
@@ -75,7 +70,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           </label>
           <select
             id={targetBox}
-            className={CHOOSER}
+            className={ENTRY_ROW.chooser}
             value={form.dstId}
             disabled={busy}
             onChange={(event) => {

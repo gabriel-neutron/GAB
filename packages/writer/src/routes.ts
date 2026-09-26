@@ -18,7 +18,7 @@ const STATUS = {
 
 const doorOf = (op: string): string => `/write/${op.replaceAll('_', '-')}`;
 
-/** The seven doors. No address here answers a GET: the writer serves no read and returns no row. */
+/** The eight doors. No address here answers a GET: the writer serves no read and returns no row. */
 export const writeRoutes = (pool: Pool): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());

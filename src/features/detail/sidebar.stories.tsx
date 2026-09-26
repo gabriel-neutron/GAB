@@ -5,12 +5,13 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 
 import { readDossier, type Dossier, type SourceCardModel } from './dossier';
 import { Sidebar } from './sidebar';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 /** MV Northern Ledger. Three claims, and its documents are `doc_9b0417`, `manual` and one more. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL);
+  const held = readDossier(corpus, VESSEL, entityTypes);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };

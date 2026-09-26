@@ -7,5 +7,11 @@ import { seededVocabulary } from '../vocabulary/declarations.ts';
 
 // A story takes no print order, so `ord` is dropped here and nowhere else.
 export const entityTypes: TypeVocabulary = seededVocabulary.entityTypes.map(
-  ({ key, label, colourLight, colourDark }) => ({ key, label, colourLight, colourDark }),
+  ({ key, label, colourLight, colourDark }) => ({
+    key,
+    label,
+    colourLight,
+    colourDark,
+    retired: seededVocabulary.retiredWhenSeeded,
+  }),
 );

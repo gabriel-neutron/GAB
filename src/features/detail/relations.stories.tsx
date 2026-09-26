@@ -6,6 +6,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';
 import { Relations } from './relations';
+import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 /** M4: a relation carries `src_kind` and `dst_kind`, for deferred reification. */
 
@@ -22,7 +23,7 @@ const M4 = 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d';
 const APPOINTS = 'a2b3c4d5-8e9f-4012-b345-c6d7e8f90a1b';
 
 const relationsOf = (entityId: string): readonly RelationLine[] =>
-  readDossier(corpus, entityId)?.relations ?? [];
+  readDossier(corpus, entityId, entityTypes)?.relations ?? [];
 
 const FROM_ENTITY_END = relationsOf(COMPANY);
 const FROM_RELATION_END = relationsOf(VESSEL);

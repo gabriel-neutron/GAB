@@ -20,6 +20,26 @@ const decidedOf = (proposals: readonly Proposal[]): readonly DecidedAct[] =>
 
 const FIXTURE = decidedOf(corpus.proposals);
 
+const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
+
+const retyped: Proposal = {
+  id: 'aa000009-0000-4000-8000-000000000002',
+  op: 'update_entity',
+  targetKind: 'entity',
+  targetId: VESSEL,
+  payload: { kind: 'columns', label: 'MV Southern Ledger', type: 'company' },
+  src: ['manual'],
+  names: [],
+  priorValue: null,
+  confidence: null,
+  dissent: false,
+  authorRole: 'gabriel_app',
+  status: 'pending',
+  createdAt: '2026-08-02T00:00:00Z',
+  decidedAt: null,
+  decidedBy: null,
+};
+
 describe('the history of the record', () => {
   it('lists each promotion and each rejection, the latest decision first', () => {
     const rows = readDecided(corpus, FIXTURE);
@@ -83,6 +103,35 @@ describe('the history of the record', () => {
     expect(readDecided(corpus, FIXTURE).find((row) => row.id === CREATION)?.subject).toBe(
       'MV Northern Ledger',
     );
+  });
+});
+
+describe('an act on the name and the type', () => {
+  it('is named in the history by the entity it changed, and names the two columns', () => {
+    const [row] = readDecided(corpus, [
+      {
+        act: { ...retyped, priorValue: { kind: 'row', row: { label: 'MV Northern Ledger' } } },
+        verdict: 'accepted',
+        decidedAt: '2026-08-02T00:05:00Z',
+        decidedBy: 'the writer door',
+      },
+    ]);
+    expect(row?.subject).toBe('MV Northern Ledger');
+    expect(row?.keys).toBe('Name, Type');
+    expect(row?.actWords).toBe('Change of the name or the type');
+  });
+
+  it('waits under its entity, as a change of the name and the type against the stored row', () => {
+    const subjects = readQueue({ ...corpus, proposals: [retyped] }, null);
+    expect(subjects.map((subject) => [subject.id, subject.kind])).toStrictEqual([[VESSEL, 'node']]);
+    const [change] = subjects[0]?.changes ?? [];
+    expect(change?.kind).toBe('edit');
+    expect(
+      change?.rows.map(({ key, op, standing, proposed }) => ({ key, op, standing, proposed })),
+    ).toStrictEqual([
+      { key: 'Name', op: 'edit', standing: 'MV Northern Ledger', proposed: 'MV Southern Ledger' },
+      { key: 'Type', op: 'edit', standing: 'vessel', proposed: 'company' },
+    ]);
   });
 });
 

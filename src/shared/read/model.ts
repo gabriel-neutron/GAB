@@ -21,6 +21,8 @@ export interface EntityTypeDeclaration {
    * both themes, because its ground is imagery. */
   readonly colourLight: string;
   readonly colourDark: string;
+  /** Out of service: the rows that carry the word keep it, and no new row takes it. */
+  readonly retired: boolean;
 }
 
 /** Every entity type the database declares, retired ones included: a promoted row still carries
@@ -113,6 +115,7 @@ export interface Relation {
 export type ProposalOp =
   | 'create_entity'
   | 'update_attrs'
+  | 'update_entity'
   | 'delete_entity'
   | 'create_relation'
   | 'update_relation'
@@ -129,6 +132,7 @@ export type ProposalPayload =
       readonly attrs: Attributes;
     }
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
+  | { readonly kind: 'columns'; readonly label: string | null; readonly type: string | null }
   | {
       readonly kind: 'relation';
       readonly type: string | null;
@@ -143,7 +147,8 @@ export type ProposalPayload =
   | { readonly kind: 'delete'; readonly reason: string | null };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds
- * every other one. A deletion copies the whole row it destroyed, and that row is not attributes. */
+ * every other one. A deletion copies the whole row it destroyed, and an act on the name or the
+ * type copies the columns it replaced. Neither of those two is attributes. */
 export type PriorValue =
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
   | { readonly kind: 'row'; readonly row: Readonly<Record<string, unknown>> };

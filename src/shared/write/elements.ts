@@ -1,11 +1,7 @@
-// One act on one element of the record: an entity or a relation is made, or one is destroyed.
-// The body of each act, and the door it goes to, stay inside.
-
 import { sendAct, type WriteOutcome } from './door';
 
-/**
- * The four acts that change the shape of the record. Each end of a new relation is an entity:
- * a relation on a relation is read from the record and this screen writes none. */
+/** Each end of a new relation is an entity: this screen writes no relation on a relation. A
+ * `null` name or type is a column the act leaves as it stands, and one of the two is set. */
 export type ElementAct =
   | { readonly op: 'create_entity'; readonly type: string; readonly label: string }
   | {
@@ -16,11 +12,15 @@ export type ElementAct =
       readonly validFrom: string | null;
       readonly validTo: string | null;
     }
+  | ({ readonly op: 'update_entity'; readonly targetId: string } & (
+      | { readonly label: string; readonly type: string | null }
+      | { readonly label: null; readonly type: string }
+    ))
   | { readonly op: 'delete_entity'; readonly targetId: string }
   | { readonly op: 'delete_relation'; readonly targetId: string };
 
-// An absent end of an interval is a key the body never carries: the request refuses a stated
-// null, and `JSON.stringify` drops a key whose value is undefined.
+// An absent end of an interval, or a column the act leaves, is a key the body never carries: the
+// request refuses a stated null, and `JSON.stringify` drops a key whose value is undefined.
 const bodyOf = (act: ElementAct): Readonly<Record<string, unknown>> => {
   switch (act.op) {
     case 'create_entity':
@@ -33,14 +33,20 @@ const bodyOf = (act: ElementAct): Readonly<Record<string, unknown>> => {
         validFrom: act.validFrom ?? undefined,
         validTo: act.validTo ?? undefined,
       };
+    case 'update_entity':
+      return {
+        targetId: act.targetId,
+        label: act.label ?? undefined,
+        type: act.type ?? undefined,
+      };
     case 'delete_entity':
     case 'delete_relation':
       return { targetId: act.targetId };
   }
 };
 
-/** Make one element, or destroy one. Every failure arrives as a sentence, and never as a raised
- * error: a screen that must report a refusal cannot report it from a catch. */
+/** Every failure arrives as a sentence, and never as a raised error: a screen that must report a
+ * refusal cannot report it from a catch. */
 export async function writeElement(act: ElementAct): Promise<WriteOutcome> {
   return sendAct(act.op, bodyOf(act));
 }
