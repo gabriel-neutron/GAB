@@ -9,7 +9,15 @@ import { probe, type Ask } from './probe.ts';
 const made = z.array(z.object({ id: z.uuid() }));
 const walked = z.array(z.object({ entity_id: z.uuid(), hop: z.number() }));
 
-const PROPOSE = `SELECT public.propose_change($1, '{}'::jsonb, ARRAY['manual']::text[]) AS id`;
+const PROPOSE = `SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`;
+
+// Departure: the act is never promoted, so the ends it names need not exist.
+const END = '00000000-0000-4000-8000-00000000e0d0';
+
+const WITNESS = {
+  create_entity: '{"type":"vessel","label":"A walk test"}',
+  create_relation: `{"type":"berthed_at","src_id":"${END}","dst_id":"${END}"}`,
+} as const;
 
 const INSERT_ENTITY = `INSERT INTO public.entities (type, label, sources, promoted_from)
   VALUES ('vessel', $1, ARRAY['manual']::doc_id[], $2) RETURNING id`;
@@ -24,9 +32,9 @@ const idOf = async (ask: Ask, text: string, values: readonly unknown[]): Promise
   return row.id;
 };
 
-const proposal = async (ask: Ask, op: string): Promise<string> => {
+const proposal = async (ask: Ask, op: keyof typeof WITNESS): Promise<string> => {
   await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-  const id = await idOf(ask, PROPOSE, [op]);
+  const id = await idOf(ask, PROPOSE, [op, WITNESS[op]]);
   await ask('RESET SESSION AUTHORIZATION');
   return id;
 };

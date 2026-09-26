@@ -22,7 +22,8 @@ const PROPOSE_ENTITY = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"An endpoint test"}'::jsonb, ARRAY['manual']::text[]) AS id`;
 
 const PROPOSE_RELATION = `SELECT public.propose_change('create_relation',
-  '{"type":"berthed_at"}'::jsonb, ARRAY['manual']::text[]) AS id`;
+  '{"type":"berthed_at","src_id":"${ABSENT}","dst_id":"${ABSENT}"}'::jsonb,
+  ARRAY['manual']::text[]) AS id`;
 
 const INSERT_ENTITY = `INSERT INTO public.entities (type, label, sources, promoted_from)
   VALUES ('vessel', 'An endpoint test', ARRAY['manual']::doc_id[], $1) RETURNING id`;
