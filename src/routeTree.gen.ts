@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const ReviewRoute = ReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntityIdRoute = EntityIdRouteImport.update({
   id: '/entity/$id',
   path: '/entity/$id',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,16 @@ export interface FileRoutesById {
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/graph' | '/map' | '/review' | '/entity/$id'
+  fullPaths: '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/graph' | '/map' | '/review' | '/entity/$id'
-  id: '__root__' | '/' | '/graph' | '/map' | '/review' | '/entity/$id'
+  to: '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
+  id:
+    '__root__' | '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +86,7 @@ export interface RootRouteChildren {
   GraphRoute: typeof GraphRoute
   MapRoute: typeof MapRoute
   ReviewRoute: typeof ReviewRoute
+  SearchRoute: typeof SearchRoute
   EntityIdRoute: typeof EntityIdRoute
 }
 
@@ -109,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entity/$id': {
       id: '/entity/$id'
       path: '/entity/$id'
@@ -124,6 +142,7 @@ const rootRouteChildren: RootRouteChildren = {
   GraphRoute: GraphRoute,
   MapRoute: MapRoute,
   ReviewRoute: ReviewRoute,
+  SearchRoute: SearchRoute,
   EntityIdRoute: EntityIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -53,7 +53,7 @@ nothing loaded.
 
 ### 6. Pages, not a panel shell
 
-`/map`, `/graph`, `/review`, `/entity/:id`. One view fills the screen. A dockable panel shell is a
+`/map`, `/graph`, `/review`, `/entity/:id`, `/search`. One view fills the screen. A dockable panel shell is a
 feature and not a layout choice, and it costs a layout engine and a persisted workspace.
 
 ### 7. View state: identity in the URL, workspace in `localStorage`
