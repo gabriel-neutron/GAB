@@ -64,13 +64,16 @@ const eager = [entry, ...preloaded];
 
 const chunks = readdirSync(ASSETS)
   .filter((file) => file.endsWith('.js'))
-  .map((file) => ({
-    file,
-    base: baseOf(file),
-    eager: eager.includes(file),
-    text: readFileSync(path.join(ASSETS, file), 'utf8'),
-    bytes: readFileSync(path.join(ASSETS, file)).byteLength,
-  }));
+  .map((file) => {
+    const content = readFileSync(path.join(ASSETS, file));
+    return {
+      file,
+      base: baseOf(file),
+      eager: eager.includes(file),
+      text: content.toString('utf8'),
+      bytes: content.byteLength,
+    };
+  });
 
 for (const [name, allowed] of Object.entries(HEAVY)) {
   const carriers = chunks.filter((chunk) => chunk.text.includes(name));
