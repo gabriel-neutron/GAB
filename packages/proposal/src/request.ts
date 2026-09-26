@@ -54,67 +54,63 @@ const NAMES_ATTRS = 'an update names at least one attribute';
 const NAMES_COLUMN = 'the act names a new name, a new type, or both';
 
 /** The body of one write, with the act taken from the address and never from the caller. */
-export const writeRequest = () => {
-  const attrs = attributeEdit();
+export const writeRequest = z.discriminatedUnion('op', [
+  z.strictObject({
+    op: z.literal('create_entity'),
+    type: z.string().trim().min(1),
+    label: z.string().trim().min(1),
+    geom: geometry.optional(),
+    attrs: attributeEdit.optional(),
+  }),
 
-  return z.discriminatedUnion('op', [
-    z.strictObject({
-      op: z.literal('create_entity'),
+  z
+    .strictObject({
+      op: z.literal('create_relation'),
       type: z.string().trim().min(1),
-      label: z.string().trim().min(1),
-      geom: geometry.optional(),
-      attrs: attrs.optional(),
+      srcKind: endpointKind.default('entity'),
+      srcId: z.uuid(),
+      dstKind: endpointKind.default('entity'),
+      dstId: z.uuid(),
+      validFrom: day.optional(),
+      validTo: day.optional(),
+      attrs: attributeEdit.optional(),
+    })
+    .refine(
+      (act) =>
+        (act.validFrom === undefined && act.validTo === undefined) ||
+        DATED_RELATIONS.some((word) => word === act.type),
+      { message: `an interval belongs to one of ${DATED_RELATIONS.join(', ')}` },
+    ),
+
+  // External constraint: the same rule as proposals_update_names_attrs, at the door, so the
+  // caller reads a 422 and not a constraint violation.
+  z
+    .strictObject({
+      op: z.literal('update_attrs'),
+      targetKind: endpointKind,
+      targetId: z.uuid(),
+      attrs: attributeEdit,
+    })
+    .refine((act) => Object.keys(act.attrs).length > 0, {
+      message: NAMES_ATTRS,
+      path: ['attrs'],
     }),
 
-    z
-      .strictObject({
-        op: z.literal('create_relation'),
-        type: z.string().trim().min(1),
-        srcKind: endpointKind.default('entity'),
-        srcId: z.uuid(),
-        dstKind: endpointKind.default('entity'),
-        dstId: z.uuid(),
-        validFrom: day.optional(),
-        validTo: day.optional(),
-        attrs: attrs.optional(),
-      })
-      .refine(
-        (act) =>
-          (act.validFrom === undefined && act.validTo === undefined) ||
-          DATED_RELATIONS.some((word) => word === act.type),
-        { message: `an interval belongs to one of ${DATED_RELATIONS.join(', ')}` },
-      ),
+  // External constraint: the same rule as proposals_update_entity_shape, at the door, so the
+  // caller reads a 422.
+  z
+    .strictObject({
+      op: z.literal('update_entity'),
+      targetId: z.uuid(),
+      label: z.string().trim().min(1).optional(),
+      type: z.string().trim().min(1).optional(),
+    })
+    .refine((act) => act.label !== undefined || act.type !== undefined, {
+      message: NAMES_COLUMN,
+    }),
 
-    // The same rule as proposals_update_names_attrs, at the door, so the caller reads a 422 and
-    // not a constraint violation. Before it existed, an update that named no attribute was
-    // accepted, applied nothing, and still moved the target's `updated_at`.
-    z
-      .strictObject({
-        op: z.literal('update_attrs'),
-        targetKind: endpointKind,
-        targetId: z.uuid(),
-        attrs,
-      })
-      .refine((act) => Object.keys(act.attrs).length > 0, {
-        message: NAMES_ATTRS,
-        path: ['attrs'],
-      }),
+  z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
+  z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),
+]);
 
-    // The same rule as proposals_update_entity_shape, at the door, so the caller reads a 422.
-    z
-      .strictObject({
-        op: z.literal('update_entity'),
-        targetId: z.uuid(),
-        label: z.string().trim().min(1).optional(),
-        type: z.string().trim().min(1).optional(),
-      })
-      .refine((act) => act.label !== undefined || act.type !== undefined, {
-        message: NAMES_COLUMN,
-      }),
-
-    z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
-    z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),
-  ]);
-};
-
-export type WriteRequest = z.infer<ReturnType<typeof writeRequest>>;
+export type WriteRequest = z.infer<typeof writeRequest>;
