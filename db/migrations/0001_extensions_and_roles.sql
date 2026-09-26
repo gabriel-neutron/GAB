@@ -14,10 +14,25 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- gabriel_owner owns every table and every write function, and it never logs in.
 -- NO ROLE IS EVER MADE A MEMBER OF IT. Measured on #15: a membership granted
 -- WITH INHERIT FALSE reports no privilege and then writes after SET ROLE.
-CREATE ROLE gabriel_owner NOLOGIN NOINHERIT;
-CREATE ROLE gabriel_app   LOGIN   NOINHERIT;   -- calls the write functions, writes no table
-CREATE ROLE gabriel_agent LOGIN   NOINHERIT;   -- proposes only
-CREATE ROLE gabriel_read  LOGIN   NOINHERIT;   -- reads the api schema only
+-- A role belongs to the cluster and not to one database, so the test database meets the four
+-- already made. The ALTER lines then state each attribute, whichever run made the role.
+DO $$
+DECLARE
+  wanted text;
+BEGIN
+  FOREACH wanted IN ARRAY ARRAY['gabriel_owner', 'gabriel_app', 'gabriel_agent', 'gabriel_read']
+  LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = wanted) THEN
+      EXECUTE format('CREATE ROLE %I', wanted);
+    END IF;
+  END LOOP;
+END
+$$;
+
+ALTER ROLE gabriel_owner NOLOGIN NOINHERIT;
+ALTER ROLE gabriel_app   LOGIN   NOINHERIT;   -- calls the write functions, writes no table
+ALTER ROLE gabriel_agent LOGIN   NOINHERIT;   -- proposes only
+ALTER ROLE gabriel_read  LOGIN   NOINHERIT;   -- reads the api schema only
 
 ALTER ROLE gabriel_read  SET statement_timeout = '5s';   -- docs/spec.md §4
 ALTER ROLE gabriel_app   SET statement_timeout = '30s';

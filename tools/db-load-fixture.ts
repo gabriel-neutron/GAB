@@ -2,6 +2,9 @@
 // gabriel_app and a pending proposal through gabriel_agent, because a trigger stamps the author
 // from session_user and the machine, not the operator, authors the candidate layer.
 
+// Every fixture row is invented, and the record is published, so the load reaches the test
+// database only.
+
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -287,9 +290,10 @@ const loadCandidates = async (
   return pending.length;
 };
 
-export const main = async (): Promise<void> => {
-  const operator = new Client({ connectionString: connectionString('app') });
-  const machine = new Client({ connectionString: connectionString('agent') });
+/** Writes the committed fixture into the test database, and computes its picture. */
+export const loadCommittedFixture = async (): Promise<void> => {
+  const operator = new Client({ connectionString: connectionString('app', 'gabriel_test') });
+  const machine = new Client({ connectionString: connectionString('agent', 'gabriel_test') });
   await operator.connect();
   await machine.connect();
   try {
@@ -313,7 +317,7 @@ export const main = async (): Promise<void> => {
 };
 
 if (argv[1] === fileURLToPath(import.meta.url)) {
-  await main().catch((error: unknown) => {
+  await loadCommittedFixture().catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
   });

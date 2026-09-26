@@ -3,9 +3,9 @@
 
 import { z } from 'zod';
 
-// The compose file publishes the read service here, and nothing reaches it from outside the
-// machine.
-const LOOPBACK = 'http://127.0.0.1:3000/';
+// The compose file publishes the read service of the test database here, and nothing reaches it
+// from outside the machine.
+const LOOPBACK = 'http://127.0.0.1:3001/';
 
 const failureShape = z.object({ code: z.string(), message: z.string() });
 const rowShape = z.array(z.unknown());

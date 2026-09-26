@@ -11,6 +11,7 @@ import { Client } from 'pg';
 import { z } from 'zod';
 
 import { connectionString, secret, waitForDatabase } from './db-runtime.ts';
+import { chosenDatabase, type DatabaseName } from './test-database.ts';
 
 const MIGRATIONS = join(import.meta.dirname, '..', 'db', 'migrations');
 
@@ -96,9 +97,11 @@ export const orderedFileNotRun = async (): Promise<string | null> => {
 };
 
 /** Runs every ordered file the database never ran, then gives each login role its password. */
-export const runOrderedFiles = async (): Promise<void> => {
-  await waitForDatabase();
-  const client = new Client({ connectionString: connectionString('superuser') });
+export const runOrderedFiles = async (
+  database: DatabaseName = chosenDatabase(process.env),
+): Promise<void> => {
+  await waitForDatabase(database);
+  const client = new Client({ connectionString: connectionString('superuser', database) });
   await client.connect();
   try {
     await runner({

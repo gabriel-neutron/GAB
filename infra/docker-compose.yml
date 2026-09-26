@@ -45,6 +45,24 @@ services:
     ports:
       - '127.0.0.1:3000:3000'
 
+  # The same read service over the test database. The suite reads through it, and a reader of the
+  # record never meets the rows a test writes.
+  postgrest-test:
+    image: postgrest/postgrest:v16.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: "postgres://gabriel_read:\
+        ${GABRIEL_READ_PASSWORD:?set GABRIEL_READ_PASSWORD in infra/.env}\
+        @db:5432/gabriel_test"
+      PGRST_DB_SCHEMAS: api
+      PGRST_DB_ANON_ROLE: gabriel_read
+      PGRST_OPENAPI_MODE: disabled
+    ports:
+      - '127.0.0.1:3001:3000'
+
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped

@@ -1,5 +1,5 @@
-// What the loads put in the live database: the committed fixture, and whatever corpus was loaded
-// above it. The record is the ground every surface and every other database test stands on.
+// What the load put in the test database: the committed fixture, and nothing else. That ground
+// is what every other database test stands on.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ const CENSUS = `
            AS relations_outside_the_corpus,
          (SELECT count(*) FROM public.proposals WHERE status = 'pending') AS pending`;
 
-test('the record holds the committed fixture whole, whatever was loaded above it', async () => {
+test('the test database holds the committed fixture whole', async () => {
   const stated = fixture.documents.map((document) => document.id);
   const held = await probe('superuser', async (ask) => census.parse(await ask(CENSUS, [stated])));
   expect(held).toStrictEqual([

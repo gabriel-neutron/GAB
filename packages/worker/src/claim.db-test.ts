@@ -7,14 +7,23 @@ import { claimJob } from './claim.ts';
 // THIS SUITE CALLS THE DOOR AS THE OWNER OF THE DATABASE, because it reads the row it claimed to
 // check the mark. What it measures is the lock and the mark, and neither one is a grant: a
 // perimeter test holds who may call the door and who may not.
-const secrets = z.object({ POSTGRES_PASSWORD: z.string().min(1) });
+const secrets = z.object({
+  POSTGRES_PASSWORD: z.string().min(1),
+  GABRIEL_DATABASE: z.literal('gabriel_test'),
+});
 
 const ownerPool = (): Pool => {
   const held = secrets.safeParse(process.env);
   if (!held.success)
-    throw new Error('POSTGRES_PASSWORD is empty or absent. Set it in the environment file.');
+    throw new Error(
+      'POSTGRES_PASSWORD is empty or absent, or GABRIEL_DATABASE is not gabriel_test. Run the ' +
+        'suite through its configuration.',
+    );
   const password = encodeURIComponent(held.data.POSTGRES_PASSWORD);
-  return new Pool({ connectionString: `postgresql://gabriel:${password}@127.0.0.1:5432/gabriel` });
+  const database = held.data.GABRIEL_DATABASE;
+  return new Pool({
+    connectionString: `postgresql://gabriel:${password}@127.0.0.1:5432/${database}`,
+  });
 };
 
 const pool = ownerPool();

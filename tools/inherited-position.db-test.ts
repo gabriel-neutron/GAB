@@ -1,6 +1,6 @@
 // The walk that places an entity nobody located. Each gesture builds its own tree inside a
 // transaction that rolls back, because the proposals ledger is append-only and a trigger refuses
-// a delete. Nothing here reads the committed fixture.
+// a delete. The last two tests read the committed fixture that the test database holds.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';

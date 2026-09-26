@@ -7,9 +7,11 @@ import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { compose } from './db-runtime.ts';
+import { chosenDatabase, type DatabaseName } from './test-database.ts';
 
 const APPLY = join(import.meta.dirname, '..', 'db', 'apply');
-const PSQL = [
+
+const psqlOn = (database: DatabaseName): readonly string[] => [
   'exec',
   '-T',
   'db',
@@ -19,20 +21,23 @@ const PSQL = [
   '-U',
   'gabriel',
   '-d',
-  'gabriel',
+  database,
 ];
 
 /** Feeds every re-runnable file to the database, in order, and wakes the schema cache. */
-export const applyRerunnableFiles = async (): Promise<void> => {
+export const applyRerunnableFiles = async (
+  database: DatabaseName = chosenDatabase(process.env),
+): Promise<void> => {
+  const psql = psqlOn(database);
   const files = (await readdir(APPLY)).filter((name) => name.endsWith('.sql')).sort();
   for (const name of files) {
     console.log(`apply  ${name}`);
-    await compose(PSQL, await readFile(join(APPLY, name), 'utf8'));
+    await compose(psql, await readFile(join(APPLY, name), 'utf8'));
   }
 
   // External constraint: a separate process holds the schema cache, and a new view does not reach
   // it. The channel needs no listener, so this succeeds when that process is down.
-  await compose(PSQL, "NOTIFY pgrst, 'reload schema';\n");
+  await compose(psql, "NOTIFY pgrst, 'reload schema';\n");
   console.log('notify schema cache');
 };
 

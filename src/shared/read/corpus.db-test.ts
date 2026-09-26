@@ -1,5 +1,5 @@
-// The corpus the four surfaces receive, read from the live service over HTTP. Every story runs
-// on the committed fixture, so no other check reads the live record through this path.
+// The corpus the four surfaces receive, read over HTTP from the read service of the test
+// database. Every story runs on the committed fixture, so no other check reads through this path.
 
 import { expect, test } from 'vitest';
 
@@ -35,7 +35,7 @@ const counted = (read: Corpus): Readonly<Record<string, number>> => {
   };
 };
 
-test('the live service gives the committed fixture whole', async () => {
+test('the read service gives the committed fixture whole', async () => {
   expect(counted(await loadCorpus())).toStrictEqual({
     entities: fixtureSize.entities,
     relations: fixtureSize.relations,
