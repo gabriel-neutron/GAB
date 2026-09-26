@@ -29,6 +29,7 @@ export function Pending({ proposals, mark }: PendingProps) {
           className="flex items-center gap-2 border-b border-dashed border-border py-1"
         >
           <span className="shrink-0 text-small/4 text-candidate">{CANDIDATE}</span>
+          <span className="shrink-0 text-small/4 text-label">{proposal.origin}</span>
           {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
           <span className="min-w-0 flex-1 truncate text-xs" title={proposal.summary}>
             {proposal.summary}

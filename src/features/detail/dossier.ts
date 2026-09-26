@@ -2,6 +2,7 @@
 
 import { positionFromWords, relationLines, relationTypeWords } from '@/shared/canvas-label';
 import type {
+  AuthorRole,
   Corpus,
   DocId,
   Entity,
@@ -81,6 +82,7 @@ export interface PendingLine {
   /** Already formatted, and a sentence where the act states none. A `.tsx` here calls no
    * `toFixed`. */
   readonly confidence: string;
+  readonly origin: 'machine' | 'operator';
   readonly sources: readonly SourceRef[];
 }
 
@@ -141,6 +143,11 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   update_relation: 'Changes a relation',
   delete_relation: 'Deletes a relation',
   merge_entities: 'Merges entities',
+};
+
+const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
+  gabriel_agent: 'machine',
+  gabriel_app: 'operator',
 };
 
 const typeWords = relationTypeWords;
@@ -313,6 +320,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
         summary: body,
         dissent: proposal.dissent,
         confidence: stated === null ? 'no confidence is stated' : stated.toFixed(2),
+        origin: ORIGIN_WORDS[proposal.authorRole],
         sources: refsOf(proposal.src),
       };
     });

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ReactNode } from 'react';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
@@ -22,6 +22,29 @@ const DOSSIER = readDossier(corpus, FACILITY, entityTypes);
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 
 const CLAIMS: readonly RecordRow[] = DOSSIER?.rows ?? [];
+
+const AGENT_ACT = corpus.proposals.find(
+  (proposal) => proposal.targetId === FACILITY && proposal.status === 'pending',
+);
+
+const OPERATOR_ACT_ID = '5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d';
+
+// An undecided operator save leaves a pending operator act. The fixture holds none, so this
+// story adds one beside the agent acts.
+const MIXED: readonly PendingLine[] =
+  AGENT_ACT === undefined
+    ? []
+    : (readDossier(
+        {
+          ...corpus,
+          proposals: [
+            ...corpus.proposals,
+            { ...AGENT_ACT, id: OPERATOR_ACT_ID, authorRole: 'gabriel_app' },
+          ],
+        },
+        FACILITY,
+        entityTypes,
+      )?.pending ?? []);
 
 const rows = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-proposal]'));
@@ -107,5 +130,25 @@ export const DissentAndConfidenceAreWritten: Story = {
     await expect(canvas.getByText('no dissent')).toBeInTheDocument();
     await expect(canvas.getByText('0.82')).toBeInTheDocument();
     await expect(canvas.getByText('0.41')).toBeInTheDocument();
+  },
+};
+
+export const EachCandidateStatesItsOrigin: Story = {
+  args: { proposals: MIXED },
+  play: async ({ canvasElement }) => {
+    const row = (id: string): HTMLElement => {
+      const found = rows(canvasElement).find((line) => line.dataset['proposal'] === id);
+      if (found === undefined) throw new Error(`no line for the act ${id}`);
+      return found;
+    };
+    const agent = within(row(AGENT_ACT?.id ?? ''));
+    const operator = within(row(OPERATOR_ACT_ID));
+
+    await expect(agent.getByText('candidate')).toBeInTheDocument();
+    await expect(agent.getByText('machine')).toBeInTheDocument();
+    await expect(agent.queryByText('operator')).toBeNull();
+    await expect(operator.getByText('candidate')).toBeInTheDocument();
+    await expect(operator.getByText('operator')).toBeInTheDocument();
+    await expect(operator.queryByText('machine')).toBeNull();
   },
 };
