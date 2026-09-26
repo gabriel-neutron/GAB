@@ -3,13 +3,15 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { readQueue } from './queue';
 import { ReviewPage } from './review-page';
-import { SAMPLE, reviewSample, sampleChange } from './sample';
+import { SAMPLE, reviewSample, sampleChange, sampleSubject } from './sample';
 
 const SUBJECTS = readQueue(reviewSample, null);
 
 const CONTESTED = SAMPLE.contestedRow;
 
 const FIRST_ACT = sampleChange(CONTESTED).id;
+
+const SECOND_ACT = sampleSubject(CONTESTED).changes[1]?.id ?? 'the row holds no second act';
 
 const onAct = fn();
 
@@ -91,6 +93,28 @@ export const AVerdictReachesTheLineOfTheAct: Story = {
     await expect(line).toHaveTextContent('Promoted into the record');
     // The foot says it too, for the act the controls hold.
     await expect(canvas.getAllByText('Promoted into the record')).toHaveLength(2);
+  },
+};
+
+/** A verdict names the act the hand is on. A verdict sent for the first act of the row, when
+ * the hand is on the second, writes to the record an act that no one read. */
+export const AVerdictNamesTheActTheHandIsOn: Story = {
+  play: async ({ args, canvas, canvasElement }) => {
+    await expect(SECOND_ACT).not.toEqual(FIRST_ACT);
+    const line = canvasElement.querySelector(`[data-line="${SECOND_ACT}"]`);
+    await expect(line).toBeInstanceOf(HTMLButtonElement);
+    if (!(line instanceof HTMLButtonElement)) return;
+    await userEvent.click(line);
+    await expect(line).toHaveAttribute('aria-current', 'true');
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Promote it' }));
+    await expect(args.onAct).toHaveBeenCalledTimes(1);
+    await expect(args.onAct).toHaveBeenCalledWith({
+      kind: 'decide',
+      changeId: SECOND_ACT,
+      verdict: 'promoted',
+      reason: '',
+    });
   },
 };
 
