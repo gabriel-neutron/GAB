@@ -233,6 +233,20 @@ export const EveryClaimCarriesAMarkToItsSource: Story = {
   },
 };
 
+export const AReadRecordGivenDraftsStaysReadOnly: Story = {
+  parameters: { layout: 'fullscreen' },
+  args: { cells: recordCells(ROWS, new Map()) },
+  play: async ({ canvasElement }) => {
+    const controls = Array.from(
+      canvasElement.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea'),
+    );
+    await expect(controls).toHaveLength(100);
+    for (const control of controls) {
+      await expect(control).toBeDisabled();
+    }
+  },
+};
+
 export const TheRecordDrawsNoInventedHeading: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas }) => {
