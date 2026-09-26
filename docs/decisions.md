@@ -193,9 +193,25 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 
 ### S2 — The source is listed at entity, relation and attribute level
 
-**Decision.** The entity and the relation each carry a list of sources. Each attribute carries its own sources in addition.
-**Why.** A list on the entity alone cannot say which source carries which figure, and the figure is what an opponent attacks. Sources on the attribute answer this for the cost of a convention, and with no added table.
-**Consequence.** Postgres constrains nothing from inside a JSON document, so this integrity is not a foreign key. It costs a guard on the write path, and `spec.md` invariant 2 holds the rule.
+**Replaces the earlier S2**, which named the three levels but left open what the entity's and
+the relation's own list assert, next to an attribute's own list. #86 named the gap.
+
+**Decision.** The row-level list on `entities` and on `relations` backs the typed columns of
+that row — the columns outside `attrs`, which M7's `{v, src}` shape cannot reach. On an entity,
+that is `label`, `type` and `geom`. On a relation, that is `type`, its two endpoints, and
+`valid_from` / `valid_to`. An attribute's own `src`, inside `attrs`, backs that one value alone.
+A promotion that changes any of a row's typed columns replaces the whole row-level list with its
+own sources. It does not keep the sources of the value it supersedes. This is the same rule M5
+already gives every other current-state fact.
+**Why.** The row-level list needed a job an attribute's own list cannot do: an entity's name,
+its type and its map location are not stored as `{v, src}` pairs, so nothing else in the schema
+carries their source. Splitting one list per typed column would need a schema change for a fact
+of small cost; combining them into one list is the cost this decision accepts.
+**Consequence.** A reader cannot tell, from the row-level list alone, which of `label`, `type` or
+`geom` a given source backs. It only shows that the source backs one of the three, as of the
+last promotion that touched any of them. Postgres constrains nothing from inside a JSON
+document, so an attribute's own integrity is not a foreign key. That guard stays where
+`spec.md` invariant 2 puts it.
 
 ### S3 — Automated scoring, human validation by exception
 

@@ -179,7 +179,9 @@ export const NoPlaceholderProseIsDrawn: Story = {
 
 export const TheEntityNamesItsOwnSources: Story = {
   play: async ({ canvas }) => {
-    const part = canvas.getByRole('region', { name: 'Sources of this entity' });
+    const part = canvas.getByRole('region', {
+      name: 'Sources of the name, the type and the map location',
+    });
 
     await expect(DOSSIER.entitySources.length).toBeGreaterThan(0);
     for (const source of DOSSIER.entitySources) {
@@ -471,7 +473,7 @@ export const TheFourPartsAreNamedAndSeparated: Story = {
       'Record',
       'Relations',
       'Pending proposals',
-      'Sources of this entity',
+      'Sources of the name, the type and the map location',
     ]);
   },
 };
@@ -485,7 +487,7 @@ export const EachPartStatesItsOwnCount: Story = {
     await expect(headingOf('Record')).toHaveTextContent(String(DOSSIER.claimCount));
     await expect(headingOf('Relations')).toHaveTextContent(String(DOSSIER.relations.length));
     await expect(headingOf('Pending proposals')).toHaveTextContent(String(DOSSIER.pending.length));
-    await expect(headingOf('Sources of this entity')).toHaveTextContent(
+    await expect(headingOf('Sources of the name, the type and the map location')).toHaveTextContent(
       String(DOSSIER.entitySources.length),
     );
   },
