@@ -468,6 +468,36 @@ test('the name and the type change by one act, and a word with no type waits as 
   }
 });
 
+// A row made by the writer cites `manual`, and so does the rename. The row is made here from a
+// document, so the list after the act differs from the list before it.
+test('a rename replaces the list of the row, and the prior value keeps the old list', async () => {
+  const made = await one(
+    `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['doc_8f2a41']::text[]) AS id`,
+    [JSON.stringify({ type: 'vessel', label: 'Writer test cited rename' })],
+  );
+  const promoted = await one('SELECT public.promote_proposal($1::uuid, $2::text) AS id', [
+    made['id'],
+    'a test',
+  ]);
+  const target = String(promoted['id']);
+  try {
+    expect((await one(COLUMNS_OF, [target]))['sources']).toStrictEqual(['doc_8f2a41']);
+
+    const [status, reply] = await post('update-entity', {
+      targetId: target,
+      label: 'Writer test cited renamed',
+    });
+    expect(status).toBe(200);
+    expect((await one(COLUMNS_OF, [target]))['sources']).toStrictEqual(['manual']);
+    expect((await decided(reply.proposalId))['prior_value']).toStrictEqual({
+      label: 'Writer test cited rename',
+      sources: ['doc_8f2a41'],
+    });
+  } finally {
+    await removed(target);
+  }
+});
+
 test('an act that changes neither the name nor the type is refused and writes nothing', async () => {
   const target = await signedEntity('Writer test same name');
   try {
