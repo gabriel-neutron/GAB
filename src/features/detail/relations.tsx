@@ -1,5 +1,5 @@
-// M6 writes an interval at both ends: the retrieval date, and the identity or ownership
-// interval. `relation.undrawable` is computed from the relation, never from the list position.
+// M6: an interval is written at both ends, and a closed interval says that it is closed.
+// `relation.undrawable` is computed from the relation, never from the list position.
 
 import type { ReactNode } from 'react';
 
