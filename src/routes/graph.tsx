@@ -10,9 +10,9 @@ import { loadLayout } from '@/shared/read/layout';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
 import { cn } from '@/shared/lib/utils';
 
-// The address is the one store of what is examined. Two carriers of one fact drift apart.
-// A write through the router re-renders this route and destroys the canvas, so
-// `features/graph/controller.ts` writes the address with `history.replaceState`.
+// Departure: the address is the one store of what is examined. A write through the router
+// re-renders this route and destroys the canvas, so the canvas controller writes the address
+// itself with `history.replaceState`.
 export interface GraphSearch {
   /** The entity that is examined. An empty string is the normal state of the graph. */
   readonly entity: string;
@@ -91,9 +91,9 @@ function GraphRoute() {
     [corpus, types, layout],
   );
 
-  // The row states a height. A flex row of automatic height grows to the tallest item, so
-  // `overflow-y-auto` on the sidebar gives no scroll and the window scrolls both panes together.
-  // `h-full` and not a calculation: `src/routes/__root.tsx` gives `<main>` the rest of the height.
+  // External constraint: a flex row of automatic height grows to the tallest item, so the
+  // sidebar gets no scroll and the window scrolls both panes together. The row takes `h-full`,
+  // because the shell gives `<main>` the rest of the height.
   return (
     <div className={cn('flex h-full overflow-hidden')}>
       <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
