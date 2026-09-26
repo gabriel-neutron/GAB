@@ -203,8 +203,8 @@ CREATE TABLE entities (
   label          text NOT NULL CHECK (btrim(label, E' \t\n\r\f\v') <> ''),
   geom           geometry(Geometry, 4326),   -- point, line and polygon share one column
   attrs          jsonb NOT NULL DEFAULT '{}'::jsonb,
-  -- S2 at row level. #86 is open on what this list asserts against the src of a value, and
-  -- this file asserts nothing about it.
+  -- S2 at row level: backs this row's typed columns (label, type, geom), not the value inside
+  -- attrs. A promotion that changes any of them replaces this list.
   sources        doc_id[] NOT NULL,
   -- INVARIANT 5. One proposal makes one row, and no row exists without one.
   promoted_from  uuid NOT NULL
@@ -247,9 +247,9 @@ CREATE TABLE relations (
   valid_from     date,
   valid_to       date,
   attrs          jsonb NOT NULL DEFAULT '{}'::jsonb,
-  -- #86 finding 2: six relations of the committed fixture carry an empty attrs, so their whole
-  -- claim sits in the type and the two ends, and no attribute check reaches it. This list is
-  -- then the only evidence such a claim can have.
+  -- S2 at row level: backs this row's typed columns (type, the two ends, valid_from/valid_to),
+  -- not the value inside attrs. Six relations of the committed fixture carry an empty attrs,
+  -- so this list is their only evidence.
   sources        doc_id[] NOT NULL,
   promoted_from  uuid NOT NULL
                  CONSTRAINT relations_promoted_from_key UNIQUE

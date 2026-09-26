@@ -364,8 +364,8 @@ export interface RelationDossier {
 }
 
 /**
- * The list of sources of a relation comes from S2: the entity and the relation each carry a
- * list. M8 is attribute level only: every attribute cites at least one document. */
+ * S2 at row level: the relation's list backs its type, its two ends and its dates, not one
+ * attribute. M8 is attribute level only: every attribute cites at least one document. */
 export function readRelation(read: Corpus, relationId: string): RelationDossier | null {
   const relation = read.relations.find((candidate) => candidate.id === relationId);
   if (relation === undefined) return null;

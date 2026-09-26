@@ -210,9 +210,17 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           <Pending proposals={dossier.pending} mark={mark} />
         </Band>
 
-        {/* M8: the entity itself names the documents it comes from, and no control hides
-            them. The mark is the same one the claims carry. */}
-        <Band name="Sources of this entity" count={dossier.entitySources.length}>
+        {/* S2 at row level: this list backs the name, the type and the map location (geom),
+            not one claim. "Position" already names the borrowed canvas position (see above),
+            so this text says "location" instead. */}
+        <Band
+          name="Sources of the name, the type and the map location"
+          count={dossier.entitySources.length}
+        >
+          <p className="pb-1 text-small/4 text-label">
+            These documents back the name, the type and the map location of this entity. A claim
+            below carries its own mark for the document that backs its value.
+          </p>
           {mark(dossier.entitySources)}
         </Band>
       </div>
