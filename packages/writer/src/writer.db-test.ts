@@ -217,48 +217,108 @@ test('the five gestures reach the evidentiary layer', async () => {
   }
 });
 
-test('an update re-cites the document the key already holds', async () => {
-  const target = await signedEntity('Writer test source rule');
+// The writer never composes a citation, so the key that already cites a document is written
+// through the same two doors, by hand, before the gesture under test runs.
+const citedEntity = async (label: string): Promise<string> => {
+  const target = await signedEntity(label);
+  const client = await pool.connect();
   try {
-    // The writer never composes a citation, so the key that already cites a document is written
-    // through the same two doors, by hand, before the gesture under test runs.
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const made = await client.query<Record<string, unknown>>(
-        `SELECT public.propose_change('update_attrs',
-           '{"attrs":{"coal_stock_t":{"v":41200,"src":["doc_8f2a41"]}}}'::jsonb,
-           ARRAY['doc_8f2a41']::text[], 'entity', $1::uuid) AS id`,
-        [target],
-      );
-      await client.query('COMMIT');
-      await client.query('BEGIN');
-      await client.query('SELECT public.promote_proposal($1::uuid, $2::text)', [
-        made.rows[0]?.['id'],
-        'a test',
-      ]);
-      await client.query('COMMIT');
-    } finally {
-      await client.query('ROLLBACK').catch(() => undefined);
-      client.release();
-    }
+    await client.query('BEGIN');
+    const made = await client.query<Record<string, unknown>>(
+      `SELECT public.propose_change('update_attrs',
+         '{"attrs":{"coal_stock_t":{"v":41200,"src":["doc_8f2a41"]}}}'::jsonb,
+         ARRAY['doc_8f2a41']::text[], 'entity', $1::uuid) AS id`,
+      [target],
+    );
+    await client.query('COMMIT');
+    await client.query('BEGIN');
+    await client.query('SELECT public.promote_proposal($1::uuid, $2::text)', [
+      made.rows[0]?.['id'],
+      'a test',
+    ]);
+    await client.query('COMMIT');
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    client.release();
+  }
+  return target;
+};
 
+// The writer keeps a refused act pending. Left in the ledger, it moves the pending count that
+// the corpus, contract and service tests read on the next run.
+const settled = async (target: string): Promise<void> => {
+  const waiting = await pool.query<{ id: string }>(
+    "SELECT id FROM public.proposals WHERE target_id = $1::uuid AND status = 'pending'",
+    [target],
+  );
+  for (const { id } of waiting.rows)
+    await one('SELECT public.reject_proposal($1::uuid, $2::text)', [id, 'a test']);
+};
+
+const HELD_CLAIM = { coal_stock_t: { v: 41200, src: ['doc_8f2a41'] } };
+
+const heldAttributes = async (target: string): Promise<unknown> =>
+  (await one('SELECT attrs FROM public.entities WHERE id = $1::uuid', [target]))['attrs'];
+
+test('a corrected value cites the operator alone, and the prior value keeps the old claim', async () => {
+  const target = await citedEntity('Writer test corrected value');
+  try {
     const [status, reply] = await post('update-attrs', {
       targetKind: 'entity',
       targetId: target,
       attrs: { coal_stock_t: { v: 43500 } },
     });
     expect(status).toBe(200);
-
-    const held = await one('SELECT attrs FROM public.entities WHERE id = $1::uuid', [target]);
-    expect(held['attrs']).toMatchObject({
-      coal_stock_t: { v: 43500, src: ['doc_8f2a41', 'manual'] },
+    expect(await heldAttributes(target)).toStrictEqual({
+      coal_stock_t: { v: 43500, src: ['manual'] },
     });
+    expect((await decided(reply.proposalId))['prior_value']).toStrictEqual(HELD_CLAIM);
+  } finally {
+    await settled(target);
+    await removed(target);
+  }
+});
 
-    const act = await decided(reply.proposalId);
-    expect(act['prior_value']).toStrictEqual({
-      coal_stock_t: { v: 41200, src: ['doc_8f2a41'] },
+test('an update that keeps the value re-cites the document the key already holds', async () => {
+  const target = await citedEntity('Writer test kept value');
+  try {
+    const [status] = await post('update-attrs', {
+      targetKind: 'entity',
+      targetId: target,
+      attrs: { coal_stock_t: { v: 41200 } },
     });
+    expect(status).toBe(200);
+    expect(await heldAttributes(target)).toStrictEqual({
+      coal_stock_t: { v: 41200, src: ['doc_8f2a41', 'manual'] },
+    });
+  } finally {
+    await settled(target);
+    await removed(target);
+  }
+});
+
+test('a kept value that drops a document reaches the caller as a sentence of the writer', async () => {
+  const target = await citedEntity('Writer test dropped document');
+  try {
+    const made = await one(
+      `SELECT public.propose_change('update_attrs',
+         '{"attrs":{"coal_stock_t":{"v":41200,"src":["doc_3c1104"]}}}'::jsonb,
+         ARRAY['doc_3c1104']::text[], 'entity', $1::uuid) AS id`,
+      [target],
+    );
+    const raised = await one('SELECT public.promote_proposal($1::uuid, $2::text)', [
+      made['id'],
+      'a test',
+    ]).then(
+      () => null,
+      (cause: unknown) => cause,
+    );
+    await one('SELECT public.reject_proposal($1::uuid, $2::text)', [made['id'], 'a test']);
+    expect(failureFrom(raised)).toStrictEqual({
+      raised: true,
+      refusal: 'the act keeps the value, so it must keep every document that value already cites',
+    });
+    expect(await heldAttributes(target)).toStrictEqual(HELD_CLAIM);
   } finally {
     await removed(target);
   }

@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 const scalar = z.union([z.string(), z.number(), z.boolean()]);
 
-// `v` alone, and the object is strict. The sources of an edit are attached by the writer from
-// what the row already cites, so a caller that sends `src` is refused and never obeyed.
+// `v` alone, and the object is strict. The writer attaches the sources of an edit, so a caller
+// that sends `src` is refused and never obeyed.
 const edited = z.strictObject({ v: z.union([scalar, z.array(scalar)]) });
 
 export type AttributeEdit = Record<string, z.infer<typeof edited>>;
