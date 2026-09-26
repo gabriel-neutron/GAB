@@ -442,8 +442,8 @@ END $$;
 -- transaction, so a second worker walks past it instead of waiting behind it. Ordinary FOR
 -- UPDATE would serialise every worker on the oldest row and give one queue with one throat.
 --
--- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The worker reads the count and closes a job that
--- fails on its last attempt, so this door refuses no claim on a count.
+-- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The caller that ends a failed job reads the count,
+-- so this door refuses no claim on a count.
 --
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
 -- caller supplies proves nothing about who holds the row. The earlier signature is dropped
@@ -512,7 +512,7 @@ END $$;
 
 
 -- THE END OF A JOB THAT FAILED. Without it a job that fails on each claim returns to the queue
--- for ever, and the operator sees no reason. The worker calls it on the last attempt only.
+-- for ever, and the operator sees no reason.
 --
 -- ONLY A RUNNING ROW ENDS, and the reason is required: a `failed` row with no reason gives the
 -- operator nothing to act on. No failure kind is written, because the three kinds name the fault

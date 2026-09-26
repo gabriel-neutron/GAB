@@ -247,8 +247,8 @@ export default defineConfig({
       },
 
       {
-        // The layout of the graph, against the entities and relations it is given directly. It
-        // opens no socket and reads no row, so it runs in Node beside the other pure packages.
+        // The layout of the graph, against the entities and relations it is given directly, and
+        // the runs the root scripts start. It opens no socket and reads no row, so it runs in Node.
         // The dot in `.db-test.ts` keeps this apart from the worker's live-queue project below.
         test: {
           name: 'layout',
