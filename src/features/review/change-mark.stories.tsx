@@ -33,13 +33,13 @@ export const ADeletionDoesNotCarryTheWeightOfAModification: Story = {
       <ChangeMark {...args} />
     </div>
   ),
-  play: async ({ canvas, canvasElement }) => {
-    const edit = canvasElement.querySelector('[data-kind="edit"]');
-    const removed = canvasElement.querySelector('[data-kind="delete"]');
-    await expect(edit).toHaveTextContent('Modification');
-    await expect(removed).toHaveTextContent('Deletion');
-    await expect(edit?.getAttribute('data-kind')).not.toEqual(removed?.getAttribute('data-kind'));
-    await expect(canvas.getByText('Deletion')).toBeInTheDocument();
+  play: async ({ canvas }) => {
+    const edit = canvas.getByText('Modification');
+    const removed = canvas.getByText('Deletion');
+    await expect(getComputedStyle(removed).color).not.toEqual(getComputedStyle(edit).color);
+    const glyphOf = (mark: HTMLElement) => mark.querySelector('svg')?.getAttribute('class');
+    await expect(glyphOf(removed)).toBeTruthy();
+    await expect(glyphOf(removed)).not.toEqual(glyphOf(edit));
   },
 };
 
