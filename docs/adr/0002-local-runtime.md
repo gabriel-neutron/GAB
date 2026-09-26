@@ -51,6 +51,11 @@ Never `latest`. An upstream change must arrive through a commit, never through a
 `gab-db-data` and `gab-minio-data`. Data survives `docker compose down`, and is destroyed by
 `docker compose down -v` and by nothing else.
 
+**The cluster holds two databases: `gabriel`, the record, and `gabriel_test`, for the tests.**
+Amended 26 September 2026. The live tests wrote invented rows into the record. `pnpm db:reset` now
+drops and builds `gabriel_test` only, and `postgrest-test` serves it on `127.0.0.1:3001`. T2 still
+holds: one datastore. A test run refuses any database but `gabriel_test`.
+
 ### 7. Secrets
 
 `infra/.env.example` is committed and names every variable. `infra/.env` holds the values and is
