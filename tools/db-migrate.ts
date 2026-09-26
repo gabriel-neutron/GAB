@@ -10,7 +10,7 @@ import { type MigrationBuilder, runner } from 'node-pg-migrate';
 import { Client } from 'pg';
 import { z } from 'zod';
 
-import { connectionString, secret, waitForDatabase } from './db-runtime.ts';
+import { connectionString, loginPasswords, waitForDatabase } from './db-runtime.ts';
 import { chosenDatabase, type DatabaseName } from './test-database.ts';
 
 const MIGRATIONS = join(import.meta.dirname, '..', 'db', 'migrations');
@@ -44,16 +44,10 @@ const SQL_LOADER = [
   },
 ];
 
-const LOGIN_ROLES = [
-  { role: 'gabriel_app', variable: 'GABRIEL_APP_PASSWORD' },
-  { role: 'gabriel_agent', variable: 'GABRIEL_AGENT_PASSWORD' },
-  { role: 'gabriel_read', variable: 'GABRIEL_READ_PASSWORD' },
-] as const;
-
 // Every secret is read before the first ALTER ROLE. An absent variable stops the command with
 // no role changed, and not after two of the three roles hold a new password.
 const setLoginPasswords = async (client: Client): Promise<void> => {
-  const wanted = LOGIN_ROLES.map(({ role, variable }) => ({ role, password: secret(variable) }));
+  const wanted = loginPasswords();
 
   for (const { role, password } of wanted) {
     // ALTER ROLE takes no bind parameter, so the value is escaped into the statement text.

@@ -5,7 +5,7 @@ import { Client } from 'pg';
 
 import { connectionString } from './db-runtime.ts';
 
-type Identity = 'superuser' | 'app' | 'agent' | 'read';
+type Identity = Parameters<typeof connectionString>[0];
 
 /** One statement on the open connection of a probe. */
 export type Ask = (text: string, values?: readonly unknown[]) => Promise<readonly unknown[]>;
