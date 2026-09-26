@@ -548,6 +548,13 @@ RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  -- Departure: a missing set is a caller fault and never a run. '[]' is the run that places none.
+  IF p_layout IS NULL OR jsonb_typeof(p_layout) <> 'array' THEN
+    RAISE EXCEPTION 'a layout run sends an array of positions, and this one sent %',
+      coalesce(jsonb_typeof(p_layout), 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
   DELETE FROM public.entity_layout;
 
   INSERT INTO public.entity_layout (entity_id, x, y)
