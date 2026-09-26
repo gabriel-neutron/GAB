@@ -55,6 +55,17 @@ export const APromotionIsAskedBeforeItIsWritten: Story = {
   },
 };
 
+export const ARejectionIsAskedAndThenSent: Story = {
+  args: { onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Reject/ }));
+    await expect(args.onDecide).not.toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject it' }));
+    await expect(args.onDecide).toHaveBeenCalledOnce();
+    await expect(args.onDecide).toHaveBeenCalledWith('rejected', '');
+  },
+};
+
 /** The press that opens the question must not answer it. The confirm control stands where
  * `Reject` stood, so a kept node would put `Reject it` under the hand of that same press. */
 export const OnePressOnRejectAsksAndASecondSendsNothing: Story = {
@@ -165,6 +176,17 @@ export const AHoldDrawsItsReasonAndIsTakenBack: Story = {
     await expect(canvas.getByText('Held on this pass')).toBeInTheDocument();
     await expect(canvas.getByText('The second reading is not in yet')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
+  },
+};
+
+export const UndoTakesBackAHoldOnce: Story = {
+  args: {
+    decision: { verdict: 'deferred', reason: 'The second reading is not in yet' },
+    onUndo: fn(),
+  },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Undo/ }));
+    await expect(args.onUndo).toHaveBeenCalledOnce();
   },
 };
 
