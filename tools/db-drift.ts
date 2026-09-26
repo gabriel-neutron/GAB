@@ -1,12 +1,13 @@
-// The re-runnable SQL is applied before anything is generated, so the measure is the SQL this
-// repository holds and never the state a container happens to carry. Without that step an edited
-// view that nobody applied regenerates to the same bytes, and the check reports no drift.
+// Departure: the check applies the re-runnable SQL to the database GABRIEL_DATABASE names, so
+// the measure is the SQL this repository holds. Without that step an edited view that nobody
+// applied regenerates to the same bytes, and the check reports no drift.
 
-// An ordered file the ledger does not hold stops the check instead. Running one can destroy
-// data, and a check writes no table: it says which file to run, and the person runs it.
+// Departure: that step writes rows, because the seed file adds rows and updates entity types. An
+// ordered file the ledger does not hold stops the check instead: running one can destroy data, so
+// the check says which file to run, and the person runs it.
 
-// The exit code of the generator is not the measure: it stops at random on this machine, three
-// runs in six, and the output it wrote was correct and identical every time.
+// Departure: the exit code of the generator is not the measure. It stops at random on this
+// machine, three runs in six, and the output it wrote was correct and identical every time.
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
