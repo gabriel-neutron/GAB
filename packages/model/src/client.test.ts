@@ -8,6 +8,7 @@ const AGENT: AgentModel = {
   model: 'a-family/a-model',
   firstWaitMs: 1,
   waitGrowth: 2,
+  maxWaitMs: 10_000,
   timeoutMs: 1000,
   maxAnswerTokens: 500,
 };
@@ -227,9 +228,42 @@ describe('the network fails', () => {
       .fn<Send>()
       .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': '3600' }))
       .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
-    const got = ask(send, 1000, { ...PATIENT, maxWaitMs: 50 }).run();
+    const got = ask(send, 1000, { ...PATIENT, maxWaitMs: 5 }).run();
 
-    await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(4);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(2);
+    await expect(got).resolves.toMatchObject({ ok: true });
+  });
+
+  it('waits until the date the service names', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': 'Thu, 01 Jan 2026 00:00:02 GMT' }))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const got = ask(send, 1000, PATIENT).run();
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(2);
+    await expect(got).resolves.toMatchObject({ ok: true });
+  });
+
+  it('takes the wait that grows when the service names a negative wait', async () => {
+    vi.useFakeTimers();
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer('{}', 429, { 'retry-after': '-5' }))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    const got = ask(send, 1000, PATIENT).run();
+
+    await vi.advanceTimersByTimeAsync(99);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
     expect(send).toHaveBeenCalledTimes(2);
     await expect(got).resolves.toMatchObject({ ok: true });
   });
@@ -399,6 +433,18 @@ describe('the settings and the key', () => {
 
   it('refuses a model name that is empty', () => {
     expect(() => openModel({ ...AGENT, model: ' ' }, always(said('{}')), ENV)).toThrow();
+  });
+
+  it('refuses settings that give no bound on the wait', () => {
+    const unbounded = Object.fromEntries(
+      Object.entries(AGENT).filter(([name]) => name !== 'maxWaitMs'),
+    );
+    expect(() => openModel(unbounded, always(said('{}')), ENV)).toThrow(/maxWaitMs/u);
+  });
+
+  it('refuses a bound longer than the longest timer of Node', () => {
+    const agent = { ...AGENT, maxWaitMs: 2 ** 31 };
+    expect(() => openModel(agent, always(said('{}')), ENV)).toThrow(/maxWaitMs/u);
   });
 
   it('reads the key once, and never again during the job', async () => {

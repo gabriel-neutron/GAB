@@ -29,12 +29,12 @@ const SECOND_MS = 1000;
 const secrets = z.object({ OPENROUTER_API_KEY: z.string().trim().min(1) });
 
 // Every value here is calibrated on real traffic, so no code constant gives one. The bound on
-// the wait stays absent until the operator measures one.
+// the wait is required: the service can name a wait longer than the claim lease of the job.
 const settings = z.object({
   model: z.string().trim().min(1),
   firstWaitMs: z.number().int().positive(),
   waitGrowth: z.number().min(1),
-  maxWaitMs: z.number().int().positive().optional(),
+  maxWaitMs: z.number().int().positive().max(LONGEST_WAIT_MS),
   timeoutMs: z.number().int().positive(),
   maxAnswerTokens: z.number().int().positive(),
 });
@@ -230,7 +230,7 @@ const oneStep = async (line: Line, messages: readonly Message[], run: Run): Prom
 // caller gives the growth and the bound, and the client holds neither of its own.
 const waitOf = (agent: AgentModel, afterMs: number | undefined, tried: number): number => {
   const asked = afterMs ?? agent.firstWaitMs * agent.waitGrowth ** tried;
-  return Math.min(asked, agent.maxWaitMs ?? LONGEST_WAIT_MS, LONGEST_WAIT_MS);
+  return Math.min(asked, agent.maxWaitMs);
 };
 
 // One round trip, and the text the model said. The wait grows after each fault, and the service
@@ -306,8 +306,8 @@ const attempt = async <T>(
   return attempt(line, question, run, [...messages, said, ...feedback(issues)], left - 1);
 };
 
-/** The one way to reach the model. It throws when the key is empty or absent. */
-export const openModel = (given: AgentModel, send: Send = fetch, env = process.env): Model => {
+/** The one way to reach the model. It throws when the key or a setting is bad or absent. */
+export const openModel = (given: unknown, send: Send = fetch, env = process.env): Model => {
   const agent = settings.parse(given);
   const key = keyOf(env);
   const line: Line = { send, key, agent };
