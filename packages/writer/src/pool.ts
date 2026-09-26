@@ -1,21 +1,22 @@
 import { Pool } from 'pg';
 import { z } from 'zod';
 
-// The host and the port are fixed by the compose file of the local stack.
+// External constraint: the host and the port are fixed by the compose file of the local stack.
 const HOST = '127.0.0.1';
 const PORT = 5432;
 
-// `gabriel_app` holds EXECUTE on the four doors and no INSERT, UPDATE or DELETE on any table.
+// External constraint: `gabriel_app` writes only through the doors it may execute. It reads the
+// base tables that its checks need, and it holds no INSERT, UPDATE or DELETE on any table.
 const ROLE = 'gabriel_app';
 
-// The role already stops a statement at 30 seconds, and the pool holds the same deadline. A
-// promotion takes a row lock, so a blocked request must give its client back to the pool.
+// Origin of the number: the role already stops a statement at 30 seconds, and the pool holds the
+// same deadline. A promotion takes a row lock, so a blocked request must give its client back.
 const STATEMENT_MS = 30_000;
 const CONNECT_MS = 5_000;
 const IDLE_MS = 10_000;
 
-// The cluster holds the published record and the database the tests write. An absent name is
-// the record, and a test run names the other one.
+// Departure: the cluster holds the published record and the database the tests write. An absent
+// name is the record, and a test run names the other one.
 const secrets = z.object({
   GABRIEL_APP_PASSWORD: z.string().min(1),
   GABRIEL_DATABASE: z.enum(['gabriel', 'gabriel_test']).default('gabriel'),
@@ -41,8 +42,8 @@ export const openPool = (): Pool => {
     statement_timeout: STATEMENT_MS,
   });
 
-  // `pg` raises this event on the pool for a client that fails while it waits, and an event
-  // that nobody hears throws. The writer must stay up when PostgreSQL restarts.
+  // External constraint: `pg` raises this event on the pool for a client that fails while it
+  // waits, and an event that nobody hears throws. The writer must stay up when PostgreSQL restarts.
   pool.on('error', (cause) => {
     console.error('a pooled client failed while it waited', cause);
   });
