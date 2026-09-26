@@ -13,6 +13,8 @@ there.
 | `agents/triage-labels.md` | You apply a triage label. |
 | `agents/commit.md` | You write a commit message. |
 | `authoring.md` | You write a document, you propose one, or you must decide where a sentence belongs. |
+| `review/01-database.md`, `review/02-contracts.md`, `review/03-writer.md`, `review/04-worker.md`, `review/05-frontend-detail.md`, `review/06-frontend-review-routes-shared.md`, `review/07-tests-tooling.md`, `review/08-cross-cutting.md` | You work on a finding of the pre-launch deep review (#168). One file for each layer. |
+| `review/fix-plan.md` | You fix a finding of the deep review. It gives the fix units and the order to do them in. |
 
 **The surface documents are gone.** `map-surface.md`, `graph-surface.md`, `detail-surface.md` and
 `review-surface.md` were build orders taken from accepted prototypes, and the operator removed them
