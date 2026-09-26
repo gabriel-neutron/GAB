@@ -36,9 +36,10 @@ const ROUTING_PAINT: Readonly<Record<Routing, string>> = {
 export function ChangeCard({ change, current }: ChangeCardProps) {
   const Routed = ROUTING_GLYPH[change.routing];
   const low = change.routing === 'low-confidence' || change.routing === 'both';
-  // A relation, a merge, and a deletion whose row is absent name no value. Only then do the
-  // documents of the act stand on the card: a row that is drawn already carries its own.
-  const actSources = change.rows.length === 0 && change.sources.length > 0;
+  // A row of an update carries the documents of the act. A row of a deletion carries the documents
+  // of the lost value, so a deletion shows the documents of the act as well as its rows.
+  const actSources =
+    (change.rows.length === 0 || change.kind === 'delete') && change.sources.length > 0;
 
   return (
     <article
@@ -85,8 +86,6 @@ export function ChangeCard({ change, current }: ChangeCardProps) {
 
       {change.headline === '' ? null : <p className="text-xs">{change.headline}</p>}
 
-      {/* One source display, and never two. A value carries its own documents; the act carries
-          them only where it asks for no value. */}
       {actSources ? (
         <div className="flex flex-wrap items-center gap-1">
           <span className="sr-only">The documents this act stands on</span>
