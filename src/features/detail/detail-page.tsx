@@ -12,6 +12,7 @@ import type { TypedValue } from './claims';
 import { DeleteControl } from './delete-control';
 import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } from './draft';
 import type { Dossier, SourceRef } from './dossier';
+import { EditSwitch, type DetailView } from './edit-switch';
 import { SourceMark } from './mark';
 import { NewClaim } from './new-claim';
 import { NewRelation } from './new-relation';
@@ -64,9 +65,14 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   const [structure, setStructure] = useState<StructureState>(NO_ACT);
   const busy = structure.step === 'working' || save.step === 'saving';
 
+  // A draft outlives a move to the reading view, which draws the stored record. A switch that
+  // threw the draft away would lose the one thing the analyst typed.
+  const [view, setView] = useState<DetailView>('reading');
+  const writing = view === 'writing';
+
   const said = structureSaid(structure);
 
-  const cells = recordCells(dossier.rows, drafts);
+  const cells = recordCells(dossier.rows, writing ? drafts : null);
   const edit = pendingEdit(dossier.rows, drafts);
 
   // A keystroke clears the sentence of the last act, and never the act in flight: the step in
@@ -163,25 +169,37 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 </a>
               ) : null}
             </nav>
-            <DeleteControl
-              name={dossier.label}
-              busy={busy}
-              onDelete={() => {
-                onStructure({ op: 'delete_entity', targetId: dossier.entityId });
-              }}
-            />
+            <EditSwitch view={view} busy={busy} onSwitch={setView} />
+            {writing ? (
+              <DeleteControl
+                name={dossier.label}
+                busy={busy}
+                onDelete={() => {
+                  onStructure({ op: 'delete_entity', targetId: dossier.entityId });
+                }}
+              />
+            ) : null}
           </div>
         </div>
 
-        <SaidLine said={said} label={STRUCTURE_SAYS} />
-
-        <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
+        {writing ? (
+          <>
+            <SaidLine said={said} label={STRUCTURE_SAYS} />
+            <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
+          </>
+        ) : null}
 
         {/* The control that mints a key is a control of the record, so it stands inside that
             part and never between two parts. */}
         <Band name="Record" count={dossier.claimCount}>
-          <EntityRecord mode="writing" cells={cells} mark={mark} onEdit={onEdit} />
-          <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} />
+          {/* EntityRecord stays one element at one position across a mode switch, so React
+              re-renders it in place instead of tearing down and remounting every field. */}
+          <EntityRecord
+            {...(writing
+              ? { mode: 'writing', cells, mark, onEdit }
+              : { mode: 'reading', cells, mark })}
+          />
+          {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
         </Band>
 
         {/* The form that makes a relation is a control of the relations, so it stands inside
@@ -190,20 +208,26 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           <Relations
             relations={dossier.relations}
             mark={mark}
-            deleting={{
-              offered: true,
-              busy,
-              onDelete: (relationId) => {
-                onStructure({ op: 'delete_relation', targetId: relationId });
-              },
-            }}
+            deleting={
+              writing
+                ? {
+                    offered: true,
+                    busy,
+                    onDelete: (relationId) => {
+                      onStructure({ op: 'delete_relation', targetId: relationId });
+                    },
+                  }
+                : { offered: false }
+            }
           />
-          <NewRelation
-            srcId={dossier.entityId}
-            choices={dossier.linkChoices}
-            busy={busy}
-            onCreate={onStructure}
-          />
+          {writing ? (
+            <NewRelation
+              srcId={dossier.entityId}
+              choices={dossier.linkChoices}
+              busy={busy}
+              onCreate={onStructure}
+            />
+          ) : null}
         </Band>
 
         <Band name="Pending proposals" count={dossier.pending.length}>
