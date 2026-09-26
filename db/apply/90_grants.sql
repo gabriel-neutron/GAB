@@ -22,10 +22,9 @@ REVOKE ALL ON ALL TABLES    IN SCHEMA public
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
   FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_read;
 
--- There is NO blanket REVOKE ALL ON ALL FUNCTIONS here. PostGIS installs into public: run as
--- the owner the statement protects nothing it does not own, and run as the superuser it strips
--- every PostGIS function from PUBLIC and kills the map read. The ALTER DEFAULT PRIVILEGES of
--- 0001 covers every function gabriel_owner creates, including the unwritten ones.
+-- External constraint: no blanket function revoke runs here. PostGIS is in public, and as the
+-- superuser the revoke stops the map read. A default privilege of gabriel_owner, set for every
+-- schema, takes EXECUTE from PUBLIC on each function that gabriel_owner creates.
 
 -- THE ENUMERATION, AND THE EXACT SCOPE OF THE CLAIM. `REVOKE ALL ON ALL TABLES` is a snapshot
 -- and reaches no later table, so the sentence "no role writes a table" is an enumeration of the
@@ -163,7 +162,7 @@ RESET ROLE;
 --                     ELSE pg_get_userbyid(a.grantee) END
 --        FROM pg_proc p
 --        JOIN pg_namespace n ON n.oid = p.pronamespace
---        CROSS JOIN LATERAL aclexplode(p.proacl) AS a
+--        CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) AS a
 --       WHERE n.nspname IN ('public','api') AND p.prosecdef
 --         AND a.privilege_type = 'EXECUTE'
 --         AND (a.grantee = 0 OR pg_get_userbyid(a.grantee) <> 'gabriel_owner');
