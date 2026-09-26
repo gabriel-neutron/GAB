@@ -17,7 +17,7 @@ export interface ReviewSearch {
 }
 
 /** The confidence threshold is an operational parameter, and never a constant of the source. No
- * path carries one to the browser today, so the screen holds none and says so on each act. */
+ * path carries one to the browser today, so an act with no disagreement states no reason. */
 const THRESHOLD = null;
 
 const IDLE: DecisionState = { step: 'idle' };
