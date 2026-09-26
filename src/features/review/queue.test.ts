@@ -89,6 +89,58 @@ describe('why an act stands in the queue, with a threshold in force', () => {
   });
 });
 
+const PORT = 'cc000001-0000-4000-8000-000000000001';
+
+const portBackedBy = (sources: readonly string[]): Corpus => ({
+  ...corpus,
+  entities: [
+    {
+      id: PORT,
+      type: 'port',
+      proposedType: null,
+      label: 'Old name',
+      attrs: {},
+      sources,
+      geom: { lon: 10, lat: 50 },
+      promotedFrom: 'cc000001-0000-4000-8000-0000000000ff',
+    },
+  ],
+  proposals: [],
+});
+
+const renameCiting = (src: readonly string[]): Proposal => ({
+  ...actOf('cc000001-0000-4000-8000-000000000002', 0.9, false),
+  op: 'update_entity',
+  targetId: PORT,
+  payload: { kind: 'columns', label: 'New name', type: null },
+  src,
+});
+
+function renameIn(read: Corpus, act: Proposal): Change {
+  const [found] = readQueue({ ...read, proposals: [act] }, THRESHOLD).flatMap((s) => s.changes);
+  if (found === undefined) throw new Error(`the queue holds no act ${act.id}`);
+  return found;
+}
+
+describe('the sources of the name, the type and the location on a name change', () => {
+  it('shows that the act replaces the list that also backs the location', () => {
+    const change = renameIn(portBackedBy(['doc_geo']), renameCiting(['doc_new']));
+    expect(change.rows.map((row) => row.key)).toEqual(['Name']);
+    expect(change.rowSources?.words).toMatch(/name, the type and the map location/);
+    expect(change.rowSources?.before.map((doc) => doc.id)).toEqual(['doc_geo']);
+    expect(change.rowSources?.after.map((doc) => doc.id)).toEqual(['doc_new']);
+  });
+
+  it('shows no line when the act cites the list that stands', () => {
+    const read = portBackedBy(['doc_geo', 'doc_new']);
+    expect(renameIn(read, renameCiting(['doc_new', 'doc_geo'])).rowSources).toBeNull();
+  });
+
+  it('shows no line on an act that names attributes', () => {
+    expect(renameIn(portBackedBy(['doc_geo']), actOf(PORT, 0.9, false)).rowSources).toBeNull();
+  });
+});
+
 describe('why an act stands in the queue, with no threshold in force', () => {
   it('names the disagreement, and states no reason for an act the agents agreed on', () => {
     expect(changeIn(null, HIGH_DISSENT).routing).toBe('dissent');
