@@ -1,7 +1,7 @@
 // `whenStyleReady` inside the adapter absorbs the window while the style loads, so a control of
 // this file can be clicked at any moment, and never before the style exists.
 
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
@@ -38,6 +38,14 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   // opens the group of its type, and the analyst may fold that group again until the next one.
   const [openTypes, setOpenTypes] = useState<readonly string[]>([]);
 
+  // The listener reads the corpus of the moment through this ref, and never through its closure.
+  // A new corpus must not re-run the effect below: the page nulls the handle in the same flush,
+  // so the second setup would find no map, and the rail would stay deaf for the rest of its life.
+  const corpus = useRef(projection);
+  useEffect(() => {
+    corpus.current = projection;
+  }, [projection]);
+
   // The effect returns the unsubscribe of the handle, so a rail that leaves the screen drives no
   // dead map. The subscription seeds itself, so no state above needs a second read.
   useEffect(() => {
@@ -45,11 +53,11 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     if (live === null) return;
     return live.onSelect((id) => {
       setSelected(id);
-      const type = id === null ? null : (projection.byId.get(id)?.type ?? null);
+      const type = id === null ? null : (corpus.current.byId.get(id)?.type ?? null);
       if (type === null) return;
       setOpenTypes((held) => (held.includes(type) ? held : [...held, type]));
     });
-  }, [map, projection]);
+  }, [map]);
 
   // The adapter is the one writer: it stores the types that are switched off, drops a selection
   // that the switch would leave undrawn, and answers `isTypeVisible` after the write.
@@ -88,8 +96,10 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         for (const { facet } of legend.facets) switchType(facet.type, true);
         return;
       case 'open-type':
-        setOpenTypes((held) =>
-          next.open ? [...held, next.type] : held.filter((type) => type !== next.type),
+        // The updater reads the list of the moment: a selection made on the map may still be
+        // queued when this click lands, and a read of the render closure would drop it.
+        setOpenTypes((types) =>
+          next.open ? [...types, next.type] : types.filter((type) => type !== next.type),
         );
         return;
     }
