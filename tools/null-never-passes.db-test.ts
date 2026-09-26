@@ -184,11 +184,19 @@ test('an act that carries a geometry object stands', async () => {
 const GOOD_ATTRS = `{"last_port_call":{"v":"Kotka","src":["${DOCUMENT}"]}}`;
 const NO_SRC_ATTRS = `{"last_port_call":{"v":"Kotka"}}`;
 
+// Departure: the act is never promoted, so the ends it names need not exist.
+const END = '00000000-0000-4000-8000-00000000e0d0';
+
+const WITNESS = {
+  create_entity: ENTITY,
+  create_relation: `{"type":"berthed_at","src_id":"${END}","dst_id":"${END}"}`,
+} as const;
+
 /** One pending proposal, signed as the operator, whose id a promoted row may name. */
-const oneProposal = async (ask: Ask, op: string): Promise<string> => {
+const oneProposal = async (ask: Ask, op: keyof typeof WITNESS): Promise<string> => {
   await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
   const [row] = made.parse(
-    await ask(`SELECT public.propose_change('${op}', '${ENTITY}'::jsonb, ${CITED}) AS id`),
+    await ask(`SELECT public.propose_change('${op}', '${WITNESS[op]}'::jsonb, ${CITED}) AS id`),
   );
   await ask('RESET SESSION AUTHORIZATION');
   if (row === undefined) throw new Error('the proposal was not written');

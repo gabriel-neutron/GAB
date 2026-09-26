@@ -34,11 +34,19 @@ const gesture = <T>(work: (ask: Ask) => Promise<T>) =>
     }
   });
 
-const PROPOSE = `SELECT public.propose_change($1, '{}'::jsonb, ARRAY['${DOCUMENT}']::text[]) AS id`;
+const PROPOSE = `SELECT public.propose_change($1, $2::jsonb, ARRAY['${DOCUMENT}']::text[]) AS id`;
 
-const oneProposal = async (ask: Ask, op: string): Promise<string> => {
+// Departure: the act is never promoted, so the ends it names need not exist.
+const END = '00000000-0000-4000-8000-00000000e0d0';
+
+const WITNESS = {
+  create_entity: `{"type":"${TYPE}","label":"A walk test"}`,
+  create_relation: `{"type":"berthed_at","src_id":"${END}","dst_id":"${END}"}`,
+} as const;
+
+const oneProposal = async (ask: Ask, op: keyof typeof WITNESS): Promise<string> => {
   await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-  const [row] = made.parse(await ask(PROPOSE, [op]));
+  const [row] = made.parse(await ask(PROPOSE, [op, WITNESS[op]]));
   await ask('RESET SESSION AUTHORIZATION');
   if (row === undefined) throw new Error('the proposal was not written');
   return row.id;
