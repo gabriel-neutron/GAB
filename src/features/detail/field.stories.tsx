@@ -206,6 +206,34 @@ export const ATypedValueReachesTheHandler: Story = {
   },
 };
 
+const TWO_LINES = 'Line one\nLine two';
+
+export const ANoteKeepsItsLineBreaks: Story = {
+  args: WRITING,
+  render: () => (
+    <div>
+      <OneField
+        label="survey_note"
+        start={{ control: 'note', text: TWO_LINES }}
+        onTyped={onTyped}
+      />
+      <Field mode="reading" label="Stored note" value={{ control: 'note', text: TWO_LINES }} />
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    onTyped.mockClear();
+    const box = canvas.getByLabelText('survey_note');
+    await userEvent.type(box, '!');
+
+    await expect(onTyped).toHaveBeenLastCalledWith(`${TWO_LINES}!`);
+    await expect(box).toHaveValue(`${TWO_LINES}!`);
+
+    const stored = canvas.getByLabelText('Stored note');
+    await expect(stored).toHaveValue(TWO_LINES);
+    await expectUnfaded(stored);
+  },
+};
+
 export const ANumberRefusesALocaleComma: Story = {
   args: WRITING,
   render: () => (
