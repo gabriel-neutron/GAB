@@ -4,7 +4,7 @@
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import { calm, interrupt, type Said } from '@/shared/said';
-import { writeAttributes } from '@/shared/write/attributes';
+import { writeElement } from '@/shared/write/elements';
 
 import type { PendingEdit } from './draft';
 
@@ -53,7 +53,12 @@ export function saveSaid(state: SaveState, edit: PendingEdit): Said {
 
 /** Send one act, and answer with the state the panel stands in. It raises nothing. */
 export async function saveClaims(entityId: string, attrs: AttributeEdit): Promise<SaveState> {
-  const outcome = await writeAttributes({ targetKind: 'entity', targetId: entityId, attrs });
+  const outcome = await writeElement({
+    op: 'update_attrs',
+    targetKind: 'entity',
+    targetId: entityId,
+    attrs,
+  });
   if (outcome.state === 'signed') return { step: 'signed', proposalId: outcome.proposalId };
   if (outcome.state === 'undecided')
     return { step: 'undecided', refusal: outcome.refusal, proposalId: outcome.proposalId };

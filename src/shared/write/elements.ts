@@ -1,7 +1,9 @@
+import type { WriteRequest } from '@gab/proposal/request';
+
 import { sendAct, type WriteOutcome } from './door';
 
-/** Each end of a new relation is an entity: this screen writes no relation on a relation. A
- * `null` name or type is a column the act leaves as it stands, and one of the two is set. */
+/** Departure: each end of a new relation is an entity, so no relation is written on a relation.
+ * A `null` name or type is a column the act leaves as it stands, and one of the two is set. */
 export type ElementAct =
   | { readonly op: 'create_entity'; readonly type: string; readonly label: string }
   | {
@@ -12,6 +14,7 @@ export type ElementAct =
       readonly validFrom: string | null;
       readonly validTo: string | null;
     }
+  | Readonly<Extract<WriteRequest, { op: 'update_attrs' }>>
   | ({ readonly op: 'update_entity'; readonly targetId: string } & (
       | { readonly label: string; readonly type: string | null }
       | { readonly label: null; readonly type: string }
@@ -19,8 +22,9 @@ export type ElementAct =
   | { readonly op: 'delete_entity'; readonly targetId: string }
   | { readonly op: 'delete_relation'; readonly targetId: string };
 
-// An absent end of an interval, or a column the act leaves, is a key the body never carries: the
-// request refuses a stated null, and `JSON.stringify` drops a key whose value is undefined.
+// External constraint: the request refuses a stated null, so an absent end of an interval, or a
+// column the act leaves, is a key the body never carries. `JSON.stringify` drops a key whose
+// value is undefined.
 const bodyOf = (act: ElementAct): Readonly<Record<string, unknown>> => {
   switch (act.op) {
     case 'create_entity':
@@ -33,6 +37,8 @@ const bodyOf = (act: ElementAct): Readonly<Record<string, unknown>> => {
         validFrom: act.validFrom ?? undefined,
         validTo: act.validTo ?? undefined,
       };
+    case 'update_attrs':
+      return { targetKind: act.targetKind, targetId: act.targetId, attrs: act.attrs };
     case 'update_entity':
       return {
         targetId: act.targetId,
