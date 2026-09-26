@@ -69,10 +69,7 @@ export function ThemeProvider({
   const value: ThemeProviderState = {
     theme,
     setTheme: (next: Theme) => {
-      // The record is read before it is written. It holds one field today, and a second writer
-      // of a second field must not lose it to a change of theme.
-      const current = readWorkspace('shell', isShellWorkspace, { theme: next });
-      writeWorkspace('shell', { ...current, theme: next });
+      writeWorkspace('shell', { theme: next } satisfies ShellWorkspace);
       setTheme(next);
     },
   };
