@@ -1,8 +1,9 @@
 import { calm, interrupt, type Said } from '@/shared/said';
 import { writeElement, type ElementAct } from '@/shared/write/elements';
 
-/** Making an entity has no entity to hang on, so it is absent from this page. */
-export type StructureAct = Exclude<ElementAct, { op: 'create_entity' }>;
+/** Departure: making an entity has no entity to hang on, and the claim panel saves each
+ * attribute, so neither act is on this page. */
+export type StructureAct = Exclude<ElementAct, { op: 'create_entity' | 'update_attrs' }>;
 
 export type StructureDeed = StructureAct['op'];
 
