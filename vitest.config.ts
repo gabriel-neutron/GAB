@@ -5,24 +5,14 @@ import { defineConfig } from 'vitest/config';
 
 import { testRunDatabase } from './tools/test-database.ts';
 
-/**
- * The suite of `pnpm test`, which the fast check command never runs. The password of
- * `gabriel_app` is the one signal which says the compose file is up.
- */
+// External constraint: the compose file sets the password of `gabriel_app` and the secret of the
+// object store. Each one is the one signal that says its service is up.
 const databaseIsReachable = (process.env['GABRIEL_APP_PASSWORD'] ?? '') !== '';
-
-// The object store is a second service with a second credential, and it is up and down on its
-// own. The secret the store client signs with is the one signal that says the bucket is ready.
 const bucketIsReachable = (process.env['RAW_STORE_SECRET_KEY'] ?? '') !== '';
 
-/**
- * A missing credential removed the projects that reach the stack, and the run then reported
- * green over the part of the suite it had dropped. A project that nobody registers has nothing
- * to report, so nothing was printed.
- *
- * A gate fails, or it is not a gate. `OFFLINE` is the one word that asks for the smaller suite.
- * Without it, an absent credential is a refusal and never a smaller run.
- */
+// Departure: a project that nobody registers reports nothing, so a run without it shows green.
+// `OFFLINE` is the one word that asks for the smaller suite. Without it, a missing credential
+// stops the run.
 const offlineWasAsked = (process.env['OFFLINE'] ?? '') !== '';
 
 if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
@@ -33,143 +23,59 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
       'part proves no perimeter, no role, no grant and no row of the corpus.',
   );
 
-// The guard runs before any project exists, so a refused run opens no socket. The second read
-// service serves the test database, and the compose file publishes it on this port.
+// External constraint: the compose file publishes the read service of the test database on this
+// port. The guard above runs first, so a refused run opens no socket.
 const LIVE_TARGET = {
   GABRIEL_DATABASE: testRunDatabase(process.env),
   VITE_API_URL: 'http://127.0.0.1:3001',
 };
 
-// **The suite needs more than the five seconds Vitest gives a test, and the reason is the machine
-// and not a socket.** Measured on 9 September 2026 over 1,178 entities: every view answers inside
-// 100 ms in SQL, so nothing here is slow. Nine projects in parallel is what passes five seconds.
-//
-// **A project does not inherit this from the root**, so every project states it. An offline test
-// starved of a core by a live project fails the same way a live one does, and a test that times
-// out leaves its stubbed calls to land inside the next test, which then fails for a false reason.
+// Origin: measured on 9 September 2026 over 1,178 entities. Each view answers inside 100 ms in
+// SQL, and the projects that run in parallel pass the five seconds Vitest gives a test.
 const TEST_TIMEOUT = 30_000;
 
-// The dot in `.db-test.ts` is what holds the two halves apart: `*.test.ts` does not match it.
-// A file renamed to `.db.test.ts` joins the offline half and opens a socket on a machine that
-// has no stack at all.
-const writerProject = {
-  test: {
-    name: 'writer',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['packages/writer/src/**/*.db-test.ts'],
-  },
-};
+const SOURCE_ROOT = path.resolve(import.meta.dirname, './src');
 
-/**
- * The claim loop against the live queue. Two clients claim at the same time, and each gesture
- * rolls back, so the suite leaves the queue it met.
- */
-const workerProject = {
-  test: {
-    name: 'worker',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['packages/worker/src/**/*.db-test.ts'],
-  },
-};
+// External constraint: a project does not inherit `testTimeout` from the root, so each one states
+// it. Vite matches the `@` alias only as `@` or `@/`, so the alias changes no `@gab/` import.
+const nodeProject = (
+  name: string,
+  include: readonly string[],
+  env: Readonly<Record<string, string>> = {},
+) => ({
+  test: { name, testTimeout: TEST_TIMEOUT, environment: 'node', env, include: [...include] },
+  resolve: { alias: { '@': SOURCE_ROOT } },
+});
 
-/**
- * The raw store as the ingestion door meets it: the object goes in, the key comes back, the
- * bytes come back unchanged, and nothing reaches the object without a credential.
- */
-const storeProject = {
-  test: {
-    name: 'store',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    include: ['packages/store/src/**/*.db-test.ts'],
-  },
-};
+// Departure: the dot in `.db-test.ts` holds the two halves apart, because `*.test.ts` does not
+// match it. The offline half takes each other test file, so no new test file falls outside it.
+const offlineProject = nodeProject('offline', [
+  'src/**/*.test.{ts,tsx}',
+  'packages/*/src/**/*.test.ts',
+  'tools/**/*.test.ts',
+]);
 
-/**
- * The closed sets of the base tables, against the enums the read client states. A CHECK reaches
- * no generated type and therefore no drift check, so this project reads `pg_constraint` itself.
- */
-const schemaProject = {
-  test: {
-    name: 'schema',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['tools/*.db-test.ts'],
-  },
-};
-
-/**
- * The perimeter: the audit arms, the ownership of every table, and what each role may execute
- * and write. Every sentence of the write-authorisation model was a hand check before this.
- */
-const perimeterProject = {
-  test: {
-    name: 'perimeter',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['tools/perimeter/*.db-test.ts'],
-  },
-};
-
-/**
- * What the fixture loader put in the test database, and the two losses that load is known to
- * carry. A stated gap fails on the day somebody closes it, and a comment cannot.
- */
-const corpusProject = {
-  test: {
-    name: 'corpus',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['tools/corpus/*.db-test.ts'],
-  },
-};
-
-/**
- * The read service as a caller meets it: the counts, the paths it refuses, and a schema cache
- * that is fresh. It reads over HTTP and opens no database connection of its own.
- */
-const serviceProject = {
-  test: {
-    name: 'service',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['tools/service/*.db-test.ts'],
-  },
-};
-
-/**
- * The generated contract against the live views, read over HTTP. It stays out of the `read`
- * project because that project must pass with no database at all.
- */
-const contractProject = {
-  test: {
-    name: 'contract',
-    testTimeout: TEST_TIMEOUT,
-    environment: 'node',
-    env: LIVE_TARGET,
-    include: ['src/shared/read/**/*.db-test.ts'],
-  },
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
-};
+// Departure: the store test reaches the object store and no database, so it gets no live target.
+const liveProjects = [
+  nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
+  nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('corpus', ['tools/corpus/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('service', ['tools/service/*.db-test.ts'], LIVE_TARGET),
+];
 
 export default defineConfig({
   test: {
     projects: [
       {
-        // The `@/*` alias and the Tailwind plugin come from the application configuration. A
-        // story therefore compiles under the same rules as the component it checks.
+        // Departure: the story project takes the application configuration, so a story compiles
+        // under the same alias and the same Tailwind plugin as the component it checks.
         extends: './vite.config.ts',
 
-        // `storybookTest` reads `.storybook/`, makes each story a test with portable stories,
-        // and supplies its own setup files. It returns a promise, so await it.
+        // External constraint: `storybookTest` returns a promise, and it sets the include itself.
         plugins: [await storybookTest({ configDir: '.storybook' })],
 
         test: {
@@ -184,95 +90,11 @@ export default defineConfig({
         },
       },
 
-      {
-        // The read client parses a literal row of the read API, the workspace store reads a record
-        // of the browser, and a derivation of a feature reads a value. None touches a database or a
-        // network, so all run in Node. The alias is stated here: this project needs no plugin.
-        test: {
-          name: 'read',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: [
-            'src/shared/read/**/*.test.ts',
-            'src/shared/*.test.ts',
-            'src/features/**/*.test.ts',
-          ],
-        },
-        resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
-      },
+      offlineProject,
 
-      {
-        // The door of the writer, against a stubbed answer. It reaches no write service, so it
-        // runs in Node beside the read client.
-        test: {
-          name: 'write',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: ['src/shared/write/**/*.test.ts'],
-        },
-        resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
-      },
-
-      {
-        // The schemas of a proposal. They read no row and open no socket, so they run in Node
-        // and they run everywhere, beside the package that declares them.
-        test: {
-          name: 'proposal',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: ['packages/proposal/src/**/*.test.ts'],
-        },
-      },
-
-      {
-        // The client of the model service, against a stubbed answer. It opens no socket and it
-        // reads no key of the operator, so it runs in Node and it runs everywhere.
-        test: {
-          name: 'model',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: ['packages/model/src/**/*.test.ts'],
-        },
-      },
-
-      {
-        // The committed seed against the module that declares its vocabulary. It reads one file
-        // of the repository and no row of a database, so it runs in Node and it runs everywhere.
-        test: {
-          name: 'seed',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: ['tools/*.test.ts'],
-        },
-      },
-
-      {
-        // The layout of the graph, against the entities and relations it is given directly, and
-        // the runs the root scripts start. It opens no socket and reads no row, so it runs in Node.
-        // The dot in `.db-test.ts` keeps this apart from the worker's live-queue project below.
-        test: {
-          name: 'layout',
-          testTimeout: TEST_TIMEOUT,
-          environment: 'node',
-          include: ['packages/worker/src/**/*.test.ts'],
-        },
-      },
-
-      // One list and one condition. Two conditions, one for the database and one for the bucket,
-      // let a shell with one credential drop the projects of the other and say nothing. The
-      // refusal above proves both credentials are here, so this list is whole or it is empty.
-      ...(offlineWasAsked
-        ? []
-        : [
-            storeProject,
-            writerProject,
-            workerProject,
-            contractProject,
-            schemaProject,
-            perimeterProject,
-            corpusProject,
-            serviceProject,
-          ]),
+      // Departure: one condition for both services. The guard above proves both credentials are
+      // here, so this list is whole or it is empty.
+      ...(offlineWasAsked ? [] : liveProjects),
     ],
   },
 });
