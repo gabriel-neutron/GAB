@@ -1,6 +1,5 @@
-// The five audit arms of the perimeter file, plus the facts that keep arm 4 honest. A tool once
-// added a table to `public` and silenced arm 4 by changing its owner; a person caught it and no
-// check did.
+// A departure: the audit arms of the perimeter file, plus the facts that keep arm 4 honest. A
+// table added to `public` under another owner silences arm 4, so the owner is checked too.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -35,8 +34,8 @@ const ARMS = [
   },
   {
     fault: 'write grant on a table of public or api',
-    // The extension clause is the arm as the perimeter file states it. Without it PostGIS
-    // returns twelve rows on every run, and an arm that always answers is an arm nobody reads.
+    // A departure: the extension clause keeps out PostGIS, which gives twelve rows on each run.
+    // An arm that always answers is an arm nobody reads.
     sql: `SELECT g.table_schema || '.' || g.table_name
                  || ' ' || g.privilege_type || ' to ' || g.grantee AS found
             FROM information_schema.role_table_grants g
@@ -52,13 +51,35 @@ const ARMS = [
   },
   {
     fault: 'api function with invoker rights that reads public',
-    // Arms 1 and 2 filter on prosecdef, so a function that is NOT a definer escapes both.
-    // gabriel_read holds nothing on public, so such a function raises for the only role that
-    // may call it, and the GRANT reads as a working door.
+    // A departure: arms 1 and 2 filter on prosecdef, so an invoker function escapes both. It
+    // raises for gabriel_read, which holds nothing on public, and its GRANT reads as a door.
     sql: String.raw`SELECT p.proname AS found
             FROM pg_catalog.pg_proc p
            WHERE p.pronamespace = 'api'::regnamespace
              AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.'`,
+  },
+  {
+    fault: 'default privilege that lets a role other than gabriel_owner execute its next function',
+    // External constraint: a default set in one schema adds to the default of every schema and
+    // cannot revoke it. With no row for every schema, the built-in default gives PUBLIC EXECUTE.
+    sql: `SELECT coalesce(n.nspname, 'every schema') || ' EXECUTE to '
+                 || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
+            FROM (SELECT 0::oid AS schema,
+                         coalesce((SELECT d.defaclacl FROM pg_catalog.pg_default_acl d
+                                    WHERE d.defaclrole = 'gabriel_owner'::regrole
+                                      AND d.defaclnamespace = 0 AND d.defaclobjtype = 'f'),
+                                  pg_catalog.acldefault('f', 'gabriel_owner'::regrole::oid))
+                           AS acl
+                  UNION ALL
+                  SELECT d.defaclnamespace, d.defaclacl FROM pg_catalog.pg_default_acl d
+                   WHERE d.defaclrole = 'gabriel_owner'::regrole
+                     AND d.defaclnamespace <> 0 AND d.defaclobjtype = 'f') AS s
+            LEFT JOIN pg_catalog.pg_namespace n ON n.oid = s.schema
+            CROSS JOIN LATERAL pg_catalog.aclexplode(s.acl) AS a
+           WHERE a.privilege_type = 'EXECUTE'
+             AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
+           ORDER BY 1`,
   },
 ] as const;
 
@@ -73,7 +94,8 @@ const DEFINER_DOORS = `
                  ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
     FROM pg_catalog.pg_proc p
     JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-    CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) AS a
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
    WHERE n.nspname IN ('public','api') AND p.prosecdef
      AND a.privilege_type = 'EXECUTE'
      AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
@@ -91,13 +113,30 @@ const THE_DOOR_SET = [
   'public.set_entity_layout to gabriel_agent',
 ];
 
-// ARM 6. The five arms above read a table grant, and a SECURITY DEFINER door holds none: the door
-// writes as gabriel_owner, so EXECUTE on one is the right to write a table that arm 4 says the
-// caller cannot touch. The list below is the door set, held by hand, so a door granted to a role
-// later fails here until a person writes it in. The two ends of the queue are both here, and
-// they belong to different roles: one takes a row, and the other gives a lost one back.
+// A departure: a door writes as gabriel_owner and holds no table grant, so EXECUTE on one is a
+// write that arm 4 cannot see. The door set is held by hand, and a new grant fails here.
 test('every definer door is granted to the roles in this list and to no other', async () => {
   expect(await foundBy(DEFINER_DOORS)).toStrictEqual(THE_DOOR_SET);
+});
+
+// External constraint: a NULL ACL is the built-in default, which gives PUBLIC EXECUTE, and
+// aclexplode gives no row for it. The default privilege is dropped here to make that door.
+test('a definer door that nobody revoked shows as a door to PUBLIC', async () => {
+  const doors = await probe('superuser', async (ask) => {
+    await ask('BEGIN');
+    try {
+      await ask(
+        'ALTER DEFAULT PRIVILEGES FOR ROLE gabriel_owner GRANT EXECUTE ON FUNCTIONS TO PUBLIC',
+      );
+      await ask('SET LOCAL ROLE gabriel_owner');
+      await ask(`CREATE FUNCTION public.zz_unrevoked_door() RETURNS int LANGUAGE sql
+                   SECURITY DEFINER SET search_path = pg_catalog AS 'SELECT 1'`);
+      return findings.parse(await ask(DEFINER_DOORS)).map((row) => row.found);
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+  expect(doors).toContain('public.zz_unrevoked_door to PUBLIC');
 });
 
 const OUTSIDE_OWNER = `
@@ -129,8 +168,8 @@ const LEDGER = `
     JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
    WHERE c.relname = 'pgmigrations'`;
 
-// Arm 4 enumerates the tables of public. A migration ledger inside public would be one more
-// table in that enumeration, and the arm would then have to permit a write grant on it.
+// A departure: arm 4 enumerates the tables of public. A migration ledger there would be one
+// more table, and the arm would then have to permit a write grant on it.
 test('the migration ledger is outside public, which is what keeps arm 4 honest', async () => {
   expect(await foundBy(LEDGER)).toStrictEqual(['migrations']);
 });
@@ -166,8 +205,8 @@ const NEIGHBOURS = `
    WHERE r.src_kind = 'entity' AND r.dst_kind = 'entity'
    LIMIT 1`;
 
-// A static arm proves a shape. This one proves the door opens. Arm 5 and this test are the two
-// halves of one defect: the read role held EXECUTE on api.neighbourhood and every call raised.
+// A departure: a static arm proves a shape, and this test proves the door opens. A grant of
+// EXECUTE that raises on each call passes arm 5.
 test('gabriel_read can execute api.neighbourhood, and not only hold the grant', async () => {
   const found = await probe('read', async (ask) => findings.parse(await ask(NEIGHBOURS)));
   expect(
