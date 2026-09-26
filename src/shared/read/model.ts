@@ -4,7 +4,7 @@ export type DocId = string;
 
 export type AttributeValue = string | number | boolean | readonly string[] | readonly number[];
 
-/** M8: a value, and the documents that hold it up. */
+/** M7: one value and the documents that hold it up, in one shape. */
 export interface Attribute {
   readonly v: AttributeValue;
   readonly src: readonly DocId[];
