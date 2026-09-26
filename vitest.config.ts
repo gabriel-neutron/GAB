@@ -230,6 +230,18 @@ export default defineConfig({
         },
       },
 
+      {
+        // The layout of the graph, against the entities and relations it is given directly. It
+        // opens no socket and reads no row, so it runs in Node beside the other pure packages.
+        // The dot in `.db-test.ts` keeps this apart from the worker's live-queue project below.
+        test: {
+          name: 'layout',
+          testTimeout: TEST_TIMEOUT,
+          environment: 'node',
+          include: ['packages/worker/src/**/*.test.ts'],
+        },
+      },
+
       // One list and one condition. Two conditions, one for the database and one for the bucket,
       // let a shell with one credential drop the projects of the other and say nothing. The
       // refusal above proves both credentials are here, so this list is whole or it is empty.
