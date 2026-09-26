@@ -224,6 +224,25 @@ test('an act that states no confidence survives the mapper', () => {
   expect(toDomain.proposal({ ...PROPOSAL_ROW, confidence: null }).confidence).toBeNull();
 });
 
+const LAYOUT_ROW = { entity_id: SRC_ID, x: 412.5, y: -88.25 };
+
+test('a stored position reaches the surface with both of its halves', () => {
+  expect(toDomain.placement(LAYOUT_ROW)).toStrictEqual({
+    entityId: SRC_ID,
+    position: { x: 412.5, y: -88.25 },
+  });
+});
+
+// Departure: a zero in place of a missing half would draw an unplaced entity at the origin.
+test('a position that lacks either half, or both, is no position at all', () => {
+  for (const halves of [
+    { x: null, y: -88.25 },
+    { x: 412.5, y: null },
+    { x: null, y: null },
+  ])
+    expect(toDomain.placement({ ...LAYOUT_ROW, ...halves }).position).toBeNull();
+});
+
 // A row of `api.full_map`, copied whole. The view resolved the point already, so the mapper
 // renames four columns and it decides nothing.
 const MAP_ROW = {
