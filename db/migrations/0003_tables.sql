@@ -36,7 +36,8 @@ CREATE TABLE documents (
   CONSTRAINT doc_retrieved_required
     CHECK (kind = 'manual' OR retrieved_at IS NOT NULL),
   -- INVARIANT 6. This form never yields NULL, so it cannot pass by three-valued logic.
-  -- NOTE: no role can write either column today. #19 owns the scoring write path.
+  -- No role can write either column. The scoring write path is decided, a rate_document act,
+  -- and it is built with the first caller that scores a document.
   CONSTRAINT doc_admiralty_origin
     CHECK ((admiralty IS NULL) = (admiralty_origin IS NULL))
 );
