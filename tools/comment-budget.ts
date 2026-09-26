@@ -105,28 +105,3 @@ export const measure = (text: string): Measurement => {
 
 export const ratio = (commentLines: number, codeLines: number): number =>
   commentLines + codeLines === 0 ? 0 : commentLines / (commentLines + codeLines);
-
-// Every code line of a file, in order, with no comment and no space. Two versions that give
-// the same list differ in their comments alone, which is what a sweep is allowed to change.
-export const codeOf = (text: string): string => {
-  const lines: string[] = [];
-  let inBlock = false;
-
-  for (const raw of text.split('\n')) {
-    const trimmed = raw.trim();
-    const isComment =
-      inBlock ||
-      trimmed.startsWith('//') ||
-      trimmed.startsWith('/*') ||
-      trimmed.startsWith('*') ||
-      // A comment in JSX opens with `{/*`, so a test on `/*` alone reads it as a code line.
-      trimmed.startsWith('{/*');
-
-    if (inBlock && trimmed.includes('*/')) inBlock = false;
-    else if (!inBlock && opens(trimmed)) inBlock = true;
-
-    if (trimmed !== '' && !isComment) lines.push(trimmed.replace(/\s+/g, ' '));
-  }
-
-  return lines.join('\n');
-};
