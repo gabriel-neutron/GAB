@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { expect, userEvent } from 'storybook/test';
+import { expect, restoreAllMocks, spyOn, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 import type { DocId } from '@/shared/read/model';
@@ -57,7 +57,7 @@ function RailUnderAMovingMark() {
         {MOVE}
       </button>
       <div className="min-h-0 flex-1">
-        <Rail sources={REPEATED} activeSource={activeSource} />
+        <Rail sources={REPEATED} activeSource={activeSource} selections={0} />
       </div>
     </div>
   );
@@ -65,7 +65,7 @@ function RailUnderAMovingMark() {
 
 const meta = {
   component: Rail,
-  args: { sources: SOURCES, activeSource: null },
+  args: { sources: SOURCES, activeSource: null, selections: 0 },
   parameters: { layout: 'fullscreen' },
   // The rail is a 24 rem pane that holds its own scroll, so every story states
   // a width and a height. Without a stated height the scroll is not real and nothing is proved.
@@ -121,6 +121,58 @@ export const TheRailMovesWhenTheMarkChanges: Story = {
 
     await expect(rail.scrollTop).not.toBe(before);
     await expect(markedCard(rail)).toHaveTextContent(LAST.title);
+  },
+};
+
+const THIRD = at(2);
+
+const PICK_THIRD = 'Select the third source';
+
+function RailUnderARepeatedMark() {
+  const [activeSource, setActiveSource] = useState<DocId | null>(null);
+  const [selections, setSelections] = useState(0);
+
+  return (
+    <div className="flex h-40 w-96 flex-col">
+      <button
+        type="button"
+        onClick={() => {
+          setActiveSource(THIRD.id);
+          setSelections((count) => count + 1);
+        }}
+      >
+        {PICK_THIRD}
+      </button>
+      <div className="min-h-0 flex-1">
+        <Rail sources={REPEATED} activeSource={activeSource} selections={selections} />
+      </div>
+    </div>
+  );
+}
+
+export const ASecondClickOnTheActiveMarkBringsItsCardBack: Story = {
+  render: () => <RailUnderARepeatedMark />,
+  beforeEach: () => () => {
+    restoreAllMocks();
+  },
+  play: async ({ canvas }) => {
+    await document.fonts.ready;
+
+    const scrolled = spyOn(HTMLElement.prototype, 'scrollIntoView');
+    const rail = canvas.getByRole('complementary', { name: 'Sources' });
+    const pick = canvas.getByRole('button', { name: PICK_THIRD });
+
+    await userEvent.click(pick);
+    await expect(scrolled).toHaveBeenCalledTimes(1);
+
+    rail.scrollTop = rail.scrollHeight;
+    const away = rail.scrollTop;
+    await expect(away).toBeGreaterThan(0);
+
+    await userEvent.click(pick);
+    await expect(scrolled).toHaveBeenCalledTimes(2);
+    await expect(rail.scrollTop).toBeLessThan(away);
+    await expect(markedCard(rail)).toHaveTextContent(THIRD.title);
   },
 };
 
