@@ -70,6 +70,39 @@ test('two components never land on the same point', () => {
   expect(new Set(points).size).toBe(points.length);
 });
 
+test('the discs of two components never overlap, over many components of one size', () => {
+  const lone = Array.from({ length: 30 }, (_unused, index) => `lone-${index}`);
+  const pairs = Array.from({ length: 5 }, (_unused, index): readonly [string, string] => [
+    `pair-${index}-a`,
+    `pair-${index}-b`,
+  ]);
+  const componentOf = new Map([
+    ...lone.map((id): [string, string] => [id, id]),
+    ...pairs.flatMap(([a, b]): [string, string][] => [
+      [a, a],
+      [b, a],
+    ]),
+  ]);
+  const placed = entityLayout(
+    [...lone, ...pairs.flat()],
+    pairs.map(([a, b]) => link(a, b)),
+  );
+
+  // Origin: each entity stands half the spacing of 24 inside the disc of its component, and a gap
+  // of 16 parts two discs, so two entities of different components stand 24 + 16 apart or more.
+  const least = 24 + 16 - 1e-6;
+  const crowded = placed.flatMap((one, index) =>
+    placed
+      .slice(index + 1)
+      .filter((two) => componentOf.get(one.id) !== componentOf.get(two.id))
+      .filter((two) => Math.hypot(one.x - two.x, one.y - two.y) < least)
+      .map((two) => `${one.id} ${two.id}`),
+  );
+
+  expect(placed).toHaveLength(40);
+  expect(crowded).toEqual([]);
+});
+
 test('an entity connected to the rest sits closer to its neighbour than an unconnected one', () => {
   const placed = entityLayout(['a', 'b', 'far'], [link('a', 'b')]);
   const byId = new Map(placed.map((position) => [position.id, position]));
