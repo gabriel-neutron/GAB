@@ -24,10 +24,13 @@ const KEY_SHAPE =
 /** The attributes of one edit. THE SHAPE IS THE WHOLE RULE: a key, and a value that is a scalar
  * or a flat list of them. No kind, no format and no list of permitted keys, because M11 says the
  * free half of the model carries none, and the database holds exactly the same line. */
-export const attributeEdit = () =>
-  z.record(z.string().regex(ATTRIBUTE_KEY).max(ATTRIBUTE_KEY_LENGTH), edited, {
-    // The record states `Invalid key in record`. The sentence of the key schema sits nested
-    // under it, where the composer of the writer never reads it. Only the key fault is renamed,
-    // because a sentence on the record would answer a body that is no record at all.
+export const attributeEdit = z.record(
+  z.string().regex(ATTRIBUTE_KEY).max(ATTRIBUTE_KEY_LENGTH),
+  edited,
+  {
+    // External constraint: the record states `Invalid key in record`, and the sentence of the key
+    // schema sits nested under it, where the writer's composer never reads it. Only the key fault
+    // is renamed, because a sentence on the record would answer a body that is no record at all.
     error: (issue) => (issue.code === 'invalid_key' ? KEY_SHAPE : undefined),
-  });
+  },
+);

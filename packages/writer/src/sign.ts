@@ -203,7 +203,7 @@ export const sign = async (
   const given = objectBody.safeParse(readBody(raw));
   if (!given.success) return refused('the body is not a JSON object');
 
-  const request = writeRequest().safeParse({ ...given.data, op });
+  const request = writeRequest.safeParse({ ...given.data, op });
   if (!request.success) return refused(request.error.issues.map(faulted).join('; '));
 
   // A pool that cannot give a client has written nothing, and the reason belongs to the same
