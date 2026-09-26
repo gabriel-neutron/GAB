@@ -26,7 +26,10 @@ const BY_CODE = new Map<string, string>([
 ]);
 
 const BY_SHAPE: readonly (readonly [string | RegExp, string])[] = [
-  ['drops a document from the sources', 'the act must keep every document the key already cites'],
+  [
+    'drops a document from the sources of that value',
+    'the act keeps the value, so it must keep every document that value already cites',
+  ],
   ['is an endpoint of a relation', 'the target is an endpoint of a relation, and it stays'],
   [
     'no longer exists, and nothing was applied',

@@ -7,7 +7,12 @@ import { type WriteRequest } from './request.ts';
 // refuses one that tries.
 const MANUAL = 'manual';
 
-const priorAttributes = z.record(z.string(), z.looseObject({ src: z.array(z.string()) }));
+const scalar = z.union([z.string(), z.number(), z.boolean()]);
+
+const priorAttributes = z.record(
+  z.string(),
+  z.looseObject({ v: z.union([scalar, z.array(scalar)]), src: z.array(z.string()) }),
+);
 
 /** One act, in the words `propose_change` reads. The payload keys are those of the jsonb. */
 export interface ProposalAct {
@@ -24,15 +29,27 @@ export type ProposalDraft =
   | { readonly ready: true; readonly act: ProposalAct }
   | { readonly ready: false; readonly refusal: string };
 
-type Sourced = Record<string, { readonly v: AttributeEdit[string]['v']; readonly src: string[] }>;
+type Value = AttributeEdit[string]['v'];
 
-type Cited = Record<string, { readonly src: readonly string[] }>;
+type Sourced = Record<string, { readonly v: Value; readonly src: string[] }>;
 
+type Cited = Record<string, { readonly v: Value; readonly src: readonly string[] }>;
+
+// The database compares the two values as jsonb, where a list keeps its order. Two values that
+// differ here differ there too, so the database never refuses a value this file calls changed.
+const sameValue = (held: Value, sent: Value): boolean =>
+  Array.isArray(held) && Array.isArray(sent)
+    ? held.length === sent.length && held.every((element, index) => element === sent[index])
+    : held === sent;
+
+// S2: the src of an attribute backs that one value alone. A value the act keeps re-cites its
+// documents, and a changed value cites the operator alone. `prior_value` keeps the old claim.
 const sourcedAttributes = (edit: AttributeEdit | undefined, before: Cited): Sourced => {
   const sourced: Sourced = {};
   for (const [key, value] of Object.entries(edit ?? {})) {
-    const held = before[key]?.src ?? [];
-    sourced[key] = { v: value.v, src: [...new Set([...held, MANUAL])] };
+    const held = before[key];
+    const kept = held !== undefined && sameValue(held.v, value.v) ? held.src : [];
+    sourced[key] = { v: value.v, src: [...new Set([...kept, MANUAL])] };
   }
   return sourced;
 };
@@ -47,9 +64,8 @@ const UNREADABLE = 'the writer cannot read the attributes the target holds, and 
 
 const drafted = (act: ProposalAct): ProposalDraft => ({ ready: true, act });
 
-// `prior` is what the target row holds today, and every value the act writes re-cites it: a
-// write that drops a document from the sources of a key is refused by the database. A prior
-// that does not parse therefore refuses the request, and never becomes an empty citation.
+// `prior` is what the target row holds today. Read as empty, it would call a kept value changed
+// and drop its documents, so a prior that does not parse refuses the request.
 export const proposalAct = (request: WriteRequest, prior: unknown): ProposalDraft => {
   switch (request.op) {
     case 'create_entity': {

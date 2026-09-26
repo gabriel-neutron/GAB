@@ -294,16 +294,18 @@ BEGIN
       RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
     END IF;
 
-    -- #17, last line: "Replacing the src list instead of joining it silently loses
-    -- corroboration." #17 IS OPEN, so this function decides nothing and REFUSES the case.
+    -- S2: the src of an attribute backs that one value alone. A changed value may cite new
+    -- sources alone, and prior_value keeps the old claim. A kept value that dropped a document
+    -- would lose corroboration, so it is refused. jsonb equality reads 41200.0 as 41200.
     SELECT string_agg(n.k, ', ' ORDER BY n.k) INTO v_lost
       FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val)
      WHERE v_old ? n.k
+       AND v_old->n.k->'v' = n.val->'v'
        AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(v_old->n.k->'src') AS o(doc)
                     WHERE NOT ((n.val->'src') @> to_jsonb(o.doc)));
     IF v_lost IS NOT NULL THEN
-      RAISE EXCEPTION 'the write drops a document from the sources of %. #17 owns the merge '
-                      'rule and it is open', v_lost;
+      RAISE EXCEPTION 'the write keeps the value of % and drops a document from the sources of '
+                      'that value', v_lost;
     END IF;
 
     -- ONLY THE KEYS THE ACT NAMED. A whole-row copy would freeze and republish every other
