@@ -1,9 +1,9 @@
 import { WRITE_OPS } from '@gab/proposal/request';
-import { afterAll, expect, test } from 'vitest';
+import { afterAll, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
-import { writeRoutes } from './routes.ts';
+import { LARGEST_BODY_BYTES, writeRoutes } from './routes.ts';
 
 const pool = openPool();
 const app = writeRoutes(pool);
@@ -19,6 +19,7 @@ const WRONG_MEDIA = 'the body must be sent as application/json';
 
 const FORBIDDEN = 403;
 const UNSUPPORTED_MEDIA_TYPE = 415;
+const PAYLOAD_TOO_LARGE = 413;
 const REFUSED_BODY = 422;
 
 // Every door is knocked on with an empty body. The guard runs first, so the cell is proven by
@@ -92,4 +93,26 @@ test('a body that is not declared as JSON reaches no door', async () => {
       refusal: WRONG_MEDIA,
     });
   }
+});
+
+const paddedTo = (bytes: number): string => {
+  const shell = '{"pad":""}';
+  return `{"pad":"${'x'.repeat(bytes - shell.length)}"}`;
+};
+
+test('a body larger than the limit is refused before the writer reaches the database', async () => {
+  const connect = vi.spyOn(pool, 'connect');
+  const send = async (body: string): Promise<number> => {
+    const answer = await app.request('/write/create-entity', {
+      method: 'POST',
+      headers: JSON_HEADER,
+      body,
+    });
+    return answer.status;
+  };
+
+  expect(await send(paddedTo(LARGEST_BODY_BYTES + 1))).toBe(PAYLOAD_TOO_LARGE);
+  expect(connect).not.toHaveBeenCalled();
+  expect(await send(paddedTo(LARGEST_BODY_BYTES))).toBe(REFUSED_BODY);
+  connect.mockRestore();
 });
