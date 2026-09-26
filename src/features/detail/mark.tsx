@@ -1,6 +1,6 @@
 /**
- * The score reaches a reader through the accessible name, and never as printed text on a claim:
- * one score repeated on twenty claims is the presentation S1 calls false. */
+ * A mark and its accessible name carry no score, and the source card alone shows it: one score
+ * repeated on twenty claims is the presentation S1 calls false. */
 
 import { cn } from '@/shared/lib/utils';
 import type { DocId } from '@/shared/read/model';
@@ -58,8 +58,8 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
         <button
           key={source.id}
           type="button"
-          // The visible text is the number alone. The title and the score of the document
-          // reach a reader through the accessible name.
+          // The visible text is the number alone. The accessible name adds the title of the
+          // document, and no score.
           aria-label={source.name}
           aria-pressed={activeSource === source.id}
           onClick={() => {
