@@ -12,6 +12,10 @@ export default interface Job {
   claimed_by: string | null;
 
   claimed_at: string | null;
+
+  failure_reason: string | null;
+
+  finished_at: string | null;
 }
 
 export const job = z.object({
@@ -21,4 +25,6 @@ export const job = z.object({
   attempts: z.number().nullable(),
   claimed_by: z.string().nullable(),
   claimed_at: z.string().nullable(),
+  failure_reason: z.string().nullable(),
+  finished_at: z.string().nullable(),
 });
