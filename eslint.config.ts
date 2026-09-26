@@ -35,11 +35,9 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
  * 2026. Two days later, 67 paths under `src/` still named them and 578 section marks still pointed
  * into their sections. No check failed and nothing warned.
  *
- * **A colour is not a ticket, and the shape excludes the two hexadecimal lengths this repository
- * writes.** `#2971c6`, `#000000`, `#999` and `#abc` pass; `#89` and `#1234` are refused. Counting
- * digits was the first attempt and it was wrong twice: it refused the grey `#999`, and it went
- * blind above `#999`. **A colour never fails the build**, which is the safe direction of the one
- * ambiguity left: `#123456` could be either, and it is read as a colour.
+ * Departure: a run of three or six hexadecimal characters is read as a colour, so `#999`, `#abc`
+ * and `#2971c6` pass and `#89` and `#1234` are refused. `#123` and `#123456` could each be a
+ * ticket, and the shape reads them as a colour, because a colour must never fail the build.
  *
  * **A link is an address too.** A ticket written as `https://github.com/.../issues/89` defeated
  * the first shape completely, and it is the form a paste produces.
@@ -69,9 +67,9 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
  * `src/index.css`, so a reference there is refused by nobody. Its rules are no longer numbered and
  * its comments cite none, so there is nothing left for this rule to miss.
  */
-const SHAPES = [
+export const REFERENCE_SHAPES = [
   {
-    pattern: /(?<!#)#(?:\s+\d+|(?![0-9a-fA-F]{6}(?![\w-]))\d+)\b/g,
+    pattern: /(?<!#)#(?:\s+\d+|(?!(?:[0-9a-fA-F]{3}){1,2}(?![\w-]))\d+)\b/g,
     kind: 'a ticket number',
   },
   { pattern: /\b(?:issues?|pulls?|PR|ticket)[\s/#:-]*\d+\b/gi, kind: 'a ticket number' },
@@ -241,7 +239,7 @@ const noReferenceInComment: Rule.RuleModule = {
           // `range[0]` is the first character of the delimiter, and `value` begins two characters
           // later for `//` and for `/*` alike.
           const body = start + 2;
-          for (const shape of SHAPES) {
+          for (const shape of REFERENCE_SHAPES) {
             shape.pattern.lastIndex = 0;
             let found = shape.pattern.exec(comment.value);
             while (found !== null) {
