@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>GAB Project Status Report</title>
+    <style>
+      :root {
+        --done: #2e7d32;
+        --done-bg: #eaf6ea;
+        --wip: #b8860b;
+        --wip-bg: #fff8e1;
+        --todo: #616161;
+        --todo-bg: #f2f2f2;
+        --warn: #c0392b;
+        --warn-bg: #fdecea;
+        --line: #ddd;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1100px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #1a1a1a;
+      }
+      h1 {
+        margin-bottom: 0.2rem;
+      }
+      .meta {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0;
+      }
+      h2 {
+        border-bottom: 1px solid var(--line);
+        margin-top: 2.2rem;
+        padding-bottom: 0.2rem;
+        color: #2c3e50;
+      }
+
+      /* stat tiles */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
+        margin: 1rem 0;
+      }
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.7rem;
+        text-align: center;
+      }
+      .stat .num {
+        font-size: 1.6rem;
+        font-weight: bold;
+        display: block;
+      }
+      .stat .label {
+        font-size: 0.8rem;
+        color: #555;
+      }
+      .stat.warn {
+        border-color: var(--warn);
+        background: var(--warn-bg);
+      }
+      .stat.warn .num {
+        color: var(--warn);
+      }
+      .stat.done {
+        border-color: var(--done);
+        background: var(--done-bg);
+      }
+      .stat.done .num {
+        color: var(--done);
+      }
+
+      /* board */
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .col h3 {
+        text-align: center;
+        border-radius: 6px 6px 0 0;
+        margin: 0;
+        padding: 0.5rem;
+        color: #fff;
+      }
+      .col.done h3 {
+        background: var(--done);
+      }
+      .col.wip h3 {
+        background: var(--wip);
+      }
+      .col.todo h3 {
+        background: var(--todo);
+      }
+      .col {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .cards {
+        padding: 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        background: #fafafa;
+        min-height: 100px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-left: 4px solid #999;
+        border-radius: 4px;
+        padding: 0.5rem 0.6rem;
+        font-size: 0.88rem;
+      }
+      .col.done .card {
+        border-left-color: var(--done);
+      }
+      .col.wip .card {
+        border-left-color: var(--wip);
+      }
+      .col.todo .card {
+        border-left-color: var(--todo);
+      }
+      .card b {
+        display: block;
+        font-size: 0.92rem;
+      }
+      .card .n {
+        color: #666;
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 720px) {
+        .board {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0.6rem 0 1rem;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 0.4rem 0.5rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+      }
+      code {
+        background: #f4f4f4;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+      }
+      .warn-box {
+        background: var(--warn-bg);
+        border-left: 4px solid var(--warn);
+        padding: 0.5rem 0.8rem;
+        margin: 0.8rem 0;
+      }
+      .action-box {
+        background: var(--wip-bg);
+        border-left: 4px solid var(--wip);
+        padding: 0.5rem 0.8rem;
+        margin: 0.8rem 0;
+      }
+      ol,
+      ul {
+        margin-top: 0.3rem;
+      }
+
+      /* MVP task list */
+      .progress-bar {
+        height: 10px;
+        border-radius: 5px;
+        background: #eee;
+        overflow: hidden;
+        margin: 0.4rem 0 1rem;
+      }
+      .progress-bar > div {
+        height: 100%;
+        background: var(--done);
+        width: 0%;
+        transition: width 0.2s;
+      }
+      .phase {
+        margin-top: 1.4rem;
+      }
+      .phase h3 {
+        margin-bottom: 0.3rem;
+      }
+      .task {
+        border: 1px solid var(--line);
+        border-left: 5px solid #999;
+        border-radius: 5px;
+        margin-bottom: 0.6rem;
+        padding: 0.6rem 0.8rem;
+        background: #fff;
+      }
+      .task.done {
+        opacity: 0.55;
+      }
+      .task.agent {
+        border-left-color: #2563eb;
+      }
+      .task.you {
+        border-left-color: var(--warn);
+      }
+      .task-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .task-head input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+      }
+      .task-head b {
+        font-size: 0.98rem;
+      }
+      .who {
+        font-size: 0.72rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        border-radius: 3px;
+        padding: 0.1rem 0.4rem;
+        color: #fff;
+      }
+      .who.agent {
+        background: #2563eb;
+      }
+      .who.you {
+        background: var(--warn);
+      }
+      .tdesc {
+        margin: 0.35rem 0 0.4rem;
+        font-size: 0.88rem;
+        color: #333;
+      }
+      .prompt-box {
+        position: relative;
+        background: #f6f6f6;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      .prompt-box pre {
+        margin: 0;
+        padding: 0.5rem 3.6rem 0.5rem 0.6rem;
+        white-space: pre-wrap;
+        font-size: 0.8rem;
+        font-family: Consolas, monospace;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 0.4rem;
+        right: 0.4rem;
+        font-size: 0.72rem;
+        padding: 0.2rem 0.5rem;
+        border: 1px solid #bbb;
+        background: #fff;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>GAB Project Status Report</h1>
+    <p class="meta">
+      Report date: 2026-09-26. Path: <code>C:\Users\<user>\Documents\Netechoppe\GAB</code>
+    </p>
+
+    <div class="stats">
+      <div class="stat done">
+        <span class="num">361</span><span class="label">tests pass (offline)</span>
+      </div>
+      <div class="stat"><span class="num">9 / 9</span><span class="label">ADRs accepted</span></div>
+      <div class="stat"><span class="num">40</span><span class="label">open issues</span></div>
+      <div class="stat done">
+        <span class="num">117</span><span class="label">closed issues</span>
+      </div>
+      <div class="stat warn">
+        <span class="num">5 ↑ / 1 ↓</span><span class="label">main vs origin/main</span>
+      </div>
+      <div class="stat warn">
+        <span class="num">2</span><span class="label">untracked files</span>
+      </div>
+    </div>
+
+    <h2>What is GAB</h2>
+    <p>
+      GAB is a tool for one analyst. It reads documents, finds facts, and builds a graph of entities
+      and relations. Each fact keeps a link to its source. AI agents can propose new facts, but a
+      proposal only becomes a fact after the analyst promotes it. The tool has a map view and a
+      graph view. Current stack: TypeScript, PostgreSQL/PostGIS, MinIO, React 19, MapLibre GL. Live
+      case: mapping a Russian crude-oil export / sanctions-evasion chain.
+    </p>
+
+    <h2>Status board</h2>
+    <div class="board">
+      <div class="col done">
+        <h3>Done</h3>
+        <div class="cards">
+          <div class="card">
+            <b>Core schema</b><span class="n">12 migrations applied, all guards tested</span>
+          </div>
+          <div class="card">
+            <b>Map view</b><span class="n">imagery ground, unit frames, borrowed positions</span>
+          </div>
+          <div class="card">
+            <b>Graph view</b><span class="n">layout engine, entity/relation counts</span>
+          </div>
+          <div class="card">
+            <b>Review queue</b><span class="n">writer service, promotion, decisions</span>
+          </div>
+          <div class="card">
+            <b>Write perimeter</b><span class="n">null guards, attribute rules, grants</span>
+          </div>
+          <div class="card">
+            <b>CI gate</b
+            ><span class="n">typecheck + lint + format + offline tests, all green</span>
+          </div>
+          <div class="card"><b>117 GitHub issues</b><span class="n">closed to date</span></div>
+        </div>
+      </div>
+
+      <div class="col wip">
+        <h3>In progress</h3>
+        <div class="cards">
+          <div class="card">
+            <b>Worker job loop</b
+            ><span class="n"
+              ><code>packages/worker/src/main.ts</code> still refuses every claim</span
+            >
+          </div>
+          <div class="card">
+            <b>Layout test coverage</b
+            ><span class="n">no test project reads <code>entityLayout</code> — ticket #21</span>
+          </div>
+          <div class="card">
+            <b>Sanctions-chain case</b><span class="n">12 CARTO build tasks open, #136–#147</span>
+          </div>
+          <div class="card">
+            <b>Case research</b><span class="n">12 research tickets open, #148–#159</span>
+          </div>
+          <div class="card">
+            <b>Two untracked files</b
+            ><span class="n">sources catalogue + OSINT PDF, not yet committed</span>
+          </div>
+          <div class="card">
+            <b>Branch sync</b><span class="n">main is 5 ahead / 1 behind origin</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col todo">
+        <h3>Not started / open decisions</h3>
+        <div class="cards">
+          <div class="card">
+            <b>5 ready-for-human tickets</b><span class="n">#8, #83, #86, #90, #115</span>
+          </div>
+          <div class="card">
+            <b>5 open design questions</b><span class="n">#12, #25, #28, #125, #130</span>
+          </div>
+          <div class="card"><b>3 open prototypes</b><span class="n">#7, #10, #29</span></div>
+          <div class="card">
+            <b>Job retry policy (T9)</b><span class="n">no retry count written down yet</span>
+          </div>
+          <div class="card">
+            <b>S3 vs P1 conflict</b
+            ><span class="n">spec.md §5 flags rule conflict, unresolved</span>
+          </div>
+          <div class="card">
+            <b>Raw-file immutability (T3)</b><span class="n">convention only, not enforced</span>
+          </div>
+          <div class="card">
+            <b>Attribute-key registry (M11)</b><span class="n">none exists, accepted risk</span>
+          </div>
+          <div class="card">
+            <b><code>ready-for-agent</code> queue</b
+            ><span class="n">empty — nothing queued for an agent</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Tests and CI</h2>
+    <table>
+      <tr>
+        <th>Check</th>
+        <th>Result</th>
+      </tr>
+      <tr>
+        <td><code>pnpm test</code> (OFFLINE=1)</td>
+        <td>46 files, 361 tests — all pass</td>
+      </tr>
+      <tr>
+        <td><code>pnpm run check:static</code></td>
+        <td>typecheck, lint, format — all pass</td>
+      </tr>
+      <tr>
+        <td>
+          DB-backed tests (store, writer, worker, contract, schema, perimeter, corpus, service)
+        </td>
+        <td>not run — needs Docker (<code>infra/docker-compose.yml</code>) and a live database</td>
+      </tr>
+    </table>
+
+    <div class="warn-box">
+      <b>Untracked files at the repo root:</b>
+      <code>Catalogue de sources - Branche export.md</code> (French sources catalogue for the
+      sanctions case) and <code>FNF OSINT Proposal.pdf</code> (not yet reviewed). Decide whether to
+      commit or move them.
+    </div>
+
+    <h2>MVP task list</h2>
+    <p class="meta">
+      Goal: ship the MVP fast. The agent makes the tech choices and writes the code, from the
+      project docs. You give the short decisions only. Check a box to track progress; your checks
+      stay saved in this browser.
+    </p>
+    <div class="progress-bar"><div id="progress-fill"></div></div>
+    <p class="meta" id="progress-text"></p>
+
+    <div class="phase">
+      <h3>Phase 1 — Unblock the core (agent, autonomous)</h3>
+
+      <div class="task agent" data-id="t1">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Fix the worker job loop</b>
+        </div>
+        <p class="tdesc">The worker refuses every queued job today. Make it claim and run jobs.</p>
+        <div class="prompt-box">
+          <pre>
+Read packages/worker/src/main.ts, claim.ts, layout-job.ts, layout-main.ts, reconcile.ts, reconcile-main.ts. Also read docs/adr/0003-schema-pipeline-and-read-contract.md and db/migrations/0004_jobs.sql. Fix the worker so it claims a queued job and runs it (layout and reconcile kinds), instead of refusing every claim. Pick the retry/backoff approach yourself from the job table shape; write down the choice as a short comment where the retry count is read. Add or update tests. Follow the commit convention in docs/agents/commit.md. Run pnpm test and pnpm run check:static before you finish.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task agent" data-id="t2">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Add test coverage for the graph layout</b>
+        </div>
+        <p class="tdesc">
+          No test project reads <code>entityLayout</code> today (GitHub issue #21).
+        </p>
+        <div class="prompt-box">
+          <pre>
+Read GitHub issue #21 with `gh issue view 21`. Read packages/worker/src/layout.ts and layout-job.ts. Add a vitest project (or extend an existing one) so entityLayout is covered by pnpm test. Write tests for the layout algorithm's placement rules. Follow existing test file conventions in the packages/worker folder.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task agent" data-id="t3">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Sync <code>main</code> with <code>origin/main</code></b>
+        </div>
+        <p class="tdesc">
+          Local main is 5 commits ahead and 1 behind. Merge before more work stacks up.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Run git fetch origin, then show me git log --oneline main..origin/main and origin/main..main so I can see what each side has. Then merge origin/main into main. If a conflict touches a decisions.md entry, an ADR, or a schema migration, stop and ask me before you resolve it. Otherwise resolve conflicts, run pnpm run check:static and pnpm test, and report the result.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <h3>Phase 2 — Short decisions (you, 10 minutes total)</h3>
+
+      <div class="task you" data-id="t4">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who you">You</span
+          ><b>Pick a job retry policy (T9)</b>
+        </div>
+        <p class="tdesc">
+          Read <code>docs/decisions.md</code> entry T9. Answer: how many times should a whole job
+          retry before it is marked failed? Or reply "your call" and let the agent pick a sane
+          default.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Read docs/decisions.md entry T9. I want a job-level retry policy of [YOUR NUMBER, or say "pick a sane default"] retries, then the job is marked failed with a reason. Implement it in the worker, and add a new dated entry under T9 in decisions.md that records this choice and why.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task you" data-id="t5">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who you">You</span
+          ><b>Settle the S3 vs P1 conflict</b>
+        </div>
+        <p class="tdesc">
+          <code>docs/spec.md</code> §5 says two rules cannot both hold: a human reviews only on
+          dissent/low confidence (S3), yet nothing reaches the evidentiary layer without explicit
+          promotion (P1). Read §5–§6 and pick which rule wins, or how they combine.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Read docs/spec.md sections 5 and 6 about the S3/P1 conflict. Here is my decision: [YOUR ANSWER]. Update spec.md and decisions.md to record this, then check whether any code in packages/writer already assumes the old, unresolved behaviour, and fix it to match.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task you" data-id="t6">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who you">You</span
+          ><b>Decide the two untracked files</b>
+        </div>
+        <p class="tdesc">
+          <code>Catalogue de sources - Branche export.md</code> and
+          <code>FNF OSINT Proposal.pdf</code> sit uncommitted at the repo root.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Move "Catalogue de sources - Branche export.md" and "FNF OSINT Proposal.pdf" to [YOUR FOLDER, e.g. docs/sources/] and commit them with a short message. If you think either file does not belong in the repository, tell me and I will decide instead.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <h3>Phase 3 — MVP screens (agent drafts, you approve)</h3>
+
+      <div class="task agent" data-id="t7">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Build the missing MVP screens</b>
+        </div>
+        <p class="tdesc">
+          Covers issues #83 (entity edit mode), #90 (global search), #115 (decision history
+          reachable from the review page), #86 (one source rule, replacing decisions.md M8).
+        </p>
+        <div class="prompt-box">
+          <pre>
+Read GitHub issues 83, 90, 115, and 86 with `gh issue view [number]`. Read docs/prd.md, docs/spec.md, docs/decisions.md, and the existing src/features folder conventions (docs/adr/0001-repository-conventions.md). For each issue, pick the simplest implementation that matches the docs and the existing UI patterns in src/features, write the code and its tests, and commit each one separately following docs/agents/commit.md. Do not ask me about implementation details; make the call yourself and note it in the commit message. Stop and ask me only if a choice would change a locked decision in decisions.md.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task you" data-id="t8">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who you">You</span
+          ><b>Validate ticket #8 (C7-VALIDATE)</b>
+        </div>
+        <p class="tdesc">
+          This needs your domain judgment: does a sample of the old (v1) data set fit the new
+          schema? An agent cannot decide this for you.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Read GitHub issue 8 (C7-VALIDATE) with `gh issue view 8`. Pull a sample of the v1 data set as described in the issue, and load it against the current schema. Show me the fields that do not map cleanly, so I can decide how to handle each one.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <h3>Phase 4 — Ship gate (agent, autonomous)</h3>
+
+      <div class="task agent" data-id="t9">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Run the full test suite against a live database</b>
+        </div>
+        <p class="tdesc">
+          CI never touches the database. Run the DB-backed test projects locally before calling this
+          an MVP.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Start the local stack with docker compose up in infra/. Run pnpm run db:migrate, pnpm run db:apply, and pnpm run db:load-fixture. Then run pnpm run check (the full gate, including db:drift) and pnpm test (all projects, not just OFFLINE=1). Report every failure with the file and line, and fix what you can without changing a locked decision.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div class="task agent" data-id="t10">
+        <div class="task-head">
+          <input type="checkbox" class="tchk" /><span class="who agent">Agent</span
+          ><b>Tag the MVP</b>
+        </div>
+        <p class="tdesc">
+          Update the status line in <code>README.md</code> and cut a release once phases 1–4 are
+          green.
+        </p>
+        <div class="prompt-box">
+          <pre>
+Confirm pnpm run check and pnpm test both pass in full (with the database up). Update the "Status" line in README.md to reflect the MVP is shipped. Propose a git tag name and a one-paragraph release note listing what the MVP covers, then wait for my go-ahead before you tag or push.</pre>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var checks = document.querySelectorAll('.tchk');
+        var fill = document.getElementById('progress-fill');
+        var text = document.getElementById('progress-text');
+        function refresh() {
+          var done = 0;
+          checks.forEach(function (c) {
+            if (c.checked) done++;
+          });
+          var pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
+          fill.style.width = pct + '%';
+          text.textContent = done + ' of ' + checks.length + ' tasks done (' + pct + '%)';
+        }
+        checks.forEach(function (c) {
+          var id = c.closest('.task').dataset.id;
+          var key = 'gab-mvp-' + id;
+          c.checked = localStorage.getItem(key) === '1';
+          c.closest('.task').classList.toggle('done', c.checked);
+          c.addEventListener('change', function () {
+            localStorage.setItem(key, c.checked ? '1' : '0');
+            c.closest('.task').classList.toggle('done', c.checked);
+            refresh();
+          });
+        });
+        refresh();
+
+        document.querySelectorAll('.copy-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var pre = btn.previousElementSibling;
+            navigator.clipboard.writeText(pre.textContent).then(function () {
+              var old = btn.textContent;
+              btn.textContent = 'Copied';
+              setTimeout(function () {
+                btn.textContent = old;
+              }, 1200);
+            });
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
