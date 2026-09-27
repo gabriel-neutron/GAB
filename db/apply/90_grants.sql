@@ -26,10 +26,9 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- superuser the revoke stops the map read. A default privilege of gabriel_owner, set for every
 -- schema, takes EXECUTE from PUBLIC on each function that gabriel_owner creates.
 
--- THE ENUMERATION, AND THE EXACT SCOPE OF THE CLAIM. `REVOKE ALL ON ALL TABLES` is a snapshot
--- and reaches no later table, so the sentence "no role writes a table" is an enumeration of the
--- seven tables below and NOT a rule about a table nobody has written. Audit arm 4 is what proves
--- the enumeration is still complete after the next migration.
+-- External constraint: `REVOKE ALL ON ALL TABLES` is a snapshot and reaches no later table, so
+-- "no role writes a table" holds for the six tables below and NOT for a table nobody has written.
+-- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_app;
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
