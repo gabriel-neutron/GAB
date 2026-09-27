@@ -1,6 +1,7 @@
 /** The queue, in domain words. It groups what waits by what is changed, and it decides nothing:
  * where the record cannot answer, it returns the hole as a sentence and the view prints it. */
 
+import { relationTypeWords } from '@/shared/canvas-label';
 import { readBand, readRating } from '@/shared/read/rating';
 import type {
   AttributeValue,
@@ -11,6 +12,7 @@ import type {
   Entity,
   Proposal,
   ProposalOp,
+  ProposedGeometry,
   Relation,
   TypeVocabulary,
 } from '@/shared/read/model';
@@ -47,8 +49,7 @@ export const verdictOf = (verdicts: Verdicts, id: string): Decision | null =>
 export type Routing = 'dissent' | 'low-confidence' | 'both' | 'neither' | 'unstated';
 
 /** What the screen cannot show. The kind chooses the mark, and the sentence stays on the mark. */
-export type HoleKind =
-  'argument' | 'duplicate' | 'link-sources' | 'merge-result' | 'destroyed-row' | 'absent-row';
+export type HoleKind = 'argument' | 'duplicate' | 'merge-result' | 'destroyed-row' | 'absent-row';
 
 export interface Hole {
   readonly kind: HoleKind;
@@ -125,7 +126,6 @@ export interface Change {
   readonly id: string;
   readonly kind: ChangeKind;
   readonly kindWords: string;
-  /** What the act does, in one line, for a payload that no table can put side by side. */
   readonly headline: string;
   /** The keys this act names, for the line of one act in a list. Blank where it names none. */
   readonly keysWords: string;
@@ -296,15 +296,18 @@ function differenceOf(
   });
 }
 
-type ColumnsPayload = Extract<Proposal['payload'], { readonly kind: 'columns' }>;
+interface Columns {
+  readonly label: string | null;
+  readonly type: string | null;
+}
 
-/** The difference of an act on the name or the type. The row-level list of the entity backs
- * the name, the type and the location, so it stands beside each standing value. An upper case
- * key is one that no attribute can take, so the two lines never read as contested with a claim. */
+/** Departure: the row-level list backs the name, the type and the location, so it stands beside
+ * each standing value. An upper case key is one that no attribute can take, so a line never reads
+ * as contested with a claim. */
 function columnsDifference(
   index: Index,
   standing: Entity | null,
-  proposed: ColumnsPayload,
+  proposed: Columns,
   src: readonly DocId[],
 ): readonly DifferenceRow[] {
   const before = standing === null ? [] : citedDocuments(index, standing.sources);
@@ -325,6 +328,60 @@ function columnsDifference(
   return [
     ...(proposed.label === null ? [] : [row('Name', standing?.label ?? null, proposed.label)]),
     ...(proposed.type === null ? [] : [typed(proposed.type)]),
+  ];
+}
+
+const createdColumn = (
+  key: string,
+  value: string,
+  sources: readonly CitedDocument[],
+): DifferenceRow => ({
+  key,
+  op: 'add',
+  standing: null,
+  standingSources: [],
+  proposed: value,
+  proposedSources: sources,
+});
+
+const geometryWords = (geom: ProposedGeometry): string =>
+  geom.kind === 'point'
+    ? `latitude ${String(geom.point.lat)}, longitude ${String(geom.point.lon)}`
+    : `a ${geom.shape} geometry`;
+
+type EntityPayload = Extract<Proposal['payload'], { readonly kind: 'entity' }>;
+
+function entityCreation(
+  index: Index,
+  payload: EntityPayload,
+  src: readonly DocId[],
+): readonly DifferenceRow[] {
+  const cited = citedDocuments(index, src);
+  const located = payload.geom === null ? null : geometryWords(payload.geom);
+  return [
+    ...columnsDifference(index, null, payload, src),
+    ...(located === null ? [] : [createdColumn('Location', located, cited)]),
+    ...differenceOf(index, null, payload.attrs),
+  ];
+}
+
+type RelationPayload = Extract<Proposal['payload'], { readonly kind: 'relation' }>;
+
+/** Departure: the two ends stand in the headline and in no row. The row-level list backs the
+ * type and the two dates, and each key cites its own. */
+function relationCreation(
+  index: Index,
+  payload: RelationPayload,
+  src: readonly DocId[],
+): readonly DifferenceRow[] {
+  const cited = citedDocuments(index, src);
+  const stated = (key: string, value: string | null): readonly DifferenceRow[] =>
+    value === null ? [] : [createdColumn(key, value, cited)];
+  return [
+    ...stated('Type', payload.type === null ? null : relationTypeWords(payload.type)),
+    ...stated('Valid from', payload.valid_from),
+    ...stated('Valid to', payload.valid_to),
+    ...differenceOf(index, null, payload.attrs),
   ];
 }
 
@@ -398,11 +455,6 @@ const HOLE: Readonly<Record<HoleKind, Hole>> = {
     kind: 'duplicate',
     short: 'a duplicate row',
     long: 'The act cannot say whether the record already holds this row under another label.',
-  },
-  'link-sources': {
-    kind: 'link-sources',
-    short: 'the sources of the link',
-    long: 'A relation act names no attribute, so nothing says which documents hold the link up.',
   },
   'merge-result': {
     kind: 'merge-result',
@@ -494,17 +546,14 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       if (proposal.targetId !== null && entity === undefined) holes.push(HOLE['absent-row']);
       break;
     }
-    case 'entity': {
-      const note = payload.type === null ? null : storedTypeNote(index, payload.type);
+    case 'entity':
       headline = `A new ${payload.type ?? 'entity, of a type the act does not name'}`;
-      if (note !== null) headline = `${headline}. ${note}`;
-      rows = differenceOf(index, null, payload.attrs);
+      rows = entityCreation(index, payload, proposal.src);
       holes.push(HOLE.duplicate);
       break;
-    }
     case 'relation':
       headline = payloadHeadline(labelIn(index), payload);
-      holes.push(HOLE['link-sources']);
+      rows = relationCreation(index, payload, proposal.src);
       break;
     case 'merge':
       headline = payloadHeadline(labelIn(index), payload);
@@ -548,12 +597,18 @@ function labelOf(index: Index, kind: SubjectKind, key: string, first: Change): s
         index.entityById.get(key)?.label ?? `An entity absent from the record, ${shortId(key)}`
       );
     case 'new-node':
+      return first.rows.find((row) => row.key === 'Name')?.proposed ?? first.headline;
     case 'merge':
       return first.headline;
     case 'link': {
       const relation = index.relationById.get(key);
       if (relation === undefined) return first.headline === '' ? shortId(key) : first.headline;
-      return relationPhrase(labelIn(index), relation.srcId, relation.type, relation.dstId);
+      return relationPhrase(
+        labelIn(index),
+        { kind: relation.srcKind, id: relation.srcId },
+        relation.type,
+        { kind: relation.dstKind, id: relation.dstId },
+      );
     }
   }
 }

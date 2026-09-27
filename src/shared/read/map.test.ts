@@ -122,6 +122,7 @@ const ACTS: readonly {
       kind: 'entity',
       type: 'vessel',
       label: 'MV Northern Ledger',
+      geom: null,
       attrs: { imo: { v: '9482137', src: ['doc_9b0417'] } },
     },
   },
@@ -147,7 +148,17 @@ const ACTS: readonly {
     op: 'create_relation',
     targetKind: null,
     payload: { type: 'operates', src_id: SRC_ID, dst_id: DST_ID },
-    read: { kind: 'relation', type: 'operates', src_id: SRC_ID, dst_id: DST_ID },
+    read: {
+      kind: 'relation',
+      type: 'operates',
+      src_kind: 'entity',
+      src_id: SRC_ID,
+      dst_kind: 'entity',
+      dst_id: DST_ID,
+      valid_from: null,
+      valid_to: null,
+      attrs: {},
+    },
   },
   {
     // The promotion reads `payload->'attrs'` for this act, in the branch of `update_attrs`, so
@@ -190,17 +201,65 @@ test('a payload that states no value at all reaches the surface as an absence', 
     kind: 'entity',
     type: null,
     label: null,
+    geom: null,
     attrs: {},
   });
 });
 
 test('the two ends of a proposed relation keep the spelling the act wrote', () => {
   const payload = toDomain.proposal(PROPOSAL_ROW).payload;
-  expect(payload).toEqual({
+  expect(payload).toMatchObject({
     kind: 'relation',
     type: 'operates',
     src_id: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
     dst_id: 'e0a8a817-0dac-49db-8627-a342609a3092',
+  });
+});
+
+test('a creation keeps every key its promotion writes', () => {
+  const created = (op: ProposalOp, payload: unknown): ProposalPayload =>
+    toDomain.proposal({ ...PROPOSAL_ROW, op, payload }).payload;
+  const point = { type: 'Point', coordinates: [4.4777, 51.9244] };
+  expect(created('create_entity', { type: 'vessel', label: 'L', geom: point })).toEqual({
+    kind: 'entity',
+    type: 'vessel',
+    label: 'L',
+    geom: { kind: 'point', point: { lon: 4.4777, lat: 51.9244 } },
+    attrs: {},
+  });
+  const area = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+  };
+  expect(created('create_entity', { geom: area })).toMatchObject({
+    geom: { kind: 'shape', shape: 'Polygon' },
+  });
+  const share = { share_pct: { v: 51, src: ['doc_8f2a41'] } };
+  expect(
+    created('create_relation', {
+      ...PROPOSAL_ROW.payload,
+      dst_kind: 'relation',
+      valid_from: '2019-04-01',
+      valid_to: '2021-01-31',
+      attrs: share,
+    }),
+  ).toEqual({
+    kind: 'relation',
+    type: 'operates',
+    src_kind: 'entity',
+    src_id: SRC_ID,
+    dst_kind: 'relation',
+    dst_id: DST_ID,
+    valid_from: '2019-04-01',
+    valid_to: '2021-01-31',
+    attrs: share,
   });
 });
 

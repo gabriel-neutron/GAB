@@ -186,10 +186,82 @@ describe('the type a promotion stores', () => {
       op: 'create_entity',
       targetKind: null,
       targetId: null,
-      payload: { kind: 'entity', type: 'tanker', label: 'Probe', attrs: {} },
+      payload: { kind: 'entity', type: 'tanker', label: 'Probe', geom: null, attrs: {} },
     };
     const [subject] = readQueue({ ...corpus, proposals: [created] }, THRESHOLD, VOCABULARY);
-    expect(subject?.changes[0]?.headline).toMatch(/stores the type 'unknown'/);
+    const typed = subject?.changes[0]?.rows.find((row) => row.key === 'Type');
+    expect(typed?.note).toMatch(/stores the type 'unknown'/);
+  });
+});
+
+const NEW_VESSEL: Proposal = {
+  ...actOf('cc000001-0000-4000-8000-000000000004', 0.9, false),
+  op: 'create_entity',
+  targetKind: null,
+  targetId: null,
+  payload: {
+    kind: 'entity',
+    type: 'vessel',
+    label: 'MV Northern Ledger',
+    geom: { kind: 'point', point: { lon: 4.4777, lat: 51.9244 } },
+    attrs: {},
+  },
+};
+
+const CONTRADICTION = 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d';
+
+const NEW_OWNERSHIP: Proposal = {
+  ...actOf('cc000001-0000-4000-8000-000000000005', 0.9, false),
+  op: 'create_relation',
+  targetKind: null,
+  targetId: null,
+  payload: {
+    kind: 'relation',
+    type: 'owns',
+    src_kind: 'entity',
+    src_id: TERMINAL,
+    dst_kind: 'relation',
+    dst_id: CONTRADICTION,
+    valid_from: '2019-04-01',
+    valid_to: null,
+    attrs: { share_pct: { v: 51, src: ['doc_5e7730'] } },
+  },
+};
+
+const onlyAct = (act: Proposal) => {
+  const [subject] = readQueue({ ...corpus, proposals: [act] }, THRESHOLD);
+  const change = subject?.changes[0];
+  if (subject === undefined || change === undefined) throw new Error(`no act ${act.id}`);
+  return { subject, change, proposed: (key: string) => change.rows.find((r) => r.key === key) };
+};
+
+describe('every value the promotion of a creation writes', () => {
+  it('shows the name and the location of a new entity, and names the subject by it', () => {
+    const { subject, proposed } = onlyAct(NEW_VESSEL);
+    expect(subject.label).toBe('MV Northern Ledger');
+    expect(proposed('Name')?.proposed).toBe('MV Northern Ledger');
+    expect(proposed('Location')?.proposed).toMatch(/51\.9244.*4\.4777/);
+    expect(proposed('Name')?.proposedSources.map((doc) => doc.id)).toEqual(['doc_5e7730']);
+  });
+
+  it('shows the attributes and the dates of a new relation, and no false hole', () => {
+    const { change, proposed } = onlyAct(NEW_OWNERSHIP);
+    expect(proposed('share_pct')?.proposed).toBe('51');
+    expect(proposed('Valid from')?.proposed).toBe('2019-04-01');
+    expect(proposed('Valid to')).toBeUndefined();
+    expect(change.holes.map((hole) => hole.kind)).not.toContain('link-sources');
+  });
+
+  it('never calls an end that is a relation an entity absent from the record', () => {
+    const { change } = onlyAct(NEW_OWNERSHIP);
+    expect(change.headline).not.toMatch(/an entity absent from the record/);
+    const onContradiction: Proposal = {
+      ...actOf('cc000001-0000-4000-8000-000000000006', 0.9, false),
+      op: 'update_relation',
+      targetKind: 'relation',
+      targetId: CONTRADICTION,
+    };
+    expect(onlyAct(onContradiction).subject.label).not.toMatch(/an entity absent/);
   });
 });
 

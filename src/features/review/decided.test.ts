@@ -156,7 +156,17 @@ const linked: Proposal = {
   op: 'create_relation',
   targetKind: null,
   targetId: null,
-  payload: { kind: 'relation', type: 'berthed_at', src_id: VESSEL, dst_id: TERMINAL },
+  payload: {
+    kind: 'relation',
+    type: 'berthed_at',
+    src_kind: 'entity',
+    src_id: VESSEL,
+    dst_kind: 'entity',
+    dst_id: TERMINAL,
+    valid_from: null,
+    valid_to: null,
+    attrs: {},
+  },
 };
 
 const retagged: Proposal = {
@@ -199,7 +209,17 @@ describe('one act, named on the queue and in the history', () => {
   it('says only that two entities are linked where the act names no type', () => {
     const untyped: Proposal = {
       ...linked,
-      payload: { kind: 'relation', type: null, src_id: VESSEL, dst_id: TERMINAL },
+      payload: {
+        kind: 'relation',
+        type: null,
+        src_kind: 'entity',
+        src_id: VESSEL,
+        dst_kind: 'entity',
+        dst_id: TERMINAL,
+        valid_from: null,
+        valid_to: null,
+        attrs: {},
+      },
     };
     const words = 'MV Northern Ledger is linked to Maasvlakte bulk terminal, berth 7';
     expect(queued(untyped).headline).toBe(words);
@@ -215,6 +235,45 @@ describe('one act, named on the queue and in the history', () => {
     const words = 'Maasvlakte bulk terminal, berth 7 into MV Northern Ledger';
     expect(queued(merge).headline).toBe(words);
     expect(history(merge)).toBe(words);
+  });
+});
+
+describe('the keys a promoted creation wrote', () => {
+  it('names the dates and the attributes of a relation, and the location of an entity', () => {
+    const decided: Pick<Proposal, 'status' | 'decidedAt' | 'decidedBy'> = {
+      status: 'accepted',
+      decidedAt: '2026-08-04T00:05:00Z',
+      decidedBy: 'the writer door',
+    };
+    const dated: Proposal = {
+      ...linked,
+      ...decided,
+      payload: {
+        kind: 'relation',
+        type: 'owns',
+        src_kind: 'entity',
+        src_id: VESSEL,
+        dst_kind: 'entity',
+        dst_id: TERMINAL,
+        valid_from: '2019-04-01',
+        valid_to: null,
+        attrs: { share_pct: { v: 51, src: ['doc_9b0417'] } },
+      },
+    };
+    const placed: Proposal = {
+      ...dated,
+      id: 'aa000009-0000-4000-8000-000000000006',
+      op: 'create_entity',
+      payload: {
+        kind: 'entity',
+        type: 'vessel',
+        label: 'MV Placed',
+        geom: { kind: 'point', point: { lon: 4, lat: 51 } },
+        attrs: {},
+      },
+    };
+    const keys = readDecided(corpus, decidedOf([dated, placed])).map((row) => row.keys);
+    expect(keys.sort()).toStrictEqual(['Name, Type, Location', 'Type, Valid from, share_pct']);
   });
 });
 
