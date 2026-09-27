@@ -22,13 +22,21 @@ test('an act on the name and the type carries only the column it changes', () =>
 });
 
 test('an act on the name and the type carries both columns when it changes both', () => {
-  const draft = proposalAct(
-    { op: 'update_entity', targetId: TARGET, label: 'MV Northern Star', type: 'vessel' },
-    null,
-  );
-  expect(draft).toMatchObject({
+  expect(
+    proposalAct(
+      { op: 'update_entity', targetId: TARGET, label: 'MV Northern Star', type: 'vessel' },
+      null,
+    ),
+  ).toStrictEqual({
     ready: true,
-    act: { payload: { label: 'MV Northern Star', type: 'vessel' } },
+    act: {
+      op: 'update_entity',
+      payload: { label: 'MV Northern Star', type: 'vessel' },
+      src: ['manual'],
+      names: [],
+      targetKind: 'entity',
+      targetId: TARGET,
+    },
   });
 });
 
