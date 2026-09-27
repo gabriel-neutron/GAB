@@ -1,3 +1,4 @@
+import { DatabaseError } from 'pg';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { failureFrom, refusalFrom } from './refusal.ts';
@@ -5,6 +6,12 @@ import { failureFrom, refusalFrom } from './refusal.ts';
 const GENERIC = 'the database refused the act';
 const UNREACHABLE = 'the database did not answer, and nothing was written';
 const DOUBT = 'the record gave no answer to read, and the act may have run whole';
+
+const raisedError = (code: string, message: string): DatabaseError => {
+  const raised = new DatabaseError(message, message.length, 'error');
+  raised.code = code;
+  return raised;
+};
 
 // Departure: each failure is logged whole for the operator, and the log is not under test.
 beforeEach(() => {
@@ -92,12 +99,12 @@ test('a known sentence never names the act that stays pending', () => {
   );
 });
 
-// Departure: the two answers are parted by the state PostgreSQL writes on every error it raises.
-// A failure that carries none reached no statement, and the act may stand in the record.
+// Departure: the two answers are parted by the error that PostgreSQL itself raises. Any other
+// failure reached no statement that answered, and the act may stand in the record.
 test('a failure with no code is a doubt, and a raised failure keeps its refusal', () => {
-  const frozen = Object.assign(
-    new Error('proposal 1 is accepted, and only a pending proposal is applied'),
-    { code: 'P0001' },
+  const frozen = raisedError(
+    'P0001',
+    'proposal 1 is accepted, and only a pending proposal is applied',
   );
 
   expect(failureFrom(frozen)).toStrictEqual({
@@ -126,9 +133,37 @@ test('a lost socket and a stopped server are doubts, whatever code they name', (
 // fault of the writer and not of the act.
 test('a schema that is missing never reads as an act the record does not hold', () => {
   for (const shape of [
-    { code: '42P01', message: 'relation "public.proposals" does not exist' },
-    { code: '42883', message: 'function public.promote_proposal(uuid) does not exist' },
+    raisedError('42P01', 'relation "public.proposals" does not exist'),
+    raisedError('42883', 'function public.promote_proposal(uuid) does not exist'),
   ]) {
     expect(failureFrom(shape)).toStrictEqual({ raised: true, refusal: GENERIC });
+  }
+});
+
+// Departure: a Node errno can take five capitals too, and a socket that fails after the commit
+// names one. Only the database builds its own error, so a code alone never makes a refusal.
+test('a code that looks like a state is a doubt when the database did not raise it', () => {
+  for (const code of ['EBADF', 'EINTR', 'EPERM']) {
+    expect(failureFrom(Object.assign(new Error('x'), { code }))).toStrictEqual({
+      raised: false,
+      doubt: DOUBT,
+    });
+  }
+  expect(failureFrom({ code: '23505', message: 'a duplicate' })).toStrictEqual({
+    raised: false,
+    doubt: DOUBT,
+  });
+  expect(failureFrom(raisedError('23505', 'a duplicate'))).toStrictEqual({
+    raised: true,
+    refusal: 'the act repeats a value that must stay unique',
+  });
+});
+
+test('a state of the connection is a doubt even when the database raised it', () => {
+  for (const code of ['08006', '57P01', '57P02', '57P03']) {
+    expect(failureFrom(raisedError(code, 'the connection was lost'))).toStrictEqual({
+      raised: false,
+      doubt: DOUBT,
+    });
   }
 });
