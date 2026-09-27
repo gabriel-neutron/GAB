@@ -156,14 +156,14 @@ export const TheSameRecordIsDrawnOneClaimToALine: Story = {
     await document.fonts.ready;
 
     const cells = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-claim]'));
-    await expect(cells).toHaveLength(DOSSIER.claimCount);
+    await expect(cells).toHaveLength(DOSSIER.rows.length);
 
     const tops = new Set<number>();
     for (const cell of cells) {
       tops.add(cell.offsetTop);
     }
 
-    await expect(tops.size).toBe(DOSSIER.claimCount);
+    await expect(tops.size).toBe(DOSSIER.rows.length);
   },
 };
 

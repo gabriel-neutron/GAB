@@ -59,7 +59,7 @@ export function Sidebar({ dossier }: SidebarProps) {
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
           previous value. The key makes React build a new record. Do not remove it. */}
-      <Band name="Record" count={dossier.claimCount}>
+      <Band name="Record" count={dossier.rows.length}>
         <EntityRecord
           key={dossier.entityId}
           mode="reading"
