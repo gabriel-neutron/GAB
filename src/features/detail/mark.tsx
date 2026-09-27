@@ -34,9 +34,9 @@ const MARK =
   'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-input px-1 font-mono text-small/4 text-label transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /**
- * Invariant 1: a claim never appears without a mark to its source, and M8 gives every attribute
- * at least one source. The words report a fault in the data, never a dash and never a blank. */
-const NO_SOURCE = 'No source recorded: invariant 1 asks each claim for at least one.';
+ * Departure: one sentence serves a claim and a row-level list, so it names the rule of neither.
+ * The words report a fault in the data, never a dash and never a blank. */
+const NO_SOURCE = 'No source recorded: this list must cite at least one document.';
 
 // The sentence wraps and never holds its width. Set to `shrink-0`, it measured 308 px inside a
 // 275 px claim and painted over the value of the claim beside it, so a fault in the data hid a

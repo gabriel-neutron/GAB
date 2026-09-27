@@ -118,8 +118,8 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
         </span>
       </div>
 
-      {/* S2: the source is listed at entity, relation and attribute level. M8: `src` is never
-          empty, and the reading of the record holds the correction. */}
+      {/* External constraint: S2 at row level. This list backs the type, the two ends and the
+          dates of the relation, and not one attribute, so M8 does not govern it. */}
       <div className="flex items-center gap-2">
         <span className="text-small/4 tracking-caps text-label uppercase">
           Sources of this relation
