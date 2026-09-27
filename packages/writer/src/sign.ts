@@ -1,16 +1,15 @@
 import { proposalAct, type ProposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WriteRequest, type WRITE_OPS } from '@gab/proposal/request';
-import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
 import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
-import { refusalFrom } from './refusal.ts';
+import type { Session, Sessions } from './pool.ts';
+import { failureFrom, refusalFrom } from './refusal.ts';
 
 const TABLE = { entity: 'public.entities', relation: 'public.relations' } as const;
 
 interface SignedRefusal {
   readonly refusal: string;
-  readonly proposalId?: string;
 }
 
 /** What one request became. The caller maps the outcome, and takes no decision of its own. */
@@ -27,7 +26,12 @@ export type SignedAct =
       readonly outcome: 'refused' | 'missing' | 'blocked' | 'unavailable';
       readonly reply: SignedRefusal;
     }
-  | { readonly outcome: 'undecided'; readonly reply: SignedRefusal };
+  | {
+      readonly outcome: 'undecided';
+      readonly reply:
+        | { readonly refusal: string; readonly proposalId: string }
+        | { readonly doubt: string; readonly proposalId?: string };
+    };
 
 const refused = (refusal: string): SignedAct => ({ outcome: 'refused', reply: { refusal } });
 const missing = (refusal: string): SignedAct => ({ outcome: 'missing', reply: { refusal } });
@@ -37,25 +41,35 @@ const unavailable = (refusal: string): SignedAct => ({
   reply: { refusal },
 });
 
+// Departure: a doubt carries its own key and never `refusal`, so the browser cannot read an act
+// that may stand in the record as an act that was refused.
+const doubted = (doubt: string, proposalId: string | undefined): SignedAct => ({
+  outcome: 'undecided',
+  reply: proposalId === undefined ? { doubt } : { doubt, proposalId },
+});
+
 const identifier = z.uuid();
 const counted = z.coerce.number();
 const objectBody = z.record(z.string(), z.unknown());
 
 const rows = async (
-  client: PoolClient,
+  client: Session,
   text: string,
   values: readonly unknown[],
-): Promise<readonly Record<string, unknown>[]> =>
-  (await client.query<Record<string, unknown>>(text, [...values])).rows;
+): Promise<readonly Record<string, unknown>[]> => (await client.query(text, [...values])).rows;
 
-const inTransaction = async <T>(client: PoolClient, run: () => Promise<T>): Promise<T> => {
+// External constraint: on a dead socket the ROLLBACK fails too, and its error names no cause. The
+// first error is the one that says what happened, and the pool drops a dead client on release.
+const inTransaction = async <T>(client: Session, run: () => Promise<T>): Promise<T> => {
   await client.query('BEGIN');
   try {
     const held = await run();
     await client.query('COMMIT');
     return held;
   } catch (cause) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch((lost: unknown) => {
+      console.error('the writer could not roll back', { lost });
+    });
     throw cause;
   }
 };
@@ -63,7 +77,7 @@ const inTransaction = async <T>(client: PoolClient, run: () => Promise<T>): Prom
 const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $4::text,
   $5::uuid, $6::uuid[], $7::numeric, $8::boolean) AS id`;
 
-const propose = async (client: PoolClient, act: ProposalAct): Promise<string> => {
+const propose = async (client: Session, act: ProposalAct): Promise<string> => {
   const found = await rows(client, PROPOSE, [
     act.op,
     JSON.stringify(act.payload),
@@ -79,17 +93,17 @@ const propose = async (client: PoolClient, act: ProposalAct): Promise<string> =>
   return identifier.parse(found[0]?.['id']);
 };
 
-const promote = async (client: PoolClient, proposalId: string): Promise<string> => {
+const promote = async (client: Session, proposalId: string): Promise<string> => {
   const found = await rows(client, PROMOTE_PROPOSAL, [proposalId, DECIDED_BY]);
   return identifier.parse(found[0]?.['id']);
 };
 
 type Endpoint = 'entity' | 'relation';
 
-const present = async (client: PoolClient, kind: Endpoint, id: string): Promise<boolean> =>
+const present = async (client: Session, kind: Endpoint, id: string): Promise<boolean> =>
   (await rows(client, `SELECT 1 FROM ${TABLE[kind]} WHERE id = $1::uuid`, [id])).length === 1;
 
-const attributesOf = async (client: PoolClient, kind: Endpoint, id: string): Promise<unknown> => {
+const attributesOf = async (client: Session, kind: Endpoint, id: string): Promise<unknown> => {
   const found = await rows(client, `SELECT attrs FROM ${TABLE[kind]} WHERE id = $1::uuid`, [id]);
   return found[0]?.['attrs'];
 };
@@ -98,7 +112,7 @@ const USES = `SELECT count(*) AS uses FROM public.relations r
   WHERE (r.src_kind = $2::text AND r.src_id = $1::uuid)
      OR (r.dst_kind = $2::text AND r.dst_id = $1::uuid)`;
 
-const endpointUses = async (client: PoolClient, kind: Endpoint, id: string): Promise<number> =>
+const endpointUses = async (client: Session, kind: Endpoint, id: string): Promise<number> =>
   counted.parse((await rows(client, USES, [id, kind]))[0]?.['uses']);
 
 type Ground =
@@ -124,7 +138,7 @@ type ColumnsAct = Extract<WriteRequest, { op: 'update_entity' }>;
 
 // The promotion resolves a word that is not a live type to `unknown`, and keeps the word beside
 // it. The same resolution is read here, so an act that would change nothing is never written.
-const groundOfColumns = async (client: PoolClient, request: ColumnsAct): Promise<Ground> => {
+const groundOfColumns = async (client: Session, request: ColumnsAct): Promise<Ground> => {
   const found = (await rows(client, COLUMNS, [request.targetId, request.type ?? null]))[0];
   if (found === undefined)
     return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
@@ -139,7 +153,7 @@ const groundOfColumns = async (client: PoolClient, request: ColumnsAct): Promise
 
 // Every read below removes a failure that `promote_proposal` raises after the proposal is
 // already committed, which would strand an undecided act for a fault that nobody chose.
-const groundOf = async (client: PoolClient, request: WriteRequest): Promise<Ground> => {
+const groundOf = async (client: Session, request: WriteRequest): Promise<Ground> => {
   if (request.op === 'create_relation') {
     if (!(await present(client, request.srcKind, request.srcId)))
       return { ready: false, act: missing(`the source ${request.srcId} does not exist`) };
@@ -196,7 +210,7 @@ const faulted = (issue: { readonly path: PropertyKey[]; readonly message: string
 // One act, in two transactions. `promote_proposal` refuses a proposal that the calling
 // transaction wrote, so the proposal commits first and the promotion opens a second one.
 export const sign = async (
-  pool: Pool,
+  pool: Sessions,
   op: (typeof WRITE_OPS)[number],
   raw: string,
 ): Promise<SignedAct> => {
@@ -208,7 +222,7 @@ export const sign = async (
 
   // A pool that cannot give a client has written nothing, and the reason belongs to the same
   // map as a raised error: the address of the server is never a sentence for a screen.
-  let client: PoolClient;
+  let client: Session;
   try {
     client = await pool.connect();
   } catch (cause) {
@@ -223,19 +237,29 @@ export const sign = async (
     if (!draft.ready) return refused(draft.refusal);
     const act: ProposalAct = draft.act;
 
+    // Departure: the name comes back before the COMMIT, so a lost COMMIT still names the act
+    // that it may have written.
+    const written: { id?: string } = {};
     let proposalId: string;
     try {
-      proposalId = await inTransaction(client, () => propose(client, act));
+      proposalId = await inTransaction(client, async () => {
+        written.id = await propose(client, act);
+        return written.id;
+      });
     } catch (cause) {
-      return refused(refusalFrom(cause));
+      const failure = failureFrom(cause);
+      if (failure.raised) return refused(failure.refusal);
+      return doubted(failure.doubt, written.id);
     }
 
     try {
       const targetId = await inTransaction(client, () => promote(client, proposalId));
       return { outcome: 'signed', reply: { proposalId, targetId, state: 'signed' } };
     } catch (cause) {
-      // The proposal is committed and a trigger refuses its deletion. A rejection is a decision
-      // the operator did not take, so the act stays pending and the caller is told which one.
+      const failure = failureFrom(cause);
+      if (!failure.raised) return doubted(failure.doubt, proposalId);
+      // Departure: the proposal is committed and a trigger refuses its deletion. A rejection is a
+      // decision the operator did not take, so the act stays pending and the caller is told which.
       return {
         outcome: 'undecided',
         reply: { refusal: refusalFrom(cause, proposalId), proposalId },

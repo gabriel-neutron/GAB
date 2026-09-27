@@ -1,8 +1,8 @@
 import { decisionRequest, type DecisionOp } from '@gab/proposal/request';
-import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
 import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
+import type { Session, Sessions } from './pool.ts';
 import { failureFrom, refusalFrom } from './refusal.ts';
 
 /** What one decision became. `blocked` is the act the record refused, and nothing was written.
@@ -25,7 +25,7 @@ export type DecidedAct =
       // The act is named, because a caller that cannot learn what landed reads the record again
       // under that name. A refusal names none, and the two answers never read alike.
       readonly outcome: 'undecided';
-      readonly reply: { readonly refusal: string; readonly proposalId: string };
+      readonly reply: { readonly doubt: string; readonly proposalId: string };
     };
 
 const identifier = z.uuid();
@@ -40,16 +40,9 @@ const STATEMENT: Readonly<Record<DecisionOp, string>> = {
 const targetOf = (op: DecisionOp, row: Record<string, unknown> | undefined): string | null =>
   op === 'reject_proposal' ? null : identifier.parse(row?.['id']);
 
-const take = async (
-  client: PoolClient,
-  op: DecisionOp,
-  proposalId: string,
-): Promise<DecidedAct> => {
+const take = async (client: Session, op: DecisionOp, proposalId: string): Promise<DecidedAct> => {
   try {
-    const found = await client.query<Record<string, unknown>>(STATEMENT[op], [
-      proposalId,
-      DECIDED_BY,
-    ]);
+    const found = await client.query(STATEMENT[op], [proposalId, DECIDED_BY]);
     return {
       outcome: 'decided',
       reply: { proposalId, targetId: targetOf(op, found.rows[0]), state: 'decided' },
@@ -61,12 +54,12 @@ const take = async (
     if (failure.raised) return { outcome: 'blocked', reply: { refusal: failure.refusal } };
     // The statement may have run whole. The act keeps its name here, and the caller reads it
     // again in the record. A decision that landed must never be reported as a refusal.
-    return { outcome: 'undecided', reply: { refusal: failure.doubt, proposalId } };
+    return { outcome: 'undecided', reply: { doubt: failure.doubt, proposalId } };
   }
 };
 
 /** Decide one act that waits. It raises nothing, and every failure arrives as a sentence. */
-export const decide = async (pool: Pool, op: DecisionOp, raw: string): Promise<DecidedAct> => {
+export const decide = async (pool: Sessions, op: DecisionOp, raw: string): Promise<DecidedAct> => {
   let given: unknown;
   try {
     given = JSON.parse(raw);
@@ -79,7 +72,7 @@ export const decide = async (pool: Pool, op: DecisionOp, raw: string): Promise<D
 
   // A pool that cannot give a client has reached no statement, so nothing was written and the
   // answer is a refusal of the service and not of the record.
-  let client: PoolClient;
+  let client: Session;
   try {
     client = await pool.connect();
   } catch (cause) {

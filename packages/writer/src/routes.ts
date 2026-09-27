@@ -1,10 +1,10 @@
 import { DECISION_OPS, WRITE_OPS } from '@gab/proposal/request';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import type { Pool } from 'pg';
 
 import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
+import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
 
 const STATUS = {
@@ -26,7 +26,7 @@ const PAYLOAD_TOO_LARGE = 413;
 const doorOf = (op: string): string => `/write/${op.replaceAll('_', '-')}`;
 
 /** The eight doors. No address here answers a GET: the writer serves no read and returns no row. */
-export const writeRoutes = (pool: Pool): Hono => {
+export const writeRoutes = (pool: Sessions): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
   app.use(
