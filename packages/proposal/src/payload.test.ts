@@ -92,7 +92,9 @@ test('a prior that does not parse refuses the act, and never becomes an empty ci
     });
 });
 
-const POINT = { type: 'Point' as const, coordinates: [4.35, 50.85] };
+const BRUSSELS: [number, number] = [4.35, 50.85];
+
+const POINT = { type: 'Point' as const, coordinates: BRUSSELS };
 
 test.each([
   {
