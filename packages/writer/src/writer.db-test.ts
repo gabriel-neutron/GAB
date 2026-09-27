@@ -68,10 +68,19 @@ const proposalsFor = async (targetId: string): Promise<number> =>
     )['n'],
   );
 
+const DECIDED =
+  'SELECT status, author_role, prior_value, confidence, dissent' +
+  ' FROM public.proposals WHERE id = $1::uuid';
+
 const decided = async (proposalId: string | undefined): Promise<Record<string, unknown>> =>
-  one('SELECT status, author_role, prior_value FROM public.proposals WHERE id = $1::uuid', [
-    proposalId,
-  ]);
+  one(DECIDED, [proposalId]);
+
+const OPERATOR_ACT = {
+  status: 'accepted',
+  author_role: 'gabriel_app',
+  confidence: null,
+  dissent: false,
+} as const;
 
 const signedEntity = async (label: string): Promise<string> => {
   const [status, reply] = await post('create-entity', { type: 'vessel', label });
@@ -134,10 +143,7 @@ test('the five gestures reach the evidentiary layer', async () => {
       entityReply.targetId,
     ]);
     expect(madeBy['promoted_from']).toBe(entityReply.proposalId);
-    expect(await decided(entityReply.proposalId)).toMatchObject({
-      status: 'accepted',
-      author_role: 'gabriel_app',
-    });
+    expect(await decided(entityReply.proposalId)).toMatchObject(OPERATOR_ACT);
 
     other = await signedEntity('Writer test vessel');
 
@@ -172,10 +178,7 @@ test('the five gestures reach the evidentiary layer', async () => {
       dst_id: entityReply.targetId,
       valid_from: '2026-01-01',
     });
-    expect(await decided(relationReply.proposalId)).toMatchObject({
-      status: 'accepted',
-      author_role: 'gabriel_app',
-    });
+    expect(await decided(relationReply.proposalId)).toMatchObject(OPERATOR_ACT);
 
     const [updateStatus, updateReply] = await post('update-attrs', {
       targetKind: 'entity',
@@ -184,10 +187,7 @@ test('the five gestures reach the evidentiary layer', async () => {
     });
     expect(updateStatus).toBe(200);
     expect(updateReply.targetId).toBe(entityReply.targetId);
-    expect(await decided(updateReply.proposalId)).toMatchObject({
-      status: 'accepted',
-      author_role: 'gabriel_app',
-    });
+    expect(await decided(updateReply.proposalId)).toMatchObject(OPERATOR_ACT);
     const held = await one('SELECT attrs FROM public.entities WHERE id = $1::uuid', [
       entityReply.targetId,
     ]);
@@ -197,20 +197,14 @@ test('the five gestures reach the evidentiary layer', async () => {
       targetId: relationReply.targetId,
     });
     expect(relationGone).toBe(200);
-    expect(await decided(relationGoneReply.proposalId)).toMatchObject({
-      status: 'accepted',
-      author_role: 'gabriel_app',
-    });
+    expect(await decided(relationGoneReply.proposalId)).toMatchObject(OPERATOR_ACT);
     expect(await liveRows(relationId ?? '')).toBe(0);
 
     const [entityGone, entityGoneReply] = await post('delete-entity', {
       targetId: entityReply.targetId,
     });
     expect(entityGone).toBe(200);
-    expect(await decided(entityGoneReply.proposalId)).toMatchObject({
-      status: 'accepted',
-      author_role: 'gabriel_app',
-    });
+    expect(await decided(entityGoneReply.proposalId)).toMatchObject(OPERATOR_ACT);
     expect(await liveRows(entityReply.targetId ?? '')).toBe(0);
   } finally {
     await removed(relationId, other, entityReply.targetId);
