@@ -89,9 +89,15 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
   });
 });
 
+// External constraint: role_table_grants reads the table ACL alone, and a grant on one column is
+// only in column_privileges. UNION and not UNION ALL, because a table grant shows on each column.
 const WRITES_OF = `
   SELECT g.table_schema || '.' || g.table_name || ' ' || g.privilege_type AS found
-    FROM information_schema.role_table_grants g
+    FROM (SELECT t.table_schema, t.table_name, t.privilege_type, t.grantee
+            FROM information_schema.role_table_grants t
+          UNION
+          SELECT c.table_schema, c.table_name, c.privilege_type, c.grantee
+            FROM information_schema.column_privileges c) AS g
    WHERE g.grantee = $1 AND g.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
    ORDER BY 1`;
 
@@ -109,6 +115,19 @@ test('gabriel_agent writes no table, in any schema', async () => {
     writes.parse(await ask(WRITES_OF, ['gabriel_agent'])).map((row) => row.found),
   );
   expect(held).toStrictEqual([]);
+});
+
+test('a column grant of UPDATE on an evidentiary table shows as a write', async () => {
+  const held = await probe('superuser', async (ask) => {
+    await ask('BEGIN');
+    try {
+      await ask('GRANT UPDATE (label) ON public.entities TO gabriel_app');
+      return writes.parse(await ask(WRITES_OF, ['gabriel_app'])).map((row) => row.found);
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+  expect(held).toStrictEqual(['public.entities UPDATE']);
 });
 
 // The claim is a door and not a table write. A worker that could mark a row by hand could also

@@ -133,9 +133,14 @@ RESET ROLE;
 --      forgets that the GRANT list above is an enumeration and not a rule.
 --      MEASURED, 20 August 2026: without the extension clause this arm returns twelve rows for
 --      spatial_ref_sys, geometry_columns and geography_columns, which PostGIS owns and grants.
---      An arm that always returns rows is an arm nobody reads.
+--      An arm that always returns rows is an arm nobody reads. role_table_grants reads the table
+--      ACL alone, so a grant on one column is read from column_privileges too.
 --      SELECT g.table_schema, g.table_name, g.grantee, g.privilege_type
---        FROM information_schema.role_table_grants g
+--        FROM (SELECT table_schema, table_name, grantee, privilege_type
+--                FROM information_schema.role_table_grants
+--              UNION
+--              SELECT table_schema, table_name, grantee, privilege_type
+--                FROM information_schema.column_privileges) AS g
 --       WHERE g.table_schema IN ('public','api')
 --         AND g.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
 --         AND g.grantee <> 'gabriel_owner'
