@@ -10,7 +10,7 @@ export interface ConfidenceProps {
   readonly low: boolean;
 }
 
-/** The self-report of the machine. It is a track and a figure, and never the word "confidence":
+/** The self-report of the author. It is a track and a figure, and never the word "confidence":
  * the rating of the document outranks it, so it must not be the loudest thing on a card. */
 export function Confidence({ report, low }: ConfidenceProps) {
   if (!report.stated) {
