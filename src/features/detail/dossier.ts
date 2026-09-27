@@ -117,8 +117,9 @@ export interface Dossier {
    * point carries no geometry of its own AND the map draws it. A link to the map for an entity
    * the map draws nowhere opens a surface that selects nothing. */
   readonly drawnOnMap: boolean;
-  /** `position from <parent label>`, or null for an entity that stands at its own point. The
-   * panel draws no canvas, so these words are the only place it can state a borrowed position. */
+  /** Departure: `position from <parent label>`, `position from a parent` when the list lacks it,
+   * or null at its own point. The panel draws no canvas, so these words are the only place it
+   * can state a borrowed position. */
   readonly positionFrom: string | null;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
@@ -389,8 +390,12 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
   // this file reads the answer and repeats no rule of it.
   const at = read.positions.find((row) => row.entityId === entity.id);
   const borrowed = at?.parentId ?? null;
-  const parentLabel =
-    borrowed === null ? null : (read.entities.find((row) => row.id === borrowed)?.label ?? null);
+  // Departure: the map and the entity list are two reads, so the parent can be absent from the
+  // list. The point is still borrowed, so the words stand and only the name falls back.
+  const positionFrom =
+    borrowed === null
+      ? null
+      : positionFromWords(read.entities.find((row) => row.id === borrowed)?.label ?? 'a parent');
 
   return {
     entityId: entity.id,
@@ -398,7 +403,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     type: entity.type,
     proposedType: entity.proposedType,
     drawnOnMap: (at?.point ?? null) !== null,
-    positionFrom: parentLabel === null ? null : positionFromWords(parentLabel),
+    positionFrom,
     rows,
     entitySources,
     sources,
