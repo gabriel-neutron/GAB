@@ -1,19 +1,30 @@
 /** Typed text back into an attribute value, in the control it was typed into. The database is
  * the second tier and refuses what this misses; this tier gives a sentence before a round trip.
- * The reader of the kind stands here too, and it names the control that `readEntry` reads. */
+ * The reader of the kind stands here too, and it reads a value whose kind no key declares. */
 
 import type { AttributeValue } from '@/shared/read/model';
 
-import { type ClaimControl, type ClaimValue, type TypedValue } from './claims';
+import { NOTE_LENGTH, type ClaimControl, type ClaimValue, type TypedValue } from './claims';
 import { isDay } from './day';
 
-/** The value the act will carry, or the one sentence the analyst reads. */
-export type ClaimEntry =
-  | { readonly held: true; readonly value: AttributeValue }
+type Entry<Value> =
+  | { readonly held: true; readonly value: Value }
   | { readonly held: false; readonly refusal: string };
+
+/** The value the act will carry, or the one sentence the analyst reads. */
+export type ClaimEntry = Entry<AttributeValue>;
+
+type ScalarEntry = Entry<string | number | boolean>;
 
 // A plain decimal, and nothing else. A group separator, a space and an exponent are all refused.
 const DECIMAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
+
+// External constraint: a double holds about 15 digits, so `Number` rounds a longer decimal.
+// A decimal is exact when the double prints back as the typed text, less its trailing zeros.
+const isExact = (decimal: string): boolean => {
+  const bare = decimal.includes('.') ? decimal.replace(/\.?0+$/, '') : decimal;
+  return String(Number(decimal)) === (bare === '-0' ? '0' : bare);
+};
 
 const EMPTY =
   'This key takes a value. An unknown value is the absence of the key, and not a blank.';
@@ -30,8 +41,9 @@ const NOT_A_DAY =
 
 const NOT_A_YES_OR_NO = 'This key takes a yes or a no.';
 
-// The record holds a jsonb numeric, which takes far more. The browser is the tier that loses it.
-const TOO_LARGE = 'The browser cannot hold a number of that many digits. Write it with fewer.';
+// External constraint: the record holds a jsonb numeric, which takes every digit. The browser
+// holds a double, so it is the tier that would round the number.
+const INEXACT = 'The browser cannot hold this number exactly. Write it with fewer digits.';
 
 const EMPTY_ELEMENT = 'A value of the list is blank. Remove the comma that has no value beside it.';
 
@@ -48,21 +60,22 @@ type Reading =
   | { readonly control: ScalarControl }
   | Pick<Extract<ClaimValue, { control: 'list' }>, 'control' | 'element'>;
 
-const held = (value: AttributeValue): ClaimEntry => ({ held: true, value });
+const held = <Value>(value: Value): Entry<Value> => ({ held: true, value });
 
-const refused = (refusal: string): ClaimEntry => ({ held: false, refusal });
+const refused = (refusal: string): { readonly held: false; readonly refusal: string } => ({
+  held: false,
+  refusal,
+});
 
 // NOTHING HERE IS A RULE ON A VALUE. M11 leaves the free half of the model with none. What
 // remains turns typed text into the JSON type its control emits, and a box must write a number
 // or a string and cannot write both.
 
-const readNumber = (typed: string): ClaimEntry => {
+const readNumber = (typed: string): Entry<number> => {
   if (typed.includes(',')) return refused(COMMA);
   if (!DECIMAL.test(typed)) return refused(NOT_A_NUMBER);
-  const value = Number(typed);
-  // 310 digits or more give Infinity, and the door then refuses it with `Invalid input`.
-  if (!Number.isFinite(value)) return refused(TOO_LARGE);
-  return held(value);
+  if (!isExact(typed)) return refused(INEXACT);
+  return held(Number(typed));
 };
 
 // The comma separates two values, and the space beside it is written back into the box and is
@@ -77,36 +90,23 @@ const readList = (list: Extract<Reading, { control: 'list' }>, typed: string): C
   const numbers: number[] = [];
   for (const part of written) {
     const read = readNumber(part);
-    if (!read.held || typeof read.value !== 'number') return refused(NOT_A_NUMBER_LIST);
+    if (!read.held) return refused(NOT_A_NUMBER_LIST);
     numbers.push(read.value);
   }
   return held(numbers);
 };
 
-const readDay = (typed: string): ClaimEntry => (isDay(typed) ? held(typed) : refused(NOT_A_DAY));
+const readDay = (typed: string): ScalarEntry => (isDay(typed) ? held(typed) : refused(NOT_A_DAY));
 
-// A key that nobody declared has no kind, so the kind is read from the text (M11). A yes or a
-// no, a plain decimal and a day of the calendar each name themselves. A text that names none of
-// the three is text, and `2019-02-30` is one of them: no such day stands in the calendar.
-export function controlOfTyped(typed: string, noteLength: number): ScalarControl {
-  const trimmed = typed.trim();
-  if (trimmed === 'yes' || trimmed === 'no') return 'boolean';
-  if (DECIMAL.test(trimmed)) return 'number';
-  if (isDay(trimmed)) return 'date';
-  if (typed.length > noteLength || typed.includes('\n')) return 'note';
-  return 'text';
-}
-
-/** One typed value, read in the control that emitted it. */
-export function readEntry(reading: Reading, typed: TypedValue): ClaimEntry {
-  if (reading.control === 'boolean')
+const readScalar = (control: ScalarControl, typed: TypedValue): ScalarEntry => {
+  if (control === 'boolean')
     return typeof typed === 'boolean' ? held(typed) : refused(NOT_A_YES_OR_NO);
   if (typeof typed !== 'string') return refused(NOT_A_YES_OR_NO);
 
-  const trimmed = reading.control === 'note' ? typed : typed.trim();
+  const trimmed = control === 'note' ? typed : typed.trim();
   if (trimmed.trim() === '') return refused(EMPTY);
 
-  switch (reading.control) {
+  switch (control) {
     case 'number':
       return readNumber(trimmed);
     case 'date':
@@ -114,10 +114,42 @@ export function readEntry(reading: Reading, typed: TypedValue): ClaimEntry {
       // day itself. The record holds a day as a string, and one that is not read here lands
       // unread.
       return readDay(trimmed);
-    case 'list':
-      return readList(reading, trimmed);
     case 'text':
     case 'note':
       return held(trimmed);
   }
+};
+
+// Departure: no key declares a kind (M11), so the kind is read from the text. A yes or a no, an
+// exact decimal and a day of the calendar name themselves. Any other text is text, as are
+// `2019-02-30` and a 20-digit account number that a double would round.
+const controlOfTyped = (typed: string): ScalarControl => {
+  const trimmed = typed.trim();
+  if (trimmed === 'yes' || trimmed === 'no') return 'boolean';
+  if (DECIMAL.test(trimmed) && isExact(trimmed)) return 'number';
+  if (isDay(trimmed)) return 'date';
+  if (typed.length > NOTE_LENGTH || typed.includes('\n')) return 'note';
+  return 'text';
+};
+
+/** One typed value, read in the control that emitted it. */
+export function readEntry(reading: Reading, typed: TypedValue): ClaimEntry {
+  if (reading.control !== 'list') return readScalar(reading.control, typed);
+  if (typeof typed !== 'string') return refused(NOT_A_YES_OR_NO);
+  const trimmed = typed.trim();
+  if (trimmed === '') return refused(EMPTY);
+  return readList(reading, trimmed);
+}
+
+/** A value whose kind no key declares: the kind read from the text, and the value in that kind.
+ * The kind is never a list, so a comma is one text and never two values. */
+export function readUndeclaredValue(typed: string): {
+  readonly control: ScalarControl;
+  readonly entry: ScalarEntry;
+} {
+  const control = controlOfTyped(typed);
+  return {
+    control,
+    entry: readScalar(control, control === 'boolean' ? typed.trim() === 'yes' : typed),
+  };
 }

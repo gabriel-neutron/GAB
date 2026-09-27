@@ -5,7 +5,9 @@ import type { AttributeValue } from '@/shared/read/model';
 import { readClaims } from './claims';
 import type { RecordRow } from './dossier';
 import { pendingEdit, typedInto } from './draft';
-import { readEntry } from './entry';
+import { readEntry, readUndeclaredValue } from './entry';
+
+const controlOfTyped = (typed: string) => readUndeclaredValue(typed).control;
 
 const rowsOf = (key: string, v: AttributeValue): readonly RecordRow[] =>
   readClaims({ [key]: { v, src: ['doc_1'] } }).map((claim) => ({
@@ -48,4 +50,39 @@ test('a list typed back to its stored text stands at the stored value, with no r
   const typed = typedInto(rows, new Map(), 'aliases', 'Smith, John, J. Smith, Ivan Smith');
   const back = typedInto(rows, typed, 'aliases', 'Smith, John, J. Smith');
   expect(back.has('aliases')).toBe(false);
+});
+
+test('a digit string that a double cannot hold exactly reads as text', () => {
+  expect(controlOfTyped('40702810123456789012')).toBe('text');
+  expect(controlOfTyped('9007199254740993')).toBe('text');
+  expect(readUndeclaredValue('40702810123456789012').entry).toStrictEqual({
+    held: true,
+    value: '40702810123456789012',
+  });
+});
+
+test('a decimal that a double holds exactly reads as a number', () => {
+  expect(controlOfTyped('41.5')).toBe('number');
+  expect(controlOfTyped('41.50')).toBe('number');
+  expect(controlOfTyped('-3')).toBe('number');
+  expect(controlOfTyped('9007199254740992')).toBe('number');
+});
+
+test('a leading zero, an exponent and a second point read as text', () => {
+  expect(controlOfTyped('007')).toBe('text');
+  expect(controlOfTyped('1e5')).toBe('text');
+  expect(controlOfTyped('-0.5.')).toBe('text');
+});
+
+test('a number cell refuses a number it cannot hold exactly, and rounds nothing', () => {
+  expect(readEntry({ control: 'number' }, '40702810123456789012').held).toBe(false);
+  expect(readEntry({ control: 'number' }, '41.50')).toStrictEqual({ held: true, value: 41.5 });
+});
+
+test('a list with a blank inside is refused, and a trailing comma is dropped', () => {
+  expect(readEntry(storedOf(['GB', 'NO']), 'GB,,NO').held).toBe(false);
+  expect(readEntry(storedOf(['GB', 'NO']), 'GB, NO,')).toStrictEqual({
+    held: true,
+    value: ['GB', 'NO'],
+  });
 });
