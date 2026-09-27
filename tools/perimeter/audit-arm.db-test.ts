@@ -330,7 +330,7 @@ const READ_HOLDS = `
    WHERE g.grantee = 'gabriel_read'
    ORDER BY 1`;
 
-const TWELVE_VIEWS = [
+const READ_VIEWS = [
   'api.document SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
@@ -345,7 +345,7 @@ const TWELVE_VIEWS = [
 ];
 
 test('gabriel_read holds SELECT on the eleven api views and nothing else', async () => {
-  expect(await foundBy(READ_HOLDS)).toStrictEqual(TWELVE_VIEWS);
+  expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
 const NEIGHBOURS = `
