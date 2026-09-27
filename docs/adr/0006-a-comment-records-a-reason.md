@@ -116,9 +116,10 @@ column of each match. A comment carrying `#2971c6`, `#000000`, the register entr
 added.** A comment carrying `UC5 and Rule 16 and rules 12` gives three errors, at columns 4, 12 and
 24. The clean comment above still gives none, and `invariant 1` is one of the tokens that pass.
 
-**A hexadecimal colour is not a ticket.** The pattern for a ticket needs a word boundary after one
-to three digits, and no boundary follows three digits inside a six-digit hex. **This holds while a
-ticket number stays under four digits**, and the rule says so above itself.
+**A hexadecimal colour is not a ticket.** Amended 27 September 2026: a run of three or six
+hexadecimal characters is read as a colour, so `#999`, `#abc` and `#2971c6` pass, and `#89` and
+`#1234` are refused. `#123` and `#123456` could each be a ticket number, and the shape reads them
+as a colour, because a colour must never fail the build.
 
 **A stylesheet is out of reach, so it carries no number either.** ESLint does not read
 `src/index.css`, so the references there were removed by hand and nothing keeps them out. Its rules
