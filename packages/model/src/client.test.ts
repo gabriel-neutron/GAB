@@ -399,6 +399,22 @@ describe('a document longer than the window', () => {
     expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long' } });
   });
 
+  it('reads the stable word in the case the provider writes it', async () => {
+    const send = always(refusalBody('Context_Length_Exceeded'), 400);
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long', attempts: 1 } });
+  });
+
+  it('reads the stable word at a status that asks for a retry, and never retries', async () => {
+    const send = always(refusalBody('context_length_exceeded'), 429);
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long', attempts: 1 } });
+  });
+
   it('reads the sentence when the provider gives no stable word', async () => {
     const body = JSON.stringify({ error: { message: 'This model has a maximum context of 8192' } });
     const send = always(body, 400);
