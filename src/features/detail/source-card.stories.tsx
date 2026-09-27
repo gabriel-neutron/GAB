@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
+import { toDomain } from '@/shared/read/map';
 import type { Corpus, DocId } from '@/shared/read/model';
 
 import { readDossier, type SourceCardModel } from './dossier';
@@ -60,6 +61,28 @@ const HASH = stated(
 
 const DISCLOSURE = /Claims/;
 
+const NO_WEB_ADDRESS = 'No web address recorded';
+
+const addressed = (uri: string): SourceCardModel => {
+  const held = corpus.documents.find((row) => row.id === RATED.id);
+  if (held === undefined) throw new Error('The committed corpus carries no doc_8f2a41');
+  const read = toDomain.document({
+    id: held.id,
+    kind: held.kind,
+    title: held.title,
+    uri,
+    archive_uri: null,
+    sha256: held.sha256,
+    mime: null,
+    retrieved_at: held.retrievedAt,
+    admiralty: held.admiralty,
+    admiralty_origin: held.admiraltyOrigin,
+    created_at: null,
+  });
+  const documents = corpus.documents.map((row) => (row.id === read.id ? read : row));
+  return sourceIn(cardsOf({ ...corpus, documents }), read.id);
+};
+
 const meta = {
   component: SourceCard,
   args: { source: RATED },
@@ -96,7 +119,7 @@ export const TheOriginalAddressIsOnTheCard: Story = {
 export const AnAbsentAddressSaysSo: Story = {
   args: { source: UNRATED },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('No address recorded')).toBeInTheDocument();
+    await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
     await expect(canvas.getByText('No date of retrieval')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
@@ -107,6 +130,32 @@ export const AnAbsentAddressSaysSo: Story = {
     await expect(canvas.queryByText('—')).toBeNull();
     await expect(canvas.queryByText('N/A')).toBeNull();
     await expect(canvas.queryByText('0')).toBeNull();
+  },
+};
+
+export const AWebAddressIsALink: Story = {
+  args: { source: addressed('https://registry.example/e') },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('link', { name: /original document/ })).toHaveAttribute(
+      'href',
+      'https://registry.example/e',
+    );
+  },
+};
+
+export const AFileAddressIsNoLink: Story = {
+  args: { source: addressed('file:///etc/passwd') },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('link')).toBeNull();
+    await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
+  },
+};
+
+export const AHandlerAddressIsNoLink: Story = {
+  args: { source: addressed('ms-msdt:x') },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('link')).toBeNull();
+    await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
   },
 };
 

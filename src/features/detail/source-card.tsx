@@ -55,7 +55,7 @@ export function SourceCard({ source }: SourceCardProps) {
 
       <div className="mt-1 flex items-center gap-2 text-small/4">
         {source.uri === null ? (
-          <span className="min-w-0 flex-1 truncate text-label">No address recorded</span>
+          <span className="min-w-0 flex-1 truncate text-label">No web address recorded</span>
         ) : (
           <a
             href={source.uri}
