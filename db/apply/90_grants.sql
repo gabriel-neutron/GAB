@@ -111,10 +111,14 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA api
 RESET ROLE;
 
 -- =============================================================================================
--- THE AUDIT ARMS FOR #43. Each one must return no row.
+-- THE AUDIT ARMS. Each one must return no row.
 --
---   1. a SECURITY DEFINER function with no search_path
---      SELECT proname FROM pg_proc WHERE prosecdef AND proconfig IS NULL;
+--   1. a SECURITY DEFINER function with no search_path entry. proconfig holds every SET of a
+--      function, so a test for NULL passes a definer that sets only another parameter.
+--      SELECT p.proname FROM pg_proc p
+--       WHERE p.prosecdef
+--         AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}'::text[])) AS s(setting)
+--                          WHERE s.setting LIKE 'search\_path=%');
 --
 --   2. a SECURITY DEFINER function owned by anything but gabriel_owner
 --      SELECT proname FROM pg_proc
@@ -142,14 +146,20 @@ RESET ROLE;
 --                WHERE d.deptype = 'e' AND n.nspname = g.table_schema
 --                  AND c.relname = g.table_name);
 --
---   5. an api function with invoker rights whose body names public. Arms 1 and 2 both filter on
---      prosecdef, so neither one looks at a function that is NOT a definer. api.neighbourhood
---      sat here: the GRANT existed, and every call raised `permission denied for schema public`,
---      because gabriel_read holds nothing on public. A grant that can never succeed reads as a
---      working door. The api views are the way out, and they run as their owner.
+--   5. an api function with invoker rights whose body names public, or names a relation of
+--      public with no schema, which a search_path that holds public resolves there. Arms 1 and 2
+--      both filter on prosecdef, so neither one looks at a function that is NOT a definer.
+--      gabriel_read holds nothing on public, so each call of such a function raises, and its
+--      GRANT reads as a working door. The api views are the way out, and they run as their owner.
+--      The lookbehind passes a name after a dot, so api.entity_type is not the table entity_type.
 --      SELECT p.proname FROM pg_proc p
 --       WHERE p.pronamespace = 'api'::regnamespace
---         AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.';
+--         AND NOT p.prosecdef
+--         AND (p.prosrc ~* '\mpublic\.'
+--              OR EXISTS (SELECT 1 FROM pg_class c
+--                          WHERE c.relnamespace = 'public'::regnamespace
+--                            AND c.relkind IN ('r','p','v','m','f')
+--                            AND p.prosrc ~* ('(?<![.\w"])"?' || c.relname || '\M')));
 --
 --   6. THE DOOR SET. Arms 1 to 5 read a table grant, and a SECURITY DEFINER door holds none: a
 --      door writes as gabriel_owner, so EXECUTE on one is the right to write a table that every

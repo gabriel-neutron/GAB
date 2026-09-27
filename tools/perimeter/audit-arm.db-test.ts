@@ -11,13 +11,30 @@ const findings = z.array(z.object({ found: z.string() }));
 const foundBy = async (sql: string): Promise<readonly string[]> =>
   probe('superuser', async (ask) => findings.parse(await ask(sql)).map((row) => row.found));
 
-const ARMS = [
-  {
-    fault: 'SECURITY DEFINER function with no search_path',
-    sql: `SELECT p.proname AS found
+// External constraint: proconfig holds every SET of a function, so a NULL test passes a definer
+// that sets another parameter. The underscore is escaped because LIKE reads it as any character.
+const NO_SEARCH_PATH = String.raw`SELECT p.proname AS found
             FROM pg_catalog.pg_proc p
-           WHERE p.prosecdef AND p.proconfig IS NULL`,
-  },
+           WHERE p.prosecdef
+             AND NOT EXISTS (
+                   SELECT 1 FROM unnest(coalesce(p.proconfig, '{}'::text[])) AS s(setting)
+                    WHERE s.setting LIKE 'search\_path=%')`;
+
+// External constraint: a search_path that names public resolves a bare table name there. The
+// lookbehind passes a name after a dot, so api.entity_type is not the table entity_type.
+const INVOKER_READS_PUBLIC = String.raw`SELECT p.proname AS found
+            FROM pg_catalog.pg_proc p
+           WHERE p.pronamespace = 'api'::regnamespace
+             AND NOT p.prosecdef
+             AND (p.prosrc ~* '\mpublic\.'
+                  OR EXISTS (
+                       SELECT 1 FROM pg_catalog.pg_class c
+                        WHERE c.relnamespace = 'public'::regnamespace
+                          AND c.relkind IN ('r','p','v','m','f')
+                          AND p.prosrc ~* ('(?<![.\w"])"?' || c.relname || '\M')))`;
+
+const ARMS = [
+  { fault: 'SECURITY DEFINER function with no search_path', sql: NO_SEARCH_PATH },
   {
     fault: 'SECURITY DEFINER function that gabriel_owner does not own',
     sql: `SELECT p.proname AS found
@@ -53,10 +70,7 @@ const ARMS = [
     fault: 'api function with invoker rights that reads public',
     // A departure: arms 1 and 2 filter on prosecdef, so an invoker function escapes both. It
     // raises for gabriel_read, which holds nothing on public, and its GRANT reads as a door.
-    sql: String.raw`SELECT p.proname AS found
-            FROM pg_catalog.pg_proc p
-           WHERE p.pronamespace = 'api'::regnamespace
-             AND NOT p.prosecdef AND p.prosrc ~ '\mpublic\.'`,
+    sql: INVOKER_READS_PUBLIC,
   },
   {
     fault: 'default privilege that lets a role other than gabriel_owner execute its next function',
@@ -87,6 +101,35 @@ for (const arm of ARMS)
   test(`the perimeter carries no ${arm.fault}`, async () => {
     expect(await foundBy(arm.sql), `the audit arm found a ${arm.fault}`).toStrictEqual([]);
   });
+
+const foundAfter = async (create: string, sql: string): Promise<readonly string[]> =>
+  probe('superuser', async (ask) => {
+    await ask('BEGIN');
+    try {
+      await ask(create);
+      return findings.parse(await ask(sql)).map((row) => row.found);
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+
+test('arm 1 finds a definer that sets another parameter and no search_path', async () => {
+  const found = await foundAfter(
+    `CREATE FUNCTION public.zz_no_search_path() RETURNS int LANGUAGE sql
+       SECURITY DEFINER SET statement_timeout = '5s' AS 'SELECT 1'`,
+    NO_SEARCH_PATH,
+  );
+  expect(found).toStrictEqual(['zz_no_search_path']);
+});
+
+test('arm 5 finds an api invoker function that names a public table with no schema', async () => {
+  const found = await foundAfter(
+    `CREATE FUNCTION api.zz_bare_read() RETURNS bigint LANGUAGE sql
+       SET search_path = pg_catalog, public, pg_temp AS 'SELECT count(*) FROM entities'`,
+    INVOKER_READS_PUBLIC,
+  );
+  expect(found).toStrictEqual(['zz_bare_read']);
+});
 
 const DEFINER_DOORS = `
   SELECT n.nspname || '.' || p.proname || ' to '
