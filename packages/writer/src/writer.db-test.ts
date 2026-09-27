@@ -713,13 +713,15 @@ test('the rejection door decides the act, and it writes no row', async () => {
   expect(reply2.proposalId).toBeUndefined();
 });
 
-test('a decision that names no act of the record is refused', async () => {
-  const [status, reply] = await post('promote-proposal', {
-    proposalId: '00000000-0000-4000-8000-000000000000',
-  });
-  expect(status).toBe(409);
-  expect(reply.refusal).toBe('the record holds no act under that name');
-});
+test.for(['promote-proposal', 'reject-proposal'])(
+  'the %s door refuses a decision that names no act of the record',
+  async (door) => {
+    const [status, reply] = await post(door, {
+      proposalId: '00000000-0000-4000-8000-000000000000',
+    });
+    expect([status, reply.refusal]).toStrictEqual([409, 'the record holds no act under that name']);
+  },
+);
 
 test('a decision that names no proposal at all is refused before the record is reached', async () => {
   const [status, reply] = await post('reject-proposal', { targetId: TARGET_OF_NO_ACT });
