@@ -67,9 +67,9 @@ function OneField({
         draft={draft}
         onEdit={(typed) => {
           onTyped(typed);
-          const read = readEntry(start.control, typed);
+          const read = readEntry(start, typed);
           setDraft({
-            value: typedValue(start.control, typed),
+            value: typedValue(start, typed),
             refusal: read.held ? null : read.refusal,
           });
         }}

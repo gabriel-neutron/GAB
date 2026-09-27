@@ -4,7 +4,7 @@
 
 import type { AttributeValue } from '@/shared/read/model';
 
-import { type ClaimControl, type TypedValue } from './claims';
+import { type ClaimControl, type ClaimValue, type TypedValue } from './claims';
 import { isDay } from './day';
 
 /** The value the act will carry, or the one sentence the analyst reads. */
@@ -35,6 +35,19 @@ const TOO_LARGE = 'The browser cannot hold a number of that many digits. Write i
 
 const EMPTY_ELEMENT = 'A value of the list is blank. Remove the comma that has no value beside it.';
 
+const NOT_A_NUMBER_LIST =
+  'Each value of this list is a number. Write digits, and a decimal point where you need one.';
+
+const COMMA_IN_ELEMENT =
+  'A value of this list holds a comma, so the box cannot keep the values apart.' +
+  ' This list takes no edit here.';
+
+type ScalarControl = Exclude<ClaimControl, 'list'>;
+
+type Reading =
+  | { readonly control: ScalarControl }
+  | Pick<Extract<ClaimValue, { control: 'list' }>, 'control' | 'element'>;
+
 const held = (value: AttributeValue): ClaimEntry => ({ held: true, value });
 
 const refused = (refusal: string): ClaimEntry => ({ held: false, refusal });
@@ -55,11 +68,19 @@ const readNumber = (typed: string): ClaimEntry => {
 // The comma separates two values, and the space beside it is written back into the box and is
 // never required in it. A trailing blank is the state of the box between two values, so it is
 // dropped and never refused: a list must not flash red at each comma the analyst types.
-const readList = (typed: string): ClaimEntry => {
+const readList = (list: Extract<Reading, { control: 'list' }>, typed: string): ClaimEntry => {
+  if (list.element === 'text with a comma') return refused(COMMA_IN_ELEMENT);
   const parts = typed.split(',').map((part) => part.trim());
   const written = parts.at(-1) === '' ? parts.slice(0, -1) : parts;
   if (written.length === 0 || written.includes('')) return refused(EMPTY_ELEMENT);
-  return held(written);
+  if (list.element === 'text') return held(written);
+  const numbers: number[] = [];
+  for (const part of written) {
+    const read = readNumber(part);
+    if (!read.held || typeof read.value !== 'number') return refused(NOT_A_NUMBER_LIST);
+    numbers.push(read.value);
+  }
+  return held(numbers);
 };
 
 const readDay = (typed: string): ClaimEntry => (isDay(typed) ? held(typed) : refused(NOT_A_DAY));
@@ -67,7 +88,7 @@ const readDay = (typed: string): ClaimEntry => (isDay(typed) ? held(typed) : ref
 // A key that nobody declared has no kind, so the kind is read from the text (M11). A yes or a
 // no, a plain decimal and a day of the calendar each name themselves. A text that names none of
 // the three is text, and `2019-02-30` is one of them: no such day stands in the calendar.
-export function controlOfTyped(typed: string, noteLength: number): ClaimControl {
+export function controlOfTyped(typed: string, noteLength: number): ScalarControl {
   const trimmed = typed.trim();
   if (trimmed === 'yes' || trimmed === 'no') return 'boolean';
   if (DECIMAL.test(trimmed)) return 'number';
@@ -77,15 +98,15 @@ export function controlOfTyped(typed: string, noteLength: number): ClaimControl 
 }
 
 /** One typed value, read in the control that emitted it. */
-export function readEntry(control: ClaimControl, typed: TypedValue): ClaimEntry {
-  if (control === 'boolean')
+export function readEntry(reading: Reading, typed: TypedValue): ClaimEntry {
+  if (reading.control === 'boolean')
     return typeof typed === 'boolean' ? held(typed) : refused(NOT_A_YES_OR_NO);
   if (typeof typed !== 'string') return refused(NOT_A_YES_OR_NO);
 
-  const trimmed = control === 'note' ? typed : typed.trim();
+  const trimmed = reading.control === 'note' ? typed : typed.trim();
   if (trimmed.trim() === '') return refused(EMPTY);
 
-  switch (control) {
+  switch (reading.control) {
     case 'number':
       return readNumber(trimmed);
     case 'date':
@@ -94,7 +115,7 @@ export function readEntry(control: ClaimControl, typed: TypedValue): ClaimEntry 
       // unread.
       return readDay(trimmed);
     case 'list':
-      return readList(trimmed);
+      return readList(reading, trimmed);
     case 'text':
     case 'note':
       return held(trimmed);

@@ -66,12 +66,16 @@ export function typedInto(
   const claim = rows.find((candidate) => candidate.claim.key === key)?.claim;
   if (claim === undefined) return drafts;
 
-  const read = readEntry(claim.value.control, typed);
+  const value = typedValue(claim.value, typed);
   const next = new Map(drafts);
-  next.set(key, {
-    value: typedValue(claim.value.control, typed),
-    refusal: read.held ? null : read.refusal,
-  });
+  // Departure: a text typed back to the stored text is the stored value, and no draft. A list
+  // that takes no edit would otherwise hold its refusal after the analyst undid each keystroke.
+  if (value.text === claim.value.text) {
+    next.delete(key);
+    return next;
+  }
+  const read = readEntry(claim.value, typed);
+  next.set(key, { value, refusal: read.held ? null : read.refusal });
   return next;
 }
 
@@ -107,7 +111,7 @@ export function pendingEdit(rows: readonly RecordRow[], drafts: Drafts): Pending
       continue;
     }
     if (draft.value.text === claim.value.text) continue;
-    const read = readEntry(claim.value.control, entered(draft));
+    const read = readEntry(claim.value, entered(draft));
     if (!read.held) {
       refused = true;
       continue;

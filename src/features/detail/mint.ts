@@ -56,7 +56,7 @@ export function readMint(rows: readonly RecordRow[], form: MintForm): MintDraft 
   if (text.trim() === '') return refused(NO_VALUE);
 
   const control = controlOfTyped(text, NOTE_LENGTH);
-  const read = readEntry(control, control === 'boolean' ? text.trim() === 'yes' : text);
+  const read = readEntry({ control }, control === 'boolean' ? text.trim() === 'yes' : text);
   if (!read.held) return refused(read.refusal);
   if (typeof read.value === 'object') return refused(NO_LIST);
   return { ready: true, attrs: { [key]: { v: read.value } }, control };
