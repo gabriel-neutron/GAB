@@ -10,10 +10,14 @@ export type ClaimControl = 'boolean' | 'number' | 'date' | 'text' | 'note' | 'li
 /** A derivation holds no class string. The presentation maps these four names to widths. */
 export type ClaimWidth = 'short' | 'date' | 'medium' | 'line';
 
+// Departure: the box holds one text, so a list states the kind its elements read back in. An
+// element that holds the separator cannot come out of the box whole, so that list takes no edit.
+type ListElement = 'number' | 'text' | 'text with a comma';
+
 export type ClaimValue =
   | { readonly control: 'boolean'; readonly checked: boolean; readonly text: string }
   | { readonly control: 'number' | 'date' | 'text' | 'note'; readonly text: string }
-  | { readonly control: 'list'; readonly text: string; readonly count: number };
+  | { readonly control: 'list'; readonly text: string; readonly element: ListElement };
 
 /** What a control emits: a checkbox gives a yes or a no, and every other control gives text. */
 export type TypedValue = string | boolean;
@@ -27,8 +31,7 @@ export interface ClaimRow {
   readonly sources: readonly DocId[];
 }
 
-/** The separator of a list, in the box and back out of it. */
-export const LIST_SEPARATOR = ', ';
+const LIST_SEPARATOR = ', ';
 
 /** Longer than this, or with a line break, and the text is read as a note. A stand-in value.
  * The reader of a minted claim takes the same length, so what is typed draws as it was seen. */
@@ -55,21 +58,28 @@ function shapeOf(value: AttributeValue): ClaimValue {
     return { control: 'text', text: value };
   }
   // M7 leaves a flat list of scalars, and nothing else. It is joined into the one box.
-  return { control: 'list', text: value.join(LIST_SEPARATOR), count: value.length };
+  return { control: 'list', text: value.join(LIST_SEPARATOR), element: elementOf(value) };
 }
 
-/** What the analyst has typed, in the control it was typed into. The text is kept as it stands,
- * so a half-written number stays on the screen and the caret stays where it is. */
-export function typedValue(control: ClaimControl, typed: TypedValue): ClaimValue {
-  if (control === 'boolean') {
+function elementOf(list: readonly string[] | readonly number[]): ListElement {
+  if (list.some((element) => typeof element === 'string' && element.includes(','))) {
+    return 'text with a comma';
+  }
+  return list.length > 0 && list.every((element) => typeof element === 'number')
+    ? 'number'
+    : 'text';
+}
+
+/** Departure: the text is kept as it was typed, so a half-written number stays on the screen and
+ * the caret stays where it is. A list keeps the element kind of the cell it was typed into. */
+export function typedValue(start: ClaimValue, typed: TypedValue): ClaimValue {
+  if (start.control === 'boolean') {
     const checked = typed === true;
-    return { control, checked, text: checked ? 'yes' : 'no' };
+    return { control: 'boolean', checked, text: checked ? 'yes' : 'no' };
   }
   const text = typeof typed === 'string' ? typed : String(typed);
-  if (control === 'list') {
-    return { control, text, count: text.split(',').length };
-  }
-  return { control, text };
+  if (start.control === 'list') return { control: 'list', text, element: start.element };
+  return { control: start.control, text };
 }
 
 function widthOf(value: ClaimValue): ClaimWidth {
