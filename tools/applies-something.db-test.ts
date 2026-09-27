@@ -10,7 +10,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, type Ask } from './probe.ts';
+import { rolledBack } from './probe.ts';
 
 const DOCUMENT = 'manual';
 const TYPE = 'vessel';
@@ -20,20 +20,14 @@ const REFUSED = { code: '23514', constraint: 'proposals_update_names_attrs' };
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-// Every gesture rolls back: the proposals ledger is append-only and a trigger refuses a delete.
 const proposed = (op: string, payload: string, target: string): Promise<unknown> =>
-  probe('app', async (ask: Ask) => {
-    await ask('BEGIN');
-    try {
-      return made.parse(
-        await ask(
-          `SELECT public.propose_change('${op}', '${payload}'::jsonb, ${CITED}, ${target}) AS id`,
-        ),
-      );
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
+  rolledBack('app', async (ask) =>
+    made.parse(
+      await ask(
+        `SELECT public.propose_change('${op}', '${payload}'::jsonb, ${CITED}, ${target}) AS id`,
+      ),
+    ),
+  );
 
 // The target need not exist: the CHECK sits on the row, and `target_id` carries no foreign key
 // because the target is polymorphic (M4).
@@ -59,16 +53,11 @@ test('an update of a relation that names no attribute is refused', async () => {
 const CREATION = `{"type":"${TYPE}","label":"A creation with no attribute","attrs":{}}`;
 
 test('a creation that names no attribute is still accepted', async () => {
-  const written = await probe('app', async (ask: Ask) => {
-    await ask('BEGIN');
-    try {
-      return made.parse(
-        await ask(`SELECT public.propose_change('create_entity', '${CREATION}'::jsonb, ${CITED})
-          AS id`),
-      );
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
+  const written = await rolledBack('app', async (ask) =>
+    made.parse(
+      await ask(`SELECT public.propose_change('create_entity', '${CREATION}'::jsonb, ${CITED})
+        AS id`),
+    ),
+  );
   expect(written).toHaveLength(1);
 });
