@@ -53,6 +53,24 @@ test('a key that is not a lower snake case identifier is refused', () => {
     });
 });
 
+test('a value that is null or a list with depth is refused', () => {
+  for (const given of [
+    { imo: { v: null } },
+    { port_calls: { v: [['x']] } },
+    { port_calls: { v: [{ n: 'x' }] } },
+  ])
+    expect({ given, code: refusalOf(given).code }).toEqual({ given, code: 'invalid_union' });
+});
+
+test('a key refusal states the shape of a key, and a body that is no record does not', () => {
+  const shape = `${String(ATTRIBUTE_KEY_LENGTH)} characters at most`;
+  const refused = refusalOf({ 'Coal Stock': { v: 1 } });
+  expect(refused.code).toBe('invalid_key');
+  expect(refused.message).toMatch(/^a key is lower case words of letters and digits/);
+  expect(refused.message).toContain(shape);
+  expect(refusalOf('x').message).not.toContain(shape);
+});
+
 test('a key of digits after the first word is accepted', () => {
   const given = { berth_7: { v: true }, coal_stock_t: { v: 41.5 } };
   expect(attributeEdit.parse(given)).toEqual(given);
