@@ -524,6 +524,95 @@ test('an act that changes neither the name nor the type is refused and writes no
   }
 });
 
+// A new relation names its two ends and no target, so its proposals are found by the names.
+const proposalsNaming = async (id: string): Promise<number> =>
+  Number(
+    (
+      await one(
+        'SELECT count(*) AS n FROM public.proposals WHERE target_id = $1::uuid OR $1::uuid = ANY(names)',
+        [id],
+      )
+    )['n'],
+  );
+
+test('an act on an element that does not exist answers 404 and writes no proposal', async () => {
+  const live = await signedEntity('Writer test absent end');
+  try {
+    const before = await proposalsNaming(NO_ENTITY);
+    const beforeLive = await proposalsNaming(live);
+    const acts: readonly (readonly [string, Record<string, unknown>])[] = [
+      ['create-relation', { type: 'berthed_at', srcId: NO_ENTITY, dstId: live }],
+      ['create-relation', { type: 'berthed_at', srcId: live, dstId: NO_ENTITY }],
+      ['update-attrs', { targetKind: 'entity', targetId: NO_ENTITY, attrs: { imo: { v: 1 } } }],
+      ['update-attrs', { targetKind: 'relation', targetId: NO_ENTITY, attrs: { imo: { v: 1 } } }],
+      ['delete-relation', { targetId: NO_ENTITY }],
+      ['delete-entity', { targetId: NO_ENTITY }],
+    ];
+    const answers = [];
+    for (const [door, body] of acts) {
+      const [status, reply] = await post(door, body);
+      answers.push([door, status, reply.refusal]);
+    }
+    const role = (word: string): string => `the ${word} ${NO_ENTITY} does not exist`;
+    expect(answers).toStrictEqual([
+      ['create-relation', 404, role('source')],
+      ['create-relation', 404, role('target')],
+      ['update-attrs', 404, role('target')],
+      ['update-attrs', 404, role('target')],
+      ['delete-relation', 404, role('target')],
+      ['delete-entity', 404, role('target')],
+    ]);
+    expect(await proposalsNaming(NO_ENTITY)).toBe(before);
+    expect(await proposalsNaming(live)).toBe(beforeLive);
+  } finally {
+    await removed(live);
+  }
+});
+
+test('a relation that is an end of another relation is refused its delete', async () => {
+  const source = await signedEntity('Writer test relation end source');
+  const target = await signedEntity('Writer test relation end target');
+  let inner: string | null | undefined;
+  let outer: string | null | undefined;
+  try {
+    const [, made] = await post('create-relation', {
+      type: 'berthed_at',
+      srcId: source,
+      dstId: target,
+    });
+    inner = made.targetId;
+    const [status, reply] = await post('create-relation', {
+      type: 'berthed_at',
+      srcKind: 'relation',
+      srcId: inner,
+      dstId: target,
+    });
+    outer = reply.targetId;
+    expect(status).toBe(200);
+    expect(
+      await one('SELECT src_kind, src_id FROM public.relations WHERE id = $1::uuid', [outer]),
+    ).toStrictEqual({ src_kind: 'relation', src_id: inner });
+
+    const [updated] = await post('update-attrs', {
+      targetKind: 'relation',
+      targetId: inner,
+      attrs: { berth_count: { v: 1 } },
+    });
+    expect(updated).toBe(200);
+
+    const before = await proposalsFor(inner ?? '');
+    const [refused, refusal] = await post('delete-relation', { targetId: inner });
+    expect([refused, refusal.refusal]).toStrictEqual([
+      409,
+      'the relation is an endpoint of 1 relation, and it is not deleted',
+    ]);
+    expect(await proposalsFor(inner ?? '')).toBe(before);
+    expect(await liveRows(inner ?? '')).toBe(1);
+  } finally {
+    await removed(outer, inner, source, target);
+  }
+});
+
 // The whole sentence, because it is the witness: the create door read the body against the
 // create schema, and it named the key of the other act as one it does not know.
 const CREATE_DOOR_REFUSAL =
