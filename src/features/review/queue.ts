@@ -206,9 +206,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
 function kindOf(op: ProposalOp, rows: readonly DifferenceRow[]): ChangeKind {
   const stated = KIND_OF_OP[op];
   if (stated !== 'edit' || rows.length === 0) return stated;
-  if (rows.every((row) => row.op === 'add')) return 'add';
-  if (rows.every((row) => row.op === 'remove')) return 'delete';
-  return 'edit';
+  return rows.every((row) => row.op === 'add') ? 'add' : 'edit';
 }
 
 function words(value: AttributeValue): string {
