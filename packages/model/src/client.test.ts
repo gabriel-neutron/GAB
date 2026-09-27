@@ -368,16 +368,20 @@ describe('a document longer than the window', () => {
 
   it('reads the sentence when the provider gives no stable word', async () => {
     const body = JSON.stringify({ error: { message: 'This model has a maximum context of 8192' } });
-    const got = await ask(always(body, 400)).run();
+    const send = always(body, 400);
+    const got = await ask(send).run();
 
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long' } });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long', attempts: 1 } });
   });
 
   it('never calls another bad request too long, so the operator looks in the right place', async () => {
     const body = JSON.stringify({ error: { message: 'temperature must be a number' } });
-    const got = await ask(always(body, 400)).run();
+    const send = always(body, 400);
+    const got = await ask(send).run();
 
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'configuration', attempts: 1 } });
   });
 
   it('refuses an answer the model stopped at the token limit', async () => {
@@ -501,6 +505,7 @@ describe('the settings and the key', () => {
     );
     const got = await ask(send).run();
 
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'refused' } });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'refused', attempts: 1 } });
   });
 });
