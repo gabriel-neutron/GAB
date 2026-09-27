@@ -8,8 +8,27 @@ import { probe } from '../probe.ts';
 
 const findings = z.array(z.object({ found: z.string() }));
 
-const foundBy = async (sql: string): Promise<readonly string[]> =>
-  probe('superuser', async (ask) => findings.parse(await ask(sql)).map((row) => row.found));
+const foundBy = async (sql: string, values?: readonly unknown[]): Promise<readonly string[]> =>
+  probe('superuser', async (ask) => findings.parse(await ask(sql, values)).map((row) => row.found));
+
+const WRITE_VERBS = ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'];
+
+const EXEMPT_CASCADES = {
+  entity_layout_entity_fkey:
+    'A position is presentation, not evidence. The cascade destroys the drawing of a row that ' +
+    'is already deleted, and no caller loses an evidentiary row through it.',
+};
+
+// A departure: the table set is read from the catalogue and never written by hand, so a table
+// born in `public` is covered on the day it is created. Each line of the exemption list is the
+// act of a person, and it carries the reason beside it.
+const EVERY_TABLE = `
+  SELECT t.table_name AS found
+    FROM information_schema.tables t
+   WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+   ORDER BY 1`;
+
+const evidentiary = await foundBy(EVERY_TABLE);
 
 // External constraint: proconfig holds every SET of a function, so a NULL test passes a definer
 // that sets another parameter. The underscore is escaped because LIKE reads it as any character.
@@ -69,7 +88,13 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
            WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
            ORDER BY 1`;
 
-const ARMS = [
+interface Arm {
+  readonly fault: string;
+  readonly sql: string;
+  readonly values?: readonly unknown[];
+}
+
+const ARMS: readonly Arm[] = [
   { fault: 'SECURITY DEFINER function with no search_path', sql: NO_SEARCH_PATH },
   {
     fault: 'SECURITY DEFINER function that gabriel_owner does not own',
@@ -114,11 +139,38 @@ const ARMS = [
              AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
            ORDER BY 1`,
   },
-] as const;
+  {
+    fault: 'default privilege that opens the next table of public',
+    sql: `SELECT n.nspname || ' ' || a.privilege_type || ' to '
+                 || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
+            FROM pg_catalog.pg_default_acl d
+            JOIN pg_catalog.pg_namespace n ON n.oid = d.defaclnamespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(d.defaclacl) AS a
+           WHERE d.defaclobjtype = 'r' AND n.nspname = 'public'
+             AND a.privilege_type = ANY($1)
+             AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
+           ORDER BY 1`,
+    values: [WRITE_VERBS],
+  },
+  {
+    fault: 'foreign key that cascades a delete of an evidentiary row',
+    sql: `SELECT c.conname AS found
+            FROM pg_catalog.pg_constraint c
+            JOIN pg_catalog.pg_class child ON child.oid = c.conrelid
+           WHERE c.contype = 'f' AND c.confdeltype = 'c'
+             AND NOT (c.conname = ANY($2))
+             AND child.relnamespace = 'public'::regnamespace AND child.relname = ANY($1)
+           ORDER BY 1`,
+    values: [evidentiary, Object.keys(EXEMPT_CASCADES)],
+  },
+];
 
 for (const arm of ARMS)
   test(`the perimeter carries no ${arm.fault}`, async () => {
-    expect(await foundBy(arm.sql), `the audit arm found a ${arm.fault}`).toStrictEqual([]);
+    expect(await foundBy(arm.sql, arm.values), `the audit arm found a ${arm.fault}`).toStrictEqual(
+      [],
+    );
   });
 
 const foundAfter = async (create: string, sql: string): Promise<readonly string[]> =>
