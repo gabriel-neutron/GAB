@@ -11,9 +11,17 @@ const databaseIsReachable = (process.env['GABRIEL_APP_PASSWORD'] ?? '') !== '';
 const bucketIsReachable = (process.env['RAW_STORE_SECRET_KEY'] ?? '') !== '';
 
 // Departure: a project that nobody registers reports nothing, so a run without it shows green.
-// `OFFLINE` is the one word that asks for the smaller suite. Without it, a missing credential
-// stops the run.
-const offlineWasAsked = (process.env['OFFLINE'] ?? '') !== '';
+// Only `OFFLINE=1` asks for the smaller suite, and each other non-empty value stops the run,
+// because `OFFLINE=0` or `OFFLINE=false` can mean "not offline".
+const offlineWord = process.env['OFFLINE'] ?? '';
+
+if (offlineWord !== '' && offlineWord !== '1')
+  throw new Error(
+    `OFFLINE is "${offlineWord}". Only OFFLINE=1 asks for the offline part of the suite. Unset ` +
+      'OFFLINE to run the whole suite.',
+  );
+
+const offlineWasAsked = offlineWord === '1';
 
 if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
   throw new Error(
