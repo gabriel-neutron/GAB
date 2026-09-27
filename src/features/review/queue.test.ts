@@ -200,3 +200,25 @@ describe('why an act stands in the queue, with no threshold in force', () => {
     expect(changeIn(null, LOW_AGREED).routingWords).toMatch(/threshold/i);
   });
 });
+
+describe('who wrote an act in the queue', () => {
+  const OPERATOR_ACT: Proposal = {
+    ...actOf('bb000001-0000-4000-8000-000000000008', 1, false),
+    authorRole: 'gabriel_app',
+  };
+
+  it('marks an act of the operator as the operator, and never words it as the machine', () => {
+    const [change] = readQueue({ ...corpus, proposals: [OPERATOR_ACT] }, THRESHOLD).flatMap(
+      (subject) => subject.changes,
+    );
+    expect(change?.origin).toBe('operator');
+    expect(change?.confidenceReport.words).not.toMatch(/The machine reports/);
+    expect(change?.confidenceReport.words).toMatch(/operator/);
+  });
+
+  it('marks an act of an agent as the machine', () => {
+    const change = changeIn(THRESHOLD, HIGH_AGREED);
+    expect(change.origin).toBe('machine');
+    expect(change.confidenceReport.words).toMatch(/The machine reports/);
+  });
+});

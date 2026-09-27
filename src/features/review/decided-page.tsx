@@ -56,6 +56,9 @@ export function DecidedPage({ rows }: DecidedPageProps) {
                   Keys
                 </th>
                 <th scope="col" className={HEAD}>
+                  Written by
+                </th>
+                <th scope="col" className={HEAD}>
                   Signed as
                 </th>
               </tr>
@@ -75,6 +78,7 @@ export function DecidedPage({ rows }: DecidedPageProps) {
                   <td className={`${CELL} whitespace-nowrap`}>{row.actWords}</td>
                   <td className={CELL}>{row.subject}</td>
                   <td className={`${CELL} font-mono`}>{row.keys}</td>
+                  <td className={`${CELL} text-label`}>{row.author}</td>
                   <td className={`${CELL} text-label`}>{row.signedAs}</td>
                 </tr>
               ))}

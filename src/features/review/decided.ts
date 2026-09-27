@@ -5,6 +5,7 @@ import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, ProposalOp, Relation } from '@/shared/read/model';
 
 import type { DoorVerdict } from './decision';
+import { originOf, type Origin } from './origin';
 import { VERDICT_WORDS } from './queue';
 
 export interface DecidedRow {
@@ -21,6 +22,7 @@ export interface DecidedRow {
   readonly when: string;
   /** The name the verdict was signed with. It proves no person. */
   readonly signedAs: string;
+  readonly author: Origin;
 }
 
 const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], DoorVerdict>> = {
@@ -134,6 +136,7 @@ export function readDecided(corpus: Corpus, acts: readonly DecidedAct[]): readon
       decidedAt,
       when: whenOf(decidedAt),
       signedAs: decidedBy,
+      author: originOf(act.authorRole),
     };
   });
   return [...rows].sort((a, b) => momentOf(b) - momentOf(a) || a.id.localeCompare(b.id));

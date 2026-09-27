@@ -15,6 +15,8 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 
+import { originOf, type Origin } from './origin';
+
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
 export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge';
 
@@ -99,7 +101,7 @@ export interface StandingRow {
   readonly sources: string;
 }
 
-/** The self-report of the machine, as one value. An act states a confidence, or it states none,
+/** The self-report of the author, as one value. An act states a confidence, or it states none,
  * and the two cases carry different fields: a figure with no track cannot be built. */
 export type ConfidenceReport =
   | { readonly stated: false; readonly words: string }
@@ -128,6 +130,7 @@ export interface Change {
     readonly before: readonly CitedDocument[];
     readonly after: readonly CitedDocument[];
   } | null;
+  readonly origin: Origin;
   readonly confidenceReport: ConfidenceReport;
   /** The confidence as the record states it. The sort reads this, and never the printed figure. */
   readonly score: number | null;
@@ -440,14 +443,19 @@ function targetOf(index: Index, proposal: Proposal): Entity | Relation | null {
   return null;
 }
 
-function confidenceOf(self: number | null): ConfidenceReport {
+const REPORTER: Readonly<Record<Origin, string>> = {
+  machine: 'The machine reports',
+  operator: 'The operator states',
+};
+
+function confidenceOf(self: number | null, origin: Origin): ConfidenceReport {
   if (self === null) return { stated: false, words: 'The act states no confidence.' };
   const figure = self.toFixed(2);
   return {
     stated: true,
     figure,
     fill: Math.round(self * 100),
-    words: `The machine reports a confidence of ${figure}.`,
+    words: `${REPORTER[origin]} a confidence of ${figure}.`,
   };
 }
 
@@ -502,7 +510,8 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
 
   const routing = routingOf(proposal, threshold);
   const kind = kindOf(proposal.op, rows);
-  const report = confidenceOf(proposal.confidence);
+  const origin = originOf(proposal.authorRole);
+  const report = confidenceOf(proposal.confidence, origin);
   return {
     id: proposal.id,
     kind,
@@ -511,6 +520,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
     keysWords: rows.map((row) => row.key).join(', '),
     rows,
     rowSources,
+    origin,
     confidenceReport: report,
     score: proposal.confidence,
     routing,

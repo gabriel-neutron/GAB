@@ -59,6 +59,9 @@ export function ChangeCard({ change, current }: ChangeCardProps) {
 
       <div className="flex h-6 shrink-0 items-center gap-2">
         <ChangeMark kind={change.kind} kindWords={change.kindWords} />
+        <span data-origin={change.origin} className="shrink-0 text-small/4 text-label">
+          {change.origin}
+        </span>
         <Confidence report={change.confidenceReport} low={low} />
         {Routed === null ? (
           <span

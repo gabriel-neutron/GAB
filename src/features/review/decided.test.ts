@@ -147,3 +147,23 @@ describe('the working queue', () => {
     expect(readQueue(corpus, null).map((subject) => subject.id)).toContain(TERMINAL);
   });
 });
+
+describe('who wrote a decided act', () => {
+  it('carries the author of the act on its row', () => {
+    const decided: Pick<Proposal, 'status' | 'decidedAt' | 'decidedBy'> = {
+      status: 'accepted',
+      decidedAt: '2026-08-02T00:05:00Z',
+      decidedBy: 'the writer door',
+    };
+    const agentId = 'aa000009-0000-4000-8000-000000000003';
+    const rows = readDecided(
+      corpus,
+      decidedOf([
+        { ...retyped, ...decided },
+        { ...retyped, ...decided, id: agentId, authorRole: 'gabriel_agent' },
+      ]),
+    );
+    expect(rows.find((row) => row.id === retyped.id)?.author).toBe('operator');
+    expect(rows.find((row) => row.id === agentId)?.author).toBe('machine');
+  });
+});
