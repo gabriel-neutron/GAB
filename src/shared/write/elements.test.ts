@@ -44,3 +44,34 @@ test('an attribute act sends its target and its attributes, and no act', async (
     },
   ]);
 });
+
+test('a name the act leaves as it stands is a key the body never carries', async () => {
+  const asked = sent();
+
+  await writeElement({ op: 'update_entity', targetId: TARGET, label: null, type: 'vessel' });
+
+  expect(asked).toStrictEqual([
+    { address: '/write/update-entity', body: `{"targetId":"${TARGET}","type":"vessel"}` },
+  ]);
+});
+
+test('an open start of a relation is a key the body never carries', async () => {
+  const asked = sent();
+  const source = 'b4e2f7a0-1c36-4d58-8e9a-0f2b3c4d5e6f';
+
+  await writeElement({
+    op: 'create_relation',
+    type: 'owned_by',
+    srcId: source,
+    dstId: TARGET,
+    validFrom: null,
+    validTo: '2019-06-30',
+  });
+
+  expect(asked).toStrictEqual([
+    {
+      address: '/write/create-relation',
+      body: `{"type":"owned_by","srcId":"${source}","dstId":"${TARGET}","validTo":"2019-06-30"}`,
+    },
+  ]);
+});
