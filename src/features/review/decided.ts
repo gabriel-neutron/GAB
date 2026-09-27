@@ -2,7 +2,7 @@
  * hold, because the record holds none, and it offers no way back: a decided act is frozen. */
 
 import type { DecidedAct } from '@/shared/read/decided-acts';
-import type { Corpus, ProposalOp, Relation } from '@/shared/read/model';
+import type { Corpus, EndpointKind, ProposalOp, Relation } from '@/shared/read/model';
 
 import { payloadHeadline, relationPhrase, shortId } from './act-words';
 import type { DoorVerdict } from './decision';
@@ -53,24 +53,45 @@ const labelIn =
   (id: string): string | undefined =>
     names.entityLabel.get(id);
 
-function relationWords(names: Names, id: string): string {
+// Departure: a promoted deletion takes its row out of the record, and the act kept a copy of that
+// row. The copy is the one place the name of a destroyed row still stands.
+function destroyedLabel(act: DecidedAct['act']): string | null {
+  const prior = act.priorValue;
+  if (prior?.kind !== 'row') return null;
+  const label = prior.row['label'];
+  return typeof label === 'string' ? label : null;
+}
+
+// Origin: an end kind the copy does not state is 'entity', the default of the column.
+const endKind = (value: unknown): EndpointKind => (value === 'relation' ? 'relation' : 'entity');
+
+function destroyedRelation(names: Names, act: DecidedAct['act']): string | null {
+  const prior = act.priorValue;
+  if (prior?.kind !== 'row') return null;
+  const { row } = prior;
+  const type = row['type'];
+  const srcId = row['src_id'];
+  const dstId = row['dst_id'];
+  if (typeof type !== 'string' || typeof srcId !== 'string' || typeof dstId !== 'string') {
+    return null;
+  }
+  return relationPhrase(labelIn(names), { kind: endKind(row['src_kind']), id: srcId }, type, {
+    kind: endKind(row['dst_kind']),
+    id: dstId,
+  });
+}
+
+function relationWords(names: Names, act: DecidedAct['act'], id: string): string {
   const relation = names.relationById.get(id);
-  if (relation === undefined) return `A relation absent from the record, ${shortId(id)}`;
+  if (relation === undefined) {
+    return destroyedRelation(names, act) ?? `A relation absent from the record, ${shortId(id)}`;
+  }
   return relationPhrase(
     labelIn(names),
     { kind: relation.srcKind, id: relation.srcId },
     relation.type,
     { kind: relation.dstKind, id: relation.dstId },
   );
-}
-
-// A promoted deletion takes its row out of the record, and the act kept a copy of that row. The
-// copy is the one place the name of a destroyed row still stands.
-function destroyedLabel(act: DecidedAct['act']): string | null {
-  const prior = act.priorValue;
-  if (prior?.kind !== 'row') return null;
-  const label = prior.row['label'];
-  return typeof label === 'string' ? label : null;
 }
 
 function subjectOf(names: Names, act: DecidedAct['act']): string {
@@ -89,7 +110,7 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
     case 'columns':
     case 'delete': {
       if (act.targetId === null) return 'An element the act does not name';
-      if (act.targetKind === 'relation') return relationWords(names, act.targetId);
+      if (act.targetKind === 'relation') return relationWords(names, act, act.targetId);
       const standing = names.entityLabel.get(act.targetId);
       if (standing !== undefined) return standing;
       return destroyedLabel(act) ?? `An entity absent from the record, ${shortId(act.targetId)}`;
