@@ -1,15 +1,14 @@
 import { openStore } from '@gab/store/bucket';
 import { Pool, type PoolClient } from 'pg';
-import { afterAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { claimJob } from './claim.ts';
 import { runLayout } from './layout-job.ts';
 import { reconcileCorpus } from './reconcile.ts';
 
-// THIS SUITE CALLS THE DOOR AS THE OWNER OF THE DATABASE, because it reads the row it claimed to
-// check the mark. What it measures is the lock and the mark, and neither one is a grant: a
-// perimeter test holds who may call the door and who may not.
+// Departure: the suite calls the door as the owner of the database, because it reads the row it
+// claimed to check the mark. It measures the lock and the mark, and neither one is a grant.
 const secrets = z.object({
   POSTGRES_PASSWORD: z.string().min(1),
   GABRIEL_DATABASE: z.literal('gabriel_test'),
@@ -31,20 +30,53 @@ const ownerPool = (): Pool => {
 
 const pool = ownerPool();
 
-// Every claim below runs inside a transaction that rolls back, so the queue this suite met is
-// the queue it leaves. The fixture queues one job per document and no path empties the queue, so
-// a bound this far above that count means a loop that never ends fails as a test.
+// Origin: the queue holds a few fixture jobs and the seeded jobs, and each claim rolls back. A
+// bound this far above that count makes a loop that never ends fail as a test.
 const BOUND = 1000;
 
+// Departure: the suite queues its own jobs, because a committed claim removes a fixture job for
+// ever. Two, because the second worker must find a free row beside the locked one.
+const SEEDED = ['doc_claim_suite_first', 'doc_claim_suite_second'];
+
+// External constraint: put_document is the one door that queues a job, and a job needs a
+// document. The ledger keeps no act of either row, so the suite can delete both.
+const SEED = `SELECT public.put_document(seeded.id, 'file', 'A test of the claim door',
+  NULL, NULL, NULL, NULL, NULL, '2026-09-27'::date) FROM unnest($1::text[]) AS seeded(id)`;
+const REMOVE_JOBS = 'DELETE FROM public.jobs WHERE document_id = ANY($1::text[])';
+const REMOVE_DOCUMENTS = 'DELETE FROM public.documents WHERE id = ANY($1::text[])';
+
+// Departure: the seeded rows are committed, because a second session sees no uncommitted row.
+const committed = async (statements: readonly string[]): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const statement of statements) await client.query(statement, [SEEDED]);
+    await client.query('COMMIT');
+  } catch (error: unknown) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// Departure: the seed first removes the rows of a run that stopped before its cleanup.
+beforeAll(async () => {
+  await committed([REMOVE_JOBS, REMOVE_DOCUMENTS, SEED]);
+});
+
 afterAll(async () => {
-  await pool.end();
+  try {
+    await committed([REMOVE_JOBS, REMOVE_DOCUMENTS]);
+  } finally {
+    await pool.end();
+  }
 });
 
 const held = async (work: (client: PoolClient) => Promise<void>): Promise<void> => {
   const client = await pool.connect();
-  // The release is nested inside its own guard. A ROLLBACK that throws on a dead connection
-  // would otherwise keep the client checked out, and the run then waits on the pool for ever
-  // instead of reporting the failure that caused it.
+  // Departure: a ROLLBACK that throws on a dead connection would keep the client checked out,
+  // and the run would wait on the pool for ever instead of reporting the failure.
   try {
     try {
       await client.query('BEGIN');
@@ -62,7 +94,7 @@ test('two workers claim at the same time and never take the same row', async () 
     await held(async (second) => {
       const taken = await claimJob(first);
       const alsoTaken = await claimJob(second);
-      expect(taken, 'the queue of the loaded fixture holds a job').not.toBeNull();
+      expect(taken, 'the queue holds the seeded jobs').not.toBeNull();
       expect(alsoTaken, 'the second worker steps over the locked row').not.toBeNull();
       expect(taken?.id).not.toBe(alsoTaken?.id);
     });
