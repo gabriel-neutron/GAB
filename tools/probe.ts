@@ -1,13 +1,9 @@
-// One connection for one probe. The client, the login and the close stay inside, so a test
-// states a role and a statement only.
-
 import { Client } from 'pg';
 
 import { connectionString } from './db-runtime.ts';
 
 type Identity = Parameters<typeof connectionString>[0];
 
-/** One statement on the open connection of a probe. */
 export type Ask = (text: string, values?: readonly unknown[]) => Promise<readonly unknown[]>;
 
 export const probe = async <T>(identity: Identity, work: (ask: Ask) => Promise<T>): Promise<T> => {
@@ -25,3 +21,15 @@ export const probe = async <T>(identity: Identity, work: (ask: Ask) => Promise<T
     await client.end();
   }
 };
+
+// External constraint: the ledger and the documents refuse a delete, so the rollback is the only
+// way back. A refusal that a regressed grant lets through then commits nothing.
+export const rolledBack = <T>(identity: Identity, work: (ask: Ask) => Promise<T>): Promise<T> =>
+  probe(identity, async (ask) => {
+    await ask('BEGIN');
+    try {
+      return await work(ask);
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });

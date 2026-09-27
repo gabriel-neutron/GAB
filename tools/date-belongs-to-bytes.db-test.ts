@@ -13,20 +13,9 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, type Ask } from './probe.ts';
+import { probe, rolledBack } from './probe.ts';
 
 const made = z.array(z.object({ id: z.string() }));
-
-/** Runs one gesture inside a transaction that always rolls back. */
-const gesture = <T>(work: (ask: Ask) => Promise<T>) =>
-  probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      return await work(ask);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
 
 // The columns the rule reads, and nothing else. `title` is NOT NULL and refuses a blank, so it
 // carries a word; no gesture below asserts anything about it.
@@ -40,7 +29,7 @@ interface Row {
 const SHA = 'a'.repeat(64);
 
 const written = async (id: string, row: Row): Promise<unknown> =>
-  gesture(async (ask) =>
+  rolledBack('superuser', async (ask) =>
     made.parse(
       await ask(
         `INSERT INTO documents (id, kind, title, s3_key, sha256, retrieved_at)

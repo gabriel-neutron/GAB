@@ -14,7 +14,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, type Ask } from './probe.ts';
+import { probe, rolledBack, type Ask } from './probe.ts';
 
 // Departure: each gesture cites `manual` and `vessel`, which the seed always carries, and names
 // `last_port_call`, a free key that no table describes. Nothing here reads the fixture.
@@ -23,17 +23,6 @@ const TYPE = 'vessel';
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-/** Runs one gesture inside a transaction that always rolls back. */
-const gesture = <T>(work: (ask: Ask) => Promise<T>) =>
-  probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      return await work(ask);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
-
 // ============================================================ the source list of an act =====
 
 const propose = (payload: string, src: string): string =>
@@ -41,12 +30,10 @@ const propose = (payload: string, src: string): string =>
 
 const ENTITY = `{"type":"${TYPE}","label":"A null test"}`;
 
-// `propose_change` stamps the author from session_user, so the call signs as the operator.
+// External constraint: `propose_change` stamps the author from session_user, so the call signs
+// as the operator.
 const proposedBy = async (payload: string, src: string): Promise<unknown> =>
-  gesture(async (ask) => {
-    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-    return made.parse(await ask(propose(payload, src)));
-  });
+  rolledBack('app', async (ask) => made.parse(await ask(propose(payload, src))));
 
 test('an act that cites no document is refused', async () => {
   await expect(proposedBy(ENTITY, `ARRAY[]::text[]`)).rejects.toMatchObject({
@@ -207,7 +194,7 @@ const INSERT_ENTITY = `INSERT INTO public.entities (type, label, attrs, sources,
   VALUES ($1, $2, $3::jsonb, $4::text[]::doc_id[], $5) RETURNING id`;
 
 const anEntity = (attrs: string, sources: string): Promise<unknown> =>
-  gesture(async (ask) => {
+  rolledBack('superuser', async (ask) => {
     const from = await oneProposal(ask, 'create_entity');
     return ask(INSERT_ENTITY, [TYPE, 'A null test', attrs, sources, from]);
   });
@@ -240,7 +227,7 @@ const anEnd = async (ask: Ask, label: string): Promise<string> => {
 };
 
 const aRelation = (attrs: string, sources: string): Promise<unknown> =>
-  gesture(async (ask) => {
+  rolledBack('superuser', async (ask) => {
     const src = await anEnd(ask, 'One end');
     const dst = await anEnd(ask, 'The other end');
     const from = await oneProposal(ask, 'create_relation');

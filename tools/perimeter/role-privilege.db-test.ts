@@ -4,7 +4,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe } from '../probe.ts';
+import { probe, rolledBack } from '../probe.ts';
 
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
@@ -59,21 +59,11 @@ const REFUSED = [
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
 ] as const;
 
-// EACH CALL RUNS INSIDE A TRANSACTION THAT ROLLS BACK, and the reason is measured: this test was
-// first written without one, the grant was still live, and the call it expected to fail took a
-// row into `running`. A test of a refusal must not act when it passes.
 for (const refused of REFUSED)
   test(`${refused.identity} cannot call the other end of the queue`, async () => {
-    await expect(
-      probe(refused.identity, async (ask) => {
-        await ask('BEGIN');
-        try {
-          return await ask(refused.call);
-        } finally {
-          await ask('ROLLBACK');
-        }
-      }),
-    ).rejects.toMatchObject({ code: '42501' });
+    await expect(rolledBack(refused.identity, (ask) => ask(refused.call))).rejects.toMatchObject({
+      code: '42501',
+    });
   });
 
 test('gabriel_app holds EXECUTE on the four acts of the operator and on the release', async () => {
@@ -118,29 +108,24 @@ test('gabriel_agent writes no table, in any schema', async () => {
 });
 
 test('a column grant of UPDATE on an evidentiary table shows as a write', async () => {
-  const held = await probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      await ask('GRANT UPDATE (label) ON public.entities TO gabriel_app');
-      return writes.parse(await ask(WRITES_OF, ['gabriel_app'])).map((row) => row.found);
-    } finally {
-      await ask('ROLLBACK');
-    }
+  const held = await rolledBack('superuser', async (ask) => {
+    await ask('GRANT UPDATE (label) ON public.entities TO gabriel_app');
+    return writes.parse(await ask(WRITES_OF, ['gabriel_app'])).map((row) => row.found);
   });
   expect(held).toStrictEqual(['public.entities UPDATE']);
 });
 
-// The claim is a door and not a table write. A worker that could mark a row by hand could also
-// put it in a state no claim produced, and the count of the attempts would then prove nothing.
+// Departure: the claim is a door and not a table write. A worker that could mark a row by hand
+// could put it in a state no claim produced, and the count of the attempts would prove nothing.
 test('gabriel_agent cannot mark a job by hand', async () => {
   await expect(
-    probe('agent', async (ask) => ask("UPDATE public.jobs SET status = 'running'")),
+    rolledBack('agent', (ask) => ask("UPDATE public.jobs SET status = 'running'")),
   ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
 });
 
 test('gabriel_app cannot queue work without a document', async () => {
   await expect(
-    probe('app', async (ask) => ask("INSERT INTO public.jobs (document_id) VALUES ('manual')")),
+    rolledBack('app', (ask) => ask("INSERT INTO public.jobs (document_id) VALUES ('manual')")),
   ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
 });
 
@@ -154,17 +139,12 @@ const DOCUMENT = 'doc_perimeter_queue';
 const PUT = `SELECT public.put_document($1, 'file', 'A perimeter test of the queue',
   NULL, NULL, NULL, NULL, NULL, '2026-09-02'::date) AS id`;
 
-// The one way a job appears. The rollback proves the two writes are one act: the document row
-// and the job row leave together, so neither can exist without the other.
+// Departure: the one way a job appears. The rollback proves the two writes are one act: the
+// document row and the job row leave together, so neither can exist without the other.
 test('the ingestion door queues the work in the transaction that writes the document', async () => {
-  const inside = await probe('app', async (ask) => {
-    await ask('BEGIN');
-    try {
-      await ask(PUT, [DOCUMENT]);
-      return counted.parse(await ask(QUEUED, [DOCUMENT]));
-    } finally {
-      await ask('ROLLBACK');
-    }
+  const inside = await rolledBack('app', async (ask) => {
+    await ask(PUT, [DOCUMENT]);
+    return counted.parse(await ask(QUEUED, [DOCUMENT]));
   });
   expect(inside).toStrictEqual([{ n: 1 }]);
 
@@ -179,17 +159,12 @@ const PUT_MANUAL = `SELECT public.put_document($1, 'manual', 'A perimeter test o
 
 const ANY_JOB = 'SELECT count(*)::int AS n FROM public.jobs WHERE document_id = $1';
 
-// A hand-entered source carries no file and no address, so an agent has nothing to read. The
-// queue is the record of the work and not of the door, and this is the one row that proves it.
+// Departure: a hand-entered source carries no file and no address, so an agent has nothing to
+// read. The queue records the work and not the door, and this is the one row that proves it.
 test('the ingestion door queues no work for a hand-entered source', async () => {
-  const inside = await probe('app', async (ask) => {
-    await ask('BEGIN');
-    try {
-      await ask(PUT_MANUAL, [HAND_ENTERED]);
-      return counted.parse(await ask(ANY_JOB, [HAND_ENTERED]));
-    } finally {
-      await ask('ROLLBACK');
-    }
+  const inside = await rolledBack('app', async (ask) => {
+    await ask(PUT_MANUAL, [HAND_ENTERED]);
+    return counted.parse(await ask(ANY_JOB, [HAND_ENTERED]));
   });
   expect(inside).toStrictEqual([{ n: 0 }]);
 });
@@ -208,7 +183,7 @@ const VERBS = [
 
 for (const { verb, sql } of VERBS)
   test(`gabriel_read cannot ${verb} through an api view`, async () => {
-    await expect(probe('read', async (ask) => ask(sql))).rejects.toMatchObject({
+    await expect(rolledBack('read', (ask) => ask(sql))).rejects.toMatchObject({
       code: '42501',
       message: 'permission denied for view entity',
     });
@@ -233,20 +208,8 @@ const cites = (document: string): string => `SELECT public.propose_change('creat
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-// Every call below runs inside a transaction that rolls back, because the proposals ledger is
-// append-only and a trigger refuses a delete.
-const proposeCiting = async (
-  identity: 'app' | 'agent',
-  document: string,
-): Promise<readonly unknown[]> =>
-  probe(identity, async (ask) => {
-    await ask('BEGIN');
-    try {
-      return await ask(cites(document));
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
+const proposeCiting = (identity: 'app' | 'agent', document: string): Promise<readonly unknown[]> =>
+  rolledBack(identity, (ask) => ask(cites(document)));
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {

@@ -10,7 +10,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, type Ask } from './probe.ts';
+import { rolledBack } from './probe.ts';
 
 const DOCUMENT = 'manual';
 const TYPE = 'vessel';
@@ -18,26 +18,13 @@ const CITED = `"src":["${DOCUMENT}"]`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-const gesture = <T>(work: (ask: Ask) => Promise<T>) =>
-  probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      return await work(ask);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
-
 const proposal = (attrs: string): string =>
   `SELECT public.propose_change('create_entity',
      '{"type":"${TYPE}","label":"A vocabulary test","attrs":${attrs}}'::jsonb,
      ARRAY['${DOCUMENT}']::text[]) AS id`;
 
 const propose = (attrs: string): Promise<readonly unknown[]> =>
-  gesture(async (ask) => {
-    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-    return ask(proposal(attrs));
-  });
+  rolledBack('app', (ask) => ask(proposal(attrs)));
 
 test('a key that no list permits is accepted', async () => {
   const held = await propose(`{"russian_designation":{"v":"v/ch 03333",${CITED}}}`);

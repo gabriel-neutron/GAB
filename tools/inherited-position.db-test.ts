@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 import { corpus } from '../src/shared/committed-fixture/corpus.ts';
 
-import { probe, type Ask } from './probe.ts';
+import { probe, rolledBack, type Ask } from './probe.ts';
 
 const DOCUMENT = 'manual';
 const TYPE = 'vessel';
@@ -22,17 +22,6 @@ const placed = z.array(
     precision: z.string().nullable(),
   }),
 );
-
-/** Runs one gesture inside a transaction that always rolls back. */
-const gesture = <T>(work: (ask: Ask) => Promise<T>) =>
-  probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      return await work(ask);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
 
 const PROPOSE = `SELECT public.propose_change($1, $2::jsonb, ARRAY['${DOCUMENT}']::text[]) AS id`;
 
@@ -99,7 +88,7 @@ const DRAWN = `
    ORDER BY m.label`;
 
 test('an entity that states the word stands at the point of its parent', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const parent = await anEntity(ask, 'Walk 1 parent', point(4), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 2 child', null, INHERITED);
     await subordinate(ask, child, parent);
@@ -116,7 +105,7 @@ test('an entity that states the word stands at the point of its parent', async (
 // every unpositioned unit has a positioned ancestor, so a rule keyed on the geometry would draw
 // 740 units where 142 make the claim. The word is a judgement, and the graph cannot reproduce it.
 test('an entity that states no word is not placed, whatever its parent carries', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const parent = await anEntity(ask, 'Walk 1 parent', point(4), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 2 child', null, NOTHING_SAID);
     await subordinate(ask, child, parent);
@@ -130,7 +119,7 @@ test('an entity that states no word is not placed, whatever its parent carries',
 });
 
 test('the walk climbs past an ancestor that carries no point', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const top = await anEntity(ask, 'Walk 1 top', point(9), NOTHING_SAID);
     const middle = await anEntity(ask, 'Walk 2 middle', null, NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 3 child', null, INHERITED);
@@ -149,7 +138,7 @@ test('the walk climbs past an ancestor that carries no point', async () => {
 // A polygon reaches no surface that draws a dot, so an ancestor that carries one is walked
 // through. Without this the child would take a position that no reader can draw.
 test('an ancestor that carries an area is walked through', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const top = await anEntity(ask, 'Walk 1 top', point(9), NOTHING_SAID);
     const middle = await anEntity(ask, 'Walk 2 middle', AREA, NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 3 child', null, INHERITED);
@@ -168,7 +157,7 @@ test('an ancestor that carries an area is walked through', async () => {
 // No CHECK refuses a ring of parents. One member carries a point, so the walk COULD place the
 // others, and the gesture is empty without it. The depth is what stops the recursion.
 test('a ring of parents answers, and each member takes the point in the ring', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const first = await anEntity(ask, 'Walk 1 first', null, INHERITED);
     const second = await anEntity(ask, 'Walk 2 second', point(6), NOTHING_SAID);
     await subordinate(ask, first, second);
@@ -185,7 +174,7 @@ test('a ring of parents answers, and each member takes the point in the ring', a
 // No CHECK refuses a relation from a row to itself. Without the guard the walk answered with
 // the entity itself, and the surface would then write `position from <its own label>`.
 test('a relation from a row to itself makes no parent', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const alone = await anEntity(ask, 'Walk 1 alone', null, INHERITED);
     await subordinate(ask, alone, alone);
     return placed.parse(await ask(DRAWN));
@@ -199,7 +188,7 @@ test('a relation from a row to itself makes no parent', async () => {
 // The word says nobody located the entity. A point of its own says the opposite, and the point
 // wins. `parent_id` must then be empty, or a reader states an origin the point never had.
 test('an entity that states the word and carries a point names no parent', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const parent = await anEntity(ask, 'Walk 1 parent', point(9), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 2 child', point(2), INHERITED);
     await subordinate(ask, child, parent);
@@ -215,7 +204,7 @@ test('an entity that states the word and carries a point names no parent', async
 // An area reaches no surface that draws a dot. A coalesce over the geometry kept the area and
 // dropped the inherited point, so the row drew nowhere and the word said nothing.
 test('an entity that carries an area takes the inherited point', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const parent = await anEntity(ask, 'Walk 1 parent', point(9), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 2 child', AREA, INHERITED);
     await subordinate(ask, child, parent);
@@ -231,7 +220,7 @@ test('an entity that carries an area takes the inherited point', async () => {
 // M4 lets a relation stand at the end of a relation. Without the two filters the walk answers
 // with the identifier of a relation in a column that names an entity.
 test('a parent named through a relation endpoint is not walked', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const parent = await anEntity(ask, 'Walk 1 parent', point(9), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 2 child', null, INHERITED);
     const carrier = await oneProposal(ask, 'create_relation');
@@ -258,7 +247,7 @@ test('a parent named through a relation endpoint is not walked', async () => {
 // Two ancestors at one distance. `min(hop)` alone answers with two rows for one entity, so the
 // tie is broken on the identifier and the answer repeats on every run.
 test('two parents at one distance give one answer, and the same one twice', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const left = await anEntity(ask, 'Walk 1 left', point(3), NOTHING_SAID);
     const right = await anEntity(ask, 'Walk 2 right', point(7), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 3 child', null, INHERITED);
@@ -277,7 +266,7 @@ test('two parents at one distance give one answer, and the same one twice', asyn
 // The bound is four hops, because the unit tree of the corpus that waits is four deep. The
 // fifth link is what proves the bound: it stands one hop too far, and it takes no position.
 test('the walk stops after four hops', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     const top = await anEntity(ask, 'Walk 0 top', point(9), NOTHING_SAID);
     const one = await anEntity(ask, 'Walk 1 link', null, INHERITED);
     const two = await anEntity(ask, 'Walk 2 link', null, INHERITED);
@@ -305,7 +294,7 @@ test('the walk stops after four hops', async () => {
 // An entity that carries a point and states no word draws as the cautious state, and never as a
 // measured one. `41st Combined Arms Army` of the corpus that waits is that row.
 test('an entity that carries a point and states no word keeps its point and no word', async () => {
-  const held = await gesture(async (ask) => {
+  const held = await rolledBack('superuser', async (ask) => {
     await anEntity(ask, 'Walk 1 measured', point(4), NOTHING_SAID);
     return placed.parse(await ask(DRAWN));
   });

@@ -2,12 +2,11 @@
 // one in SQL reaches no TypeScript file: the check stays green and the first row that carries the
 // new value throws in the browser.
 
-import { Client } from 'pg';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { CLOSED_SET } from '../src/shared/read/closed-set.ts';
-import { connectionString } from './db-runtime.ts';
+import { probe } from './probe.ts';
 
 const EVERY_CHECK = `
   SELECT t.relname AS table_name, a.attname AS column_name,
@@ -24,15 +23,8 @@ const constraints = z.array(
 
 type Constraint = z.infer<typeof constraints>[number];
 
-const readChecks = async (): Promise<readonly Constraint[]> => {
-  const client = new Client({ connectionString: connectionString('app') });
-  await client.connect();
-  try {
-    return constraints.parse((await client.query(EVERY_CHECK)).rows);
-  } finally {
-    await client.end();
-  }
-};
+const readChecks = async (): Promise<readonly Constraint[]> =>
+  constraints.parse(await probe('app', (ask) => ask(EVERY_CHECK)));
 
 // PostgreSQL writes `x IN ('a','b')` back as `x = ANY (ARRAY['a'::text, 'b'::text])`, and wraps a
 // nullable column in `(x IS NULL) OR`. A definition of any other shape is a rule and not a set,

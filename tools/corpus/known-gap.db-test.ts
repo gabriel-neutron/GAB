@@ -4,7 +4,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe } from '../probe.ts';
+import { probe, rolledBack } from '../probe.ts';
 
 const rated = z.array(z.object({ rated_documents: z.coerce.number() }));
 
@@ -95,19 +95,9 @@ const CITES_OUTSIDE = `SELECT public.propose_change('create_entity',
     "attrs":{"hull_note":{"v":"a test","src":["doc_8f2a41"]}}}'::jsonb,
   ARRAY['doc_9b0417']::text[]) AS id`;
 
-// The rule that puts every value source in the citation of the act. The call runs inside a
-// transaction that rolls back, because the proposals ledger is append-only.
+// Departure: the rule that puts every value source in the citation of the act.
 test('an act must cite every document its own values cite', async () => {
-  await expect(
-    probe('app', async (ask) => {
-      await ask('BEGIN');
-      try {
-        return await ask(CITES_OUTSIDE);
-      } finally {
-        await ask('ROLLBACK');
-      }
-    }),
-  ).rejects.toMatchObject({
+  await expect(rolledBack('app', (ask) => ask(CITES_OUTSIDE))).rejects.toMatchObject({
     code: '23514',
     constraint: 'proposals_src_within',
     message: 'new row for relation "proposals" violates check constraint "proposals_src_within"',
