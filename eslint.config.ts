@@ -571,6 +571,26 @@ export default defineConfig(
     },
   },
 
+  // Departure: the two files above sit outside every boundaries policy, so the refusal of the base
+  // tables reaches them here by name. The flat config keeps one `no-restricted-imports` per file.
+  {
+    files: ['src/main.tsx', 'src/router.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/db', '@/db/**', './db', './db/**'],
+              message:
+                'The base tables are the shape of the storage, and the browser never reaches one. Import the contract, which is the shape of a read',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // External constraint: a boundaries element is a folder and matches files at any depth under it,
   // and only the deprecated `mode` option bounds the depth. So this block keeps a feature flat.
   {
