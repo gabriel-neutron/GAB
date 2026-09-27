@@ -10,6 +10,7 @@ import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/revie
 import { patchSort, readSort } from '@/features/review/workspace';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadDecidedActs } from '@/shared/read/decided-acts';
+import { loadEntityTypes } from '@/shared/read/vocabulary';
 
 export interface ReviewSearch {
   /** What is under examination. An empty string opens the queue at its first subject. */
@@ -40,8 +41,12 @@ export const Route = createFileRoute('/review')({
   // are read from answers that are already held. The view is no dependency of the loader: a
   // reload keyed on it draws the pending screen, and that screen would end the pass.
   loader: async () => {
-    const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
-    return { corpus, decided };
+    const [corpus, decided, types] = await Promise.all([
+      loadCorpus(),
+      loadDecidedActs(),
+      loadEntityTypes(),
+    ]);
+    return { corpus, decided, types };
   },
 
   component: ReviewRoute,
@@ -51,7 +56,7 @@ export const Route = createFileRoute('/review')({
 function ReviewRoute() {
   const { subject, view } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, decided } = Route.useLoaderData();
+  const { corpus, decided, types } = Route.useLoaderData();
   const router = useRouter();
 
   const [sort, setSort] = useState<SortKey>(readSort);
@@ -63,7 +68,7 @@ function ReviewRoute() {
   const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
-  const subjects = useMemo(() => readQueue(corpus, THRESHOLD), [corpus]);
+  const subjects = useMemo(() => readQueue(corpus, THRESHOLD, types), [corpus, types]);
   const history = useMemo(() => readDecided(corpus, decided), [corpus, decided]);
 
   const forgetTheSentence = (): void => {
