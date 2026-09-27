@@ -52,6 +52,23 @@ const WRITE_GRANT = `SELECT g.table_schema || '.' || g.table_name
                     WHERE d.deptype = 'e' AND n.nspname = g.table_schema
                       AND c.relname = g.table_name)`;
 
+// External constraint: since PostgreSQL 16 a GRANT of a role gives the SET option by default, so
+// a member can SET ROLE to it, and a predefined role such as pg_write_all_data adds no table grant.
+const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
+            FROM pg_catalog.pg_auth_members m
+            JOIN pg_catalog.pg_roles r ON r.oid = m.member
+            JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
+           WHERE m.roleid = 'gabriel_owner'::regrole
+              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+          UNION ALL
+          SELECT r.rolname || ' is ' || a.attribute
+            FROM pg_catalog.pg_roles r
+           CROSS JOIN LATERAL (VALUES ('SUPERUSER', r.rolsuper), ('CREATEROLE', r.rolcreaterole),
+                                      ('CREATEDB', r.rolcreatedb), ('BYPASSRLS', r.rolbypassrls),
+                                      ('REPLICATION', r.rolreplication)) AS a(attribute, held)
+           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
+           ORDER BY 1`;
+
 const ARMS = [
   { fault: 'SECURITY DEFINER function with no search_path', sql: NO_SEARCH_PATH },
   {
@@ -61,13 +78,7 @@ const ARMS = [
            WHERE p.pronamespace IN ('public'::regnamespace, 'api'::regnamespace)
              AND p.prosecdef AND p.proowner <> 'gabriel_owner'::regrole`,
   },
-  {
-    fault: 'member of gabriel_owner',
-    sql: `SELECT r.rolname AS found
-            FROM pg_catalog.pg_auth_members m
-            JOIN pg_catalog.pg_roles r ON r.oid = m.member
-           WHERE m.roleid = 'gabriel_owner'::regrole`,
-  },
+  { fault: 'role membership or elevated attribute of a login role', sql: MEMBERSHIP },
   {
     fault: 'write grant on a table of public or api',
     // A departure: the extension clause keeps out PostGIS, which gives twelve rows on each run.
@@ -145,6 +156,16 @@ test('arm 4 finds a column grant of UPDATE on a table of public', async () => {
     WRITE_GRANT,
   );
   expect(found).toStrictEqual(['public.entities UPDATE to gabriel_agent']);
+});
+
+test('arm 3 finds a login role made a member of a predefined role that writes', async () => {
+  const found = await foundAfter('GRANT pg_write_all_data TO gabriel_agent', MEMBERSHIP);
+  expect(found).toStrictEqual(['gabriel_agent in pg_write_all_data']);
+});
+
+test('arm 3 finds a login role given an elevated attribute', async () => {
+  const found = await foundAfter('ALTER ROLE gabriel_read BYPASSRLS', MEMBERSHIP);
+  expect(found).toStrictEqual(['gabriel_read is BYPASSRLS']);
 });
 
 const DEFINER_DOORS = `

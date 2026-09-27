@@ -125,9 +125,15 @@ RESET ROLE;
 --       WHERE pronamespace IN ('public'::regnamespace,'api'::regnamespace)
 --         AND prosecdef AND proowner <> 'gabriel_owner'::regrole;
 --
---   3. any member of gabriel_owner
---      SELECT rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member
---       WHERE m.roleid = 'gabriel_owner'::regrole;
+--   3. any member of gabriel_owner, any membership of a login role, and any elevated attribute of
+--      one. A GRANT of a role gives the SET option by default, so a member can SET ROLE to it.
+--      SELECT r.rolname, g.rolname FROM pg_auth_members m
+--        JOIN pg_roles r ON r.oid = m.member JOIN pg_roles g ON g.oid = m.roleid
+--       WHERE m.roleid = 'gabriel_owner'::regrole
+--          OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read');
+--      SELECT rolname FROM pg_roles
+--       WHERE rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+--         AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolbypassrls OR rolreplication);
 --
 --   4. a write grant on any table — this one catches a later migration that adds a table and
 --      forgets that the GRANT list above is an enumeration and not a rule.
