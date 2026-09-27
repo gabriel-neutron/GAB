@@ -56,7 +56,12 @@ const labelIn =
 function relationWords(names: Names, id: string): string {
   const relation = names.relationById.get(id);
   if (relation === undefined) return `A relation absent from the record, ${shortId(id)}`;
-  return relationPhrase(labelIn(names), relation.srcId, relation.type, relation.dstId);
+  return relationPhrase(
+    labelIn(names),
+    { kind: relation.srcKind, id: relation.srcId },
+    relation.type,
+    { kind: relation.dstKind, id: relation.dstId },
+  );
 }
 
 // A promoted deletion takes its row out of the record, and the act kept a copy of that row. The
@@ -92,16 +97,34 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
   }
 }
 
+const named = (words: readonly (string | false)[]): string =>
+  words.filter((word) => word !== false).join(', ');
+
 function keysOf(act: DecidedAct['act']): string {
   const payload = act.payload;
-  if (payload.kind === 'attrs' || payload.kind === 'entity') {
-    return Object.keys(payload.attrs).join(', ');
+  switch (payload.kind) {
+    case 'attrs':
+      return named(Object.keys(payload.attrs));
+    case 'columns':
+      return named([payload.label !== null && 'Name', payload.type !== null && 'Type']);
+    case 'entity':
+      return named([
+        payload.label !== null && 'Name',
+        payload.type !== null && 'Type',
+        payload.geom !== null && 'Location',
+        ...Object.keys(payload.attrs),
+      ]);
+    case 'relation':
+      return named([
+        payload.type !== null && 'Type',
+        payload.valid_from !== null && 'Valid from',
+        payload.valid_to !== null && 'Valid to',
+        ...Object.keys(payload.attrs),
+      ]);
+    case 'merge':
+    case 'delete':
+      return '';
   }
-  if (payload.kind === 'columns') {
-    const named = [payload.label === null ? '' : 'Name', payload.type === null ? '' : 'Type'];
-    return named.filter((word) => word !== '').join(', ');
-  }
-  return '';
 }
 
 // The hour is written in UTC and to the minute, so two analysts in two zones read one hour.

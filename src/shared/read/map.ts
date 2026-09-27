@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 
+import { CLOSED_SET } from './closed-set';
 import type {
   Attributes,
   DocumentRow,
@@ -15,6 +16,7 @@ import type {
   Proposal,
   ProposalOp,
   ProposalPayload,
+  ProposedGeometry,
   Relation,
 } from './model';
 import { wireRow } from './wire';
@@ -57,9 +59,21 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   merge_entities: 'merge',
 };
 
+const geometryType = z.looseObject({ type: z.string() });
+
+function proposedGeometryOf(value: unknown): ProposedGeometry | null {
+  if (value === undefined || value === null) return null;
+  const point = pointOf(value);
+  if (point !== null) return { kind: 'point', point };
+  return { kind: 'shape', shape: geometryType.parse(value).type };
+}
+
+const endpointKind = z.enum(CLOSED_SET['relations.src_kind']);
+
 const entityPayload = z.looseObject({
   type: z.string().nullish(),
   label: z.string().nullish(),
+  geom: z.unknown().optional(),
   attrs: z.unknown().optional(),
 });
 const attrsPayload = z.looseObject({ attrs: z.unknown().optional() });
@@ -69,8 +83,13 @@ const columnsPayload = z.looseObject({
 });
 const relationPayload = z.looseObject({
   type: z.string().nullish(),
+  src_kind: endpointKind.nullish(),
   src_id: z.string().nullish(),
+  dst_kind: endpointKind.nullish(),
   dst_id: z.string().nullish(),
+  valid_from: z.string().nullish(),
+  valid_to: z.string().nullish(),
+  attrs: z.unknown().optional(),
 });
 const mergePayload = z.looseObject({
   keep_id: z.string().nullish(),
@@ -87,6 +106,7 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
         kind,
         type: held.type ?? null,
         label: held.label ?? null,
+        geom: proposedGeometryOf(held.geom),
         attrs: attributesOf(held.attrs),
       };
     }
@@ -100,11 +120,17 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
     }
     case 'relation': {
       const held = relationPayload.parse(value);
+      // External constraint: the promotion stores an end that states no kind as an entity.
       return {
         kind,
         type: held.type ?? null,
+        src_kind: held.src_kind ?? 'entity',
         src_id: held.src_id ?? null,
+        dst_kind: held.dst_kind ?? 'entity',
         dst_id: held.dst_id ?? null,
+        valid_from: held.valid_from ?? null,
+        valid_to: held.valid_to ?? null,
+        attrs: attributesOf(held.attrs),
       };
     }
     case 'merge': {

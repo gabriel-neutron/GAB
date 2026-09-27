@@ -122,6 +122,12 @@ export type ProposalOp =
   | 'delete_relation'
   | 'merge_entities';
 
+/** Departure: a shape that is not a point keeps only its GeoJSON type, because a card prints no
+ * positions of a line or an area. */
+export type ProposedGeometry =
+  | { readonly kind: 'point'; readonly point: Point }
+  | { readonly kind: 'shape'; readonly shape: string };
+
 /** The act carries no kind of its own, so the operation states it. The keys inside keep the
  * spelling the act wrote, because the shape of a payload is an open question. */
 export type ProposalPayload =
@@ -129,6 +135,7 @@ export type ProposalPayload =
       readonly kind: 'entity';
       readonly type: string | null;
       readonly label: string | null;
+      readonly geom: ProposedGeometry | null;
       readonly attrs: Attributes;
     }
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
@@ -136,8 +143,13 @@ export type ProposalPayload =
   | {
       readonly kind: 'relation';
       readonly type: string | null;
+      readonly src_kind: EndpointKind;
       readonly src_id: string | null;
+      readonly dst_kind: EndpointKind;
       readonly dst_id: string | null;
+      readonly valid_from: string | null;
+      readonly valid_to: string | null;
+      readonly attrs: Attributes;
     }
   | {
       readonly kind: 'merge';
