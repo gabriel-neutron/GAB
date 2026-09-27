@@ -21,7 +21,7 @@ This document decides no table and no column. §3 says where the schema lives.
 
 ```mermaid
 flowchart LR
-    subgraph RAW["Raw — immutable"]
+    subgraph RAW["Raw — unchanged by convention"]
         S3["MinIO / S3<br/>original files"]
     end
 
@@ -145,7 +145,7 @@ into the bucket has no row, so it is invisible to search, to the agents and to t
 
 ```
 put_document
-     → S3 (immutable, key returned)
+     → S3 (key returned; unchanged by convention)
      → documents row (retrieved_at mandatory)
      → job (queued)
      ├── text path (P5)
