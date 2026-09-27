@@ -6,13 +6,12 @@ export const LIMITS = {
   lineChars: 100,
 } as const;
 
-export interface Block {
+interface Block {
   readonly line: number;
   readonly lines: number;
-  readonly chars: number;
 }
 
-export interface LongLine {
+interface LongLine {
   readonly line: number;
   readonly chars: number;
 }
@@ -21,16 +20,13 @@ export interface Measurement {
   readonly commentLines: number;
   readonly codeLines: number;
   readonly commentChars: number;
-  readonly blocks: readonly Block[];
   readonly overBlocks: readonly Block[];
   readonly longLines: readonly LongLine[];
 }
 
 interface Open {
-  text: string;
   line: number;
   lines: number;
-  chars: number;
 }
 
 // A `/*` inside a string or after a `//` opens nothing. Both are dropped before the test,
@@ -48,7 +44,7 @@ const opens = (trimmed: string): boolean => {
 };
 
 const flush = (open: Open | null, blocks: Block[]): null => {
-  if (open) blocks.push({ line: open.line, lines: open.lines, chars: open.chars });
+  if (open) blocks.push({ line: open.line, lines: open.lines });
   return null;
 };
 
@@ -86,9 +82,8 @@ export const measure = (text: string): Measurement => {
     commentChars += trimmed.length;
     if (raw.length > LIMITS.lineChars) longLines.push({ line: index + 1, chars: raw.length });
     // A blank line between two comment runs does not end a block, so a split earns nothing.
-    open ??= { text: trimmed, line: index + 1, lines: 0, chars: 0 };
+    open ??= { line: index + 1, lines: 0 };
     open.lines += 1;
-    open.chars += trimmed.length;
   });
 
   flush(open, blocks);
@@ -97,7 +92,6 @@ export const measure = (text: string): Measurement => {
     commentLines,
     codeLines,
     commentChars,
-    blocks,
     overBlocks: blocks.filter((block) => block.lines > LIMITS.blockLines),
     longLines,
   };

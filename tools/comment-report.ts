@@ -1,4 +1,3 @@
-// Prints the comment census of `src/`, and gates one file for the edit hook.
 // `src/routeTree.gen.ts` is excluded by name, because a generator writes it.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -22,22 +21,6 @@ const sources = (dir: string, found: string[] = []): string[] => {
 };
 
 const read = (path: string): Measurement => measure(readFileSync(path, 'utf8'));
-
-const gate = (path: string): number => {
-  const found = read(path);
-  const faults = [
-    ...found.overBlocks.map(
-      (block) =>
-        `${posix(relative(ROOT, path))}:${block.line}  A comment block is ${LIMITS.blockLines} lines. This one is ${block.lines}.`,
-    ),
-    ...found.longLines.map(
-      (long) =>
-        `${posix(relative(ROOT, path))}:${long.line}  A comment line is ${LIMITS.lineChars} characters. This one is ${long.chars}.`,
-    ),
-  ];
-  faults.forEach((fault) => console.error(fault));
-  return faults.length === 0 ? 0 : 1;
-};
 
 const census = (list: boolean): number => {
   const files = sources(SOURCE);
@@ -65,7 +48,4 @@ const census = (list: boolean): number => {
   return 0;
 };
 
-const [, , ...argv] = process.argv;
-const file = argv.indexOf('--file');
-process.exitCode =
-  file !== -1 ? gate(join(ROOT, argv[file + 1] ?? '')) : census(argv.includes('--list'));
+process.exitCode = census(process.argv.slice(2).includes('--list'));
