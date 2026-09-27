@@ -87,6 +87,45 @@ describe('the history of the record', () => {
     expect(row?.actWords).toBe('Deletion');
   });
 
+  it('names a deleted relation from the type and the ends the act kept of it', () => {
+    const cut = (row: Readonly<Record<string, unknown>>): string =>
+      readDecided(corpus, [
+        {
+          act: {
+            id: 'aa000009-0000-4000-8000-000000000007',
+            op: 'delete_relation',
+            targetKind: 'relation',
+            targetId: 'aa000009-0000-4000-8000-0000000000ee',
+            payload: { kind: 'delete', reason: null },
+            src: ['doc_9b0417'],
+            names: [],
+            priorValue: { kind: 'row', row },
+            confidence: null,
+            dissent: false,
+            authorRole: 'gabriel_app',
+            createdAt: '2026-08-01T00:00:00Z',
+          },
+          verdict: 'accepted',
+          decidedAt: '2026-08-01T00:05:00Z',
+          decidedBy: 'operator',
+        },
+      ])[0]?.subject ?? '';
+    const ends = { src_kind: 'entity', src_id: VESSEL, dst_kind: 'entity', dst_id: TERMINAL };
+    expect(cut({ ...ends, type: 'owns' })).toBe(
+      'MV Northern Ledger owns Maasvlakte bulk terminal, berth 7',
+    );
+    expect(cut({ src_id: VESSEL, dst_id: TERMINAL, type: 'owns' })).toBe(
+      'MV Northern Ledger owns Maasvlakte bulk terminal, berth 7',
+    );
+    expect(cut({ ...ends, dst_kind: 'relation', dst_id: BERTH, type: 'owns' })).toBe(
+      'MV Northern Ledger owns a relation, c3d4e5f6',
+    );
+    expect(cut({ ...ends, type: null })).toBe('A relation absent from the record, aa000009');
+    expect(cut({ type: 'owns', src_id: VESSEL })).toBe(
+      'A relation absent from the record, aa000009',
+    );
+  });
+
   it('names a created row by the label of the row the promotion made', () => {
     const made: Entity = {
       id: 'aa000009-0000-4000-8000-0000000000aa',
