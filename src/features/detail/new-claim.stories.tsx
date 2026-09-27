@@ -137,14 +137,16 @@ export const ANumberDropsATrailingZero: Story = {
   },
 };
 
-// A number of 310 digits or more is Infinity, which the door refuses with `Invalid input`. The
-// screen says it first, and the act never leaves the browser.
-export const ANumberTheBrowserCannotHoldIsRefused: Story = {
+// External constraint: a double rounds a 20-digit account number, so it is minted as text and
+// the act carries each digit that was typed.
+export const ADigitStringADoubleWouldRoundStaysText: Story = {
   play: async ({ canvas }) => {
-    await userEvent.type(canvas.getByLabelText('Key'), 'crew_aboard');
-    await userEvent.type(canvas.getByLabelText('Value'), `1${'0'.repeat(400)}`);
-    await expect(canvas.getByText(/cannot hold a number of that many digits/)).toBeVisible();
-    await expect(canvas.getByRole('button', { name: ADD })).toBeDisabled();
+    onMint.mockClear();
+    await userEvent.type(canvas.getByLabelText('Key'), 'bank_account');
+    await userEvent.type(canvas.getByLabelText('Value'), '40702810123456789012');
+    await expect(canvas.getByText(/The value reads as text/)).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: ADD }));
+    await expect(onMint).toHaveBeenCalledWith({ bank_account: { v: '40702810123456789012' } });
   },
 };
 
