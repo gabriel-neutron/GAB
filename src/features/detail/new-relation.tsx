@@ -6,7 +6,7 @@ import { Input } from '@/shared/ui/input';
 import type { LinkChoices } from './dossier';
 import { ENTRY_ROW } from './entry-row';
 import { linkWords, readLinkDraft, type LinkForm } from './link-draft';
-import type { StructureAct } from './structure';
+import type { StructureAct, StructureState } from './structure';
 
 export interface NewRelationProps {
   /** The entity the address names. It is always the source end, so the direction is never a
@@ -14,7 +14,7 @@ export interface NewRelationProps {
   readonly srcId: string;
   readonly choices: LinkChoices;
   readonly busy: boolean;
-  readonly onCreate: (act: StructureAct) => void;
+  readonly onCreate: (act: StructureAct) => Promise<StructureState>;
 }
 
 const BLANK: LinkForm = { type: '', dstId: '', validFrom: '', validTo: '' };
@@ -32,8 +32,9 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
 
   const onSend = (): void => {
     if (!draft.ready || busy) return;
-    setForm(BLANK);
-    onCreate(draft.act);
+    void onCreate(draft.act).then((state) => {
+      if (state.step === 'signed') setForm(BLANK);
+    });
   };
 
   return (

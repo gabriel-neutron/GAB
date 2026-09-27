@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent } from 'storybook/test';
+import { expect, fn, userEvent, waitFor } from 'storybook/test';
 
 import { ATTRIBUTE_KEY_LENGTH } from '@gab/proposal/attribute-value';
 
@@ -7,7 +7,8 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { readDossier, type RecordRow } from './dossier';
-import { NewClaim } from './new-claim';
+import { NewClaim, type NewClaimProps } from './new-claim';
+import type { SaveState } from './save';
 
 /** MV Northern Ledger, the entity the address names. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -23,7 +24,9 @@ const ROWS = read();
 /** A key the entity already holds, which the record corrects and this control refuses. */
 const STANDING = ROWS[0]?.claim.key ?? '';
 
-const onMint = fn();
+const SIGNED: SaveState = { step: 'signed', proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12' };
+
+const onMint = fn<NewClaimProps['onMint']>(() => Promise.resolve(SIGNED));
 
 const ADD = 'Add the claim';
 
@@ -161,6 +164,42 @@ export const AReadyClaimSendsOneActSignedManual: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: ADD }));
     await expect(onMint).toHaveBeenCalledWith({ last_port_call: { v: 'Kotka' } });
+  },
+};
+
+// A yes and a no both read as a boolean, so the act must carry which one was typed.
+export const AYesMintsTrueAndANoMintsFalse: Story = {
+  play: async ({ canvas }) => {
+    onMint.mockClear();
+    await userEvent.type(canvas.getByLabelText('Key'), 'gear_fitted');
+    await userEvent.type(canvas.getByLabelText('Value'), 'yes');
+    await userEvent.click(canvas.getByRole('button', { name: ADD }));
+    await expect(onMint).toHaveBeenLastCalledWith({ gear_fitted: { v: true } });
+    await waitFor(async () => {
+      await expect(canvas.getByLabelText('Key')).toHaveValue('');
+    });
+
+    await userEvent.type(canvas.getByLabelText('Key'), 'gear_fitted');
+    await userEvent.type(canvas.getByLabelText('Value'), 'no');
+    await userEvent.click(canvas.getByRole('button', { name: ADD }));
+    await expect(onMint).toHaveBeenLastCalledWith({ gear_fitted: { v: false } });
+  },
+};
+
+export const ARefusedMintKeepsTheTypedText: Story = {
+  args: {
+    onMint: fn<NewClaimProps['onMint']>(() =>
+      Promise.resolve<SaveState>({ step: 'refused', refusal: 'the key is refused' }),
+    ),
+  },
+  play: async ({ args, canvas }) => {
+    await userEvent.type(canvas.getByLabelText('Key'), 'last_port_call');
+    await userEvent.type(canvas.getByLabelText('Value'), 'Kotka');
+    await userEvent.click(canvas.getByRole('button', { name: ADD }));
+
+    await expect(args.onMint).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByLabelText('Key')).toHaveValue('last_port_call');
+    await expect(canvas.getByLabelText('Value')).toHaveValue('Kotka');
   },
 };
 
