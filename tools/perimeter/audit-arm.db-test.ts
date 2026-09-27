@@ -33,6 +33,25 @@ const INVOKER_READS_PUBLIC = String.raw`SELECT p.proname AS found
                           AND c.relkind IN ('r','p','v','m','f')
                           AND p.prosrc ~* ('(?<![.\w"])"?' || c.relname || '\M')))`;
 
+// External constraint: role_table_grants reads the table ACL alone, and a grant on one column is
+// only in column_privileges. UNION and not UNION ALL, because a table grant shows on each column.
+const WRITE_GRANT = `SELECT g.table_schema || '.' || g.table_name
+                 || ' ' || g.privilege_type || ' to ' || g.grantee AS found
+            FROM (SELECT t.table_schema, t.table_name, t.privilege_type, t.grantee
+                    FROM information_schema.role_table_grants t
+                  UNION
+                  SELECT c.table_schema, c.table_name, c.privilege_type, c.grantee
+                    FROM information_schema.column_privileges c) AS g
+           WHERE g.table_schema IN ('public','api')
+             AND g.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
+             AND g.grantee <> 'gabriel_owner'
+             AND NOT EXISTS (
+                   SELECT 1 FROM pg_catalog.pg_depend d
+                     JOIN pg_catalog.pg_class c ON c.oid = d.objid
+                     JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                    WHERE d.deptype = 'e' AND n.nspname = g.table_schema
+                      AND c.relname = g.table_name)`;
+
 const ARMS = [
   { fault: 'SECURITY DEFINER function with no search_path', sql: NO_SEARCH_PATH },
   {
@@ -53,18 +72,7 @@ const ARMS = [
     fault: 'write grant on a table of public or api',
     // A departure: the extension clause keeps out PostGIS, which gives twelve rows on each run.
     // An arm that always answers is an arm nobody reads.
-    sql: `SELECT g.table_schema || '.' || g.table_name
-                 || ' ' || g.privilege_type || ' to ' || g.grantee AS found
-            FROM information_schema.role_table_grants g
-           WHERE g.table_schema IN ('public','api')
-             AND g.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
-             AND g.grantee <> 'gabriel_owner'
-             AND NOT EXISTS (
-                   SELECT 1 FROM pg_catalog.pg_depend d
-                     JOIN pg_catalog.pg_class c ON c.oid = d.objid
-                     JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-                    WHERE d.deptype = 'e' AND n.nspname = g.table_schema
-                      AND c.relname = g.table_name)`,
+    sql: WRITE_GRANT,
   },
   {
     fault: 'api function with invoker rights that reads public',
@@ -129,6 +137,14 @@ test('arm 5 finds an api invoker function that names a public table with no sche
     INVOKER_READS_PUBLIC,
   );
   expect(found).toStrictEqual(['zz_bare_read']);
+});
+
+test('arm 4 finds a column grant of UPDATE on a table of public', async () => {
+  const found = await foundAfter(
+    'GRANT UPDATE (label) ON public.entities TO gabriel_agent',
+    WRITE_GRANT,
+  );
+  expect(found).toStrictEqual(['public.entities UPDATE to gabriel_agent']);
 });
 
 const DEFINER_DOORS = `
