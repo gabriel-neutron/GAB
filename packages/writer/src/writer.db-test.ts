@@ -48,7 +48,7 @@ type Reply = z.infer<typeof replyShape>;
 const post = async (door: string, body: unknown): Promise<[number, Reply]> => {
   const answer = await app.request(`/write/${door}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return [answer.status, replyShape.parse(await answer.json())];
