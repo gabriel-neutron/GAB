@@ -335,8 +335,8 @@ export const TwoClicksOnOneChangeWriteOneAct: Story = {
   },
 };
 
-// A value typed during the round trip reached no act, so it stands. Only a key the act carried
-// goes back to the stored value.
+// Departure: a value typed during the round trip reached no act, so it stands, on a key the act
+// carried as on any other key.
 export const ADraftTypedDuringASaveSurvives: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
@@ -345,6 +345,7 @@ export const ADraftTypedDuringASaveSurvives: Story = {
     await userEvent.type(note, ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
 
+    await userEvent.type(note, ' side');
     const flags = canvas.getByLabelText('Known flags');
     await userEvent.type(flags, ',GB');
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -354,7 +355,7 @@ export const ADraftTypedDuringASaveSurvives: Story = {
       await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
 
-    await expect(note).toHaveValue(HULL_NOTE);
+    await expect(note).toHaveValue(`${HULL_NOTE} and starboard side`);
     await expect(flags).toHaveValue('PA, MN,GB');
   },
 };
