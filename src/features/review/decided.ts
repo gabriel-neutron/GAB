@@ -4,6 +4,7 @@
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, ProposalOp, Relation } from '@/shared/read/model';
 
+import { payloadHeadline, relationPhrase, shortId } from './act-words';
 import type { DoorVerdict } from './decision';
 import { originOf, type Origin } from './origin';
 import { VERDICT_WORDS } from './queue';
@@ -41,23 +42,21 @@ const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {
   merge_entities: 'Merge',
 };
 
-const short = (id: string): string => id.slice(0, 8);
-
 interface Names {
   readonly entityLabel: ReadonlyMap<string, string>;
   readonly madeFrom: ReadonlyMap<string, string>;
   readonly relationById: ReadonlyMap<string, Relation>;
 }
 
-const entityWords = (names: Names, id: string | null): string =>
-  id === null
-    ? 'an element the act does not name'
-    : (names.entityLabel.get(id) ?? `an entity absent from the record, ${short(id)}`);
+const labelIn =
+  (names: Names) =>
+  (id: string): string | undefined =>
+    names.entityLabel.get(id);
 
 function relationWords(names: Names, id: string): string {
   const relation = names.relationById.get(id);
-  if (relation === undefined) return `A relation absent from the record, ${short(id)}`;
-  return `${entityWords(names, relation.srcId)} ${relation.type} ${entityWords(names, relation.dstId)}`;
+  if (relation === undefined) return `A relation absent from the record, ${shortId(id)}`;
+  return relationPhrase(labelIn(names), relation.srcId, relation.type, relation.dstId);
 }
 
 // A promoted deletion takes its row out of the record, and the act kept a copy of that row. The
@@ -79,9 +78,8 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
         `A new ${payload.type ?? 'entity'} the act does not name`
       );
     case 'relation':
-      return `${entityWords(names, payload.src_id)} ${payload.type ?? 'is linked to'} ${entityWords(names, payload.dst_id)}`;
     case 'merge':
-      return `${payload.merge_ids.map((id) => entityWords(names, id)).join(', ')} into ${entityWords(names, payload.keep_id)}`;
+      return payloadHeadline(labelIn(names), payload);
     case 'attrs':
     case 'columns':
     case 'delete': {
@@ -89,7 +87,7 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
       if (act.targetKind === 'relation') return relationWords(names, act.targetId);
       const standing = names.entityLabel.get(act.targetId);
       if (standing !== undefined) return standing;
-      return destroyedLabel(act) ?? `An entity absent from the record, ${short(act.targetId)}`;
+      return destroyedLabel(act) ?? `An entity absent from the record, ${shortId(act.targetId)}`;
     }
   }
 }

@@ -15,6 +15,7 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 
+import { payloadHeadline, relationPhrase, shortId } from './act-words';
 import { originOf, type Origin } from './origin';
 
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
@@ -210,9 +211,6 @@ function kindOf(op: ProposalOp, rows: readonly DifferenceRow[]): ChangeKind {
   return 'edit';
 }
 
-/** An identifier is never read in full. Eight characters tell two rows apart. */
-const short = (id: string): string => id.slice(0, 8);
-
 function words(value: AttributeValue): string {
   if (Array.isArray(value)) return (value as readonly (string | number)[]).join(', ');
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
@@ -233,10 +231,10 @@ const storedTypeNote = (index: Index, type: string): string | null =>
     ? null
     : `${type} is not a live type, so a promotion stores the type 'unknown' and keeps ${type} beside it`;
 
-const entityWords = (index: Index, id: string | null): string =>
-  id === null
-    ? 'an element the act does not name'
-    : (index.entityById.get(id)?.label ?? `an entity absent from the record, ${short(id)}`);
+const labelIn =
+  (index: Index) =>
+  (id: string): string | undefined =>
+    index.entityById.get(id)?.label;
 
 function addressOf(row: DocumentRow | undefined): SourceAddress | null {
   if (row === undefined) return null;
@@ -505,11 +503,11 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       break;
     }
     case 'relation':
-      headline = `${entityWords(index, payload.src_id)} ${payload.type ?? 'is linked to'} ${entityWords(index, payload.dst_id)}`;
+      headline = payloadHeadline(labelIn(index), payload);
       holes.push(HOLE['link-sources']);
       break;
     case 'merge':
-      headline = `${payload.merge_ids.map((id) => entityWords(index, id)).join(', ')} into ${entityWords(index, payload.keep_id)}`;
+      headline = payloadHeadline(labelIn(index), payload);
       holes.push(HOLE['merge-result']);
       break;
     case 'delete':
@@ -546,14 +544,16 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
 function labelOf(index: Index, kind: SubjectKind, key: string, first: Change): string {
   switch (kind) {
     case 'node':
-      return index.entityById.get(key)?.label ?? `An entity absent from the record, ${short(key)}`;
+      return (
+        index.entityById.get(key)?.label ?? `An entity absent from the record, ${shortId(key)}`
+      );
     case 'new-node':
     case 'merge':
       return first.headline;
     case 'link': {
       const relation = index.relationById.get(key);
-      if (relation === undefined) return first.headline === '' ? short(key) : first.headline;
-      return `${entityWords(index, relation.srcId)} ${relation.type} ${entityWords(index, relation.dstId)}`;
+      if (relation === undefined) return first.headline === '' ? shortId(key) : first.headline;
+      return relationPhrase(labelIn(index), relation.srcId, relation.type, relation.dstId);
     }
   }
 }
