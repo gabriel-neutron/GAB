@@ -74,3 +74,39 @@ test('the relation panel and the entity page draw the same card for one document
   expect(relation.sources.map((ref) => [ref.id, ref.number])).toEqual([['d1', 1]]);
   expect(relation.cards).toEqual(dossier.sources.map((card) => ({ ...card, holdsUp: [] })));
 });
+
+test('a point borrowed from a parent that the entity list lacks still states that it is borrowed', () => {
+  const lost: Corpus = {
+    ...CORPUS,
+    positions: [
+      {
+        entityId: VESSEL.id,
+        point: { lon: 4.4777, lat: 51.9244 },
+        precision: 'inherited',
+        parentId: 'e9',
+      },
+    ],
+  };
+  const dossier = readDossier(lost, VESSEL.id, []);
+  if (dossier === null) throw new Error('The corpus holds no vessel');
+
+  expect(dossier.drawnOnMap).toBe(true);
+  expect(dossier.positionFrom).toBe('position from a parent');
+});
+
+test('a point borrowed from a parent that the entity list holds names that parent', () => {
+  const held: Corpus = {
+    ...CORPUS,
+    positions: [
+      {
+        entityId: VESSEL.id,
+        point: { lon: 4.4777, lat: 51.9244 },
+        precision: 'inherited',
+        parentId: OWNER.id,
+      },
+    ],
+  };
+  const dossier = readDossier(held, VESSEL.id, []);
+
+  expect(dossier?.positionFrom).toBe(`position from ${OWNER.label}`);
+});

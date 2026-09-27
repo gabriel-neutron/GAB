@@ -275,6 +275,32 @@ export const AnEntityOffTheMapIsReachedOnTheGraphOnly: Story = {
   },
 };
 
+/** Origin: the unit of the committed corpus that nobody located. It borrows its parent point. */
+const BORROWER = 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809';
+
+const PROPOSED = 'recon_company';
+
+// Departure: no entity of the committed corpus keeps an extracted word, so this one is given one.
+const readBorrower = (): Dossier => {
+  const entities = corpus.entities.map((entity) =>
+    entity.id === BORROWER ? { ...entity, type: 'unknown', proposedType: PROPOSED } : entity,
+  );
+  const held = readDossier({ ...corpus, entities }, BORROWER, entityTypes);
+  if (held === null) throw new Error('The committed corpus holds no 3rd Reconnaissance Company');
+  return held;
+};
+
+export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
+  args: { dossier: readBorrower() },
+  play: async ({ canvas, canvasElement }) => {
+    const heading = canvas.getByRole('heading', { level: 1 });
+    await expect(heading).toHaveTextContent(`proposed as ${PROPOSED}`);
+
+    const from = canvasElement.querySelector('[data-position-from]');
+    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+  },
+};
+
 // Two clicks on one value are one act. A second proposal for the same value puts two entries
 // that cite `manual` in the record, under the one sentence the analyst reads.
 export const TwoClicksOnOneChangeWriteOneAct: Story = {

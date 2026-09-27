@@ -189,6 +189,30 @@ export const ThePanelDrawsTheSameNamedParts: Story = {
   },
 };
 
+/** Origin: the unit of the committed corpus that nobody located. It borrows its parent point. */
+const BORROWER = 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809';
+
+const readBorrower = (): Dossier => {
+  const held = readDossier(corpus, BORROWER, entityTypes);
+  if (held === null) throw new Error('The committed corpus holds no 3rd Reconnaissance Company');
+  return held;
+};
+
+export const ABorrowedPositionNamesItsParent: Story = {
+  args: { dossier: readBorrower() },
+  play: async ({ canvasElement }) => {
+    const from = canvasElement.querySelector('[data-position-from]');
+    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+  },
+};
+
+export const AnOwnPointStatesNoBorrowedPosition: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(DOSSIER.drawnOnMap).toBe(true);
+    await expect(canvasElement.querySelector('[data-position-from]')).toBeNull();
+  },
+};
+
 export const ANewSelectionDrawsTheValuesOfTheNewEntity: Story = {
   render: () => <SwappedSidebar />,
   play: async ({ canvas }) => {
