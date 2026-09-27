@@ -7,6 +7,7 @@ import { KindGlyph } from './change-mark';
 import { Confidence } from './confidence';
 import { ContestedGlyph } from './contested-mark';
 import type { ChangeLine, Subject } from './queue';
+import { SourceBadge } from './sources';
 import { VerdictMark } from './verdict-mark';
 import { patchOpenRecord, readOpenRecord } from './workspace';
 
@@ -83,7 +84,11 @@ export function NodePane({ subject, lines, currentChangeId, onFocus }: NodePaneP
                   >
                     {row.value}
                   </dd>
-                  <dd className="shrink-0 font-mono text-small/4 text-label">{row.sources}</dd>
+                  <dd className="flex shrink-0 items-center gap-1">
+                    {row.sources.map((source) => (
+                      <SourceBadge key={source.id} source={source} />
+                    ))}
+                  </dd>
                 </div>
               ))
             )}

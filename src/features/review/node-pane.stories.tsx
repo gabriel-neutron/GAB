@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
+import type { Corpus } from '@/shared/read/model';
+
 import { NodePane } from './node-pane';
-import { changeLines } from './queue';
-import { SAMPLE, sampleChange, sampleSubject } from './sample';
+import { changeLines, readQueue, type Subject } from './queue';
+import { reviewSample, SAMPLE, sampleChange, sampleSubject } from './sample';
 
 const SUBJECT = sampleSubject(SAMPLE.contestedRow);
 
@@ -96,6 +98,34 @@ export const ASettledActCarriesAMarkInPlaceOfItsConfidence: Story = {
   args: { lines: SETTLED },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
+  },
+};
+
+const UNHELD = 'doc_0000ff';
+
+const STANDS_ON_AN_UNHELD_DOCUMENT: Corpus = {
+  ...reviewSample,
+  entities: reviewSample.entities.map((entity) =>
+    entity.id === SAMPLE.contestedRow
+      ? { ...entity, attrs: { ...entity.attrs, berth_count: { v: 3, src: [UNHELD] } } }
+      : entity,
+  ),
+};
+
+function unheldSubject(): Subject {
+  const held = readQueue(STANDS_ON_AN_UNHELD_DOCUMENT, null).find(
+    (subject) => subject.id === SAMPLE.contestedRow,
+  );
+  if (held === undefined) throw new Error('The terminal waits in no subject of the queue.');
+  return held;
+}
+
+export const AStandingValueOnAnUnheldDocumentShowsItMissing: Story = {
+  args: { subject: unheldSubject() },
+  play: async ({ canvasElement }) => {
+    const row = canvasElement.querySelector('[data-standing="berth_count"]');
+    const badge = row?.querySelector('[data-band]');
+    await expect(badge).toHaveAttribute('data-band', 'missing');
   },
 };
 
