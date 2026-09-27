@@ -1,5 +1,6 @@
-import type { Pool } from 'pg';
 import { z } from 'zod';
+
+import type { Queryable } from './queryable.ts';
 
 // The door takes the oldest queued row and marks it running in one transaction of its own. The
 // lock that keeps two workers off one row is inside it, because no role may write the table.
@@ -14,10 +15,6 @@ const claimed = z
     }),
   )
   .max(1);
-
-// A pool and one client of it both answer here. The lock a claim takes lasts as long as the
-// transaction of the connection that took it, so which connection asks is the whole question.
-export type Queryable = Pick<Pool, 'query'>;
 
 /** One unit of work, held by this worker and already marked as running. */
 export interface ClaimedJob {

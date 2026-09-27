@@ -2,7 +2,7 @@ import type { RawStore } from '@gab/store/bucket';
 import { listKeys } from '@gab/store/listing';
 import { z } from 'zod';
 
-import type { Queryable } from './claim.ts';
+import type { Queryable } from './queryable.ts';
 
 // A row with no key names no object: a source of kind url, api or report is purely external.
 // Without the filter, the second list below reports the whole external corpus as broken.
