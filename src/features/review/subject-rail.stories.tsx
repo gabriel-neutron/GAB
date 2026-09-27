@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
 
 import type { SubjectRow } from './queue';
 import { railRows, readQueue, sortSubjects } from './queue';
@@ -23,6 +23,8 @@ const CUT: SubjectRow = {
 const SUBJECTS = sortSubjects(readQueue(reviewSample, null), 'confidence');
 
 const ROWS = railRows(SUBJECTS, {});
+
+const SETTLED_TERMINAL_ACT = 'aa000001-0000-4000-8000-000000000002';
 
 const onSelect = fn();
 
@@ -51,7 +53,53 @@ type Story = StoryObj<typeof meta>;
 /** The queue lists what is being changed, and never one act on its own. */
 export const TheQueueListsSubjectsAndCountsTheirActs: Story = {
   play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(ROWS.length);
+    await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(3);
+    const terminal = canvasElement.querySelector(`[data-subject="${SAMPLE.contestedRow}"]`);
+    const counts = [...(terminal?.querySelectorAll('[data-count]') ?? [])].map((held) => [
+      held.getAttribute('data-count'),
+      held.querySelector('.font-mono')?.textContent,
+    ]);
+    await expect(counts).toEqual([
+      ['add', '2'],
+      ['edit', '2'],
+    ]);
+  },
+};
+
+export const ARowTakesTheHueOfItsCostliestKind: Story = {
+  play: async ({ canvasElement }) => {
+    const rule = (id: string) =>
+      canvasElement.querySelector(`[data-subject="${id}"]`)?.getAttribute('data-rule');
+    await expect(rule(SAMPLE.destroyedRow)).toBe('delete');
+    await expect(rule(SAMPLE.contestedRow)).toBe('add');
+  },
+};
+
+export const ASettledActFillsTheTrackOfItsSubject: Story = {
+  args: {
+    queue: {
+      rows: railRows(SUBJECTS, {
+        [SETTLED_TERMINAL_ACT]: { verdict: 'deferred', reason: 'The second reading is not in yet' },
+      }),
+      currentId: null,
+      sort: 'confidence',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const terminal = canvasElement.querySelector(`[data-subject="${SAMPLE.contestedRow}"]`);
+    const track = terminal?.querySelector('[style]');
+    await expect(track instanceof HTMLElement ? track.style.width : null).toBe('25%');
+    const vessel = canvasElement.querySelector(`[data-subject="${SAMPLE.destroyedRow}"]`);
+    await expect(vessel?.querySelector('[style]')).toBeNull();
+  },
+};
+
+export const APressOnARowOpensItsSubject: Story = {
+  play: async ({ canvasElement }) => {
+    const vessel = canvasElement.querySelector(`[data-subject="${SAMPLE.destroyedRow}"]`);
+    if (!(vessel instanceof HTMLElement)) throw new Error('The rail draws no VESSEL row.');
+    await userEvent.click(vessel);
+    await expect(onSelect).toHaveBeenCalledWith(SAMPLE.destroyedRow);
   },
 };
 
@@ -90,10 +138,10 @@ export const TheOrderOfTheQueueIsAControl: Story = {
       'aria-pressed',
       'true',
     );
-    await expect(canvas.getByRole('button', { name: 'oldest first' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    const oldest = canvas.getByRole('button', { name: 'oldest first' });
+    await expect(oldest).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(oldest);
+    await expect(onSort).toHaveBeenCalledWith('oldest');
   },
 };
 
