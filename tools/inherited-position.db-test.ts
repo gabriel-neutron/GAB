@@ -244,23 +244,25 @@ test('a parent named through a relation endpoint is not walked', async () => {
   ]);
 });
 
-// Two ancestors at one distance. `min(hop)` alone answers with two rows for one entity, so the
-// tie is broken on the identifier and the answer repeats on every run.
-test('two parents at one distance give one answer, and the same one twice', async () => {
+// Departure: two ancestors at one distance. `min(hop)` alone answers with two rows for one
+// entity, so the tie is broken on the identifier, and the parent with the smaller one wins.
+test('of two parents at one distance, the one with the smaller identifier wins', async () => {
   const held = await rolledBack('superuser', async (ask) => {
     const left = await anEntity(ask, 'Walk 1 left', point(3), NOTHING_SAID);
     const right = await anEntity(ask, 'Walk 2 right', point(7), NOTHING_SAID);
     const child = await anEntity(ask, 'Walk 3 child', null, INHERITED);
     await subordinate(ask, child, left);
     await subordinate(ask, child, right);
-    const first = placed.parse(await ask(DRAWN));
-    const second = placed.parse(await ask(DRAWN));
-    return { first, second };
+    return { left, right, drawn: placed.parse(await ask(DRAWN)) };
   });
 
-  expect(held.first).toHaveLength(3);
-  expect(held.first).toStrictEqual(held.second);
-  expect(held.first.filter((row) => row.label === 'Walk 3 child')).toHaveLength(1);
+  // External constraint: PostgreSQL orders a uuid on its bytes, and the lower-case text of a
+  // uuid sorts in that same order, so a plain string comparison names the same winner.
+  const leftWins = held.left.toLowerCase() < held.right.toLowerCase();
+  const winner = leftWins ? { parent: 'Walk 1 left', lon: 3 } : { parent: 'Walk 2 right', lon: 7 };
+  expect(held.drawn.filter((row) => row.label === 'Walk 3 child')).toStrictEqual([
+    { label: 'Walk 3 child', ...winner, precision: 'inherited' },
+  ]);
 });
 
 // The bound is four hops, because the unit tree of the corpus that waits is four deep. The
