@@ -700,6 +700,9 @@ export default defineConfig(
       'vitest/no-conditional-tests': 'error',
       'vitest/valid-expect': 'error',
       'vitest/valid-describe-callback': 'error',
+      // A helper that holds the `expect` is named here, or each test that calls it reads as a
+      // test with no assertion. Add each new such helper to the list.
+      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'refusedGeom'] }],
       // `afterAll` is named because a suite against the live database ends by counting the rows
       // it met. An assertion there is the residue guard, and it fails the suite that leaves a
       // row behind. Without the name, that guard reads as an expectation nobody runs.
