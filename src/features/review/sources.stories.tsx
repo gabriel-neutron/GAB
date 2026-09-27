@@ -52,19 +52,6 @@ const UNRATED: CitedDocument = {
   name: 'Trade press article, unverified. not rated.',
 };
 
-const ABSENT: CitedDocument = {
-  id: 'doc_0000ff',
-  title: 'Cited document doc_0000ff, absent from the record',
-  address: null,
-  rated: false,
-  score: 'not rated',
-  scoreOrigin: '',
-  poor: false,
-  missing: true,
-  band: 'missing',
-  name: 'Cited document doc_0000ff, absent from the record. not rated.',
-};
-
 const INCOMPLETE_ID: DocId = 'doc_5e7730';
 
 // A CHECK pairs the rating with its origin, so no row of the record carries one without the
@@ -79,14 +66,18 @@ const WITHOUT_RATING: Corpus = {
 const citedIn = (subjects: readonly Subject[], id: DocId): CitedDocument => {
   const found = subjects
     .flatMap((subject) => subject.changes)
-    .flatMap((change) => change.rows)
-    .flatMap((row) => [...row.standingSources, ...row.proposedSources])
+    .flatMap((change) => [
+      ...change.sources,
+      ...change.rows.flatMap((row) => [...row.standingSources, ...row.proposedSources]),
+    ])
     .find((source) => source.id === id);
   if (found === undefined) throw new Error(`No act of the review sample cites ${id}`);
   return found;
 };
 
 const INCOMPLETE: CitedDocument = citedIn(readQueue(WITHOUT_RATING, null), INCOMPLETE_ID);
+
+const ABSENT: CitedDocument = citedIn(readQueue(reviewSample, null), 'doc_0000ff');
 
 const ORIGINAL_ID: DocId = 'doc_3c1104';
 const ORIGINAL_ADDRESS = 'https://registry.example/entry';
