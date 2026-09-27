@@ -307,30 +307,29 @@ test('an entity that carries a point and states no word keeps its point and no w
 // v1 corpus marks 142 units `position_mode = 'parent'`, and one pair rides in the fixture.
 const census = z.array(
   z.object({
-    rows: z.coerce.number(),
-    drawable: z.coerce.number(),
     borrowed: z.coerce.number(),
     claimed: z.coerce.number(),
+    undrawn: z.coerce.number(),
   }),
 );
 
 const CENSUS = `
-  SELECT count(*)                                            AS rows,
-         count(*) FILTER (WHERE geom IS NOT NULL)             AS drawable,
-         count(*) FILTER (WHERE parent_id IS NOT NULL)        AS borrowed,
-         count(*) FILTER (WHERE position_precision = 'inherited') AS claimed
+  SELECT count(*) FILTER (WHERE parent_id IS NOT NULL)                         AS borrowed,
+         count(*) FILTER (WHERE position_precision = 'inherited')              AS claimed,
+         count(*) FILTER (WHERE position_precision = 'inherited' AND geom IS NULL) AS undrawn
     FROM api.full_map`;
 
 test('every entity that claims a borrowed position is placed at an ancestor', async () => {
   const [held] = census.parse(await probe('superuser', async (ask) => ask(CENSUS)));
   if (held === undefined) throw new Error('the map read answered no census row');
 
-  // 143 claim the word and 143 are placed at an ancestor, at 1178 rows and at 29 alike. **These
-  // two must be equal**, or a unit stated a borrowed position and the walk found no ancestor.
+  // Origin: the fixture pair makes the claim, so an empty count is a load that did not happen.
+  expect(held.claimed).toBeGreaterThan(0);
+  // Origin: 143 claim the word and 143 are placed at an ancestor, at 1178 rows and at 29 alike.
+  // **These two must be equal**, or a unit stated a borrowed position and the walk found none.
   expect(held.borrowed).toBe(held.claimed);
-  // Every borrowing entity must actually draw somewhere, and drawable rows never exceed rows.
-  expect(held.claimed).toBeLessThanOrEqual(held.drawable);
-  expect(held.drawable).toBeLessThanOrEqual(held.rows);
+  // Departure: a total of drawn rows holds rows that claim nothing, so the count is per claim.
+  expect(held.undrawn).toBe(0);
 });
 
 // The committed fixture repeats the walk in TypeScript, and nothing held the two answers together.
