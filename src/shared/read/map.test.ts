@@ -224,6 +224,37 @@ test('an act that states no confidence survives the mapper', () => {
   expect(toDomain.proposal({ ...PROPOSAL_ROW, confidence: null }).confidence).toBeNull();
 });
 
+const DOCUMENT_ROW = {
+  id: 'doc_3c1104',
+  kind: 'url',
+  title: 'Corporate registry extract — Meridian Bulk Carriers Ltd',
+  uri: 'https://registry.example/e',
+  archive_uri: 'http://web.archive.example/e',
+  sha256: null,
+  mime: null,
+  retrieved_at: '2026-06-02',
+  admiralty: 'A1',
+  admiralty_origin: 'human',
+  created_at: '2026-08-25T03:25:13.270163+00:00',
+};
+
+test('a web address of a document reaches the surface as it was stored', () => {
+  const read = toDomain.document(DOCUMENT_ROW);
+  expect(read.uri).toBe('https://registry.example/e');
+  expect(read.archiveUri).toBe('http://web.archive.example/e');
+});
+
+test('an address that is not http or https reaches the surface as no address at all', () => {
+  for (const [uri, archive] of [
+    ['data:text/html,x', 'javascript:alert(1)'],
+    ['file:///etc/passwd', 'ms-msdt:x'],
+    ['//attacker.example/x', 'www.example.org/x'],
+  ]) {
+    const read = toDomain.document({ ...DOCUMENT_ROW, uri, archive_uri: archive });
+    expect([read.uri, read.archiveUri]).toStrictEqual([null, null]);
+  }
+});
+
 const LAYOUT_ROW = { entity_id: SRC_ID, x: 412.5, y: -88.25 };
 
 test('a stored position reaches the surface with both of its halves', () => {

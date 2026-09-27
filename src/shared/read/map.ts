@@ -152,14 +152,24 @@ function entityType(row: unknown): EntityTypeDeclaration {
   };
 }
 
+const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
+
+// Departure: a surface puts a document address into a link. Any other scheme, or an address
+// that does not parse, arrives as no address, so no surface links a file or an OS handler.
+function webAddressOf(value: string | null): string | null {
+  if (value === null) return null;
+  const parsed = URL.parse(value);
+  return parsed !== null && WEB_SCHEMES.has(parsed.protocol) ? value : null;
+}
+
 function document(row: unknown): DocumentRow {
   const read = wireRow.document.parse(row);
   return {
     id: read.id,
     kind: read.kind,
     title: read.title,
-    uri: read.uri,
-    archiveUri: read.archive_uri,
+    uri: webAddressOf(read.uri),
+    archiveUri: webAddressOf(read.archive_uri),
     sha256: read.sha256,
     retrievedAt: read.retrieved_at,
     admiralty: read.admiralty,
