@@ -418,6 +418,9 @@ BEGIN
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
    WHERE id = p_id AND status = 'pending';
   IF NOT FOUND THEN
+    IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE id = p_id) THEN
+      RAISE EXCEPTION 'proposal % does not exist', p_id;
+    END IF;
     RAISE EXCEPTION 'proposal % is not pending, and a decided act is frozen', p_id;
   END IF;
 END $$;
