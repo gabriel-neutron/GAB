@@ -3,7 +3,7 @@
 **Status** Accepted · 7 August 2026
 
 T2 makes PostgreSQL/PostGIS the single GOLD datastore, T5 puts pgvector in that same database, and
-T3 puts the immutable raw file in an S3 store. So the first build runs two services. Development
+T3 puts the raw file, unchanged by convention, in an S3 store. So the first build runs two services. Development
 happens on **Windows only**, for one operator who is not a Docker expert.
 
 ### 1. One Compose file, two services
