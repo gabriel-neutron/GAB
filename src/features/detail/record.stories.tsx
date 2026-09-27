@@ -324,10 +324,10 @@ export const TheCaretSurvivesThePastTheOldBoundary: Story = {
   },
 };
 
-// A key the vocabulary describes with nothing is written like any other. The database accepts it,
-// so a record that refused it would be the one tier that says no, and the analyst could not
-// correct a value an agent wrote. Every key of this probe is undeclared.
-export const AnUndeclaredKeyIsWrittenLikeAnyOther: Story = {
+// Departure: nothing describes a key (M11), so every key is written the same way. The database
+// accepts each one, so a record that refused one would be the one tier that says no, and the
+// analyst could not correct a value an agent wrote.
+export const EveryKeyIsWrittenTheSameWay: Story = {
   parameters: { layout: 'fullscreen' },
   render: () => <WritableRecord rows={ROWS} />,
   play: async ({ canvas }) => {

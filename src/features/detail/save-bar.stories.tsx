@@ -76,7 +76,10 @@ export const AnUndecidedActSaysItWasNotSigned: Story = {
 
 export const ARefusalWritesNothing: Story = {
   args: {
-    said: saveSaid({ step: 'refused', refusal: 'the value of imo is not identifier' }, NOTHING),
+    said: saveSaid(
+      { step: 'refused', refusal: 'the act breaks a rule the record holds on its shape' },
+      NOTHING,
+    ),
     canSave: false,
   },
   play: async ({ canvas }) => {
