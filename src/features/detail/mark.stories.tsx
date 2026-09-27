@@ -5,7 +5,7 @@ import type { Corpus, DocumentRow } from '@/shared/read/model';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { readDossier, type SourceRef } from './dossier';
-import { SourceMark } from './mark';
+import { SourceCount, SourceMark } from './mark';
 
 const DOCUMENT: DocumentRow = {
   id: 'doc-imo',
@@ -85,6 +85,15 @@ export const AClaimWithNoSourceSaysSo: Story = {
     await expect(canvas.queryByRole('button')).toBeNull();
     // Never a dash and never a blank: each of those reads as a value the surface lost.
     await expect(canvas.queryByText('—')).toBeNull();
+  },
+};
+
+export const AnEmptyRowLevelListNamesNoClaimRule: Story = {
+  render: () => <SourceCount sources={[]} cards={[]} entityId={null} />,
+  play: async ({ canvas }) => {
+    const sentence = canvas.getByText(/No source recorded/);
+    await expect(sentence.textContent).not.toMatch(/invariant 1/i);
+    await expect(sentence.textContent).not.toMatch(/claim/i);
   },
 };
 
