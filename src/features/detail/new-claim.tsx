@@ -8,12 +8,13 @@ import { Input } from '@/shared/ui/input';
 import type { RecordRow } from './dossier';
 import { ENTRY_ROW } from './entry-row';
 import { mintWords, readMint, type MintForm } from './mint';
+import type { SaveState } from './save';
 
 export interface NewClaimProps {
   /** The claims the entity holds. A key that stands here is corrected above, and never minted. */
   readonly rows: readonly RecordRow[];
   readonly busy: boolean;
-  readonly onMint: (attrs: AttributeEdit) => void;
+  readonly onMint: (attrs: AttributeEdit) => Promise<SaveState>;
 }
 
 const BLANK: MintForm = { key: '', text: '' };
@@ -27,8 +28,9 @@ export function NewClaim({ rows, busy, onMint }: NewClaimProps) {
 
   const onSend = (): void => {
     if (!draft.ready || busy) return;
-    setForm(BLANK);
-    onMint(draft.attrs);
+    void onMint(draft.attrs).then((state) => {
+      if (state.step === 'signed') setForm(BLANK);
+    });
   };
 
   return (

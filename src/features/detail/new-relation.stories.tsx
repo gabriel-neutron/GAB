@@ -6,6 +6,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { readDossier, type LinkChoices } from './dossier';
 import { NewRelation } from './new-relation';
+import type { StructureAct, StructureState } from './structure';
 
 /** MV Northern Ledger, the entity the address names. It is always the source end. */
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -21,7 +22,13 @@ const read = (): LinkChoices => {
 
 const CHOICES = read();
 
-const onCreate = fn();
+const onCreate = fn((act: StructureAct) =>
+  Promise.resolve<StructureState>({
+    step: 'signed',
+    deed: act.op,
+    proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+  }),
+);
 
 const optionsOf = (root: HTMLElement): readonly string[] =>
   Array.from(root.querySelectorAll<HTMLOptionElement>('datalist option')).map(
@@ -89,6 +96,23 @@ export const AReadyFormSendsOneAct: Story = {
       validFrom: '2011-03-09',
       validTo: null,
     });
+  },
+};
+
+export const ARefusedRelationKeepsTheTypedForm: Story = {
+  args: {
+    onCreate: fn((act: StructureAct) =>
+      Promise.resolve<StructureState>({ step: 'refused', deed: act.op, refusal: 'refused' }),
+    ),
+  },
+  play: async ({ args, canvas }) => {
+    await userEvent.type(canvas.getByLabelText('Type'), 'owns');
+    await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
+    await userEvent.click(canvas.getByRole('button', { name: 'Make the relation' }));
+
+    await expect(args.onCreate).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByLabelText('Type')).toHaveValue('owns');
+    await expect(canvas.getByLabelText('Other end')).toHaveValue(COMPANY);
   },
 };
 

@@ -376,6 +376,51 @@ export const ARefusalKeepsTheTypedValue: Story = {
   },
 };
 
+const mintIn = async (root: HTMLElement): Promise<void> => {
+  await userEvent.type(within(root).getByLabelText('Key'), 'coal_stock_t');
+  await userEvent.type(within(root).getByLabelText('Value'), '41.5');
+  await userEvent.click(within(root).getByRole('button', { name: 'Add the claim' }));
+};
+
+// A new claim keeps its text until the act is signed, as a record edit does. Only the analyst
+// can type it again, and the refusal sentence does not carry it.
+export const ARefusedMintKeepsTheTypedText: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering({ said: 'refused', refusal: NOT_AN_IDENTIFIER });
+    await mintIn(canvasElement);
+    await expect(knock).toHaveBeenCalledWith('/write/update-attrs', {
+      targetKind: 'entity',
+      targetId: VESSEL,
+      attrs: { coal_stock_t: { v: 41.5 } },
+    });
+    door.open();
+
+    await waitFor(async () => {
+      await expect(saidIn(canvasElement)).toHaveTextContent('Nothing was written.');
+    });
+    await expect(canvas.getByLabelText('Key')).toHaveValue('coal_stock_t');
+    await expect(canvas.getByLabelText('Value')).toHaveValue('41.5');
+  },
+};
+
+// A form that stays full after a signed mint offers the same act again.
+export const ASignedMintClearsTheForm: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering(SIGNED);
+    await mintIn(canvasElement);
+    door.open();
+
+    await waitFor(async () => {
+      await expect(canvas.getByLabelText('Key')).toHaveValue('');
+    });
+    await expect(canvas.getByLabelText('Value')).toHaveValue('');
+    await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    await expect(knock).toHaveBeenCalledTimes(1);
+  },
+};
+
 // The proposal is committed and the promotion refused it. That name is the only way back to it.
 export const AnUndecidedActNamesItsProposal: Story = {
   play: async ({ canvas, canvasElement }) => {
@@ -461,6 +506,41 @@ export const ANewRelationNamesItsProposal: Story = {
       await expect(shapeSaidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
     await expect(shapeSaidIn(canvasElement)).toHaveTextContent('The relation is made');
+  },
+};
+
+const RELATION_REFUSAL = 'the other end is not an entity of the record';
+
+export const ARefusedRelationKeepsTheTypedForm: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering({ said: 'refused', refusal: RELATION_REFUSAL });
+    await userEvent.type(canvas.getByLabelText('Type'), 'berthed_at');
+    await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
+    await userEvent.click(canvas.getByRole('button', { name: 'Make the relation' }));
+    door.open();
+
+    await waitFor(async () => {
+      await expect(shapeSaidIn(canvasElement)).toHaveTextContent(RELATION_REFUSAL);
+    });
+    await expect(canvas.getByLabelText('Type')).toHaveValue('berthed_at');
+    await expect(canvas.getByLabelText('Other end')).toHaveValue(COMPANY);
+  },
+};
+
+export const ASignedRelationClearsTheForm: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering(SIGNED);
+    await userEvent.type(canvas.getByLabelText('Type'), 'berthed_at');
+    await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
+    await userEvent.click(canvas.getByRole('button', { name: 'Make the relation' }));
+    door.open();
+
+    await waitFor(async () => {
+      await expect(canvas.getByLabelText('Type')).toHaveValue('');
+    });
+    await expect(canvas.getByLabelText('Other end')).toHaveValue('');
   },
 };
 

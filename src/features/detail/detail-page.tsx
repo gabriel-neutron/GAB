@@ -126,26 +126,29 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
   // A minted claim is its own act, as a new relation is. It carries a key the record does not
   // hold, so no draft of the record stands for it and none is cleared when it lands.
-  const onMint = (attrs: AttributeEdit): void => {
-    if (busy) return;
+  const onMint = async (attrs: AttributeEdit): Promise<SaveState> => {
+    if (busy) return IDLE;
     setSave({ step: 'saving' });
-    void saveClaims(dossier.entityId, attrs).then(async (state) => {
-      setSave(state);
-      if (state.step !== 'signed') return;
-      await reloadAfterSigned(onSaved);
-    });
+    const state = await saveClaims(dossier.entityId, attrs);
+    setSave(state);
+    if (state.step === 'signed') void reloadAfterSigned(onSaved);
+    return state;
   };
 
   // A deleted entity leaves no page to draw, so the route takes the analyst away. Every other
   // act reads the record again, and the page then draws what landed and not what was sent.
-  const onStructure = (act: StructureAct): void => {
-    if (busy) return;
+  const sendStructure = async (act: StructureAct): Promise<StructureState> => {
+    if (busy) return NO_ACT;
     setStructure({ step: 'working', deed: act.op });
-    void changeStructure(act).then(async (state) => {
-      setStructure(state);
-      if (state.step !== 'signed') return;
-      await reloadAfterSigned(act.op === 'delete_entity' ? onDeleted : onSaved);
-    });
+    const state = await changeStructure(act);
+    setStructure(state);
+    if (state.step === 'signed')
+      void reloadAfterSigned(act.op === 'delete_entity' ? onDeleted : onSaved);
+    return state;
+  };
+
+  const onStructure = (act: StructureAct): void => {
+    void sendStructure(act);
   };
 
   const mark = (sources: readonly SourceRef[]): ReactNode => (
@@ -258,7 +261,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               srcId={dossier.entityId}
               choices={dossier.linkChoices}
               busy={busy}
-              onCreate={onStructure}
+              onCreate={sendStructure}
             />
           ) : null}
         </Band>
