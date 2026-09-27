@@ -5,6 +5,7 @@ import type {
   AuthorRole,
   Corpus,
   DocId,
+  DocumentRow,
   Entity,
   EndpointKind,
   Proposal,
@@ -172,6 +173,62 @@ interface Index {
   readonly relationById: ReadonlyMap<string, Relation>;
 }
 
+function cardOf(
+  ref: SourceRef,
+  row: DocumentRow | undefined,
+  holdsUp: readonly ClaimLine[],
+): SourceCardModel {
+  const rating = readRating(row);
+  return {
+    id: ref.id,
+    number: ref.number,
+    title: titleOf(ref.id, row),
+    rated: rating.rated,
+    score: rating.score,
+    scoreOrigin: rating.scoreOrigin,
+    poor: rating.poor,
+    band: readBand(row),
+    uri: row?.uri ?? null,
+    uriShort: shorten(row?.uri ?? null),
+    retrievedAt: row?.retrievedAt ?? null,
+    holdsUp,
+    missing: row === undefined,
+  };
+}
+
+function titleOf(id: DocId, row: DocumentRow | undefined): string {
+  return row?.title ?? `Cited document ${id}, absent from the record`;
+}
+
+interface SourceRegister {
+  readonly refsOf: (ids: readonly DocId[]) => readonly SourceRef[];
+  readonly cards: (holdsUpOf: (id: DocId) => readonly ClaimLine[]) => readonly SourceCardModel[];
+}
+
+// Departure: a document keeps the number of the list where it is first met, so the call order
+// of `refsOf` is the page order. A document cited twice is one mark and one card: two entries
+// would draw one key twice, and would count the evidence twice.
+function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRegister {
+  const met = new Map<DocId, SourceRef>();
+  const refOf = (id: DocId): SourceRef => {
+    const held = met.get(id);
+    if (held !== undefined) return held;
+    const number = met.size + 1;
+    const made: SourceRef = {
+      id,
+      number,
+      name: `Source ${number} — ${titleOf(id, documentById.get(id))}`,
+    };
+    met.set(id, made);
+    return made;
+  };
+  return {
+    refsOf: (ids) => [...new Set(ids)].map(refOf),
+    cards: (holdsUpOf) =>
+      [...met.values()].map((ref) => cardOf(ref, documentById.get(ref.id), holdsUpOf(ref.id))),
+  };
+}
+
 /**
  * An endpoint is resolved one level only. Deeper, the sentence says `a relation`: a sentence
  * that unrolls a chain of relations is not readable on one line. */
@@ -218,22 +275,9 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     relationById: new Map(read.relations.map((row) => [row.id, row])),
   };
 
-  // Each document is numbered in the order it is met — the entity, then the claims, then
-  // the relations, then the pending proposals. This function is the register of that order, so
-  // a document met twice keeps its first number and no caller can renumber it.
-  const met = new Map<DocId, SourceRef>();
-  const refOf = (id: DocId): SourceRef => {
-    const held = met.get(id);
-    if (held !== undefined) return held;
-    const row = documentById.get(id);
-    const number = met.size + 1;
-    const title = row?.title ?? `Cited document ${id}, absent from the record`;
-    // The name names the document and never its score.
-    const made: SourceRef = { id, number, name: `Source ${number} — ${title}` };
-    met.set(id, made);
-    return made;
-  };
-  const refsOf = (ids: readonly DocId[]): readonly SourceRef[] => ids.map(refOf);
+  // Departure: the page order is the entity, then the claims, then the relations, then the
+  // pending proposals, so the lists below call the register in that order.
+  const { refsOf, cards } = sourceRegister(documentById);
 
   const entitySources = refsOf(entity.sources);
 
@@ -325,31 +369,11 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
       };
     });
 
-  const sources: readonly SourceCardModel[] = [...met.values()].map((ref) => {
-    const row = documentById.get(ref.id);
-    const rating = readRating(row);
-    return {
-      id: ref.id,
-      number: ref.number,
-      title: row?.title ?? `Cited document ${ref.id}, absent from the record`,
-      rated: rating.rated,
-      score: rating.score,
-      scoreOrigin: rating.scoreOrigin,
-      poor: rating.poor,
-      band: readBand(row),
-      uri: row?.uri ?? null,
-      uriShort: shorten(row?.uri ?? null),
-      retrievedAt: row?.retrievedAt ?? null,
-      holdsUp: claimSources
-        .filter((held) => held.claim.sources.includes(ref.id))
-        .map((held) => ({
-          key: held.claim.key,
-          label: held.claim.label,
-          text: held.claim.value.text,
-        })),
-      missing: row === undefined,
-    };
-  });
+  const sources = cards((id) =>
+    claims
+      .filter((claim) => claim.sources.includes(id))
+      .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
+  );
 
   const linkChoices: LinkChoices = {
     types: [...new Set(read.relations.map((relation) => relation.type))].sort((one, other) =>
@@ -425,40 +449,11 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   // canvases at once.
   const [fromLine, typeLine, toLine] = relationLines(from, relation.type, to);
 
-  // A document is numbered at the position where it is first met. A document cited twice keeps
-  // one number and one card: two entries would draw one key twice, and would count the evidence
-  // twice.
-  const met = new Map<DocId, SourceRef>();
-  for (const id of relation.sources) {
-    if (met.has(id)) continue;
-    const number = met.size + 1;
-    const title = documentById.get(id)?.title ?? `Cited document ${id}, absent from the record`;
-    // The name names the document and never its score.
-    met.set(id, { id, number, name: `Source ${number} — ${title}` });
-  }
-  const sources = [...met.values()];
-
-  const cards: readonly SourceCardModel[] = sources.map((ref) => {
-    const row = documentById.get(ref.id);
-    const rating = readRating(row);
-    return {
-      id: ref.id,
-      number: ref.number,
-      title: row?.title ?? `Cited document ${ref.id}, absent from the record`,
-      rated: rating.rated,
-      score: rating.score,
-      scoreOrigin: rating.scoreOrigin,
-      poor: rating.poor,
-      band: readBand(row),
-      uri: row?.uri ?? null,
-      uriShort: shorten(row?.uri ?? null),
-      retrievedAt: row?.retrievedAt ?? null,
-      // This view draws no claim, so no document holds one up here. The card says that in its
-      // own words.
-      holdsUp: [],
-      missing: row === undefined,
-    };
-  });
+  const register = sourceRegister(documentById);
+  const sources = register.refsOf(relation.sources);
+  // Departure: this view draws no claim, so no document holds one up here. The card says that
+  // in its own words.
+  const cards = register.cards(() => []);
 
   return {
     relationId: relation.id,

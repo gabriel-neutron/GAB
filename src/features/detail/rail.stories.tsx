@@ -13,7 +13,9 @@ import { Rail } from './rail';
 // mount the record and the rail on one page.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-const SOURCES: readonly SourceCardModel[] = readDossier(corpus, VESSEL, entityTypes)?.sources ?? [];
+const DOSSIER = readDossier(corpus, VESSEL, entityTypes);
+
+const SOURCES: readonly SourceCardModel[] = DOSSIER?.sources ?? [];
 
 // The density needs fourteen documents, and the committed corpus cites fewer. These rows are
 // invented for this story only. No other file reads them.
@@ -176,18 +178,27 @@ export const ASecondClickOnTheActiveMarkBringsItsCardBack: Story = {
   },
 };
 
-export const EachDocumentIsListedOnce: Story = {
-  args: { sources: REPEATED },
-  play: async ({ canvas }) => {
-    const cards = canvas.getAllByRole('article');
-    await expect(cards.length).toBe(REPEATED.length);
+const CITED: readonly DocId[] =
+  DOSSIER === null
+    ? []
+    : [
+        ...DOSSIER.entitySources,
+        ...DOSSIER.rows.flatMap((row) => row.sources),
+        ...DOSSIER.relations.flatMap((line) => line.sources),
+        ...DOSSIER.pending.flatMap((line) => line.sources),
+      ].map((ref) => ref.id);
 
+export const EachDocumentIsListedOnce: Story = {
+  args: { sources: SOURCES },
+  play: async ({ canvas }) => {
+    const distinct = [...new Set(CITED)];
+    await expect(CITED.length).toBeGreaterThan(distinct.length);
+
+    const cards = canvas.getAllByRole('article');
     const drawn = cards.map((card) => card.getAttribute('data-source'));
-    await expect(new Set(drawn).size).toBe(cards.length);
+    await expect(drawn).toEqual(distinct);
 
     const numbers = cards.map((card) => Number(card.querySelector('span')?.textContent ?? ''));
-    for (let index = 1; index < numbers.length; index += 1) {
-      await expect(numbers[index] ?? Number.NaN).toBeGreaterThan(numbers[index - 1] ?? Number.NaN);
-    }
+    await expect(numbers).toEqual(distinct.map((_, index) => index + 1));
   },
 };
