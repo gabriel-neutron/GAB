@@ -220,6 +220,9 @@ export const AHoldAsksWhyNotYet: Story = {
   },
 };
 
+// Origin of a number: the `--primary` token of the dark theme.
+const DARK_PRIMARY = 'oklch(0.76 0.14 235)';
+
 export const TheControlsHoldInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark w-[560px] border-t border-border bg-background p-2 text-foreground">
@@ -227,6 +230,7 @@ export const TheControlsHoldInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('button', { name: /Promote/ })).toBeInTheDocument();
+    const promote = canvas.getByRole('button', { name: /Promote/ });
+    await expect(getComputedStyle(promote).backgroundColor).toBe(DARK_PRIMARY);
   },
 };

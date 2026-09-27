@@ -114,6 +114,9 @@ export const ADeletionNamesTheRowItDestroys: Story = {
   },
 };
 
+// Origin of a number: the `--dissent` token of the dark theme.
+const DARK_DISSENT = 'oklch(0.7 0.17 28)';
+
 export const TheCardHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark flex h-[420px] w-[360px] bg-background p-2 text-foreground">
@@ -121,6 +124,8 @@ export const TheCardHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-change]')).not.toBeNull();
+    const routing = canvasElement.querySelector<HTMLElement>('[data-routing]');
+    if (routing === null) throw new Error('the card draws no routing');
+    await expect(getComputedStyle(routing).color).toBe(DARK_DISSENT);
   },
 };

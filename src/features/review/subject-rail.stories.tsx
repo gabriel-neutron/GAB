@@ -145,6 +145,9 @@ export const TheOrderOfTheQueueIsAControl: Story = {
   },
 };
 
+// Origin of a number: the `--label` token of the dark theme.
+const DARK_LABEL = 'oklch(0.63 0.008 215)';
+
 export const TheRailHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark h-[520px] w-72 bg-background p-2 text-foreground">
@@ -155,5 +158,6 @@ export const TheRailHoldsInTheDarkTheme: Story = {
     await expect(
       canvas.getByRole('navigation', { name: 'What waits for a decision' }),
     ).toBeInTheDocument();
+    await expect(getComputedStyle(canvas.getByText('Order')).color).toBe(DARK_LABEL);
   },
 };

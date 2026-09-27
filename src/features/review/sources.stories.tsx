@@ -168,6 +168,9 @@ export const ARatingWithNoOriginIsNeitherOfTheTwo: Story = {
   },
 };
 
+// Origin of a number: the `--label` token of the dark theme.
+const DARK_LABEL = 'oklch(0.63 0.008 215)';
+
 export const TheBadgeHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark flex w-[560px] items-center gap-1 bg-background p-2 text-foreground">
@@ -175,6 +178,8 @@ export const TheBadgeHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('A1')).toBeInTheDocument();
+    const badge = canvas.getByRole('button', { name: /Corporate registry extract/ });
+    await expect(badge).toHaveTextContent('A1');
+    await expect(getComputedStyle(badge).color).toBe(DARK_LABEL);
   },
 };

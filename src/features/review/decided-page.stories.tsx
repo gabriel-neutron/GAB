@@ -62,6 +62,9 @@ export const AnEmptyHistoryIsSaid: Story = {
   },
 };
 
+// Origin of a number: the `--label` token of the dark theme.
+const DARK_LABEL = 'oklch(0.63 0.008 215)';
+
 export const TheHistoryHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark h-[720px] w-[1280px] bg-background text-foreground">
@@ -69,6 +72,8 @@ export const TheHistoryHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('table')).toBeInTheDocument();
+    const head = canvas.getByRole('table').querySelector('thead');
+    if (head === null) throw new Error('the table draws no head');
+    await expect(getComputedStyle(head).color).toBe(DARK_LABEL);
   },
 };

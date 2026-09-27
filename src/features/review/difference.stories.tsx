@@ -111,6 +111,9 @@ export const AKeyAnActTakesAwayIsMarked: Story = {
   },
 };
 
+// Origin of a number: the `--label` token of the dark theme.
+const DARK_LABEL = 'oklch(0.63 0.008 215)';
+
 export const TheDifferenceHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark w-[420px] bg-background p-2 text-foreground">
@@ -118,6 +121,8 @@ export const TheDifferenceHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-difference]')).not.toBeNull();
+    const key = canvasElement.querySelector<HTMLElement>('[data-difference] span[title]');
+    if (key === null) throw new Error('the difference draws no key');
+    await expect(getComputedStyle(key).color).toBe(DARK_LABEL);
   },
 };
