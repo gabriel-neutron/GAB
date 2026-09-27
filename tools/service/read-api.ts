@@ -7,7 +7,11 @@ import { z } from 'zod';
 // from outside the machine.
 const LOOPBACK = 'http://127.0.0.1:3001/';
 
-const failureShape = z.object({ code: z.string(), message: z.string() });
+const failureShape = z.object({
+  code: z.string(),
+  message: z.string(),
+  hint: z.string().nullable(),
+});
 const rowShape = z.array(z.unknown());
 
 // PostgREST answers `0-26/27`, and `*/27` when the range is empty.
@@ -15,7 +19,11 @@ const TOTAL = /\/(\d+)$/;
 
 export interface ReadApiAnswer {
   readonly status: number;
-  readonly failure: { readonly code: string; readonly message: string } | null;
+  readonly failure: {
+    readonly code: string;
+    readonly message: string;
+    readonly hint: string | null;
+  } | null;
   readonly total: number | null;
   readonly rows: readonly unknown[];
 }
@@ -50,7 +58,7 @@ export const askReadApi = async (path: string, asked: Ask = {}): Promise<ReadApi
 
   return {
     status: answer.status,
-    failure: failure.success ? { code: failure.data.code, message: failure.data.message } : null,
+    failure: failure.success ? failure.data : null,
     total: totalOf(answer.headers.get('content-range')),
     rows: rows.success ? rows.data : [],
   };
