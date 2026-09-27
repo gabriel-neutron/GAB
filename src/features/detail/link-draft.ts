@@ -1,7 +1,7 @@
 /** The boxes of a new relation, read into one act or into one sentence. The database is the
  * second tier and refuses what this misses; this tier gives a sentence before a round trip. */
 
-import { DATED_RELATIONS, DAY } from '@gab/proposal/request';
+import { DATED_RELATIONS, interval } from '@gab/proposal/request';
 
 import type { ElementAct } from '@/shared/write/elements';
 
@@ -27,6 +27,9 @@ const INTERVAL_BELONGS = `An interval belongs to a relation of ${DATED_RELATIONS
 
 const blank = (given: string): string | null => (given.trim() === '' ? null : given.trim());
 
+const namesAnEnd = (issue: { readonly path: readonly PropertyKey[] }): boolean =>
+  issue.path.length > 0;
+
 /** One typed form, read into the act it carries. `srcId` is the entity the address names. */
 export function readLinkDraft(srcId: string, form: LinkForm): LinkDraft {
   const type = form.type.trim();
@@ -40,10 +43,12 @@ export function readLinkDraft(srcId: string, form: LinkForm): LinkDraft {
   const dated = validFrom !== null || validTo !== null;
   if (dated && !DATED_RELATIONS.some((word) => word === type))
     return { ready: false, reason: INTERVAL_BELONGS };
-  if (validFrom !== null && !DAY.test(validFrom)) return { ready: false, reason: NOT_A_DAY };
-  if (validTo !== null && !DAY.test(validTo)) return { ready: false, reason: NOT_A_DAY };
-  if (validFrom !== null && validTo !== null && validFrom > validTo)
-    return { ready: false, reason: BACKWARDS };
+  const ends = interval.safeParse({
+    validFrom: validFrom ?? undefined,
+    validTo: validTo ?? undefined,
+  });
+  if (!ends.success)
+    return { ready: false, reason: ends.error.issues.some(namesAnEnd) ? NOT_A_DAY : BACKWARDS };
 
   return { ready: true, act: { op: 'create_relation', type, srcId, dstId, validFrom, validTo } };
 }
