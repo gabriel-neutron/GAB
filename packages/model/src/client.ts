@@ -6,9 +6,9 @@ import { failureOf, REASON, sentenceOf, type Failure, type ReasonKind } from './
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Both counts are decided and neither is calibrated. The transport gets one attempt and three
-// retries, and a refusal of the boundary gets one retry that carries the fault back. They bound
-// one question to the model, and what a job does when this chain ends is not decided.
+// Origin of the numbers: decided, not calibrated. The transport gets one attempt and three retries,
+// and a refusal of the boundary gets one retry with the fault. They bound one question only: a job
+// has its own limit of three claims, and the third failure ends it as failed, outside this client.
 const NETWORK_RETRIES = 3;
 const VALIDATION_RETRIES = 1;
 
