@@ -113,7 +113,7 @@ const GATEWAY_TIMEOUT = (): Response => new Response('<html>504</html>', { statu
 
 const SIGNED: WriterSays = { said: 'signed' };
 
-const NOT_AN_IDENTIFIER = 'the value of imo is not identifier, which the key declares';
+const BREAKS_A_SHAPE_RULE = 'the act breaks a rule the record holds on its shape';
 
 const HULL_NOTE = 'Repainted funnel, photographed 2026-05';
 
@@ -363,7 +363,7 @@ export const ADraftTypedDuringASaveSurvives: Story = {
 export const ARefusalKeepsTheTypedValue: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ said: 'refused', refusal: NOT_AN_IDENTIFIER });
+    const door = doorAnswering({ said: 'refused', refusal: BREAKS_A_SHAPE_RULE });
     const note = canvas.getByLabelText('Hull note');
     await userEvent.type(note, ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
@@ -372,7 +372,7 @@ export const ARefusalKeepsTheTypedValue: Story = {
     await waitFor(async () => {
       await expect(saidIn(canvasElement)).toHaveTextContent('Nothing was written.');
     });
-    await expect(saidIn(canvasElement)).toHaveTextContent(NOT_AN_IDENTIFIER);
+    await expect(saidIn(canvasElement)).toHaveTextContent(BREAKS_A_SHAPE_RULE);
     await expect(note).toHaveValue(`${HULL_NOTE} and starboard`);
   },
 };
@@ -388,7 +388,7 @@ const mintIn = async (root: HTMLElement): Promise<void> => {
 export const ARefusedMintKeepsTheTypedText: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ said: 'refused', refusal: NOT_AN_IDENTIFIER });
+    const door = doorAnswering({ said: 'refused', refusal: BREAKS_A_SHAPE_RULE });
     await mintIn(canvasElement);
     await expect(knock).toHaveBeenCalledWith('/write/update-attrs', {
       targetKind: 'entity',
@@ -732,7 +732,8 @@ export const EachPartStatesItsOwnCount: Story = {
   },
 };
 
-/** The vocabulary declares no group, so no name may stand between two claims of the record. */
+/** Departure: nothing describes a key (M11), so no name may stand between two claims of the
+ * record. */
 export const NoNameGroupsTwoClaimsInsideTheRecord: Story = {
   play: async ({ canvasElement }) => {
     const record = within(recordPaneOf(canvasElement)).getByRole('region', { name: 'Record' });

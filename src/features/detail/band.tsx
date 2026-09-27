@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 export interface BandProps {
-  /** The name of one part of the dossier. It never names a group of the claims inside the
-   * record: the vocabulary declares a key, a kind and a label, and it declares no group. */
+  /** Departure: the name of one part of the dossier, and never of a group of claims inside the
+   * record. Nothing describes a key (M11), so nothing puts two claims in one group. */
   readonly name: string;
   readonly count: number;
   readonly children: ReactNode;
