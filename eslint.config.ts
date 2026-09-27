@@ -571,6 +571,22 @@ export default defineConfig(
     },
   },
 
+  // External constraint: a boundaries element is a folder and matches files at any depth under it,
+  // and only the deprecated `mode` option bounds the depth. So this block keeps a feature flat.
+  {
+    files: ['src/features/*/*/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Program',
+          message:
+            'A feature is one flat folder. Move this file up into the feature folder, or make the subfolder a feature of its own',
+        },
+      ],
+    },
+  },
+
   // No story mounts a live canvas. ADR 0004 §1 gives MapLibre and Sigma one element each, and
   // their own loop. ADR 0004 §3 keeps React state out of both. One story makes one live WebGL
   // context, and a browser removes the oldest context after approximately sixteen.
