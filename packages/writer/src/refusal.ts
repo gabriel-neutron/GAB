@@ -1,4 +1,4 @@
-// Two exports, one job: this file owns every word that a failure becomes, and it owns the one
+// Departure: two exports, one job. This file owns every word that a failure becomes, and the one
 // test that parts a refusal from a doubt. No other file reads the shape of a raised error.
 
 const GENERIC = 'the database refused the act';
@@ -6,13 +6,12 @@ const UNREACHABLE = 'the database did not answer, and nothing was written';
 const SLOW = 'the database took too long, and nothing was written';
 const DOUBT = 'the record gave no answer to read, and the act may have run whole';
 
-// Every sentence the caller reads is owned here. A message that PostgreSQL composes carries a
-// ticket number, a path in this repository and the address of the server, and none of those
-// three may reach a screen.
+// External constraint: a message that PostgreSQL composes carries a ticket number, a path in this
+// repository and the address of the server, and none of those three may reach a screen.
 const BY_CODE = new Map<string, string>([
   ['23505', 'the act repeats a value that must stay unique'],
   ['23503', 'the act names a document or an element that does not exist'],
-  ['23514', 'an attribute value does not agree with the kind or the format its key declares'],
+  ['23514', 'the act breaks a rule the record holds on its shape'],
   ['22P02', 'a value in the act has the wrong type'],
   ['42501', 'the writer may not sign this act'],
   ['57014', SLOW],
@@ -42,11 +41,8 @@ const BY_SHAPE: readonly (readonly [string | RegExp, string])[] = [
   ['only a pending proposal is applied', 'the act is decided already, and a decided act is frozen'],
   ['a decided act is frozen', 'the act is decided already, and a decided act is frozen'],
   ['has no write path yet', 'the writer has no path for this act'],
-  ['may not write a proposal', 'the writer may not sign this act'],
-  ['cites a document that does not exist', 'the act cites a document the archive does not hold'],
-  // Last, and the widest shape of the list: a more exact sentence above must win first. It is
-  // held to the sentence the record raises, because `does not exist` alone also reads a missing
-  // table or a missing function, and those two are a fault of the writer and not of the act.
+  // Departure: held to the whole sentence the record raises. `does not exist` alone also reads a
+  // missing table or a missing function, and those are a fault of the writer and not of the act.
   [/^proposal \S+ does not exist$/u, 'the record holds no act under that name'],
 ];
 
@@ -79,8 +75,8 @@ export type Failure =
   | { readonly raised: true; readonly refusal: string }
   | { readonly raised: false; readonly doubt: string };
 
-// A socket that dies and a server that stops each name a code of their own, and neither one
-// says the statement did not run. So a code alone cannot part a refusal from a doubt.
+// External constraint: a socket that dies and a server that stops each name a code of their own,
+// and neither one says the statement did not run. So a code alone cannot part the two.
 const DOUBTFUL = new Set([
   'EPIPE',
   'ECONNRESET',
@@ -93,8 +89,8 @@ const DOUBTFUL = new Set([
   '57P03',
 ]);
 
-// The database names a five-character state on every error it raises while it reads a
-// statement. The class 08 is the connection, and the answer of a lost connection is not known.
+// External constraint: the database names a five-character state on each error it raises while
+// it reads a statement. The class 08 is the connection, and a lost connection gives no answer.
 const STATE = /^[0-9A-Z]{5}$/u;
 
 const raisedBy = (code: string): boolean =>
