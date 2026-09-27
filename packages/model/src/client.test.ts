@@ -528,13 +528,31 @@ describe('the settings and the key', () => {
     expect(signed).toEqual(['Bearer a-key', 'Bearer a-key']);
   });
 
-  it('sends every call to the one endpoint, and gives it a deadline', async () => {
+  it('sends every call to the one endpoint', async () => {
     const send = always(said('{"claim":"a ship"}'));
     await ask(send).run();
 
     const [call] = send.mock.calls;
     expect(call?.[0]).toBe(ENDPOINT);
-    expect(call?.[1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('stops a call that passes timeoutMs, and tries again as a fault of the network', async () => {
+    // Origin: a signal that ignores the deadline of 50 ms lets this answer arrive at 500 ms.
+    const late = 500;
+    const send = vi.fn<Send>(
+      (_url, init) =>
+        new Promise<Response>((resolve, reject) => {
+          const guard = setTimeout(() => resolve(answer(said('{"claim":"late"}'))), late);
+          init.signal?.addEventListener('abort', () => {
+            clearTimeout(guard);
+            reject(new Error('the deadline stopped the call'));
+          });
+        }),
+    );
+    const got = await ask(send, 1000, { ...AGENT, timeoutMs: 50 }).run();
+
+    expect(send).toHaveBeenCalledTimes(4);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
   });
 
   it('reports a fault of the key or of the model name as a fault of the configuration', async () => {
