@@ -403,11 +403,10 @@ test('a key the record refuses is named by the door, and no round trip is spent'
   }
 });
 
-// `imo` is described `identifier` in the seed and carries the shape of an IMO number. NEITHER
-// HOLDS THE VALUE: M11 leaves the free half of the model with no rule beyond the shape, so the
-// door writes the number as it was given and the database takes it.
-test('a value that disagrees with the description of its key is written', async () => {
-  const target = await signedEntity('Writer test described kind');
+// Departure: an IMO number is usually a string of seven digits. M11 puts no rule on a value
+// beyond its shape, so the door writes the number as it was given and the database takes it.
+test('a value of a kind that its key does not usually carry is written', async () => {
+  const target = await signedEntity('Writer test free kind');
   try {
     const before = await proposalsFor(target);
     const [status] = await post('update-attrs', {
