@@ -7,11 +7,13 @@ import { z } from 'zod';
 /** The six acts the writer signs. The door of each one is derived here and named by no caller. */
 export type WriteOp = (typeof WRITE_OPS)[number];
 
-/** What one request became. `undecided` is the act that reached the record and was not signed.
+/** What one request became. `blocked` is a refusal that other rows of the record cause, and the
+ * analyst can remove them. `undecided` is the act that reached the record and was not signed.
  * `unknown` is the request whose result this page cannot learn: the act may have run whole. */
 export type WriteOutcome =
   | { readonly state: 'signed'; readonly proposalId: string; readonly targetId: string }
   | { readonly state: 'refused'; readonly refusal: string }
+  | { readonly state: 'blocked'; readonly refusal: string }
   | { readonly state: 'undecided'; readonly refusal: string; readonly proposalId: string }
   | { readonly state: 'unknown'; readonly doubt: string };
 
@@ -71,7 +73,11 @@ const readBody = async (answer: Response): Promise<unknown> => {
 };
 
 /** Every answer that is not the row the caller asked for. Both doors read it the same way. */
-type Doubtful = Exclude<WriteOutcome, { readonly state: 'signed' }>;
+type Doubtful = Exclude<WriteOutcome, { readonly state: 'signed' | 'blocked' }>;
+
+// External constraint: on an act door the writer answers 409 to a refusal that names no act only
+// when other relations stand on the element. A 409 that names an act is an undecided act.
+const BLOCKED = 409;
 
 // External constraint: the status is the second witness. A body the writer did not write is a
 // proxy or a gateway speaking, and a gateway times out where the writer most probably finished.
@@ -93,7 +99,10 @@ const outcomeOf = (status: number, body: unknown): WriteOutcome => {
   const held = signed.safeParse(body);
   if (held.success)
     return { state: 'signed', proposalId: held.data.proposalId, targetId: held.data.targetId };
-  return doubtfulOf(status, body);
+  const sentence = doubtfulOf(status, body);
+  if (sentence.state === 'refused' && status === BLOCKED)
+    return { state: 'blocked', refusal: sentence.refusal };
+  return sentence;
 };
 
 interface Answer {

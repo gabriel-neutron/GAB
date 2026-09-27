@@ -489,6 +489,47 @@ export const ARefusedDeletionNamesTheCount: Story = {
   },
 };
 
+// Departure: the refusal below does not say 'endpoint'. The status tells the page that other
+// rows stand on the relation, so the next step does not depend on the words of the writer.
+export const ABlockedRelationDeletionNamesTheNextStep: Story = {
+  play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering({
+      said: 'blocked',
+      refusal: 'the relation stands under 2 relations, and it is not deleted',
+    });
+    await askToDelete(canvasElement, RELATION);
+    await expect(knock).toHaveBeenCalledWith('/write/delete-relation', { targetId: RELATION_ID });
+    door.open();
+
+    await waitFor(async () => {
+      await expect(shapeSaidIn(canvasElement)).toHaveTextContent('under 2 relations');
+    });
+    await expect(shapeSaidIn(canvasElement)).toHaveTextContent(
+      'Delete each of those relations first, and then delete this relation again.',
+    );
+  },
+};
+
+// Departure: this refusal says 'endpoint', and no row stands on the entity. The next step then
+// sends the analyst to delete relations that are not there.
+export const ARefusalThatSaysEndpointGivesNoNextStep: Story = {
+  play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering({
+      said: 'refused',
+      refusal: 'the endpoint kind of the entity is not one the record holds',
+    });
+    await askToDelete(canvasElement, DOSSIER.label);
+    door.open();
+
+    await waitFor(async () => {
+      await expect(shapeSaidIn(canvasElement)).toHaveTextContent('the endpoint kind');
+    });
+    await expect(shapeSaidIn(canvasElement)).not.toHaveTextContent('Delete each of those');
+  },
+};
+
 // A relation the analyst makes reaches the record as one signed proposal.
 export const ANewRelationNamesItsProposal: Story = {
   play: async ({ canvas, canvasElement }) => {

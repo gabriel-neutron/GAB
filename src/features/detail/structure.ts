@@ -7,11 +7,14 @@ export type StructureAct = Exclude<ElementAct, { op: 'create_entity' | 'update_a
 
 export type StructureDeed = StructureAct['op'];
 
+type DeletionDeed = Extract<StructureDeed, 'delete_entity' | 'delete_relation'>;
+
 export type StructureState =
   | { readonly step: 'idle' }
   | { readonly step: 'working'; readonly deed: StructureDeed }
   | { readonly step: 'signed'; readonly deed: StructureDeed; readonly proposalId: string }
   | { readonly step: 'refused'; readonly deed: StructureDeed; readonly refusal: string }
+  | { readonly step: 'blocked'; readonly deed: DeletionDeed; readonly refusal: string }
   | {
       readonly step: 'undecided';
       readonly deed: StructureDeed;
@@ -60,21 +63,13 @@ const READ_AGAIN = 'Read the record again before you act.';
 
 // The next step of the analyst, which the sentence of the record does not carry. The record
 // refuses the deletion of an element that another relation stands on, and it counts them.
-const NEXT: Readonly<Record<StructureDeed, string>> = {
-  create_relation: '',
-  update_entity: '',
-  delete_entity: ' Delete each of those relations first, and then delete the entity again.',
-  delete_relation: ' Delete each of those relations first, and then delete this relation again.',
+const NEXT: Readonly<Record<DeletionDeed, string>> = {
+  delete_entity: 'Delete each of those relations first, and then delete the entity again.',
+  delete_relation: 'Delete each of those relations first, and then delete this relation again.',
 };
-
-// The writer owns this word, and it is the one mark of the refusal that a count belongs to.
-const ENDPOINT = 'endpoint';
 
 // Every refusal here came from the writer, which refuses before it opens a transaction.
-const refusedWords = (deed: StructureDeed, refusal: string): string => {
-  const next = refusal.includes(ENDPOINT) ? NEXT[deed] : '';
-  return `Nothing was written. ${refusal}.${next}`;
-};
+const refusedWords = (refusal: string): string => `Nothing was written. ${refusal}.`;
 
 /** The one sentence the page reads. It is derived here, and never composed in the view. */
 export function structureSaid(state: StructureState): Said {
@@ -88,7 +83,9 @@ export function structureSaid(state: StructureState): Said {
         `${DONE[state.deed]} The act is in the record as one proposal, ${state.proposalId}.`,
       );
     case 'refused':
-      return calm(refusedWords(state.deed, state.refusal));
+      return calm(refusedWords(state.refusal));
+    case 'blocked':
+      return calm(`${refusedWords(state.refusal)} ${NEXT[state.deed]}`);
     case 'undecided':
       return interrupt(
         `${UNSIGNED[state.deed]} The proposal is ${state.proposalId}. ${state.refusal}.`,
@@ -111,5 +108,7 @@ export async function changeStructure(act: StructureAct): Promise<StructureState
       proposalId: outcome.proposalId,
     };
   if (outcome.state === 'unknown') return { step: 'unknown', deed: act.op, doubt: outcome.doubt };
+  if (outcome.state === 'blocked' && (act.op === 'delete_entity' || act.op === 'delete_relation'))
+    return { step: 'blocked', deed: act.op, refusal: outcome.refusal };
   return { step: 'refused', deed: act.op, refusal: outcome.refusal };
 }
