@@ -51,6 +51,43 @@ test('a day that is not written as a day is refused, and the interval rule stand
   });
 });
 
+test('a day that the calendar does not hold is refused, and the refusal names the end', () => {
+  expect(faultOf(relation({ type: 'owns', validFrom: '2026-02-30' }))).toStrictEqual({
+    code: 'custom',
+    path: 'validFrom',
+  });
+  expect(faultOf(relation({ type: 'owns', validTo: '2023-02-29' }))).toStrictEqual({
+    code: 'custom',
+    path: 'validTo',
+  });
+  expect(faultOf(relation({ type: 'owns', validFrom: '0000-01-01' }))).toStrictEqual({
+    code: 'custom',
+    path: 'validFrom',
+  });
+});
+
+test('29 February is a day in a leap year', () => {
+  expect(writeRequest.safeParse(relation({ type: 'owns', validFrom: '2024-02-29' })).success).toBe(
+    true,
+  );
+});
+
+test('an interval that starts after it ends is refused', () => {
+  expect(
+    faultOf(relation({ type: 'owns', validFrom: '2026-12-31', validTo: '2026-01-01' })),
+  ).toStrictEqual({ code: 'custom', path: '' });
+  expect(
+    faultOf(relation({ type: 'owns', validFrom: '2026-05-01', validTo: '2026-01-01' })),
+  ).toStrictEqual({ code: 'custom', path: '' });
+});
+
+test('an interval of one day is accepted', () => {
+  const held = writeRequest.safeParse(
+    relation({ type: 'owns', validFrom: '2026-05-01', validTo: '2026-05-01' }),
+  );
+  expect(held.success).toBe(true);
+});
+
 test('an endpoint that is not an identifier is refused, and the refusal names the end', () => {
   expect(faultOf(relation({ srcId: 'the northern ledger' }))).toStrictEqual({
     code: 'invalid_format',

@@ -26,12 +26,45 @@ export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
 export const DATED_RELATIONS = ['owns', 'operates', 'flags', 'insures', 'appoints'] as const;
 
 const endpointKind = z.enum(['entity', 'relation']);
-// A day control gives these ten characters, and a browser that draws no day control gives plain
-// text. The database holds a date and reads nothing else, so the browser reads the same shape
-// before it spends a round trip on one that cannot land.
-export const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-const day = z.string().regex(DAY);
+const DAY_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
+
+const LAST_DAY = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+const leapYear = (year: number): boolean =>
+  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+// External constraint: the promotion casts each end to a date after the proposal commits. The
+// cast refuses `2026-02-30` and the year 0000, so the door refuses them first.
+const inCalendar = (text: string): boolean => {
+  const [year, month, date] = [text.slice(0, 4), text.slice(5, 7), text.slice(8, 10)].map(Number);
+  if (year === undefined || month === undefined || date === undefined || year < 1) return false;
+  const last = month === 2 && leapYear(year) ? 29 : LAST_DAY[month - 1];
+  return last !== undefined && date >= 1 && date <= last;
+};
+
+const day = z
+  .string()
+  .regex(DAY_SHAPE, { abort: true })
+  .refine(inCalendar, { message: 'a day that the calendar holds' });
+
+interface Ends {
+  readonly validFrom?: string | undefined;
+  readonly validTo?: string | undefined;
+}
+
+// External constraint: the same rule as rel_dates_order, at the door. The promotion runs after
+// the proposal commits, so an act that the check refuses would wait in the queue.
+const inOrder = (ends: Ends): boolean =>
+  ends.validFrom === undefined || ends.validTo === undefined || ends.validFrom <= ends.validTo;
+
+const BACKWARDS = 'an interval starts on or before the day it ends';
+
+/** Departure: an issue on a day names its end, and the order names none. The browser reads the
+ * two apart by that path alone. */
+export const interval = z
+  .object({ validFrom: day.optional(), validTo: day.optional() })
+  .refine(inOrder, { message: BACKWARDS });
 
 // External constraint: the column holds two ordinates in degrees of EPSG:4326 and refuses a
 // third. A number past the globe is a position in another system, stored as degrees.
@@ -95,7 +128,8 @@ export const writeRequest = z.discriminatedUnion('op', [
         (act.validFrom === undefined && act.validTo === undefined) ||
         DATED_RELATIONS.some((word) => word === act.type),
       { message: `an interval belongs to one of ${DATED_RELATIONS.join(', ')}` },
-    ),
+    )
+    .refine(inOrder, { message: BACKWARDS }),
 
   // External constraint: the same rule as proposals_update_names_attrs, at the door, so the
   // caller reads a 422 and not a constraint violation.
