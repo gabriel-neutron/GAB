@@ -57,12 +57,16 @@ const ask = (send: Stub, cap = 1000, agent: AgentModel = AGENT) => {
   };
 };
 
+const silenced = () => vi.spyOn(console, 'error').mockImplementation(() => undefined);
+let logged: ReturnType<typeof silenced>;
+
 beforeEach(() => {
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  logged = silenced();
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('a good answer', () => {
@@ -294,6 +298,48 @@ describe('the network fails', () => {
     expect(send).toHaveBeenCalledTimes(4);
     expect(got).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 4 } });
     expect(JSON.stringify(got)).not.toContain('provider_x');
+  });
+});
+
+describe('the log of a fault of the transport', () => {
+  const thrown = (fault: unknown): Stub => vi.fn<Send>().mockRejectedValue(fault);
+
+  it('names the cause under the fault, and keeps it out of the record', async () => {
+    const fault = new Error('fetch failed', { cause: new Error('ECONNREFUSED') });
+    const got = await ask(thrown(fault)).run();
+
+    expect(logged).toHaveBeenCalledWith('the model service failed', {
+      kind: 'network',
+      cause: 'fetch failed: ECONNREFUSED',
+    });
+    expect(JSON.stringify(got)).not.toContain('ECONNREFUSED');
+  });
+
+  it('gives the message of the fault alone when the cause under it says nothing', async () => {
+    await ask(thrown(new Error('fetch failed', { cause: new Error('') }))).run();
+
+    expect(logged).toHaveBeenCalledWith('the model service failed', {
+      kind: 'network',
+      cause: 'fetch failed',
+    });
+  });
+
+  it('gives a thrown text as it is', async () => {
+    await ask(thrown('socket closed')).run();
+
+    expect(logged).toHaveBeenCalledWith('the model service failed', {
+      kind: 'network',
+      cause: 'socket closed',
+    });
+  });
+
+  it('says so when the fault carries no message', async () => {
+    await ask(thrown(7)).run();
+
+    expect(logged).toHaveBeenCalledWith('the model service failed', {
+      kind: 'network',
+      cause: 'the call ended with no message',
+    });
   });
 });
 
