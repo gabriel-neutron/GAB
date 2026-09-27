@@ -148,6 +148,76 @@ describe('the working queue', () => {
   });
 });
 
+const BERTH = 'c3d4e5f6-9a0b-4123-c456-d7e8f90a1b2c';
+
+const linked: Proposal = {
+  ...retyped,
+  id: 'aa000009-0000-4000-8000-000000000004',
+  op: 'create_relation',
+  targetKind: null,
+  targetId: null,
+  payload: { kind: 'relation', type: 'berthed_at', src_id: VESSEL, dst_id: TERMINAL },
+};
+
+const retagged: Proposal = {
+  ...retyped,
+  id: 'aa000009-0000-4000-8000-000000000005',
+  op: 'update_relation',
+  targetKind: 'relation',
+  targetId: BERTH,
+  payload: { kind: 'attrs', attrs: { observed_on: { v: '2026-06-01', src: ['doc_9b0417'] } } },
+};
+
+const queued = (act: Proposal): { readonly label: string; readonly headline: string } => {
+  const [subject] = readQueue({ ...corpus, proposals: [act] }, null);
+  return { label: subject?.label ?? '', headline: subject?.changes[0]?.headline ?? '' };
+};
+
+const history = (act: Proposal): string => {
+  const decided: Proposal = {
+    ...act,
+    status: 'accepted',
+    decidedAt: '2026-08-04T00:05:00Z',
+    decidedBy: 'operator',
+  };
+  return readDecided(corpus, decidedOf([decided]))[0]?.subject ?? '';
+};
+
+describe('one act, named on the queue and in the history', () => {
+  const BERTHED = 'MV Northern Ledger berthed at Maasvlakte bulk terminal, berth 7';
+
+  it('words a proposed relation the same on both pages, and never with the raw type', () => {
+    expect(queued(linked).headline).toBe(BERTHED);
+    expect(history(linked)).toBe(BERTHED);
+  });
+
+  it('words a relation that stands in the record the same on both pages', () => {
+    expect(queued(retagged).label).toBe(BERTHED);
+    expect(history(retagged)).toBe(BERTHED);
+  });
+
+  it('says only that two entities are linked where the act names no type', () => {
+    const untyped: Proposal = {
+      ...linked,
+      payload: { kind: 'relation', type: null, src_id: VESSEL, dst_id: TERMINAL },
+    };
+    const words = 'MV Northern Ledger is linked to Maasvlakte bulk terminal, berth 7';
+    expect(queued(untyped).headline).toBe(words);
+    expect(history(untyped)).toBe(words);
+  });
+
+  it('words a merge the same on both pages', () => {
+    const merge: Proposal = {
+      ...linked,
+      op: 'merge_entities',
+      payload: { kind: 'merge', keep_id: VESSEL, merge_ids: [TERMINAL] },
+    };
+    const words = 'Maasvlakte bulk terminal, berth 7 into MV Northern Ledger';
+    expect(queued(merge).headline).toBe(words);
+    expect(history(merge)).toBe(words);
+  });
+});
+
 describe('who wrote a decided act', () => {
   it('carries the author of the act on its row', () => {
     const decided: Pick<Proposal, 'status' | 'decidedAt' | 'decidedBy'> = {
