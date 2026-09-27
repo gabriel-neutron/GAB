@@ -98,7 +98,7 @@ export interface DifferenceRow {
 export interface StandingRow {
   readonly key: string;
   readonly value: string;
-  readonly sources: string;
+  readonly sources: readonly CitedDocument[];
 }
 
 /** The self-report of the author, as one value. An act states a confidence, or it states none,
@@ -255,13 +255,11 @@ function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocu
   });
 }
 
-const sourceWords = (ids: readonly DocId[]): string => ids.join(', ');
-
-function standingRows(attrs: Attributes): readonly StandingRow[] {
+function standingRows(index: Index, attrs: Attributes): readonly StandingRow[] {
   return Object.entries(attrs).map(([key, attribute]) => ({
     key,
     value: words(attribute.v),
-    sources: sourceWords(attribute.src),
+    sources: citedDocuments(index, attribute.src),
   }));
 }
 
@@ -604,7 +602,7 @@ export function readQueue(
         kindWords: SUBJECT_WORDS[held.kind],
         label: labelOf(index, held.kind, key, first),
         type: entity?.type ?? relation?.type ?? null,
-        standing: standing === null ? [] : standingRows(standing),
+        standing: standing === null ? [] : standingRows(index, standing),
         changes,
         contested: contestedKeys.length > 0,
         contestedKeys,
