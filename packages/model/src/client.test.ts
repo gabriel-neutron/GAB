@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
-import { openModel, type AgentModel, type Send } from './client.ts';
+import { openModel, type AgentModel, type Message, type Send } from './client.ts';
 
 const AGENT: AgentModel = {
   model: 'a-family/a-model',
@@ -37,15 +37,23 @@ const refusalBody = (word: string): string =>
 const always = (body: string, status = 200, headers: Record<string, string> = {}): Stub =>
   vi.fn<Send>(() => Promise.resolve(answer(body, status, headers)));
 
+const GO: readonly Message[] = [{ role: 'user', content: 'go' }];
+
+const sent = z.object({
+  messages: z.array(z.object({ role: z.string(), content: z.string() })),
+});
+
 const bodiesOf = (send: Stub): unknown[] =>
-  send.mock.calls.map(([, init]) => JSON.parse(init.body as string) as unknown);
+  send.mock.calls.map(([, init]): unknown =>
+    JSON.parse(typeof init.body === 'string' ? init.body : ''),
+  );
 
 const ask = (send: Stub, cap = 1000, agent: AgentModel = AGENT) => {
   const budget = openBudget(cap);
   const model = openModel(agent, send, ENV);
   return {
     budget,
-    run: () => model.ask({ messages: [{ role: 'user', content: 'go' }], shape: SHAPE, budget }),
+    run: () => model.ask({ messages: GO, shape: SHAPE, budget }),
   };
 };
 
@@ -300,10 +308,35 @@ describe('the boundary refuses the answer', () => {
     expect(send).toHaveBeenCalledTimes(2);
     expect(got).toMatchObject({ ok: true, value: { claim: 'a ship' } });
 
-    const second = bodiesOf(send)[1] as { messages: { role: string; content: string }[] };
+    const second = sent.parse(bodiesOf(send)[1]);
     expect(second.messages).toHaveLength(3);
     expect(second.messages[1]?.role).toBe('assistant');
     expect(second.messages[2]?.content).toContain('The schema refuses the last answer');
+  });
+
+  it('feeds back the path the schema refuses, so the model can mend that field', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    await ask(send).run();
+
+    const fault = sent.parse(bodiesOf(send)[1]).messages[2]?.content ?? '';
+    expect(fault).toMatch(/faults: claim: \S/u);
+  });
+
+  it('keeps the path the schema refuses in the detail of the failure', async () => {
+    const got = await ask(always(said('{"claim":7}'))).run();
+
+    expect(got.ok).toBe(false);
+    if (got.ok) return;
+    expect(got.failure.detail).toMatch(/^claim: \S/u);
+  });
+
+  it('names a text that is not JSON in the detail of the failure', async () => {
+    const got = await ask(always(said('a ship, I think'))).run();
+
+    expect(got).toMatchObject({ ok: false, failure: { detail: 'the answer is not JSON text' } });
   });
 
   it('counts the tokens of every round trip of one question', async () => {
@@ -398,7 +431,7 @@ describe('the spend ceilings', () => {
     const send = always(said('{"claim":"a ship"}', 'stop', 60));
     const budget = openBudget(50);
     const model = openModel(AGENT, send, ENV);
-    const one = { messages: [{ role: 'user' as const, content: 'go' }], shape: SHAPE, budget };
+    const one = { messages: GO, shape: SHAPE, budget };
 
     expect(await model.ask(one)).toMatchObject({ ok: true });
     expect(await model.ask(one)).toMatchObject({ ok: false, failure: { kind: 'over_cap' } });
@@ -419,7 +452,7 @@ describe('the spend ceilings', () => {
     const send = always(said('{"claim":"a ship"}', 'stop', 990));
     const budget = openBudget(2000);
     const model = openModel(AGENT, send, ENV);
-    const one = { messages: [{ role: 'user' as const, content: 'go' }], shape: SHAPE, budget };
+    const one = { messages: GO, shape: SHAPE, budget };
 
     expect(await model.ask(one)).toMatchObject({ ok: true });
     expect(await model.ask(one)).toMatchObject({ ok: true });
@@ -471,10 +504,10 @@ describe('the settings and the key', () => {
     const model = openModel(AGENT, send, env);
     env.OPENROUTER_API_KEY = 'another-key';
     const budget = openBudget(1000);
-    await model.ask({ messages: [{ role: 'user', content: 'go' }], shape: SHAPE, budget });
+    await model.ask({ messages: GO, shape: SHAPE, budget });
 
-    const signed = send.mock.calls.map(
-      ([, init]) => (init.headers as Record<string, string>)['authorization'],
+    const signed = send.mock.calls.map(([, init]) =>
+      new Headers(init.headers).get('authorization'),
     );
     expect(signed).toEqual(['Bearer a-key', 'Bearer a-key']);
   });
