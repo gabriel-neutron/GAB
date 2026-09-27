@@ -1,6 +1,6 @@
 // The walk that places an entity nobody located. Each gesture builds its own tree inside a
 // transaction that rolls back, because the proposals ledger is append-only and a trigger refuses
-// a delete. The last two tests read the committed fixture that the test database holds.
+// a delete. The census and the fixture walk read the committed fixture in the database.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -345,25 +345,54 @@ const borrowedByLabel = z.array(z.object({ label: z.string(), parent: z.string()
 const FIXTURE_BORROWED = `
   SELECT m.label, (SELECT p.label FROM api.full_map p WHERE p.id = m.parent_id) AS parent
     FROM api.full_map m
-   WHERE m.label = ANY($1::text[]) AND m.parent_id IS NOT NULL
-   ORDER BY m.label`;
+   WHERE m.label = ANY($1::text[]) AND m.parent_id IS NOT NULL`;
+
+type Borrowed = z.infer<typeof borrowedByLabel>[number];
+
+const keyOf = (row: Borrowed): string => `${row.label}\u0000${row.parent ?? ''}`;
+
+// External constraint: the database orders under glibc and `localeCompare` under ICU, and the two
+// part on punctuation. One code-point comparator orders both sides here.
+const inOneOrder = (rows: readonly Borrowed[]): readonly Borrowed[] =>
+  [...rows].sort((one, other) =>
+    keyOf(one) < keyOf(other) ? -1 : keyOf(one) > keyOf(other) ? 1 : 0,
+  );
+
+const borrowedInTheView = async (
+  ask: Ask,
+  labels: readonly string[],
+): Promise<readonly Borrowed[]> =>
+  inOneOrder(borrowedByLabel.parse(await ask(FIXTURE_BORROWED, [labels])));
 
 test('the fixture walk answers exactly what the view answers, for every fixture row', async () => {
   const labelOf = new Map(corpus.entities.map((entity) => [entity.id, entity.label]));
-  const wanted = corpus.positions
-    .filter((row) => row.parentId !== null)
-    .map((row) => ({
-      label: labelOf.get(row.entityId) ?? row.entityId,
-      parent: labelOf.get(row.parentId ?? '') ?? null,
-    }))
-    .sort((one, other) => one.label.localeCompare(other.label));
+  const wanted = inOneOrder(
+    corpus.positions
+      .filter((row) => row.parentId !== null)
+      .map((row) => ({
+        label: labelOf.get(row.entityId) ?? row.entityId,
+        parent: labelOf.get(row.parentId ?? '') ?? null,
+      })),
+  );
 
   const labels = corpus.entities.map((entity) => entity.label);
-  const held = await probe('superuser', async (ask) =>
-    borrowedByLabel.parse(await ask(FIXTURE_BORROWED, [labels])),
-  );
+  const held = await probe('superuser', async (ask) => borrowedInTheView(ask, labels));
 
   // Both directions in one comparison: a row the view borrows and the fixture does not is as much
   // a disagreement as the reverse, and a one-way check would report neither.
   expect(held).toStrictEqual(wanted);
+});
+
+test('two labels that the database and the fixture order apart still agree', async () => {
+  const labels = ['BA', 'B-Unit'];
+  const held = await rolledBack('superuser', async (ask) => {
+    const parent = await anEntity(ask, 'Walk 1 parent', point(9), NOTHING_SAID);
+    for (const label of labels)
+      await subordinate(ask, await anEntity(ask, label, null, INHERITED), parent);
+    return borrowedInTheView(ask, labels);
+  });
+
+  expect(held).toStrictEqual(
+    inOneOrder(labels.map((label) => ({ label, parent: 'Walk 1 parent' }))),
+  );
 });
