@@ -88,6 +88,20 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
            WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
            ORDER BY 1`;
 
+// External constraint: a default with no IN SCHEMA is stored with defaclnamespace 0, which no
+// namespace matches, and it opens the next table of public too.
+const NEXT_TABLE_OPEN = `SELECT coalesce(n.nspname, 'every schema') || ' ' || a.privilege_type
+                 || ' to ' || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                                   ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
+            FROM pg_catalog.pg_default_acl d
+            LEFT JOIN pg_catalog.pg_namespace n ON n.oid = d.defaclnamespace
+            CROSS JOIN LATERAL pg_catalog.aclexplode(d.defaclacl) AS a
+           WHERE d.defaclobjtype = 'r'
+             AND (d.defaclnamespace = 0 OR n.nspname = 'public')
+             AND a.privilege_type = ANY($1)
+             AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
+           ORDER BY 1`;
+
 interface Arm {
   readonly fault: string;
   readonly sql: string;
@@ -141,16 +155,7 @@ const ARMS: readonly Arm[] = [
   },
   {
     fault: 'default privilege that opens the next table of public',
-    sql: `SELECT n.nspname || ' ' || a.privilege_type || ' to '
-                 || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
-                         ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
-            FROM pg_catalog.pg_default_acl d
-            JOIN pg_catalog.pg_namespace n ON n.oid = d.defaclnamespace
-            CROSS JOIN LATERAL pg_catalog.aclexplode(d.defaclacl) AS a
-           WHERE d.defaclobjtype = 'r' AND n.nspname = 'public'
-             AND a.privilege_type = ANY($1)
-             AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
-           ORDER BY 1`,
+    sql: NEXT_TABLE_OPEN,
     values: [WRITE_VERBS],
   },
   {
@@ -173,12 +178,16 @@ for (const arm of ARMS)
     );
   });
 
-const foundAfter = async (create: string, sql: string): Promise<readonly string[]> =>
+const foundAfter = async (
+  create: string,
+  sql: string,
+  values?: readonly unknown[],
+): Promise<readonly string[]> =>
   probe('superuser', async (ask) => {
     await ask('BEGIN');
     try {
       await ask(create);
-      return findings.parse(await ask(sql)).map((row) => row.found);
+      return findings.parse(await ask(sql, values)).map((row) => row.found);
     } finally {
       await ask('ROLLBACK');
     }
@@ -218,6 +227,15 @@ test('arm 3 finds a login role made a member of a predefined role that writes', 
 test('arm 3 finds a login role given an elevated attribute', async () => {
   const found = await foundAfter('ALTER ROLE gabriel_read BYPASSRLS', MEMBERSHIP);
   expect(found).toStrictEqual(['gabriel_read is BYPASSRLS']);
+});
+
+test('arm 7 finds a default that opens the next table of every schema', async () => {
+  const found = await foundAfter(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE gabriel_owner GRANT INSERT ON TABLES TO gabriel_app',
+    NEXT_TABLE_OPEN,
+    [WRITE_VERBS],
+  );
+  expect(found).toStrictEqual(['every schema INSERT to gabriel_app']);
 });
 
 const DEFINER_DOORS = `
