@@ -1,3 +1,5 @@
+import { DatabaseError } from 'pg';
+
 // Departure: two exports, one job. This file owns every word that a failure becomes, and the one
 // test that parts a refusal from a doubt. No other file reads the shape of a raised error.
 
@@ -75,31 +77,19 @@ export type Failure =
   | { readonly raised: true; readonly refusal: string }
   | { readonly raised: false; readonly doubt: string };
 
-// External constraint: a socket that dies and a server that stops each name a code of their own,
-// and neither one says the statement did not run. So a code alone cannot part the two.
-const DOUBTFUL = new Set([
-  'EPIPE',
-  'ECONNRESET',
-  'ECONNREFUSED',
-  'ETIMEDOUT',
-  'ENOTFOUND',
-  'EAI_AGAIN',
-  '57P01',
-  '57P02',
-  '57P03',
-]);
+// External constraint: the pool builds a DatabaseError only from an error message of the server,
+// and a socket that dies builds none. Class 08 and these states still end the connection.
+const DOUBTFUL = new Set(['57P01', '57P02', '57P03']);
 
-// External constraint: the database names a five-character state on each error it raises while
-// it reads a statement. The class 08 is the connection, and a lost connection gives no answer.
-const STATE = /^[0-9A-Z]{5}$/u;
+const raisedBy = (cause: unknown): boolean =>
+  cause instanceof DatabaseError &&
+  !(cause.code ?? '').startsWith('08') &&
+  !DOUBTFUL.has(cause.code ?? '');
 
-const raisedBy = (code: string): boolean =>
-  STATE.test(code) && !code.startsWith('08') && !DOUBTFUL.has(code);
-
-/** Read one failure. Only a state that the database raised while it read the statement is a
+/** Read one failure. Only an error that the database raised while it read the statement is a
  * refusal. Every other failure is a doubt, and no caller may report one as a refusal. */
 export const failureFrom = (cause: unknown): Failure => {
-  if (raisedBy(wordOf(cause, 'code'))) return { raised: true, refusal: refusalFrom(cause) };
+  if (raisedBy(cause)) return { raised: true, refusal: refusalFrom(cause) };
   console.error('the writer lost the answer', { cause });
   return { raised: false, doubt: DOUBT };
 };
