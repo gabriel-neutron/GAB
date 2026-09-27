@@ -2,7 +2,7 @@
 // describes a key, so each key is free and a value of any kind is written.
 
 // Departure: the envelope is not open. `attrs_valid` demands {v, src}, a value that is never
-// null, one source or more, and a key in lower snake case. The last three tests hold that.
+// null, one source or more, and a key in lower snake case. The tests after the second hold that.
 
 // External constraint: the ledger is append-only and a trigger refuses a delete, so each gesture
 // rolls back. It takes the identity of gabriel_app, because the author comes from session_user.
@@ -53,8 +53,12 @@ test('a free key cites a source like every other key', async () => {
   ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_payload_attrs' });
 });
 
-test('a free key is still an identifier, and never a sentence with spaces', async () => {
-  await expect(
-    propose(`{"Russian Designation":{"v":"v/ch 03333",${CITED}}}`),
-  ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_payload_attrs' });
-});
+test.each(['Russian Designation', 'coalStock', '_leading', 'trailing_', 'two__gaps', '1st_port'])(
+  'a free key is a lower snake case identifier, so the key %j is refused',
+  async (key) => {
+    await expect(propose(`{"${key}":{"v":"v/ch 03333",${CITED}}}`)).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'proposals_payload_attrs',
+    });
+  },
+);
