@@ -523,6 +523,34 @@ test('an act that changes neither the name nor the type is refused and writes no
   }
 });
 
+test('a word that waits as unknown, sent again or kept by a rename to the same name, is refused', async () => {
+  const [, made] = await post('create-entity', { type: 'tanker', label: 'Writer test same word' });
+  const target = made.targetId ?? '';
+  try {
+    const held = await one(COLUMNS_OF, [target]);
+    expect(held).toMatchObject({ type: 'unknown', proposed_type: 'tanker' });
+    const before = await proposalsFor(target);
+
+    const [again, againReply] = await post('update-entity', { targetId: target, type: 'tanker' });
+    const [kept, keptReply] = await post('update-entity', {
+      targetId: target,
+      label: 'Writer test same word',
+    });
+    expect([
+      [again, againReply.refusal],
+      [kept, keptReply.refusal],
+    ]).toStrictEqual([
+      [422, 'the act changes neither the name nor the type of the entity'],
+      [422, 'the act changes neither the name nor the type of the entity'],
+    ]);
+    expect(await proposalsFor(target)).toBe(before);
+    expect(await one(COLUMNS_OF, [target])).toStrictEqual(held);
+  } finally {
+    await settled(target);
+    await removed(target);
+  }
+});
+
 // A new relation names its two ends and no target, so its proposals are found by the names.
 const proposalsNaming = async (id: string): Promise<number> =>
   Number(
