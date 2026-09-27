@@ -9,16 +9,14 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 import { readDossier, type SourceCardModel } from './dossier';
 import { Rail } from './rail';
 
-// `eslint.config.ts` refuses an import of a `-page` file from a story. Thus no story here can
-// mount the record and the rail on one page.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const DOSSIER = readDossier(corpus, VESSEL, entityTypes);
 
 const SOURCES: readonly SourceCardModel[] = DOSSIER?.sources ?? [];
 
-// The density needs fourteen documents, and the committed corpus cites fewer. These rows are
-// invented for this story only. No other file reads them.
+// Origin of a number: the density needs fourteen documents, and the committed corpus cites
+// fewer. These rows are invented for this story only. No other file reads them.
 const REPEATED: readonly SourceCardModel[] = Array.from({ length: 14 }, (_, index) => {
   const base = SOURCES[index % SOURCES.length];
   if (base === undefined) throw new Error('The committed corpus cites no document on this entity');
@@ -36,15 +34,17 @@ const LAST = at(REPEATED.length - 1);
 
 const MOVE = 'Move the mark to the last source';
 
-// `document.fonts.ready` is awaited before every geometry read. The declared fonts are not
-// installed yet. If a font package lands, each card reflows and each measurement flakes.
+// External constraint: `document.fonts.ready` is awaited before every geometry read. The declared
+// fonts are not installed yet. If a font package lands, each card reflows and each measurement
+// flakes.
 const markedCard = (rail: HTMLElement): HTMLElement => {
   const found = rail.querySelector<HTMLElement>('[aria-current="true"]');
   if (found === null) throw new Error('No card carries `aria-current`');
   return found;
 };
 
-// The button stands in for the badge of the record, which no story can mount.
+// Departure: the button stands in for a mark of the record, so this story proves the rail alone.
+// The page story proves the real mark.
 function RailUnderAMovingMark() {
   const [activeSource, setActiveSource] = useState<DocId>(FIRST.id);
 
@@ -69,8 +69,8 @@ const meta = {
   component: Rail,
   args: { sources: SOURCES, activeSource: null, selections: 0 },
   parameters: { layout: 'fullscreen' },
-  // The rail is a 24 rem pane that holds its own scroll, so every story states
-  // a width and a height. Without a stated height the scroll is not real and nothing is proved.
+  // Departure: the rail is a 24 rem pane that holds its own scroll, so every story states a width
+  // and a height. Without a stated height the scroll is not real and nothing is proved.
   render: (args) => (
     <div className="h-40 w-96">
       <Rail {...args} />
@@ -82,7 +82,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// The height below is one 900 px screen.
+// Origin of a number: the height below is one 900 px screen.
 export const FourteenDocumentsFitOneScreen: Story = {
   args: { sources: REPEATED },
   render: (args) => (
