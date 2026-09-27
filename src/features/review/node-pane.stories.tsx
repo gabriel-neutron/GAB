@@ -99,6 +99,9 @@ export const ASettledActCarriesAMarkInPlaceOfItsConfidence: Story = {
   },
 };
 
+// Origin of a number: the `--label` token of the dark theme.
+const DARK_LABEL = 'oklch(0.63 0.008 215)';
+
 export const ThePaneHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark h-[520px] w-80 bg-background p-2 text-foreground">
@@ -106,8 +109,8 @@ export const ThePaneHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole('list', { name: 'What is asked of this row' }),
-    ).toBeInTheDocument();
+    const type = canvas.getByRole('heading', { level: 1 }).querySelector('span:last-child');
+    if (type === null) throw new Error('the pane names no type');
+    await expect(getComputedStyle(type).color).toBe(DARK_LABEL);
   },
 };

@@ -43,6 +43,9 @@ export const ADeletionDoesNotCarryTheWeightOfAModification: Story = {
   },
 };
 
+// Origin of a number: the `--added` token of the dark theme.
+const DARK_ADDED = 'oklch(0.74 0.13 155)';
+
 export const AnAdditionIsMarkedInTheDarkTheme: Story = {
   args: { kind: 'add', kindWords: 'Addition' },
   render: (args) => (
@@ -50,7 +53,10 @@ export const AnAdditionIsMarkedInTheDarkTheme: Story = {
       <ChangeMark {...args} />
     </div>
   ),
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText('Addition')).toBeInTheDocument();
+    const mark = canvasElement.querySelector<HTMLElement>('[data-kind="add"]');
+    if (mark === null) throw new Error('the addition draws no mark');
+    await expect(getComputedStyle(mark).color).toBe(DARK_ADDED);
   },
 };

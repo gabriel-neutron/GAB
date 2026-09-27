@@ -226,6 +226,9 @@ export const AnEmptyQueueIsSaidOnce: Story = {
   },
 };
 
+// Origin of a number: the `--dissent` token of the dark theme.
+const DARK_DISSENT = 'oklch(0.7 0.17 28)';
+
 export const TheSurfaceHoldsInTheDarkTheme: Story = {
   render: (args) => (
     <div className="dark h-[720px] w-[1280px] bg-background text-foreground">
@@ -233,9 +236,8 @@ export const TheSurfaceHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole('list', { name: 'What is asked of this row' }),
-    ).toBeInTheDocument();
+    const beside = canvas.getByTitle('Another act of this row reads a key that the open act reads');
+    await expect(getComputedStyle(beside).color).toBe(DARK_DISSENT);
   },
 };
 
