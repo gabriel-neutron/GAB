@@ -97,6 +97,11 @@ const geometry = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('MultiPolygon'), coordinates: surfaces }),
 ]);
 
+// External constraint: a btree index on the type refuses a row of about 2,704 bytes, after the
+// proposal commits. 200 characters of four bytes each stay far below it. relations_type_length
+// holds the same number.
+const RELATION_TYPE_LENGTH = 200;
+
 const NAMES_ATTRS = 'an update names at least one attribute';
 
 const NAMES_COLUMN = 'the act names a new name, a new type, or both';
@@ -114,7 +119,7 @@ export const writeRequest = z.discriminatedUnion('op', [
   z
     .strictObject({
       op: z.literal('create_relation'),
-      type: z.string().trim().min(1),
+      type: z.string().trim().min(1).max(RELATION_TYPE_LENGTH),
       srcKind: endpointKind.default('entity'),
       srcId: z.uuid(),
       dstKind: endpointKind.default('entity'),

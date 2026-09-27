@@ -95,6 +95,18 @@ test('an endpoint that is not an identifier is refused, and the refusal names th
   });
 });
 
+test('a relation type longer than 200 characters is refused, and the refusal names the type', () => {
+  expect(faultOf(relation({ type: 'x'.repeat(8000) }))).toStrictEqual({
+    code: 'too_big',
+    path: 'type',
+  });
+  expect(faultOf(relation({ type: 'x'.repeat(201) }))).toStrictEqual({
+    code: 'too_big',
+    path: 'type',
+  });
+  expect(writeRequest.safeParse(relation({ type: 'x'.repeat(200) })).success).toBe(true);
+});
+
 test('an endpoint kind that nobody states is read as an entity', () => {
   const held = writeRequest.parse(relation({}));
   expect(held).toMatchObject({ srcKind: 'entity', dstKind: 'entity' });
