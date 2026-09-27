@@ -17,7 +17,7 @@ const claimed = z
 
 // A pool and one client of it both answer here. The lock a claim takes lasts as long as the
 // transaction of the connection that took it, so which connection asks is the whole question.
-type Queryable = Pick<Pool, 'query'>;
+export type Queryable = Pick<Pool, 'query'>;
 
 /** One unit of work, held by this worker and already marked as running. */
 export interface ClaimedJob {
