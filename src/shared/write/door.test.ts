@@ -87,6 +87,24 @@ test('a refusal that names a proposal is undecided, and it keeps that name', asy
   });
 });
 
+test('a doubt that names a proposal is unknown, and the sentence keeps that name', async () => {
+  expect(
+    await outcomeOf({ doubt: 'the record gave no answer to read', proposalId: PROPOSAL }, 409),
+  ).toStrictEqual({
+    state: 'unknown',
+    doubt:
+      'The write service did not confirm the act, and the act may have run whole. It may ' +
+      `stand in the record as the proposal ${PROPOSAL}.`,
+  });
+});
+
+test('a doubt that names no proposal is unknown, and never a refusal', async () => {
+  expect(await outcomeOf({ doubt: 'the record gave no answer to read' }, 409)).toStrictEqual({
+    state: 'unknown',
+    doubt: 'The write service did not confirm the act, and the act may have run whole.',
+  });
+});
+
 test('a body that the writer did not write is unknown, and the sentence names the status', async () => {
   expect(await outcomeOf({ error: 'Bad Gateway' }, 502)).toStrictEqual({
     state: 'unknown',
@@ -148,10 +166,19 @@ test('a decision the record refused is a sentence, and it names no row', async (
   });
 });
 
-// The writer reached the record and cannot say what landed. It names the act again, and the
-// door must carry that doubt whole: a promotion that committed may never read as a refusal.
+// Departure: an answer that names the act again is a doubt on the decision door, whatever key
+// carries its sentence. A promotion that committed may never read as a refusal.
 test('a decision whose answer names the act again is unknown, and never a refusal', async () => {
   said({ refusal: 'the record gave no answer to read', proposalId: PROPOSAL }, 409);
+
+  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+    state: 'unknown',
+    doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+  });
+});
+
+test('a decision whose answer is a doubt is unknown, and never a refusal', async () => {
+  said({ doubt: 'the record gave no answer to read', proposalId: PROPOSAL }, 409);
 
   expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
     state: 'unknown',

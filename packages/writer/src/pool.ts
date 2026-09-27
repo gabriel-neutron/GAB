@@ -33,6 +33,17 @@ const address = (): string => {
   return `postgresql://${ROLE}:${password}@${HOST}:${PORT}/${held.data.GABRIEL_DATABASE}`;
 };
 
+// Departure: a door reads less of the pool than `pg` declares. The pool of `pg` fits this shape,
+// and a test lends a client that fails on the statement it names.
+export interface Sessions {
+  connect(): Promise<Session>;
+}
+
+export interface Session {
+  query(text: string, values?: unknown[]): Promise<{ readonly rows: Record<string, unknown>[] }>;
+  release(): void;
+}
+
 /** The one way to reach the database. It throws when the password is empty or absent. */
 export const openPool = (): Pool => {
   const pool = new Pool({

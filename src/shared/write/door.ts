@@ -51,6 +51,17 @@ const decided = z.object({
 
 const refused = z.object({ refusal: z.string(), proposalId: z.string().optional() });
 
+const doubted = z.object({ doubt: z.string(), proposalId: z.string().optional() });
+
+// Departure: the writer reached the record and lost its answer. The act may stand, so this page
+// states the doubt and the name the act may stand under, and never a refusal.
+const UNCONFIRMED = 'The write service did not confirm the act, and the act may have run whole.';
+
+const unconfirmed = (proposalId: string | undefined): string =>
+  proposalId === undefined
+    ? UNCONFIRMED
+    : `${UNCONFIRMED} It may stand in the record as the proposal ${proposalId}.`;
+
 const readBody = async (answer: Response): Promise<unknown> => {
   try {
     return await answer.json();
@@ -62,14 +73,17 @@ const readBody = async (answer: Response): Promise<unknown> => {
 /** Every answer that is not the row the caller asked for. Both doors read it the same way. */
 type Doubtful = Exclude<WriteOutcome, { readonly state: 'signed' }>;
 
-// The status is the second witness. A body the writer did not write is a proxy or a gateway
-// speaking, and a gateway times out exactly where the writer most probably finished the act.
+// External constraint: the status is the second witness. A body the writer did not write is a
+// proxy or a gateway speaking, and a gateway times out where the writer most probably finished.
 const doubtfulOf = (status: number, body: unknown): Doubtful => {
+  const doubt = doubted.safeParse(body);
+  if (doubt.success) return { state: 'unknown', doubt: unconfirmed(doubt.data.proposalId) };
+
   const sentence = refused.safeParse(body);
   if (!sentence.success) return { state: 'unknown', doubt: unreadable(status) };
 
-  // The writer names the act again when it cannot say what landed. That name is the only way
-  // the operator finds the act, and a refusal never carries one.
+  // Departure: a refusal that names an act says the act is written and was not signed. That name
+  // is the only way the operator finds the act, and a refusal of the whole act carries none.
   const proposalId = sentence.data.proposalId;
   if (proposalId === undefined) return { state: 'refused', refusal: sentence.data.refusal };
   return { state: 'undecided', refusal: sentence.data.refusal, proposalId };
@@ -124,8 +138,9 @@ export async function sendDecision(op: DecisionOp, proposalId: string): Promise<
   if (held.success)
     return { state: 'decided', proposalId: held.data.proposalId, targetId: held.data.targetId };
 
-  // The act waits under a name that this page already holds, so the doubt of a decision needs
-  // no name of its own. It stays a doubt, and it never becomes a refusal.
+  // Departure: the act waits under a name that this page already holds, so the doubt of a
+  // decision needs no name of its own. It stays a doubt, and it never becomes a refusal.
+  if (doubted.safeParse(answer.body).success) return { state: 'unknown', doubt: NO_VERDICT };
   const sentence = doubtfulOf(answer.status, answer.body);
   if (sentence.state === 'undecided') return { state: 'unknown', doubt: NO_VERDICT };
   return sentence;
