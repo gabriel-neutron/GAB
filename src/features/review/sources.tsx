@@ -38,18 +38,20 @@ export function SourceBadge({ source }: SourceBadgeProps) {
             This document is cited, and the record holds no row for it.
           </span>
         ) : null}
-        {source.href === null ? (
+        {source.address === null ? (
           <span className="block text-small/4 text-label">
             No address. The copy taken at ingest is not served to this screen.
           </span>
         ) : (
           <a
-            href={source.href}
+            href={source.address.href}
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex items-baseline gap-1 text-small/4 text-primary underline underline-offset-2"
           >
-            Open the copy taken at ingest
+            {source.address.kind === 'ingest-copy'
+              ? 'Open the copy taken at ingest'
+              : 'Open the original address. It can have changed since ingest.'}
             <ExternalLink size={14} aria-hidden="true" className="shrink-0 self-center" />
           </a>
         )}

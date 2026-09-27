@@ -10,7 +10,10 @@ import { SourceBadge } from './sources';
 const RATED: CitedDocument = {
   id: 'doc_3c1104',
   title: 'Corporate registry extract — Meridian Bulk Carriers Ltd',
-  href: 'https://web.archive.example.invalid/2026/registry-meridian',
+  address: {
+    kind: 'ingest-copy',
+    href: 'https://web.archive.example.invalid/2026/registry-meridian',
+  },
   rated: true,
   score: 'A1',
   scoreOrigin: 'human',
@@ -23,7 +26,7 @@ const RATED: CitedDocument = {
 const POOR: CitedDocument = {
   id: 'doc_9b0417',
   title: 'Vessel movement log, scanned',
-  href: null,
+  address: null,
   rated: true,
   score: 'D4',
   scoreOrigin: 'arbitrated',
@@ -36,7 +39,10 @@ const POOR: CitedDocument = {
 const UNRATED: CitedDocument = {
   id: 'doc_5e7730',
   title: 'Trade press article, unverified',
-  href: 'https://web.archive.example.invalid/2026/bulk-market-note',
+  address: {
+    kind: 'ingest-copy',
+    href: 'https://web.archive.example.invalid/2026/bulk-market-note',
+  },
   rated: false,
   score: 'not rated',
   scoreOrigin: '',
@@ -49,7 +55,7 @@ const UNRATED: CitedDocument = {
 const ABSENT: CitedDocument = {
   id: 'doc_0000ff',
   title: 'Cited document doc_0000ff, absent from the record',
-  href: null,
+  address: null,
   rated: false,
   score: 'not rated',
   scoreOrigin: '',
@@ -81,6 +87,18 @@ const citedIn = (subjects: readonly Subject[], id: DocId): CitedDocument => {
 };
 
 const INCOMPLETE: CitedDocument = citedIn(readQueue(WITHOUT_RATING, null), INCOMPLETE_ID);
+
+const ORIGINAL_ID: DocId = 'doc_3c1104';
+const ORIGINAL_ADDRESS = 'https://registry.example/entry';
+
+const WITHOUT_ARCHIVE: Corpus = {
+  ...reviewSample,
+  documents: reviewSample.documents.map((row) =>
+    row.id === ORIGINAL_ID ? { ...row, uri: ORIGINAL_ADDRESS, archiveUri: null } : row,
+  ),
+};
+
+const ORIGINAL_ONLY: CitedDocument = citedIn(readQueue(WITHOUT_ARCHIVE, null), ORIGINAL_ID);
 
 const meta = {
   component: SourceBadge,
@@ -141,6 +159,18 @@ export const TheDocumentIsOnePressAway: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: /Corporate registry extract/ }));
     await expect(await screen.findByText(/Open the copy taken at ingest/)).toBeInTheDocument();
+  },
+};
+
+/** A document with no copy taken at ingest opens its original address, and the link says so: that
+ * page can change after ingest, so it is never called the copy. */
+export const TheOriginalAddressIsNeverCalledTheCopy: Story = {
+  args: { source: ORIGINAL_ONLY },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Corporate registry extract/ }));
+    const link = await screen.findByRole('link', { name: /Open the original address/ });
+    await expect(link).toHaveAttribute('href', ORIGINAL_ADDRESS);
+    await expect(screen.queryByText(/Open the copy taken at ingest/)).toBeNull();
   },
 };
 
