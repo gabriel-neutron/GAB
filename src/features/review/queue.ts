@@ -57,11 +57,17 @@ export interface Hole {
   readonly long: string;
 }
 
+/** Where the link of a cited document goes. The copy was taken at ingest; the original is the
+ * live page, which can change after ingest. The two carry different labels. */
+type SourceAddress =
+  | { readonly kind: 'ingest-copy'; readonly href: string }
+  | { readonly kind: 'original'; readonly href: string };
+
 export interface CitedDocument {
   readonly id: DocId;
   readonly title: string;
-  /** The archive copy first: it was taken at ingest, and it cannot drift or disappear. */
-  readonly href: string | null;
+  /** The copy taken at ingest first. Null where the record holds no address. */
+  readonly address: SourceAddress | null;
   readonly rated: boolean;
   /** `not rated` where it is not rated. Never a dash, and never a zero. */
   readonly score: string;
@@ -232,6 +238,13 @@ const entityWords = (index: Index, id: string | null): string =>
     ? 'an element the act does not name'
     : (index.entityById.get(id)?.label ?? `an entity absent from the record, ${short(id)}`);
 
+function addressOf(row: DocumentRow | undefined): SourceAddress | null {
+  if (row === undefined) return null;
+  if (row.archiveUri !== null) return { kind: 'ingest-copy', href: row.archiveUri };
+  if (row.uri !== null) return { kind: 'original', href: row.uri };
+  return null;
+}
+
 function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocument[] {
   return ids.map((id) => {
     const row = index.documentById.get(id);
@@ -243,7 +256,7 @@ function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocu
     return {
       id,
       title,
-      href: row?.archiveUri ?? row?.uri ?? null,
+      address: addressOf(row),
       rated: held.rated,
       score: held.score,
       scoreOrigin: held.scoreOrigin,
