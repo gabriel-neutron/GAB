@@ -57,11 +57,7 @@ export interface SourceCardModel {
   readonly missing: boolean;
 }
 
-/** `kind` is a one-member union: a second kind of row is what a later split of this
- * page adds. */
 export interface RecordRow {
-  readonly key: string;
-  readonly kind: 'claim';
   readonly claim: ClaimRow;
   readonly sources: readonly SourceRef[];
 }
@@ -126,7 +122,6 @@ export interface Dossier {
   readonly sources: readonly SourceCardModel[];
   readonly relations: readonly RelationLine[];
   readonly pending: readonly PendingLine[];
-  readonly claimCount: number;
   readonly linkChoices: LinkChoices;
   /** A retired type the entity holds stays offered, or the chooser would draw a type the entity
    * does not hold. */
@@ -151,8 +146,6 @@ const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
   gabriel_agent: 'machine',
   gabriel_app: 'operator',
 };
-
-const typeWords = relationTypeWords;
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
   if (payload.kind === 'attrs') return readClaims(payload.attrs).map((claim) => claim.label);
@@ -242,7 +235,7 @@ function endpointWords(index: Index, kind: EndpointKind, id: string, depth: numb
   if (held === undefined) return 'a relation that is absent from the record';
   const from = endpointWords(index, held.srcKind, held.srcId, depth - 1);
   const to = endpointWords(index, held.dstKind, held.dstId, depth - 1);
-  return `the "${typeWords(held.type)}" of ${from} and ${to}`;
+  return `the "${relationTypeWords(held.type)}" of ${from} and ${to}`;
 }
 
 /**
@@ -286,8 +279,6 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
   const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
 
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
-    key: `claim:${held.claim.key}`,
-    kind: 'claim',
     claim: held.claim,
     sources: held.sources,
   }));
@@ -307,7 +298,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
 
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => ({
     id: relation.id,
-    sentence: `${endpointWords(index, relation.srcKind, relation.srcId, 1)} ${typeWords(
+    sentence: `${endpointWords(index, relation.srcKind, relation.srcId, 1)} ${relationTypeWords(
       relation.type,
     )} ${endpointWords(index, relation.dstKind, relation.dstId, 1)}`,
     interval: intervalWords(relation),
@@ -409,7 +400,6 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     sources,
     relations,
     pending,
-    claimCount: claims.length,
     linkChoices,
     typeChoices: typeChoicesOf(types, entity.type),
   };
@@ -449,7 +439,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
 
   const from = endpointWords(index, relation.srcKind, relation.srcId, 1);
   const to = endpointWords(index, relation.dstKind, relation.dstId, 1);
-  const type = typeWords(relation.type);
+  const type = relationTypeWords(relation.type);
   // The raw identifier goes in. `relationLines` states the words for this panel and for the two
   // canvases at once.
   const [fromLine, typeLine, toLine] = relationLines(from, relation.type, to);

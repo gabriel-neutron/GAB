@@ -723,7 +723,7 @@ export const EachPartStatesItsOwnCount: Story = {
     const headingOf = (name: string): HTMLElement =>
       within(within(pane).getByRole('region', { name })).getByRole('heading', { level: 2 });
 
-    await expect(headingOf('Record')).toHaveTextContent(String(DOSSIER.claimCount));
+    await expect(headingOf('Record')).toHaveTextContent(String(DOSSIER.rows.length));
     await expect(headingOf('Relations')).toHaveTextContent(String(DOSSIER.relations.length));
     await expect(headingOf('Pending proposals')).toHaveTextContent(String(DOSSIER.pending.length));
     await expect(headingOf('Sources of the name, the type and the map location')).toHaveTextContent(

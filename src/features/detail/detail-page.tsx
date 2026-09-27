@@ -227,7 +227,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
         {/* The control that mints a key is a control of the record, so it stands inside that
             part and never between two parts. */}
-        <Band name="Record" count={dossier.claimCount}>
+        <Band name="Record" count={dossier.rows.length}>
           {/* EntityRecord stays one element at one position across a mode switch, so React
               re-renders it in place instead of tearing down and remounting every field. */}
           <EntityRecord

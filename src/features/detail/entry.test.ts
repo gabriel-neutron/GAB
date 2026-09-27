@@ -10,12 +10,7 @@ import { readEntry, readUndeclaredValue } from './entry';
 const controlOfTyped = (typed: string) => readUndeclaredValue(typed).control;
 
 const rowsOf = (key: string, v: AttributeValue): readonly RecordRow[] =>
-  readClaims({ [key]: { v, src: ['doc_1'] } }).map((claim) => ({
-    key: claim.key,
-    kind: 'claim',
-    claim,
-    sources: [],
-  }));
+  readClaims({ [key]: { v, src: ['doc_1'] } }).map((claim) => ({ claim, sources: [] }));
 
 const storedOf = (v: AttributeValue) => {
   const row = rowsOf('stored', v)[0];
