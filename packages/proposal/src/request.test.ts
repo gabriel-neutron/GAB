@@ -70,22 +70,25 @@ const entity = (geom: unknown): unknown => ({
   geom,
 });
 
+const LINE = [
+  [4.05, 51.95],
+  [4.06, 51.96],
+];
+
+const RING = [
+  [4.05, 51.95],
+  [4.06, 51.95],
+  [4.06, 51.96],
+  [4.05, 51.95],
+];
+
 const GEOMETRIES: readonly (readonly [string, unknown])[] = [
   ['Point', { type: 'Point', coordinates: [4.05, 51.95] }],
   ['MultiPoint', { type: 'MultiPoint', coordinates: [[4.05, 51.95]] }],
-  [
-    'LineString',
-    {
-      type: 'LineString',
-      coordinates: [
-        [4.05, 51.95],
-        [4.06, 51.96],
-      ],
-    },
-  ],
-  ['MultiLineString', { type: 'MultiLineString', coordinates: [[[4.05, 51.95]]] }],
-  ['Polygon', { type: 'Polygon', coordinates: [[[4.05, 51.95]]] }],
-  ['MultiPolygon', { type: 'MultiPolygon', coordinates: [[[[4.05, 51.95]]]] }],
+  ['LineString', { type: 'LineString', coordinates: LINE }],
+  ['MultiLineString', { type: 'MultiLineString', coordinates: [LINE] }],
+  ['Polygon', { type: 'Polygon', coordinates: [RING] }],
+  ['MultiPolygon', { type: 'MultiPolygon', coordinates: [[RING]] }],
 ];
 
 test('each of the six geometries the union states is accepted', () => {
@@ -100,27 +103,80 @@ test('a geometry the union does not state is refused by its type', () => {
   });
 });
 
-test('a position of one number is refused, and a height is accepted', () => {
+test('a position of one number is refused, and so is a height', () => {
   expect(faultOf(entity({ type: 'Point', coordinates: [4.05] }))).toStrictEqual({
     code: 'too_small',
     path: 'geom.coordinates',
   });
+  expect(faultOf(entity({ type: 'Point', coordinates: [4.05, 51.95, 3] }))).toStrictEqual({
+    code: 'too_big',
+    path: 'geom.coordinates',
+  });
+});
+
+test('a position outside the globe is refused, and the refusal names the ordinate', () => {
+  expect(faultOf(entity({ type: 'Point', coordinates: [451000, 6640000] }))).toStrictEqual({
+    code: 'too_big',
+    path: 'geom.coordinates.0',
+  });
+  expect(faultOf(entity({ type: 'Point', coordinates: [4.05, -91] }))).toStrictEqual({
+    code: 'too_small',
+    path: 'geom.coordinates.1',
+  });
+});
+
+test('a list that mixes two and three ordinates is refused, at every depth', () => {
+  const ragged = [LINE[0], [4.06, 51.96, 5]];
+  expect(faultOf(entity({ type: 'LineString', coordinates: ragged }))).toStrictEqual({
+    code: 'too_big',
+    path: 'geom.coordinates.1',
+  });
+  const raggedRing = [RING[0], RING[1], [4.06, 51.96, 5], RING[0]];
   expect(
-    writeRequest.safeParse(entity({ type: 'Point', coordinates: [4.05, 51.95, 3] })).success,
-  ).toBe(true);
+    faultOf(entity({ type: 'MultiPolygon', coordinates: [[RING], [raggedRing]] })),
+  ).toStrictEqual({ code: 'too_big', path: 'geom.coordinates.1.0.2' });
+});
+
+test('a line of one position is refused', () => {
+  expect(faultOf(entity({ type: 'LineString', coordinates: [LINE[0]] }))).toStrictEqual({
+    code: 'too_small',
+    path: 'geom.coordinates',
+  });
+  expect(faultOf(entity({ type: 'MultiLineString', coordinates: [[LINE[0]]] }))).toStrictEqual({
+    code: 'too_small',
+    path: 'geom.coordinates.0',
+  });
+});
+
+test('a ring of one position is refused, and so is a ring that does not close', () => {
+  expect(faultOf(entity({ type: 'Polygon', coordinates: [[RING[0]]] }))).toStrictEqual({
+    code: 'too_small',
+    path: 'geom.coordinates.0',
+  });
+  const open = [...RING.slice(0, 3), [4.05, 51.96]];
+  expect(faultOf(entity({ type: 'Polygon', coordinates: [open] }))).toStrictEqual({
+    code: 'custom',
+    path: 'geom.coordinates.0',
+  });
 });
 
 // The database refuses an empty list as `proposals_payload_geom`, so a door that took one
 // would answer a 23514 in place of a 422. Measured: `[]` stores `LINESTRING EMPTY`.
 test('an empty list of positions is refused, at every depth', () => {
-  const empty: readonly (readonly [string, unknown])[] = [
-    ['MultiPoint', { type: 'MultiPoint', coordinates: [] }],
-    ['LineString', { type: 'LineString', coordinates: [] }],
-    ['Polygon', { type: 'Polygon', coordinates: [[]] }],
-    ['MultiPolygon', { type: 'MultiPolygon', coordinates: [[[]]] }],
+  const empty: readonly (readonly [string, unknown, string])[] = [
+    ['MultiPoint', { type: 'MultiPoint', coordinates: [] }, 'geom.coordinates'],
+    ['LineString', { type: 'LineString', coordinates: [] }, 'geom.coordinates'],
+    ['MultiLineString', { type: 'MultiLineString', coordinates: [] }, 'geom.coordinates'],
+    ['Polygon', { type: 'Polygon', coordinates: [] }, 'geom.coordinates'],
+    ['Polygon', { type: 'Polygon', coordinates: [[]] }, 'geom.coordinates.0'],
+    ['MultiPolygon', { type: 'MultiPolygon', coordinates: [] }, 'geom.coordinates'],
+    ['MultiPolygon', { type: 'MultiPolygon', coordinates: [[[]]] }, 'geom.coordinates.0.0'],
   ];
-  for (const [name, geom] of empty)
-    expect({ name, ok: writeRequest.safeParse(entity(geom)).success }).toEqual({ name, ok: false });
+  for (const [name, geom, path] of empty)
+    expect({ name, fault: faultOf(entity(geom)) }).toStrictEqual({
+      name,
+      fault: { code: 'too_small', path },
+    });
 });
 
 test('a geometry that carries a key beside the type and the coordinates is refused', () => {

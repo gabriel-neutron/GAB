@@ -32,20 +32,35 @@ const endpointKind = z.enum(['entity', 'relation']);
 export const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const day = z.string().regex(DAY);
-const position = z.array(z.number()).min(2).max(3);
 
-// An empty list carries no position, and PostGIS stores `LINESTRING EMPTY` for one. The
-// database refuses it. Without the minimum the caller reads a constraint violation, not a 422.
-const positions = z.array(position).min(1);
-const rings = z.array(positions).min(1);
-const surfaces = z.array(rings).min(1);
+// External constraint: the column holds two ordinates in degrees of EPSG:4326 and refuses a
+// third. A number past the globe is a position in another system, stored as degrees.
+const position = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
+
+type Position = z.infer<typeof position>;
+
+const RING_OPEN = 'a ring ends on the position it starts on';
+
+const closes = (ring: readonly Position[]): boolean => {
+  const [first, last] = [ring[0], ring.at(-1)];
+  return first?.[0] === last?.[0] && first?.[1] === last?.[1];
+};
+
+// External constraint: GeoJSON gives a line two positions and a ring four, and PostGIS reads a
+// shorter one as invalid. An empty list stores an empty geometry, and the database refuses it.
+const points = z.array(position).min(1);
+const line = z.array(position).min(2);
+const ring = z.array(position).min(4).refine(closes, { message: RING_OPEN });
+const lines = z.array(line).min(1);
+const surface = z.array(ring).min(1);
+const surfaces = z.array(surface).min(1);
 
 const geometry = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('Point'), coordinates: position }),
-  z.strictObject({ type: z.literal('MultiPoint'), coordinates: positions }),
-  z.strictObject({ type: z.literal('LineString'), coordinates: positions }),
-  z.strictObject({ type: z.literal('MultiLineString'), coordinates: rings }),
-  z.strictObject({ type: z.literal('Polygon'), coordinates: rings }),
+  z.strictObject({ type: z.literal('MultiPoint'), coordinates: points }),
+  z.strictObject({ type: z.literal('LineString'), coordinates: line }),
+  z.strictObject({ type: z.literal('MultiLineString'), coordinates: lines }),
+  z.strictObject({ type: z.literal('Polygon'), coordinates: surface }),
   z.strictObject({ type: z.literal('MultiPolygon'), coordinates: surfaces }),
 ]);
 
