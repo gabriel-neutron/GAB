@@ -108,6 +108,20 @@ interface Arm {
   readonly values?: readonly unknown[];
 }
 
+// External constraint: a referential action other than RESTRICT or NO ACTION writes the child
+// row past the privileges of the caller. The codes are c CASCADE, n SET NULL and d SET DEFAULT.
+const CASCADING_KEY = {
+  sql: `SELECT c.conname AS found
+          FROM pg_catalog.pg_constraint c
+          JOIN pg_catalog.pg_class child ON child.oid = c.conrelid
+         WHERE c.contype = 'f'
+           AND (c.confdeltype IN ('c','n','d') OR c.confupdtype IN ('c','n','d'))
+           AND NOT (c.conname = ANY($2))
+           AND child.relnamespace = 'public'::regnamespace AND child.relname = ANY($1)
+         ORDER BY 1`,
+  values: [evidentiary, Object.keys(EXEMPT_CASCADES)],
+};
+
 const ARMS: readonly Arm[] = [
   { fault: 'SECURITY DEFINER function with no search_path', sql: NO_SEARCH_PATH },
   {
@@ -159,15 +173,8 @@ const ARMS: readonly Arm[] = [
     values: [WRITE_VERBS],
   },
   {
-    fault: 'foreign key that cascades a delete of an evidentiary row',
-    sql: `SELECT c.conname AS found
-            FROM pg_catalog.pg_constraint c
-            JOIN pg_catalog.pg_class child ON child.oid = c.conrelid
-           WHERE c.contype = 'f' AND c.confdeltype = 'c'
-             AND NOT (c.conname = ANY($2))
-             AND child.relnamespace = 'public'::regnamespace AND child.relname = ANY($1)
-           ORDER BY 1`,
-    values: [evidentiary, Object.keys(EXEMPT_CASCADES)],
+    fault: 'foreign key whose delete or update action writes an evidentiary row',
+    ...CASCADING_KEY,
   },
 ];
 
@@ -236,6 +243,29 @@ test('arm 7 finds a default that opens the next table of every schema', async ()
     [WRITE_VERBS],
   );
   expect(found).toStrictEqual(['every schema INSERT to gabriel_app']);
+});
+
+const REKEYED_TYPE = (action: string): string =>
+  `ALTER TABLE public.entities DROP CONSTRAINT entities_type_fkey,
+     ADD CONSTRAINT entities_type_fkey FOREIGN KEY (type) REFERENCES public.entity_type(key)
+       ${action}`;
+
+test('arm 8 finds a foreign key that cascades an update onto an evidentiary row', async () => {
+  const found = await foundAfter(
+    REKEYED_TYPE('ON UPDATE CASCADE ON DELETE RESTRICT'),
+    CASCADING_KEY.sql,
+    CASCADING_KEY.values,
+  );
+  expect(found).toStrictEqual(['entities_type_fkey']);
+});
+
+test('arm 8 finds a foreign key that sets an evidentiary column to null on a delete', async () => {
+  const found = await foundAfter(
+    REKEYED_TYPE('ON UPDATE RESTRICT ON DELETE SET NULL'),
+    CASCADING_KEY.sql,
+    CASCADING_KEY.values,
+  );
+  expect(found).toStrictEqual(['entities_type_fkey']);
 });
 
 const DEFINER_DOORS = `
