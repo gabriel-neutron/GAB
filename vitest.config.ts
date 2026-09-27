@@ -42,10 +42,23 @@ const nodeProject = (
   name: string,
   include: readonly string[],
   env: Readonly<Record<string, string>> = {},
+  groupOrder = 0,
 ) => ({
-  test: { name, testTimeout: TEST_TIMEOUT, environment: 'node', env, include: [...include] },
+  test: {
+    name,
+    testTimeout: TEST_TIMEOUT,
+    environment: 'node',
+    env,
+    include: [...include],
+    sequence: { groupOrder },
+  },
   resolve: { alias: { '@': SOURCE_ROOT } },
 });
+
+// Departure: Vitest runs the projects of one group at the same time. The schema and the writer
+// projects commit rows that the census tests count, so each one runs alone, after the census.
+const SCHEMA_GROUP = 1;
+const WRITER_GROUP = 2;
 
 // Departure: the dot in `.db-test.ts` holds the two halves apart, because `*.test.ts` does not
 // match it. The offline half takes each other test file, so no new test file falls outside it.
@@ -58,10 +71,10 @@ const offlineProject = nodeProject('offline', [
 // Departure: the store test reaches the object store and no database, so it gets no live target.
 const liveProjects = [
   nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
-  nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET, WRITER_GROUP),
   nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
-  nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP),
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
   nodeProject('corpus', ['tools/corpus/*.db-test.ts'], LIVE_TARGET),
   nodeProject('service', ['tools/service/*.db-test.ts'], LIVE_TARGET),
