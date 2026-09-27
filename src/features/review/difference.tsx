@@ -107,6 +107,11 @@ export function Difference({ rows, rowSources }: DifferenceProps) {
                 />
               )}
             </div>
+            {row.note === undefined ? null : (
+              <span data-row-note="" className="block text-small/4 text-candidate">
+                {row.note}
+              </span>
+            )}
           </div>
         );
       })}

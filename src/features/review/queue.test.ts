@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
-import type { Corpus, Proposal } from '@/shared/read/model';
+import type { Corpus, EntityTypeDeclaration, Proposal, TypeVocabulary } from '@/shared/read/model';
 
-import { readQueue, type Change } from './queue';
+import { readQueue, type Change, type DifferenceRow } from './queue';
 
 const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
@@ -138,6 +138,58 @@ describe('the sources of the name, the type and the location on a name change', 
 
   it('shows no line on an act that names attributes', () => {
     expect(renameIn(portBackedBy(['doc_geo']), actOf(PORT, 0.9, false)).rowSources).toBeNull();
+  });
+});
+
+const declared = (key: string, retired: boolean): EntityTypeDeclaration => ({
+  key,
+  label: key,
+  colourLight: '#000000',
+  colourDark: '#ffffff',
+  retired,
+});
+
+const VOCABULARY: TypeVocabulary = [declared('port', false), declared('vessel', true)];
+
+const retypeTo = (type: string): Proposal => ({
+  ...renameCiting(['doc_geo']),
+  payload: { kind: 'columns', label: null, type },
+});
+
+const typeRowOf = (act: Proposal, types?: TypeVocabulary): DifferenceRow | undefined => {
+  const read = { ...portBackedBy(['doc_geo']), proposals: [act] };
+  return readQueue(read, THRESHOLD, types)
+    .flatMap((subject) => subject.changes)
+    .flatMap((change) => change.rows)
+    .find((row) => row.key === 'Type');
+};
+
+describe('the type a promotion stores', () => {
+  it('states that a word the vocabulary does not hold as live is stored as unknown', () => {
+    expect(typeRowOf(retypeTo('tanker'), VOCABULARY)?.note).toMatch(/stores the type 'unknown'/);
+    expect(typeRowOf(retypeTo('vessel'), VOCABULARY)?.note).toMatch(/stores the type 'unknown'/);
+  });
+
+  it('puts no mark on a live type', () => {
+    const row = typeRowOf(retypeTo('port'), VOCABULARY);
+    expect(row?.proposed).toBe('port');
+    expect(row?.note).toBeUndefined();
+  });
+
+  it('puts no mark where no vocabulary is read', () => {
+    expect(typeRowOf(retypeTo('tanker'))?.note).toBeUndefined();
+  });
+
+  it('states it on the line of a new entity', () => {
+    const created: Proposal = {
+      ...actOf('cc000001-0000-4000-8000-000000000003', 0.9, false),
+      op: 'create_entity',
+      targetKind: null,
+      targetId: null,
+      payload: { kind: 'entity', type: 'tanker', label: 'Probe', attrs: {} },
+    };
+    const [subject] = readQueue({ ...corpus, proposals: [created] }, THRESHOLD, VOCABULARY);
+    expect(subject?.changes[0]?.headline).toMatch(/stores the type 'unknown'/);
   });
 });
 

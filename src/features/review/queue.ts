@@ -12,6 +12,7 @@ import type {
   Proposal,
   ProposalOp,
   Relation,
+  TypeVocabulary,
 } from '@/shared/read/model';
 
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
@@ -87,6 +88,8 @@ export interface DifferenceRow {
   /** Blank where the act takes the key away. */
   readonly proposed: string | null;
   readonly proposedSources: readonly CitedDocument[];
+  /** Departure: the value a promotion stores differs from the one proposed. */
+  readonly note?: string;
 }
 
 /** One value of the row as it stands, for the pane that draws the subject. */
@@ -211,7 +214,15 @@ interface Index {
   readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly entityById: ReadonlyMap<string, Entity>;
   readonly relationById: ReadonlyMap<string, Relation>;
+  readonly liveTypes: ReadonlySet<string> | null;
 }
+
+/** External constraint: a promotion stores a word that is not a live type, a retired type too,
+ * as `unknown`, and keeps the word beside it. */
+const storedTypeNote = (index: Index, type: string): string | null =>
+  index.liveTypes === null || index.liveTypes.has(type)
+    ? null
+    : `${type} is not a live type, so a promotion stores the type 'unknown' and keeps ${type} beside it`;
 
 const entityWords = (index: Index, id: string | null): string =>
   id === null
@@ -294,9 +305,14 @@ function columnsDifference(
     proposed: will,
     proposedSources: after,
   });
+  const typed = (type: string): DifferenceRow => {
+    const held = row('Type', standing?.type ?? null, type);
+    const note = storedTypeNote(index, type);
+    return note === null ? held : { ...held, note };
+  };
   return [
     ...(proposed.label === null ? [] : [row('Name', standing?.label ?? null, proposed.label)]),
-    ...(proposed.type === null ? [] : [row('Type', standing?.type ?? null, proposed.type)]),
+    ...(proposed.type === null ? [] : [typed(proposed.type)]),
   ];
 }
 
@@ -461,11 +477,14 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       if (proposal.targetId !== null && entity === undefined) holes.push(HOLE['absent-row']);
       break;
     }
-    case 'entity':
+    case 'entity': {
+      const note = payload.type === null ? null : storedTypeNote(index, payload.type);
       headline = `A new ${payload.type ?? 'entity, of a type the act does not name'}`;
+      if (note !== null) headline = `${headline}. ${note}`;
       rows = differenceOf(index, null, payload.attrs);
       holes.push(HOLE.duplicate);
       break;
+    }
     case 'relation':
       headline = `${entityWords(index, payload.src_id)} ${payload.type ?? 'is linked to'} ${entityWords(index, payload.dst_id)}`;
       holes.push(HOLE['link-sources']);
@@ -535,11 +554,19 @@ function contestedKeysOf(changes: readonly Change[]): readonly string[] {
 
 /** Everything that waits for a decision, grouped by what it changes. The threshold is an
  * operational parameter, so it enters here and is never a constant of this file. */
-export function readQueue(read: Corpus, threshold: number | null): readonly Subject[] {
+export function readQueue(
+  read: Corpus,
+  threshold: number | null,
+  types?: TypeVocabulary,
+): readonly Subject[] {
   const index: Index = {
     documentById: new Map(read.documents.map((row) => [row.id, row])),
     entityById: new Map(read.entities.map((row) => [row.id, row])),
     relationById: new Map(read.relations.map((row) => [row.id, row])),
+    liveTypes:
+      types === undefined
+        ? null
+        : new Set(types.filter((type) => !type.retired).map((type) => type.key)),
   };
 
   const filed = new Map<string, { kind: SubjectKind; changes: Change[] }>();
