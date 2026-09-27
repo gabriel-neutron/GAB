@@ -16,18 +16,24 @@ const replyShape = z.strictObject({
 
 const lostSocket = (): Error => Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
 
-const post = async (
+const postText = async (
   pool: Sessions,
   door: string,
-  body: unknown,
+  text: string,
 ): Promise<[number, z.infer<typeof replyShape>]> => {
   const answer = await writeRoutes(pool).request(`/write/${door}`, {
     method: 'POST',
     headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: text,
   });
   return [answer.status, replyShape.parse(await answer.json())];
 };
+
+const post = (
+  pool: Sessions,
+  door: string,
+  body: unknown,
+): Promise<[number, z.infer<typeof replyShape>]> => postText(pool, door, JSON.stringify(body));
 
 const ENTITY = { type: 'vessel', label: 'MV Northern Ledger' };
 
@@ -78,3 +84,30 @@ test('a pool that gives no client answers 503 on both doors', async () => {
     }),
   ).toStrictEqual([503, { refusal: UNREACHABLE }]);
 });
+
+test.each(['x', '[]', 'null', '"x"'])(
+  'a write door refuses the body %s with 422, before it asks the pool for a client',
+  async (text) => {
+    expect(await postText(unreachablePool(), 'create-entity', text)).toStrictEqual([
+      422,
+      { refusal: 'the body is not a JSON object' },
+    ]);
+  },
+);
+
+test('a decision door refuses a body that is not JSON with 422', async () => {
+  expect(await postText(unreachablePool(), 'promote-proposal', 'x')).toStrictEqual([
+    422,
+    { refusal: 'the body is not a JSON object' },
+  ]);
+});
+
+test.each(['[]', 'null', '"x"'])(
+  'a decision door refuses the JSON body %s with 422, because it names no act',
+  async (text) => {
+    expect(await postText(unreachablePool(), 'reject-proposal', text)).toStrictEqual([
+      422,
+      { refusal: 'the body names no act' },
+    ]);
+  },
+);
