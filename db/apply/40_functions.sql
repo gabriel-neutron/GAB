@@ -9,27 +9,15 @@
 SET ROLE gabriel_owner;
 
 -- =========================================================================== THE VOCABULARY ==
--- THERE IS NO VOCABULARY TIER, AND THAT IS M11 AND NOT AN OVERSIGHT. `attrs_declared`,
--- `attrs_gate` and `proposals_vocabulary_gate` stood here. They held a value to the `kind` and
--- the `pattern` that `attribute_key` declared for its key, and they refused an undeclared key.
---
--- THE OPERATOR'S RULE, 8 September 2026: the only rules on the free half of the model are the
--- SHAPE of the key and the SHAPE of the attribute. A key is lower snake case, 63 characters at
--- most; an attribute is exactly {v, src}, `v` is never null and never an object, a list holds
--- scalars, and `src` is a non-empty array. `attrs_valid` carries all of it, on the column, so no
--- write path avoids it. Nothing else is a rule. A value is not held to a kind, to a format, or
--- to a list of permitted keys.
---
--- WHAT `attribute_key` IS NOW. It describes what a key means for a reader — a label, a unit, a
--- kind a control is drawn from. It permits nothing and it refuses nothing. `api.key_usage` shows
--- every key in use with `declared` beside it, and that view is the whole of M11's mitigation:
--- it makes the drift visible, and it does not prevent it.
---
--- THE COST IS M11's OWN, ACCEPTED IN WRITING. `coal_stock`, `coalStock` and `coal_stock_tonnes`
--- may stand on three entities of one type, all three valid.
---
--- The drop below is what removes the functions from a database that already holds them, because
--- this file is re-runnable and a function nobody replaces would otherwise survive for ever.
+-- Departure: M11 puts no vocabulary tier here. `attrs_valid` holds the shape of each key and
+-- each attribute on the column, and nothing else is a rule on the free half of the model.
+
+-- Departure: no table describes a key. `api.key_usage` counts each key in use, and that view is
+-- the whole of M11's mitigation: it shows the drift, and it does not prevent it. The cost is
+-- that `coal_stock`, `coal_stock_t` and `coal_stock_tonnes` can stand on one type, all valid.
+
+-- External constraint: this file runs again at each apply, so the drop below removes the old
+-- vocabulary functions from a database that still holds them.
 DROP FUNCTION IF EXISTS attrs_gate() CASCADE;
 DROP FUNCTION IF EXISTS proposals_vocabulary_gate() CASCADE;
 DROP FUNCTION IF EXISTS attrs_declared(jsonb);

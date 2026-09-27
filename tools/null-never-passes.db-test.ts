@@ -16,8 +16,8 @@ import { z } from 'zod';
 
 import { probe, type Ask } from './probe.ts';
 
-// Every gesture cites `manual` and `vessel`, which db/apply/95_seed.sql always carries, and it
-// names `last_port_call`, a declared key with no pattern. Nothing here reads the fixture.
+// Departure: each gesture cites `manual` and `vessel`, which the seed always carries, and names
+// `last_port_call`, a free key that no table describes. Nothing here reads the fixture.
 const DOCUMENT = 'manual';
 const TYPE = 'vessel';
 
