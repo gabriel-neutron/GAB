@@ -85,6 +85,17 @@ describe('a good answer', () => {
     expect(bodiesOf(send)[0]).toMatchObject({ max_tokens: AGENT.maxAnswerTokens });
   });
 
+  it('asks the service for JSON output, so the model gives no answer in a fence', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(said('{"claim":7}')))
+      .mockResolvedValueOnce(answer(said('{"claim":"a ship"}')));
+    await ask(send).run();
+
+    const json = { response_format: { type: 'json_object' } };
+    expect(bodiesOf(send)).toEqual([expect.objectContaining(json), expect.objectContaining(json)]);
+  });
+
   it('keeps the compression plugin off on the retry too', async () => {
     const send = vi
       .fn<Send>()

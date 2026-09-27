@@ -133,12 +133,14 @@ const wait = (ms: number): Promise<void> =>
   });
 
 // The service compresses a prompt that fills the window. A compressed prompt is a document read
-// in part, and nothing on a screen says so. The plugin stays off on every call.
+// in part, and nothing on a screen says so. The plugin stays off on every call. Many models put
+// JSON in a Markdown fence, and `judged` parses the bare text, so each call asks for JSON output.
 const bodyOf = (agent: AgentModel, messages: readonly Message[]): string =>
   JSON.stringify({
     model: agent.model,
     messages,
     max_tokens: agent.maxAnswerTokens,
+    response_format: { type: 'json_object' },
     plugins: [{ id: 'context-compression', enabled: false }],
   });
 
