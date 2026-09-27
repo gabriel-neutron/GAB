@@ -169,7 +169,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             {/* The extracted word is kept where it was not a live type, and it is drawn, or the
                 entry the analyst wrote is lost to every reader of the record. */}
             {dossier.proposedType === null ? null : (
-              <span className="shrink-0 text-small/4 text-candidate">
+              <span className="shrink-0 text-small/4 text-label">
                 {`proposed as ${dossier.proposedType}`}
               </span>
             )}

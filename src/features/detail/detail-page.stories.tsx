@@ -296,6 +296,11 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
     const heading = canvas.getByRole('heading', { level: 1 });
     await expect(heading).toHaveTextContent(`proposed as ${PROPOSED}`);
 
+    // Departure: the word is a column of the promoted row, so it takes no candidate hue.
+    const word = within(heading).getByText(`proposed as ${PROPOSED}`);
+    await expect(word).toHaveClass('text-label');
+    await expect(word).not.toHaveClass('text-candidate');
+
     const from = canvasElement.querySelector('[data-position-from]');
     await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
   },
