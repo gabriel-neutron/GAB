@@ -131,6 +131,20 @@ const saveAlarmIn = (root: HTMLElement): HTMLElement =>
 
 const onDeleted = fn(() => Promise.resolve());
 
+const onSaved = fn(() => Promise.resolve());
+
+/** A reload of the record that lands only when `land` runs. */
+const reloadHeld = (): { readonly land: () => void } => {
+  let land = (): void => undefined;
+  const landed = new Promise<void>((settle) => {
+    land = () => {
+      settle();
+    };
+  });
+  onSaved.mockImplementationOnce(() => landed);
+  return { land };
+};
+
 const firstRelation = (): RelationLine => {
   const held = DOSSIER.relations[0];
   if (held === undefined) throw new Error('The vessel carries no relation');
@@ -157,7 +171,7 @@ const meta = {
   args: {
     dossier: DOSSIER,
     arrivedAtSource: null,
-    onSaved: () => Promise.resolve(),
+    onSaved,
     onDeleted,
   },
   parameters: { layout: 'fullscreen' },
@@ -165,6 +179,7 @@ const meta = {
   beforeEach: () => () => {
     knock.mockClear();
     onDeleted.mockClear();
+    onSaved.mockClear();
     restoreAllMocks();
   },
 } satisfies Meta<typeof DetailPage>;
@@ -528,6 +543,46 @@ export const ADeletionInFlightTakesNoSave: Story = {
     await waitFor(async () => {
       await expect(shapeSaidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
+  },
+};
+
+// The record the page draws is the old one until the reload lands. A control left open in that
+// time offers a second act on an element that is already gone.
+export const ASignedDeletionHoldsTheLockUntilTheReloadLands: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await toggleView(canvasElement);
+    const reload = reloadHeld();
+    const door = doorAnswering(SIGNED);
+    await askToDelete(canvasElement, RELATION);
+    door.open();
+
+    await waitFor(async () => {
+      await expect(shapeSaidIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    });
+    await waitFor(async () => {
+      await expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    await expect(canvas.getByRole('button', { name: `Delete ${RELATION}` })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeDisabled();
+
+    reload.land();
+    await waitFor(async () => {
+      await expect(canvas.getByRole('button', { name: `Delete ${RELATION}` })).toBeEnabled();
+    });
+  },
+};
+
+export const ASignedEntityDeletionLeavesThePage: Story = {
+  play: async ({ canvasElement }) => {
+    await toggleView(canvasElement);
+    const door = doorAnswering(SIGNED);
+    await askToDelete(canvasElement, DOSSIER.label);
+    door.open();
+
+    await waitFor(async () => {
+      await expect(onDeleted).toHaveBeenCalledTimes(1);
+    });
+    await expect(onSaved).not.toHaveBeenCalled();
   },
 };
 

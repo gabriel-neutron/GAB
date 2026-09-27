@@ -78,7 +78,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // flight at once would write two proposals against a record the first one has already moved,
   // and a delete that lands on a claim in flight destroys the row that claim was written to.
   const [structure, setStructure] = useState<StructureState>(NO_ACT);
-  const busy = structure.step === 'working' || save.step === 'saving';
+  // Until the reload lands, the page draws the record from before the act. A control left open
+  // in that time offers a second act on an element that is already gone.
+  const [reloading, setReloading] = useState(false);
+  const busy = structure.step === 'working' || save.step === 'saving' || reloading;
 
   // A draft outlives a move to the reading view, which draws the stored record. A switch that
   // threw the draft away would lose the one thing the analyst typed.
@@ -97,6 +100,14 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     setDrafts(typedInto(dossier.rows, drafts, key, typed));
   };
 
+  // Departure: a reload that fails is dropped here. The route draws its own failed read, and the
+  // lock lifts in both cases, so the page never stays locked.
+  const reloadAfterSigned = async (reload: () => Promise<void>): Promise<void> => {
+    setReloading(true);
+    await reload().catch(() => undefined);
+    setReloading(false);
+  };
+
   // A save is an event handler and never an effect. The record is read again on the way out, so
   // the page draws the value that landed and not the value that was sent. A second click while
   // one act is in flight writes a second proposal for the same value, so the step guards too.
@@ -109,7 +120,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
       setSave(state);
       if (state.step !== 'signed') return;
       setDrafts((current) => draftsAfterSave(current, sent, act));
-      await onSaved();
+      await reloadAfterSigned(onSaved);
     });
   };
 
@@ -121,7 +132,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     void saveClaims(dossier.entityId, attrs).then(async (state) => {
       setSave(state);
       if (state.step !== 'signed') return;
-      await onSaved();
+      await reloadAfterSigned(onSaved);
     });
   };
 
@@ -133,7 +144,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     void changeStructure(act).then(async (state) => {
       setStructure(state);
       if (state.step !== 'signed') return;
-      await (act.op === 'delete_entity' ? onDeleted() : onSaved());
+      await reloadAfterSigned(act.op === 'delete_entity' ? onDeleted : onSaved);
     });
   };
 
