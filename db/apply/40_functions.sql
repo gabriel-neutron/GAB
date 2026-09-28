@@ -245,6 +245,9 @@ BEGIN
     -- beside it, so WHERE type = 'unknown' is a sorted worklist.
     SELECT t.key INTO v_type FROM public.entity_type t
       WHERE t.key = p.payload->>'type' AND NOT t.retired;
+    -- S2: the row-level list backs label, type and geom, and never whatever an attribute's own
+    -- src cites. payload.sources is the act's own citation for those columns; a candidate that
+    -- gives none (no agent proposes a create today, #25) keeps the wider p.src, as before.
     INSERT INTO public.entities
       (type, proposed_type, label, geom, attrs, sources, promoted_from)
     VALUES (
@@ -254,11 +257,14 @@ BEGIN
       CASE WHEN p.payload ? 'geom'
            THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326) END,
       coalesce(p.payload->'attrs', '{}'::jsonb),
-      p.src,
+      CASE WHEN p.payload ? 'sources'
+           THEN ARRAY(SELECT jsonb_array_elements_text(p.payload->'sources'))::doc_id[]
+           ELSE p.src END,
       p.id)
     RETURNING id INTO v_id;
 
   ELSIF p.op = 'create_relation' THEN
+    -- S2, the same split as create_entity above.
     INSERT INTO public.relations
       (type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs, sources,
        promoted_from)
@@ -268,7 +274,9 @@ BEGIN
       coalesce(p.payload->>'dst_kind','entity'), (p.payload->>'dst_id')::uuid,
       (p.payload->>'valid_from')::date, (p.payload->>'valid_to')::date,
       coalesce(p.payload->'attrs', '{}'::jsonb),
-      p.src,
+      CASE WHEN p.payload ? 'sources'
+           THEN ARRAY(SELECT jsonb_array_elements_text(p.payload->'sources'))::doc_id[]
+           ELSE p.src END,
       p.id)
     RETURNING id INTO v_id;
 

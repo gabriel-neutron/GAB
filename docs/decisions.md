@@ -162,6 +162,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Decision.** `v` is never null. Information that is not known is expressed by the absence of the key.
 **Why.** Two ways of saying "we don't know" produce two query behaviours and two bugs.
 **Consequence.** It is impossible to distinguish "not filled in" from "searched for and not found". If that need arises, it will have to go through an explicit key, not through a null.
+**Amended 28 September 2026.** A bare string value that is empty or all whitespace is refused, at both tiers (`attributeEdit` in `packages/proposal/src/attribute-value.ts`, and `attrs_valid` in the database). It stated no fact — unlike null, which M9 already routes through the absence of the key, a blank string was never distinguishable from an unset field. A list keeps no minimum: `{"v": []}` still states a known "none", a fact M11 leaves untouched.
 
 ### M10 — The unit is carried by the key name
 

@@ -2,9 +2,16 @@ import { z } from 'zod';
 
 const scalar = z.union([z.string(), z.number(), z.boolean()]);
 
+const NON_BLANK = 'a bare string value is never blank; write no key instead of an unknown one';
+
+// M9 speaks of null, not blank. A list keeps no minimum: an empty list can state a known "none",
+// a real fact. Only the bare string case is a value nobody could have meant.
+const nonBlankString = z.string().refine((v) => v.trim().length > 0, { error: NON_BLANK });
+const bareValue = z.union([nonBlankString, z.number(), z.boolean()]);
+
 // `v` alone, and the object is strict. The writer attaches the sources of an edit, so a caller
 // that sends `src` is refused and never obeyed.
-const edited = z.strictObject({ v: z.union([scalar, z.array(scalar)]) });
+const edited = z.strictObject({ v: z.union([bareValue, z.array(scalar)]) });
 
 export type AttributeEdit = Record<string, z.infer<typeof edited>>;
 

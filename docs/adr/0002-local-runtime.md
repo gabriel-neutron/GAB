@@ -25,8 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends postgresql-17-p
 Proven on 7 August 2026: PostgreSQL 17.5, PostGIS 3.5.2, pgvector 0.8.6.
 
 **One behaviour of the base image, recorded because it surprises.** On a fresh volume PostGIS is
-already created and pgvector is installed but not created. **The first migration must use
-`CREATE EXTENSION IF NOT EXISTS` for both, and must not assume an empty extension list.**
+already created and pgvector is installed but not created. **A migration that creates either must
+use `CREATE EXTENSION IF NOT EXISTS`, and must not assume an empty extension list.**
+
+**pgvector arrives with the first vector column, not with the first migration.** Amended
+28 September 2026. `db/migrations/0001_extensions_and_roles.sql` creates `postgis` and `pg_trgm`
+only, because no table holds a `vector` column yet. The migration that adds the first one creates
+the extension in the same file, ordered beside the column it serves, per ADR 0003 §3.
 
 ### 3. One bucket, private
 
@@ -64,9 +69,12 @@ everywhere else.** The first sentence of this section read "holds no value" and 
 obeyed it: the database password, the MinIO user and the MinIO password each carry a placeholder.
 
 **The application signs with its own account, and never with root.** The root pair makes the bucket
-and makes that account, and nothing else uses it. `minio-init` grants that account `s3:PutObject` on
-`raw` and nothing more, so a fault in ingestion code cannot remove a source file, cannot list the
-bucket, and cannot make the bucket public. A read is granted on the day a worker needs one.
+and makes that account, and nothing else uses it. `minio-init` grants that account `s3:PutObject`
+and `s3:ListBucket` on `raw`, and nothing more, so a fault in ingestion code cannot remove a source
+file and cannot make the bucket public. **Amended 28 September 2026: `s3:ListBucket` was added for
+the reconciliation run**, which compares the bucket's key list against the documents table and
+cannot do that walk without listing. A read of one object is granted on the day a worker needs
+one.
 
 **Two limits, written down because they are easy to believe away.** Every entry point loads the
 environment file whole, so the root pair sits in the same process as the application pair: the

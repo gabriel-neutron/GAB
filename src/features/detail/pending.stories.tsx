@@ -79,7 +79,7 @@ export const ACandidateIsMarkedInWords: Story = {
 };
 
 /**
- * There is no theme decorator in `.storybook/preview.ts`, so this story sets the class itself.
+ * There is no theme decorator for Storybook, so this story sets the class itself.
  */
 export const ACandidateIsMarkedInWordsInTheDarkTheme: Story = {
   render: (args) => (

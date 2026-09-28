@@ -70,7 +70,7 @@ export const TheTwoEndsAndTheTypeAreDrawn: Story = {
   },
 };
 
-/** The lines come from `shared/canvas-label.ts`, which both canvases draw, so a hover and this
+/** The lines come from one shared function that both canvases draw, so a hover and this
  * panel can never disagree about the direction. */
 export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
   play: async ({ canvas }) => {

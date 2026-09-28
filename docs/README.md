@@ -13,6 +13,7 @@ there.
 | `agents/triage-labels.md` | You apply a triage label. |
 | `agents/commit.md` | You write a commit message. |
 | `authoring.md` | You write a document, you propose one, or you must decide where a sentence belongs. |
+| `deploy.md` | You deploy the read surface, or you point the writer or the worker at a remote database. |
 | `review/01-database.md`, `review/02-contracts.md`, `review/03-writer.md`, `review/04-worker.md`, `review/05-frontend-detail.md`, `review/06-frontend-review-routes-shared.md`, `review/07-tests-tooling.md`, `review/08-cross-cutting.md` | You work on a finding of the pre-launch deep review (#168). One file for each layer. |
 | `review/fix-plan.md` | You fix a finding of the deep review. It gives the fix units and the order to do them in. |
 
@@ -51,5 +52,6 @@ An ADR records one build decision and its cost. This register is the only list o
 
 The section numbers of an ADR are cited from one document to another — `authoring.md` cites them,
 and the ADRs cite each other — so they are stable. **Keep them stable** when an ADR is edited:
-compress a section, and never renumber one. No file under `src/` cites one, because ADR 0006
-removed that. The configuration files at the root still do, and the tracker carries them.
+compress a section, and never renumber one. No file under `src/`, under `packages/*/src` or under
+`.storybook` cites one, because ADR 0006 removed that. The configuration files at the root still
+do, and the tracker carries them.

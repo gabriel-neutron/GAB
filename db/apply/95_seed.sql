@@ -21,9 +21,8 @@
 -- history stays readable. The statement writes no such column, so a seeded word takes the
 -- default of the table and is in service.
 --
--- ASK — ADR 0003 §3 lists tables, columns, indexes, roles, extensions and types as ordered, and
--- views, functions, triggers and grants as re-runnable. ROWS ARE IN NEITHER COLUMN. This file
--- needs a third row in that table: a re-runnable data file, running last. #40 owns it.
+-- ADR 0003 §3 NAMES THIS FILE. Rows are a third kind, beside tables and functions: a re-runnable
+-- data file, running last, after the grants.
 -- =============================================================================================
 
 SET ROLE gabriel_owner;

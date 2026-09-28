@@ -66,6 +66,14 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
  * **A stylesheet is out of reach, and it now carries nothing.** ESLint does not read
  * `src/index.css`, so a reference there is refused by nobody. Its rules are no longer numbered and
  * its comments cite none, so there is nothing left for this rule to miss.
+ *
+ * **A path with no `./` and no `.md` is an address too.** `src/index.css` and
+ * `features/map/adapter.ts` name a file. A rename can break the link. The rule now catches this
+ * shape too.
+ *
+ * **The longest match wins at one spot.** A link text already holds a path, and `./src` sits
+ * inside `./src/routes/map.tsx`. The rule keeps the longest match at each spot and drops a
+ * shorter one under it, so one address gives one report, and the report names the whole address.
  */
 export const REFERENCE_SHAPES = [
   {
@@ -79,6 +87,10 @@ export const REFERENCE_SHAPES = [
   { pattern: /\badr[\s._-]*\d{1,4}\b/gi, kind: 'an ADR citation' },
   { pattern: /[\w./-]+\.(?:md|mdx|markdown)(?![\w-])/gi, kind: 'a path to a document' },
   { pattern: /\.{1,2}\/[\w.-]+/g, kind: 'a path to a file' },
+  {
+    pattern: /[\w.-]+(?:\/[\w.-]+)+\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|css|json|sql|ya?ml|toml)\b/gi,
+    kind: 'a path to a file',
+  },
   { pattern: /\bUC\s*\d+\b/g, kind: 'a use case of a deleted document' },
   { pattern: /\brules?\s*\d+\b/gi, kind: 'a numbered rule' },
 ] as const;
@@ -239,18 +251,41 @@ const noReferenceInComment: Rule.RuleModule = {
           // `range[0]` is the first character of the delimiter, and `value` begins two characters
           // later for `//` and for `/*` alike.
           const body = start + 2;
+
+          const candidates: { from: number; to: number; text: string; kind: string }[] = [];
           for (const shape of REFERENCE_SHAPES) {
             shape.pattern.lastIndex = 0;
             let found = shape.pattern.exec(comment.value);
             while (found !== null) {
-              const at = source.getLocFromIndex(body + found.index);
-              context.report({
-                loc: { start: at, end: at },
-                messageId: 'address',
-                data: { text: found[0], kind: shape.kind },
+              candidates.push({
+                from: found.index,
+                to: found.index + found[0].length,
+                text: found[0],
+                kind: shape.kind,
               });
               found = shape.pattern.exec(comment.value);
             }
+          }
+
+          // Longest first, so a full address is kept and a shorter span inside it is dropped.
+          candidates.sort((a, b) => b.to - b.from - (a.to - a.from));
+          const taken: { from: number; to: number }[] = [];
+          const kept: typeof candidates = [];
+          for (const candidate of candidates) {
+            if (taken.some((span) => candidate.from < span.to && candidate.to > span.from))
+              continue;
+            taken.push({ from: candidate.from, to: candidate.to });
+            kept.push(candidate);
+          }
+
+          kept.sort((a, b) => a.from - b.from);
+          for (const candidate of kept) {
+            const at = source.getLocFromIndex(body + candidate.from);
+            context.report({
+              loc: { start: at, end: at },
+              messageId: 'address',
+              data: { text: candidate.text, kind: candidate.kind },
+            });
           }
         }
       },
@@ -276,8 +311,16 @@ export default defineConfig(
 
   // The harness runs a workflow script inside an async function and supplies its globals, so a
   // top-level `return` and a top-level `await` are correct there. A parser that reads the file as
-  // a module stops at the first one and reads nothing after it. Nothing here ships.
-  { ignores: ['.claude/workflows/**'] },
+  // a module stops at the first one and reads nothing after it. Nothing here ships. Excluded by
+  // name, never by a pattern that authored code can enter (ADR 0004 §8): list each tracked
+  // workflow script as it is added, not the folder.
+  {
+    ignores: [
+      '.claude/workflows/gab-deep-review.js',
+      '.claude/workflows/ready-for-agent-run.js',
+      '.claude/workflows/requirement-debate.js',
+    ],
+  },
 
   // No file may suppress a rule. `gab-coder` requires zero suppressions, so an inline
   // directive is inert and an unused one is an error, not a warning.
@@ -684,7 +727,7 @@ export default defineConfig(
     files: [
       'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
-      '.storybook/**/*.{ts,tsx,js,mjs,cjs}',
+      '.storybook/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
     ],
     plugins: {
       local: {

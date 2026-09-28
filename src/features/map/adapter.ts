@@ -87,7 +87,7 @@ const ARROW_LAYER = 'link-arrow';
 const ARROW_IMAGE = 'link-arrow-head';
 
 // MapLibre parses the style itself, so a CSS custom property never reaches it and the colour must
-// be a hex. Measured against `--background` of `src/index.css`, `#f5f7f8` light and `#070f10`
+// be a hex. Measured against the `--background` theme variable, `#f5f7f8` light and `#070f10`
 // dark, this hue at full opacity gives a ratio of 3.55:1 on light and 5.08:1 on dark.
 const LINK_HUE = '#7b8489';
 
@@ -111,7 +111,7 @@ const HALO_OPACITY = 0.3;
 // tolerance and a click 4px from the centre returns the line under it. Points take this box too.
 const HIT_BOX = 5;
 
-/** The padding of a fit, in pixels. It is six steps of the 4px grid of `src/index.css`. */
+/** The padding of a fit, in pixels. It is six steps of the 4px grid the theme defines. */
 const FIT_PADDING = 24;
 
 // The highest zoom a fit can reach. Bounds of zero width give an infinite zoom that the library

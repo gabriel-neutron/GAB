@@ -44,6 +44,11 @@ test.each([
   ['a blank type', { type: ' ', label: 'A vessel', attrs: {} }],
   ['a geometry key', { type: 'vessel', label: 'A vessel', geometry: POINT, attrs: {} }],
   ['a date', { type: 'vessel', label: 'A vessel', valid_from: '2024-01-01' }],
+  ['an empty sources list', { type: 'vessel', label: 'A vessel', attrs: {}, sources: [] }],
+  [
+    'a sources list outside what the act cited',
+    { type: 'vessel', label: 'A vessel', attrs: {}, sources: ['a_document_nobody_cited'] },
+  ],
 ])('a create_entity with %s is refused', async (_case, payload) => {
   await expect(proposed('create_entity', payload)).rejects.toMatchObject(ENTITY_REFUSED);
 });
@@ -58,14 +63,25 @@ test.each([
   ['a blank type', { ...RELATION, type: ' ' }],
   ['a src_kind outside the two kinds', { ...RELATION, src_kind: 'document' }],
   ['an unknown key', { ...RELATION, label: 'A relation' }],
+  ['an empty sources list', { ...RELATION, sources: [] }],
+  [
+    'a sources list outside what the act cited',
+    { ...RELATION, sources: ['a_document_nobody_cited'] },
+  ],
 ])('a create_relation with %s is refused', async (_case, payload) => {
   await expect(proposed('create_relation', payload)).rejects.toMatchObject(RELATION_REFUSED);
 });
 
 // Departure: these copy the payloads of proposalAct and the fixture loader, and move with them.
 test.each([
-  ['the writer entity', { type: 'vessel', label: 'A vessel', geom: POINT, attrs: ATTRS }],
-  ['the writer entity with no position', { type: 'vessel', label: 'A vessel', attrs: {} }],
+  [
+    'the writer entity',
+    { type: 'vessel', label: 'A vessel', geom: POINT, attrs: ATTRS, sources: ['manual'] },
+  ],
+  [
+    'the writer entity with no position',
+    { type: 'vessel', label: 'A vessel', attrs: {}, sources: ['manual'] },
+  ],
   ['the fixture candidate entity', { type: 'vessel', label: 'A vessel', attrs: {} }],
 ])('%s is still accepted', async (_case, payload) => {
   await expect(proposed('create_entity', payload)).resolves.toHaveLength(1);
@@ -74,9 +90,15 @@ test.each([
 test.each([
   [
     'the writer relation with an interval',
-    { ...RELATION, valid_from: '2020-01-01', valid_to: '2024-02-29', attrs: ATTRS },
+    {
+      ...RELATION,
+      valid_from: '2020-01-01',
+      valid_to: '2024-02-29',
+      attrs: ATTRS,
+      sources: ['manual'],
+    },
   ],
-  ['the writer relation with no interval', { ...RELATION, attrs: {} }],
+  ['the writer relation with no interval', { ...RELATION, attrs: {}, sources: ['manual'] }],
   ['the fixture candidate relation', RELATION],
   ['a relation that names a relation', { ...RELATION, dst_kind: 'relation' }],
 ])('%s is still accepted', async (_case, payload) => {

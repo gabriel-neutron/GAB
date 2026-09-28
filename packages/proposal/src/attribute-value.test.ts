@@ -70,6 +70,16 @@ test('a key refusal states the shape of a key, and a body that is no record does
   expect(refusalOf('x').message).not.toContain(shape);
 });
 
+test('a bare string value that is empty or all whitespace is refused', () => {
+  for (const given of [{ imo: { v: '' } }, { imo: { v: '   ' } }])
+    expect({ given, code: refusalOf(given).code }).toEqual({ given, code: 'custom' });
+});
+
+test('an empty list is accepted, because it can state a known "none"', () => {
+  const given = { aliases: { v: [] } };
+  expect(attributeEdit.parse(given)).toEqual(given);
+});
+
 test('a key of digits after the first word is accepted', () => {
   const given = { berth_7: { v: true }, coal_stock_t: { v: 41.5 } };
   expect(attributeEdit.parse(given)).toEqual(given);

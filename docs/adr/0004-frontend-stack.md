@@ -35,8 +35,9 @@ The graph view shows the whole corpus — about 10k entities and 25k relations �
 is macro structure and not reading labels. That count rules out a canvas renderer.
 
 Positions are **precomputed and stored**, never computed in the browser at each open: a force
-layout is not deterministic, so the picture would change on every open. **Where they are stored is
-open, and the tracker carries it.**
+layout is not deterministic, so the picture would change on every open. They live in
+`entity_layout`, one table, replaced whole on each run of `set_entity_layout(jsonb)`. `pnpm layout`
+runs it by hand; nothing runs it on a schedule.
 
 A relation may point at another relation (M4). **No code prevents it and no code supports it.**
 Such a relation is invisible in the graph and is reached through the detail panel.
@@ -71,14 +72,20 @@ nested state, a length cap on the selection, and the browser rate limit on `hist
 ### 8. Vitest, and zero suppressions with one exemption by name
 
 `routeTree.gen.ts` is generated, carries its own lint banner, and is excluded from the linter and
-the formatter **by name**. **It is the only exemption.**
+the formatter **by name**.
 
 **`src/shared/ui/` takes none.** A path-scoped override for that folder was removed: the vendored
 components pass every rule without it, no lint rule reads `exactOptionalPropertyTypes`, and the
 override was a hole — an adversarial pass wrote a hand-authored file there with `any` and
 `pnpm check` passed.
 
-One rule holds both cases: **a suppression may be excluded by name, never by a pattern that
+**A second, harness-run exemption, added the same way.** `.claude/workflows/` holds tracked,
+hand-written workflow scripts. The harness runs each one inside an async function it supplies, so
+a top-level `return` and a top-level `await` are correct there, and a parser that reads the file
+as an ordinary module stops at the first one. Each script is listed **by name** in
+`eslint.config.ts` and `.prettierignore`, as it is added — never by a folder pattern.
+
+One rule holds every case: **a suppression may be excluded by name, never by a pattern that
 authored code can enter.**
 
 ### 9. `skipLibCheck` becomes `true`

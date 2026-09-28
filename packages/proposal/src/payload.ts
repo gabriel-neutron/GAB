@@ -77,6 +77,9 @@ export const proposalAct = (request: WriteRequest, prior: unknown): ProposalDraf
           label: request.label,
           ...(request.geom === undefined ? {} : { geom: request.geom }),
           attrs,
+          // S2: the row-level list backs label, type and geom alone. The operator types each by
+          // hand, so it is manual alone, whatever an attribute of the same act cites.
+          sources: [MANUAL],
         },
         src: citedBy(attrs),
         names: [],
@@ -98,6 +101,9 @@ export const proposalAct = (request: WriteRequest, prior: unknown): ProposalDraf
           ...(request.validFrom === undefined ? {} : { valid_from: request.validFrom }),
           ...(request.validTo === undefined ? {} : { valid_to: request.validTo }),
           attrs,
+          // S2: the row-level list backs type, the two endpoints and the dates alone. The
+          // operator sets each by hand, so it is manual alone.
+          sources: [MANUAL],
         },
         src: citedBy(attrs),
         // The two ends answer "which pending act names this element", which is an indexed read.

@@ -26,6 +26,14 @@ half.
 |---|---|---|
 | Tables, columns, indexes, roles, extensions, **types** | `db/migrations/` | Once, in order, each in a transaction |
 | Views, functions, triggers, grants | `db/apply/` | Every run, each file holding its whole current definition |
+| **Rows: seeded vocabularies and reserved documents** | `db/apply/95_seed.sql` | Every run, last, after the grants; adds and updates, never deletes |
+
+A seeded row is neither table nor function: it holds data, so it cannot be replaced wholesale like
+a view, but it is idempotent (`ON CONFLICT ... DO NOTHING` or `DO UPDATE`), so it is safe to
+re-run and belongs in `db/apply/`, not `db/migrations/`. The type vocabulary itself is declared in
+TypeScript, at `src/shared/vocabulary/declarations.ts`, and `pnpm seed:vocabulary` emits the marked
+region of `95_seed.sql` from it: that file is the one place a type is declared, and the SQL is
+generated, not authored.
 
 A table holds data, so its change must run once. A function holds none, so its whole text can be
 replaced on every run. **A table is never re-runnable.**
@@ -77,8 +85,12 @@ The perimeter is a blanket revoke, in the grants file, of every write on every t
 schema, from every role that is not the owner. **§1 refuses a second copy of the SQL, so this ADR
 quotes none: read the grants file.** The revoke covers every view, including the ones nobody has
 written yet, and it re-runs on every apply, so a convenience grant is erased rather than
-inherited. Each view also carries
-`WITH (security_invoker = true)` as the **second layer, not the guard**.
+inherited. **A view carries no `security_invoker`.** The option checks the base table with the
+rights of the caller, and `gabriel_read` holds nothing on `public`, so the option refuses the read
+as well as the write. Measured on 19 August 2026, PostgreSQL 17.5: the same view returns
+`permission denied for table` with the option and returns its rows without it, while the blanket
+`REVOKE` above refuses the write in both cases. A view runs with the rights of its owner, and that
+is what makes it the only door into `public`. **The revoke is the guard, and it is the only one.**
 
 Two traps recorded so the next reader does not repeat them. `default_transaction_read_only` is
 `USERSET`, so the same session turns it off. And a probe built on a `serial` key **passes for an

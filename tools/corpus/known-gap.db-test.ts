@@ -58,13 +58,14 @@ test('the ingestion door takes no rating parameter', async () => {
   ]);
 });
 
-const gaps = z.array(
-  z.object({
-    rows_that_leave_the_creating_citation: z.coerce.number(),
-    untouched_rows_that_omit_a_value_source: z.coerce.number(),
-  }),
-);
+const gaps = z.array(z.object({ rows_that_leave_the_creating_citation: z.coerce.number() }));
 
+// S2, amended 28 September 2026: the row-level list backs the typed columns alone, and an
+// attribute's own src backs that one value alone, so the two were split apart and this file's
+// second known gap (an untouched row that omitted a value source from its own list) closed —
+// the row's own list was never meant to hold a value source. `payload.sources` names the row's
+// own citation; a creating act that gives none (no agent proposes a create yet, #25) falls back
+// to `src`, its whole citation set, exactly as promote_proposal does.
 const SOURCES = `
   WITH renamed AS (
     SELECT u.target_id AS id, u.src, u.decided_at,
@@ -74,32 +75,23 @@ const SOURCES = `
   cited AS (
     SELECT id, src FROM renamed WHERE decided_at = latest
     UNION ALL
-    SELECT e.id, p.src FROM public.entities e JOIN public.proposals p ON p.id = e.promoted_from
-     WHERE NOT EXISTS (SELECT 1 FROM renamed r WHERE r.id = e.id)),
-  untouched AS (
-    SELECT e.sources::text[] AS own_src,
-           (SELECT array_agg(DISTINCT s) FROM jsonb_each(e.attrs) kv,
-              jsonb_array_elements_text(coalesce(kv.value->'src','[]'::jsonb)) s) AS value_src
-      FROM public.entities e
-     WHERE NOT EXISTS (SELECT 1 FROM public.proposals u
-                        WHERE u.status = 'accepted' AND u.op IN ('update_attrs', 'update_entity')
-                          AND u.target_kind = 'entity' AND u.target_id = e.id))
+    SELECT e.id,
+           CASE WHEN p.payload ? 'sources'
+                THEN ARRAY(SELECT jsonb_array_elements_text(p.payload->'sources'))::doc_id[]
+                ELSE p.src END AS src
+      FROM public.entities e JOIN public.proposals p ON p.id = e.promoted_from
+     WHERE NOT EXISTS (SELECT 1 FROM renamed r WHERE r.id = e.id))
   SELECT (SELECT count(*) FROM public.entities e
            WHERE EXISTS (SELECT 1 FROM cited c WHERE c.id = e.id)
              AND NOT EXISTS (SELECT 1 FROM cited c
                               WHERE c.id = e.id AND c.src::text[] = e.sources::text[]))
-           AS rows_that_leave_the_creating_citation,
-         (SELECT count(*) FROM untouched WHERE NOT (own_src @> value_src))
-           AS untouched_rows_that_omit_a_value_source`;
+           AS rows_that_leave_the_creating_citation`;
 
 // Departure: an accepted update_entity replaces the row list with its own citation, and a rename
 // is decided after the creation, so it wins a tie. Two renames with one decided_at pass on either.
-// An update_attrs keeps the list, so an entity an update touched can omit a value source.
 test('an entity carries the citation of the act that last set its name or type', async () => {
   const held = await probe('superuser', async (ask) => gaps.parse(await ask(SOURCES)));
-  expect(held).toStrictEqual([
-    { rows_that_leave_the_creating_citation: 0, untouched_rows_that_omit_a_value_source: 0 },
-  ]);
+  expect(held).toStrictEqual([{ rows_that_leave_the_creating_citation: 0 }]);
 });
 
 const picked = z.array(z.object({ target: z.uuid(), outside: z.string() }));
@@ -154,13 +146,13 @@ const censusAfter = (promotion: Promotion) =>
 
 test('a rename that cites another document leaves no row behind its citation', async () => {
   await expect(censusAfter('replaces the list')).resolves.toStrictEqual([
-    { rows_that_leave_the_creating_citation: 0, untouched_rows_that_omit_a_value_source: 0 },
+    { rows_that_leave_the_creating_citation: 0 },
   ]);
 });
 
 test('a rename whose promotion keeps the old list is reported', async () => {
   await expect(censusAfter('keeps the old list')).resolves.toStrictEqual([
-    { rows_that_leave_the_creating_citation: 1, untouched_rows_that_omit_a_value_source: 0 },
+    { rows_that_leave_the_creating_citation: 1 },
   ]);
 });
 

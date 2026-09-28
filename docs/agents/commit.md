@@ -60,6 +60,7 @@ A `Co-Authored-By` trailer names each agent that wrote part of the change.
 
 ## What the message may carry that the code may not
 
-Every reference. ADR 0006 §5 states it: a comment under `src/` records a reason and never a
-pointer, and a commit message carries every reference it wants — a ticket, a document, a section,
-a commit hash or a tag. This is why the eviction from the source costs nothing.
+Every reference. ADR 0006 §5 states it: a comment under `src/`, under `packages/*/src` or under
+`.storybook` records a reason and never a pointer, and a commit message carries every reference it
+wants — a ticket, a document, a section, a commit hash or a tag. This is why the eviction from the
+source costs nothing.

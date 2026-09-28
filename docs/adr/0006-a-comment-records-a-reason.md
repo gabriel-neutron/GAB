@@ -73,8 +73,11 @@ that holds it and the code together.
 
 ### 5. The rule reaches authored source only
 
-It reaches every file under `src/`: a comment, a file header, a doc comment, and a message that a
-person reads on the screen.
+It reaches every file under `src/`, under `packages/*/src` and under `.storybook`: a comment, a
+file header, a doc comment, and a message that a person reads on the screen. A workspace package
+is authored source in the same way `src/` is, and the Storybook configuration writes real imports
+and real comments, so neither is an exception. Amended 28 September 2026 to name what the rule
+already reached in `eslint.config.ts`.
 
 It reaches nothing else. A document cites another document, and `authoring.md` says how. A skill
 names the ticket an agent must fetch, because the agent needs the number to fetch it. A commit
