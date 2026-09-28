@@ -1,9 +1,27 @@
 import { Pool } from 'pg';
 import { z } from 'zod';
 
-// External constraint: the host and the port are fixed by the compose file of the local stack.
-const HOST = '127.0.0.1';
-const PORT = 5432;
+// Origin of the numbers: the compose file binds the database to 127.0.0.1:5432, so an absent
+// variable reaches the local stack. A remote host sets all three, and it asks for TLS.
+const absentWhenEmpty = (value: unknown): unknown => (value === '' ? undefined : value);
+const placement = z.object({
+  GABRIEL_DB_HOST: z.preprocess(absentWhenEmpty, z.string().trim().min(1).default('127.0.0.1')),
+  GABRIEL_DB_PORT: z.preprocess(
+    absentWhenEmpty,
+    z.coerce.number().int().min(1).max(65_535).default(5432),
+  ),
+  GABRIEL_DB_SSL: z.preprocess(
+    absentWhenEmpty,
+    z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((stated) => stated === 'true'),
+  ),
+});
+
+// External constraint: pg reads `sslmode=require` alone as verify-full, and a hosted database
+// signs with its own authority. The compatibility flag gives the libpq meaning: encrypt only.
+const PG_TLS_QUERY = '?uselibpqcompat=true&sslmode=require';
 
 // External constraint: `gabriel_app` writes only through the doors it may execute. It reads the
 // base tables that its checks need, and it holds no INSERT, UPDATE or DELETE on any table.
@@ -29,8 +47,17 @@ const address = (): string => {
       'GABRIEL_APP_PASSWORD is empty or absent, or GABRIEL_DATABASE names no database of the ' +
         'stack. Set them in the environment file.',
     );
+  const where = placement.safeParse(process.env);
+  if (!where.success)
+    throw new Error(
+      'GABRIEL_DB_HOST, GABRIEL_DB_PORT or GABRIEL_DB_SSL holds a value the writer cannot use. ' +
+        'The port is a number from 1 to 65535, and GABRIEL_DB_SSL is true or false.',
+    );
+  const { GABRIEL_DB_HOST, GABRIEL_DB_PORT, GABRIEL_DB_SSL } = where.data;
   const password = encodeURIComponent(held.data.GABRIEL_APP_PASSWORD);
-  return `postgresql://${ROLE}:${password}@${HOST}:${PORT}/${held.data.GABRIEL_DATABASE}`;
+  const server = `${GABRIEL_DB_HOST}:${String(GABRIEL_DB_PORT)}`;
+  const tls = GABRIEL_DB_SSL ? PG_TLS_QUERY : '';
+  return `postgresql://${ROLE}:${password}@${server}/${held.data.GABRIEL_DATABASE}${tls}`;
 };
 
 // Departure: a door reads less of the pool than `pg` declares. The pool of `pg` fits this shape,
