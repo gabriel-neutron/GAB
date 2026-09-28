@@ -12,19 +12,19 @@
 -- THE ROW HOLDS THE HISTORY OF A RETRY AND IT RUNS NONE. Two counts of #25 are decided, and they
 -- bound ONE CALL to the model: three retries after a network failure, and one retry of an answer
 -- the boundary refuses, with the fault fed back. The client of the model service holds both.
--- WHAT A JOB DOES WHEN THAT CHAIN ENDS IS NOT DECIDED, so no number is written here, nothing
--- counts down, and no path writes `failed`: the columns below can carry that history on the day
--- the operator settles it. The per-job token cap of the same ticket is proposed and not decided
--- either, and it is absent for the same reason.
+-- WHAT A JOB DOES WHEN THAT CHAIN ENDS IS NOT DECIDED, so no number is written here and nothing
+-- counts down. fail_job writes `failed` with a reason, and the columns below can carry the retry
+-- history on the day the operator settles it. The per-job token cap of the same ticket is
+-- proposed and not decided either, and it is absent for the same reason.
 --
 -- THE ROW HOLDS THE COUNTS AND THE LAST FAILURE, AND NEVER THE WHOLE HISTORY. One reason column
 -- is overwritten by the next failure, and no column holds the hour of a try, so the growing wait
 -- that #25 proposes is not computable from this table. A row per attempt is the shape that holds
 -- all of it, and it is the shape of the change that retries.
 --
--- A CLAIM IS NEVER RELEASED, SO THE QUEUE IS AT MOST ONCE. claim_job moves a row to `running`,
--- and no door moves one back. A worker that stops between the claim and the work leaves the row
--- there for ever, so no role holds the claim door until the door that releases one exists.
+-- A CLAIM IS RELEASED WHEN ITS LEASE ENDS. claim_job moves a row to `running`, and
+-- release_expired_claims moves it back to `queued` after the lease, so a worker that stops
+-- between the claim and the work does not hold the row for ever.
 --
 -- A LOST CLAIM SPENDS ITS ATTEMPT. The claim counts the attempt at the hour it takes the row,
 -- and nothing rewrites a count that is already written, so `attempts` counts what was taken and

@@ -63,7 +63,8 @@ CREATE VIEW api.entity AS
 COMMENT ON VIEW api.entity IS
   'An entity. `attrs` holds every attribute as {"key": {"v": value, "src": [document ids]}} — '
   'the value and the documents that hold it up, in one row, with no join. `sources` is the list '
-  'on the THING and not on a value; what each of the two asserts is open on #86. '
+  'on the THING and not on a value: it backs the label, the type and the geom of the row, and no '
+  'attribute''s value. '
   'proposed_type carries the extracted word when it was not a live type.';
 
 

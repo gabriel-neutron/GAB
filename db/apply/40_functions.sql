@@ -312,8 +312,9 @@ BEGIN
          SET attrs = attrs || coalesce(p.payload->'attrs','{}'::jsonb), updated_at = now()
        WHERE id = p.target_id;
     END IF;
-    -- The row-level `sources` list is NOT extended here. It is the evidence that the thing is
-    -- real, written by the creating act. #86 is open on what the two lists assert.
+    -- The row-level `sources` list is NOT extended here. It backs the typed columns outside
+    -- `attrs`: label, type and geom on an entity; type, both endpoints and valid_from/valid_to
+    -- on a relation. An attribute's own `src` backs that one value alone.
     v_id := p.target_id;
 
   -- ------------------------------------------------------------------------ name and type --
