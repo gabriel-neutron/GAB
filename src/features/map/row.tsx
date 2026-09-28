@@ -35,6 +35,13 @@ const READING = 'max-w-[40%] truncate text-muted-foreground';
 export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsProps) {
   return (
     <div role="group" aria-label={facet.type} data-type={facet.type}>
+      {/* Departure: a facet exists only for a type with a drawn entity, so an empty list is a
+          filter that holds no name of this type. */}
+      {entities.length === 0 ? (
+        <p data-no-match="" className="flex h-6 items-center px-1.5 text-xs text-label">
+          No name holds the filter.
+        </p>
+      ) : null}
       {/* The key is `id`. `fid` is a position in an array that MapLibre needs, not an identity. */}
       {entities.map((entity) => {
         const said = entity.symbol?.words ?? null;

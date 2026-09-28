@@ -11,6 +11,7 @@ import {
 } from '@/shared/canvas-label';
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 
+import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
 import {
   buildGraphModel,
   dimmedColour,
@@ -47,12 +48,13 @@ export interface GraphView {
 
 export interface GraphController {
   readonly model: GraphModel;
-  /** A control selects here. **It moves no camera.** `flyTo` is the control that moves it. */
+  /** Departure: a selection moves no camera. `flyTo` and `showWholeGraph` move it. */
   readonly select: (selection: GraphSelection | null) => void;
   readonly setFilter: (patch: Partial<FilterState>) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   readonly flyTo: (id: string) => void;
+  readonly showWholeGraph: () => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
   /** The selection alone. A fold of the rail publishes a view and calls no listener of this. */
   readonly onSelect: (listener: (selection: GraphSelection | null) => void) => () => void;
@@ -74,8 +76,8 @@ const HOPS = 2;
 // and here a nearer camera buys no detail: a node carries the same words at every ratio.
 const REACH_RATIO = 0.4;
 
-// The dim keeps this much of the colour. It is measured against the two grounds of
-// `src/index.css`: a dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
+// The dim keeps this much of the colour. It is measured against the two theme grounds: a
+// dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
 // 4.9:1 and 6.7:1 while lit. One value of 0.2 for both grounds made the light theme read empty.
 const DIM_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.45, dark: 0.4 };
 
@@ -319,6 +321,11 @@ export function mountGraph(
     // the one that was left.
     enableCameraRotation: false,
 
+    // External constraint: Sigma bounds no zoom by default, so a wheel or a pinch can reach a
+    // ratio where the canvas shows empty ground. Sigma applies these bounds to each camera state.
+    minCameraRatio: NEAREST_RATIO,
+    maxCameraRatio: FARTHEST_RATIO,
+
     nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
       if (litNodes.has(node)) return { ...data };
       // A filter dims. **It never hides.** So `hidden` stays false, the node keeps
@@ -334,10 +341,11 @@ export function mountGraph(
   });
 
   const camera = sigma.getCamera();
-  if (stored.camera !== null) {
-    // **The stored camera is read behind a guard.** The workspace holds that guard, and it
-    // gives `null` for every record it does not know.
-    camera.setState({ x: stored.camera.x, y: stored.camera.y, ratio: stored.camera.ratio });
+  // Departure: two guards read the stored camera. The workspace drops a record it does not
+  // know, and `restorableCamera` drops a ratio outside the bounds of this canvas.
+  const storedCamera = restorableCamera(stored.camera);
+  if (storedCamera !== null) {
+    camera.setState({ x: storedCamera.x, y: storedCamera.y, ratio: storedCamera.ratio });
   }
 
   const layer = document.createElement('div');
@@ -499,7 +507,7 @@ export function mountGraph(
     window.history.replaceState(state, '', url);
   };
 
-  // It moves no camera. `flyTo` is the one control that may move it.
+  // Departure: it moves no camera. `flyTo` and `showWholeGraph` are the controls that move it.
   const settle = (next: GraphSelection | null): void => {
     const changed = !sameSelection(next, selection);
     selection = next;
@@ -658,7 +666,8 @@ export function mountGraph(
     select: (next) => {
       if (destroyed) return;
       // A control names an element, and this file states whether that element can take the
-      // selection. **The camera stays where it is**; a control that must move it calls `flyTo`.
+      // selection. Departure: the camera stays where it is; a control that moves it calls
+      // `flyTo` or `showWholeGraph`.
       settle(acceptable(next));
     },
     setFilter: (patch) => {
@@ -692,6 +701,12 @@ export function mountGraph(
       // selection must never undo the zoom the analyst chose.
       const ratio = Math.min(camera.getState().ratio, REACH_RATIO);
       void camera.animate({ x: point.x, y: point.y, ratio });
+    },
+    showWholeGraph: () => {
+      if (destroyed) return;
+      // External constraint: the reset of Sigma puts the centre at 0.5 and the ratio at 1,
+      // which frames every node. The `updated` event stores it as any other move.
+      void camera.animatedReset();
     },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;
