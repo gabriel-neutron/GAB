@@ -1,13 +1,15 @@
+import { FolderToggle } from '@/shared/folder-toggle';
 import { cn } from '@/shared/lib/utils';
 
-import type { GeoEntity, TypeFacet } from './projection';
+import type { IndexLine } from './index-tree';
+import type { TypeFacet } from './projection';
 import { UnitSymbol } from './unit-symbol';
 
 export interface IndexRowsProps {
   readonly facet: TypeFacet;
-  readonly entities: readonly GeoEntity[];
-  readonly selectedId: string | null;
+  readonly lines: readonly IndexLine[];
   readonly onSelect: (id: string) => void;
+  readonly onOpen: (unit: string, open: boolean) => void;
 }
 
 // This callback is one module constant, so React runs it only when the selection moves to another
@@ -21,7 +23,7 @@ const reveal = (node: HTMLElement | null): void => {
 const NAME = 'min-w-0 flex-1 truncate';
 
 /** The density and the shape rules: one row of 24px, a 6px cell pad, and no radius. */
-const LINE = 'flex h-6 w-full items-center gap-2 rounded-none px-1.5 text-left text-xs';
+const LINE = 'flex h-6 min-w-0 flex-1 items-center gap-2 rounded-none px-1.5 text-left text-xs';
 
 // The borrowed position, beside the name and never under it: the row is one line of 24px, and a
 // second line would break the density of the whole index. It takes at most half the row, so a
@@ -32,58 +34,63 @@ const FROM = 'max-w-[45%] shrink-0 truncate text-muted-foreground';
 // military symbol must be able to name what the frame says, and only words can do that.
 const READING = 'max-w-[40%] truncate text-muted-foreground';
 
-export function IndexRows({ facet, entities, selectedId, onSelect }: IndexRowsProps) {
+export function IndexRows({ facet, lines, onSelect, onOpen }: IndexRowsProps) {
   return (
     <div role="group" aria-label={facet.type} data-type={facet.type}>
       {/* Departure: a facet exists only for a type with a drawn entity, so an empty list is a
-          filter that holds no name of this type. */}
-      {entities.length === 0 ? (
+          filter, or closed units, that leave no entity of this type. */}
+      {lines.length === 0 ? (
         <p data-no-match="" className="flex h-6 items-center px-1.5 text-xs text-label">
-          No name holds the filter.
+          No entity here holds the filter, or each one is folded under a closed unit.
         </p>
       ) : null}
       {/* The key is `id`. `fid` is a position in an array that MapLibre needs, not an identity. */}
-      {entities.map((entity) => {
+      {lines.map((line) => {
+        const { entity } = line;
         const said = entity.symbol?.words ?? null;
         return (
-          <button
-            key={entity.id}
-            type="button"
-            data-row=""
-            data-id={entity.id}
-            ref={entity.id === selectedId ? reveal : undefined}
-            aria-current={entity.id === selectedId ? 'true' : undefined}
-            onClick={() => {
-              onSelect(entity.id);
-            }}
-            className={cn(
-              LINE,
-              // `duration-100` alone gives `transition-property: all`, which moves everything.
-              'transition-colors duration-100',
-              // The focus ring of the kit, exactly. `ring` alone paints at rest, and with no
-              // colour utility it paints `currentcolor` and not the token.
-              'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-              entity.id === selectedId ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
-            )}
-          >
-            <UnitSymbol symbol={entity.symbol} />
-            <span className={NAME} title={entity.label}>
-              {entity.label}
-            </span>
-            {said === null ? null : (
-              <span className={READING} data-symbol-words="" title={said}>
-                {said}
+          // The fold control and the row are two targets, so they stand side by side, and never
+          // one inside the other.
+          <div key={entity.id} className="flex h-6 items-center">
+            <FolderToggle unit={line} name={entity.label} onOpen={onOpen} />
+            <button
+              type="button"
+              data-row=""
+              data-id={entity.id}
+              ref={line.selected ? reveal : undefined}
+              aria-current={line.selected ? 'true' : undefined}
+              onClick={() => {
+                onSelect(entity.id);
+              }}
+              className={cn(
+                LINE,
+                // `duration-100` alone gives `transition-property: all`, which moves everything.
+                'transition-colors duration-100',
+                // The focus ring of the kit, exactly. `ring` alone paints at rest, and with no
+                // colour utility it paints `currentcolor` and not the token.
+                'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+                line.selected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+              )}
+            >
+              <UnitSymbol symbol={entity.symbol} />
+              <span className={NAME} title={entity.label}>
+                {entity.label}
               </span>
-            )}
-            {/* The halo on the canvas says THAT the position is borrowed; this row is not the
-              canvas, so the words are the only thing that can say it here. They carry the same
-              wording as the hover label and the detail panel, from one function. */}
-            {entity.positionFrom === null ? null : (
-              <span className={FROM} data-position-from="">
-                {entity.positionFrom}
-              </span>
-            )}
-          </button>
+              {said === null ? null : (
+                <span className={READING} data-symbol-words="" title={said}>
+                  {said}
+                </span>
+              )}
+              {/* The halo on the canvas says THAT the position is borrowed; this row is not the
+                canvas, so the words are the only thing that can say it here. They carry the same
+                wording as the hover label and the detail panel, from one function. */}
+              {entity.positionFrom === null ? null : (
+                <span className={FROM} data-position-from="">
+                  {entity.positionFrom}
+                </span>
+              )}
+            </button>
+          </div>
         );
       })}
     </div>

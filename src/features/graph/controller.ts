@@ -10,6 +10,7 @@ import {
   relationLines,
 } from '@/shared/canvas-label';
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
+import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
 import {
@@ -23,15 +24,9 @@ import {
   type NodeAttrs,
 } from './model';
 import { graphPositions } from './positions';
-import { patchGraphWorkspace, readGraphWorkspace, type GraphWorkspace } from './workspace';
-
-/** What is examined. This file is the authority on it, and every reader takes this declaration. */
-export interface GraphSelection {
-  readonly kind: 'entity' | 'relation';
-  readonly id: string;
-}
-
-export type FilterState = Pick<GraphWorkspace, 'hiddenTypes'>;
+import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
+import type { FilterState } from './type-filter';
+import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
 export interface GraphView {
   readonly selection: GraphSelection | null;
@@ -41,18 +36,24 @@ export interface GraphView {
   /** How many elements carry a marker, and how many carry pending evidence and none. */
   readonly markersDrawn: number;
   readonly markersOverCap: number;
+  /** The units whose subordinates the rail list shows. The canvas draws each unit either way. */
+  readonly openUnits: ReadonlySet<string>;
   /** How many entities the layout run never placed, and the canvas draws on the band. */
   readonly unplaced: number;
   readonly railOpen: boolean;
+  readonly railWidth: number;
 }
 
 export interface GraphController {
   readonly model: GraphModel;
-  /** Departure: a selection moves no camera. `flyTo` and `showWholeGraph` move it. */
+  /** Departure: a selection moves no camera. It opens each unit that folds it in the list. */
   readonly select: (selection: GraphSelection | null) => void;
+  readonly setUnitOpen: (unit: string, open: boolean) => void;
   readonly setFilter: (patch: Partial<FilterState>) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
+  /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
+  readonly setRailWidth: (width: number) => void;
   readonly flyTo: (id: string) => void;
   readonly showWholeGraph: () => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
@@ -157,6 +158,12 @@ export function mountGraph(
   let filter: FilterState = { hiddenTypes: [...stored.hiddenTypes] };
   let hidden = new Set(filter.hiddenTypes);
   let railOpen = stored.railOpen;
+  let railWidth = stored.railWidth;
+
+  // Departure: the open units die with the canvas. A fold is a step of one reading, and every
+  // unit starts closed, so an open always lists the tops of the hierarchy first.
+  const hierarchy = model.hierarchy;
+  const folds = foldEveryUnit(hierarchy);
 
   let destroyed = false;
   const listeners = new Set<(view: GraphView) => void>();
@@ -191,14 +198,14 @@ export function mountGraph(
   // selection dim as well, and they must not stop a click on a node on the other side.
   const passesFilter = (attrs: NodeAttrs): boolean => !hidden.has(attrs.entityType);
 
-  const nodePassesFilter = (node: string): boolean =>
+  const nodeConsidered = (node: string): boolean =>
     model.graph.hasNode(node) && passesFilter(model.graph.getNodeAttributes(node));
 
   /** A relation is in consideration while both of its endpoints are. */
-  const edgePassesFilter = (edge: string): boolean =>
+  const edgeConsidered = (edge: string): boolean =>
     model.graph.hasEdge(edge) &&
-    nodePassesFilter(model.graph.source(edge)) &&
-    nodePassesFilter(model.graph.target(edge));
+    nodeConsidered(model.graph.source(edge)) &&
+    nodeConsidered(model.graph.target(edge));
 
   let selection: GraphSelection | null = null;
 
@@ -206,8 +213,8 @@ export function mountGraph(
   // filter puts out of consideration.
   const acceptable = (candidate: GraphSelection | null): GraphSelection | null => {
     if (candidate === null) return null;
-    if (candidate.kind === 'entity') return nodePassesFilter(candidate.id) ? candidate : null;
-    return edgePassesFilter(candidate.id) ? candidate : null;
+    if (candidate.kind === 'entity') return nodeConsidered(candidate.id) ? candidate : null;
+    return edgeConsidered(candidate.id) ? candidate : null;
   };
 
   // The walk steps through the nodes that pass the filter only: out of consideration is out of
@@ -328,9 +335,9 @@ export function mountGraph(
 
     nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
       if (litNodes.has(node)) return { ...data };
-      // A filter dims. **It never hides.** So `hidden` stays false, the node keeps
-      // its position, and only the paint changes. The label goes, because an element that is out
-      // of consideration does not name itself.
+      // A filter dims. **It never hides.** So `hidden` stays false for a node the filter puts
+      // out, it keeps its position, and only the paint changes. The label goes, because an
+      // element that is out of consideration does not name itself.
       return { ...data, color: dimOf(data.color), label: null };
     },
 
@@ -469,8 +476,10 @@ export function mountGraph(
     dimmed,
     markersDrawn: markerTargets.length,
     markersOverCap,
+    openUnits: folds.open,
     unplaced: placement.unplaced,
     railOpen,
+    railWidth,
   });
 
   const publish = (): void => {
@@ -483,36 +492,12 @@ export function mountGraph(
     for (const listener of [...selectListeners]) listener(selection);
   };
 
-  const readAddress = (): GraphSelection | null => {
-    const params = new URLSearchParams(window.location.search);
-    // An empty value is not an identifier, and a typed address can still carry one. Read as an
-    // entity, `acceptable` drops it and the relation beside it is never read, so a relation
-    // cannot survive a reload.
-    const entity = params.get('entity');
-    if (entity !== null && entity !== '') return { kind: 'entity', id: entity };
-    const relation = params.get('relation');
-    if (relation !== null && relation !== '') return { kind: 'relation', id: relation };
-    return null;
-  };
-
-  // The write bypasses the router: a write through the router re-renders the route, which
-  // destroys the canvas and starts the layout again.
-  const writeAddress = (current: GraphSelection | null): void => {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('entity');
-    url.searchParams.delete('relation');
-    if (current !== null) url.searchParams.set(current.kind, current.id);
-    // The state of the router is carried through untouched. A `null` here would empty it.
-    const state: unknown = window.history.state;
-    window.history.replaceState(state, '', url);
-  };
-
   // Departure: it moves no camera. `flyTo` and `showWholeGraph` are the controls that move it.
   const settle = (next: GraphSelection | null): void => {
     const changed = !sameSelection(next, selection);
     selection = next;
     if (changed) {
-      writeAddress(selection);
+      writeSelectionAddress(selection);
       announce();
     }
     recount();
@@ -520,14 +505,30 @@ export function mountGraph(
     publish();
   };
 
+  // Departure: a selection that a closed unit folds opens the path down to it, so the rail list
+  // shows its row. The canvas draws it either way.
+  const reveal = (candidate: GraphSelection | null): void => {
+    if (candidate === null) return;
+    const graph = model.graph;
+    const ends: string[] = [];
+    if (candidate.kind === 'entity') ends.push(candidate.id);
+    else if (graph.hasEdge(candidate.id)) {
+      ends.push(graph.source(candidate.id), graph.target(candidate.id));
+    }
+    for (const end of ends) {
+      if (graph.hasNode(end) && passesFilter(graph.getNodeAttributes(end))) folds.reveal(end);
+    }
+  };
+
   // The address is read one time. A selection that names no drawn element, or one that the stored
-  // filter excludes, is dropped here.
-  const restored = readAddress();
+  // filter excludes, is dropped here. One that a unit folds is revealed first.
+  const restored = readSelectionAddress();
+  reveal(restored);
   selection = acceptable(restored);
   if (!sameSelection(restored, selection)) {
     // The address named an element that this graph does not mark. The address is corrected, so
     // that the picture and the address never state two different things.
-    writeAddress(selection);
+    writeSelectionAddress(selection);
   }
   // The restore does not go through `settle`, so nothing announces it here. `onSelect` seeds
   // every listener with the selection of the moment, and no subscriber can arrive too late.
@@ -581,13 +582,17 @@ export function mountGraph(
   // never hides, so the guard is here. There is no camera call in this handler, and that absence
   // is the rule.
   sigma.on('clickNode', ({ node }) => {
-    if (destroyed || !nodePassesFilter(node)) return;
-    settle({ kind: 'entity', id: node });
+    if (destroyed || !nodeConsidered(node)) return;
+    const next: GraphSelection = { kind: 'entity', id: node };
+    reveal(next);
+    settle(next);
   });
 
   sigma.on('clickEdge', ({ edge }) => {
-    if (destroyed || !edgePassesFilter(edge)) return;
-    settle({ kind: 'relation', id: edge });
+    if (destroyed || !edgeConsidered(edge)) return;
+    const next: GraphSelection = { kind: 'relation', id: edge };
+    reveal(next);
+    settle(next);
   });
 
   // A click on the ground clears the selection. The library emits this event only where it found
@@ -615,25 +620,29 @@ export function mountGraph(
     sigma.refresh();
   };
 
+  // **The name carries the count of relations.** This canvas sizes a node by its degree,
+  // and a size alone is unreadable to a reader who cannot compare two discs. The words the hue
+  // owes a reader live in the rail; the words the radius owes one live here.
+  const nodeLines = (node: string): readonly string[] => {
+    const lines = entityLines(
+      model.graph.getNodeAttribute(node, 'label'),
+      model.graph.getNodeAttribute(node, 'degree'),
+    );
+    const subordinates = hierarchy.subordinatesOf(node).length;
+    if (subordinates === 0) return lines;
+    return [...lines, subordinates === 1 ? '1 subordinate' : `${subordinates} subordinates`];
+  };
+
   sigma.on('enterNode', ({ node }) => {
-    if (!nodePassesFilter(node)) return;
-    // **The name carries the count of relations.** This canvas sizes a node by its degree,
-    // and a size alone is unreadable to a reader who cannot compare two discs. The words the hue
-    // owes a reader live in the rail; the words the radius owes one live here.
-    nameHover({
-      id: node,
-      lines: entityLines(
-        model.graph.getNodeAttribute(node, 'label'),
-        model.graph.getNodeAttribute(node, 'degree'),
-      ),
-    });
+    if (!nodeConsidered(node)) return;
+    nameHover({ id: node, lines: nodeLines(node) });
   });
   sigma.on('leaveNode', ({ node }) => {
     if (hovered?.id === node) nameHover(null);
   });
 
   sigma.on('enterEdge', ({ edge }) => {
-    if (!edgePassesFilter(edge)) return;
+    if (!edgeConsidered(edge)) return;
     const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
     const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
     const type = model.graph.getEdgeAttribute(edge, 'relationType');
@@ -668,7 +677,13 @@ export function mountGraph(
       // A control names an element, and this file states whether that element can take the
       // selection. Departure: the camera stays where it is; a control that moves it calls
       // `flyTo` or `showWholeGraph`.
+      reveal(next);
       settle(acceptable(next));
+    },
+    setUnitOpen: (unit, open) => {
+      if (destroyed || !nodeConsidered(unit) || !folds.setOpen(unit, open)) return;
+      // Departure: a fold changes the rail list alone, so it repaints no canvas.
+      publish();
     },
     setFilter: (patch) => {
       if (destroyed) return;
@@ -691,6 +706,12 @@ export function mountGraph(
       // the one store of it: `graph-page.tsx` held a React copy beside it, and a value in two
       // stores is a fault.
       patchGraphWorkspace({ railOpen: open });
+      publish();
+    },
+    setRailWidth: (width) => {
+      if (destroyed || width === railWidth) return;
+      railWidth = width;
+      patchGraphWorkspace({ railWidth: width });
       publish();
     },
     flyTo: (id) => {

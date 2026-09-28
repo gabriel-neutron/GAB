@@ -1,66 +1,34 @@
 import { nameHoldsQuery } from '@/shared/name-match';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
-import type { GraphSelection } from './controller';
-import type { FilterState } from './controller';
+import type { GraphView } from './controller';
+import { openEntityList, type EntityMatch, type RailOpenList } from './entity-list';
 import type { GraphModel } from './model';
-import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
-
-// This graph holds thousands of entities of one type, and a rail of 2500 rows is not a rail. The
-// number is the one the accepted prototype used, and it is a tuning value. The remainder is
-// stated beside the list.
-const LIST_CAP = 60;
-
-export interface RailStep {
-  readonly openTypes: readonly string[];
-  readonly wholeList: readonly string[];
-}
-
-export interface RailEntityRow {
-  readonly id: string;
-  readonly label: string;
-  readonly degree: number;
-  readonly selected: boolean;
-}
-
-export interface RailOpenList {
-  readonly type: string;
-  readonly entities: readonly RailEntityRow[];
-  readonly remainder: number;
-}
+import type { RailStep } from './rail-step';
 
 export interface GraphRailRows {
   readonly rail: RailRows;
   readonly lists: ReadonlyMap<string, RailOpenList>;
 }
 
-// The workspace holds the types that are switched off, and not the types shown. A control that
-// computed the set for itself would hold that polarity in a second file.
-export function hiddenAfterSwitch(
-  filter: FilterState,
-  type: string,
-  on: boolean,
-): readonly string[] {
-  const hidden = new Set(filter.hiddenTypes);
-  if (on) hidden.delete(type);
-  else hidden.add(type);
-  return [...hidden];
-}
-
-export const everyTypeShown = (): readonly string[] => DEFAULT_GRAPH_WORKSPACE.hiddenTypes;
+export type RailView = Pick<
+  GraphView,
+  'filter' | 'selection' | 'openUnits' | 'railOpen' | 'railWidth'
+>;
 
 // The controller already drops a selection the filter excludes. The test below states that rule a
 // second time, because a row that says "selected" about an excluded element is a lie on screen.
 export function deriveRailRows(
   model: GraphModel,
-  filter: FilterState,
+  view: RailView,
   step: RailStep,
-  selection: GraphSelection | null,
-  open: boolean,
   query: string,
 ): GraphRailRows {
+  const { filter, selection, openUnits } = view;
   const hidden = new Set(filter.hiddenTypes);
 
+  // Departure: a type row counts every node of its type, and a fold of the list does not change
+  // it.
   const counts = new Map<string, number>();
   model.graph.forEachNode((_node, attrs) => {
     counts.set(attrs.entityType, (counts.get(attrs.entityType) ?? 0) + 1);
@@ -75,7 +43,7 @@ export function deriveRailRows(
   // Departure: under a filter every type that is on gets a list, so the walk finds each type
   // that holds a match. Without a filter only the types the analyst opened get one.
   const filtering = query.trim() !== '';
-  const matching = new Map<string, RailEntityRow[]>();
+  const matching = new Map<string, EntityMatch[]>();
   for (const type of filtering ? names : step.openTypes) {
     if (!counts.has(type) || hidden.has(type)) continue;
     matching.set(type, []);
@@ -85,12 +53,7 @@ export function deriveRailRows(
   if (matching.size > 0) {
     model.graph.forEachNode((node, attrs) => {
       if (!nameHoldsQuery(attrs.label, query)) return;
-      matching.get(attrs.entityType)?.push({
-        id: node,
-        label: attrs.label,
-        degree: attrs.degree,
-        selected: node === selectedId,
-      });
+      matching.get(attrs.entityType)?.push({ id: node, label: attrs.label, degree: attrs.degree });
     });
   }
 
@@ -126,21 +89,22 @@ export function deriveRailRows(
   const lists = new Map<string, RailOpenList>();
   for (const [type, matches] of matching) {
     if (!openTypes.includes(type)) continue;
-    // The hubs come first, and the name is the tie-break, so the same corpus gives the same head
-    // on every open. The degree alone does not promise that.
-    matches.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
-
     const whole = step.wholeList.includes(type);
-    const drawn = whole ? matches : matches.slice(0, LIST_CAP);
-    lists.set(type, {
+    lists.set(
       type,
-      entities: drawn,
-      remainder: matches.length - drawn.length,
-    });
+      openEntityList(model.hierarchy, type, matches, { openUnits, selectedId, filtering, whole }),
+    );
   }
 
   return {
-    rail: { types, links: null, openTypes, everyTypeOff, open },
+    rail: {
+      types,
+      links: null,
+      openTypes,
+      everyTypeOff,
+      open: view.railOpen,
+      width: view.railWidth,
+    },
     lists,
   };
 }

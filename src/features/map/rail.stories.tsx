@@ -13,7 +13,7 @@ import { entitiesOfType, project, type GeoLink } from './projection';
 import { Rail } from './rail';
 
 // No story mounts a live canvas: `MapHandle` is a type, so the double below is a plain object.
-// The rail is 240px open (`w-60`) and a 44px strip closed (`w-11`).
+// The rail opens at the stored width, 240px by default, and folds to a 44px strip.
 const projection = project(corpus, entityTypes);
 
 interface TestMap {
@@ -21,6 +21,7 @@ interface TestMap {
   readonly map: RefObject<MapHandle | null>;
   readonly flown: string[];
   readonly switched: { type: string; visible: boolean }[];
+  readonly unitsOpened: { unit: string; open: boolean }[];
   readonly linksSwitched: boolean[];
   readonly grounds: Ground[];
 }
@@ -32,6 +33,10 @@ function testMap(
   chosen: GeoLink | null = null,
 ): TestMap {
   const off = new Set<string>(hidden);
+  // The double opens the units above a selection, as the adapter does.
+  let openUnits: ReadonlySet<string> =
+    selected === null ? new Set() : projection.hierarchy.revealing(new Set(), selected);
+  const unitsOpened: { unit: string; open: boolean }[] = [];
   const listeners = new Set<(id: string | null) => void>();
   const flown: string[] = [];
   const switched: { type: string; visible: boolean }[] = [];
@@ -65,6 +70,9 @@ function testMap(
     },
     select: (id) => {
       const entity = id === null ? undefined : projection.byId.get(id);
+      if (entity !== undefined && !off.has(entity.type)) {
+        openUnits = projection.hierarchy.revealing(openUnits, entity.id);
+      }
       announce(entity === undefined || off.has(entity.type) ? null : entity.id);
     },
     onSelect: (listener) => {
@@ -89,6 +97,15 @@ function testMap(
       if (entity?.type === type) announce(null);
     },
     isTypeVisible: (type) => !off.has(type),
+    setUnitOpen: (unit, open) => {
+      unitsOpened.push({ unit, open });
+      openUnits = open
+        ? new Set([...openUnits, unit])
+        : projection.hierarchy.closing(openUnits, unit);
+    },
+    get openUnits() {
+      return openUnits;
+    },
     setLinksVisible: (visible) => {
       linksSwitched.push(visible);
       linksHidden = !visible;
@@ -125,7 +142,7 @@ function testMap(
     },
   };
 
-  return { map: { current: handle }, flown, switched, linksSwitched, grounds };
+  return { map: { current: handle }, flown, switched, unitsOpened, linksSwitched, grounds };
 }
 
 const facetOf = (type: string): { readonly type: string; readonly count: number } => {
@@ -163,14 +180,15 @@ const revealOnly = testMap([], UNITS[1]?.id ?? null);
 const foldedOnly = testMap([], firstOf(UNITS, 'military unit').id);
 const clickedOnly = testMap([], null);
 const linksOnly = testMap([], null);
+const unitOnly = testMap([], null);
 
 const meta = {
   component: Rail,
   args: {
     projection,
     map: switchOnly.map,
-    open: true,
-    onOpenChange: () => {
+    frame: { open: true, width: 240 },
+    onFrameChange: () => {
       // The workspace write belongs to the caller, and no story asserts on it.
     },
   },
@@ -236,7 +254,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   play: async ({ canvas }) => {
     await document.fonts.ready;
 
-    // The width of the open rail is part of the contract: 240px.
+    // The rail opens at the width the caller stored.
     const rail = canvas.getByRole('complementary', { name: 'Layers' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(240);
 
@@ -266,6 +284,33 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
 
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(reachOnly.flown).toContain(target.id);
+  },
+};
+
+// Departure: the chain of command is a folder. A closed unit lists no subordinate, because the
+// map draws none, and the open goes to the adapter, which is the one holder of the folds.
+export const AUnitOpensItsSubordinatesThroughTheOneWriter: Story = {
+  args: { map: unitOnly.map },
+  play: async ({ canvas, canvasElement }) => {
+    const parent = firstOf(UNITS, 'military unit');
+    const child = UNITS[1];
+    if (child === undefined) throw new Error('The fixture draws fewer than two military units.');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the military_unit list' }));
+    await expect(rowsIn(canvasElement)).toHaveLength(1);
+    const total = String(UNITS.length);
+    await expect(canvas.getByRole('button', { name: /^military_unit/ })).toHaveTextContent(total);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Open the 1 subordinate of ${parent.label}` }),
+    );
+
+    await expect(unitOnly.unitsOpened).toStrictEqual([{ unit: parent.id, open: true }]);
+    await expect(rowsIn(canvasElement).map((row) => row.dataset['id'])).toEqual([
+      parent.id,
+      child.id,
+    ]);
+    await expect(canvas.getByRole('button', { name: /^military_unit/ })).toHaveTextContent(total);
   },
 };
 

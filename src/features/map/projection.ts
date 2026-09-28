@@ -1,5 +1,6 @@
 import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
+import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
 import type {
   Attributes,
   Corpus,
@@ -73,6 +74,8 @@ export interface Projection {
   readonly linksByEntity: ReadonlyMap<string, readonly GeoLink[]>;
   /** West, south, east, north. `null` when nothing can be drawn. */
   readonly bounds: readonly [number, number, number, number] | null;
+  /** The chain of command between the drawn entities. The rail folds its list by it. */
+  readonly hierarchy: UnitHierarchy;
 }
 
 // A point sits on dark imagery, so this surface takes the declared dark hue on the two themes.
@@ -99,11 +102,13 @@ export interface RailLegend {
   /** How many entities the map draws now. A type that switches off lowers it. */
   readonly drawn: number;
   readonly drawnTypes: ReadonlySet<string>;
+  readonly openUnits: ReadonlySet<string>;
 }
 
 export function railLegend(
   projection: Projection,
   isTypeVisible: (type: string) => boolean,
+  openUnits: ReadonlySet<string>,
 ): RailLegend {
   const facets: readonly RailFacet[] = projection.types.map((facet) => ({
     facet,
@@ -120,7 +125,7 @@ export function railLegend(
     drawnTypes.add(entry.facet.type);
   }
 
-  return { facets, drawn, drawnTypes };
+  return { facets, drawn, drawnTypes, openUnits };
 }
 
 /**
@@ -129,12 +134,13 @@ export function railLegend(
 export function railRows(
   legend: RailLegend,
   openTypes: readonly string[],
-  open: boolean,
+  frame: Pick<RailRows, 'open' | 'width'>,
   linksOn: boolean,
 ): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
     initial: facet.type.slice(0, 1).toUpperCase(),
+    // Departure: the count is the whole type, and a fold of the list does not change it.
     count: facet.count,
     on: !hidden,
     open: openTypes.includes(facet.type),
@@ -156,7 +162,8 @@ export function railRows(
     },
     openTypes,
     everyTypeOff: types.length > 0 && types.every((row) => !row.on),
-    open,
+    open: frame.open,
+    width: frame.width,
   };
 }
 
@@ -237,15 +244,15 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     }
   }
 
-  const bounds =
+  const bounds: Projection['bounds'] =
     entities.length === 0
       ? null
-      : ([
+      : [
           Math.min(...entities.map((entity) => entity.lon)),
           Math.min(...entities.map((entity) => entity.lat)),
           Math.max(...entities.map((entity) => entity.lon)),
           Math.max(...entities.map((entity) => entity.lat)),
-        ] as const);
+        ];
 
   return {
     entities,
@@ -257,5 +264,6 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     byLinkFid: new Map(links.map((link) => [link.fid, link])),
     linksByEntity,
     bounds,
+    hierarchy: unitHierarchy(read.relations, new Set(byId.keys())),
   };
 }

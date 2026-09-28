@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { RailRows } from '@/shared/rail';
 import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
 import { mountMap, type MapHandle } from './adapter';
@@ -27,7 +28,7 @@ export interface MapPageProps {
   readonly onChooseRelation: (id: string | null) => void;
 }
 
-// Two React values sit in an ancestor of the canvas: `mapReady` and `railOpen`. Neither is the
+// Two React values sit in an ancestor of the canvas: `mapReady` and `railFrame`. Neither is the
 // instance, the camera, the style or the selection, and the element that carries the canvas is
 // memoised on an empty list. So no render of these two can reach the live element.
 export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPageProps) {
@@ -44,11 +45,14 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
   // The rail takes this as a prop, so the rail reads no `localStorage` and stays storiable. This
   // file patches the workspace: the record has four writers, and a writer that holds a partial
   // record erases the fields of the others.
-  const [railOpen, setRailOpen] = useState<boolean>(() => readMapWorkspace().railOpen);
+  const [railFrame, setRailFrame] = useState<Pick<RailRows, 'open' | 'width'>>(() => {
+    const stored = readMapWorkspace();
+    return { open: stored.railOpen, width: stored.railWidth };
+  });
 
-  const changeRailOpen = useCallback((next: boolean) => {
-    setRailOpen(next);
-    patchMapWorkspace({ railOpen: next });
+  const changeRailFrame = useCallback((next: Pick<RailRows, 'open' | 'width'>) => {
+    setRailFrame(next);
+    patchMapWorkspace({ railOpen: next.open, railWidth: next.width });
   }, []);
 
   // `adapter.ts` keys each feature of the style to the `fid` of this projection, and `fid` is a
@@ -97,7 +101,12 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
   return (
     <div className="flex h-full">
       {mapReady ? (
-        <Rail projection={projection} map={handle} open={railOpen} onOpenChange={changeRailOpen} />
+        <Rail
+          projection={projection}
+          map={handle}
+          frame={railFrame}
+          onFrameChange={changeRailFrame}
+        />
       ) : null}
       <div className="relative flex min-w-0 flex-1">
         {canvas}

@@ -19,6 +19,8 @@ export interface MapWorkspace {
   readonly hiddenTypes: readonly string[];
   readonly linksHidden: boolean;
   readonly railOpen: boolean;
+  /** The width of the open rail, in pixels. The rail clamps it where it draws it. */
+  readonly railWidth: number;
   readonly ground: Ground;
   readonly imagery: Imagery;
 }
@@ -28,22 +30,23 @@ export const DEFAULT_WORKSPACE: MapWorkspace = {
   hiddenTypes: [],
   linksHidden: false,
   railOpen: true,
+  railWidth: 240,
   ground: 'plan',
   imagery: DEFAULT_IMAGERY,
 };
 
-const isCamera = (value: unknown): value is Camera => {
-  if (typeof value !== 'object' || value === null) return false;
-  const c = value as Record<string, unknown>;
-  return (
-    typeof c['lon'] === 'number' &&
-    typeof c['lat'] === 'number' &&
-    typeof c['zoom'] === 'number' &&
-    Number.isFinite(c['lon']) &&
-    Number.isFinite(c['lat']) &&
-    Number.isFinite(c['zoom'])
-  );
-};
+const isCamera = (value: unknown): value is Camera =>
+  typeof value === 'object' &&
+  value !== null &&
+  'lon' in value &&
+  'lat' in value &&
+  'zoom' in value &&
+  typeof value.lon === 'number' &&
+  typeof value.lat === 'number' &&
+  typeof value.zoom === 'number' &&
+  Number.isFinite(value.lon) &&
+  Number.isFinite(value.lat) &&
+  Number.isFinite(value.zoom);
 
 // The compiler holds this list closed: a key added to `MapWorkspace` and forgotten here fails the
 // type check, so the guard below cannot fall behind the interface it guards.
@@ -52,6 +55,7 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   hiddenTypes: true,
   linksHidden: true,
   railOpen: true,
+  railWidth: true,
   ground: true,
   imagery: true,
 };
@@ -67,6 +71,8 @@ const isWorkspace = (value: unknown): value is MapWorkspace => {
     hidden.every((type) => typeof type === 'string') &&
     typeof w['linksHidden'] === 'boolean' &&
     typeof w['railOpen'] === 'boolean' &&
+    typeof w['railWidth'] === 'number' &&
+    Number.isFinite(w['railWidth']) &&
     (w['ground'] === 'plan' || w['ground'] === 'imagery') &&
     isImagery(w['imagery'])
   );

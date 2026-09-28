@@ -1,6 +1,5 @@
-// The layer control that the map and the graph both draw. It owns the control and never the
-// row: the map draws a name alone, the graph a name and a degree, so each caller passes its own
-// list in. It derives nothing, holds no state, and reads no library and no `localStorage`.
+// Departure: the map and the graph draw different rows, so each caller passes its own list in.
+// This control derives nothing, reads no `localStorage`, and holds only the width of a live drag.
 
 import {
   ChevronDown,
@@ -10,90 +9,82 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { RAIL_WIDTH, railWidthWithin } from '@/shared/rail-width';
 
-/** One type row of the first step. Every word of it is written by the caller's derivation. */
 export interface RailTypeRow {
   readonly type: string;
-  /** The one letter the folded strip draws where there is no colour. A strip fits no word. */
+  /** Departure: the folded strip fits no word, so it draws this letter where no colour is. */
   readonly initial: string;
-  /** How many entities of this type the surface draws now. */
   readonly count: number;
-  /** Whether this type is in consideration. */
   readonly on: boolean;
-  /** Whether the index of this type is unfolded. One type at a time. */
   readonly open: boolean;
-  // One icon, two names: the map hides a layer and the graph dims one. A struck-out eye claims
-  // the first on both, so the icon is hidden from a reader and these words carry the state.
+  // Departure: the map hides a layer and the graph dims one, and a struck-out eye claims the
+  // first on both. So the icon is hidden from a reader, and these words carry the state.
   readonly stateWord: string;
-  // The accessible name of the row in the folded strip, which has no room for the words beside
-  // the count. The caller writes it, so a name never says "on the map" about a graph.
+  // Departure: the folded strip has no room for the words beside the count. The caller writes
+  // this name, so a name never says "on the map" about a graph.
   readonly name: string;
-  // A CSS custom property never reaches a map or a graph style parser, so this is a colour
-  // value and no class can carry it. `null` where the surface paints no hue.
+  // External constraint: a CSS custom property never reaches a map or a graph style parser, so
+  // this is a colour value and no class can carry it. `null` where the surface paints no hue.
   readonly colour: string | null;
 }
 
-/** The master control of the relation lines. The caller writes every word of it. */
 export interface RailLinksRow {
   readonly on: boolean;
-  /** The words beside the control, where the rail is open. */
   readonly label: string;
-  /** The accessible name, which says the state as well: the strip has no room for a word. */
+  /** Departure: the name says the state as well, because the strip has no room for a word. */
   readonly name: string;
 }
 
 export interface RailRows {
   readonly types: readonly RailTypeRow[];
-  /** `null` where the surface draws no relation line, and that surface gets no control. */
+  /** Departure: `null` where the surface draws no relation line, so it gets no control. */
   readonly links: RailLinksRow | null;
-  // More than one type may stand unfolded, so an analyst reads two lists beside each other.
+  // Departure: more than one type may stand unfolded, so an analyst reads two lists side by side.
   readonly openTypes: readonly string[];
-  /** A control that can exclude everything says so, and carries the way back. */
   readonly everyTypeOff: boolean;
-  /** Whether the rail shows its index. The workspace holds it. */
   readonly open: boolean;
+  readonly width: number;
 }
 
-// A closed set, so no caller can build an act this control cannot make. Each act says what
-// happened and never what the store should become: a single act that carried a whole set would
-// put the polarity of one surface into a control that both surfaces use.
+// Departure: each act says what happened and never what the store becomes. An act that carried
+// a whole set would put the polarity of one surface into a control that both surfaces use.
 export type RailAct =
   | { readonly kind: 'open-rail'; readonly open: boolean }
   | { readonly kind: 'switch-type'; readonly type: string; readonly on: boolean }
   | { readonly kind: 'switch-links'; readonly on: boolean }
-  // It names the type and the state it asked for, as `switch-type` does, because more than one
-  // may stand open.
+  // Departure: a drag says its width once, at its end, so a store takes one write per drag.
+  | { readonly kind: 'resize-rail'; readonly width: number }
+  // Departure: it names the type and the state, as `switch-type` does, because more than one
+  // type may stand open.
   | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
   | { readonly kind: 'show-every-type' };
 
 export interface RailProps {
-  /** Every row the rail draws. The caller's derivation sorted, counted and worded each one. */
   readonly rows: RailRows;
   readonly onAct: (act: RailAct) => void;
-  // A function of the type and not of one node: more than one type may stand unfolded, so this
-  // control asks the caller for each list it has room to draw and holds none of its own.
+  // Departure: a function of the type and not one node. More than one type may stand unfolded,
+  // so this control asks the caller for each list it has room for, and holds none of its own.
   readonly index: (type: string) => ReactNode;
-  // The map rail is a solid column beside the canvas and the graph rail floats over it. A
-  // shared file takes `className` exactly where two callers differ, and this is that case.
+  // Departure: the map rail is a solid column beside the canvas, and the graph rail floats over
+  // it. A shared file takes `className` exactly where two callers differ.
   readonly className?: string;
 }
 
-/** The region one fold control opens. One type, one region. */
 const listId = (type: string): string => `rail-index-${type}`;
 
-// `ring` on its own paints at rest and paints `currentcolor`, so the three focus utilities stay
-// together, and the border is transparent and one pixel because `focus-visible:border-ring`
-// paints nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
+// External constraint: `ring` alone paints at rest in `currentcolor`, and a border ring paints
+// nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
   'pointer-events-auto flex h-6 items-center border border-transparent text-left',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-/** A column of figures lines up, and it does not jump as a digit is added. */
+/** External constraint: proportional digits jump as a digit is added, and these do not. */
 const FIGURE = 'shrink-0 font-mono tabular-nums';
 
 interface SwatchProps {
@@ -101,8 +92,8 @@ interface SwatchProps {
   readonly on: boolean;
 }
 
-// The hue is never the only mark, so the state is written in words beside this swatch. Where
-// the hue is not the encoding the caller sends `null` and the initial takes this place.
+// Departure: the hue is never the only mark, so words beside this swatch carry the state. Where
+// the hue is not the encoding, the caller sends `null` and the initial takes this place.
 function Swatch({ colour, on }: SwatchProps) {
   return (
     <span
@@ -113,24 +104,100 @@ function Swatch({ colour, on }: SwatchProps) {
   );
 }
 
+// Origin: one arrow key moves the edge by 16px, four steps of the grid, so a keyboard crosses the
+// whole range in about twenty presses.
+const KEY_STEP = 16;
+
+interface ResizeEdgeProps {
+  readonly width: number;
+  readonly onDrag: (width: number | null) => void;
+  readonly onAct: (act: RailAct) => void;
+}
+
+// External constraint: the pointer capture keeps each move on this edge while the pointer is over
+// a canvas, and a canvas that took the moves would pan under the drag.
+function ResizeEdge({ width, onDrag, onAct }: ResizeEdgeProps) {
+  const start = useRef<{ readonly x: number; readonly width: number } | null>(null);
+  const last = useRef(width);
+
+  const widthAt = (event: PointerEvent<HTMLDivElement>): number | null =>
+    start.current === null
+      ? null
+      : railWidthWithin(start.current.width + event.clientX - start.current.x);
+
+  const stop = (event: PointerEvent<HTMLDivElement>): void => {
+    const next = widthAt(event);
+    // Departure: `width` already tracks the live drag, so it near-always equals `next` here and
+    // the write would be skipped. The width the drag started from is the one to compare against.
+    const before = start.current?.width ?? null;
+    start.current = null;
+    onDrag(null);
+    if (next !== null && next !== before) onAct({ kind: 'resize-rail', width: next });
+  };
+
+  const step = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const by = event.key === 'ArrowLeft' ? -KEY_STEP : event.key === 'ArrowRight' ? KEY_STEP : 0;
+    if (by === 0) return;
+    event.preventDefault();
+    const next = railWidthWithin(width + by);
+    if (next !== width) onAct({ kind: 'resize-rail', width: next });
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Rail width"
+      aria-valuenow={width}
+      aria-valuemin={RAIL_WIDTH.min}
+      aria-valuemax={RAIL_WIDTH.max}
+      tabIndex={0}
+      data-rail-edge=""
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        start.current = { x: event.clientX, width };
+        last.current = width;
+      }}
+      onPointerMove={(event) => {
+        const next = widthAt(event);
+        if (next === null || next === last.current) return;
+        last.current = next;
+        onDrag(next);
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onKeyDown={step}
+      className={cn(
+        'pointer-events-auto absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none',
+        'transition-colors duration-100 hover:bg-ring/50',
+        'outline-none focus-visible:bg-ring/50',
+      )}
+    />
+  );
+}
+
 export function Rail({ rows, onAct, index, className }: RailProps) {
   const { open, links } = rows;
+  const [dragged, setDragged] = useState<number | null>(null);
+  const width = dragged ?? railWidthWithin(rows.width);
 
   return (
     <aside
       aria-label="Layers"
-      // One hairline separates two surfaces, and `border` is that token: `input` is the edge of a
-      // control. The caller states the ground, the width and any hairline of its own.
-      className={cn('flex flex-col text-xs', className)}
+      // Departure: the caller states the ground and any hairline of its own, and the rail states
+      // its width, so both callers clamp the stored width in one place.
+      style={open ? { width } : undefined}
+      className={cn('relative flex flex-col text-xs', open ? null : 'w-11', className)}
     >
+      {open ? <ResizeEdge width={width} onDrag={setDragged} onAct={onAct} /> : null}
       <div className="flex h-6 shrink-0 items-center gap-1 px-1.5">
         {open ? (
           <span className="min-w-0 flex-1 truncate text-small/4 tracking-caps text-label uppercase">
             Layers
           </span>
         ) : null}
-        {/* An icon-only control carries an `aria-label`. The label says the act, and
-            `aria-expanded` says the state. */}
+        {/* External constraint: an icon-only control has no name without `aria-label`. The
+            label says the act, and `aria-expanded` says the state. */}
         <button
           type="button"
           aria-expanded={open}
@@ -148,8 +215,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
         </button>
       </div>
 
-      {/* The master control of the lines: off draws none, on draws the lines of the selection.
-          It sits over the types, because it outranks each one of them. */}
+      {/* Departure: the master control of the lines sits over the types, because it outranks
+          each one of them. */}
       {links === null ? null : (
         <button
           type="button"
@@ -166,7 +233,6 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           )}
         >
           {open ? <span className="min-w-0 flex-1 truncate">{links.label}</span> : null}
-          {/* The glyph is hidden from a reader, and the accessible name carries the state. */}
           {links.on ? (
             <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
           ) : (
@@ -175,9 +241,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
         </button>
       )}
 
-      {/* A control that can exclude everything carries the way back. A prototype reached an
-          all-grey screen, and the filter is stored, so that screen survived a reload. The sentence
-          says the state, and the button restores the stored default of the caller. */}
+      {/* Departure: the filter is stored, so a screen with every type off survives a reload.
+          So the control that can exclude everything carries the way back to the default. */}
       {open && rows.everyTypeOff ? (
         <div className="flex shrink-0 flex-col gap-1 border-b border-border p-2">
           <p className="text-label">Every type is off. The surface draws none of the corpus.</p>
@@ -195,16 +260,14 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
       ) : null}
 
       <div className="pointer-events-auto min-h-0 flex-1 overflow-y-auto">
-        {/* The one `.map` of this file. It turns an already-derived array into elements, and the
-            two states of the control are two shapes of one entry — never two designs of the layer
-            panel, which is the fault the tracker names. */}
+        {/* Departure: the open rail and the strip are two shapes of one entry, and never two
+            designs of the layer panel. */}
         {rows.types.map((row) => (
           <div key={row.type} data-facet={row.type}>
             {open ? (
               <div className="flex h-6 items-center gap-1 px-1.5">
-                {/* Two targets on one row. The chevron names the region it opens only while
-                    that region exists: a closed row that named it sent a reader to an element
-                    that is not in the tree. */}
+                {/* External constraint: `aria-controls` must name an element in the tree, so
+                    the chevron names its region only while that region exists. */}
                 <button
                   type="button"
                   aria-expanded={row.open}
@@ -233,10 +296,11 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   <span className="min-w-0 flex-1 truncate" title={row.type}>
                     {row.type}
                   </span>
-                  {/* The count carries on the graph the weight a colour carries on the map. */}
+                  {/* Departure: the count carries on the graph the weight a hue carries on the
+                      map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.count}</span>
-                  {/* The glyph is hidden from a reader: one icon cannot say "hidden" on the
-                      map and "dimmed" on the graph, so these words carry the state. */}
+                  {/* Departure: one icon cannot say "hidden" on the map and "dimmed" on the
+                      graph, so the glyph is hidden and these words carry the state. */}
                   <span className="sr-only">{row.stateWord}</span>
                   {row.on ? (
                     <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
@@ -246,9 +310,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 </button>
               </div>
             ) : (
-              /* The strip is a control and not a caption: a click on a colour still switches
-                 the type. It has no room for the word, so the name the caller wrote carries
-                 the state instead. */
+              /* Departure: the strip is a control and not a caption, so a click on a colour
+                 still switches the type, and the name the caller wrote carries the state. */
               <button
                 type="button"
                 aria-pressed={row.on}
@@ -268,9 +331,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
               </button>
             )}
 
-            {/* The second step: the index of the type that is unfolded.
-
-                A type that is switched off has no index: the surface draws none of it. */}
+            {/* Departure: a type that is switched off has no index, because the surface draws
+                none of it. */}
             {open && row.open && row.on ? (
               <div id={listId(row.type)} className="px-1.5 pb-1">
                 {index(row.type)}

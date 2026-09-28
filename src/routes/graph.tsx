@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
-import type { GraphSelection } from '@/features/graph/controller';
+import type { GraphSelection } from '@/features/graph/selection';
 import { GraphPage } from '@/features/graph/graph-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadLayout } from '@/shared/read/layout';

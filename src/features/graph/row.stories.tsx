@@ -5,7 +5,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { buildGraphModel, type NodePosition } from './model';
-import { deriveRailRows } from './rail-rows';
+import { deriveRailRows, type RailView } from './rail-rows';
 import { IndexRows } from './row';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
@@ -28,17 +28,18 @@ const TYPE = (() => {
   return first[0];
 })();
 
-const listOf = (wholeList: readonly string[] = []) => {
-  const rows = deriveRailRows(
-    model,
-    { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
-    { openTypes: [TYPE], wholeList },
-    null,
-    true,
-    '',
-  );
-  const list = rows.lists.get(TYPE);
-  if (list === undefined) throw new Error(`The rail draws no list for ${TYPE}`);
+const VIEW: RailView = {
+  filter: { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
+  selection: null,
+  openUnits: new Set(),
+  railOpen: true,
+  railWidth: DEFAULT_GRAPH_WORKSPACE.railWidth,
+};
+
+const listOf = (wholeList: readonly string[] = [], type = TYPE, view = VIEW) => {
+  const rows = deriveRailRows(model, view, { openTypes: [type], wholeList }, '');
+  const list = rows.lists.get(type);
+  if (list === undefined) throw new Error(`The rail draws no list for ${type}`);
   return list;
 };
 
@@ -46,14 +47,15 @@ const LIST = listOf();
 
 const onSelect = fn();
 const onShowWholeList = fn();
+const onOpen = fn();
 
 const meta = {
   component: IndexRows,
   args: {
-    entities: LIST.entities,
-    remainder: LIST.remainder,
+    list: LIST,
     onSelect,
     onShowWholeList,
+    onOpen,
   },
 } satisfies Meta<typeof IndexRows>;
 
@@ -93,7 +95,10 @@ export const ARowReportsTheEntity: Story = {
 
 export const TheSelectedRowSaysSo: Story = {
   args: {
-    entities: LIST.entities.map((entity, index) => ({ ...entity, selected: index === 0 })),
+    list: {
+      ...LIST,
+      entities: LIST.entities.map((entity, index) => ({ ...entity, selected: index === 0 })),
+    },
   },
   play: async ({ canvasElement }) => {
     const marked = canvasElement.querySelectorAll('[data-row][aria-current="true"]');
@@ -103,7 +108,7 @@ export const TheSelectedRowSaysSo: Story = {
 
 /** The accessible name says the order, because "Show 40 more" alone does not say which 40. */
 export const TheRemainderIsTheControlThatOpensTheList: Story = {
-  args: { remainder: 40 },
+  args: { list: { ...LIST, remainder: 40 } },
   play: async ({ canvas, args }) => {
     const control = canvas.getByRole('button', {
       name: 'Show the remaining 40, most connected first',
@@ -135,11 +140,51 @@ export const NoRemainderDrawsNoLine: Story = {
 };
 
 export const AnEmptyListSaysNoNameMatches: Story = {
-  args: { entities: [], remainder: 0 },
+  args: { list: { ...LIST, entities: [], remainder: 0 } },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector('[data-no-match]')).not.toBeNull();
     await expect(canvasElement.querySelectorAll('[data-row]')).toHaveLength(0);
     await expect(canvasElement.querySelector('[data-column]')).toBeNull();
     await expect(canvasElement.querySelector('[data-remainder]')).toBeNull();
+  },
+};
+
+const UNIT_TYPE = 'military_unit';
+
+const PARENT = (() => {
+  const found = model.graph
+    .nodes()
+    .find(
+      (node) =>
+        model.graph.getNodeAttribute(node, 'entityType') === UNIT_TYPE &&
+        model.hierarchy.subordinatesOf(node).length > 0,
+    );
+  if (found === undefined) throw new Error('The committed corpus holds no unit with a subordinate');
+  return found;
+})();
+
+// Departure: the chain of command is a folder of the list. A closed unit lists no subordinate,
+// the canvas still draws each one, and the control reports the open to the caller.
+export const AClosedUnitListsNoSubordinate: Story = {
+  args: { list: listOf([], UNIT_TYPE) },
+  play: async ({ canvasElement, args }) => {
+    const toggle = canvasElement.querySelector<HTMLElement>(`[data-folder="${PARENT}"]`);
+    if (toggle === null) throw new Error('The list draws no fold control for the unit');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(canvasElement.querySelector('[data-depth]')).toBeNull();
+
+    await userEvent.click(toggle);
+    await expect(args.onOpen).toHaveBeenCalledWith(PARENT, true);
+  },
+};
+
+export const AnOpenUnitListsItsSubordinateOneLevelDown: Story = {
+  args: { list: listOf([], UNIT_TYPE, { ...VIEW, openUnits: new Set([PARENT]) }) },
+  play: async ({ canvasElement }) => {
+    const [child] = model.hierarchy.subordinatesOf(PARENT);
+    const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
+    const ids = rows.map((row) => row.dataset['id']);
+    await expect(ids.indexOf(child)).toBe(ids.indexOf(PARENT) + 1);
+    await expect(canvasElement.querySelector('[data-depth="1"]')).not.toBeNull();
   },
 };

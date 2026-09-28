@@ -7,7 +7,7 @@ import { openTypesUnderFilter } from './open-under-filter';
 import { project, railLegend } from './projection';
 
 const projection = project(corpus, entityTypes);
-const legend = railLegend(projection, () => true);
+const legend = railLegend(projection, () => true, new Set());
 
 const first = projection.entities[0];
 if (first === undefined) throw new Error('The committed corpus draws no entity on the map');
@@ -46,7 +46,7 @@ describe('the open groups of the map rail under the filter of the screen', () =>
   });
 
   it('opens no type that is switched off', () => {
-    const offLegend = railLegend(projection, (type) => type !== first.type);
+    const offLegend = railLegend(projection, (type) => type !== first.type, new Set());
 
     expect(openTypesUnderFilter(offLegend, projection.entities, [], first.label)).not.toContain(
       first.type,

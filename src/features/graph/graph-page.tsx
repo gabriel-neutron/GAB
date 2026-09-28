@@ -6,18 +6,16 @@ import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
 import { Button } from '@/shared/ui/button';
 
-import {
-  mountGraph,
-  type FilterState,
-  type GraphController,
-  type GraphSelection,
-  type GraphView,
-} from './controller';
+import { mountGraph, type GraphController, type GraphView } from './controller';
 import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
-import { deriveRailRows, everyTypeShown, hiddenAfterSwitch, type RailStep } from './rail-rows';
+import { deriveRailRows } from './rail-rows';
+import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
+import type { GraphSelection } from './selection';
+import { everyTypeShown, hiddenAfterSwitch, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
+import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
 interface GraphSnapshot {
   readonly view: GraphView;
@@ -110,6 +108,8 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
   const filter = snapshot?.view.filter ?? null;
   const selection = snapshot?.view.selection ?? null;
   const railOpen = snapshot?.view.railOpen ?? false;
+  const railWidth = snapshot?.view.railWidth ?? DEFAULT_GRAPH_WORKSPACE.railWidth;
+  const openUnits = snapshot?.view.openUnits ?? null;
 
   const reach = useCallback((id: string) => {
     const handle = controller.current;
@@ -119,7 +119,8 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
   }, []);
 
   // Departure: the controller drops a selection the filter excludes, so the header offers none.
-  // The hubs come first, and the name is the tie-break, as in the lists of the rail.
+  // A node folded in the list stays, because a choice of it opens the units above it. The hubs
+  // come first, and the name is the tie-break, as in the lists of the rail.
   const named = useMemo(() => {
     if (model === null || filter === null) return [];
     const hidden = new Set(filter.hiddenTypes);
@@ -138,10 +139,10 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
 
   const rows = useMemo(
     () =>
-      model === null || filter === null
+      model === null || filter === null || openUnits === null
         ? null
-        : deriveRailRows(model, filter, step, selection, railOpen, query),
-    [model, filter, step, selection, railOpen, query],
+        : deriveRailRows(model, { filter, selection, openUnits, railOpen, railWidth }, step, query),
+    [model, filter, selection, openUnits, railOpen, railWidth, step, query],
   );
 
   const act = useCallback((next: RailAct) => {
@@ -150,6 +151,9 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
     switch (next.kind) {
       case 'open-rail':
         handle.setRailOpen(next.open);
+        return;
+      case 'resize-rail':
+        handle.setRailWidth(next.width);
         return;
       case 'switch-type': {
         // The workspace holds the types that are switched **off**. The rows of the rail hold
@@ -163,43 +167,42 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
         handle.setFilter({ hiddenTypes: everyTypeShown() });
         return;
       case 'open-type':
-        setStep((held) =>
-          next.open
-            ? { ...held, openTypes: [...held.openTypes, next.type] }
-            : {
-                openTypes: held.openTypes.filter((type) => type !== next.type),
-                wholeList: held.wholeList.filter((type) => type !== next.type),
-              },
-        );
+        setStep((held) => stepAfterTypeOpen(held, next.type, next.open));
         return;
     }
   }, []);
 
   const showWholeList = useCallback((type: string) => {
-    setStep((held) =>
-      held.wholeList.includes(type) ? held : { ...held, wholeList: [...held.wholeList, type] },
-    );
+    setStep((held) => stepShowingWholeList(held, type));
   }, []);
 
   const showWholeGraph = useCallback(() => {
     controller.current?.showWholeGraph();
   }, []);
 
+  const openUnit = useCallback((unit: string, open: boolean) => {
+    controller.current?.setUnitOpen(unit, open);
+  }, []);
+
   return (
     <div className={cn('relative size-full overflow-hidden')}>
       <GraphCanvas canvas={canvas} overlay={overlay} />
 
-      {snapshot === null ? null : (
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          onClick={showWholeGraph}
-          className={cn('absolute top-2 right-2')}
-        >
-          Show the whole graph
-        </Button>
-      )}
+      <div
+        className={cn('pointer-events-none absolute top-2 right-2 flex flex-col items-end gap-2')}
+      >
+        {snapshot === null ? null : (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={showWholeGraph}
+            className={cn('pointer-events-auto')}
+          >
+            Show the whole graph
+          </Button>
+        )}
+      </div>
 
       {/* Each floating panel takes no pointer event on its own padding, and neither does the box
           that places it. A drag that starts there still moves the graph below. */}
@@ -212,19 +215,18 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
               const list = rows.lists.get(type);
               return list === undefined ? null : (
                 <IndexRows
-                  entities={list.entities}
-                  remainder={list.remainder}
+                  list={list}
                   onSelect={reach}
                   onShowWholeList={() => {
                     showWholeList(type);
                   }}
+                  onOpen={openUnit}
                 />
               );
             }}
             className={cn(
               'pointer-events-none max-h-full border border-border bg-popover',
               'text-popover-foreground',
-              rows.rail.open ? 'w-64' : 'w-11',
             )}
           />
         )}

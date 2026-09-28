@@ -15,26 +15,29 @@ export interface GraphWorkspace {
   // when a document does, and a stored list of the types that are on would dim each new type.
   readonly hiddenTypes: readonly string[];
   readonly railOpen: boolean;
+  /** The width of the open rail, in pixels. The rail clamps it where it draws it. */
+  readonly railWidth: number;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   camera: null,
   hiddenTypes: [],
   railOpen: true,
+  railWidth: 256,
 };
 
-const isCamera = (value: unknown): value is GraphCamera => {
-  if (typeof value !== 'object' || value === null) return false;
-  const c = value as Record<string, unknown>;
-  return (
-    typeof c['x'] === 'number' &&
-    typeof c['y'] === 'number' &&
-    typeof c['ratio'] === 'number' &&
-    Number.isFinite(c['x']) &&
-    Number.isFinite(c['y']) &&
-    Number.isFinite(c['ratio'])
-  );
-};
+const isCamera = (value: unknown): value is GraphCamera =>
+  typeof value === 'object' &&
+  value !== null &&
+  'x' in value &&
+  'y' in value &&
+  'ratio' in value &&
+  typeof value.x === 'number' &&
+  typeof value.y === 'number' &&
+  typeof value.ratio === 'number' &&
+  Number.isFinite(value.x) &&
+  Number.isFinite(value.y) &&
+  Number.isFinite(value.ratio);
 
 // The compiler holds this list closed: a key added to `GraphWorkspace` and forgotten here fails
 // the type check, so the guard below cannot fall behind the interface it guards.
@@ -42,6 +45,7 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   camera: true,
   hiddenTypes: true,
   railOpen: true,
+  railWidth: true,
 };
 
 // The cost of the strict guard here is one camera position and one set of filters, one time.
@@ -53,7 +57,9 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     (w['camera'] === null || isCamera(w['camera'])) &&
     Array.isArray(hidden) &&
     hidden.every((type) => typeof type === 'string') &&
-    typeof w['railOpen'] === 'boolean'
+    typeof w['railOpen'] === 'boolean' &&
+    typeof w['railWidth'] === 'number' &&
+    Number.isFinite(w['railWidth'])
   );
 };
 
