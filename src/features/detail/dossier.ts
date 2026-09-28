@@ -308,6 +308,15 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     sources: refsOf(relation.sources),
   }));
 
+  // Departure: an act on a relation carries no ends, so the ends come from the relation it names,
+  // and the act stands on the page of each end. A relation the record does not hold puts the act
+  // on no page, which is the same answer the sentence of a missing endpoint gives.
+  const namesATouchingRelation = (proposal: Proposal): boolean => {
+    const target = proposal.targetKind === 'relation' ? proposal.targetId : null;
+    const held = target === null ? undefined : index.relationById.get(target);
+    return held !== undefined && touches(held);
+  };
+
   // The act states the operation and the payload carries no kind of its own, so the operation
   // decides which keys stand inside it. Those keys keep the spelling the act wrote.
   const names = (proposal: Proposal): boolean => {
@@ -319,24 +328,18 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
           payload.kind === 'relation' &&
           (payload.src_id === entityId || payload.dst_id === entityId)
         );
-      case 'update_relation': {
-        // This act carries attributes and no ends, so the ends come from the relation it names.
-        // A relation the record does not hold puts the act on no page, which is the same answer
-        // the sentence of a missing endpoint gives.
-        const target = proposal.targetKind === 'relation' ? proposal.targetId : null;
-        const held = target === null ? undefined : index.relationById.get(target);
-        return held !== undefined && touches(held);
-      }
+      case 'update_attrs':
+      case 'update_relation':
+      case 'delete_relation':
+        return namesATouchingRelation(proposal);
       case 'merge_entities':
         return (
           payload.kind === 'merge' &&
           (payload.keep_id === entityId || payload.merge_ids.includes(entityId))
         );
       case 'create_entity':
-      case 'update_attrs':
       case 'update_entity':
       case 'delete_entity':
-      case 'delete_relation':
         return false;
     }
   };
