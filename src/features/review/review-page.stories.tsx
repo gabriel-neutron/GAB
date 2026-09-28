@@ -13,6 +13,9 @@ const FIRST_ACT = sampleChange(CONTESTED).id;
 
 const SECOND_ACT = sampleSubject(CONTESTED).changes[1]?.id ?? 'the row holds no second act';
 
+const MERGE =
+  SUBJECTS.find((subject) => subject.kind === 'merge')?.id ?? 'the sample holds no merge';
+
 const onAct = fn();
 
 const meta = {
@@ -208,6 +211,18 @@ export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {
     );
     await expect(canvas.getByRole('button', { name: /Promote/ })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: /Reject/ })).toBeDisabled();
+  },
+};
+
+/** The page gives the controls the kind of the act under them, so a merge reaches them as one
+ * and the record is not asked for a promotion it always refuses. */
+export const AMergeUnderTheControlsCannotBePromoted: Story = {
+  args: { examination: { subjectId: MERGE, sort: 'confidence' } },
+  play: async ({ canvas }) => {
+    const promote = canvas.getByRole('button', { name: /Promote/ });
+    await expect(promote).toBeDisabled();
+    await expect(promote).toHaveAccessibleDescription('A merge has no write path yet.');
+    await expect(canvas.queryByText(/no door takes it back/)).toBeNull();
   },
 };
 
