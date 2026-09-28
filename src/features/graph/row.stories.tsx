@@ -35,6 +35,7 @@ const listOf = (wholeList: readonly string[] = []) => {
     { openTypes: [TYPE], wholeList },
     null,
     true,
+    '',
   );
   const list = rows.lists.get(TYPE);
   if (list === undefined) throw new Error(`The rail draws no list for ${TYPE}`);
@@ -133,9 +134,10 @@ export const NoRemainderDrawsNoLine: Story = {
   },
 };
 
-export const AnEmptyListDrawsNothing: Story = {
+export const AnEmptyListSaysNoNameMatches: Story = {
   args: { entities: [], remainder: 0 },
   play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-no-match]')).not.toBeNull();
     await expect(canvasElement.querySelectorAll('[data-row]')).toHaveLength(0);
     await expect(canvasElement.querySelector('[data-column]')).toBeNull();
     await expect(canvasElement.querySelector('[data-remainder]')).toBeNull();

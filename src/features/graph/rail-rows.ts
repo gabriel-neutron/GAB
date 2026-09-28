@@ -1,3 +1,4 @@
+import { nameHoldsQuery } from '@/shared/name-match';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
 
 import type { GraphSelection } from './controller';
@@ -56,6 +57,7 @@ export function deriveRailRows(
   step: RailStep,
   selection: GraphSelection | null,
   open: boolean,
+  query: string,
 ): GraphRailRows {
   const hidden = new Set(filter.hiddenTypes);
 
@@ -68,6 +70,37 @@ export function deriveRailRows(
   // under the pointer is a row the analyst clicks by mistake.
   const names = [...counts.keys()].sort((one, two) => one.localeCompare(two));
 
+  const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
+
+  // Departure: under a filter every type that is on gets a list, so the walk finds each type
+  // that holds a match. Without a filter only the types the analyst opened get one.
+  const filtering = query.trim() !== '';
+  const matching = new Map<string, RailEntityRow[]>();
+  for (const type of filtering ? names : step.openTypes) {
+    if (!counts.has(type) || hidden.has(type)) continue;
+    matching.set(type, []);
+  }
+  // One walk of the graph fills every list. A walk per type would read the whole graph once for
+  // each one, and every type may stand open at the same moment.
+  if (matching.size > 0) {
+    model.graph.forEachNode((node, attrs) => {
+      if (!nameHoldsQuery(attrs.label, query)) return;
+      matching.get(attrs.entityType)?.push({
+        id: node,
+        label: attrs.label,
+        degree: attrs.degree,
+        selected: node === selectedId,
+      });
+    });
+  }
+
+  // Departure: a filter opens each type that holds a match and never writes `step`, so the
+  // folds the analyst chose come back when the filter is empty again.
+  const autoOpened = names.filter(
+    (type) => (matching.get(type)?.length ?? 0) > 0 && !step.openTypes.includes(type),
+  );
+  const openTypes = filtering ? [...step.openTypes, ...autoOpened] : step.openTypes;
+
   const types: readonly RailTypeRow[] = names.map((type) => {
     const on = !hidden.has(type);
     const count = counts.get(type) ?? 0;
@@ -76,7 +109,7 @@ export function deriveRailRows(
       initial: type.slice(0, 1).toUpperCase(),
       count,
       on,
-      open: step.openTypes.includes(type),
+      open: openTypes.includes(type),
       // The filter dims and never hides, so the row states that consequence. The word reaches a
       // reader who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
@@ -90,28 +123,9 @@ export function deriveRailRows(
 
   const everyTypeOff = types.length > 0 && types.every((row) => !row.on);
 
-  const selectedId = selection !== null && selection.kind === 'entity' ? selection.id : null;
-
-  // One walk of the graph fills every open list. A walk per open type would read the whole graph
-  // once for each one, and every type may stand open at the same moment.
-  const matching = new Map<string, RailEntityRow[]>();
-  for (const type of step.openTypes) {
-    if (!counts.has(type) || hidden.has(type)) continue;
-    matching.set(type, []);
-  }
-  if (matching.size > 0) {
-    model.graph.forEachNode((node, attrs) => {
-      matching.get(attrs.entityType)?.push({
-        id: node,
-        label: attrs.label,
-        degree: attrs.degree,
-        selected: node === selectedId,
-      });
-    });
-  }
-
   const lists = new Map<string, RailOpenList>();
   for (const [type, matches] of matching) {
+    if (!openTypes.includes(type)) continue;
     // The hubs come first, and the name is the tie-break, so the same corpus gives the same head
     // on every open. The degree alone does not promise that.
     matches.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
@@ -126,7 +140,7 @@ export function deriveRailRows(
   }
 
   return {
-    rail: { types, links: null, openTypes: step.openTypes, everyTypeOff, open },
+    rail: { types, links: null, openTypes, everyTypeOff, open },
     lists,
   };
 }

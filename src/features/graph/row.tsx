@@ -22,7 +22,13 @@ const FIGURE = 'shrink-0 font-mono text-right tabular-nums';
 export function IndexRows({ entities, remainder, onSelect, onShowWholeList }: IndexRowsProps) {
   return (
     <div role="group">
-      {entities.length === 0 ? null : (
+      {/* Departure: each type row counts at least one entity, so an empty list is a filter that
+          holds no name of this type. */}
+      {entities.length === 0 ? (
+        <p data-no-match="" className="flex h-6 items-center px-1 text-label">
+          No name holds the filter.
+        </p>
+      ) : (
         <p
           data-column=""
           className="flex h-6 items-center gap-2 px-1 text-small/4 tracking-caps text-label uppercase"

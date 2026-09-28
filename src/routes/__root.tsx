@@ -1,8 +1,16 @@
-import { createRootRoute, HeadContent, Link, Outlet, useRouter } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  HeadContent,
+  Link,
+  Outlet,
+  useLocation,
+  useRouter,
+} from '@tanstack/react-router';
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
 import { cn } from '@/shared/lib/utils';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
+import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 
 export const Route = createRootRoute({
@@ -13,26 +21,34 @@ export const Route = createRootRoute({
   head: () => ({ meta: [{ title: 'Gabriel' }] }),
 });
 
+// Departure: only these screens read the header filter. The search page has a field of its own,
+// and a screen that reads no filter shows no field.
+const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph', '/review']);
+
 function RootLayout() {
+  const path = useLocation({ select: (location) => location.pathname });
   return (
     <ThemeProvider>
-      {/* `HeadContent` writes the `head` of a matched route into the document. Without it, a
-          title is computed and never applied. */}
+      {/* External constraint: `HeadContent` writes the `head` of a matched route into the
+          document. Without it, a title is computed and never applied. */}
       <HeadContent />
-      <div className="flex h-svh flex-col">
-        <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
-          <SurfaceNav />
-          <div className="flex items-center gap-2">
-            <NewEntityControl />
-            <ThemeControl />
-          </div>
-        </header>
-        {/* `min-h-0` lets this row hold a scroll of its own. Without it, the row grows to its
-            content and pushes the window. */}
-        <main className="min-h-0 flex-1">
-          <Outlet />
-        </main>
-      </div>
+      <ScreenQueryProvider path={path}>
+        <div className="flex h-svh flex-col">
+          <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
+            <SurfaceNav />
+            <div className="flex items-center gap-2">
+              {FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
+              <NewEntityControl />
+              <ThemeControl />
+            </div>
+          </header>
+          {/* External constraint: `min-h-0` lets this row hold a scroll of its own. Without it,
+              the row grows to its content and pushes the window. */}
+          <main className="min-h-0 flex-1">
+            <Outlet />
+          </main>
+        </div>
+      </ScreenQueryProvider>
     </ThemeProvider>
   );
 }

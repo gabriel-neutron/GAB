@@ -1,12 +1,15 @@
 // `whenStyleReady` inside the adapter absorbs the window while the style loads, so a control of
 // this file can be clicked at any moment, and never before the style exists.
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { nameHoldsQuery } from '@/shared/name-match';
 import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
+import { useScreenQuery } from '@/shared/screen-query';
 
 import type { MapHandle } from './adapter';
+import { openTypesUnderFilter } from './open-under-filter';
 import { entitiesOfType, railLegend, railRows, type Projection } from './projection';
 import { IndexRows } from './row';
 
@@ -75,6 +78,16 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     live.flyTo(id);
   };
 
+  // Departure: the adapter drops a selection of a type it does not draw, so the header offers none.
+  const drawn = useMemo(
+    () => projection.entities.filter((entity) => legend.drawnTypes.has(entity.type)),
+    [projection, legend],
+  );
+
+  // Departure: the rail reads the filter itself, so a new filter renders this rail and never
+  // the canvas. A choice in the header list is a click on the same row of this rail.
+  const query = useScreenQuery({ named: drawn, choose: reach });
+
   const act = (next: RailAct): void => {
     switch (next.kind) {
       case 'open-rail':
@@ -107,7 +120,12 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
 
   return (
     <TwoStepRail
-      rows={railRows(legend, openTypes, open, linksOn)}
+      rows={railRows(
+        legend,
+        openTypesUnderFilter(legend, projection.entities, openTypes, query),
+        open,
+        linksOn,
+      )}
       onAct={act}
       // The rail asks for each open list, because more than one may stand open.
       index={(type) => {
@@ -115,7 +133,9 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         return facet === undefined ? null : (
           <IndexRows
             facet={facet}
-            entities={entitiesOfType(projection, facet.type)}
+            entities={entitiesOfType(projection, facet.type).filter((entity) =>
+              nameHoldsQuery(entity.label, query),
+            )}
             selectedId={selected}
             onSelect={reach}
           />

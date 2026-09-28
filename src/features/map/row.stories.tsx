@@ -130,3 +130,11 @@ export const AnEntityThatStatesNoWordSaysNothingAboutItsPosition: Story = {
     await expect(canvasElement.querySelector('[data-position-from]')).toBeNull();
   },
 };
+
+export const AnEmptyListSaysNoNameMatches: Story = {
+  args: { facet: facetOf('vessel'), entities: [] },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-no-match]')).not.toBeNull();
+    await expect(canvasElement.querySelectorAll('[data-row]')).toHaveLength(0);
+  },
+};

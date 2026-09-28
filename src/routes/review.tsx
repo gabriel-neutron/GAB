@@ -6,11 +6,13 @@ import { sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
+import { subjectsNamed } from '@/features/review/subjects-named';
 import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/review/verdict-flow';
 import { patchSort, readSort } from '@/features/review/workspace';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadDecidedActs } from '@/shared/read/decided-acts';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
+import { useScreenQuery } from '@/shared/screen-query';
 
 export interface ReviewSearch {
   /** What is under examination. An empty string opens the queue at its first subject. */
@@ -68,7 +70,14 @@ function ReviewRoute() {
   const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
-  const subjects = useMemo(() => readQueue(corpus, THRESHOLD, types), [corpus, types]);
+  const queued = useMemo(() => readQueue(corpus, THRESHOLD, types), [corpus, types]);
+  const query = useScreenQuery({
+    named: queued,
+    choose: (subjectId) => {
+      onAct({ kind: 'select', subjectId });
+    },
+  });
+  const subjects = useMemo(() => subjectsNamed(queued, query), [queued, query]);
   const history = useMemo(() => readDecided(corpus, decided), [corpus, decided]);
 
   const forgetTheSentence = (): void => {

@@ -3,6 +3,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
+import { useScreenQuery } from '@/shared/screen-query';
+import { Button } from '@/shared/ui/button';
 
 import {
   mountGraph,
@@ -108,12 +110,38 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
   const filter = snapshot?.view.filter ?? null;
   const selection = snapshot?.view.selection ?? null;
   const railOpen = snapshot?.view.railOpen ?? false;
+
+  const reach = useCallback((id: string) => {
+    const handle = controller.current;
+    if (handle === null) return;
+    handle.select({ kind: 'entity', id });
+    handle.flyTo(id);
+  }, []);
+
+  // Departure: the controller drops a selection the filter excludes, so the header offers none.
+  // The hubs come first, and the name is the tie-break, as in the lists of the rail.
+  const named = useMemo(() => {
+    if (model === null || filter === null) return [];
+    const hidden = new Set(filter.hiddenTypes);
+    const shown: { id: string; label: string; degree: number }[] = [];
+    model.graph.forEachNode((node, attrs) => {
+      if (!hidden.has(attrs.entityType)) {
+        shown.push({ id: node, label: attrs.label, degree: attrs.degree });
+      }
+    });
+    return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
+  }, [model, filter]);
+
+  // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
+  // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
+  const query = useScreenQuery({ named, choose: reach });
+
   const rows = useMemo(
     () =>
       model === null || filter === null
         ? null
-        : deriveRailRows(model, filter, step, selection, railOpen),
-    [model, filter, step, selection, railOpen],
+        : deriveRailRows(model, filter, step, selection, railOpen, query),
+    [model, filter, step, selection, railOpen, query],
   );
 
   const act = useCallback((next: RailAct) => {
@@ -153,16 +181,25 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
     );
   }, []);
 
-  const reach = useCallback((id: string) => {
-    const handle = controller.current;
-    if (handle === null) return;
-    handle.select({ kind: 'entity', id });
-    handle.flyTo(id);
+  const showWholeGraph = useCallback(() => {
+    controller.current?.showWholeGraph();
   }, []);
 
   return (
     <div className={cn('relative size-full overflow-hidden')}>
       <GraphCanvas canvas={canvas} overlay={overlay} />
+
+      {snapshot === null ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          onClick={showWholeGraph}
+          className={cn('absolute top-2 right-2')}
+        >
+          Show the whole graph
+        </Button>
+      )}
 
       {/* Each floating panel takes no pointer event on its own padding, and neither does the box
           that places it. A drag that starts there still moves the graph below. */}
