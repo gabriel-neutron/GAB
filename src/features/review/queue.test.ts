@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { corpus } from '@/shared/committed-fixture/corpus';
 import type { Corpus, EntityTypeDeclaration, Proposal, TypeVocabulary } from '@/shared/read/model';
 
-import { readQueue, type Change, type DifferenceRow } from './queue';
+import {
+  readQueue,
+  sortSubjects,
+  type Change,
+  type DifferenceRow,
+  type HoleKind,
+  type SubjectKind,
+} from './queue';
 
 const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
@@ -292,5 +299,210 @@ describe('who wrote an act in the queue', () => {
     const change = changeIn(THRESHOLD, HIGH_AGREED);
     expect(change.origin).toBe('machine');
     expect(change.confidenceReport.words).toMatch(/The machine reports/);
+  });
+});
+
+const TERMINAL_LABEL = 'Maasvlakte bulk terminal, berth 7';
+const MERIDIAN = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
+const ABSENT = 'ee000001-0000-4000-8000-000000000001';
+
+const onTerminal = (id: string, payload: Proposal['payload']): Proposal => ({
+  ...actOf(id, 0.9, false),
+  payload,
+});
+
+interface Filed {
+  readonly name: string;
+  readonly act: Proposal;
+  readonly subject: SubjectKind;
+  readonly label: string;
+  readonly holes: readonly HoleKind[];
+}
+
+const FILED: readonly Filed[] = [
+  {
+    name: 'create_entity',
+    act: NEW_VESSEL,
+    subject: 'new-node',
+    label: 'MV Northern Ledger',
+    holes: ['duplicate'],
+  },
+  {
+    name: 'create_relation',
+    act: NEW_OWNERSHIP,
+    subject: 'link',
+    label: `${TERMINAL_LABEL} owns a relation, d4e5f60a`,
+    holes: [],
+  },
+  {
+    name: 'update_attrs',
+    act: onTerminal('dd000001-0000-4000-8000-000000000001', {
+      kind: 'attrs',
+      attrs: { coal_stock_t: { v: 1, src: ['doc_5e7730'] } },
+    }),
+    subject: 'node',
+    label: TERMINAL_LABEL,
+    holes: [],
+  },
+  {
+    name: 'update_entity',
+    act: {
+      ...onTerminal('dd000001-0000-4000-8000-000000000002', {
+        kind: 'columns',
+        label: 'New name',
+        type: null,
+      }),
+      op: 'update_entity',
+    },
+    subject: 'node',
+    label: TERMINAL_LABEL,
+    holes: [],
+  },
+  {
+    name: 'update_relation',
+    act: {
+      ...actOf('dd000001-0000-4000-8000-000000000003', 0.9, false),
+      op: 'update_relation',
+      targetKind: 'relation',
+      targetId: CONTRADICTION,
+    },
+    subject: 'link',
+    label: 'Meridian Bulk Carriers Ltd contradicts a relation, e1f20a34',
+    holes: [],
+  },
+  {
+    name: 'delete_entity',
+    act: {
+      ...onTerminal('dd000001-0000-4000-8000-000000000004', { kind: 'delete', reason: null }),
+      op: 'delete_entity',
+    },
+    subject: 'node',
+    label: TERMINAL_LABEL,
+    holes: [],
+  },
+  {
+    name: 'delete_relation',
+    act: {
+      ...actOf('dd000001-0000-4000-8000-000000000005', 0.9, false),
+      op: 'delete_relation',
+      targetKind: 'relation',
+      targetId: CONTRADICTION,
+      payload: { kind: 'delete', reason: null },
+    },
+    subject: 'link',
+    label: 'Meridian Bulk Carriers Ltd contradicts a relation, e1f20a34',
+    holes: [],
+  },
+  {
+    name: 'merge_entities',
+    act: {
+      ...actOf('dd000001-0000-4000-8000-000000000006', 0.9, false),
+      op: 'merge_entities',
+      targetKind: null,
+      targetId: null,
+      payload: { kind: 'merge', keep_id: MERIDIAN, merge_ids: [TERMINAL] },
+    },
+    subject: 'merge',
+    label: `${TERMINAL_LABEL} into Meridian Bulk Carriers Ltd`,
+    holes: ['merge-result'],
+  },
+  {
+    name: 'update_attrs on an absent entity',
+    act: { ...actOf('dd000001-0000-4000-8000-000000000007', 0.9, false), targetId: ABSENT },
+    subject: 'node',
+    label: 'An entity absent from the record, ee000001',
+    holes: ['absent-row'],
+  },
+  {
+    name: 'delete_entity on an absent entity',
+    act: {
+      ...actOf('dd000001-0000-4000-8000-000000000008', 0.9, false),
+      op: 'delete_entity',
+      targetId: ABSENT,
+      payload: { kind: 'delete', reason: null },
+    },
+    subject: 'node',
+    label: 'An entity absent from the record, ee000001',
+    holes: ['destroyed-row'],
+  },
+];
+
+describe('the subject an act is filed under, its label and its holes', () => {
+  for (const filed of FILED) {
+    it(`files ${filed.name} as a ${filed.subject}, labelled from the record`, () => {
+      const { subject, change } = onlyAct(filed.act);
+      expect(subject.kind).toBe(filed.subject);
+      expect(subject.label).toBe(filed.label);
+      expect(change.holes.map((hole) => hole.kind)).toEqual(filed.holes);
+    });
+  }
+});
+
+const newEntity = (
+  id: string,
+  label: string,
+  confidence: number | null,
+  createdAt: string,
+): Proposal => ({
+  ...NEW_VESSEL,
+  id,
+  confidence,
+  createdAt,
+  payload: { kind: 'entity', type: 'vessel', label, geom: null, attrs: {} },
+});
+
+const THREE = readQueue(
+  {
+    ...corpus,
+    proposals: [
+      newEntity('dd000002-0000-4000-8000-000000000001', 'Bravo', 0.4, '2026-08-03T10:00:00Z'),
+      newEntity('dd000002-0000-4000-8000-000000000002', 'Charlie', null, '2026-08-01T10:00:00Z'),
+      newEntity('dd000002-0000-4000-8000-000000000003', 'Alpha', 0.7, '2026-08-02T10:00:00Z'),
+    ],
+  },
+  THRESHOLD,
+);
+
+describe('the order of the subjects', () => {
+  it('puts the weakest first, and a subject that states no confidence last', () => {
+    const sorted = sortSubjects(THREE, 'confidence');
+    expect(sorted.map((subject) => subject.changes[0]?.score)).toEqual([0.4, 0.7, null]);
+  });
+
+  it('puts the oldest act first', () => {
+    const sorted = sortSubjects(THREE, 'oldest');
+    expect(sorted.map((subject) => subject.label)).toEqual(['Charlie', 'Alpha', 'Bravo']);
+  });
+
+  it('puts the subjects in the order of their names', () => {
+    const sorted = sortSubjects(THREE, 'name');
+    expect(sorted.map((subject) => subject.label)).toEqual(['Alpha', 'Bravo', 'Charlie']);
+  });
+
+  it('puts the weakest act of one subject first, and an act that states no confidence last', () => {
+    const [subject] = readQueue(
+      {
+        ...corpus,
+        proposals: [
+          actOf('dd000003-0000-4000-8000-000000000001', 0.7, false),
+          actOf('dd000003-0000-4000-8000-000000000002', null, false),
+          actOf('dd000003-0000-4000-8000-000000000003', 0.4, false),
+        ],
+      },
+      THRESHOLD,
+    );
+    expect(subject?.changes.map((change) => change.score)).toEqual([0.4, 0.7, null]);
+  });
+});
+
+describe('a key that is also an inherited name of an object', () => {
+  it('reads constructor as a new key, with nothing standing', () => {
+    const act = onTerminal('dd000004-0000-4000-8000-000000000001', {
+      kind: 'attrs',
+      attrs: { constructor: { v: 'x', src: ['doc_5e7730'] } },
+    });
+    const row = onlyAct(act).proposed('constructor');
+    expect(row?.op).toBe('add');
+    expect(row?.standing).toBeNull();
   });
 });
