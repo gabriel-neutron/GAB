@@ -125,6 +125,11 @@ test('propose and promote inside one transaction is refused', async () => {
   }
 });
 
+const STORED_CREATION =
+  'SELECT public.ST_AsGeoJSON(geom)::jsonb AS shape, public.ST_SRID(geom) AS srid,' +
+  ' public.ST_AsText(geom) AS wkt,' +
+  ' attrs, sources::text[] AS sources FROM public.entities WHERE id = $1::uuid';
+
 test('the five gestures reach the evidentiary layer', async () => {
   const [entityStatus, entityReply] = await post('create-entity', {
     type: 'facility',
@@ -144,6 +149,13 @@ test('the five gestures reach the evidentiary layer', async () => {
     ]);
     expect(madeBy['promoted_from']).toBe(entityReply.proposalId);
     expect(await decided(entityReply.proposalId)).toMatchObject(OPERATOR_ACT);
+    expect(await one(STORED_CREATION, [entityReply.targetId])).toStrictEqual({
+      shape: { type: 'Point', coordinates: [4.05, 51.95] },
+      srid: 4326,
+      wkt: 'POINT(4.05 51.95)',
+      attrs: { berth_count: { v: 2, src: ['manual'] } },
+      sources: ['manual'],
+    });
 
     other = await signedEntity('Writer test vessel');
 
