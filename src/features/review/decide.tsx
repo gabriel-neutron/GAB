@@ -4,11 +4,13 @@ import { useId, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 
-import type { Decision, Verdict } from './queue';
+import type { ChangeKind, Decision, Verdict } from './queue';
 import { VERDICT_WORDS } from './queue';
 import { VerdictMark } from './verdict-mark';
 
 export interface DecideProps {
+  /** What the act does to the row. It says whether the record can take a promotion of it. */
+  readonly kind: ChangeKind;
   /** `null` while the act waits. The three controls act on one act, and never on a group. */
   readonly decision: Decision | null;
   /** One act reaches the record at a time. A second click sends a second decision on a row the
@@ -45,6 +47,15 @@ const QUESTIONS: Readonly<Record<'promoted' | 'rejected', string>> = {
   rejected: 'Reject this act? A rejected act is frozen, and it never waits again.',
 };
 
+// External constraint: the record refuses a merge at promotion, because a merge has no write
+// path yet. The lookup is total, so a new kind states whether the record takes it.
+const NO_PROMOTION: Readonly<Record<ChangeKind, string | null>> = {
+  add: null,
+  edit: null,
+  delete: null,
+  merge: 'A merge has no write path yet.',
+};
+
 const CONFIRM: Readonly<Record<'promoted' | 'rejected', string>> = {
   promoted: 'Promote it',
   rejected: 'Reject it',
@@ -52,8 +63,9 @@ const CONFIRM: Readonly<Record<'promoted' | 'rejected', string>> = {
 
 /** A promotion is written the moment it is taken, and the record has no door back. So this
  * screen asks once before it sends, and it offers the way back only where one exists. */
-export function Decide({ decision, busy, onDecide, onUndo }: DecideProps) {
+export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) {
   const said = useId();
+  const refused = useId();
   const [reason, setReason] = useState('');
   const [stance, setStance] = useState<Stance>(RESTING);
 
@@ -177,6 +189,7 @@ export function Decide({ decision, busy, onDecide, onUndo }: DecideProps) {
     );
   }
 
+  const noPromotion = NO_PROMOTION[kind];
   return (
     <div className="flex items-center gap-1">
       {/* A hold is a state of this pass and never a row of the record. It sits away from the
@@ -205,10 +218,16 @@ export function Decide({ decision, busy, onDecide, onUndo }: DecideProps) {
         <X aria-hidden="true" />
         Reject
       </Button>
+      {noPromotion === null ? null : (
+        <span id={refused} className={NOTE}>
+          {noPromotion}
+        </span>
+      )}
       <Button
         size="xs"
         className={KIT}
-        disabled={busy}
+        disabled={busy || noPromotion !== null}
+        aria-describedby={noPromotion === null ? undefined : refused}
         onClick={() => {
           setStance({ kind: 'asking', verdict: 'promoted' });
         }}

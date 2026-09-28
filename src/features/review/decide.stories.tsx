@@ -9,7 +9,7 @@ const onUndo = fn();
 
 const meta = {
   component: Decide,
-  args: { decision: null, busy: false, onDecide, onUndo },
+  args: { kind: 'edit', decision: null, busy: false, onDecide, onUndo },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="w-[560px] border-t border-border p-2">
@@ -155,6 +155,38 @@ export const APromotionThatStandsOffersNoWayBack: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /Undo/ })).toBeNull();
+  },
+};
+
+/** The record refuses every merge at promotion, so the screen offers none, and it says why. A
+ * merge is not final, so the screen says nothing about a door back. */
+export const AMergeCannotBePromotedAndTheScreenSaysWhy: Story = {
+  args: { kind: 'merge', onDecide: fn() },
+  play: async ({ args, canvas }) => {
+    const promote = canvas.getByRole('button', { name: /Promote/ });
+    await expect(promote).toBeDisabled();
+    await expect(promote).toHaveAccessibleDescription('A merge has no write path yet.');
+    await expect(canvas.getByText('A merge has no write path yet.')).toBeVisible();
+    await expect(canvas.queryByText(/no door takes it back/)).toBeNull();
+    await expect(canvas.getByRole('button', { name: /Reject/ })).toBeEnabled();
+    await expect(args.onDecide).not.toHaveBeenCalled();
+  },
+};
+
+/** Only a merge is refused. Every other kind of act keeps its promotion. */
+export const EveryKindButAMergeKeepsItsPromotion: Story = {
+  render: (args) => (
+    <div className="w-[560px] space-y-2 border-t border-border p-2">
+      <Decide {...args} kind="add" />
+      <Decide {...args} kind="edit" />
+      <Decide {...args} kind="delete" />
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const promotions = canvas.getAllByRole('button', { name: /Promote/ });
+    await expect(promotions).toHaveLength(3);
+    for (const promote of promotions) await expect(promote).toBeEnabled();
+    await expect(canvas.queryByText('A merge has no write path yet.')).toBeNull();
   },
 };
 

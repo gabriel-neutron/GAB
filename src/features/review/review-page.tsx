@@ -182,6 +182,7 @@ export function ReviewPage({ queue, examination, decision, onAct }: ReviewPagePr
           {saidLine}
           <Decide
             key={current.id}
+            kind={current.kind}
             decision={verdictOf(verdicts, current.id)}
             busy={said.busy}
             onDecide={(verdict, reason) => {
