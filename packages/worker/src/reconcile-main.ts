@@ -20,6 +20,8 @@ for (const key of found.objectsWithNoRow) console.log(`object with no row: ${key
 for (const row of found.rowsWithNoObject)
   console.log(`row with no object: document ${row.documentId} cites ${row.key}`);
 
+// This file connects to a real database at import time, so no test drives it; reconcile.test.ts
+// covers the set-difference logic that this script only prints and exits on.
 const total = found.objectsWithNoRow.length + found.rowsWithNoObject.length;
 console.log(
   total === 0

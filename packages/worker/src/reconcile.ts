@@ -2,7 +2,9 @@ import type { RawStore } from '@gab/store/bucket';
 import { listKeys } from '@gab/store/listing';
 import { z } from 'zod';
 
-import type { Queryable } from './queryable.ts';
+interface IndexDatabase {
+  query: (text: string) => Promise<{ rows: unknown[] }>;
+}
 
 // A row with no key names no object: a source of kind url, api or report is purely external.
 // Without the filter, the second list below reports the whole external corpus as broken.
@@ -17,7 +19,10 @@ export interface CorpusMismatch {
 }
 
 /** Reads the bucket against `documents` and answers the two lists. It repairs nothing. */
-export const reconcileCorpus = async (on: Queryable, store: RawStore): Promise<CorpusMismatch> => {
+export const reconcileCorpus = async (
+  on: IndexDatabase,
+  store: RawStore,
+): Promise<CorpusMismatch> => {
   const rows = cited.parse((await on.query(CITED)).rows);
   const held = new Set(await listKeys(store));
   const named = new Set(rows.map((row) => row.s3_key));
