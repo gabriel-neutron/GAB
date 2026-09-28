@@ -16,6 +16,7 @@ import {
   entityLines,
   relationLines,
 } from '@/shared/canvas-label';
+import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './basemap';
 import type { Imagery } from './imagery';
@@ -49,6 +50,10 @@ export interface MapHandle {
   readonly flyTo: (id: string) => void;
   readonly setTypeVisible: (type: string, visible: boolean) => void;
   readonly isTypeVisible: (type: string) => boolean;
+  // Departure: a closed unit folds its subordinates out of the rail list and never off the map.
+  // The open units die with the map, so each open lists the tops of the chain of command first.
+  readonly setUnitOpen: (unit: string, open: boolean) => void;
+  readonly openUnits: ReadonlySet<string>;
   readonly setLinksVisible: (visible: boolean) => void;
   readonly linksVisible: boolean;
   readonly chosenLink: GeoLink | null;
@@ -181,11 +186,13 @@ interface LineCollection {
 }
 
 // A line that runs to a point which no layer draws states a place the map shows nowhere.
-const isDrawnLink = (link: GeoLink, hidden: ReadonlySet<string>): boolean =>
-  !hidden.has(link.from.type) && !hidden.has(link.to.type);
+const isDrawnLink = (link: GeoLink, draws: (entity: GeoEntity) => boolean): boolean =>
+  draws(link.from) && draws(link.to);
 
-const drawnLinks = (links: readonly GeoLink[], hidden: ReadonlySet<string>): readonly GeoLink[] =>
-  links.filter((link) => isDrawnLink(link, hidden));
+const drawnLinks = (
+  links: readonly GeoLink[],
+  draws: (entity: GeoEntity) => boolean,
+): readonly GeoLink[] => links.filter((link) => isDrawnLink(link, draws));
 
 const collectLines = (links: readonly GeoLink[]): LineCollection => ({
   type: 'FeatureCollection',
@@ -257,6 +264,12 @@ export function mountMap({
 
   const stored = readMapWorkspace();
   const hidden = new Set<string>(stored.hiddenTypes);
+  const folds = foldEveryUnit(projection.hierarchy);
+  const draws = (entity: GeoEntity): boolean => !hidden.has(entity.type);
+  // Departure: a selection opens the path down to its entity, so the rail list shows its row.
+  const reveal = (entity: GeoEntity): void => {
+    if (draws(entity)) folds.reveal(entity.id);
+  };
   // The store holds the state that is switched off, so `linksHidden` says the relations are
   // hidden and never that they are drawn. The two switches of this surface keep one polarity.
   let linksHidden = stored.linksHidden;
@@ -508,12 +521,12 @@ export function mountMap({
 
   const camera = stored.camera;
   const bounds = projection.bounds;
-  const base = {
+  const base: MapOptions = {
     container,
     style,
     // The control is added below, with its corner, so the default one is switched off here.
     attributionControl: false,
-  } as const;
+  };
   const options: MapOptions =
     camera !== null
       ? { ...base, center: [camera.lon, camera.lat], zoom: camera.zoom }
@@ -569,10 +582,11 @@ export function mountMap({
   // which is the normal state of a map.
   const wanted = address.get('entity') === '' ? null : address.get('entity');
   const restored = wanted === null ? null : (projection.byId.get(wanted) ?? null);
+  if (restored !== null) reveal(restored);
   // An old identifier gives no selection, and it shows no fault on the screen. The map draws no
   // selected point of a type that is switched off. A mark on such a point shows a point that the
   // map does not draw. Such a selection is dropped as well.
-  let selected: string | null = restored === null || hidden.has(restored.type) ? null : restored.id;
+  let selected: string | null = restored === null || !draws(restored) ? null : restored.id;
 
   // The chosen relation is dropped under the same rules as a selected point: a panel that names a
   // relation which this canvas draws nowhere is a lie on the screen. The route then corrects the
@@ -581,9 +595,7 @@ export function mountMap({
   const restoredLink =
     wantedLink === null ? null : (projection.links.find((link) => link.id === wantedLink) ?? null);
   let chosenLink: GeoLink | null =
-    restoredLink !== null && !linksHidden && isDrawnLink(restoredLink, hidden)
-      ? restoredLink
-      : null;
+    restoredLink !== null && !linksHidden && isDrawnLink(restoredLink, draws) ? restoredLink : null;
   const chooseLinkListeners = new Set<(link: GeoLink | null) => void>();
 
   const paintSelection = (): void => {
@@ -605,7 +617,7 @@ export function mountMap({
       const source = map.getSource(LINK_SOURCE);
       // The test on the class gives the type that declares `setData`, exactly as above.
       if (!(source instanceof GeoJSONSource)) return;
-      const drawn = drawnLinks(relationsInReach(projection, selected), hidden);
+      const drawn = drawnLinks(relationsInReach(projection, selected), draws);
       void source.setData(collectLines(drawn));
       // The heads follow the same list, in the same queue, so a line and its head can never
       // disagree about which relations are drawn.
@@ -627,7 +639,7 @@ export function mountMap({
       // is a fault of the source, so the test keeps one copy.
       const bright =
         chosenLink === null || mine.includes(chosenLink) ? mine : [...mine, chosenLink];
-      void source.setData(collectLines(drawnLinks(bright, hidden)));
+      void source.setData(collectLines(drawnLinks(bright, draws)));
     });
   };
 
@@ -685,7 +697,7 @@ export function mountMap({
       const fid = feature.id;
       if (typeof fid !== 'number') continue;
       const entity = projection.byFid.get(fid);
-      if (entity !== undefined && !hidden.has(entity.type)) return { kind: 'entity', entity };
+      if (entity !== undefined && draws(entity)) return { kind: 'entity', entity };
     }
     // **A relation that is switched off gives the result `ground`.** It is the same window as the
     // guard above: the layer is marked hidden, and the old tile still answers until the worker
@@ -700,7 +712,7 @@ export function mountMap({
       // A relation whose endpoint is not drawn gives the result `ground`. It is the same window
       // as the guard on the points: the source is marked, and the old tile still answers until
       // the worker parses it again.
-      if (link !== undefined && isDrawnLink(link, hidden)) return { kind: 'link', link };
+      if (link !== undefined && isDrawnLink(link, draws)) return { kind: 'link', link };
     }
     return { kind: 'ground' };
   };
@@ -831,6 +843,7 @@ export function mountMap({
       // flex sibling of the map. Without this flag the observer below frames the corpus again,
       // and it throws away the frame that the analyst reads.
       if (next !== selected) cameraIsAnalystChoice = true;
+      if (hit.kind === 'entity') reveal(hit.entity);
       setSelected(next);
     }),
   );
@@ -969,6 +982,17 @@ export function mountMap({
     attributeFilter: ['class'],
   });
 
+  // Departure: a switch that takes a point away drops the selection of it and each relation to it.
+  // Both line sets are painted at each switch, so a type that comes back brings its lines back
+  // with it.
+  const dropUndrawn = (): void => {
+    const entity = selected === null ? undefined : projection.byId.get(selected);
+    if (entity !== undefined && !draws(entity)) setSelected(null);
+    if (chosenLink !== null && !isDrawnLink(chosenLink, draws)) setChosenLink(null);
+    paintBaseLinks();
+    paintActiveLinks();
+  };
+
   const handle: MapHandle = {
     get selected() {
       return destroyed ? null : selected;
@@ -976,7 +1000,8 @@ export function mountMap({
     select: (id) => {
       if (destroyed) return;
       const entity = id === null ? undefined : projection.byId.get(id);
-      setSelected(entity === undefined || hidden.has(entity.type) ? null : entity.id);
+      if (entity !== undefined) reveal(entity);
+      setSelected(entity === undefined || !draws(entity) ? null : entity.id);
     },
     onSelect: (listener) => {
       if (destroyed) return NO_OP;
@@ -993,7 +1018,7 @@ export function mountMap({
       // **The camera refuses what `select` refuses.** An entity of a type that is switched off is
       // drawn nowhere, so a flight to it takes the analyst to an empty place and the selection
       // that the same act asked for is dropped by `select`. The two members hold one rule.
-      if (entity === undefined || hidden.has(entity.type)) return;
+      if (entity === undefined || !draws(entity)) return;
       // The rail calls this, so the analyst made this move. This line arms the flag before the
       // camera call, so the observer interrupts this animation with no correction of the size.
       cameraIsAnalystChoice = true;
@@ -1022,21 +1047,20 @@ export function mountMap({
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });
-      // **A type that is switched off drops the selection.** The map draws no point for that
-      // type, so a mark on such a point shows a point that is not there.
-      const entity = selected === null ? undefined : projection.byId.get(selected);
-      if (!visible && entity?.type === type) setSelected(null);
-      // A relation whose endpoint is not drawn must not stay on the map. Both sets are painted
-      // again at each change of this switch, and never at the switch off alone: a type that comes
-      // back brings its lines back with it.
-      if (!visible && (chosenLink?.from.type === type || chosenLink?.to.type === type)) {
-        setChosenLink(null);
-      }
-      paintBaseLinks();
-      paintActiveLinks();
+      dropUndrawn();
     },
     // A destroyed handle draws no type.
     isTypeVisible: (type) => !destroyed && !hidden.has(type),
+    setUnitOpen: (unit, open) => {
+      if (destroyed) return;
+      const entity = projection.byId.get(unit);
+      if (entity === undefined || !draws(entity)) return;
+      folds.setOpen(unit, open);
+    },
+    // A destroyed handle opens no unit.
+    get openUnits() {
+      return destroyed ? new Set<string>() : folds.open;
+    },
     // The switch drops no selection. A relation is not an entity, so a hidden line leaves no
     // marked point undrawn.
     setLinksVisible: (visible) => {

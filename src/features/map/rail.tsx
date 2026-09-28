@@ -4,13 +4,13 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { cn } from '@/shared/lib/utils';
-import { nameHoldsQuery } from '@/shared/name-match';
-import { Rail as TwoStepRail, type RailAct } from '@/shared/rail';
+import { Rail as TwoStepRail, type RailAct, type RailRows } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
 
 import type { MapHandle } from './adapter';
+import { indexLines } from './index-tree';
 import { openTypesUnderFilter } from './open-under-filter';
-import { entitiesOfType, railLegend, railRows, type Projection } from './projection';
+import { railLegend, railRows, type Projection } from './projection';
 import { IndexRows } from './row';
 
 export interface RailProps {
@@ -18,15 +18,20 @@ export interface RailProps {
   // The caller renders this rail after its mount effect fills the ref, so `current` holds the
   // live map for the whole life of this component.
   readonly map: RefObject<MapHandle | null>;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
+  /** Whether the rail is open, and how wide. The caller holds both in the workspace. */
+  readonly frame: Pick<RailRows, 'open' | 'width'>;
+  readonly onFrameChange: (frame: Pick<RailRows, 'open' | 'width'>) => void;
 }
 
-export function Rail({ projection, map, open, onOpenChange }: RailProps) {
+export function Rail({ projection, map, frame, onFrameChange }: RailProps) {
   // The legend is an echo of the adapter, which stays the one truth: it is seeded from the handle
   // and taken from the handle again after each switch. The fallback draws everything on.
   const [legend, setLegend] = useState(() =>
-    railLegend(projection, (type) => map.current?.isTypeVisible(type) ?? true),
+    railLegend(
+      projection,
+      (type) => map.current?.isTypeVisible(type) ?? true,
+      map.current?.openUnits ?? new Set(),
+    ),
   );
 
   // `handle.onSelect` calls its listener at once with the selection of that moment, so the seed
@@ -56,6 +61,8 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     if (live === null) return;
     return live.onSelect((id) => {
       setSelected(id);
+      // A selection opens each unit above it, so the list reads the folds back from the adapter.
+      setLegend(railLegend(corpus.current, live.isTypeVisible, live.openUnits));
       const type = id === null ? null : (corpus.current.byId.get(id)?.type ?? null);
       if (type === null) return;
       setOpenTypes((held) => (held.includes(type) ? held : [...held, type]));
@@ -68,7 +75,14 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     const live = map.current;
     if (live === null) return;
     live.setTypeVisible(type, visible);
-    setLegend(railLegend(projection, live.isTypeVisible));
+    setLegend(railLegend(projection, live.isTypeVisible, live.openUnits));
+  };
+
+  const openUnit = (unit: string, open: boolean): void => {
+    const live = map.current;
+    if (live === null) return;
+    live.setUnitOpen(unit, open);
+    setLegend(railLegend(projection, live.isTypeVisible, live.openUnits));
   };
 
   const reach = (id: string): void => {
@@ -78,7 +92,8 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
     live.flyTo(id);
   };
 
-  // Departure: the adapter drops a selection of a type it does not draw, so the header offers none.
+  // Departure: the adapter drops a selection of a type it does not draw, so the header offers
+  // none. An entity folded in the list stays, because a choice of it opens the units above it.
   const drawn = useMemo(
     () => projection.entities.filter((entity) => legend.drawnTypes.has(entity.type)),
     [projection, legend],
@@ -91,7 +106,10 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
   const act = (next: RailAct): void => {
     switch (next.kind) {
       case 'open-rail':
-        onOpenChange(next.open);
+        onFrameChange({ ...frame, open: next.open });
+        return;
+      case 'resize-rail':
+        onFrameChange({ ...frame, width: next.width });
         return;
       case 'switch-type':
         switchType(next.type, next.on);
@@ -123,7 +141,7 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
       rows={railRows(
         legend,
         openTypesUnderFilter(legend, projection.entities, openTypes, query),
-        open,
+        frame,
         linksOn,
       )}
       onAct={act}
@@ -133,17 +151,14 @@ export function Rail({ projection, map, open, onOpenChange }: RailProps) {
         return facet === undefined ? null : (
           <IndexRows
             facet={facet}
-            entities={entitiesOfType(projection, facet.type).filter((entity) =>
-              nameHoldsQuery(entity.label, query),
-            )}
-            selectedId={selected}
+            lines={indexLines(projection, legend, facet.type, query, selected)}
             onSelect={reach}
+            onOpen={openUnit}
           />
         );
       }}
-      // One hairline separates two surfaces, and `border` is that token. The width is part of the
-      // contract — 240px open, and a 44px strip closed.
-      className={cn('shrink-0 border-r border-border bg-background', open ? 'w-60' : 'w-11')}
+      // One hairline separates two surfaces, and `border` is that token. The rail states the width.
+      className={cn('shrink-0 border-r border-border bg-background')}
     />
   );
 }

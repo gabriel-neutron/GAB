@@ -23,6 +23,7 @@ const rows = (over: Partial<RailRows> = {}): RailRows => ({
   openTypes: [],
   everyTypeOff: false,
   open: true,
+  width: 240,
   ...over,
 });
 
@@ -35,7 +36,7 @@ const meta = {
     onAct,
     index: (type: string) => <p data-index={type}>The index of {type}</p>,
   },
-  // The width is part of the contract of each caller: 240px open, a 44px strip closed on the map.
+  // The rail states its own width: the stored one open, clamped, and a 44px strip closed.
   parameters: { layout: 'centered' },
 } satisfies Meta<typeof Rail>;
 
@@ -194,6 +195,46 @@ export const TheRailReportsItsOwnFold: Story = {
   play: async ({ canvas, args }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Close the rail' }));
     await expect(args.onAct).toHaveBeenCalledWith({ kind: 'open-rail', open: false });
+  },
+};
+
+/** The stored width is drawn inside its bounds, so a rail from a larger screen stays readable. */
+export const TheOpenRailTakesTheStoredWidthInsideItsBounds: Story = {
+  args: { rows: rows({ width: 300 }) },
+  play: async ({ canvas }) => {
+    const rail = canvas.getByRole('complementary', { name: 'Layers' });
+    await expect(Math.round(rail.getBoundingClientRect().width)).toBe(300);
+    await expect(canvas.getByRole('separator', { name: 'Rail width' })).toHaveAttribute(
+      'aria-valuenow',
+      '300',
+    );
+  },
+};
+
+export const ATooNarrowWidthIsDrawnAtTheNarrowestBound: Story = {
+  args: { rows: rows({ width: 40 }) },
+  play: async ({ canvas }) => {
+    const rail = canvas.getByRole('complementary', { name: 'Layers' });
+    await expect(Math.round(rail.getBoundingClientRect().width)).toBe(192);
+  },
+};
+
+// A drag reports through the same act, and a story reaches it only through the keyboard: a
+// synthetic pointer holds no capture. The running application checks the drag.
+export const TheEdgeReportsTheWidthItWasMovedTo: Story = {
+  args: { rows: rows({ width: 240 }) },
+  play: async ({ canvas, args }) => {
+    const edge = canvas.getByRole('separator', { name: 'Rail width' });
+    edge.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    await expect(args.onAct).toHaveBeenCalledWith({ kind: 'resize-rail', width: 256 });
+  },
+};
+
+export const TheClosedRailHasNoEdgeToDrag: Story = {
+  args: { rows: rows({ open: false }) },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('separator')).toBeNull();
   },
 };
 

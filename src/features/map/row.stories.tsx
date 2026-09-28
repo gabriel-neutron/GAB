@@ -4,7 +4,8 @@ import { expect, fn, userEvent } from 'storybook/test';
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
-import { project, type GeoEntity, type TypeFacet } from './projection';
+import { indexLines, type IndexLine } from './index-tree';
+import { project, railLegend, type GeoEntity, type TypeFacet } from './projection';
 import { IndexRows } from './row';
 
 const projection = project(corpus, entityTypes);
@@ -28,12 +29,30 @@ function idOf(label: string): string {
 }
 
 const VESSELS = entitiesOf('vessel');
-const UNITS = entitiesOf('military_unit');
+
+const EVERY_UNIT_OPEN: ReadonlySet<string> = new Set(
+  projection.entities.map((entity) => entity.id),
+);
+
+// The lines come from the derivation the rail calls, so no story draws a tree it could not build.
+function linesOf(
+  type: string,
+  selectedId: string | null = null,
+  open: ReadonlySet<string> = EVERY_UNIT_OPEN,
+): readonly IndexLine[] {
+  return indexLines(
+    projection,
+    railLegend(projection, () => true, open),
+    type,
+    '',
+    selectedId,
+  );
+}
 
 const meta = {
   component: IndexRows,
-  args: { selectedId: null, onSelect: fn() },
-  // The design measures the rail at 240px wide and the row at 24px high.
+  args: { onSelect: fn(), onOpen: fn() },
+  // The rail opens at 240px wide by default, and the row is 24px high.
   render: (args) => (
     <div className="w-60">
       <IndexRows {...args} />
@@ -46,7 +65,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const EachRowNamesItsEntityAndNothingElse: Story = {
-  args: { facet: facetOf('vessel'), entities: VESSELS },
+  args: { facet: facetOf('vessel'), lines: linesOf('vessel') },
   play: async ({ canvasElement }) => {
     const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
     await expect(rows).toHaveLength(VESSELS.length);
@@ -61,8 +80,7 @@ export const EachRowNamesItsEntityAndNothingElse: Story = {
 export const ARowSelectsItsEntity: Story = {
   args: {
     facet: facetOf('vessel'),
-    entities: VESSELS,
-    selectedId: VESSELS[0]?.id ?? null,
+    lines: linesOf('vessel', VESSELS[0]?.id ?? null),
   },
   play: async ({ args, canvasElement }) => {
     const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
@@ -83,7 +101,7 @@ export const ARowSelectsItsEntity: Story = {
 // The canvas says THAT with a halo; this row draws no canvas, so these words are the only thing
 // that can say it here, and they must name the parent and never the child.
 export const ABorrowedPositionNamesTheParent: Story = {
-  args: { facet: facetOf('military_unit'), entities: UNITS },
+  args: { facet: facetOf('military_unit'), lines: linesOf('military_unit') },
   play: async ({ canvasElement }) => {
     const said = (label: string): string | null => {
       const row = canvasElement.querySelector<HTMLElement>(`[data-id="${idOf(label)}"]`);
@@ -100,7 +118,7 @@ export const ABorrowedPositionNamesTheParent: Story = {
 // The graphic is a military symbol, and most readers read none. So the row carries the echelon
 // and the domain in words beside it, and a unit that recorded no domain says nothing about one.
 export const TheRowNamesTheEchelonAndTheDomainInWords: Story = {
-  args: { facet: facetOf('military_unit'), entities: UNITS },
+  args: { facet: facetOf('military_unit'), lines: linesOf('military_unit') },
   play: async ({ canvasElement }) => {
     const said = (label: string): string | null => {
       const row = canvasElement.querySelector<HTMLElement>(`[data-id="${idOf(label)}"]`);
@@ -115,7 +133,7 @@ export const TheRowNamesTheEchelonAndTheDomainInWords: Story = {
 
 // A vessel is not a unit, so no row of a vessel is given a frame or the words that go with one.
 export const AVesselIsGivenNoUnitFrame: Story = {
-  args: { facet: facetOf('vessel'), entities: VESSELS },
+  args: { facet: facetOf('vessel'), lines: linesOf('vessel') },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector('[data-unit-symbol]')).toBeNull();
     await expect(canvasElement.querySelector('[data-symbol-words]')).toBeNull();
@@ -125,16 +143,46 @@ export const AVesselIsGivenNoUnitFrame: Story = {
 // An entity that carries a point and states no word must read as the cautious state. The words
 // of a borrowed position are a claim, and an absent claim is never a measured one.
 export const AnEntityThatStatesNoWordSaysNothingAboutItsPosition: Story = {
-  args: { facet: facetOf('vessel'), entities: VESSELS },
+  args: { facet: facetOf('vessel'), lines: linesOf('vessel') },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector('[data-position-from]')).toBeNull();
   },
 };
 
 export const AnEmptyListSaysNoNameMatches: Story = {
-  args: { facet: facetOf('vessel'), entities: [] },
+  args: { facet: facetOf('vessel'), lines: [] },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector('[data-no-match]')).not.toBeNull();
     await expect(canvasElement.querySelectorAll('[data-row]')).toHaveLength(0);
+  },
+};
+
+const PARENT = idOf('92nd Coastal Battery');
+const CHILD = idOf('3rd Reconnaissance Company');
+
+// Departure: the chain of command is a folder of the list. A closed unit lists no subordinate,
+// and the map still draws each one.
+export const AClosedUnitListsNoSubordinate: Story = {
+  args: { facet: facetOf('military_unit'), lines: linesOf('military_unit', null, new Set()) },
+  play: async ({ canvas, canvasElement, args }) => {
+    await expect(canvasElement.querySelector(`[data-id="${PARENT}"]`)).not.toBeNull();
+    await expect(canvasElement.querySelector(`[data-id="${CHILD}"]`)).toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Open the 1 subordinate of 92nd Coastal Battery' }),
+    );
+    await expect(args.onOpen).toHaveBeenCalledWith(PARENT, true);
+  },
+};
+
+export const AnOpenUnitListsItsSubordinateOneLevelDown: Story = {
+  args: { facet: facetOf('military_unit'), lines: linesOf('military_unit') },
+  play: async ({ canvas, canvasElement }) => {
+    const rows = Array.from(canvasElement.querySelectorAll<HTMLElement>('[data-row]'));
+    await expect(rows.map((row) => row.dataset['id'])).toEqual([PARENT, CHILD]);
+    await expect(canvasElement.querySelector('[data-depth="1"]')).not.toBeNull();
+    await expect(
+      canvas.getByRole('button', { name: 'Close the 1 subordinate of 92nd Coastal Battery' }),
+    ).toHaveAttribute('aria-expanded', 'true');
   },
 };
