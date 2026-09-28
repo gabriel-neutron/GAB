@@ -1,8 +1,15 @@
 import { expect, test } from 'vitest';
 
-import type { Corpus, DocumentRow, Entity, Relation } from '@/shared/read/model';
+import type {
+  Corpus,
+  DocumentRow,
+  Entity,
+  EntityTypeDeclaration,
+  Proposal,
+  Relation,
+} from '@/shared/read/model';
 
-import { readDossier, readRelation } from './dossier';
+import { readDossier, readRelation, type PendingLine } from './dossier';
 
 const DOCUMENT: DocumentRow = {
   id: 'd1',
@@ -92,6 +99,176 @@ test('a point borrowed from a parent that the entity list lacks still states tha
 
   expect(dossier.drawnOnMap).toBe(true);
   expect(dossier.positionFrom).toBe('position from a parent');
+});
+
+const THIRD: Entity = { ...VESSEL, id: 'e3', label: 'Rotterdam', attrs: {} };
+
+const ACT: Proposal = {
+  id: 'a0',
+  op: 'update_attrs',
+  targetKind: 'relation',
+  targetId: OWNED_BY.id,
+  payload: { kind: 'attrs', attrs: {} },
+  src: ['d1'],
+  names: [],
+  priorValue: null,
+  confidence: 0.9,
+  dissent: false,
+  authorRole: 'gabriel_agent',
+  status: 'pending',
+  createdAt: '2026-09-01T00:00:00Z',
+  decidedAt: null,
+  decidedBy: null,
+};
+
+const SOURCE_1 = { id: 'd1', number: 1, name: 'Source 1 — Port call register' };
+
+const withActs = (...proposals: readonly Proposal[]): Corpus => ({
+  ...CORPUS,
+  entities: [VESSEL, OWNER, THIRD],
+  proposals,
+});
+
+const pendingOf = (read: Corpus, entityId: string): readonly PendingLine[] => {
+  const dossier = readDossier(read, entityId, []);
+  if (dossier === null) throw new Error(`The corpus holds no entity ${entityId}`);
+  return dossier.pending;
+};
+
+test('a pending deletion and a pending attribute act on a relation stand on both of its ends', () => {
+  const read = withActs(
+    { ...ACT, id: 'a1', op: 'delete_relation', payload: { kind: 'delete', reason: null } },
+    { ...ACT, id: 'a2' },
+  );
+
+  const expected: readonly PendingLine[] = [
+    {
+      id: 'a1',
+      summary: 'Deletes a relation',
+      dissent: false,
+      confidence: '0.90',
+      origin: 'machine',
+      sources: [SOURCE_1],
+    },
+    {
+      id: 'a2',
+      summary: 'Changes an attribute',
+      dissent: false,
+      confidence: '0.90',
+      origin: 'machine',
+      sources: [SOURCE_1],
+    },
+  ];
+  expect(pendingOf(read, VESSEL.id)).toHaveLength(2);
+  expect(pendingOf(read, VESSEL.id)).toEqual(expected);
+  expect(pendingOf(read, OWNER.id)).toEqual(expected);
+  expect(pendingOf(read, THIRD.id)).toEqual([]);
+});
+
+test('a pending act on a relation the record does not hold stands on no page', () => {
+  const read = withActs({ ...ACT, id: 'a1', op: 'delete_relation', targetId: 'r9' });
+
+  expect(pendingOf(read, VESSEL.id)).toEqual([]);
+  expect(pendingOf(read, OWNER.id)).toEqual([]);
+});
+
+test('a pending update_relation act stands on both ends of the relation it names', () => {
+  const read = withActs({ ...ACT, id: 'a1', op: 'update_relation', authorRole: 'gabriel_app' });
+
+  const expected: readonly PendingLine[] = [
+    {
+      id: 'a1',
+      summary: 'Changes a relation',
+      dissent: false,
+      confidence: '0.90',
+      origin: 'operator',
+      sources: [SOURCE_1],
+    },
+  ];
+  expect(pendingOf(read, VESSEL.id)).toEqual(expected);
+  expect(pendingOf(read, OWNER.id)).toEqual(expected);
+  expect(pendingOf(read, THIRD.id)).toEqual([]);
+});
+
+test('a pending merge stands on the kept entity and on each absorbed entity', () => {
+  const read = withActs({
+    ...ACT,
+    id: 'a1',
+    op: 'merge_entities',
+    targetKind: 'entity',
+    targetId: OWNER.id,
+    payload: { kind: 'merge', keep_id: OWNER.id, merge_ids: [VESSEL.id] },
+    dissent: true,
+  });
+
+  const expected: readonly PendingLine[] = [
+    {
+      id: 'a1',
+      summary: 'Merges entities',
+      dissent: true,
+      confidence: '0.90',
+      origin: 'machine',
+      sources: [SOURCE_1],
+    },
+  ];
+  expect(pendingOf(read, VESSEL.id)).toEqual(expected);
+  expect(pendingOf(read, OWNER.id)).toEqual(expected);
+  expect(pendingOf(read, THIRD.id)).toEqual([]);
+});
+
+test('an accepted or a rejected act is not pending', () => {
+  const decided = { decidedAt: '2026-09-02T00:00:00Z', decidedBy: 'operator' };
+  const read = withActs(
+    { ...ACT, id: 'a1', targetKind: 'entity', targetId: VESSEL.id, status: 'accepted', ...decided },
+    { ...ACT, id: 'a2', targetKind: 'entity', targetId: VESSEL.id, status: 'rejected', ...decided },
+    { ...ACT, id: 'a3', status: 'accepted', ...decided },
+  );
+
+  expect(pendingOf(read, VESSEL.id)).toEqual([]);
+});
+
+test('an act that states no confidence says so in words, and a stated one has two decimals', () => {
+  const read = withActs(
+    { ...ACT, id: 'a1', targetKind: 'entity', targetId: VESSEL.id, confidence: null },
+    { ...ACT, id: 'a2', targetKind: 'entity', targetId: VESSEL.id, confidence: 0.5 },
+  );
+
+  expect(pendingOf(read, VESSEL.id).map((line) => [line.id, line.confidence])).toEqual([
+    ['a1', 'no confidence is stated'],
+    ['a2', '0.50'],
+  ]);
+});
+
+const declared = (key: string, label: string, retired: boolean): EntityTypeDeclaration => ({
+  key,
+  label,
+  colourLight: '#000000',
+  colourDark: '#ffffff',
+  retired,
+});
+
+test('the type choices hold the live types and the retired type the entity holds, by name', () => {
+  const types = [
+    declared('vessel', 'Vessel', true),
+    declared('port', 'Port', false),
+    declared('company', 'Company', false),
+    declared('aircraft', 'Aircraft', true),
+  ];
+
+  expect(readDossier(CORPUS, VESSEL.id, types)?.typeChoices).toEqual([
+    { key: 'company', name: 'Company' },
+    { key: 'port', name: 'Port' },
+    { key: 'vessel', name: 'Vessel' },
+  ]);
+});
+
+test('the type choices add the held type under its own key when the vocabulary lacks it', () => {
+  const types = [declared('port', 'Port', false), declared('aircraft', 'Aircraft', true)];
+
+  expect(readDossier(CORPUS, VESSEL.id, types)?.typeChoices).toEqual([
+    { key: 'port', name: 'Port' },
+    { key: 'vessel', name: 'vessel' },
+  ]);
 });
 
 test('a point borrowed from a parent that the entity list holds names that parent', () => {
