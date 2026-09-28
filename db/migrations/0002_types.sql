@@ -28,8 +28,8 @@ CREATE DOMAIN doc_id AS text CHECK (
 -- THE ATTRIBUTE ENVELOPE. It carries four rules at once:
 --   invariant 1  every attribute cites at least one document
 --   invariant 4  a value is never null; the unknown is the absence of a key
---   M7           an attribute is exactly {"v": …, "src": [...]}, with no third key
---   M9           a value is a scalar or a flat list, never an object and never nested
+--   M7 (shape)   an attribute is exactly {"v": …, "src": [...]}, with no third key
+--   M7 (depth)   a value is a scalar or a flat list, never an object and never nested
 --
 -- EVERY BRANCH IS WRAPPED IN coalesce. A CHECK passes when its expression is NULL, so an
 -- unwrapped jsonb_typeof on a missing key would let the row through in silence.
