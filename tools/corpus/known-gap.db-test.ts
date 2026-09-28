@@ -1,5 +1,5 @@
-// The two losses the load is known to carry. A test that states a gap fails on the day somebody
-// closes the gap and forgets the story, which a comment cannot do.
+// Departure: the two losses the load is known to carry. A test that states a gap fails on the day
+// somebody closes the gap and forgets the story, which a comment cannot do.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -24,10 +24,9 @@ const NO_JOB = `
    WHERE NOT EXISTS (SELECT 1 FROM public.jobs j WHERE j.document_id = d.id)
    ORDER BY d.id`;
 
-// THE THIRD GAP, AND IT IS DELIBERATE. A reserved source carries no file and no address, so an
-// agent has nothing to read. Two paths agree on it: the seed writes both rows straight into the
-// table and never calls the door, and the door itself queues no work for a source of that kind.
-// `inherited` is the second one, and it says that no document supports the value at all.
+// Departure: a reserved source has no file and no address, so an agent has nothing to read. The
+// seed writes both rows past the door, and the door queues no work for that kind. `inherited` says
+// that no document supports the value at all.
 test('only the reserved documents carry no work', async () => {
   const held = await probe('superuser', async (ask) => documents.parse(await ask(NO_JOB)));
   expect(held.map((row) => row.id)).toStrictEqual(['inherited', 'manual']);
@@ -40,8 +39,8 @@ const PUT_DOCUMENT_TAKES = `
     FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'put_document'`;
 
-// The cause of the loss above, and not a second reading of it. The one ingestion door has no
-// parameter to carry a rating, so no rating can arrive with a document.
+// Departure: this reads the cause of the loss above, and not the loss again. The one ingestion
+// door has no parameter to carry a rating, so no rating can arrive with a document.
 test('the ingestion door takes no rating parameter', async () => {
   const taken = await probe('superuser', async (ask) =>
     parameters.parse(await ask(PUT_DOCUMENT_TAKES)).map((row) => row.parameter),
@@ -67,26 +66,101 @@ const gaps = z.array(
 );
 
 const SOURCES = `
-  WITH untouched AS (
+  WITH renamed AS (
+    SELECT u.target_id AS id, u.src, u.decided_at,
+           max(u.decided_at) OVER (PARTITION BY u.target_id) AS latest
+      FROM public.proposals u
+     WHERE u.status = 'accepted' AND u.op = 'update_entity' AND u.target_kind = 'entity'),
+  cited AS (
+    SELECT id, src FROM renamed WHERE decided_at = latest
+    UNION ALL
+    SELECT e.id, p.src FROM public.entities e JOIN public.proposals p ON p.id = e.promoted_from
+     WHERE NOT EXISTS (SELECT 1 FROM renamed r WHERE r.id = e.id)),
+  untouched AS (
     SELECT e.sources::text[] AS own_src,
            (SELECT array_agg(DISTINCT s) FROM jsonb_each(e.attrs) kv,
               jsonb_array_elements_text(coalesce(kv.value->'src','[]'::jsonb)) s) AS value_src
       FROM public.entities e
      WHERE NOT EXISTS (SELECT 1 FROM public.proposals u
-                        WHERE u.status = 'accepted' AND u.op = 'update_attrs'
+                        WHERE u.status = 'accepted' AND u.op IN ('update_attrs', 'update_entity')
                           AND u.target_kind = 'entity' AND u.target_id = e.id))
-  SELECT (SELECT count(*) FROM public.entities e JOIN public.proposals p ON p.id = e.promoted_from
-           WHERE e.sources::text[] <> p.src::text[])
+  SELECT (SELECT count(*) FROM public.entities e
+           WHERE EXISTS (SELECT 1 FROM cited c WHERE c.id = e.id)
+             AND NOT EXISTS (SELECT 1 FROM cited c
+                              WHERE c.id = e.id AND c.src::text[] = e.sources::text[]))
            AS rows_that_leave_the_creating_citation,
          (SELECT count(*) FROM untouched WHERE NOT (own_src @> value_src))
            AS untouched_rows_that_omit_a_value_source`;
 
-// The row list is the citation of the creating act and nothing more. A promotion of an update
-// never extends it, so an entity an update touched can omit a document its own value cites.
-test('an entity carries the citation of the act that created it', async () => {
+// Departure: an accepted update_entity replaces the row list with its own citation, and a rename
+// is decided after the creation, so it wins a tie. Two renames with one decided_at pass on either.
+// An update_attrs keeps the list, so an entity an update touched can omit a value source.
+test('an entity carries the citation of the act that last set its name or type', async () => {
   const held = await probe('superuser', async (ask) => gaps.parse(await ask(SOURCES)));
   expect(held).toStrictEqual([
     { rows_that_leave_the_creating_citation: 0, untouched_rows_that_omit_a_value_source: 0 },
+  ]);
+});
+
+const picked = z.array(z.object({ target: z.uuid(), outside: z.string() }));
+const made = z.array(z.object({ id: z.uuid() }));
+
+const NEVER_RENAMED = `
+  SELECT e.id AS target, d.id AS outside
+    FROM public.entities e JOIN public.proposals p ON p.id = e.promoted_from
+   CROSS JOIN public.documents d
+   WHERE d.id NOT IN ('inherited', 'manual')
+     AND NOT (d.id = ANY (p.src)) AND NOT (d.id = ANY (e.sources))
+     AND NOT EXISTS (SELECT 1 FROM public.proposals u
+                      WHERE u.status = 'accepted' AND u.op = 'update_entity'
+                        AND u.target_kind = 'entity' AND u.target_id = e.id)
+   ORDER BY e.id, d.id LIMIT 1`;
+
+const RENAME = `SELECT public.propose_change('update_entity', '{"label":"A census test"}'::jsonb,
+  ARRAY[$1::text], 'entity', $2::uuid) AS id`;
+
+const DECIDED_WITH_THE_CREATION = `
+  UPDATE public.proposals u
+     SET status = 'accepted', decided_by = 'a test',
+         decided_at = (SELECT p.decided_at FROM public.entities e
+                         JOIN public.proposals p ON p.id = e.promoted_from
+                        WHERE e.id = u.target_id)
+   WHERE u.id = $1::uuid`;
+
+const APPLIED = `
+  UPDATE public.entities e
+     SET label = u.payload->>'label',
+         sources = CASE WHEN $2::boolean THEN u.src ELSE e.sources END
+    FROM public.proposals u
+   WHERE u.id = $1::uuid AND e.id = u.target_id`;
+
+type Promotion = 'replaces the list' | 'keeps the old list';
+
+// External constraint: an act is not decided by the transaction that proposed it, so the test
+// writes the decision and the row a promotion writes, and the rollback removes all of it. The
+// decision takes the hour of the creation, so the two acts tie.
+const censusAfter = (promotion: Promotion) =>
+  rolledBack('superuser', async (ask) => {
+    const [pick] = picked.parse(await ask(NEVER_RENAMED));
+    if (pick === undefined) throw new Error('no created entity has a document outside its list');
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const [act] = made.parse(await ask(RENAME, [pick.outside, pick.target]));
+    await ask('RESET SESSION AUTHORIZATION');
+    if (act === undefined) throw new Error('the door returned no row');
+    await ask(DECIDED_WITH_THE_CREATION, [act.id]);
+    await ask(APPLIED, [act.id, promotion === 'replaces the list']);
+    return gaps.parse(await ask(SOURCES));
+  });
+
+test('a rename that cites another document leaves no row behind its citation', async () => {
+  await expect(censusAfter('replaces the list')).resolves.toStrictEqual([
+    { rows_that_leave_the_creating_citation: 0, untouched_rows_that_omit_a_value_source: 0 },
+  ]);
+});
+
+test('a rename whose promotion keeps the old list is reported', async () => {
+  await expect(censusAfter('keeps the old list')).resolves.toStrictEqual([
+    { rows_that_leave_the_creating_citation: 1, untouched_rows_that_omit_a_value_source: 0 },
   ]);
 });
 
