@@ -1,7 +1,7 @@
 // The write-authorisation model, stated as privileges. Every sentence here was a hand check
 // before it was a test.
 
-import { expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { probe, rolledBack } from '../probe.ts';
@@ -226,3 +226,48 @@ for (const document of RESERVED) {
     expect(made.parse(await proposeCiting('app', document))).toHaveLength(1);
   });
 }
+
+// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
+// document the act cites, and removes it after. No act that cites it survives the rollback.
+const ORDINARY = 'doc_perimeter_value_source';
+
+const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
+  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
+
+beforeAll(async () => {
+  await probe('superuser', (ask) => ask(PUT_ORDINARY, [ORDINARY]));
+});
+
+afterAll(async () => {
+  await probe('superuser', (ask) => ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]));
+});
+
+const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
+  rolledBack('agent', (ask) =>
+    ask(
+      `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
+         'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
+         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[]) AS id`,
+      [value, act],
+    ),
+  );
+
+// Departure: no rule reads a reserved word inside a value. A value source stays inside the act
+// sources, so a reserved word in a value is either missing from them or cited by the act.
+test('a machine value that cites manual where the act does not is refused', async () => {
+  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject({
+    code: '23514',
+    constraint: 'proposals_src_within',
+  });
+});
+
+test('a machine value that cites manual where the act does is refused', async () => {
+  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject({
+    code: '23514',
+    constraint: 'proposals_machine_not_reserved',
+  });
+});
+
+test('a machine value that cites the document of its act is accepted', async () => {
+  expect(made.parse(await valueCites(ORDINARY, [ORDINARY]))).toHaveLength(1);
+});
