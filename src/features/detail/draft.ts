@@ -116,6 +116,7 @@ export function pendingEdit(rows: readonly RecordRow[], drafts: Drafts): Pending
       refused = true;
       continue;
     }
+    if (sameValue(read.value, storedValue(claim.value))) continue;
     attrs[claim.key] = { v: carried(read.value) };
     count += 1;
   }
@@ -127,3 +128,27 @@ export function pendingEdit(rows: readonly RecordRow[], drafts: Drafts): Pending
 
 const entered = (draft: ClaimDraft): TypedValue =>
   draft.value.control === 'boolean' ? draft.value.checked : draft.value.text;
+
+// Departure: the stored text is read back without a trim, so a trim of a stored text is a change.
+// A stored list joins its elements with a comma and a space, and no element holds a comma.
+const storedValue = (stored: ClaimValue): AttributeValue => {
+  switch (stored.control) {
+    case 'boolean':
+      return stored.checked;
+    case 'number':
+      return Number(stored.text);
+    case 'list': {
+      const elements = stored.text === '' ? [] : stored.text.split(', ');
+      return stored.element === 'number' ? elements.map(Number) : elements;
+    }
+    case 'date':
+    case 'text':
+    case 'note':
+      return stored.text;
+  }
+};
+
+const sameValue = (a: AttributeValue, b: AttributeValue): boolean => {
+  if (typeof a !== 'object' || typeof b !== 'object') return a === b;
+  return a.length === b.length && a.every((element, index) => element === b[index]);
+};
