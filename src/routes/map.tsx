@@ -9,7 +9,7 @@ import { loadEntityTypes } from '@/shared/read/vocabulary';
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
   readonly entity: string;
-  // Both keys can carry a value at the same time: `features/map/adapter.ts` keeps the selected
+  // Both keys can carry a value at the same time: the map adapter keeps the selected
   // entity when a line is clicked, so the bright lines of that entity stay on the canvas. The
   // chosen relation is the later act, so the panel below draws the relation and not the entity.
   readonly relation: string;
@@ -72,7 +72,7 @@ function MapRoute() {
     [navigate],
   );
 
-  // `features/map/adapter.ts` calls this with `null` when a click on a point or on the ground ends
+  // The map adapter calls this with `null` when a click on a point or on the ground ends
   // the choice, so this route holds no second rule for that. The subscription delivers the choice
   // of the mount first, so a relation the canvas cannot draw arrives as `null` and leaves.
   const handleChooseRelation = useCallback(
@@ -110,7 +110,7 @@ function MapRoute() {
 
   // The row states a height. A flex row of automatic height grows to the tallest item, so
   // `overflow-y-auto` on the sidebar gives no scroll and the window scrolls both panes together.
-  // `h-full` and not a calculation: `src/routes/__root.tsx` gives `<main>` the rest of the height.
+  // `h-full` and not a calculation: the root layout gives `<main>` the rest of the height.
   return (
     <div className="flex h-full overflow-hidden">
       <div className="min-h-0 min-w-0 flex-1">{canvas}</div>

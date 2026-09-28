@@ -159,7 +159,7 @@ export const EveryControlIsLegibleAtItsFullValue: Story = {
   play: expectEveryValue,
 };
 
-// There is no theme decorator in `.storybook/preview.ts`, so the story sets `.dark` itself.
+// There is no theme decorator for Storybook, so the story sets `.dark` itself.
 export const NoValueLosesItsOpacityOnTheDarkGround: Story = {
   args: READING,
   render: () => <div className="dark bg-background p-2 text-foreground">{fields(PROBE)}</div>,

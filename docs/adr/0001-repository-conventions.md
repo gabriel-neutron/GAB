@@ -2,9 +2,12 @@
 
 **Status** Accepted · 10 August 2026
 
-### 1. One package
+### 1. The workspace, converted per §6
 
-One `package.json` at the root. `pnpm-workspace.yaml` holds pnpm settings and declares no package.
+`pnpm-workspace.yaml` declares two package roots: `.`, the root `package.json`, and `packages/*`,
+one folder per deployable part. §6 sets the condition for this conversion, and it was met: the
+worker and the writer are each a second deployable part, as code, and each imports `@gab/store` or
+`@gab/proposal`, a module the root also imports.
 
 The database schema, the infrastructure and the documentation each get a top-level folder. Under
 `src/`, four kinds of folder exist and no fifth is improvised:

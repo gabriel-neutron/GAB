@@ -8,14 +8,14 @@
 -- and fails with `cannot drop columns from view` on every existing database. db/apply/ is not
 -- versioned, so the only recovery would be a manual drop or a full reset.
 --
--- NO VIEW CARRIES `security_invoker`. ADR 0003 §6 asks for it and also gives gabriel_read
--- nothing on `public`. Measured on 19 August 2026: the two rules delete each other and the read
--- returns `permission denied for table`. #95 owns the amendment. Until it answers, these views
--- run with the rights of their owner, and 90_grants.sql is the guard that makes that safe.
+-- NO VIEW CARRIES `security_invoker`. The option checks the base table with the rights of the
+-- caller, and gabriel_read holds nothing on `public`, so it refuses the read as well as the
+-- write. Measured on 19 August 2026: with the option, `permission denied for table`; without it,
+-- the rows. A view runs with the rights of its owner, and 90_grants.sql's blanket REVOKE is the
+-- only guard.
 --
 -- KNOWN LIMIT, AND IT IS NOT A TIER. PostgreSQL reports EVERY view column as nullable, so the
--- generated contract promises a value that can be absent. Measured on #26 and again on #93. No
--- line of SQL here repairs it. #95 and #41 own it.
+-- generated contract promises a value that can be absent. No line of SQL here repairs it.
 -- =============================================================================================
 
 SET ROLE gabriel_owner;

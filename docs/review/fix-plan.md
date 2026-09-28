@@ -27,13 +27,13 @@ Part of #168. This plan puts the 354 confirmed findings of the eight review file
 
 ## Summary
 
-| Part | Units | Findings |
-|---|---|---|
-| Waves (9) | 125 | 40 major, 108 minor, 56 nit, 27 proposal |
-| After the operator decisions | 17 | 5 major, 15 minor, 5 nit, 4 proposal |
-| Operator decisions | 26 | 2 blocker, 33 major, 35 minor, 11 nit, 8 proposal |
-| Will not fix | 4 | 1 minor, 1 nit, 3 proposal |
-| Already fixed | 0 | none |
+| Part | Units | Findings | Done at 28 September 2026 |
+|---|---|---|---|
+| Waves (9) | 125 | 40 major, 108 minor, 56 nit, 27 proposal | 125 / 125 |
+| After the operator decisions | 17 | 5 major, 15 minor, 5 nit, 4 proposal | 17 / 17 |
+| Operator decisions | 26 | 2 blocker, 33 major, 35 minor, 11 nit, 8 proposal | 19 / 26 |
+| Will not fix | 4 | 1 minor, 1 nit, 3 proposal | closed by decision, not by code |
+| Already fixed | 146 | see below | — |
 
 ## Decisions of 26 September 2026
 
@@ -1992,7 +1992,84 @@ The operator owns `docs/`. Write these in one sitting:
 
 ## Already fixed
 
-None.
+An audit on 28 September 2026 checked every unit in this plan against the commits made
+since it was written, and against the live code. 146 of 168 units (all of Waves 1-9, and
+all 17 of the "after the operator decisions" units) are done. The four sections above
+still give the plan's shape; read this section for the true state.
+
+**Waves 1-9: all 125 units done.** Wave 1, the gate for Wave 2, closed before Wave 2 work
+began. Do not restart wave work; move to the units still open below.
+
+**After the operator decisions: 17 of 17 done.** U-TST-28 is now built: `eslint.config.ts`
+adds a shape for a bare path with no `./` and no `.md` suffix, and an overlap check so a
+match inside an already-matched link gives one report and not two. Eleven comments across
+eight files (`.storybook/preview.ts`, `src/features/detail/field.stories.tsx`,
+`src/features/detail/pending.stories.tsx`, `src/features/detail/relation-sidebar.stories.tsx`,
+`src/features/graph/controller.ts`, `src/features/graph/model.ts`,
+`src/features/map/adapter.ts`, `src/routes/map.tsx`) were rewritten to state a reason
+instead of a path. `src/routes/graph.tsx`, one of the plan's original nine files, needed no
+change: U-REV-24 had already removed its source-path comments. `pnpm lint` confirms.
+
+**Operator decisions: 16 of 26 done** after a second pass on 28 September 2026 (a
+requirement debate, run in seven grouped batches, checked each unit against the code and
+against `docs/decisions.md`'s own 26 September ruling, which the "Decisions of 26
+September 2026" section above already answered for most of these units without anyone
+applying the answer).
+
+U-CON-01, U-WRK-01, U-REV-07 and U-TST-16 were already done before this pass.
+
+Eight more are done now — the ADR/decisions text was written to catch code that was
+already built: **U-DB-24, U-DB-25, U-DB-27, U-DB-30, U-DB-36, U-WRK-10, U-TST-27,
+U-TST-32**. U-TST-32 unblocks U-TST-28 (in "after the operator decisions"): that unit is
+now buildable, but not yet built.
+
+Four more are done by the 26 September ruling standing as the answer, with no file to
+write: **U-DB-40, U-DB-41** (keep both ops in `proposals_op_check`, no code change),
+**U-DB-43** (no squash; the repository already assigns each new migration its number in
+merge order), **U-DB-39** (informational only, no fix exists, filed as accepted).
+
+Seven wait on a named gate that does not exist yet, exactly as the 26 September section
+already said — no new decision, no action until the gate opens:
+
+- **#25, the first agent/model caller**: U-DB-09, U-WRI-09, U-CON-14
+- **#134, the P6 ingestion runner**: U-WRK-02, U-DB-28, U-DB-31
+- **U-WRK-02 itself** (the door set may still change): U-DB-26
+
+The last three were decided and built on 28 September 2026, after the debate above
+correctly declined to invent an answer:
+
+- **U-CON-05: built.** A bare string value that is empty or all whitespace is refused,
+  at both tiers (migration 0021, `packages/proposal/src/attribute-value.ts`). An empty
+  list stays valid, unchanged: M11 already covers it, and it can state a known "none".
+  `docs/decisions.md` records the amendment under M9.
+- **U-TST-35: built.** S2 already decided that the row-level list backs a row's typed
+  columns alone — the code did not implement that split. Migration 0022 adds
+  `payload.sources`, the act's own citation for a created row, checked against `src`;
+  `promote_proposal` publishes it instead of the whole citation set. The real writer
+  always gives `['manual']` (label/type/geom are typed by hand); the fixture loader gives
+  its own `entity.sources` / `relation.sources`, already distinct from attribute sources.
+  A create candidate that gives no `sources` (no agent proposes a create yet, #25) keeps
+  the old, wider behaviour. `tools/corpus/known-gap.db-test.ts` is rewritten: the
+  "untouched row omits a value source" gap is gone, because it was never a real
+  invariant once the split is correct.
+- **U-DB-42: decided to keep.** On inspection this is not dead code: T9's own
+  consequence already reserves the three columns for a job-level retry history, with a
+  full design rationale (two counts, not one total; the `failure_kind` taxonomy) tied to
+  #25's still-open growing-wait proposal. Dropping them now would discard completed
+  design work only to redo it identically once #25 or the P6 runner lands. No file
+  changed.
+
+All three were run against the live database (`pnpm db:reset`, `pnpm db:migrate`, the
+full test suite, `pnpm check`): 747 live tests and 416 offline tests pass, drift is
+clean.
+
+Two units closed by a route other than the one the plan states, and count as done:
+
+- **U-TST-17**: `tools/db-reset.ts` now hardcodes its drop target to `gabriel_test`, so no
+  flag can ever point it at the real `gabriel` database. The plan asked for a guard flag;
+  the code makes the guard unconditional instead.
+- **U-DB-29, U-DB-34**: the plan held both behind the migration squash (U-DB-43, still
+  open). Commit `d301424` fixed the comments directly in the unsquashed files instead.
 
 ## Critic changes
 

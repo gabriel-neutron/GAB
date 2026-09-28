@@ -9,7 +9,7 @@ import type { Preview } from '@storybook/react-vite';
 import '../src/index.css';
 
 /**
- * There is no theme decorator, and no provider. `src/index.css` puts the light theme on `:root`
+ * There is no theme decorator, and no provider. The stylesheet puts the light theme on `:root`
  * and the dark theme behind a `.dark` class. A component therefore renders correctly with
  * neither. `ThemeProvider` only reads `localStorage` and writes that class. A story that must
  * prove the dark paint sets the class itself.

@@ -124,6 +124,9 @@ const loadEntities = async (client: Client): Promise<Translation> => {
           label: entity.label,
           attrs: entity.attrs,
           ...(entity.geom === null ? {} : { geom: asGeoJson(entity.geom) }),
+          // S2: the row-level list is the fixture's own entity.sources, not the wider set an
+          // attribute of the same act also cites.
+          sources: entity.sources,
         },
         src: citedDocuments(entity.sources, entity.attrs),
         targetKind: null,
@@ -164,6 +167,8 @@ const loadRelation = async (
       attrs: relation.attrs,
       ...(relation.validFrom === null ? {} : { valid_from: relation.validFrom }),
       ...(relation.validTo === null ? {} : { valid_to: relation.validTo }),
+      // S2: the row-level list is the fixture's own relation.sources.
+      sources: relation.sources,
     },
     src: citedDocuments(relation.sources, relation.attrs),
     targetKind: null,

@@ -66,7 +66,7 @@ export const dimmedColour = (colour: string, ground: string, fraction: number): 
   return `#${hexPair(mix(16))}${hexPair(mix(8))}${hexPair(mix(0))}`;
 };
 
-// The colour of the page as hex, copied from `--background` of `src/index.css`. A CSS custom
+// The colour of the page as hex, copied from the `--background` theme variable. A CSS custom
 // property never reaches the Sigma parser.
 export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
   light: '#f7f8f9',
