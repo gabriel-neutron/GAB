@@ -219,12 +219,14 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Decision.** Scores are produced by a multi-agent arrangement designed to produce contradiction. The operator intervenes only in cases of dissent between agents or of confidence below threshold.
 **Why.** An exhaustive validation queue bottlenecks the whole system on one person's attention, which cancels the multiplier effect.
 **Accepted consequence.** Dissent detects disagreement between agents, **not the blind spot they share**: similar models trust the same laundered source and miss the same transliteration. Without a random audit sample — ruled out here — **no public claim about the accuracy rate of the scoring is defensible**. The dataset must state that the scoring is automated and unmeasured.
+**Amended 3 October 2026 by ADR 0010 §7.** S3 is not a door. A rule score from the cited sources puts a machine proposal in one of three bands: accept, review, drop. Dissent and the rule score order the review band. This replaces the dissent-or-confidence order of #42.
 
 ### S4 — The origin of every rating is stored and published
 
 **Decision.** Machine, arbitrated or human, the origin accompanies the rating in the export.
 **Why.** Automated scoring presented as human would invalidate the entire arrangement in the eyes of a peer. Declared, it remains defensible.
 **Consequence.** None. It is one field.
+**Amended 3 October 2026 by ADR 0010 §7.** The decision origin is a typed column, published and labelled.
 
 ---
 
@@ -235,6 +237,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Decision.** The machine writes freely into the candidate layer. Nothing reaches the evidentiary layer without explicit promotion by the operator.
 **Why.** Automatic correlation only has value if it can cast a wide net without costing a decision per result; the report only has value if nothing enters it without validation.
 **Consequence.** Promotion is the central gesture of the workflow. The ergonomics of review determine the value of the entire system: if review is painful, the evidentiary layer stays empty.
+**Amended 3 October 2026 by ADR 0010 §7.** The operator, or a source rule computed by the database, moves a proposal to the evidentiary layer or rejects it. The rule is off until #9 sets its parameters. This note supersedes the resolution of #42.
 
 ### P2 — Proposals are operations, not ghost entities
 
@@ -320,6 +323,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Decision.** pgvector in the existing database replaces Qdrant. A job table with locking replaces NATS.
 **Why.** At 100 documents and one operator, these two services add operational load for an undetectable gain. Moving to either one later is trivial; carrying them from day one costs two services and two synchronisations.
 **Consequence.** The first build runs on two services: PostgreSQL/PostGIS and MinIO.
+**Amended 3 October 2026 by ADR 0010 §10.** Two services are added: freellmapi and SearXNG.
 
 ### T6 — Two-tier validation
 
@@ -352,3 +356,4 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Why.** T9 left this number undecided for lack of real traffic. The operator now sets it directly, at a small number that matches the model client's own retry counts, so one job does not loop through the queue far longer than one call to the model already does. `failure_kind` stays NULL for this path: it is a job-exhaustion reason, not one of the three call-level kinds the column is checked against.
 **Consequence.** `fail_job(uuid, text)` is the eighth door and the first to write `status = 'failed'`. It is granted to `gabriel_agent`, the same role that holds `claim_job`, since the worker is the one that knows a job has run out of attempts.
 **Amended 26 September 2026.** The queue dispatch claimed per-document jobs for corpus-wide work, so it was deleted. `fail_job`, the attempt limit and the lease requeue belong to the per-document P6 runner, and no process claims a job until it exists.
+**Amended 3 October 2026 by ADR 0010 §5.** A quota pause spends no attempt. A `complete_job` door and a `jobs.kind` column are added. The lease is longer than the worst case of one job.
