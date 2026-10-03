@@ -28,7 +28,20 @@ export PATH="$USER_HOME/.local/share/fnm:$PATH"
 eval "$(fnm env --shell bash)"
 fnm use 24 >/dev/null
 
-GH_TOKEN="$(jq -er '.env.GH_TOKEN' .claude/settings.local.json)"
+GH_TOKEN=""
+if [ -f .claude/settings.local.json ] && command -v jq >/dev/null 2>&1; then
+  GH_TOKEN="$(jq -er '.env.GH_TOKEN // empty' .claude/settings.local.json 2>/dev/null || true)"
+fi
+if [ -z "$GH_TOKEN" ]; then
+  GH_TOKEN="$(printf 'protocol=https
+host=github.com
+
+' | git credential fill 2>/dev/null | awk -F= '$1 == "password" { print substr($0, 10); exit }')"
+fi
+if [ -z "$GH_TOKEN" ]; then
+  echo "ERROR: GitHub access token is not available"
+  exit 1
+fi
 export GH_TOKEN
 LOGIN="$(gh api user --jq .login)"
 if [ "$LOGIN" != "gabriel-neutron" ]; then
