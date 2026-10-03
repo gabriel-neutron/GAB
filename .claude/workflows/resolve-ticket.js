@@ -5,7 +5,7 @@ export const meta = {
   description:
     'Resolve GitHub tickets of GAB end to end: triage -> propose (debate on a real choice) -> independent design review -> test-first implementation -> review panel and gatekeeper (change-request loop) -> merge into staging and close the ticket',
   whenToUse:
-    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>} names the tickets. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /root/projects/GAB (the VPS).',
+    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>} names the tickets. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /home/claude/projects/GAB (the VPS).',
   phases: [
     { title: 'Preflight', detail: 'identity, staging branch, disposable stack; with no tickets given, choose the queue of the phase' },
     { title: 'Triage', detail: 'per ticket: still current? duplicate? open PR, branch or assignee? what does it touch?' },
@@ -24,7 +24,7 @@ const REPO = 'gabriel-neutron/GAB'
 // The allow list of the VPS accepts only literal paths, because a shell substitution in a command
 // can run any program. So the path of the main checkout is a literal in each prompt. The default is
 // the VPS checkout; a run on another machine gives args.main.
-const MAIN_WORKTREE = (args && args.main) || '/root/projects/GAB'
+const MAIN_WORKTREE = (args && args.main) || '/home/claude/projects/GAB'
 const COMPOSE = `docker compose -f ${MAIN_WORKTREE}/infra/docker-compose.yml`
 
 const MAX_ROUNDS = (args && args.maxRounds) || 3
