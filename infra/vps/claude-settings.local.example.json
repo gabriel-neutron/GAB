@@ -1,0 +1,50 @@
+{
+  "env": {
+    "GH_TOKEN": "PASTE-THE-VPS-PAT-HERE"
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Workflow",
+      "Bash(pnpm:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(gh label:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(diff:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker compose -f /root/projects/GAB/infra/docker-compose.yml up -d:*)",
+      "Bash(docker compose -f /root/projects/GAB/infra/docker-compose.yml ps:*)",
+      "Bash(docker compose -f /root/projects/GAB/infra/docker-compose.yml down -v)",
+      "Bash(ln -s:*)",
+      "Bash(cd:*)",
+      "Bash(test:*)",
+      "Bash(grep:*)",
+      "Bash(sed -n:*)"
+    ],
+    "deny": [
+      "Read(.claude/settings.local.json)",
+      "Read(//root/gab-services/.env)",
+      "Bash(gh auth:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(tailscale:*)",
+      "Bash(crontab:*)",
+      "Bash(sudo:*)"
+    ]
+  }
+}

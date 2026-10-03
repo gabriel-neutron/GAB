@@ -172,7 +172,7 @@ Each step names what it unblocks for the research.
 | P4, #16 | `model_call` lands with the first agent. |
 | #25 | freellmapi by default, OpenRouter as the switch, pinned models, a second family for dissent. |
 | T9a | Quota pause, `complete_job`, lease rule, `jobs.kind`. |
-| T5 | Two services are added: freellmapi and SearXNG. |
+| T5 | Two services are added: freellmapi and SearXNG. They hold no record of the project, run on the operator's VPS, and listen on its private network address only (`infra/vps/`). |
 
 ## Consequences
 
@@ -183,4 +183,6 @@ Each step names what it unblocks for the research.
   all; a change that lets a model's own rating count reopens this ADR.
 - freellmapi has no service-level agreement (SLA) and quality falls late in the UTC day. The quota pause and the pinned
   model contain this; they do not remove it.
-- Two new services (freellmapi, SearXNG) run on the operator's machine.
+- Two new services (freellmapi, SearXNG) run on the operator's VPS, on its private network address
+  only. The real database, the writer and the worker stay on the operator's machine. The VPS holds
+  a disposable test stack for the night build runs, and never the real data.
