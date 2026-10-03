@@ -52,6 +52,9 @@ fi
 for TOOL in node pnpm gh jq docker; do
   command -v "$TOOL" >/dev/null || { echo "STOP: $TOOL missing from PATH"; exit 1; }
 done
+# package.json requires Node 24. An older system node fails late, in the install or the build.
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+[ "$NODE_MAJOR" -ge 24 ] || { echo "STOP: node $(node -v) is too old; GAB needs Node 24"; exit 1; }
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || true)}"
 [ -n "$CLAUDE_BIN" ] || { echo "STOP: claude missing from PATH"; exit 1; }
 
