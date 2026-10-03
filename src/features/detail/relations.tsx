@@ -21,11 +21,14 @@ export interface RelationsProps {
   readonly relations: readonly RelationLine[];
   readonly mark: (sources: readonly SourceRef[]) => ReactNode;
   readonly deleting: RelationDeletion;
+  /** A panel beside a canvas gives this, so a click puts the relation on the canvas and in the
+   * sidebar. A list with no canvas beside it gives none, and the sentence then is plain text. */
+  readonly onSelect?: (relationId: string) => void;
 }
 
 const UNDRAWABLE = 'The graph does not draw this relation. One endpoint is a relation.';
 
-export function Relations({ relations, mark, deleting }: RelationsProps) {
+export function Relations({ relations, mark, deleting, onSelect }: RelationsProps) {
   if (relations.length === 0) {
     return (
       <p className="text-xs text-label">
@@ -40,9 +43,22 @@ export function Relations({ relations, mark, deleting }: RelationsProps) {
         <li key={relation.id} data-relation={relation.id} className="border-b border-border py-1">
           <div className="flex items-center gap-2">
             {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
-            <span className="min-w-0 flex-1 truncate text-xs" title={relation.sentence}>
-              {relation.sentence}
-            </span>
+            {onSelect === undefined ? (
+              <span className="min-w-0 flex-1 truncate text-xs" title={relation.sentence}>
+                {relation.sentence}
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="min-w-0 flex-1 truncate text-left text-xs underline-offset-2 hover:underline"
+                title={relation.sentence}
+                onClick={() => {
+                  onSelect(relation.id);
+                }}
+              >
+                {relation.sentence}
+              </button>
+            )}
             {/* M6: the interval is written at both ends. The words arrive written, and
                   "and closed" is among them. */}
             {relation.interval === null ? null : (

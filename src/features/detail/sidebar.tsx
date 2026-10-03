@@ -13,6 +13,9 @@ import { Relations } from './relations';
 
 export interface SidebarProps {
   readonly dossier: Dossier;
+  /** A panel beside a canvas gives this, so a click on a relation puts it on the canvas and
+   * opens `RelationSidebar` for it. A panel with no canvas beside it gives none. */
+  readonly onSelectRelation?: (relationId: string) => void;
 }
 
 const WAY_OUT = 'Open the page';
@@ -21,7 +24,7 @@ const WAY_OUT = 'Open the page';
 const PANE =
   'w-96 min-h-0 shrink-0 space-y-3 overflow-y-auto overscroll-contain border-l border-border bg-sidebar p-2 text-sidebar-foreground';
 
-export function Sidebar({ dossier }: SidebarProps) {
+export function Sidebar({ dossier, onSelectRelation }: SidebarProps) {
   // The sidebar states the count of documents, and not a number. A number would point at a
   // rail, and this surface has no rail.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
@@ -71,7 +74,12 @@ export function Sidebar({ dossier }: SidebarProps) {
       {/* The panel carries no band of sources. It holds no rail and no line of the sources of
           the entity, and a band with nothing under it names a part this surface does not hold. */}
       <Band name="Relations" count={dossier.relations.length}>
-        <Relations relations={dossier.relations} mark={mark} deleting={{ offered: false }} />
+        <Relations
+          relations={dossier.relations}
+          mark={mark}
+          deleting={{ offered: false }}
+          onSelect={onSelectRelation}
+        />
       </Band>
       <Band name="Pending proposals" count={dossier.pending.length}>
         <Pending proposals={dossier.pending} mark={mark} />
