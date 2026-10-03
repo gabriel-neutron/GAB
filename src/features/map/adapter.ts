@@ -23,6 +23,7 @@ import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
 import type { GeoEntity, GeoLink, Projection } from './projection';
 import { relationsInReach } from './reach';
+import { spreadOffsetPx, spreadSlots } from './spread';
 import { unitSymbolImage, unitSymbolImageId } from './unit-symbol-image';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
@@ -116,6 +117,11 @@ const HALO_OPACITY = 0.3;
 // tolerance and a click 4px from the centre returns the line under it. Points take this box too.
 const HIT_BOX = 5;
 
+// Two or more entities that share one point draw in a circle around it instead, at this many CSS
+// pixels from the centre — the same unit `icon-size` and `circle-radius` use, so it reads the
+// same on every screen regardless of resolution.
+const SPREAD_RADIUS_PX = 44;
+
 /** The padding of a fit, in pixels. It is six steps of the 4px grid the theme defines. */
 const FIT_PADDING = 24;
 
@@ -194,20 +200,33 @@ const drawnLinks = (
   draws: (entity: GeoEntity) => boolean,
 ): readonly GeoLink[] => links.filter((link) => isDrawnLink(link, draws));
 
-const collectLines = (links: readonly GeoLink[]): LineCollection => ({
+/** Where one entity draws. Every caller of `collectLines`, `collectArrows` and `featuresOf` takes
+ * one of these, and never `entity.lon`/`entity.lat` directly: an entity in a spread circle draws
+ * away from its own coordinate, and a line to it must run to the same point the mark stands on. */
+type DisplayPointOf = (entity: GeoEntity) => { readonly lon: number; readonly lat: number };
+
+/** The point before any circle spreads it apart. Callers built before the map exists — the first
+ * frame of the style — take this, because the spread needs a live map to convert pixels to it. */
+const ownPoint: DisplayPointOf = (entity) => ({ lon: entity.lon, lat: entity.lat });
+
+const collectLines = (links: readonly GeoLink[], at: DisplayPointOf = ownPoint): LineCollection => ({
   type: 'FeatureCollection',
-  features: links.map((link) => ({
-    type: 'Feature',
-    id: link.fid,
-    geometry: {
-      type: 'LineString',
-      coordinates: [
-        [link.from.lon, link.from.lat],
-        [link.to.lon, link.to.lat],
-      ],
-    },
-    properties: {},
-  })),
+  features: links.map((link) => {
+    const from = at(link.from);
+    const to = at(link.to);
+    return {
+      type: 'Feature',
+      id: link.fid,
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [from.lon, from.lat],
+          [to.lon, to.lat],
+        ],
+      },
+      properties: {},
+    };
+  }),
 });
 
 // The bearing is the plane angle, and not the great-circle one. The great-circle bearing is the
@@ -228,17 +247,23 @@ interface ArrowCollection {
   readonly features: readonly ArrowFeature[];
 }
 
-const collectArrows = (links: readonly GeoLink[]): ArrowCollection => ({
+const collectArrows = (
+  links: readonly GeoLink[],
+  at: DisplayPointOf = ownPoint,
+): ArrowCollection => ({
   type: 'FeatureCollection',
-  features: links.map((link) => ({
-    type: 'Feature',
-    id: link.fid,
-    geometry: { type: 'Point', coordinates: [link.to.lon, link.to.lat] },
-    properties: {
-      bearing:
-        (Math.atan2(link.to.lon - link.from.lon, link.to.lat - link.from.lat) * 180) / Math.PI,
-    },
-  })),
+  features: links.map((link) => {
+    const from = at(link.from);
+    const to = at(link.to);
+    return {
+      type: 'Feature',
+      id: link.fid,
+      geometry: { type: 'Point', coordinates: [to.lon, to.lat] },
+      properties: {
+        bearing: (Math.atan2(to.lon - from.lon, to.lat - from.lat) * 180) / Math.PI,
+      },
+    };
+  }),
 });
 
 // `unknown` is the window before the style loads, where the library can answer no query. A caller
@@ -290,17 +315,22 @@ export function mountMap({
     });
   }
 
+  // The circle each entity shares its point with. Zoom-independent: the map that turns a slot
+  // into a pixel offset does not exist yet at this line, so this much is computed once, here.
+  const slots = spreadSlots(projection.entities);
+
   // MapLibre reads the style with its own parser, so a CSS custom property never reaches it and
   // `projection.ts` holds the hex copy. An entity of a type with no facet is drawn nowhere.
-  const featuresOf = (entities: readonly GeoEntity[]): PointFeature[] => {
+  const featuresOf = (entities: readonly GeoEntity[], at: DisplayPointOf = ownPoint): PointFeature[] => {
     const features: PointFeature[] = [];
     for (const entity of entities) {
       const colour = colourOfType.get(entity.type);
       if (colour === undefined) continue;
+      const point = at(entity);
       features.push({
         type: 'Feature',
         id: entity.fid,
-        geometry: { type: 'Point', coordinates: [entity.lon, entity.lat] },
+        geometry: { type: 'Point', coordinates: [point.lon, point.lat] },
         // The ancestor identity is the test, and never the words. A label that no row supplies
         // must not remove the halo from a position that was still borrowed.
         properties: {
@@ -546,6 +576,18 @@ export function mountMap({
   // It is not compact: a credit behind a control that a reader must open does not meet a licence.
   map.addControl(new AttributionControl({ compact: false }), creditCorner);
 
+  // The pixel offset needs a live map to turn into a point, because it reads the current zoom.
+  // `project` and `unproject` carry the current bearing and pitch too, so the circle stays a
+  // circle on the screen even where a gesture turns or tilts the ground under it.
+  const displayPointOf: DisplayPointOf = (entity) => {
+    const slot = slots.get(entity.id);
+    if (slot === undefined) return { lon: entity.lon, lat: entity.lat };
+    const anchor = map.project([entity.lon, entity.lat]);
+    const { dx, dy } = spreadOffsetPx(slot, SPREAD_RADIUS_PX);
+    const moved = map.unproject([anchor.x + dx, anchor.y + dy]);
+    return { lon: moved.lng, lat: moved.lat };
+  };
+
   let destroyed = false;
   let styleReady = false;
   const queued: (() => void)[] = [];
@@ -598,6 +640,16 @@ export function mountMap({
     restoredLink !== null && !linksHidden && isDrawnLink(restoredLink, draws) ? restoredLink : null;
   const chooseLinkListeners = new Set<(link: GeoLink | null) => void>();
 
+  // The circle needs the current zoom, so the entity source is static at no point past the first
+  // frame: this repaints every drawn point at its live position, in the circle or off it.
+  const paintEntities = (): void => {
+    whenStyleReady(() => {
+      const source = map.getSource(ENTITY_SOURCE);
+      if (!(source instanceof GeoJSONSource)) return;
+      void source.setData(collect(featuresOf(projection.entities, displayPointOf)));
+    });
+  };
+
   const paintSelection = (): void => {
     whenStyleReady(() => {
       const source = map.getSource(SELECTION_SOURCE);
@@ -608,7 +660,7 @@ export function mountMap({
       // `setData` returns a promise, and `void` drops it. The data is here already, so the
       // promise carries no fetch that can fail. A rejection can only come from a map that the
       // analyst closed while the parser worked, and that is not a fault to report.
-      void source.setData(collect(featuresOf(entity === undefined ? [] : [entity])));
+      void source.setData(collect(featuresOf(entity === undefined ? [] : [entity], displayPointOf)));
     });
   };
 
@@ -618,11 +670,11 @@ export function mountMap({
       // The test on the class gives the type that declares `setData`, exactly as above.
       if (!(source instanceof GeoJSONSource)) return;
       const drawn = drawnLinks(relationsInReach(projection, selected), draws);
-      void source.setData(collectLines(drawn));
+      void source.setData(collectLines(drawn, displayPointOf));
       // The heads follow the same list, in the same queue, so a line and its head can never
       // disagree about which relations are drawn.
       const heads = map.getSource(ARROW_SOURCE);
-      if (heads instanceof GeoJSONSource) void heads.setData(collectArrows(drawn));
+      if (heads instanceof GeoJSONSource) void heads.setData(collectArrows(drawn, displayPointOf));
     });
   };
 
@@ -639,7 +691,7 @@ export function mountMap({
       // is a fault of the source, so the test keeps one copy.
       const bright =
         chosenLink === null || mine.includes(chosenLink) ? mine : [...mine, chosenLink];
-      void source.setData(collectLines(drawnLinks(bright, draws)));
+      void source.setData(collectLines(drawnLinks(bright, draws), displayPointOf));
     });
   };
 
@@ -652,9 +704,22 @@ export function mountMap({
   };
 
   // The selection that comes from the address is drawn at the load, through the same queue.
+  paintEntities();
   paintSelection();
   paintBaseLinks();
   paintActiveLinks();
+
+  // A zoom changes how many pixels one degree covers, so a circle held at a fixed pixel radius
+  // moves every point it spreads apart. `zoomend` fires once a gesture or a `flyTo` settles, and
+  // not on every frame of it, which a `setData` on every frame would cost.
+  subscriptions.push(
+    map.on('zoomend', () => {
+      paintEntities();
+      paintBaseLinks();
+      paintActiveLinks();
+      paintSelection();
+    }),
+  );
 
   const setSelected = (next: string | null): void => {
     if (destroyed || next === selected) return;

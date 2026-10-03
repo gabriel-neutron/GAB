@@ -64,8 +64,11 @@ function MapRoute() {
       // a plain `/map` would write `?entity=` before the analyst acts. A seed that differs still
       // writes: `adapter.ts` drops a restored identifier it cannot draw, and the address loses it.
       if ((id ?? '') === current.current.entity) return;
+      // A new entity ends the choice of a relation: `adapter.ts` holds that rule for a click on
+      // the canvas, but a click on the sidebar list picks a relation with no call into the
+      // adapter, so this route must hold the rule too, or the panel keeps naming the old relation.
       void navigate({
-        search: (previous: MapSearch): MapSearch => ({ ...previous, entity: id ?? '' }),
+        search: (previous: MapSearch): MapSearch => ({ ...previous, entity: id ?? '', relation: '' }),
         replace: true,
       });
     },
@@ -117,7 +120,7 @@ function MapRoute() {
       {chosen !== null ? (
         <RelationSidebar relation={chosen} />
       ) : dossier === null ? null : (
-        <Sidebar dossier={dossier} />
+        <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} />
       )}
     </div>
   );
