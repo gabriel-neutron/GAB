@@ -60,7 +60,9 @@ flowchart LR
     UI -->|edit| BACK
 ```
 
-**Two services in the first build**: PostgreSQL/PostGIS and MinIO (T5).
+**Two services in the first build**: PostgreSQL/PostGIS and MinIO (T5). ADR 0010 adds two
+services for the AI: freellmapi (the model endpoint) and SearXNG (web search). They run on the
+operator's VPS, on its private network address only, and hold no record of the project.
 
 ---
 
@@ -77,7 +79,7 @@ each rule when the build reaches it.
 | 2 | Every cited source exists in `documents`. | S2 | Database. A list of sources carries no foreign key, so a guard proves each source named by an act, and a check holds the sources of a value inside that list. Invariant 5 then carries the guarantee into the evidentiary layer. |
 | 3 | A machine never signs an act as `manual`. `manual` is reserved to the human operator. | M8 | Database, by a privilege boundary and a stamp. `gabriel_agent` holds `EXECUTE` on no door that signs. A trigger stamps `author_role` from `session_user`, so the caller cannot state it. A check then refuses `manual` in the act. A value cannot hide one, because every source a value cites must also stand in the act. |
 | 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
-| 5 | Nothing enters `entities` / `relations` without the explicit promotion of a proposal. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. |
+| 5 | Nothing enters `entities` / `relations` without the promotion of a proposal: by the operator, or by the source rule of ADR 0010 §7. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. The rule door decides only under its locks, and it stamps `decision_origin`. |
 | 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
 
 The objects that carry these rules live in `db/migrations/` and `db/apply/`. **Read the SQL for
@@ -99,11 +101,12 @@ holds — a machine cannot sign as the operator. **`decided_by` is not in this i
 decision signed by a name that nothing proves to be a person is an open question, and the
 tracker carries it. The grants file states that limit in full.
 
-**Invariant 5 names one door, not two.** Earlier versions of this row read "or a direct
-operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees with
-the register: the analyst writes the evidentiary layer **by promotion**. An operator edit is
-an operator-authored proposal, promoted by the same path. The tracker carries the measurement
-behind this, and the six forgeries that decided it.
+**Invariant 5 names two deciders and no direct write.** Earlier versions of this row read "or a
+direct operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees
+with the register: the analyst writes the evidentiary layer **by promotion**. An operator edit is
+an operator-authored proposal, promoted by the same path. ADR 0010 §7 adds one more door,
+`decide_by_rule`, which promotes a machine proposal only under its locks. The tracker carries the
+measurement behind this, and the six forgeries that decided it.
 
 ---
 
@@ -155,24 +158,26 @@ put_document
           → agent reads the file schema and a sample
           → mapping proposal → promotion → bulk load in code
 
-every proposal, from either path
-     → exception rule: dissent OR confidence < threshold
-          ├── true  → review queue + graph marker → human decision
-          └── false → OPEN, see §6
+every machine proposal, from either path
+     → source rule (ADR 0010 §7): score from the cited sources
+          ├── score ≥ high threshold, all locks hold → promoted by the rule
+          ├── between the thresholds, or a lock fails → review queue + graph marker → human decision
+          └── score < low threshold                 → rejected by the rule
      → entities / relations (evidentiary layer)
 ```
 
-**Review by exception (S3).** Send to human review every proposal such that
-`dissent = true` OR `confidence < threshold`. The threshold is an operational parameter,
-not a code constant.
+**Promotion by a source rule (ADR 0010 §7, which replaces the #42 resolution).** The score
+counts the independent sources a proposal cites and the ADMIRALTY rating of each. Two sources on
+the same upstream feed count as one. The minimum count, the minimum rating and the two thresholds
+are operational parameters, not code constants. **With no parameter row, the rule does nothing**,
+and every proposal goes to the review queue. ADR 0010 §7 holds the five locks of the rule door.
 
-**What happens to the rest is an open question, and the tracker carries it.** S3 says the
-operator intervenes only on dissent or low confidence. P1 and invariant 5 say nothing reaches
-the evidentiary layer without explicit promotion. The two cannot both hold. Do not settle this
-in code and do not settle it in a document. See §6.
+**The review band keeps the S3 order.** Dissent and the rule score put the doubtful proposals at
+the head of the queue. An operator-authored proposal never passes through the rule.
 
-**One door in, and it is a function.** Nothing writes `entities` or `relations` directly. The
-promotion runs inside a function, which holds the privilege alone. Each evidentiary row carries
+**Two doors in, and each one is a function.** Nothing writes `entities` or `relations` directly.
+The operator promotion and `decide_by_rule` each run inside a function that holds the privilege
+alone. Each evidentiary row carries
 the identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal makes one row.
 **ADR 0003 §7 holds the mechanism and the roles**, and this paragraph does not repeat it.
 
@@ -204,6 +209,7 @@ Three rules follow, and each one is a defect if it is broken.
   `prd.md` §2, so nothing is built towards it today.
 
 Two kinds of value are deliberately unspecified for ever, and neither is a ticket. An
-**operational parameter** — the confidence threshold, the zoom breakpoints, the buffer radius
+**operational parameter** — the thresholds and minimums of the source rule,
+the zoom breakpoints, the buffer radius
 — is calibrated on real data and never written as a code constant. A **provisional shape** — a
 table that no rule above requires — is decided by the first migration that needs it.

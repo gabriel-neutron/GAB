@@ -19,6 +19,13 @@ A green test proves the case it names, and a review reaches the case nobody name
 **The orchestrating session commits, and a subagent does not.** It is the only actor that sees
 both the diff and the finding, so it is the only one that can measure the gate above.
 
+**One exception: the `resolve-ticket` workflow.** Its implementer and its fixer commit on their
+own `fix/<n>-<slug>` branch, and only there. The gatekeeper of the workflow is the second reader:
+it re-runs the tests and `pnpm check`, reads the review panel, and approves or sends change
+requests. Nothing reaches `staging` before it approves, and nothing reaches `main` before the
+operator promotes `staging`. The branch is the reason the exception is safe: a commit there
+changes nothing that another reader depends on.
+
 No hook and no continuous-integration step holds any rule in this document. The rule is the
 document, and a reader holds it.
 
