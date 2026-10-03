@@ -1,5 +1,5 @@
 # SearXNG settings for GAB. Only the values that differ from the defaults are here.
-# server.secret_key comes from SEARXNG_SECRET in /root/gab-services/.env, never from this file.
+# server.secret_key comes from SEARXNG_SECRET in /home/claude/gab-services/.env, never from this file.
 use_default_settings: true
 
 general:
