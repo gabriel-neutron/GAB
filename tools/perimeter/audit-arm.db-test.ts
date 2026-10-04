@@ -288,6 +288,7 @@ const THE_DOOR_SET = [
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
   'public.put_document to gabriel_app',
+  'public.record_model_call to gabriel_agent',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
   'public.set_entity_layout to gabriel_agent',
@@ -369,12 +370,13 @@ const READ_VIEWS = [
   'api.job SELECT',
   'api.key_usage SELECT',
   'api.layout SELECT',
+  'api.model_call SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the eleven api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the twelve api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
