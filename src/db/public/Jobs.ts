@@ -29,6 +29,8 @@ export default interface Jobs {
   updated_at: Date;
 
   finished_at: Date | null;
+
+  kind: string;
 }
 
 export interface JobsInitializer {
@@ -57,6 +59,8 @@ export interface JobsInitializer {
   updated_at?: Date;
 
   finished_at?: Date | null;
+
+  kind: string;
 }
 
 export interface JobsMutator {
@@ -85,4 +89,6 @@ export interface JobsMutator {
   updated_at?: Date;
 
   finished_at?: Date | null;
+
+  kind?: string;
 }
