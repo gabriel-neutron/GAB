@@ -41,6 +41,12 @@ BEGIN
   NEW.prior_value := NULL;
   NEW.created_at  := now();
   NEW.xact        := pg_current_xact_id();
+  -- A machine act names the call that made it. This runs on the insert alone, so an agent row
+  -- from before the call table existed is still decided: the freeze trigger never reads this.
+  IF NEW.author_role = 'gabriel_agent' AND NEW.model_call_id IS NULL THEN
+    RAISE EXCEPTION 'a proposal of gabriel_agent names the model call that made it'
+      USING ERRCODE = 'check_violation';
+  END IF;
   RETURN NEW;
 END $$;
 
@@ -90,13 +96,26 @@ BEGIN
   END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
-      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at)
+      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
+      NEW.model_call_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
-      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at) THEN
+      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
+      OLD.model_call_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
+END $$;
+
+-- A CALL IS A FACT AND NOT A STATE: it is written once and never changes. The owner and the
+-- superuser ignore a grant, so a trigger holds it.
+CREATE OR REPLACE FUNCTION model_call_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'a model call is never deleted. It is the record of what the model was asked';
+  END IF;
+  RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
 -- M4. src_id and dst_id carry no foreign key, because the target is polymorphic. FOR KEY SHARE
@@ -129,7 +148,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Eight functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Nine functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
@@ -179,27 +198,67 @@ BEGIN
 END $$;
 
 -- The candidate layer. gabriel_agent and gabriel_app may call it. The author role is stamped by
--- a trigger and is never a parameter.
+-- a trigger and is never a parameter. The call id is the last parameter and it is optional: a
+-- proposal of gabriel_agent must carry one and a proposal of gabriel_app must carry none, and
+-- the database holds both rules, so this door states neither.
+--
+-- The earlier signature is dropped here: a re-runnable file that only replaces would leave the
+-- two side by side, and a call with eight arguments would then be ambiguous.
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
 CREATE OR REPLACE FUNCTION propose_change(
-  p_op          text,
-  p_payload     jsonb,
-  p_src         text[],
-  p_target_kind text    DEFAULT NULL,
-  p_target_id   uuid    DEFAULT NULL,
-  p_names       uuid[]  DEFAULT '{}',
-  p_confidence  numeric DEFAULT NULL,
-  p_dissent     boolean DEFAULT false)
+  p_op            text,
+  p_payload       jsonb,
+  p_src           text[],
+  p_target_kind   text    DEFAULT NULL,
+  p_target_id     uuid    DEFAULT NULL,
+  p_names         uuid[]  DEFAULT '{}',
+  p_confidence    numeric DEFAULT NULL,
+  p_dissent       boolean DEFAULT false,
+  p_model_call_id uuid    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   INSERT INTO public.proposals
-    (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role)
+    (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
+     model_call_id)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
      coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
-     session_user)          -- overwritten by the stamp trigger; a value is needed for NOT NULL
+     session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
+     p_model_call_id)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE ONE DOOR INTO THE RECORD OF A MODEL CALL. gabriel_agent holds it, and the role writes no
+-- table by hand. It takes the digest of the prompt and never the prompt, and the table refuses a
+-- digest that is not 64 hexadecimal characters. The outcome list is a CHECK of the table, so a
+-- word outside it is refused there, and a test holds that list against packages/model.
+CREATE OR REPLACE FUNCTION record_model_call(
+  p_agent           text,
+  p_agent_version   text,
+  p_endpoint        text,
+  p_requested_model text,
+  p_prompt_sha256   text,
+  p_latency_ms      int,
+  p_outcome         text,
+  p_job_id          uuid DEFAULT NULL,
+  p_served_model    text DEFAULT NULL,
+  p_input_tokens    int  DEFAULT NULL,
+  p_output_tokens   int  DEFAULT NULL)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  INSERT INTO public.model_call
+    (job_id, agent, agent_version, endpoint, requested_model, served_model, prompt_sha256,
+     input_tokens, output_tokens, latency_ms, outcome)
+  VALUES
+    (p_job_id, p_agent, p_agent_version, p_endpoint, p_requested_model, p_served_model,
+     p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;

@@ -1,3 +1,5 @@
+import type { ModelCallId } from './ModelCall';
+
 /** Identifier type for public.proposals */
 export type ProposalsId = string & { __brand: 'public.proposals' };
 
@@ -33,6 +35,8 @@ export default interface Proposals {
   decided_at: Date | null;
 
   decided_by: string | null;
+
+  model_call_id: ModelCallId | null;
 }
 
 export interface ProposalsInitializer {
@@ -67,6 +71,8 @@ export interface ProposalsInitializer {
   decided_at?: Date | null;
 
   decided_by?: string | null;
+
+  model_call_id?: ModelCallId | null;
 }
 
 export interface ProposalsMutator {
@@ -101,4 +107,6 @@ export interface ProposalsMutator {
   decided_at?: Date | null;
 
   decided_by?: string | null;
+
+  model_call_id?: ModelCallId | null;
 }
