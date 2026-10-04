@@ -111,39 +111,92 @@ workspace; this ADR only requires them.
 - `sha256` decides identity before `put_fetched_document`.
 - One fetch, one URL. No crawl and no schedule (PRD §5).
 
-### 7. Promotion by a source rule, in three bands
+### 7. Promotion by an evidence rule (rule v2)
 
-The operator decided this on 3 October 2026. **A rule score, computed by the database from the
-cited sources, puts each machine proposal in one of three bands:**
+The operator decided rule v2 on 4 October 2026 (#207). Three adversarial reviews (red team,
+autonomy, standards editor) replaced the first version. **The rule decides from the quantity and
+the quality of the evidence, never from the type of claim. The models prepare the evidence; only
+the database decides.**
 
-| Band | Condition | Effect |
-|---|---|---|
-| Accept | score ≥ high threshold | Promoted by the rule |
-| Review | between the two thresholds | Review queue, in S3 order |
-| Drop | score < low threshold | Rejected by the rule |
+**The ADMIRALTY digit is an output.** The letter (A–F) rates a source. The digit (1–6) rates one
+item of information after corroboration, so the rule computes it on the claim. The digit on a
+document is not an input. The 82 seed sources keep digit 6 ("not judged").
 
-**The score is the evidence, not the model's opinion of itself.** It counts the independent
-sources the proposal cites and the ADMIRALTY rating of each. The minimum count, the minimum
-rating and the two thresholds are operational parameters (spec §7). **Two sources on the same
-upstream feed count as one** (CARTO plan §4).
+**Agents.**
 
-**Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all of these
-are true:
+| Agent | Job |
+|---|---|
+| Two blind extractors, two model families | Each finds the claim and its exact quote without the other. They must agree. If they do not, a third family re-extracts. |
+| Span check (code) | The quote is in the stored main text, with two sentences before and after it. Code finds a negation or an attribution ("according to"). |
+| Identity check (code) | The quote window holds one strong identifier (IMO, MMSI, LEI, registry number, date of birth) or two weak ones (full name and role or city). |
+| Origin tracer | Follows "according to", wire credits and links to the first-hand origin. Sets the access type. An unknown origin joins the earlier group (fail closed). |
+| Pro and contra searchers | Same budget each. The contra searcher looks for denials, delistings, sales and court decisions. |
+| Verifier, another family | Reads the quotes only, not the extractor's summary. |
+| `decide_by_rule` (database) | Decides. |
 
-1. The parameters exist. **With no parameter row, the door does nothing**, and every proposal
-   goes to the queue. The rule is therefore off until #9 sets the values on real data.
-2. A cited source counts only if its rating came from the operator or from the source-class table
-   (CARTO plan §4), never from a model alone. Otherwise a model rates a document A and then
-   promotes its own claim.
-3. `dissent = false`, with a verifier vote from a second model family.
-4. The operation is never `merge_entities`, never a deletion, and never an update that replaces a
-   value the operator promoted.
-5. The attribute key already exists for that entity type, so the rule does not create new keys
-   (M11).
+**Points for each origin, not for each document.** Each independent origin counts once, at its
+best citation.
+
+| Access ↓ / letter → | A | B | C | D |
+|---|---|---|---|---|
+| Primary record of the issuing authority for this fact | 6 | – | – | – |
+| Other primary record (leak, copy), or first-hand report | 4 | 3 | 2 | 1 |
+| Secondary: repeats another source | 2 | 1 | 1 | 0 |
+| No attribution, or letter E or F | 0 | 0 | 0 | 0 |
+
+**Bands.**
+
+| Band | Condition |
+|---|---|
+| Accept | (a) one primary record of the issuing authority, read the same way by the two extractors, or (b) two or more independent origins of 3 points or more each. And the contra score is below 3, and the verifier agrees. One news report alone never accepts. |
+| Supersede a current value | Score 9 or more from three origins, or a primary record of the change. A new dated value is a new period only when the quote holds the date. |
+| Wait | The search is short. The rule decides again after 7, 30 and 90 days, and when a new document names the same identifier. After the 30-day retry, the claim goes to the operator. |
+| Drop | Score 0 after both searches, or a contra score of 6 or more from two origins against a claim of 3 or less. |
+| Operator | A contra score of 3 or more; three families split; `merge_entities`, a deletion or a new key; a value the operator promoted. |
+
+The computed digit: 1 = three origins or more and no contradiction; 2 = accepted; 6 = one origin.
+
+**Anti-planting.** A document published after the claim entered GAB counts 0 for an automatic
+acceptance. A fetch keeps the main text only, removes hidden text, and gives it to a model as data
+inside a fence.
+
+**Source ratings.** The operator or the source-class table rates a publisher and a path, never a
+model (#182, #19). The AI groups unknown domains into patterns, and the operator rates a pattern
+once. User-content hosts are always 0. A class rating expires after 12 months, or when the owner
+of the domain changes. A rating that would accept more than 10 claims at once sends them to a
+batch review. Only issuing authorities and primary data keep the letter A.
+
+**Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all are true:
+
+1. The parameter rows exist. With no parameter row, the door does nothing. Removing the rows
+   stops the rule at once.
+2. A counted rating has origin `human` or `class`, never `machine`.
+3. The verifier of a second family agrees, after the last citation.
+4. The operation is never `merge_entities`, a deletion, or an update that replaces a value the
+   operator promoted.
+5. The attribute key already exists for that entity type (M11).
+6. Each counted citation passes the span check and the identity check.
+7. Thresholds go up automatically and go down only by an operator act. Agents can join two
+   origins and never split them.
+
+**Measurement.** Before launch: a gold set of 200 claims that the operator checked by hand; the
+rule runs on it in shadow mode, and its false accepts must be 1% or less. Each week: the operator
+audits a random 5% of the rule accepts (20 at least), by score band and source class. Each month:
+20 known-false canary claims; the rule must refuse them. When the false-accept rate goes above 2%,
+the threshold of that band goes up by 1; if it stays above 2%, code removes the parameter row.
 
 **Origin.** The door writes `decision_origin = 'rule:<version>'` in a typed column. The public
 views show it (S4, PU1). A rule decision is reversed by an inverse proposal built from
-`prior_value`. Removing the parameter row stops the rule at once.
+`prior_value`.
+
+**Public wording.** The text follows the source and its modality: "Designated by OFAC on …",
+"Reuters reported, citing …", "alleged by X". The site never states an allegation as a fact. The
+ratings and the number of origins go in a details panel. The contradicting sources show next to
+the claim. A report of an error must hold a URL; a reported claim gets "disputed" and stays
+visible. Names stay visible. A lawyer reads the wording templates once before launch.
+
+**The operator's work comes in batches:** domain patterns, then documents, then entities, then the
+audit sample.
 
 ### 8. The chat is local and never proposes
 
