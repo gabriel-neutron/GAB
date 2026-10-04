@@ -19,12 +19,9 @@ export interface ImageryControlProps {
   readonly onChange: (imagery: Imagery) => void;
 }
 
-// The kit select is a Radix control, and its list is a portal. A native select keeps its list in
-// the browser and needs no portal over a live canvas, so it takes these classes by hand.
-//
-// `bg-popover` is not decoration here: a transparent background hides the `color-scheme` of the
-// page from the browser's own dropdown paint, and the option list falls back to a light one on a
-// dark page. An explicit background keeps the dropdown on the same ground as the trigger.
+// The kit select is a Radix control, and its list is a portal over a live canvas. A native select
+// keeps its list in the browser, so it takes these classes by hand. `bg-popover` is explicit: a
+// transparent ground hides the page `color-scheme`, and the list falls back to a light paint.
 const CHOOSER = cn(
   'h-6 min-w-0 border border-input bg-popover px-1 text-small/4 text-popover-foreground',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',

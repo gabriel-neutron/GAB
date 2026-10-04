@@ -23,7 +23,7 @@ export interface RelationsProps {
   readonly deleting: RelationDeletion;
   /** A panel beside a canvas gives this, so a click puts the relation on the canvas and in the
    * sidebar. A list with no canvas beside it gives none, and the sentence then is plain text. */
-  readonly onSelect?: (relationId: string) => void;
+  readonly onSelect?: ((relationId: string) => void) | undefined;
 }
 
 const UNDRAWABLE = 'The graph does not draw this relation. One endpoint is a relation.';
