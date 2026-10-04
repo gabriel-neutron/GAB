@@ -314,7 +314,6 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_id    uuid;
   v_cite  jsonb;
-  v_pos   int := 0;
   v_kind  text;
   v_key   text;
 BEGIN
@@ -350,15 +349,14 @@ BEGIN
     END IF;
 
     INSERT INTO public.chat_citation
-      (message_id, position, document_id, entity_id, relation_id, proposal_id, excerpt)
+      (message_id, document_id, entity_id, relation_id, proposal_id, excerpt)
     VALUES
-      (v_id, v_pos,
+      (v_id,
        CASE v_kind WHEN 'document' THEN v_cite ->> 'id' END,
        CASE v_kind WHEN 'entity'   THEN (v_cite ->> 'id')::uuid END,
        CASE v_kind WHEN 'relation' THEN (v_cite ->> 'id')::uuid END,
        CASE v_kind WHEN 'proposal' THEN (v_cite ->> 'id')::uuid END,
        v_cite ->> 'excerpt');
-    v_pos := v_pos + 1;
   END LOOP;
   RETURN v_id;
 END $$;

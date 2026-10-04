@@ -12,8 +12,6 @@ export default interface ChatCitation {
 
   message_id: ChatMessageId;
 
-  position: number;
-
   document_id: DocumentsId | null;
 
   entity_id: EntitiesId | null;
@@ -30,8 +28,6 @@ export interface ChatCitationInitializer {
 
   message_id: ChatMessageId;
 
-  position: number;
-
   document_id?: DocumentsId | null;
 
   entity_id?: EntitiesId | null;
@@ -47,8 +43,6 @@ export interface ChatCitationMutator {
   id?: ChatCitationId;
 
   message_id?: ChatMessageId;
-
-  position?: number;
 
   document_id?: DocumentsId | null;
 
