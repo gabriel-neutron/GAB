@@ -8,4 +8,7 @@ export {
   type Model,
   type Question,
   type Send,
+  type Tool,
+  type ToolCall,
+  type ToolUse,
 } from './client.ts';
