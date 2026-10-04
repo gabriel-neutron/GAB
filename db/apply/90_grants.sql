@@ -39,7 +39,11 @@ GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
 -- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
 GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 
--- The thirteen doors, and nothing else.
+-- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
+-- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
+GRANT SELECT ON document_text TO gabriel_app, gabriel_agent;
+
+-- The fourteen doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
   FROM PUBLIC;
@@ -56,6 +60,9 @@ REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
 
+REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text) TO gabriel_app, gabriel_agent;
 GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
