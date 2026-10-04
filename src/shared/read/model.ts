@@ -168,7 +168,7 @@ export type PriorValue =
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
 
 /** A trigger stamps this from `session_user`. The caller cannot state it. */
-export type AuthorRole = 'gabriel_agent' | 'gabriel_app';
+export type AuthorRole = 'gabriel_agent' | 'gabriel_app' | 'gabriel_research';
 
 export interface Proposal {
   readonly id: string;
