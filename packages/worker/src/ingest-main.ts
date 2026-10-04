@@ -17,8 +17,8 @@ try {
   process.exit(2);
 }
 
-// This file connects to a real database at import time, so no test drives it; ingest.test.ts and
-// ingest.db-test.ts cover the run that this script only starts and reports.
+// This file connects to a real database at import time, so no test drives it. The tests
+// cover the run that this script only starts and reports.
 const store = openStore();
 const pool = new Pool({ connectionString: appAddress() });
 let outcomes;
