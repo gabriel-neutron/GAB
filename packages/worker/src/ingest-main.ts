@@ -8,7 +8,7 @@ import { ingestFiles, parseIngestArguments, reportLine } from './ingest.ts';
 // wrong date stores nothing. A usage fault exits with 2, and a refused file exits with 1.
 let parsed;
 try {
-  parsed = parseIngestArguments(process.argv.slice(2), new Date());
+  parsed = parseIngestArguments(process.argv.slice(2));
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
   console.error(
