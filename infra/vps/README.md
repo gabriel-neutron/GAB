@@ -224,17 +224,18 @@ first runs: the second log shows `STOP: another night run holds`.
 ## 7. The PC uses the VPS services
 
 The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. **The names below do not exist in the code yet.** Today
-`packages/model/src/client.ts` has a fixed OpenRouter address. The build tickets of ADR 0010 §4
-(endpoint setting) and §9 step 6 (SearXNG) must fix the final names.
+through Tailscale. `packages/model/src/client.ts` reads the two model names below. The name of
+the SearXNG address does not exist in the code yet: the build ticket of ADR 0010 §9 step 6 must
+fix it.
 
-| Name to be fixed by the build tickets | Value on the PC (`infra/.env`) |
+| Name | Value on the PC (`infra/.env`) |
 |---|---|
-| `GABRIEL_MODEL_ENDPOINT` | `http://<VPS_TS_IP>:4001/v1` |
-| `GABRIEL_MODEL_KEY` | the unified `freellmapi-...` key from the dashboard |
-| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` |
+| `FREELLMAPI_BASE_URL` | `http://<VPS_TS_IP>:4001/v1` |
+| `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
+| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` (name not fixed yet) |
 
-`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4).
+`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4). An agent chooses its gateway with its
+`endpoint` setting, `freellmapi` or `openrouter`, and the code has no default.
 
 **Check (PC):** with the key in `$k`,
 `Invoke-RestMethod http://<VPS_TS_IP>:4001/v1/models -Headers @{Authorization="Bearer $k"}`

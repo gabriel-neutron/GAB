@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
-import { openModel, type AgentModel, type Message, type Send } from './client.ts';
+import { openModel, type AgentModel, type Message, type Send, type Tool } from './client.ts';
 
 const AGENT: AgentModel = {
+  endpoint: 'openrouter',
   model: 'a-family/a-model',
   firstWaitMs: 1,
   waitGrowth: 2,
@@ -18,18 +19,42 @@ const PATIENT: AgentModel = { ...AGENT, firstWaitMs: 100 };
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const ENV = { OPENROUTER_API_KEY: 'a-key' };
+const FREE_BASE = 'http://100.64.0.1:4001/v1';
+const FREE_ENV = { FREELLMAPI_API_KEY: 'a-free-key', FREELLMAPI_BASE_URL: FREE_BASE };
+const FREE: AgentModel = { ...AGENT, endpoint: 'freellmapi' };
 const SHAPE = z.object({ claim: z.string() });
 
 type Stub = ReturnType<typeof vi.fn<Send>>;
 
-const said = (content: string, finish = 'stop', total = 12): string =>
+const said = (content: string, finish = 'stop', total = 12, model = AGENT.model): string =>
   JSON.stringify({
+    model,
     choices: [{ message: { role: 'assistant', content }, finish_reason: finish }],
     usage: { prompt_tokens: total - 2, completion_tokens: 2, total_tokens: total },
   });
 
 const answer = (body: string, status = 200, headers: Record<string, string> = {}): Response =>
   new Response(body, { status, headers });
+
+const called = (calls: readonly [string, string, string][], model = AGENT.model): string =>
+  JSON.stringify({
+    model,
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: calls.map(([id, name, args]) => ({
+            id,
+            type: 'function',
+            function: { name, arguments: args },
+          })),
+        },
+        finish_reason: 'tool_calls',
+      },
+    ],
+    usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+  });
 
 const refusalBody = (word: string): string =>
   JSON.stringify({ error: { message: 'no', metadata: { error_type: word } } });
@@ -48,13 +73,20 @@ const bodiesOf = (send: Stub): unknown[] =>
     JSON.parse(typeof init.body === 'string' ? init.body : ''),
   );
 
-const ask = (send: Stub, cap = 1000, agent: AgentModel = AGENT) => {
+const ask = (send: Stub, cap = 1000, agent: AgentModel = AGENT, tools?: readonly Tool[]) => {
   const budget = openBudget(cap);
-  const model = openModel(agent, send, ENV);
+  const model = openModel(agent, send, agent.endpoint === 'openrouter' ? ENV : FREE_ENV);
   return {
     budget,
-    run: () => model.ask({ messages: GO, shape: SHAPE, budget }),
+    run: () =>
+      model.ask({ messages: GO, shape: SHAPE, budget, ...(tools === undefined ? {} : { tools }) }),
   };
+};
+
+const LOOK: Tool = {
+  name: 'look_up',
+  description: 'Look a name up.',
+  input: z.object({ name: z.string() }),
 };
 
 const silenced = () => vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -75,7 +107,12 @@ describe('a good answer', () => {
     const { budget, run } = ask(send);
     const got = await run();
 
-    expect(got).toEqual({ ok: true, value: { claim: 'a ship' }, tokens: 12 });
+    expect(got).toEqual({
+      ok: true,
+      value: { claim: 'a ship' },
+      tokens: 12,
+      served: AGENT.model,
+    });
     expect(budget.spent()).toBe(12);
     expect(send).toHaveBeenCalledTimes(1);
   });
@@ -393,7 +430,12 @@ describe('the boundary refuses the answer', () => {
     const { budget, run } = ask(send);
     const got = await run();
 
-    expect(got).toEqual({ ok: true, value: { claim: 'a ship' }, tokens: 24 });
+    expect(got).toEqual({
+      ok: true,
+      value: { claim: 'a ship' },
+      tokens: 24,
+      served: AGENT.model,
+    });
     expect(budget.spent()).toBe(24);
   });
 
@@ -612,6 +654,7 @@ describe('the settings and the key', () => {
   it('reports a refusal of the model, and keeps nothing', async () => {
     const send = always(
       JSON.stringify({
+        model: AGENT.model,
         choices: [{ message: { role: 'assistant', content: null, refusal: 'no' } }],
         usage: { prompt_tokens: 1, completion_tokens: 0, total_tokens: 1 },
       }),
@@ -620,5 +663,310 @@ describe('the settings and the key', () => {
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(got).toMatchObject({ ok: false, failure: { kind: 'refused', attempts: 1 } });
+  });
+});
+
+describe('the endpoint of the agent', () => {
+  it('refuses settings that name no endpoint, because code holds no default', () => {
+    const bare = Object.fromEntries(Object.entries(AGENT).filter(([name]) => name !== 'endpoint'));
+    expect(() => openModel(bare, always(said('{}')), ENV)).toThrow(/endpoint/u);
+  });
+
+  it('refuses an endpoint it does not know', () => {
+    expect(() => openModel({ ...AGENT, endpoint: 'elsewhere' }, always(said('{}')), ENV)).toThrow(
+      /endpoint/u,
+    );
+  });
+
+  it('calls the base address of freellmapi from the environment, with its own key', async () => {
+    const send = always(said('{"claim":"a ship"}', 'stop', 12, FREE.model));
+    await ask(send, 1000, FREE).run();
+
+    const [call] = send.mock.calls;
+    expect(call?.[0]).toBe(`${FREE_BASE}/chat/completions`);
+    expect(new Headers(call?.[1].headers).get('authorization')).toBe('Bearer a-free-key');
+  });
+
+  it('sends no compression flag to freellmapi, and keeps it on OpenRouter', async () => {
+    const free = always(said('{"claim":"a ship"}'));
+    await ask(free, 1000, FREE).run();
+    const paid = always(said('{"claim":"a ship"}'));
+    await ask(paid).run();
+
+    expect(bodiesOf(free)[0]).not.toHaveProperty('plugins');
+    expect(bodiesOf(paid)[0]).toHaveProperty('plugins');
+  });
+
+  it('throws when the base address or the key of freellmapi is absent', () => {
+    const send = always(said('{}'));
+    expect(() => openModel(FREE, send, { FREELLMAPI_API_KEY: 'k' })).toThrow(
+      /FREELLMAPI_BASE_URL/u,
+    );
+    expect(() => openModel(FREE, send, { FREELLMAPI_BASE_URL: FREE_BASE })).toThrow(
+      /FREELLMAPI_API_KEY/u,
+    );
+  });
+
+  it('reads a 402 as a fault of the configuration on freellmapi, and as credits on OpenRouter', async () => {
+    const free = await ask(always(refusalBody('x'), 402), 1000, FREE).run();
+    const paid = await ask(always(refusalBody('x'), 402)).run();
+
+    expect(free).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
+    expect(paid).toMatchObject({ ok: false, failure: { kind: 'credits' } });
+  });
+
+  it('keeps too_long on freellmapi', async () => {
+    const got = await ask(always(refusalBody('context_length_exceeded'), 400), 1000, FREE).run();
+
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'too_long', attempts: 1 } });
+  });
+});
+
+describe('the pinned model', () => {
+  it('refuses a model named auto, in any case', () => {
+    expect(() => openModel({ ...AGENT, model: 'auto' }, always(said('{}')), ENV)).toThrow(/auto/u);
+    expect(() => openModel({ ...AGENT, model: ' Auto ' }, always(said('{}')), ENV)).toThrow(
+      /auto/u,
+    );
+  });
+
+  it('drops an answer of another model, with no retry, and counts its tokens', async () => {
+    const send = always(said('{"claim":"a ship"}', 'stop', 12, 'b-family/b-model'));
+    const { budget, run } = ask(send);
+    const got = await run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({
+      ok: false,
+      failure: { kind: 'served_other', attempts: 1 },
+      tokens: 12,
+      served: 'b-family/b-model',
+    });
+    expect(budget.spent()).toBe(12);
+    expect(JSON.stringify(got)).not.toContain('a ship');
+  });
+
+  it('reads an answer with no model field as another model', async () => {
+    const body = JSON.stringify({
+      choices: [{ message: { role: 'assistant', content: '{"claim":"a ship"}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+    const send = always(body);
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'served_other' } });
+  });
+
+  it('reports the served model on a good answer', async () => {
+    const got = await ask(always(said('{"claim":"a ship"}'))).run();
+
+    expect(got).toMatchObject({ ok: true, served: AGENT.model });
+  });
+});
+
+describe('a tool call', () => {
+  it('sends the tools with the JSON Schema of the Zod input', async () => {
+    const send = always(said('{"claim":"a ship"}'));
+    await ask(send, 1000, AGENT, [LOOK]).run();
+
+    expect(bodiesOf(send)[0]).toMatchObject({
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'look_up',
+            description: 'Look a name up.',
+            parameters: { type: 'object', properties: { name: { type: 'string' } } },
+          },
+        },
+      ],
+    });
+  });
+
+  it('gives a valid call, checked with the input of the tool', async () => {
+    const send = always(called([['c1', 'look_up', '{"name":"Ada"}']]));
+    const got = await ask(send, 1000, AGENT, [LOOK]).run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toEqual({
+      ok: true,
+      call: { id: 'c1', name: 'look_up', input: { name: 'Ada' } },
+      tokens: 12,
+      served: AGENT.model,
+    });
+  });
+
+  it('still gives the final answer when the model calls no tool', async () => {
+    const got = await ask(always(said('{"claim":"a ship"}')), 1000, AGENT, [LOOK]).run();
+
+    expect(got).toMatchObject({ ok: true, value: { claim: 'a ship' } });
+  });
+
+  it('retries a bad argument once, and answers the call id on the tool role', async () => {
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(called([['c1', 'look_up', '{"name":7}']])))
+      .mockResolvedValueOnce(answer(called([['c2', 'look_up', '{"name":"Ada"}']])));
+    const got = await ask(send, 1000, AGENT, [LOOK]).run();
+
+    expect(got).toMatchObject({ ok: true, call: { id: 'c2' }, tokens: 24 });
+
+    const second = z
+      .object({ messages: z.array(z.record(z.string(), z.unknown())) })
+      .parse(bodiesOf(send)[1]).messages;
+    expect(second).toHaveLength(3);
+    expect(second[1]).toMatchObject({ role: 'assistant', tool_calls: [{ id: 'c1' }] });
+    expect(second[2]).toMatchObject({ role: 'tool', tool_call_id: 'c1' });
+    expect(String(second[2]?.['content'])).toContain('The schema refuses the last answer');
+  });
+
+  it('fails as rejected after the one retry', async () => {
+    const send = always(called([['c1', 'look_up', '{"name":7}']]));
+    const got = await ask(send, 1000, AGENT, [LOOK]).run();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'rejected', attempts: 2 } });
+  });
+
+  it('rejects a tool the question does not hold, and arguments that are not JSON', async () => {
+    const unknown = await ask(always(called([['c1', 'other', '{}']])), 1000, AGENT, [LOOK]).run();
+    const broken = await ask(always(called([['c1', 'look_up', '{"na']])), 1000, AGENT, [
+      LOOK,
+    ]).run();
+
+    expect(unknown).toMatchObject({ ok: false, failure: { kind: 'rejected' } });
+    expect(broken).toMatchObject({ ok: false, failure: { kind: 'rejected' } });
+  });
+
+  it('rejects more than one call in an answer, and answers every id on the retry', async () => {
+    const two = called([
+      ['c1', 'look_up', '{"name":"Ada"}'],
+      ['c2', 'look_up', '{"name":"Bo"}'],
+    ]);
+    const send = vi
+      .fn<Send>()
+      .mockResolvedValueOnce(answer(two))
+      .mockResolvedValueOnce(answer(called([['c3', 'look_up', '{"name":"Ada"}']])));
+    const got = await ask(send, 1000, AGENT, [LOOK]).run();
+
+    expect(got).toMatchObject({ ok: true, call: { id: 'c3' } });
+    const second = z
+      .object({ messages: z.array(z.record(z.string(), z.unknown())) })
+      .parse(bodiesOf(send)[1]).messages;
+    expect(second.map((one) => one['role'])).toEqual(['user', 'assistant', 'tool', 'tool']);
+    expect(second.map((one) => one['tool_call_id'])).toEqual([undefined, undefined, 'c1', 'c2']);
+  });
+
+  it('reads a tool call on a question with no tool as unreadable', async () => {
+    const send = always(called([['c1', 'look_up', '{"name":"Ada"}']]));
+    const got = await ask(send).run();
+
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'unreadable' } });
+  });
+});
+
+describe('the quota is spent', () => {
+  it('fails at once as quota, and never as network', async () => {
+    const body = JSON.stringify({ error: { message: 'daily quota exhausted' } });
+    const send = always(body, 429);
+    const got = await ask(send).run();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'quota', attempts: 1 } });
+  });
+
+  it('reads the stable word of the quota, and it holds on freellmapi too', async () => {
+    const body = JSON.stringify({ error: { code: 'insufficient_quota', message: 'no' } });
+    const got = await ask(always(body, 429), 1000, FREE).run();
+
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'quota' } });
+  });
+});
+
+describe('the read of the quota that is left', () => {
+  const FORECAST = JSON.stringify({
+    generated_at: '2026-10-04T00:00:00Z',
+    pools: [
+      {
+        platform: 'groq',
+        pool: 'groq::account',
+        used: 90,
+        remaining: 10,
+        limit: 100,
+        remaining_pct: 10,
+        reset_at: '2026-10-05T00:00:00Z',
+        low_balance: true,
+        seconds_until_reset: 3600,
+      },
+      {
+        platform: 'google',
+        pool: 'google::account',
+        used: null,
+        remaining: null,
+        limit: null,
+        remaining_pct: null,
+        reset_at: null,
+        low_balance: false,
+        seconds_until_reset: null,
+      },
+    ],
+  });
+
+  const open = (send: Stub) => openModel(FREE, send, FREE_ENV);
+
+  it('calls the forecast path of freellmapi with the unified key, and parses each pool', async () => {
+    const send = always(FORECAST);
+    const got = await open(send).quota?.();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]?.[0]).toBe(`${FREE_BASE}/quota-forecast`);
+    expect(send.mock.calls[0]?.[1]).toMatchObject({
+      method: 'GET',
+      headers: { authorization: 'Bearer a-free-key' },
+    });
+    expect(got).toEqual({
+      ok: true,
+      pools: [
+        {
+          platform: 'groq',
+          pool: 'groq::account',
+          remaining: 10,
+          limit: 100,
+          resetAt: '2026-10-05T00:00:00Z',
+          low: true,
+        },
+        {
+          platform: 'google',
+          pool: 'google::account',
+          remaining: null,
+          limit: null,
+          resetAt: null,
+          low: false,
+        },
+      ],
+    });
+  });
+
+  it('has no read on openrouter', () => {
+    expect(openModel(AGENT, always(FORECAST), ENV).quota).toBeUndefined();
+  });
+
+  it('fails as unreadable on a body of another shape, and never retries', async () => {
+    const send = always(JSON.stringify({ pools: 'none' }));
+    const got = await open(send).quota?.();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'unreadable', attempts: 1 } });
+  });
+
+  it('fails as configuration on a refused key, and as network on a dead service', async () => {
+    const refused = await open(always('{}', 401)).quota?.();
+    const down = await open(always('{}', 503)).quota?.();
+    const lost = await open(vi.fn<Send>(() => Promise.reject(new Error('gone')))).quota?.();
+
+    expect(refused).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
+    expect(down).toMatchObject({ ok: false, failure: { kind: 'network' } });
+    expect(lost).toMatchObject({ ok: false, failure: { kind: 'network' } });
   });
 });
