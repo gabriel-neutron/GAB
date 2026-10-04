@@ -316,6 +316,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 
 **Decision.** The frontend reads the database through a read-only HTTP layer. The Node backend serves only editing and heavy processing.
 **Why.** The read path contains no business logic; a backend that relays SELECTs is dead weight.
+**Amended 4 October 2026 by ADR 0010 §8.** The writer also serves the reads of the private data (the #18 conversations). The public read path reads only the results.
 **Consequences.** There is no "direct" access from a browser: the real choice is between a generated HTTP layer and a hand-written one. Complex read logic — graph traversals — moves down into SQL functions. A publicly readable database is a surface for abuse through resource exhaustion, to be fenced in with a read-only role, timeouts, default limits and a CDN cache. Finally, "the frontend works on its own" means **without the Node backend**, not without infrastructure: a reachable database is still required.
 
 ### T5 — Qdrant and NATS are deferred
