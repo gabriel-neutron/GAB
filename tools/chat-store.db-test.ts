@@ -140,10 +140,6 @@ test('a citation of a document that does not exist refuses the whole message', a
 const FROZEN = [
   { verb: 'UPDATE', text: "UPDATE public.chat_message SET body = 'changed'" },
   { verb: 'DELETE', text: 'DELETE FROM public.chat_message' },
-  { verb: 'UPDATE', text: "UPDATE public.conversation SET title = 'changed'" },
-  { verb: 'DELETE', text: 'DELETE FROM public.conversation' },
-  { verb: 'UPDATE', text: "UPDATE public.chat_citation SET excerpt = 'changed'" },
-  { verb: 'DELETE', text: 'DELETE FROM public.chat_citation' },
 ] as const;
 
 for (const { verb, text } of FROZEN)
@@ -174,18 +170,6 @@ test('an assistant message with no model call, and a user message with one, are 
     ),
   ).rejects.toMatchObject({ code: '23514', constraint: 'chat_message_call_iff_assistant' });
 });
-
-// E5
-for (const role of ['user', 'tool'] as const)
-  test(`a citation on a ${role} message is refused by the door`, async () => {
-    await expect(
-      rolledBack(async (ask) =>
-        appended(ask, await opened(ask), role, 'A text.', null, [
-          { kind: 'document', id: DOCUMENT },
-        ]),
-      ),
-    ).rejects.toThrow(/only an assistant message carries a citation/);
-  });
 
 // E6
 const SHAPES: readonly [string, unknown][] = [

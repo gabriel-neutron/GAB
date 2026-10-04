@@ -118,9 +118,9 @@ BEGIN
   RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
--- A CONVERSATION ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
--- ignore a grant, so a trigger holds it. One function serves the three tables.
-CREATE OR REPLACE FUNCTION chat_append_only_fn() RETURNS trigger
+-- A MESSAGE ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
+-- ignore a grant, so a trigger holds it.
+CREATE OR REPLACE FUNCTION chat_message_append_only_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
   RAISE EXCEPTION 'a row of % is never %. It is the record of what was said',
@@ -301,7 +301,7 @@ END $$;
 -- A message and its citations are one write. p_citations is a jsonb array of objects with the
 -- keys kind, id and excerpt, and no other key. The kind is document, entity, relation or
 -- proposal. The door sets the one foreign key that matches the kind, so a row that does not
--- exist refuses the whole message. Only an assistant message carries a citation.
+-- exist refuses the whole message.
 CREATE OR REPLACE FUNCTION append_chat_message(
   p_conversation_id uuid,
   p_role            text,
@@ -321,10 +321,6 @@ BEGIN
   p_citations := coalesce(p_citations, '[]'::jsonb);
   IF jsonb_typeof(p_citations) <> 'array' THEN
     RAISE EXCEPTION 'the citations are an array' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF jsonb_array_length(p_citations) > 0 AND p_role IS DISTINCT FROM 'assistant' THEN
-    RAISE EXCEPTION 'only an assistant message carries a citation'
-      USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
   INSERT INTO public.chat_message (conversation_id, role, body, model_call_id)

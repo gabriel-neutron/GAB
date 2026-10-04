@@ -27,7 +27,8 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- schema, takes EXECUTE from PUBLIC on each function that gabriel_owner creates.
 
 -- External constraint: `REVOKE ALL ON ALL TABLES` is a snapshot and reaches no later table, so
--- "no role writes a table" holds for the tables granted below and NOT for a table nobody has written.
+-- "no role writes a table" holds for the tables granted below and NOT for a table nobody
+-- has written.
 -- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_app;
