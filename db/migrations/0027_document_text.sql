@@ -7,8 +7,7 @@
 -- column to a core table, and it carries no project_id.
 --
 -- THE TEXT IS DERIVED, AND THE BYTES STAY WHERE THEY ARE. The object store keeps the file
--- unchanged. A page here is a copy that another extractor version can replace by a new set, and
--- never by an edit.
+-- unchanged. A page here is a copy of what an extractor took from the bytes.
 --
 -- THE TEXT IS PRIVATE. The licence of a document is not always known, so its text is not
 -- published. The table is in public, the read role holds no USAGE on public, and no api view
@@ -18,11 +17,8 @@
 -- ONE SET FOR EACH DOCUMENT AND EXTRACTOR VERSION. The key is the document, the extractor and
 -- the page. The pages of a set are numbered from 1 by their place in the array that the door
 -- received. An empty page is a lawful row: a page with no text layer is empty, and the caller
--- reports it. Two sets for one pair collide on page 1, so the key alone is the guard against
--- two callers at one instant.
---
--- A PAGE IS A FACT AND IS NEVER UPDATED, DELETED OR TRUNCATED. A trigger holds it, because the
--- owner and the superuser ignore a grant. Every foreign key is RESTRICT.
+-- reports it. A second set for one pair collides on page 1, so the key alone refuses it. The
+-- door refuses a document with no bytes. Every foreign key is RESTRICT.
 -- =============================================================================================
 
 SET LOCAL ROLE gabriel_owner;

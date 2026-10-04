@@ -127,15 +127,6 @@ BEGIN
     TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
--- A PAGE OF TEXT IS A FACT AND NOT A STATE: a set is replaced by a set of another extractor
--- version, and never edited. The owner and the superuser ignore a grant, so a trigger holds it.
-CREATE OR REPLACE FUNCTION document_text_append_only_fn() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  RAISE EXCEPTION 'a page of document_text is never %. Another extractor version writes a new set',
-    CASE TG_OP WHEN 'DELETE' THEN 'deleted' WHEN 'TRUNCATE' THEN 'truncated' ELSE 'updated' END;
-END $$;
-
 -- M4. src_id and dst_id carry no foreign key, because the target is polymorphic. FOR KEY SHARE
 -- is the point: without the lock, one session adds a relation while another deletes the
 -- endpoint, and both commit.
@@ -744,9 +735,10 @@ END $$;
 -- gap or repeat a number. An empty string is a valid page. A document with no bytes has nothing
 -- that a text could come from, so it is refused.
 --
--- THE KEY IS THE ONLY GUARD AGAINST TWO CALLERS AT ONE INSTANT. The check for an existing set
--- gives the clean message, and a caller that passes it at the same time as another still
--- collides on page 1 at the insert, where the same message is raised. No lock is taken.
+-- THE PRIMARY KEY IS THE GUARD FOR A SECOND SET. A second set for the same document and
+-- extractor version collides on page 1 at the insert, and the caller receives the unique
+-- violation of the key. The door checks nothing else about the arguments: the CHECK of the
+-- table refuses a blank extractor, and the foreign key refuses an unknown document.
 CREATE OR REPLACE FUNCTION put_document_text(p_document text, p_pages jsonb, p_extractor text)
 RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
@@ -755,18 +747,6 @@ DECLARE
   v_bytes text;
   v_count int;
 BEGIN
-  IF p_extractor IS NULL OR btrim(p_extractor, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a set of pages names its extractor version'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_pages IS NULL OR jsonb_typeof(p_pages) <> 'array' OR jsonb_array_length(p_pages) = 0 THEN
-    RAISE EXCEPTION 'the pages are a non-empty array' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_pages) AS e(v)
-              WHERE jsonb_typeof(e.v) <> 'string') THEN
-    RAISE EXCEPTION 'a page is a string' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
   SELECT d.s3_key INTO v_bytes FROM public.documents d WHERE d.id = p_document::doc_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'document % does not exist', p_document
@@ -777,21 +757,10 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  IF EXISTS (SELECT 1 FROM public.document_text t
-              WHERE t.document_id = p_document::doc_id AND t.extractor = p_extractor) THEN
-    RAISE EXCEPTION 'document % already holds a set of pages for extractor %',
-      p_document, p_extractor USING ERRCODE = 'unique_violation';
-  END IF;
-
-  BEGIN
-    INSERT INTO public.document_text (document_id, extractor, page, text)
-    SELECT p_document::doc_id, p_extractor, e.n::int, e.t
-      FROM jsonb_array_elements_text(p_pages) WITH ORDINALITY AS e(t, n);
-    GET DIAGNOSTICS v_count = ROW_COUNT;
-  EXCEPTION WHEN unique_violation THEN
-    RAISE EXCEPTION 'document % already holds a set of pages for extractor %',
-      p_document, p_extractor USING ERRCODE = 'unique_violation';
-  END;
+  INSERT INTO public.document_text (document_id, extractor, page, text)
+  SELECT p_document::doc_id, p_extractor, e.n::int, e.t
+    FROM jsonb_array_elements_text(p_pages) WITH ORDINALITY AS e(t, n);
+  GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END $$;
 
