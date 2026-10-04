@@ -94,7 +94,7 @@ export const reportLine = (outcome: IngestOutcome): string => {
 /** The part of a database session that the run uses. A pg client fits it. */
 export interface IngestSession {
   query(text: string, values?: readonly unknown[]): Promise<{ readonly rows: readonly unknown[] }>;
-  release(error?: Error | boolean): void;
+  release(): void;
 }
 
 /** The two things a run reaches: the database and the object store. */
@@ -107,31 +107,11 @@ const LOOKUP = 'SELECT id FROM public.documents WHERE sha256 = $1';
 const PUT_DOCUMENT = `SELECT public.put_document($1, $2, $3, $4, NULL, NULL, $5, $6, $7::date)`;
 const PUT_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
 
-const HASH_INDEX = 'documents_sha256_key';
-
-const isRaceOnHash = (error: unknown): boolean =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  error.code === '23505' &&
-  'constraint' in error &&
-  error.constraint === HASH_INDEX;
-
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'the file was not taken';
 
-// A client that cannot roll back holds a transaction in an unknown state, so the pool must close it
-// and never lend it again.
-class DamagedSession extends Error {
-  constructor(cause: unknown) {
-    super(reasonOf(cause), { cause });
-    this.name = 'DamagedSession';
-  }
-}
-
 // Departure: the row and its text are written in one transaction, so a document never exists with
-// no text and a text never exists with no document. A fault rolls the transaction back. The client
-// goes back to the pool in every case, and a client that failed to roll back is destroyed.
+// no text and a text never exists with no document. A fault rolls the transaction back.
 const writeRow = async (
   session: IngestSession,
   row: {
@@ -144,10 +124,8 @@ const writeRow = async (
     readonly pages: readonly string[];
   },
 ): Promise<void> => {
-  let open = false;
+  await session.query('BEGIN');
   try {
-    await session.query('BEGIN');
-    open = true;
     await session.query(PUT_DOCUMENT, [
       row.id,
       row.options.kind,
@@ -159,15 +137,8 @@ const writeRow = async (
     ]);
     await session.query(PUT_TEXT, [row.id, JSON.stringify(row.pages), EXTRACTOR]);
     await session.query('COMMIT');
-    open = false;
   } catch (error) {
-    if (open) {
-      try {
-        await session.query('ROLLBACK');
-      } catch {
-        throw new DamagedSession(error);
-      }
-    }
+    await session.query('ROLLBACK');
     throw error;
   }
 };
@@ -196,20 +167,15 @@ const ingestOne = async (
 
   // The key holds the hash alone. A file name can hold any character, and the title keeps it.
   const key = await door.put({ key: `raw/${sha256}`, bytes, mime });
-  try {
-    await writeRow(session, {
-      id,
-      options,
-      title: options.title ?? basename(path),
-      key,
-      sha256,
-      mime,
-      pages,
-    });
-  } catch (error) {
-    if (isRaceOnHash(error)) return { path, status: 'known', id };
-    throw error;
-  }
+  await writeRow(session, {
+    id,
+    options,
+    title: options.title ?? basename(path),
+    key,
+    sha256,
+    mime,
+    pages,
+  });
   return { path, status: 'stored', id, emptyPages };
 };
 
@@ -222,15 +188,13 @@ export const ingestFiles = async (
   const outcomes: IngestOutcome[] = [];
   for (const path of paths) {
     let session: IngestSession | undefined;
-    let damaged = false;
     try {
       session = await door.connect();
       outcomes.push(await ingestOne(door, session, path, options));
     } catch (error) {
-      damaged = error instanceof DamagedSession;
       outcomes.push({ path, status: 'refused', reason: reasonOf(error) });
     } finally {
-      session?.release(damaged);
+      session?.release();
     }
   }
   return outcomes;

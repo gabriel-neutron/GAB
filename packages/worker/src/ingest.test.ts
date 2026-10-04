@@ -71,26 +71,26 @@ interface Call {
 }
 
 // Departure: the fake door records each statement and each object, and it fails a statement that
-// contains `failOn`. The error that it raises carries the fields that pg sets.
-const doorOf = (options: { known?: boolean; failOn?: string; error?: object } = {}) => {
+// contains `failOn`.
+const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
   const calls: Call[] = [];
   const puts: string[] = [];
-  const released: unknown[] = [];
+  let released = 0;
   const door: IngestDoor = {
     connect: () =>
       Promise.resolve({
         query: (text: string, values?: readonly unknown[]) => {
           calls.push({ text, values });
           if (options.failOn !== undefined && text.includes(options.failOn))
-            return Promise.reject(Object.assign(new Error('refused'), options.error));
+            return Promise.reject(new Error('refused'));
           if (text.includes('FROM public.documents'))
             return Promise.resolve({
               rows: options.known === true ? [{ id: 'doc_000000000000' }] : [],
             });
           return Promise.resolve({ rows: [] });
         },
-        release: (error?: unknown) => {
-          released.push(error);
+        release: () => {
+          released += 1;
         },
       }),
     put: (object) => {
@@ -98,7 +98,7 @@ const doorOf = (options: { known?: boolean; failOn?: string; error?: object } = 
       return Promise.resolve(object.key);
     },
   };
-  return { door, calls, puts, released };
+  return { door, calls, puts, released: () => released };
 };
 
 const OPTIONS = { retrievedAt: '2026-09-01', kind: 'file', title: undefined } as const;
@@ -145,22 +145,6 @@ test('a missing file and a folder are refused, and the run goes on', async () =>
   expect(outcomes.map((o) => o.status)).toStrictEqual(['refused', 'refused', 'stored']);
 });
 
-test('a unique violation of the hash index is known', async () => {
-  const { door } = doorOf({
-    failOn: 'put_document(',
-    error: { code: '23505', constraint: 'documents_sha256_key' },
-  });
-  expect((await only(door, join(folder, 'one.txt'))).status).toBe('known');
-});
-
-test('a unique violation of another constraint is refused and never known', async () => {
-  const { door } = doorOf({
-    failOn: 'put_document(',
-    error: { code: '23505', constraint: 'documents_pkey' },
-  });
-  expect((await only(door, join(folder, 'one.txt'))).status).toBe('refused');
-});
-
 test('a fault in the second statement rolls back and releases the client', async () => {
   const { door, calls, released } = doorOf({ failOn: 'put_document_text' });
   expect((await only(door, join(folder, 'one.txt'))).status).toBe('refused');
@@ -168,7 +152,7 @@ test('a fault in the second statement rolls back and releases the client', async
   expect(words).toContain('BEGIN');
   expect(words).toContain('ROLLBACK');
   expect(words).not.toContain('COMMIT');
-  expect(released).toHaveLength(1);
+  expect(released()).toBe(1);
 });
 
 test('the run reports a line for each file', () => {
