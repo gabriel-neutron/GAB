@@ -123,6 +123,10 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
           {CONFIRM[stance.verdict]}
         </Button>
         <Button
+          // Promote and this control share one key. A refusal note may fill the slot between
+          // `Reject` and `Promote`, so their positions differ, and only a key keeps the node
+          // that holds the hand.
+          key="way-back"
           variant="outline"
           size="xs"
           className={KIT}
@@ -224,6 +228,7 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
         </span>
       )}
       <Button
+        key="way-back"
         size="xs"
         className={KIT}
         disabled={busy || noPromotion !== null}
