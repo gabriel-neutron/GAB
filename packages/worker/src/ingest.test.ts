@@ -12,7 +12,6 @@ import {
   type IngestOutcome,
 } from './ingest.ts';
 
-const TODAY = new Date('2026-10-04T12:00:00Z');
 const ANY_REFUSAL = /./;
 
 // Departure: the folder holds the files of every case, and the suite removes it at the end.
@@ -28,7 +27,7 @@ afterAll(async () => {
   await rm(folder, { recursive: true, force: true });
 });
 
-const parsed = (...argv: string[]) => parseIngestArguments(argv, TODAY);
+const parsed = (...argv: string[]) => parseIngestArguments(argv);
 
 test('the arguments hold the paths, the date, the kind and the title', () => {
   expect(parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'report')).toStrictEqual({
@@ -45,11 +44,6 @@ test('a run with no retrieval date is refused', () => {
 test('a date that is not a real day is refused', () => {
   for (const bad of ['2026-02-30', '2026-13-01', 'yesterday', '2026-9-1', ''])
     expect(() => parsed('a.pdf', '--retrieved-at', bad)).toThrow(ANY_REFUSAL);
-});
-
-test('a date in the future is refused, and today is lawful', () => {
-  expect(() => parsed('a.pdf', '--retrieved-at', '2026-10-05')).toThrow(/future/);
-  expect(parsed('a.pdf', '--retrieved-at', '2026-10-04').options.retrievedAt).toBe('2026-10-04');
 });
 
 test('a title with more than one path is refused', () => {

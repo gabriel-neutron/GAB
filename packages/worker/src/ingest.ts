@@ -34,22 +34,19 @@ export interface IngestOptions {
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 // Departure: the date of the file system is never read. The day that a file was written is not
-// the day that it was retrieved, so the operator states it, and a day that has not come is refused.
-const checkedDay = (stated: string | undefined, now: Date): string => {
+// the day that it was retrieved, so the operator states it.
+const checkedDay = (stated: string | undefined): string => {
   if (stated === undefined || stated === '')
     throw new Error('--retrieved-at is required: the day the files were retrieved, as YYYY-MM-DD.');
   const real =
     DAY.test(stated) && new Date(`${stated}T00:00:00Z`).toISOString().slice(0, 10) === stated;
   if (!real) throw new Error(`--retrieved-at "${stated}" is not a real day, as YYYY-MM-DD.`);
-  if (stated > now.toISOString().slice(0, 10))
-    throw new Error(`--retrieved-at "${stated}" is in the future.`);
   return stated;
 };
 
 /** The paths and the options of a run. It throws before any read when an argument is wrong. */
 export const parseIngestArguments = (
   argv: readonly string[],
-  now: Date,
 ): { readonly paths: readonly string[]; readonly options: IngestOptions } => {
   const { values, positionals } = parseArgs({
     args: [...argv],
@@ -61,7 +58,7 @@ export const parseIngestArguments = (
       title: { type: 'string' },
     },
   });
-  const retrievedAt = checkedDay(values['retrieved-at'], now);
+  const retrievedAt = checkedDay(values['retrieved-at']);
   const kind = KINDS.find((word) => word === (values.kind ?? 'file'));
   if (kind === undefined) throw new Error(`--kind is one of: ${KINDS.join(', ')}.`);
   if (positionals.length === 0) throw new Error('Name at least one file.');
