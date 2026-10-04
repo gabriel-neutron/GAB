@@ -1,6 +1,7 @@
 # ADR 0010 — Three AIs share one tool catalogue, and a source rule decides promotion
 
-**Status** Accepted · 3 October 2026
+**Status** Accepted · 3 October 2026 · §7 replaced by ADR 0011, 4 October 2026. A decision
+table, not a source rule, now decides promotion.
 
 The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work —
 ingestion, tagging, extraction — on free tokens, so that these two tools spend no time on it. Each
@@ -17,7 +18,7 @@ The list is in §10.
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from the job table | Ingestion, tagging, extraction, mapping (P6), scoring (S3) | Free, through freellmapi |
+| Back-end AI | The worker, from the job table | Ingestion, tagging, extraction, mapping (P6), span checks and gate inputs (ADR 0011) | Free, through freellmapi |
 | Front-end AI | A chat route on the local writer | A question in the interface (W8, W9) | Free, through freellmapi |
 
 **The cost rule.** Deterministic work is plain code with no model: hash, store, CSV load, PDF
@@ -100,39 +101,16 @@ workspace; this ADR only requires them.
 - `sha256` decides identity before `put_fetched_document`.
 - One fetch, one URL. No crawl and no schedule (PRD §5).
 
-### 7. Promotion by a source rule, in three bands
+### 7. Promotion by rule: ADR 0011 replaces the score and the bands
 
-The operator decided this on 3 October 2026. **A rule score, computed by the database from the
-cited sources, puts each machine proposal in one of three bands:**
+**ADR 0011 (4 October 2026) replaces the rule score and the three bands** with an ordered decision
+table. The gate reads anchors and independent origin groups, with no score and no weights. The
+ADMIRALTY letter and digit are internal tags that no gate reads. These parts of §7 stay:
 
-| Band | Condition | Effect |
-|---|---|---|
-| Accept | score ≥ high threshold | Promoted by the rule |
-| Review | between the two thresholds | Review queue, in S3 order |
-| Drop | score < low threshold | Rejected by the rule |
-
-**The score is the evidence, not the model's opinion of itself.** It counts the independent
-sources the proposal cites and the ADMIRALTY rating of each. The minimum count, the minimum
-rating and the two thresholds are operational parameters (spec §7). **Two sources on the same
-upstream feed count as one** (CARTO plan §4).
-
-**Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all of these
-are true:
-
-1. The parameters exist. **With no parameter row, the door does nothing**, and every proposal
-   goes to the queue. The rule is therefore off until #9 sets the values on real data.
-2. A cited source counts only if its rating came from the operator or from the source-class table
-   (CARTO plan §4), never from a model alone. Otherwise a model rates a document A and then
-   promotes its own claim.
-3. `dissent = false`, with a verifier vote from a second model family.
-4. The operation is never `merge_entities`, never a deletion, and never an update that replaces a
-   value the operator promoted.
-5. The attribute key already exists for that entity type, so the rule does not create new keys
-   (M11).
-
-**Origin.** The door writes `decision_origin = 'rule:<version>'` in a typed column. The public
-views show it (S4, PU1). A rule decision is reversed by an inverse proposal built from
-`prior_value`. Removing the parameter row stops the rule at once.
+- no parameter row = rule off (ADR 0011 L11), and a second model family (ADR 0011 §3.1);
+- the rule never merges, never deletes, never replaces an operator value, never adds a key;
+- `decide_by_rule(p_id)` is a SECURITY DEFINER door that writes `decision_origin = 'rule:<version>'`
+  in a typed column, and an inverse proposal from `prior_value` reverses a rule decision.
 
 ### 8. The chat is local and never proposes
 
@@ -145,9 +123,10 @@ proposes** (#18: a live answer never becomes a proposal directly), and it ships 
 
 Each step names what it unblocks for the research.
 
-1. **Ingest command**: `sha256` deduplication, `put_document`, `jobs.kind = store_only`, and the
-   rating door of #19. *The existing reports and the 82 rated sources become documents that a
-   claim can cite.*
+1. **Ingest command**: `sha256` deduplication, `put_document`, `jobs.kind = store_only`, and
+   `load:originators` (ADR 0011 §7.1). *The existing reports become documents that a claim can cite, and the 82
+   rated sources become originators with operator letters; their documents carry no rating
+   (ADR 0011 §7.1).*
 2. **Research workspace and MCP server**: read, propose, `fetch_document`, the
    `gabriel_research` role. *Claude and Codex work on #159 and cite stored documents.*
 3. **Batch promotion (#145).** *The review keeps up with the volume.*
@@ -157,16 +136,16 @@ Each step names what it unblocks for the research.
    that #9 needs.*
 6. **Lookup tools of #174**: SearXNG, Wayback, GLEIF, and the others in order. *Wider sources for
    #159.*
-7. **#9 calibration**, then `decide_by_rule`. *The review load falls.*
+7. **#220 calibration**, then `decide_by_rule`. *The review load falls.*
 8. **Local chat** with the #18 tables. *W8 and W9 in the interface.*
 
 ### 10. Entries this ADR changes
 
 | Entry | Change |
 |---|---|
-| P1 | The operator, **or the source rule of §7**, moves a proposal to the evidentiary layer. Spec §2 invariant 5, spec §5 (the OPEN branch), PRD §4.3 and W6 follow. |
-| #42 resolution | Superseded. "No proposal skips the queue" is true only below the high threshold. #139 and #145 keep it for the review band. |
-| S3 | Dissent and the rule score order the review band. This replaces the order of #42. The band edges are the parameters of §7. |
+| P1 | The operator, **or the decision table of ADR 0011 §8** (this ADR §7), moves a proposal to the evidentiary layer. Spec §2 invariant 5, spec §5 (the OPEN branch), PRD §4.3 and W6 follow. |
+| #42 resolution | Superseded. "No proposal skips the queue" is true only for a claim that no open gate path of ADR 0011 §8 accepts. #139 and #145 keep it for those claims. |
+| S3 | The sort keys of ADR 0011 §10.1 step 6 (exposure, harm class, search gaps) order the queue, with no score. This replaces the order of #42. The parameters are the parameter rows of ADR 0011 §8 and §12. |
 | S4, PU1 | The decision origin is a typed column, published and labelled. |
 | ADR 0003 §7 | A fifth role, `gabriel_research`. New grants: `put_fetched_document`, `decide_by_rule`. |
 | P4, #16 | `model_call` lands with the first agent. |
@@ -179,8 +158,8 @@ Each step names what it unblocks for the research.
 - **A rule-promoted claim is a claim that no person read.** The dataset must say so for each
   claim (PU1), and S3's warning stays true: the agents share their blind spots, and no accuracy
   rate is defensible without an audit sample.
-- The rule is only as good as the ratings it counts. Lock 2 is the reason the rule can exist at
-  all; a change that lets a model's own rating count reopens this ADR.
+- The rule is only as good as the register cards, the span checks and the audit (ADR 0011). A
+  change that lets a model write a letter, a state, a flag or an audit label reopens ADR 0011.
 - freellmapi has no service-level agreement (SLA) and quality falls late in the UTC day. The quota pause and the pinned
   model contain this; they do not remove it.
 - Two new services (freellmapi, SearXNG) run on the operator's VPS, on its private network address

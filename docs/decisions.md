@@ -34,7 +34,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | M10 | The unit is carried by the key name, such as `coal_stock_t` | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
 | M12 | Entity merges are reversible | Data model |
-| S1 | ADMIRALTY is scored at the document, never at the claim | Sources and scoring |
+| S1 | ADMIRALTY is scored at the document, never at the claim — **replaced by ADR 0011** | Sources and scoring |
 | S2 | The source is listed at entity, relation and attribute level | Sources and scoring |
 | S3 | Automated scoring; the operator validates by exception only | Sources and scoring |
 | S4 | The origin of every rating is stored and published | Sources and scoring |
@@ -191,6 +191,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 **Decision.** One score per document. No score at claim level.
 **Why.** Scoring every claim is unmanageable given the resources available.
 **Accepted consequence.** The **reliability (A–F)** axis is handled correctly: it is a property of the source. The **credibility (1–6)** axis is not: a single document contains a corroborated fact and a rumour, and they receive the same score. **The dataset must present the scoring as a source score, never as a claim score.** Any presentation to the contrary would be false.
+**Superseded 4 October 2026 by ADR 0011 §7.** No document carries an ADMIRALTY grade. The letter rates the originator. The digit is a view on each claim.
 
 ### S2 — The source is listed at entity, relation and attribute level
 
@@ -220,6 +221,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Why.** An exhaustive validation queue bottlenecks the whole system on one person's attention, which cancels the multiplier effect.
 **Accepted consequence.** Dissent detects disagreement between agents, **not the blind spot they share**: similar models trust the same laundered source and miss the same transliteration. Without a random audit sample — ruled out here — **no public claim about the accuracy rate of the scoring is defensible**. The dataset must state that the scoring is automated and unmeasured.
 **Amended 3 October 2026 by ADR 0010 §7.** S3 is not a door. A rule score from the cited sources puts a machine proposal in one of three bands: accept, review, drop. Dissent and the rule score order the review band. This replaces the dissent-or-confidence order of #42.
+**Amended 4 October 2026 by ADR 0011 §8 and §12.** The decision table of ADR 0011 replaces the rule score and the three bands. The audit of each format cell measures it. "Accuracy unmeasured" stays true for a cell until its bound passes.
 
 ### S4 — The origin of every rating is stored and published
 
@@ -227,6 +229,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Why.** Automated scoring presented as human would invalidate the entire arrangement in the eyes of a peer. Declared, it remains defensible.
 **Consequence.** None. It is one field.
 **Amended 3 October 2026 by ADR 0010 §7.** The decision origin is a typed column, published and labelled.
+**Amended 4 October 2026 by ADR 0011 §14.2.** The decision origin reads `rule:v4.<n>`, with a method statement. The letter and the digit are internal. They are not exported and not shown.
 
 ---
 
@@ -238,6 +241,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Why.** Automatic correlation only has value if it can cast a wide net without costing a decision per result; the report only has value if nothing enters it without validation.
 **Consequence.** Promotion is the central gesture of the workflow. The ergonomics of review determine the value of the entire system: if review is painful, the evidentiary layer stays empty.
 **Amended 3 October 2026 by ADR 0010 §7.** The operator, or a source rule computed by the database, moves a proposal to the evidentiary layer or rejects it. The rule is off until #9 sets its parameters. This note supersedes the resolution of #42.
+**Amended 4 October 2026 by ADR 0011 §8.** The operator, or the decision table of ADR 0011, moves a claim to a public state. This replaces the source rule of ADR 0010 §7.
 
 ### P2 — Proposals are operations, not ghost entities
 
@@ -262,6 +266,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Decision.** Text PDF, docx, txt, md, html, csv. No OCR, no audio, no video.
 **Why.** Each additional tier is a separate pipeline to build and maintain, for an undemonstrated gain.
 **Consequence.** A scanned document must be converted outside the tool before ingestion.
+**Amended 4 October 2026 by ADR 0011 §3.1.** Code runs OCR (Tesseract rus+ukr+eng) on stored images, as a second reader.
 
 ### P6 — One ingestion door; structured data is mapped by proposal
 
@@ -286,6 +291,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 **Why.** The operator's decision, taken in full knowledge of the risks below.
 **Accepted risks.** Entities under investigation gain access to the progress of the investigation in real time. Unverified claims targeting named companies and individuals are exposed, with the corresponding legal and GDPR exposure. The candidate/evidentiary distinction is weakened in the eyes of a reader who does not understand it.
 **Mitigations adopted.** Visible, non-bypassable labelling of every candidate claim, with origin and score. No personal data on a natural person beyond what a cited source already publishes. A correction and right-of-reply mechanism, documented and accessible.
+**Amended 4 October 2026 by ADR 0011 §9.** HELD and REJECTED claims are not public. The decision origin stays published. The mitigation "no personal data beyond what a cited source publishes" stays.
 
 ---
 
