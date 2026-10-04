@@ -123,6 +123,19 @@ const TESTS = `pnpm test runs the whole suite: the offline project, the storyboo
 live projects (store, writer, worker, contract, schema, perimeter, corpus, service). To run one
 file: pnpm test <path>. Never set OFFLINE=1 to make a red run green.`
 
+// The operator accepted these failures of origin/staging on 2026-10-04. A branch passes the gate when
+// it adds no failure to them. Any other red is a new red, also in a file the branch does not touch.
+const BASELINE = `ACCEPTED BASELINE of origin/staging. These failures exist on staging, and they do not
+block a PR:
+- pnpm check: TS2375 at src/features/detail/sidebar.tsx(77,10); lint errors and format faults
+  that origin/staging also shows.
+- pnpm test: 6 tests that need an object store at 127.0.0.1:9000 (5 in
+  packages/store/src/object.db-test.ts, 1 in packages/worker/src/claim.db-test.ts), and the story
+  'The Way Back From The Promotion Question Is Whole' in src/features/review/decide.stories.tsx.
+A run is green when its failures are the same set or a smaller set. Prove it: run the same command
+on origin/staging and compare the failing names. Any failure that staging does not show is a new
+red, and it blocks the PR.`
+
 const TRIAGE = {
   type: 'object',
   properties: {
@@ -450,7 +463,7 @@ You are in an isolated git worktree. Steps:
 6. A schema change goes in a new ordered file under db/migrations or in a re-runnable file under
    db/apply, and only adds: no DROP, no rename, no data loss. Run it on the disposable stack with
    step 3. It never reaches another database.
-7. pnpm check must be green, and ${TESTS} must be green. Use the test-fixer agent for a red test if
+7. pnpm check and ${TESTS} must show no failure beyond the baseline. ${BASELINE} Use the test-fixer agent for a red test if
    you need it, but never weaken an assertion. pnpm check can regenerate a file under src/contract,
    src/db or src/routeTree.gen.ts: commit that file with the change.
 8. If the work needs a change under docs/, do not make it. Post the exact change as a question on
@@ -535,10 +548,10 @@ ${SETUP}
    head, do the stack step below, and run them. They must FAIL, for the reason of the ticket.
    Discard the copy.
 2. GREEN on the branch: check out the PR head, do the stack step below, run the same tests (they
-   must pass), then pnpm check (it must be green), then ${TESTS} (it must be green).
+   must pass), then pnpm check, then ${TESTS}. Both must show no failure beyond the baseline. ${BASELINE}
 The stack step: ${DB_SYNC}
-3. Read the reviews below. approve only if red and green are proven, pnpm check and pnpm test are
-   green, and no blocking issue is valid. You can dismiss a blocking issue only when you prove it
+3. Read the reviews below. approve only if red and green are proven, pnpm check and pnpm test show
+   no failure beyond the baseline, and no blocking issue is valid. You can dismiss a blocking issue only when you prove it
    wrong; say why. Else changes_requested, with a concrete list that a reader can verify.
 Reviews: ${JSON.stringify(reviews, null, 1)}`
 
@@ -549,7 +562,7 @@ ${SETUP}
 ${DB_SYNC}
 Apply every request. If one seems wrong, apply it anyway, or explain with evidence in a PR comment
 why not. Never skip one in silence. Never weaken a test assertion. Never write under docs/.
-pnpm check and ${TESTS} must be green. ${COMMIT(n)}
+pnpm check and ${TESTS} must show no failure beyond the baseline. ${BASELINE} ${COMMIT(n)}
 Push. Post a PR comment, in Simplified Technical English, that lists each request and what you did.
 Change requests: ${JSON.stringify(gate.change_requests, null, 1)}
 Gatekeeper summary: ${gate.summary}
@@ -563,9 +576,10 @@ ${SETUP}
 1. git fetch origin; check out ${branch}; rebase it onto origin/staging. On a conflict that is not
    trivial, or on any failure below, abort and return needs_changes with the exact reason.
 2. The stack step: ${DB_SYNC}
-3. Run pnpm check and set check_green. Run ${TESTS} and set tests_green. Any red is red, also a red
-   you think is "old": stop, do not merge, return needs_changes with the failing tail. When both
-   are green, push with --force-with-lease, on this branch only.
+3. ${BASELINE}
+   Run pnpm check and set check_green. Run ${TESTS} and set tests_green. Each flag is true when the
+   run shows no failure beyond the baseline. A new red: stop, do not merge, return needs_changes
+   with the failing tail. When both flags are true, push with --force-with-lease, on this branch only.
 4. Migrations in this PR: ${JSON.stringify(impl.migrations)}. They run on the disposable stack only.
    No other database exists for this run: never apply one anywhere else.
 5. Mark the PR ready (gh pr ready ${pr} --repo ${REPO}) and merge it with a merge commit:
