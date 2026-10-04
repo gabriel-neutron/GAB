@@ -209,7 +209,10 @@ type DisplayPointOf = (entity: GeoEntity) => { readonly lon: number; readonly la
  * frame of the style — take this, because the spread needs a live map to convert pixels to it. */
 const ownPoint: DisplayPointOf = (entity) => ({ lon: entity.lon, lat: entity.lat });
 
-const collectLines = (links: readonly GeoLink[], at: DisplayPointOf = ownPoint): LineCollection => ({
+const collectLines = (
+  links: readonly GeoLink[],
+  at: DisplayPointOf = ownPoint,
+): LineCollection => ({
   type: 'FeatureCollection',
   features: links.map((link) => {
     const from = at(link.from);
@@ -321,7 +324,10 @@ export function mountMap({
 
   // MapLibre reads the style with its own parser, so a CSS custom property never reaches it and
   // `projection.ts` holds the hex copy. An entity of a type with no facet is drawn nowhere.
-  const featuresOf = (entities: readonly GeoEntity[], at: DisplayPointOf = ownPoint): PointFeature[] => {
+  const featuresOf = (
+    entities: readonly GeoEntity[],
+    at: DisplayPointOf = ownPoint,
+  ): PointFeature[] => {
     const features: PointFeature[] = [];
     for (const entity of entities) {
       const colour = colourOfType.get(entity.type);
@@ -660,7 +666,9 @@ export function mountMap({
       // `setData` returns a promise, and `void` drops it. The data is here already, so the
       // promise carries no fetch that can fail. A rejection can only come from a map that the
       // analyst closed while the parser worked, and that is not a fault to report.
-      void source.setData(collect(featuresOf(entity === undefined ? [] : [entity], displayPointOf)));
+      void source.setData(
+        collect(featuresOf(entity === undefined ? [] : [entity], displayPointOf)),
+      );
     });
   };
 

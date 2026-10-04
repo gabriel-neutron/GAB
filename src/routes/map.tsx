@@ -68,7 +68,11 @@ function MapRoute() {
       // the canvas, but a click on the sidebar list picks a relation with no call into the
       // adapter, so this route must hold the rule too, or the panel keeps naming the old relation.
       void navigate({
-        search: (previous: MapSearch): MapSearch => ({ ...previous, entity: id ?? '', relation: '' }),
+        search: (previous: MapSearch): MapSearch => ({
+          ...previous,
+          entity: id ?? '',
+          relation: '',
+        }),
         replace: true,
       });
     },

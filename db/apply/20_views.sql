@@ -24,6 +24,7 @@ SET ROLE gabriel_owner;
 DROP VIEW IF EXISTS api.full_map;
 DROP VIEW IF EXISTS api.full_graph;
 DROP VIEW IF EXISTS api.layout;
+DROP VIEW IF EXISTS api.model_call;
 DROP VIEW IF EXISTS api.job;
 DROP VIEW IF EXISTS api.key_usage;
 DROP VIEW IF EXISTS api.value_support;
@@ -81,14 +82,17 @@ COMMENT ON VIEW api.relation IS
 
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
-         confidence, dissent, author_role, status, created_at, decided_at, decided_by
+         confidence, dissent, author_role, model_call_id, status, created_at, decided_at,
+         decided_by
     FROM public.proposals;
 COMMENT ON VIEW api.proposal IS
   'The candidate layer AND the record of every change; `status` tells them apart. '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
   'holds it. `names` lists the other elements the act touches. author_role is the connection '
-  'role and never a person, and decided_by is NEVER proof of a human decision. Do not count '
+  'role and never a person. model_call_id names the call that made a machine act. It is NULL '
+  'for an act of the operator and for a machine act older than the call record. decided_by is '
+  'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
 
 
@@ -173,6 +177,19 @@ COMMENT ON VIEW api.job IS
   '`attempts` counts every claim, including the ones a lease released, so it counts what was '
   'taken and never what was tried. A failed job always states its reason in '
   'failure_reason. finished_at is the hour a job ended, and NULL while it can still run.';
+
+-- Departure: the calls of one job, and the call of one proposal, are read here. It publishes
+-- the digest of a prompt and never a prompt: the prompt can quote an untrusted document.
+CREATE VIEW api.model_call AS
+  SELECT id, job_id, agent, agent_version, endpoint, requested_model, served_model,
+         prompt_sha256, input_tokens, output_tokens, latency_ms, outcome, created_at
+    FROM public.model_call;
+COMMENT ON VIEW api.model_call IS
+  'One question to a model, written once and never changed. Read the calls of a job with '
+  'job_id=eq.{id}, and the call of a proposal through api.proposal.model_call_id. '
+  'requested_model is the name the agent asked for, and served_model is the one that answered: '
+  'they can differ, and served_model is NULL when no model answered. prompt_sha256 is a digest '
+  'and never the prompt. outcome is ok or the kind of failure. A chat call has no job_id.';
 
 -- THE TWO READS THAT RETURN EVERY ROW, AND HOW THEY ESCAPE THE ROW CEILING. PostgREST caps rows
 -- per role and never per view, so the one read role carries no row cap at all, and there is no
