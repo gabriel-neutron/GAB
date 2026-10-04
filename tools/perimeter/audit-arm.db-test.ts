@@ -293,6 +293,8 @@ const THE_DOOR_SET = [
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
   'public.put_document to gabriel_app',
+  'public.put_document_text to gabriel_agent',
+  'public.put_document_text to gabriel_app',
   'public.record_model_call to gabriel_agent',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
