@@ -78,6 +78,7 @@ const PROPOSAL_ROW = {
   confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
+  model_call_id: null,
   status: 'pending',
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,

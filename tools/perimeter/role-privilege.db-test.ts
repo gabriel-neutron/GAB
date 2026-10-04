@@ -4,11 +4,13 @@
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, rolledBack } from '../probe.ts';
+import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
-  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)',
+  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
+  record_model_call:
+    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
@@ -40,12 +42,13 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
 
 // The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
 // this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on propose_change, the layout door, the claim and the failure', async () => {
+test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout door, the claim and the failure', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
     promote_proposal: false,
     reject_proposal: false,
+    record_model_call: true,
     claim_job: true,
     release_expired_claims: false,
     fail_job: true,
@@ -72,6 +75,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     propose_change: true,
     promote_proposal: true,
     reject_proposal: true,
+    record_model_call: false,
     claim_job: false,
     release_expired_claims: true,
     fail_job: false,
@@ -122,6 +126,19 @@ test('gabriel_agent cannot mark a job by hand', async () => {
     rolledBack('agent', (ask) => ask("UPDATE public.jobs SET status = 'running'")),
   ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
 });
+
+// Departure: the call record is a door too, and the table that the door writes stays closed. A
+// worker that could insert a row by hand could write a call that no model made.
+for (const identity of ['agent', 'app'] as const)
+  test(`gabriel_${identity} cannot write a model call by hand`, async () => {
+    await expect(
+      rolledBack(identity, (ask) =>
+        ask(`INSERT INTO public.model_call (agent, agent_version, endpoint, requested_model,
+               prompt_sha256, latency_ms, outcome)
+             VALUES ('a', 'v1', 'e', 'm', repeat('a', 64), 1, 'ok')`),
+      ),
+    ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table model_call' });
+  });
 
 test('gabriel_app cannot queue work without a document', async () => {
   await expect(
@@ -204,12 +221,24 @@ test('gabriel_read carries a five second statement timeout', async () => {
 const RESERVED = ['manual', 'inherited'] as const;
 
 const cites = (document: string): string => `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[],
+  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
+// A machine act names its call, and the agent holds the one door that records it. The operator
+// names none.
+const callOf = async (identity: 'app' | 'agent', ask: Ask): Promise<string | null> => {
+  if (identity === 'app') return null;
+  const [row] = made.parse(
+    await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
+                 repeat('a', 64), 1, 'ok') AS id`),
+  );
+  return row?.id ?? null;
+};
+
 const proposeCiting = (identity: 'app' | 'agent', document: string): Promise<readonly unknown[]> =>
-  rolledBack(identity, (ask) => ask(cites(document)));
+  rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {
@@ -243,12 +272,13 @@ afterAll(async () => {
 });
 
 const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
-  rolledBack('agent', (ask) =>
+  rolledBack('agent', async (ask) =>
     ask(
       `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
          'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
-         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[]) AS id`,
-      [value, act],
+         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[],
+         NULL, NULL, '{}', NULL, false, $3::uuid) AS id`,
+      [value, act, await callOf('agent', ask)],
     ),
   );
 
