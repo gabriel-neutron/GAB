@@ -62,8 +62,6 @@ CREATE TABLE chat_citation (
   message_id   uuid NOT NULL
                CONSTRAINT chat_citation_message_fkey REFERENCES chat_message(id)
                ON UPDATE RESTRICT ON DELETE RESTRICT,
-  -- The order of the citations in the answer.
-  position     int NOT NULL CHECK (position >= 0),
   -- Plain text and not doc_id: the domain refuses a NULL, so a citation of another kind could
   -- never leave this column empty. The foreign key is the check, and it holds the same rule.
   document_id  text
@@ -80,13 +78,11 @@ CREATE TABLE chat_citation (
                ON UPDATE RESTRICT ON DELETE RESTRICT,
   excerpt      text CHECK (excerpt IS NULL OR btrim(excerpt, E' \t\n\r\f\v') <> ''),
   CONSTRAINT chat_citation_one_target
-    CHECK (num_nonnulls(document_id, entity_id, relation_id, proposal_id) = 1),
-  CONSTRAINT chat_citation_position_key UNIQUE (message_id, position)
+    CHECK (num_nonnulls(document_id, entity_id, relation_id, proposal_id) = 1)
 );
 
 -- A foreign key builds no index on the referencing side. Each index below serves the read of the
--- rows that point at one parent, and the RESTRICT probe on each delete of a parent. The unique
--- key above covers message_id.
+-- rows that point at one parent, and the RESTRICT probe on each delete of a parent.
 CREATE INDEX conversation_anchor_entity_idx   ON conversation (anchor_entity_id)
   WHERE anchor_entity_id IS NOT NULL;
 CREATE INDEX conversation_anchor_relation_idx ON conversation (anchor_relation_id)
@@ -94,6 +90,7 @@ CREATE INDEX conversation_anchor_relation_idx ON conversation (anchor_relation_i
 CREATE INDEX chat_message_conversation_idx    ON chat_message (conversation_id, created_at);
 CREATE INDEX chat_message_model_call_idx      ON chat_message (model_call_id)
   WHERE model_call_id IS NOT NULL;
+CREATE INDEX chat_citation_message_idx        ON chat_citation (message_id);
 CREATE INDEX chat_citation_document_idx       ON chat_citation (document_id)
   WHERE document_id IS NOT NULL;
 CREATE INDEX chat_citation_entity_idx         ON chat_citation (entity_id)
