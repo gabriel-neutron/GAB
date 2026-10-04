@@ -22,11 +22,14 @@ const DOORS = {
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
+  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
 
-const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, boolean>> => {
+const doorsHeldBy = async (
+  identity: 'app' | 'agent' | 'research',
+): Promise<Record<string, boolean>> => {
   const names = Object.keys(DOORS);
   const signatures = Object.values(DOORS);
   const rows = await probe(identity, async (ask) =>
@@ -63,6 +66,29 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     open_conversation: false,
     append_chat_message: false,
     put_document_text: true,
+    put_fetched_document: true,
+  });
+});
+
+// THE RESEARCH ROLE PROPOSES AND STORES A FETCHED DOCUMENT, AND IT CANNOT DECIDE OR CLAIM. It holds
+// no door of the operator, no door of the queue except the request for work, and no call record.
+test('gabriel_research holds EXECUTE on five doors and no other', async () => {
+  expect(await doorsHeldBy('research')).toStrictEqual({
+    put_document: false,
+    propose_change: true,
+    promote_proposal: false,
+    reject_proposal: false,
+    record_model_call: false,
+    claim_job: false,
+    release_expired_claims: false,
+    fail_job: false,
+    enqueue_job: true,
+    complete_job: false,
+    set_entity_layout: false,
+    open_conversation: false,
+    append_chat_message: false,
+    put_document_text: true,
+    put_fetched_document: true,
   });
 });
 
@@ -96,6 +122,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     open_conversation: true,
     append_chat_message: true,
     put_document_text: true,
+    put_fetched_document: false,
   });
 });
 
@@ -123,6 +150,13 @@ test('gabriel_app writes no table, in any schema', async () => {
 test('gabriel_agent writes no table, in any schema', async () => {
   const held = await probe('superuser', async (ask) =>
     writes.parse(await ask(WRITES_OF, ['gabriel_agent'])).map((row) => row.found),
+  );
+  expect(held).toStrictEqual([]);
+});
+
+test('gabriel_research writes no table, in any schema', async () => {
+  const held = await probe('superuser', async (ask) =>
+    writes.parse(await ask(WRITES_OF, ['gabriel_research'])).map((row) => row.found),
   );
   expect(held).toStrictEqual([]);
 });
@@ -247,8 +281,8 @@ const made = z.array(z.object({ id: z.uuid() }));
 
 // A machine act names its call, and the agent holds the one door that records it. The operator
 // names none.
-const callOf = async (identity: 'app' | 'agent', ask: Ask): Promise<string | null> => {
-  if (identity === 'app') return null;
+const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise<string | null> => {
+  if (identity !== 'agent') return null;
   const [row] = made.parse(
     await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
                  repeat('a', 64), 1, 'ok') AS id`),
@@ -256,7 +290,10 @@ const callOf = async (identity: 'app' | 'agent', ask: Ask): Promise<string | nul
   return row?.id ?? null;
 };
 
-const proposeCiting = (identity: 'app' | 'agent', document: string): Promise<readonly unknown[]> =>
+const proposeCiting = (
+  identity: 'app' | 'agent' | 'research',
+  document: string,
+): Promise<readonly unknown[]> =>
   rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
 
 for (const document of RESERVED) {
@@ -267,6 +304,13 @@ for (const document of RESERVED) {
       message:
         'new row for relation "proposals" violates check constraint ' +
         '"proposals_machine_not_reserved"',
+    });
+  });
+
+  test(`a research proposal that cites ${document} is refused`, async () => {
+    await expect(proposeCiting('research', document)).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'proposals_machine_not_reserved',
     });
   });
 

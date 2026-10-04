@@ -1,4 +1,4 @@
-// Applies the ordered files, then gives the three login roles a password.
+// Applies the ordered files, then gives the four login roles a password.
 // The first migration creates them with LOGIN and no password, so none can authenticate.
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -45,7 +45,7 @@ const SQL_LOADER = [
 ];
 
 // Every secret is read before the first ALTER ROLE. An absent variable stops the command with
-// no role changed, and not after two of the three roles hold a new password.
+// no role changed, and not after two of the four roles hold a new password.
 const setLoginPasswords = async (client: Client): Promise<void> => {
   const wanted = loginPasswords();
 
