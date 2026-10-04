@@ -78,14 +78,14 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
             JOIN pg_catalog.pg_roles r ON r.oid = m.member
             JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
            WHERE m.roleid = 'gabriel_owner'::regrole
-              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
           UNION ALL
           SELECT r.rolname || ' is ' || a.attribute
             FROM pg_catalog.pg_roles r
            CROSS JOIN LATERAL (VALUES ('SUPERUSER', r.rolsuper), ('CREATEROLE', r.rolcreaterole),
                                       ('CREATEDB', r.rolcreatedb), ('BYPASSRLS', r.rolbypassrls),
                                       ('REPLICATION', r.rolreplication)) AS a(attribute, held)
-           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
+           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read') AND a.held
            ORDER BY 1`;
 
 // External constraint: a default with no IN SCHEMA is stored with defaclnamespace 0, which no
@@ -287,14 +287,19 @@ const THE_DOOR_SET = [
   'public.complete_job to gabriel_agent',
   'public.enqueue_job to gabriel_agent',
   'public.enqueue_job to gabriel_app',
+  'public.enqueue_job to gabriel_research',
   'public.fail_job to gabriel_agent',
   'public.open_conversation to gabriel_app',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
+  'public.propose_change to gabriel_research',
   'public.put_document to gabriel_app',
   'public.put_document_text to gabriel_agent',
   'public.put_document_text to gabriel_app',
+  'public.put_document_text to gabriel_research',
+  'public.put_fetched_document to gabriel_agent',
+  'public.put_fetched_document to gabriel_research',
   'public.record_model_call to gabriel_agent',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
