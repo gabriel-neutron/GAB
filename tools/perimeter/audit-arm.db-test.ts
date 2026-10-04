@@ -284,6 +284,9 @@ const DEFINER_DOORS = `
 const THE_DOOR_SET = [
   'public.append_chat_message to gabriel_app',
   'public.claim_job to gabriel_agent',
+  'public.complete_job to gabriel_agent',
+  'public.enqueue_job to gabriel_agent',
+  'public.enqueue_job to gabriel_app',
   'public.fail_job to gabriel_agent',
   'public.open_conversation to gabriel_app',
   'public.promote_proposal to gabriel_app',
