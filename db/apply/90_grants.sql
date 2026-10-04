@@ -27,14 +27,19 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- schema, takes EXECUTE from PUBLIC on each function that gabriel_owner creates.
 
 -- External constraint: `REVOKE ALL ON ALL TABLES` is a snapshot and reaches no later table, so
--- "no role writes a table" holds for the six tables below and NOT for a table nobody has written.
+-- "no role writes a table" holds for the tables granted below and NOT for a table nobody
+-- has written.
 -- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_app;
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The nine doors, and nothing else.
+-- THE CONVERSATIONS ARE PRIVATE. gabriel_app reads the three tables, and no other role holds a
+-- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
+GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
+
+-- The eleven doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
   FROM PUBLIC;
@@ -46,6 +51,11 @@ REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
+REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
