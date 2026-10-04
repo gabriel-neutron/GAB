@@ -20,6 +20,7 @@
     { "path": "./packages/proposal" },
     { "path": "./packages/store" },
     { "path": "./packages/text" },
+    { "path": "./packages/tools" },
     { "path": "./packages/writer" },
     { "path": "./packages/worker" }
   ]

@@ -408,3 +408,41 @@ test('gabriel_read can execute api.neighbourhood, and not only hold the grant', 
     'the fixture holds an entity-to-entity relation, so the walk finds one',
   ).toBe(1);
 });
+
+const MACHINE_HOLDS = `
+  SELECT g.grantee || ' ' || g.table_schema || '.' || g.table_name || ' ' || g.privilege_type
+           AS found
+    FROM information_schema.role_table_grants g
+   WHERE g.grantee IN ('gabriel_app','gabriel_agent','gabriel_research')
+     AND g.table_schema = 'api'
+   ORDER BY 1`;
+
+const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
+
+// A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
+// to no tool until a person writes it in. api.model_call is the one that must stay closed.
+test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
+  const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
+    MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
+  );
+  expect(await foundBy(MACHINE_HOLDS)).toStrictEqual(expected);
+});
+
+const NEIGHBOURHOOD_HOLDERS = `
+  SELECT pg_catalog.pg_get_userbyid(a.grantee) AS found
+    FROM pg_catalog.pg_proc p
+   CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
+   WHERE p.pronamespace = 'api'::regnamespace AND p.proname = 'neighbourhood'
+     AND a.privilege_type = 'EXECUTE'
+   ORDER BY 1`;
+
+test('api.neighbourhood runs for the owner, the read role and the three tool roles alone', async () => {
+  expect(await foundBy(NEIGHBOURHOOD_HOLDERS)).toStrictEqual([
+    'gabriel_agent',
+    'gabriel_app',
+    'gabriel_owner',
+    'gabriel_read',
+    'gabriel_research',
+  ]);
+});
