@@ -17,6 +17,8 @@ const DOORS = {
   release_expired_claims: 'public.release_expired_claims()',
   fail_job: 'public.fail_job(uuid,text)',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
+  open_conversation: 'public.open_conversation(text,text,uuid)',
+  append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -53,6 +55,8 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     release_expired_claims: false,
     fail_job: true,
     set_entity_layout: true,
+    open_conversation: false,
+    append_chat_message: false,
   });
 });
 
@@ -80,6 +84,8 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     release_expired_claims: true,
     fail_job: false,
     set_entity_layout: false,
+    open_conversation: true,
+    append_chat_message: true,
   });
 });
 
@@ -301,3 +307,55 @@ test('a machine value that cites manual where the act does is refused', async ()
 test('a machine value that cites the document of its act is accepted', async () => {
   expect(made.parse(await valueCites(ORDINARY, [ORDINARY]))).toHaveLength(1);
 });
+
+// Departure: the conversations are the operator's and they are private. The read role has no
+// USAGE on public, the agent holds no grant, and the writer reads them as gabriel_app.
+const CHAT_TABLES = ['conversation', 'chat_message', 'chat_citation'] as const;
+
+for (const table of CHAT_TABLES) {
+  test(`gabriel_read cannot read ${table}`, async () => {
+    await expect(
+      probe('read', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).rejects.toMatchObject({ code: '42501', message: 'permission denied for schema public' });
+  });
+
+  test(`gabriel_agent cannot read ${table}`, async () => {
+    await expect(
+      probe('agent', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).rejects.toMatchObject({ code: '42501', message: `permission denied for table ${table}` });
+  });
+
+  test(`gabriel_app reads ${table}`, async () => {
+    expect(
+      await probe('app', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).toHaveLength(1);
+  });
+}
+
+const BY_HAND = [
+  ['conversation', "INSERT INTO public.conversation (title) VALUES ('a test')"],
+  ['conversation', "UPDATE public.conversation SET title = 'a test'"],
+  ['conversation', 'DELETE FROM public.conversation'],
+  [
+    'chat_message',
+    `INSERT INTO public.chat_message (conversation_id, role, body)
+       VALUES (gen_random_uuid(), 'user', 'a test')`,
+  ],
+  ['chat_message', "UPDATE public.chat_message SET body = 'a test'"],
+  ['chat_message', 'DELETE FROM public.chat_message'],
+  [
+    'chat_citation',
+    `INSERT INTO public.chat_citation (message_id, document_id)
+       VALUES (gen_random_uuid(), 'manual')`,
+  ],
+  ['chat_citation', "UPDATE public.chat_citation SET excerpt = 'a test'"],
+  ['chat_citation', 'DELETE FROM public.chat_citation'],
+] as const;
+
+for (const [table, sql] of BY_HAND)
+  test(`gabriel_app cannot write ${table} by hand: ${sql.split(' ')[0]}`, async () => {
+    await expect(rolledBack('app', (ask) => ask(sql))).rejects.toMatchObject({
+      code: '42501',
+      message: `permission denied for table ${table}`,
+    });
+  });

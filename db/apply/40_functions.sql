@@ -118,6 +118,15 @@ BEGIN
   RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
+-- A CONVERSATION ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
+-- ignore a grant, so a trigger holds it. One function serves the three tables.
+CREATE OR REPLACE FUNCTION chat_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'a row of % is never %. It is the record of what was said',
+    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+END $$;
+
 -- M4. src_id and dst_id carry no foreign key, because the target is polymorphic. FOR KEY SHARE
 -- is the point: without the lock, one session adds a relation while another deletes the
 -- endpoint, and both commit.
@@ -148,7 +157,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Nine functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Eleven functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
@@ -260,6 +269,101 @@ BEGIN
     (p_job_id, p_agent, p_agent_version, p_endpoint, p_requested_model, p_served_model,
      p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
   RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE TWO DOORS INTO THE CONVERSATION STORE. gabriel_app alone holds them, and no role writes
+-- the three tables by hand. A blank title or a blank text is refused by the table, and a missing
+-- anchor row is refused by its foreign key.
+CREATE OR REPLACE FUNCTION open_conversation(
+  p_title        text,
+  p_anchor_kind  text DEFAULT NULL,
+  p_anchor_id    uuid DEFAULT NULL)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF (p_anchor_kind IS NULL) <> (p_anchor_id IS NULL)
+     OR p_anchor_kind NOT IN ('entity','relation') THEN
+    RAISE EXCEPTION 'an anchor is a kind, entity or relation, with its id, or it is neither'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.conversation (title, anchor_entity_id, anchor_relation_id)
+  VALUES (p_title,
+          CASE p_anchor_kind WHEN 'entity'   THEN p_anchor_id END,
+          CASE p_anchor_kind WHEN 'relation' THEN p_anchor_id END)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- A message and its citations are one write. p_citations is a jsonb array of objects with the
+-- keys kind, id and excerpt, and no other key. The kind is document, entity, relation or
+-- proposal. The door sets the one foreign key that matches the kind, so a row that does not
+-- exist refuses the whole message. Only an assistant message carries a citation.
+CREATE OR REPLACE FUNCTION append_chat_message(
+  p_conversation_id uuid,
+  p_role            text,
+  p_text            text,
+  p_model_call_id   uuid  DEFAULT NULL,
+  p_citations       jsonb DEFAULT '[]')
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id    uuid;
+  v_cite  jsonb;
+  v_pos   int := 0;
+  v_kind  text;
+  v_key   text;
+BEGIN
+  p_citations := coalesce(p_citations, '[]'::jsonb);
+  IF jsonb_typeof(p_citations) <> 'array' THEN
+    RAISE EXCEPTION 'the citations are an array' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF jsonb_array_length(p_citations) > 0 AND p_role IS DISTINCT FROM 'assistant' THEN
+    RAISE EXCEPTION 'only an assistant message carries a citation'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.chat_message (conversation_id, role, body, model_call_id)
+  VALUES (p_conversation_id, p_role, p_text, p_model_call_id)
+  RETURNING id INTO v_id;
+
+  FOR v_cite IN SELECT value FROM jsonb_array_elements(p_citations) LOOP
+    IF jsonb_typeof(v_cite) <> 'object' THEN
+      RAISE EXCEPTION 'a citation is an object' USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    FOR v_key IN SELECT jsonb_object_keys(v_cite) LOOP
+      IF v_key NOT IN ('kind','id','excerpt') THEN
+        RAISE EXCEPTION 'a citation holds the keys kind, id and excerpt, and not %', v_key
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+    END LOOP;
+    IF jsonb_typeof(v_cite -> 'kind') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(v_cite -> 'id') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(coalesce(v_cite -> 'excerpt', '""'::jsonb)) <> 'string' THEN
+      RAISE EXCEPTION 'a citation names a kind and an id, and its excerpt is text'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    v_kind := v_cite ->> 'kind';
+    IF v_kind NOT IN ('document','entity','relation','proposal') THEN
+      RAISE EXCEPTION 'a citation kind is document, entity, relation or proposal, and not %',
+        v_kind USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    INSERT INTO public.chat_citation
+      (message_id, position, document_id, entity_id, relation_id, proposal_id, excerpt)
+    VALUES
+      (v_id, v_pos,
+       CASE v_kind WHEN 'document' THEN v_cite ->> 'id' END,
+       CASE v_kind WHEN 'entity'   THEN (v_cite ->> 'id')::uuid END,
+       CASE v_kind WHEN 'relation' THEN (v_cite ->> 'id')::uuid END,
+       CASE v_kind WHEN 'proposal' THEN (v_cite ->> 'id')::uuid END,
+       v_cite ->> 'excerpt');
+    v_pos := v_pos + 1;
+  END LOOP;
   RETURN v_id;
 END $$;
 
