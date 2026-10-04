@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 
 import {
+  checkedTitle,
   ingestFiles,
   parseIngestArguments,
   reportLine,
@@ -20,6 +21,7 @@ beforeAll(async () => {
   folder = await mkdtemp(join(tmpdir(), 'ingest-suite-'));
   await writeFile(join(folder, 'one.txt'), 'the first page');
   await writeFile(join(folder, 'two.txt'), 'the second page');
+  await writeFile(join(folder, 'copy-of-one.txt'), 'the first page');
   await writeFile(join(folder, 'strange.xyz'), 'bytes of a type nobody reads');
   await mkdir(join(folder, 'inner'));
 });
@@ -32,7 +34,8 @@ const parsed = (...argv: string[]) => parseIngestArguments(argv);
 test('the arguments hold the paths, the date, the kind and the title', () => {
   expect(parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'report')).toStrictEqual({
     paths: ['a.pdf'],
-    options: { retrievedAt: '2026-09-01', kind: 'report', title: undefined },
+    options: { retrievedAt: '2026-09-01', kind: 'report', title: undefined, dryRun: false },
+    walk: { recursive: false, include: ['*.pdf'] },
   });
   expect(parsed('a.pdf', '--retrieved-at', '2026-09-01').options.kind).toBe('file');
 });
@@ -57,6 +60,33 @@ test('a run with no path, a wrong kind or an unknown option is refused', () => {
   expect(() => parsed('--retrieved-at', '2026-09-01')).toThrow(ANY_REFUSAL);
   expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'url')).toThrow(/--kind/);
   expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01', '--wat')).toThrow(ANY_REFUSAL);
+});
+
+test('the walk flags and the dry run flag are read', () => {
+  const run = parsed(
+    'folder',
+    '--retrieved-at',
+    '2026-09-01',
+    '--recursive',
+    '--dry-run',
+    '--include',
+    '*.html',
+    '--include',
+    '*.txt',
+  );
+  expect(run.walk).toStrictEqual({ recursive: true, include: ['*.html', '*.txt'] });
+  expect(run.options.dryRun).toBe(true);
+  expect(() => parsed('folder', '--retrieved-at', '2026-09-01', '--include', '')).toThrow(
+    /--include/,
+  );
+});
+
+test('a title is refused when the run takes more than one file', () => {
+  const titled = { ...OPTIONS, title: 'T' };
+  expect(() => checkedTitle(['a.pdf', 'b.pdf'], titled)).toThrow(/--title/);
+  expect(() => checkedTitle([], titled)).toThrow(/--title/);
+  expect(() => checkedTitle(['a.pdf'], titled)).not.toThrow();
+  expect(() => checkedTitle(['a.pdf', 'b.pdf'], OPTIONS)).not.toThrow();
 });
 
 interface Call {
@@ -95,7 +125,12 @@ const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
   return { door, calls, puts, released: () => released };
 };
 
-const OPTIONS = { retrievedAt: '2026-09-01', kind: 'file', title: undefined } as const;
+const OPTIONS = {
+  retrievedAt: '2026-09-01',
+  kind: 'file',
+  title: undefined,
+  dryRun: false,
+} as const;
 const only = async (door: IngestDoor, path: string): Promise<IngestOutcome> => {
   const [outcome] = await ingestFiles(door, [path], OPTIONS);
   if (outcome === undefined) throw new Error('no outcome');
@@ -159,4 +194,31 @@ test('the run reports a line for each file', () => {
   expect(reportLine({ path: 'a.pdf', status: 'refused', reason: 'no type' })).toBe(
     'refused  a.pdf  no type',
   );
+});
+
+test('a stored file carries its hash and its page count', async () => {
+  const { door } = doorOf();
+  const outcome = await only(door, join(folder, 'one.txt'));
+  expect(outcome.sha256).toMatch(/^[0-9a-f]{64}$/);
+  expect(outcome.pageCount).toBe(1);
+  expect(outcome.emptyPages).toStrictEqual([]);
+});
+
+test('a known file carries its hash and no page count', async () => {
+  const { door } = doorOf({ known: true });
+  const outcome = await only(door, join(folder, 'one.txt'));
+  expect(outcome.sha256).toMatch(/^[0-9a-f]{64}$/);
+  expect(outcome.pageCount).toBeUndefined();
+});
+
+test('a dry run writes nothing, and a second file with the same bytes is known', async () => {
+  const { door, calls, puts } = doorOf();
+  const outcomes = await ingestFiles(
+    door,
+    [join(folder, 'one.txt'), join(folder, 'copy-of-one.txt'), join(folder, 'two.txt')],
+    { ...OPTIONS, dryRun: true },
+  );
+  expect(outcomes.map((o) => o.status)).toStrictEqual(['stored', 'known', 'stored']);
+  expect(puts).toStrictEqual([]);
+  expect(calls.every((c) => c.text.startsWith('SELECT'))).toBe(true);
 });
