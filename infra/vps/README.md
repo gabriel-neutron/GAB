@@ -88,7 +88,7 @@ pnpm check
 ```
 
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
-The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`. An exited `minio-init` is normal.
+The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
 **Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` healthy, and `pnpm check`
 exits 0.
