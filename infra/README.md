@@ -14,6 +14,22 @@ docker compose -f infra/docker-compose.yml up -d
 ```
 
 
+## The model gateway and the search service
+
+freellmapi and SearXNG start with the other services. They hold no record of the project.
+
+1. Put a value in `FREELLMAPI_ENCRYPTION_KEY` in `.env`: `openssl rand -hex 32`. freellmapi does
+   not start without it. `SEARXNG_SECRET` can stay empty: the compose file then uses a fixed value
+   that fits a loopback port.
+2. Start them: `docker compose -f infra/docker-compose.yml up -d --wait freellmapi searxng`.
+3. **Provider keys do not go in `.env`.** Open http://127.0.0.1:4001, enter each provider key on
+   the **Keys** page, and copy the unified key of freellmapi. freellmapi keeps the provider keys,
+   encrypted, in the volume `freellmapi-data`. If you lose `FREELLMAPI_ENCRYPTION_KEY`, you must
+   enter every provider key again. `down -v` deletes the volume and the keys.
+4. Check the search service: `curl 'http://127.0.0.1:8888/search?q=test&format=json'` answers JSON.
+
+The VPS runs the same two services on the Tailscale address. See `vps/README.md`.
+
 ## Every day
 
 | You want | Run |
@@ -42,6 +58,8 @@ test database, `gabriel_test`, again.
 | `127.0.0.1:5432` | PostgreSQL 17, with PostGIS and pgvector |
 | `127.0.0.1:3000` | The PostgREST read API, over the `api` schema |
 | `127.0.0.1:3001` | The same read API over `gabriel_test`, for the tests |
+| `127.0.0.1:4001` | freellmapi, the model gateway of the back-end AI (`/v1`, and a dashboard) |
+| `127.0.0.1:8888` | SearXNG, the engine of `web_search` (`/search?q=test&format=json`) |
 
 Nothing is bound to a public address.
 
