@@ -15,15 +15,14 @@
 -- gabriel_app alone holds them. The append door writes a message and its citations in one
 -- transaction, so a citation that names no row refuses the whole message.
 --
--- A ROW IS A FACT AND IS NEVER UPDATED OR DELETED. A trigger holds it, because the owner and the
--- superuser ignore a grant. Every foreign key is RESTRICT.
+-- A MESSAGE ROW IS A FACT AND IS NEVER UPDATED OR DELETED. A trigger holds it, because the owner
+-- and the superuser ignore a grant. Every foreign key is RESTRICT.
 --
 -- AN ASSISTANT MESSAGE NAMES THE MODEL CALL THAT MADE IT, AND NO OTHER MESSAGE DOES. The check
 -- is an equality of two booleans, so a NULL cannot pass it.
 --
 -- A CITATION NAMES ONE REAL ROW. It has four nullable foreign keys, and exactly one is set. The
 -- kind is the key that is set, so the table holds no kind column that could disagree with it.
--- The door refuses a citation on a message that is not an assistant message.
 -- =============================================================================================
 
 SET LOCAL ROLE gabriel_owner;
