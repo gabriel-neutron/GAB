@@ -1,0 +1,23 @@
+{
+  // The tool catalogue. A tool takes a session that the caller owns, so the package opens no
+  // connection and holds no secret. Nothing is built: Node strips the types itself.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "module": "preserve",
+    "types": ["node"],
+
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.tools.tsbuildinfo",
+
+    // Node runs the source directly and strips the types, so an import needs the real extension.
+    "allowImportingTsExtensions": true
+  },
+  // A test that reaches the database logs in through the helper of the schema tests, so the
+  // helper and the two files it imports are part of this project too.
+  "include": [
+    "src",
+    "../../tools/probe.ts",
+    "../../tools/db-runtime.ts",
+    "../../tools/test-database.ts"
+  ]
+}
