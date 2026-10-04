@@ -157,7 +157,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Thirteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Fourteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- row is written IN THE SAME TRANSACTION: a document row with no job row is invisible to the
@@ -728,6 +728,40 @@ BEGIN
   INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
   RETURNING id INTO v_id;
   RETURN v_id;
+END $$;
+
+-- THE TEXT OF A DOCUMENT, WRITTEN ONCE. p_pages is a jsonb array of strings, and the door sets
+-- the page number from the place of each string, counting from 1, so the caller cannot leave a
+-- gap or repeat a number. An empty string is a valid page. A document with no bytes has nothing
+-- that a text could come from, so it is refused.
+--
+-- THE PRIMARY KEY IS THE GUARD FOR A SECOND SET. A second set for the same document and
+-- extractor version collides on page 1 at the insert, and the caller receives the unique
+-- violation of the key. The door checks nothing else about the arguments: the CHECK of the
+-- table refuses a blank extractor, and the foreign key refuses an unknown document.
+CREATE OR REPLACE FUNCTION put_document_text(p_document text, p_pages jsonb, p_extractor text)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_bytes text;
+  v_count int;
+BEGIN
+  SELECT d.s3_key INTO v_bytes FROM public.documents d WHERE d.id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_bytes IS NULL THEN
+    RAISE EXCEPTION 'document % holds no bytes, so no text can be read from it', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.document_text (document_id, extractor, page, text)
+  SELECT p_document::doc_id, p_extractor, e.n::int, e.t
+    FROM jsonb_array_elements_text(p_pages) WITH ORDINALITY AS e(t, n);
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
 END $$;
 
 -- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
