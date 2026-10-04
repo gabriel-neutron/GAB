@@ -35,8 +35,9 @@ GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on `jobs`: the
--- state of the queue is the operator's view, and no tool of the role asks for it.
+-- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
+-- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
+-- column that a tool has no use for.
 GRANT SELECT ON documents, entity_type, proposals, entities, relations
   TO gabriel_research;
 
@@ -145,6 +146,16 @@ GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 GRANT USAGE   ON SCHEMA api TO gabriel_read;
 GRANT SELECT  ON ALL TABLES IN SCHEMA api TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
+
+-- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH FIVE VIEWS ONLY. A tool asks for
+-- an entity, a relation, a proposal, a document or a job, and for the neighbourhood of one entity.
+-- The list is written by name and never as ALL TABLES, so api.model_call, which holds the digests
+-- of the worker's prompts, stays closed to them. A view added later opens to nobody by default.
+GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job
+  TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
+  TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- An api view is auto-updatable and runs with the rights of ITS OWNER. Measured: a role holding
 -- nothing on public.entities inserted a row through an ordinary api view. A probe built on a
