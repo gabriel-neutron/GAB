@@ -6,6 +6,8 @@ import { parseArgs } from 'node:util';
 import type { RawObject } from '@gab/store';
 import { extractText } from '@gab/text';
 
+import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
+
 // External constraint: the text door keys a set of pages by document, extractor and page, so a
 // better extractor writes a new set beside the old one under a new word. This word names the
 // extractor of today.
@@ -29,6 +31,7 @@ export interface IngestOptions {
   readonly retrievedAt: string;
   readonly kind: Kind;
   readonly title: string | undefined;
+  readonly dryRun: boolean;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,7 +50,11 @@ const checkedDay = (stated: string | undefined): string => {
 /** The paths and the options of a run. It throws before any read when an argument is wrong. */
 export const parseIngestArguments = (
   argv: readonly string[],
-): { readonly paths: readonly string[]; readonly options: IngestOptions } => {
+): {
+  readonly paths: readonly string[];
+  readonly options: IngestOptions;
+  readonly walk: WalkOptions;
+} => {
   const { values, positionals } = parseArgs({
     args: [...argv],
     allowPositionals: true,
@@ -56,26 +63,43 @@ export const parseIngestArguments = (
       'retrieved-at': { type: 'string' },
       kind: { type: 'string' },
       title: { type: 'string' },
+      'dry-run': { type: 'boolean' },
+      recursive: { type: 'boolean' },
+      include: { type: 'string', multiple: true },
     },
   });
   const retrievedAt = checkedDay(values['retrieved-at']);
   const kind = KINDS.find((word) => word === (values.kind ?? 'file'));
   if (kind === undefined) throw new Error(`--kind is one of: ${KINDS.join(', ')}.`);
-  if (positionals.length === 0) throw new Error('Name at least one file.');
+  if (positionals.length === 0) throw new Error('Name at least one file or folder.');
   const title = values.title;
   if (title !== undefined) {
     if (positionals.length > 1)
       throw new Error('--title names one file, and this run names more than one.');
     if (title.trim() === '') throw new Error('--title is blank.');
   }
-  return { paths: positionals, options: { retrievedAt, kind, title } };
+  const include = values.include ?? DEFAULT_INCLUDE;
+  if (include.some((glob) => glob.trim() === '')) throw new Error('--include is blank.');
+  return {
+    paths: positionals,
+    options: { retrievedAt, kind, title, dryRun: values['dry-run'] === true },
+    walk: { recursive: values.recursive === true, include },
+  };
 };
 
-/** What the run did with one file. A refused file carries its reason. */
+/** A title names one document, and a folder gives any number, so the walk is checked too. */
+export const checkedTitle = (files: readonly string[], options: IngestOptions): void => {
+  if (options.title !== undefined && files.length !== 1)
+    throw new Error(`--title names one file, and this run takes ${files.length}.`);
+};
+
+/** What the run did with one file. In a dry run `stored` means would be stored. */
 export interface IngestOutcome {
   readonly path: string;
   readonly status: 'stored' | 'known' | 'refused';
   readonly id?: string;
+  readonly sha256?: string;
+  readonly pageCount?: number;
   readonly emptyPages?: readonly number[];
   readonly reason?: string;
 }
@@ -145,6 +169,7 @@ const ingestOne = async (
   session: IngestSession,
   path: string,
   options: IngestOptions,
+  seen: Set<string>,
 ): Promise<IngestOutcome> => {
   if (!(await stat(path)).isFile()) return { path, status: 'refused', reason: 'it is not a file' };
   const mime = MIME_BY_EXTENSION[extname(path).toLowerCase()];
@@ -154,13 +179,27 @@ const ingestOne = async (
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const id = `doc_${sha256.slice(0, 12)}`;
 
-  const found = await session.query(LOOKUP, [sha256]);
-  if (found.rows.length > 0) return { path, status: 'known', id };
+  // A dry run stores nothing, so the table cannot know a second file with the same bytes. The
+  // hashes of the run are kept, and the dry run names the second file known as the real run does.
+  const isKnown = seen.has(sha256) || (await session.query(LOOKUP, [sha256])).rows.length > 0;
+  if (isKnown) return { path, status: 'known', id, sha256 };
 
   // The text is read before any write, so a file that holds none that can be read leaves no
   // object behind.
   const { pages } = await extractText(bytes, mime);
   const emptyPages = pages.flatMap((page, at) => (page.trim() === '' ? [at + 1] : []));
+  const outcome: IngestOutcome = {
+    path,
+    status: 'stored',
+    id,
+    sha256,
+    pageCount: pages.length,
+    emptyPages,
+  };
+  if (options.dryRun) {
+    seen.add(sha256);
+    return outcome;
+  }
 
   // The key holds the hash alone. A file name can hold any character, and the title keeps it.
   const key = await door.put({ key: `raw/${sha256}`, bytes, mime });
@@ -173,7 +212,8 @@ const ingestOne = async (
     mime,
     pages,
   });
-  return { path, status: 'stored', id, emptyPages };
+  seen.add(sha256);
+  return outcome;
 };
 
 /** Store each file once. A refused file stops nothing: the run reports it and goes on. */
@@ -183,11 +223,12 @@ export const ingestFiles = async (
   options: IngestOptions,
 ): Promise<IngestOutcome[]> => {
   const outcomes: IngestOutcome[] = [];
+  const seen = new Set<string>();
   for (const path of paths) {
     let session: IngestSession | undefined;
     try {
       session = await door.connect();
-      outcomes.push(await ingestOne(door, session, path, options));
+      outcomes.push(await ingestOne(door, session, path, options, seen));
     } catch (error) {
       outcomes.push({ path, status: 'refused', reason: reasonOf(error) });
     } finally {

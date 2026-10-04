@@ -22,7 +22,12 @@ const address = (role: string, password: string): string =>
 const app = new Pool({ connectionString: address('gabriel_app', held.GABRIEL_APP_PASSWORD) });
 const owner = new Pool({ connectionString: address('gabriel', held.POSTGRES_PASSWORD) });
 
-const OPTIONS = { retrievedAt: '2026-09-01', kind: 'file', title: undefined } as const;
+const OPTIONS = {
+  retrievedAt: '2026-09-01',
+  kind: 'file',
+  title: undefined,
+  dryRun: false,
+} as const;
 
 const BODIES = {
   'first.txt': 'ingest suite, the first file',
