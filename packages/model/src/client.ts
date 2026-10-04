@@ -20,6 +20,9 @@ const GATEWAYS = {
 } as const;
 
 const CHAT_PATH = '/chat/completions';
+// The only quota read this client knows. The freellmapi source serves it under the same base
+// address as the chat path, and it takes the unified key. OpenRouter has no such read here.
+const QUOTA_PATH = '/quota-forecast';
 
 // Origin of the numbers: decided, not calibrated. The transport gets one attempt and three retries,
 // and a refusal of the boundary gets one retry with the fault. They bound one question only: a job
@@ -129,8 +132,26 @@ export type Answer<T> =
 
 export type Send = (url: string, init: RequestInit) => Promise<Response>;
 
+// One pool of the free tier, as the gateway reports it. A figure the gateway never observed is
+// `null`, and `low` is the gateway's own warning that a call may soon end as `quota`.
+export interface QuotaPool {
+  readonly platform: string;
+  readonly pool: string;
+  readonly remaining: number | null;
+  readonly limit: number | null;
+  readonly resetAt: string | null;
+  readonly low: boolean;
+}
+
+export type QuotaRead =
+  | { readonly ok: true; readonly pools: readonly QuotaPool[] }
+  | { readonly ok: false; readonly failure: Failure };
+
+// `quota` is absent when the gateway has no read of the quota that is left. It makes one call and
+// never retries: a caller that reads before a job decides what a failed read means.
 export interface Model {
   readonly ask: <T>(question: Question<T>) => Promise<Answer<T>>;
+  readonly quota: (() => Promise<QuotaRead>) | undefined;
 }
 
 // The send function, the key and the agent settings do not change inside one question.
@@ -138,6 +159,7 @@ interface Line {
   readonly send: Send;
   readonly key: string;
   readonly url: string;
+  readonly quotaUrl: string | undefined;
   readonly agent: AgentModel;
 }
 
@@ -191,13 +213,13 @@ const keyOf = (env: Env, keyVar: string): string => {
   return read.data;
 };
 
-const urlOf = (endpoint: AgentModel['endpoint'], env: Env): string => {
+const baseOf = (endpoint: AgentModel['endpoint'], env: Env): string => {
   const gateway = GATEWAYS[endpoint];
   const base = gateway.baseUrl ?? env[gateway.baseVar];
   const read = z.url().safeParse(base?.trim());
   if (!read.success)
     throw new Error(`${String(gateway.baseVar)} is not a URL. Set it in the environment file.`);
-  return read.data.replace(/\/+$/u, '') + CHAT_PATH;
+  return read.data.replace(/\/+$/u, '');
 };
 
 // A text that is not JSON and the JSON value `null` are two answers. One `null` for both hides
@@ -489,13 +511,65 @@ const attempt = async <T>(
   return attempt(line, question, run, [...messages, ...retryAfter(raw.value, issues)], left - 1);
 };
 
+const forecast = z.object({
+  pools: z.array(
+    z.object({
+      platform: z.string(),
+      pool: z.string(),
+      remaining: z.number().nullable(),
+      limit: z.number().nullable(),
+      reset_at: z.string().nullable(),
+      low_balance: z.boolean(),
+    }),
+  ),
+});
+
+const readQuota = async (line: Line, quotaUrl: string): Promise<QuotaRead> => {
+  let response: Response;
+  let text: string;
+  try {
+    response = await line.send(quotaUrl, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${line.key}` },
+      signal: AbortSignal.timeout(line.agent.timeoutMs),
+    });
+    text = await response.text();
+  } catch (cause) {
+    return { ok: false, failure: failureOf(REASON.network, 1, sentenceOf(cause)) };
+  }
+
+  if (!response.ok) {
+    const kind = RETRY_STATUS.has(response.status) ? REASON.network : REASON.configuration;
+    return { ok: false, failure: failureOf(kind, 1, text) };
+  }
+
+  const read = asJson(text);
+  const held = forecast.safeParse(read.ok ? read.value : null);
+  if (!held.success) return { ok: false, failure: failureOf(REASON.unreadable, 1, text) };
+
+  return {
+    ok: true,
+    pools: held.data.pools.map((pool) => ({
+      platform: pool.platform,
+      pool: pool.pool,
+      remaining: pool.remaining,
+      limit: pool.limit,
+      resetAt: pool.reset_at,
+      low: pool.low_balance,
+    })),
+  };
+};
+
 /** The one way to reach the model. It throws when the key or a setting is bad or absent. */
 export const openModel = (given: unknown, send: Send = fetch, env: Env = process.env): Model => {
   const agent = settings.parse(given);
   const key = keyOf(env, GATEWAYS[agent.endpoint].keyVar);
-  const line: Line = { send, key, url: urlOf(agent.endpoint, env), agent };
+  const base = baseOf(agent.endpoint, env);
+  const quotaUrl = agent.endpoint === 'freellmapi' ? base + QUOTA_PATH : undefined;
+  const line: Line = { send, key, url: base + CHAT_PATH, quotaUrl, agent };
 
   return {
+    quota: quotaUrl === undefined ? undefined : () => readQuota(line, quotaUrl),
     ask: async <T>(question: Question<T>): Promise<Answer<T>> => {
       const run: Run = { budget: question.budget, calls: 0, tokens: 0, served: undefined };
       const got = await attempt(line, question, run, question.messages, VALIDATION_RETRIES);
