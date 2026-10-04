@@ -81,6 +81,7 @@ const liveProjects = [
   nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
   nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET, WRITER_GROUP),
   nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('tools', ['packages/tools/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP),
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
