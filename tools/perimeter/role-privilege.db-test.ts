@@ -16,6 +16,8 @@ const DOORS = {
   claim_job: 'public.claim_job()',
   release_expired_claims: 'public.release_expired_claims()',
   fail_job: 'public.fail_job(uuid,text)',
+  enqueue_job: 'public.enqueue_job(text,text)',
+  complete_job: 'public.complete_job(uuid)',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
@@ -54,6 +56,8 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     claim_job: true,
     release_expired_claims: false,
     fail_job: true,
+    enqueue_job: true,
+    complete_job: true,
     set_entity_layout: true,
     open_conversation: false,
     append_chat_message: false,
@@ -64,6 +68,7 @@ const REFUSED = [
   { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
   { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
+  { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
 ] as const;
 
 for (const refused of REFUSED)
@@ -83,6 +88,8 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     claim_job: false,
     release_expired_claims: true,
     fail_job: false,
+    enqueue_job: true,
+    complete_job: false,
     set_entity_layout: false,
     open_conversation: true,
     append_chat_message: true,
@@ -160,13 +167,16 @@ const counted = z.array(z.object({ n: z.number().int() }));
 const DOCUMENT = 'doc_perimeter_queue';
 
 const PUT = `SELECT public.put_document($1, 'file', 'A perimeter test of the queue',
-  NULL, NULL, NULL, NULL, NULL, '2026-09-02'::date) AS id`;
+  'raw/perimeter-queue.pdf', NULL, NULL, NULL, 'application/pdf', '2026-09-02'::date) AS id`;
+
+const ENQUEUE = "SELECT public.enqueue_job($1, 'extract_text') AS id";
 
 // Departure: the one way a job appears. The rollback proves the two writes are one act: the
 // document row and the job row leave together, so neither can exist without the other.
-test('the ingestion door queues the work in the transaction that writes the document', async () => {
+test('the enqueue door queues the work in the transaction that asks for it', async () => {
   const inside = await rolledBack('app', async (ask) => {
     await ask(PUT, [DOCUMENT]);
+    await ask(ENQUEUE, [DOCUMENT]);
     return counted.parse(await ask(QUEUED, [DOCUMENT]));
   });
   expect(inside).toStrictEqual([{ n: 1 }]);
