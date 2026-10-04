@@ -30,7 +30,7 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF session_user NOT IN ('gabriel_agent','gabriel_app') THEN
+  IF session_user NOT IN ('gabriel_agent','gabriel_app','gabriel_research') THEN
     RAISE EXCEPTION 'role % may not write a proposal', session_user
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -157,7 +157,7 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Fourteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Fifteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- row is written IN THE SAME TRANSACTION: a document row with no job row is invisible to the
@@ -762,6 +762,67 @@ BEGIN
     FROM jsonb_array_elements_text(p_pages) WITH ORDINALITY AS e(t, n);
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
+END $$;
+
+-- THE DOOR OF A MACHINE THAT FETCHED A SOURCE. put_document takes any kind and does not demand the
+-- bytes, so it is the operator's. This door is as narrow as the act it serves: an address that was
+-- read (`url` or `api`), the bytes that came back, the hash of those bytes and the day they came.
+-- A `file`, a `report` and a `manual` row stay with the operator.
+--
+-- THE HASH DECIDES THE IDENTITY, and the id is made from it: the same twelve characters that the
+-- worker takes for a file, so the two paths name one document alike. A second row for a hash is
+-- refused by name here, and the unique index answers for two callers at one instant. The store
+-- row is written by put_document, so the one rule of "a stored document starts no work" stays in
+-- one place.
+CREATE OR REPLACE FUNCTION put_fetched_document(
+  p_kind          text,
+  p_title         text,
+  p_s3_key        text,
+  p_uri           text,
+  p_sha256        text,
+  p_mime          text,
+  p_retrieved_at  date,
+  p_archive_uri   text DEFAULT NULL)
+RETURNS doc_id
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_blank text := E' \t\n\r\f\v';
+  v_known text;
+BEGIN
+  IF p_kind IS NULL OR p_kind NOT IN ('url','api') THEN
+    RAISE EXCEPTION 'a fetched document is a url or an api, and this one is %',
+      coalesce(p_kind, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_title IS NULL OR btrim(p_title, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has a title' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_s3_key IS NULL OR btrim(p_s3_key, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has its bytes in the store, and no object key was given'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_uri IS NULL OR btrim(p_uri, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has the address it came from'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_sha256 IS NULL OR btrim(p_sha256, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has the hash of its bytes'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_retrieved_at IS NULL THEN
+    RAISE EXCEPTION 'a fetched document has the day it was retrieved'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT d.id INTO v_known FROM public.documents d WHERE d.sha256 = p_sha256;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the bytes with the hash % are already document %', p_sha256, v_known
+      USING ERRCODE = 'unique_violation';
+  END IF;
+
+  RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
+                             p_archive_uri, p_sha256, p_mime, p_retrieved_at);
 END $$;
 
 -- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
