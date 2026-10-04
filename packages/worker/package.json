@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@gab/store": "workspace:*",
+    "@gab/text": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.4.3"
   },
