@@ -116,7 +116,7 @@ export const summaryLines = (report: IngestReport): string[] => {
   ];
   const verb = report.dryRun ? 'would be stored' : 'stored';
   if (report.noTextLayer.length > 0) {
-    lines.push(`PDFs with no text layer on any page (${verb}, no extraction queued):`);
+    lines.push(`PDFs with no text layer on any page (${verb}):`);
     for (const entry of report.noTextLayer) lines.push(`  ${entry.path}  ${entry.pageCount} pages`);
   }
   if (report.partialText.length > 0) {
