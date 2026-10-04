@@ -96,8 +96,8 @@ test('every element names the act that promoted it and one document, and none is
 const queue = z.array(
   z.object({
     jobs: z.coerce.number(),
-    queued: z.coerce.number(),
-    taken: z.coerce.number(),
+    stored: z.coerce.number(),
+    open: z.coerce.number(),
     jobs_with_no_document: z.coerce.number(),
     documents_queued_twice: z.coerce.number(),
   }),
@@ -105,28 +105,29 @@ const queue = z.array(
 
 const QUEUE = `
   SELECT (SELECT count(*) FROM public.jobs)                          AS jobs,
-         (SELECT count(*) FROM public.jobs WHERE status =  'queued') AS queued,
-         (SELECT count(*) FROM public.jobs WHERE status <> 'queued') AS taken,
+         (SELECT count(*) FROM public.jobs
+            WHERE kind = 'store_only' AND status = 'done') AS stored,
+         (SELECT count(*) FROM public.jobs WHERE status IN ('queued','running')) AS open,
          (SELECT count(*) FROM public.jobs j
             WHERE NOT EXISTS (SELECT 1 FROM public.documents d WHERE d.id = j.document_id))
            AS jobs_with_no_document,
          (SELECT count(*) FROM (SELECT document_id FROM public.jobs
              GROUP BY document_id HAVING count(*) > 1) twice) AS documents_queued_twice`;
 
-// The door queues one job for each document it writes. No path returns a taken row to the queue,
-// so a `taken` above zero is work that a claim removed and nothing gave back. Without this the
-// loss shows up much later, as a claim test that accuses SKIP LOCKED of a fault it has not.
-test('the load queued one job for each document, and nothing has taken one', async () => {
+// The door records one finished `store_only` job for each document it writes, and it asks for no
+// work. An `open` row above zero is work that the load started and nothing finishes. Without this
+// the loss shows up much later, as a claim test that accuses SKIP LOCKED of a fault it has not.
+test('the load stored one finished job for each document, and it started no work', async () => {
   const [held] = await probe('superuser', async (ask) => queue.parse(await ask(QUEUE)));
   if (held === undefined) throw new Error('the queue answered no census row');
 
-  expect(held.queued).toBe(held.jobs);
+  expect(held.stored).toBe(held.jobs);
   expect(held.jobs).toBeGreaterThan(0);
   expect({
-    taken: held.taken,
+    open: held.open,
     jobs_with_no_document: held.jobs_with_no_document,
     documents_queued_twice: held.documents_queued_twice,
-  }).toStrictEqual({ taken: 0, jobs_with_no_document: 0, documents_queued_twice: 0 });
+  }).toStrictEqual({ open: 0, jobs_with_no_document: 0, documents_queued_twice: 0 });
 });
 
 const ends = z.array(z.object({ type: z.string(), src_kind: z.string(), dst_kind: z.string() }));

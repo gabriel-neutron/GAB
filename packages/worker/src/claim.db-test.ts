@@ -38,10 +38,13 @@ const BOUND = 1000;
 // ever. Two, because the second worker must find a free row beside the locked one.
 const SEEDED = ['doc_claim_suite_first', 'doc_claim_suite_second'];
 
-// External constraint: put_document is the one door that queues a job, and a job needs a
-// document. The ledger keeps no act of either row, so the suite can delete both.
-const SEED = `SELECT public.put_document(seeded.id, 'file', 'A test of the claim door',
-  NULL, NULL, NULL, NULL, NULL, '2026-09-27'::date) FROM unnest($1::text[]) AS seeded(id)`;
+// External constraint: enqueue_job is the one door that queues a job, and a job needs a document
+// that holds bytes. The ledger keeps no act of either row, so the suite can delete both.
+const PUT = `SELECT public.put_document(seeded.id, 'file', 'A test of the claim door',
+  'raw/claim-suite.pdf', NULL, NULL, NULL, 'application/pdf', '2026-09-27'::date)
+  FROM unnest($1::text[]) AS seeded(id)`;
+const ENQUEUE = `SELECT public.enqueue_job(seeded.id, 'extract_text')
+  FROM unnest($1::text[]) AS seeded(id)`;
 const REMOVE_JOBS = 'DELETE FROM public.jobs WHERE document_id = ANY($1::text[])';
 const REMOVE_DOCUMENTS = 'DELETE FROM public.documents WHERE id = ANY($1::text[])';
 
@@ -62,7 +65,7 @@ const committed = async (statements: readonly string[]): Promise<void> => {
 
 // Departure: the seed first removes the rows of a run that stopped before its cleanup.
 beforeAll(async () => {
-  await committed([REMOVE_JOBS, REMOVE_DOCUMENTS, SEED]);
+  await committed([REMOVE_JOBS, REMOVE_DOCUMENTS, PUT, ENQUEUE]);
 });
 
 afterAll(async () => {
