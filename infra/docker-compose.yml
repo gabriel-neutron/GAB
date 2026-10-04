@@ -63,5 +63,55 @@ services:
     ports:
       - '127.0.0.1:3001:3000'
 
+  # The model gateway of the back-end AI (ADR 0010 §4). It holds no record of the project. It keeps
+  # the provider keys, encrypted, in its own volume, and the operator enters them on its Keys page.
+  # The host port is 4001, because 127.0.0.1:3001 belongs to postgrest-test.
+  freellmapi:
+    image: ghcr.io/tashfeenahmed/freellmapi:v0.13.3
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?set FREELLMAPI_ENCRYPTION_KEY in infra/.env}
+    ports:
+      - '127.0.0.1:4001:3001'
+    volumes:
+      - freellmapi-data:/app/server/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/api/ping').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # The search engine of the web_search tool. The settings file turns JSON output on and the
+  # limiter off. The fallback secret is public and fits a loopback port only: set SEARXNG_SECRET in
+  # infra/.env to replace it.
+  searxng:
+    image: searxng/searxng:2026.10.2-19ffbcd30
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:8888/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-gab-local-searxng-loopback-only-secret}
+    ports:
+      - '127.0.0.1:8888:8080'
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
 volumes:
   gab-db-data:
+  freellmapi-data:

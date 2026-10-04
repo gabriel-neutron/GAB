@@ -93,6 +93,19 @@ git fetch --prune origin
 git merge --ff-only origin/staging
 pnpm install --frozen-lockfile
 
+# The compose file refuses to start without this key, and a new key would make the provider keys
+# in the freellmapi volume unreadable. So the key is added once and an existing key stays.
+if ! grep -Eq '^FREELLMAPI_ENCRYPTION_KEY=.+' infra/.env 2>/dev/null; then
+  touch infra/.env
+  ENV_TMP="$(mktemp)"
+  grep -Ev '^FREELLMAPI_ENCRYPTION_KEY=[[:space:]]*$' infra/.env > "$ENV_TMP" || true
+  [ -z "$(tail -c1 "$ENV_TMP")" ] || echo >> "$ENV_TMP"
+  echo "FREELLMAPI_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$ENV_TMP"
+  cat "$ENV_TMP" > infra/.env
+  rm -f "$ENV_TMP"
+  echo "night run: infra/.env had no FREELLMAPI_ENCRYPTION_KEY, so a new one was added"
+fi
+
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d --wait db
 
