@@ -160,17 +160,37 @@ The computed digit: 1 = three origins or more and no contradiction; 2 = accepted
 acceptance. A fetch keeps the main text only, removes hidden text, and gives it to a model as data
 inside a fence.
 
-**Source ratings.** The operator or the source-class table rates a publisher and a path, never a
-model (#182, #19). The AI groups unknown domains into patterns, and the operator rates a pattern
-once. User-content hosts are always 0. A class rating expires after 12 months, or when the owner
-of the domain changes. A rating that would accept more than 10 claims at once sends them to a
-batch review. Only issuing authorities and primary data keep the letter A.
+**Source ratings are automatic (#223).** The operator decided on 4 October 2026 that one model
+alone never rates a source, but a panel of agents does, with written rules. A rating applies to a
+publisher and a path, never to one document, in this order:
+
+1. Hard rules in code. Issuing authorities get A from lists loaded as data (the registration
+   authorities of GLEIF, the legal gazettes such as the EU Official Journal and the US Federal
+   Register, the sanctions-list publishers, IMO, the flag registries). Media are never on these
+   lists. User-content hosts get 0. A media under EU or US sanctions gets 0. A media that a
+   state controls or funds gets C at most, and 0 when the claim names that state or an entity
+   it controls.
+2. A rating panel of at least two model families: a collector fills a checklist with sourced
+   answers (owner, funding, editorial independence, corrections, named authors, sanctions,
+   retractions, history in GAB); an advocate argues for the highest letter; a critic searches
+   for bias and conflict of interest and argues for the lowest; a judge applies the rubric and
+   adds no fact. Code keeps the letter when the judge and one other agent agree. If not, a second
+   round runs; if it is still split, the lower letter counts. A panel gives B at most.
+3. The measured history: with 20 checked claims or more, the share of claims that independent
+   origins confirmed moves the letter by one step at most. Copies build no history.
+4. An operator rating replaces any other rating.
+
+A rating expires after 12 months, or when the owner of the domain changes. The audit of #220
+samples the ratings like the claims.
 
 **Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all are true:
 
 1. The parameter rows exist. With no parameter row, the door does nothing. Removing the rows
    stops the rule at once.
-2. A counted rating has origin `human` or `class`, never `machine`.
+2. A rating never depends on the claim that it unlocks. A counted rating has origin
+   `operator`, `authority_list`, `panel` or `history`, never one model alone. The panel sees the
+   publisher, never the claims that wait on it, and a claim cannot start a new rating of a source
+   that already has one.
 3. The verifier of a second family agrees, after the last citation.
 4. The operation is never `merge_entities`, a deletion, or an update that replaces a value the
    operator promoted.
@@ -195,7 +215,7 @@ ratings and the number of origins go in a details panel. The contradicting sourc
 the claim. A report of an error must hold a URL; a reported claim gets "disputed" and stays
 visible. Names stay visible. A lawyer reads the wording templates once before launch.
 
-**The operator's work comes in batches:** domain patterns, then documents, then entities, then the
+**The operator's work comes in batches (#222):** documents, then gap patterns, then entities, then the
 audit sample.
 
 ### 8. The chat is local and never proposes
@@ -253,7 +273,8 @@ Each step names what it unblocks for the research.
   claim (PU1), and S3's warning stays true: the agents share their blind spots, and no accuracy
   rate is defensible without an audit sample.
 - The rule is only as good as the ratings it counts. Lock 2 is the reason the rule can exist at
-  all; a change that lets a model's own rating count reopens this ADR.
+  all; a change that lets a rating depend on the claim it unlocks, or lets one model rate alone,
+  reopens this ADR.
 - freellmapi has no service-level agreement (SLA) and quality falls late in the UTC day. The quota pause and the pinned
   model contain this; they do not remove it.
 - Two new services (freellmapi, SearXNG) run on the operator's VPS, on its private network address
