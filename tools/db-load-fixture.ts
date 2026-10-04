@@ -5,6 +5,7 @@
 // Every fixture row is invented, and the record is published, so the load reaches the test
 // database only.
 
+import { createHash } from 'node:crypto';
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -34,7 +35,8 @@ const DECIDED_BY = 'fixture-loader';
 
 const PUT_DOCUMENT = 'SELECT put_document($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id';
 const PROPOSE =
-  'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[], $7, $8) AS id';
+  'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[], $7, $8, $9::uuid) AS id';
+const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
 const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
 
 interface Act {
@@ -46,6 +48,7 @@ interface Act {
   readonly names: readonly string[];
   readonly confidence: number | null;
   readonly dissent: boolean;
+  readonly modelCallId?: string;
 }
 
 type Translation = ReadonlyMap<string, string>;
@@ -80,6 +83,7 @@ const propose = (client: Client, act: Act): Promise<string> =>
     act.names,
     act.confidence,
     act.dissent,
+    act.modelCallId ?? null,
   ]);
 
 const promote = (client: Client, proposalId: string): Promise<string> =>
@@ -276,6 +280,11 @@ const loadCandidates = async (
   const pending = corpus.proposals.filter((proposal) => proposal.status === 'pending');
   for (const proposal of pending) {
     try {
+      // The candidate layer is authored by the machine, and a machine act names its call. The
+      // fixture invents no prompt, so the digest is the one of the candidate's own identifier.
+      const modelCallId = await call(client, RECORD_CALL, [
+        createHash('sha256').update(proposal.id).digest('hex'),
+      ]);
       const payload = candidatePayload(proposal.payload, entities);
       const targetId = candidateTarget(proposal, entities, relations);
       await propose(client, {
@@ -287,6 +296,7 @@ const loadCandidates = async (
         names: candidateNames(payload),
         confidence: proposal.confidence,
         dissent: proposal.dissent,
+        modelCallId,
       });
     } catch (error) {
       throw named(`${proposal.op} ${proposal.id}`, error);

@@ -34,9 +34,11 @@ GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The eight doors, and nothing else.
+-- The nine doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+  FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
@@ -47,7 +49,7 @@ REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
   TO gabriel_agent, gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
@@ -58,6 +60,11 @@ GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
 -- cannot sign as the operator. This door reaches entity_layout alone, which carries no evidence,
 -- so it opens nothing of the evidentiary layer.
 GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
+
+-- THE CALL RECORD IS gabriel_agent ALONE. Only the worker that asked the model knows what it
+-- asked, and the door writes model_call and nothing else.
+GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
+  TO gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
