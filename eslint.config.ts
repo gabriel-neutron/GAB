@@ -319,6 +319,7 @@ export default defineConfig(
       '.claude/workflows/gab-deep-review.js',
       '.claude/workflows/ready-for-agent-run.js',
       '.claude/workflows/requirement-debate.js',
+      '.claude/workflows/resolve-ticket.js',
     ],
   },
 
