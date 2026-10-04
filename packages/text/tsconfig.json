@@ -1,0 +1,16 @@
+{
+  // The text of a stored file. It is pure: bytes and a type go in, pages come out, and it reads no
+  // database and no object store. Nothing is built: Node strips the types itself.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM"],
+    "module": "preserve",
+    "types": ["node"],
+
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.text.tsbuildinfo",
+
+    // Node runs the source directly and strips the types, so an import needs the real extension.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}
