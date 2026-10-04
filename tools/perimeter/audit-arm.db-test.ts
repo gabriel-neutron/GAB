@@ -282,8 +282,10 @@ const DEFINER_DOORS = `
    ORDER BY 1`;
 
 const THE_DOOR_SET = [
+  'public.append_chat_message to gabriel_app',
   'public.claim_job to gabriel_agent',
   'public.fail_job to gabriel_agent',
+  'public.open_conversation to gabriel_app',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
