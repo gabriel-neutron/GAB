@@ -132,6 +132,8 @@ block a PR:
 - pnpm test: 6 tests that need an object store at 127.0.0.1:9000 (5 in
   packages/store/src/object.db-test.ts, 1 in packages/worker/src/claim.db-test.ts), and the story
   'The Way Back From The Promotion Question Is Whole' in src/features/review/decide.stories.tsx.
+The operator accepted the baseline. It is never a reason to stop, to refuse a merge or to ask the
+operator again. The rule "any red is red" does not apply to it.
 A run is green when its failures are the same set or a smaller set. Prove it: run the same command
 on origin/staging and compare the failing names. Any failure that staging does not show is a new
 red, and it blocks the PR.`
@@ -273,8 +275,8 @@ const MERGE = {
   type: 'object',
   properties: {
     status: { type: 'string', enum: ['merged_and_closed', 'needs_changes', 'failed'] },
-    check_green: { type: 'boolean' },
-    tests_green: { type: 'boolean' },
+    check_green: { type: 'boolean', description: 'true when pnpm check shows no failure beyond the accepted baseline of staging. The baseline failures themselves do not make it false.' },
+    tests_green: { type: 'boolean', description: 'true when pnpm test shows no failure beyond the accepted baseline of staging. The baseline failures themselves do not make it false.' },
     merge_sha: { type: 'string' },
     reason: { type: 'string' },
   },
