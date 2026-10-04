@@ -1,4 +1,4 @@
-/** The nine ways one question to the model stops. Not one of them keeps a part answer. */
+/** The eleven ways one question to the model stops. Not one of them keeps a part answer. */
 export const REASON = {
   network: 'network',
   unreadable: 'unreadable',
@@ -9,6 +9,8 @@ export const REASON = {
   truncated: 'truncated',
   overCap: 'over_cap',
   configuration: 'configuration',
+  quota: 'quota',
+  servedOther: 'served_other',
 } as const;
 
 export type ReasonKind = (typeof REASON)[keyof typeof REASON];
@@ -27,6 +29,9 @@ const SENTENCE: Readonly<Record<ReasonKind, string>> = {
   over_cap: 'the token cap of this job is spent, and nothing was written',
   configuration:
     'the model service refused the call. Examine the key, the model name and the account',
+  quota: 'the quota of the model service is spent, and nothing was written',
+  served_other:
+    'the service answered with another model than the one pinned, and nothing was written',
 };
 
 export interface Failure {
