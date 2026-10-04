@@ -1,0 +1,22 @@
+# SearXNG settings for GAB. Only the values that differ from the defaults are here.
+# server.secret_key comes from the SEARXNG_SECRET variable of the environment, never from this file.
+# One file serves two stacks. Each stack binds the port to the loopback address or to the Tailscale
+# address, and never to a public one.
+use_default_settings: true
+
+general:
+  instance_name: gab-search
+
+server:
+  # The port is never public. The limiter needs a Valkey service, and one client on a private
+  # network does not need it.
+  limiter: false
+  public_instance: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  # json is required: the web_search tool reads /search?q=...&format=json.
+  formats:
+    - html
+    - json

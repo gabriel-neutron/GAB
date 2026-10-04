@@ -10,7 +10,7 @@ never holds the real data.
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
 | `.env.example` | Copy to `/home/claude/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
 | `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
-| `searxng/settings.yml` | SearXNG settings, with JSON output on. |
+| `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
 | `night-run.sh` | The night run: lock, checks, time limit, `claude -p`. |
 
