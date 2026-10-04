@@ -36,6 +36,7 @@
     "test:service": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project service",
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "layout": "node --env-file=infra/.env packages/worker/src/layout-main.ts",
+    "ingest": "node --env-file=infra/.env packages/worker/src/ingest-main.ts",
     "reconcile": "node --env-file=infra/.env packages/worker/src/reconcile-main.ts",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
