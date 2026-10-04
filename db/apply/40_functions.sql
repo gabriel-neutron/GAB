@@ -157,11 +157,11 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Eleven functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Thirteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
--- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
--- to the agents and to the interface, and a queued job with no document row names nothing.
+-- row is written IN THE SAME TRANSACTION: a document row with no job row is invisible to the
+-- agents and to the interface, and a job row with no document row names nothing.
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -188,8 +188,9 @@ BEGIN
      p_retrieved_at)
   RETURNING id INTO v_id;
 
-  -- The queue takes the identifier and nothing else. What the work IS stays undecided: P6 puts
-  -- two paths behind this door, and no rule says which file takes which one.
+  -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
+  -- born `done`: nothing claims it and nothing finishes it. Work is asked for by enqueue_job,
+  -- for the one document that needs it, with the kind of work it needs.
   --
   -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and it is a rule of this line alone. A `manual`
   -- row carries no file and no address, so an agent would have nothing to read and the queue
@@ -198,8 +199,8 @@ BEGIN
   -- THE DATE IS NOT WHAT DECIDES IT. Since migration 0011 the retrieval date is demanded of the
   -- BYTES and not of the kind (doc_retrieved_with_bytes), so a `url` row with no date is a
   -- lawful row that names an address nobody has read yet. Such a row DOES earn a job.
-  INSERT INTO public.jobs (document_id)
-  SELECT v_id::doc_id WHERE p_kind <> 'manual';
+  INSERT INTO public.jobs (document_id, kind, status, finished_at)
+  SELECT v_id::doc_id, 'store_only', 'done', now() WHERE p_kind <> 'manual';
 
   RETURN v_id;
   -- It writes NO rating, and no role can write those columns. The scoring write path is decided,
@@ -602,19 +603,23 @@ END $$;
 -- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The caller that ends a failed job reads the count,
 -- so this door refuses no claim on a count.
 --
+-- IT TAKES A WORK KIND AND NEVER A `store_only` ROW. The kind goes back to the caller, because
+-- the runner that routes the row has to know which path it takes.
+--
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
 -- caller supplies proves nothing about who holds the row. The earlier signature is dropped
 -- here: a re-runnable file that only replaces would leave the two side by side.
 DROP FUNCTION IF EXISTS claim_job(text);
+DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int)
+RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int, job_kind text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued'
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -630,8 +635,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.attempts
-       INTO job_id, job_document, job_attempts;
+  RETURNING j.id, j.document_id, j.attempts, j.kind
+       INTO job_id, job_document, job_attempts, job_kind;
 
   RETURN NEXT;
 END $$;
@@ -687,6 +692,56 @@ BEGIN
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job fails', p_id;
+  END IF;
+END $$;
+
+
+-- THE DOOR THAT ASKS FOR WORK. A stored document starts none, so this is the one way a work job
+-- appears. It takes a work kind alone, because `store_only` is written by put_document and is
+-- never queued. A document with no bytes has nothing to read, so it is refused. The unique index
+-- of the table refuses a second open job of one kind for one document, and it answers for two
+-- callers at one instant, which a check made here could not.
+CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id    uuid;
+  v_bytes text;
+BEGIN
+  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured') THEN
+    RAISE EXCEPTION 'a job asks for extract_text or map_structured, and this one asked for %',
+      coalesce(p_kind, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT d.s3_key INTO v_bytes FROM public.documents d WHERE d.id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_bytes IS NULL THEN
+    RAISE EXCEPTION 'document % holds no bytes, so no work can read it', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
+-- be marked done by hand.
+CREATE OR REPLACE FUNCTION complete_job(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.jobs
+     SET status = 'done', finished_at = now(), updated_at = now()
+   WHERE id = p_id AND status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
 END $$;
 

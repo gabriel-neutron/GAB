@@ -39,7 +39,7 @@ GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
 -- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
 GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 
--- The eleven doors, and nothing else.
+-- The thirteen doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
   FROM PUBLIC;
@@ -50,6 +50,8 @@ REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
@@ -79,13 +81,17 @@ GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uu
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION enqueue_job(text,text)   TO gabriel_app, gabriel_agent;
+GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
--- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
--- put_document, so the role that may put a document is the role that may queue work, and there
--- is no second way in. No role holds INSERT on jobs, so nothing queues work for a document that
--- did not enter through the door.
+-- ENQUEUE IS gabriel_app AND gabriel_agent, THROUGH enqueue_job. put_document writes a
+-- `store_only` row that is born done and queues nothing, so asking for work is its own grant. The
+-- operator asks for the one document that needs work, and a worker that finds a second step of
+-- work for a document asks for it too. No role holds INSERT on jobs, so nothing queues work for
+-- a document that did not enter through the door, and enqueue_job refuses a document with no
+-- bytes.
 --
 -- ONE PROCESS HOLDS ONE SECRET, and that is what carries the claim. A worker that held the
 -- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
@@ -103,6 +109,9 @@ GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 --
 -- THE FAILURE IS gabriel_agent, BESIDE THE CLAIM. Only the worker that ran the job knows why it
 -- failed, and the door ends a running row alone, so it opens nothing of the operator surface.
+--
+-- THE COMPLETION IS gabriel_agent FOR THE SAME REASON. Only the worker that ran the job knows that
+-- it succeeded, and the door ends a running row alone.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
