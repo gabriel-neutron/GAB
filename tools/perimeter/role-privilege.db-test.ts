@@ -338,10 +338,10 @@ const BY_HAND = [
   ['conversation', 'DELETE FROM public.conversation'],
   [
     'chat_message',
-    `INSERT INTO public.chat_message (conversation_id, role, body)
+    `INSERT INTO public.chat_message (conversation_id, role, text)
        VALUES (gen_random_uuid(), 'user', 'a test')`,
   ],
-  ['chat_message', "UPDATE public.chat_message SET body = 'a test'"],
+  ['chat_message', "UPDATE public.chat_message SET text = 'a test'"],
   ['chat_message', 'DELETE FROM public.chat_message'],
   [
     'chat_citation',
