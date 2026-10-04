@@ -21,6 +21,7 @@ const DOORS = {
   set_entity_layout: 'public.set_entity_layout(jsonb)',
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
+  put_document_text: 'public.put_document_text(text,jsonb,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -61,6 +62,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     set_entity_layout: true,
     open_conversation: false,
     append_chat_message: false,
+    put_document_text: true,
   });
 });
 
@@ -93,6 +95,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     set_entity_layout: false,
     open_conversation: true,
     append_chat_message: true,
+    put_document_text: true,
   });
 });
 
