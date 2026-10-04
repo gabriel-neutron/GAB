@@ -229,6 +229,9 @@ importers:
       '@gab/store':
         specifier: workspace:*
         version: link:../store
+      '@gab/text':
+        specifier: workspace:*
+        version: link:../text
       pg:
         specifier: ^8.23.0
         version: 8.23.0
