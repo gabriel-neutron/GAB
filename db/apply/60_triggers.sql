@@ -44,16 +44,6 @@ CREATE OR REPLACE TRIGGER chat_message_append_only
   BEFORE UPDATE OR DELETE ON chat_message
   FOR EACH ROW EXECUTE FUNCTION chat_message_append_only_fn();
 
--- A page of text is written once. The truncate trigger is a statement trigger, because a
--- truncate fires no row trigger.
-CREATE OR REPLACE TRIGGER document_text_append_only
-  BEFORE UPDATE OR DELETE ON document_text
-  FOR EACH ROW EXECUTE FUNCTION document_text_append_only_fn();
-
-CREATE OR REPLACE TRIGGER document_text_no_truncate
-  BEFORE TRUNCATE ON document_text
-  FOR EACH STATEMENT EXECUTE FUNCTION document_text_append_only_fn();
-
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -69,8 +59,6 @@ ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
-ALTER TABLE document_text ENABLE ALWAYS TRIGGER document_text_append_only;
-ALTER TABLE document_text ENABLE ALWAYS TRIGGER document_text_no_truncate;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 

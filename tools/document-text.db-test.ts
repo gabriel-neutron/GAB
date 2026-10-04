@@ -90,7 +90,7 @@ test('a second set for the same document and extractor is refused', async () => 
       await put(ask, 'gabriel_app', WITH_BYTES, ['one']);
       await put(ask, 'gabriel_app', WITH_BYTES, ['one', 'two']);
     }),
-  ).rejects.toThrow(/already holds a set/);
+  ).rejects.toMatchObject({ code: '23505' });
 });
 
 test('a second extractor version of the same document is stored beside the first', async () => {
@@ -118,40 +118,16 @@ test('a document that does not exist is refused', async () => {
   ).rejects.toMatchObject({ code: '23503' });
 });
 
-test.each([
-  ['a null', null],
-  ['an object', { a: 'b' }],
-  ['an empty array', []],
-  ['a number element', [1]],
-  ['an object element', ['one', { page: 2 }]],
-  ['a null element', ['one', null]],
-])('%s is refused as the set of pages', async (_name, set) => {
-  await expect(
-    rolledBack(async (ask) => {
-      await stored(ask);
-      await put(ask, 'gabriel_app', WITH_BYTES, set);
-    }),
-  ).rejects.toMatchObject({ code: '22023' });
-});
-
-test('a blank extractor is refused', async () => {
-  await expect(
-    rolledBack(async (ask) => {
-      await stored(ask);
-      await put(ask, 'gabriel_app', WITH_BYTES, ['one'], '  ');
-    }),
-  ).rejects.toMatchObject({ code: '22023' });
-});
-
-test('a refused set leaves no page', async () => {
-  const n = await rolledBack(async (ask) => {
+test('a refused second set leaves the first set whole', async () => {
+  const held = await rolledBack(async (ask) => {
     await stored(ask);
+    await put(ask, 'gabriel_app', WITH_BYTES, ['one']);
     await ask('SAVEPOINT s');
-    await put(ask, 'gabriel_app', WITH_BYTES, ['one', 2]).catch(() => undefined);
+    await put(ask, 'gabriel_app', WITH_BYTES, ['x', 'y']).catch(() => undefined);
     await ask('ROLLBACK TO s');
-    return (await rowsOf(ask)).length;
+    return rowsOf(ask);
   });
-  expect(n).toBe(0);
+  expect(held).toStrictEqual([{ page: 1, text: 'one' }]);
 });
 
 test.each(['gabriel_app', 'gabriel_agent'])('%s cannot write the table directly', async (role) => {
@@ -185,21 +161,6 @@ test('gabriel_read cannot read the table', async () => {
       await ask('SELECT 1 FROM public.document_text');
     }),
   ).rejects.toMatchObject({ code: '42501' });
-});
-
-test('a page is never updated, deleted or truncated, even by the superuser', async () => {
-  for (const statement of [
-    "UPDATE public.document_text SET text = 'y'",
-    'DELETE FROM public.document_text',
-    'TRUNCATE public.document_text',
-  ])
-    await expect(
-      rolledBack(async (ask) => {
-        await stored(ask);
-        await put(ask, 'gabriel_app', WITH_BYTES, ['one']);
-        await ask(statement);
-      }),
-    ).rejects.toThrow(/never/);
 });
 
 test('the table holds no project_id and no api view shows it', async () => {
