@@ -13,8 +13,6 @@ The services the project runs on the operator's machine. The decision and its re
 docker compose -f infra/docker-compose.yml up -d
 ```
 
-`minio-init` creates the private bucket `raw`, then exits. An exited `minio-init` is the
-normal state, not a fault.
 
 ## Every day
 
@@ -26,7 +24,7 @@ normal state, not a fault.
 | Open the file browser | http://127.0.0.1:9001 |
 | Open a SQL prompt | `docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel` |
 
-`down` keeps the data. It lives in the named volumes `gab-db-data` and `gab-minio-data`.
+`down` keeps the data. It lives in the named volume `gab-db-data`.
 
 ## Destroy the data
 
@@ -44,8 +42,6 @@ test database, `gabriel_test`, again.
 | `127.0.0.1:5432` | PostgreSQL 17, with PostGIS and pgvector |
 | `127.0.0.1:3000` | The PostgREST read API, over the `api` schema |
 | `127.0.0.1:3001` | The same read API over `gabriel_test`, for the tests |
-| `127.0.0.1:9000` | The S3 API |
-| `127.0.0.1:9001` | The MinIO console, in a browser |
 
 Nothing is bound to a public address.
 
