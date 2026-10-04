@@ -48,7 +48,7 @@ CREATE TABLE chat_message (
                    CONSTRAINT chat_message_conversation_fkey REFERENCES conversation(id)
                    ON UPDATE RESTRICT ON DELETE RESTRICT,
   role             text NOT NULL CHECK (role IN ('user','assistant','tool')),
-  body             text NOT NULL CHECK (btrim(body, E' \t\n\r\f\v') <> ''),
+  text             text NOT NULL CHECK (btrim(text, E' \t\n\r\f\v') <> ''),
   model_call_id    uuid
                    CONSTRAINT chat_message_model_call_fkey REFERENCES model_call(id)
                    ON UPDATE RESTRICT ON DELETE RESTRICT,

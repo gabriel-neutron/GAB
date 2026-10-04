@@ -323,7 +323,7 @@ BEGIN
     RAISE EXCEPTION 'the citations are an array' USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  INSERT INTO public.chat_message (conversation_id, role, body, model_call_id)
+  INSERT INTO public.chat_message (conversation_id, role, text, model_call_id)
   VALUES (p_conversation_id, p_role, p_text, p_model_call_id)
   RETURNING id INTO v_id;
 
