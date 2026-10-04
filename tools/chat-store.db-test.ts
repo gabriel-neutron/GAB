@@ -138,7 +138,7 @@ test('a citation of a document that does not exist refuses the whole message', a
 
 // E3
 const FROZEN = [
-  { verb: 'UPDATE', text: "UPDATE public.chat_message SET body = 'changed'" },
+  { verb: 'UPDATE', text: "UPDATE public.chat_message SET text = 'changed'" },
   { verb: 'DELETE', text: 'DELETE FROM public.chat_message' },
 ] as const;
 
@@ -171,7 +171,7 @@ test('an assistant message with no model call, and a user message with one, are 
   ).rejects.toMatchObject({ code: '23514', constraint: 'chat_message_call_iff_assistant' });
 });
 
-// E6
+// E5
 const SHAPES: readonly [string, unknown][] = [
   ['a key outside the closed set', [{ kind: 'document', id: DOCUMENT, note: 'x' }]],
   ['a kind outside the closed set', [{ kind: 'person', id: DOCUMENT }]],

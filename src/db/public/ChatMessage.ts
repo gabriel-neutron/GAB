@@ -11,7 +11,7 @@ export default interface ChatMessage {
 
   role: string;
 
-  body: string;
+  text: string;
 
   model_call_id: ModelCallId | null;
 
@@ -25,7 +25,7 @@ export interface ChatMessageInitializer {
 
   role: string;
 
-  body: string;
+  text: string;
 
   model_call_id?: ModelCallId | null;
 
@@ -39,7 +39,7 @@ export interface ChatMessageMutator {
 
   role?: string;
 
-  body?: string;
+  text?: string;
 
   model_call_id?: ModelCallId | null;
 
