@@ -7,10 +7,12 @@ export const PROFILE_LIMIT = 8;
 // tool calls it. The mapper holds no tool until its first tool is built. The fetch tool stores a
 // document, and the chat reads as a role that stores nothing, so the chat profile does not hold it.
 export const PROFILES = {
+  // The archive tool and the news tool are in no profile, because this one is full.
   research: [
     'search_graph',
     'neighbourhood',
     'document_text',
+    'web_search',
     'fetch_document',
     'propose_change',
     'enqueue_extract',
@@ -19,7 +21,7 @@ export const PROFILES = {
   extractor: ['document_text', 'lookup_entity', 'propose_change'],
   mapper: [],
   verifier: ['document_text', 'proposal_read'],
-  chat: ['search_graph', 'neighbourhood', 'document_text', 'enqueue_extract'],
+  chat: ['search_graph', 'neighbourhood', 'document_text', 'web_search', 'enqueue_extract'],
 } as const satisfies Record<string, readonly ToolName[]>;
 
 export type ProfileName = keyof typeof PROFILES;

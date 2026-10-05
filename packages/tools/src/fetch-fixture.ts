@@ -89,7 +89,7 @@ export const memoryStore = (): { put(object: RawObject): Promise<string>; puts: 
 export const FETCH_DAY = new Date('2026-10-05T10:00:00Z');
 
 /** The reach of a test that may open the fixture, and no other address of the machine. */
-export const fixtureReach = (store: Reach['store']): Reach => ({
+export const fixtureReach = (store: NonNullable<Reach['store']>): Reach => ({
   store,
   now: () => FETCH_DAY,
   lookup: fixtureLookup,

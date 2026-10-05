@@ -177,7 +177,7 @@ export const fetchDocument = defineTool({
   }),
   output: outputShape,
   async run(session, input, reach) {
-    if (reach === undefined)
+    if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
 

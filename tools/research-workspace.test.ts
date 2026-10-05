@@ -43,10 +43,25 @@ test('the Claude Code file names the GAB server and no other', () => {
   expect(script && path.resolve(WORKSPACE, script)).toBe(SERVER_SCRIPT);
 });
 
-test('the research environment names its own connection and one store key, and nothing else', () => {
+test('the research environment names its connection, one store key and the two search settings, and nothing else', () => {
   expect(namesSet(read('research', '.env.example'))).toEqual(
-    new Set(['GAB_RESEARCH_DATABASE_URL', 'RAW_STORE_ACCESS_KEY', 'RAW_STORE_SECRET_KEY']),
+    new Set([
+      'GAB_RESEARCH_DATABASE_URL',
+      'RAW_STORE_ACCESS_KEY',
+      'RAW_STORE_SECRET_KEY',
+      'SEARXNG_URL',
+      'BRAVE_SEARCH_API_KEY',
+    ]),
   );
+});
+
+// The example is committed, so it holds a loopback address and no key. A key in it would be in git.
+test('the research environment example points SearXNG at the machine and holds no key', () => {
+  const value = (name: string): string | undefined =>
+    new RegExp(`^${name}=(.*)$`, 'mu').exec(read('research', '.env.example'))?.[1]?.trim();
+
+  expect(value('SEARXNG_URL')).toBe('http://127.0.0.1:8888');
+  expect(value('BRAVE_SEARCH_API_KEY')).toBe('');
 });
 
 // Departure: the example of the build stack is the list of its secrets. The real file is never

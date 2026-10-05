@@ -52,10 +52,16 @@ const textOf = (result: unknown): string => {
 const isErrorOf = (result: unknown): boolean =>
   z.object({ isError: z.boolean().optional() }).parse(result).isError === true;
 
-test('the server lists the four groups and no other tool', async () => {
+test('the server lists the five groups and no other tool', async () => {
   const client = await connected(fakePool(() => []).pool);
   const { tools } = await client.listTools();
-  expect(tools.map((tool) => tool.name)).toStrictEqual(['graph', 'document', 'propose', 'job']);
+  expect(tools.map((tool) => tool.name)).toStrictEqual([
+    'graph',
+    'document',
+    'web',
+    'propose',
+    'job',
+  ]);
 });
 
 test('each listed tool has a Zod input schema for each of its actions', async () => {
@@ -181,4 +187,49 @@ test('with no reach, fetch_document refuses and names the object store', async (
   });
   expect(isErrorOf(result)).toBe(true);
   expect(textOf(result)).toContain('object store');
+});
+
+test('the web group runs web_search with the web that the server was given', async () => {
+  const { pool, seen } = fakePool(() => []);
+  const asked: string[] = [];
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  await createServer(pool, {
+    now: () => new Date('2026-10-05T10:00:00Z'),
+    web: {
+      searxngUrl: 'http://127.0.0.1:8888',
+      get: (url) => {
+        asked.push(url);
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          body: JSON.stringify({
+            results: [{ title: 'A', url: 'https://example.org/a', content: 'b', engine: 'bing' }],
+          }),
+        });
+      },
+    },
+  }).connect(serverSide);
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  await client.connect(clientSide);
+  const result = await client.callTool({
+    name: 'web',
+    arguments: { action: 'web_search', input: { query: 'Nayara' } },
+  });
+  expect(isErrorOf(result)).toBe(false);
+  expect(JSON.parse(textOf(result))).toMatchObject({
+    results: [{ title: 'A', url: 'https://example.org/a', snippet: 'b', engine: 'bing' }],
+    source: 'searxng',
+  });
+  expect(asked).toHaveLength(1);
+  expect(seen.texts).toStrictEqual([]);
+});
+
+test('with no reach, web_search refuses and names the web', async () => {
+  const client = await connected(fakePool(() => []).pool);
+  const result = await client.callTool({
+    name: 'web',
+    arguments: { action: 'web_search', input: { query: 'Nayara' } },
+  });
+  expect(isErrorOf(result)).toBe(true);
+  expect(textOf(result)).toContain('web');
 });
