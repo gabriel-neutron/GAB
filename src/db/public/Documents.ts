@@ -1,3 +1,5 @@
+import type { DocumentProviderId } from './DocumentProvider';
+
 /** Identifier type for public.documents */
 export type DocumentsId = string & { __brand: 'public.documents' };
 
@@ -25,6 +27,8 @@ export default interface Documents {
   admiralty_origin: string | null;
 
   created_at: Date;
+
+  provider_id: DocumentProviderId | null;
 }
 
 export interface DocumentsInitializer {
@@ -51,6 +55,8 @@ export interface DocumentsInitializer {
   admiralty_origin?: string | null;
 
   created_at?: Date;
+
+  provider_id?: DocumentProviderId | null;
 }
 
 export interface DocumentsMutator {
@@ -77,4 +83,6 @@ export interface DocumentsMutator {
   admiralty_origin?: string | null;
 
   created_at?: Date;
+
+  provider_id?: DocumentProviderId | null;
 }

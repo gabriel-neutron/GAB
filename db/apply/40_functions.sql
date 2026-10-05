@@ -97,11 +97,11 @@ BEGIN
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id)
+      NEW.model_call_id, NEW.idempotency_key)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id) THEN
+      OLD.model_call_id, OLD.idempotency_key) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -232,6 +232,15 @@ END $$;
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
 -- row is written IN THE SAME TRANSACTION: a document row with no job row is invisible to the
 -- agents and to the interface, and a job row with no document row names nothing.
+--
+-- THE PROVIDER IS THE LAST PARAMETER AND IT IS OPTIONAL, so every caller that passes the first
+-- nine by position stays correct. A document with no provider is internal tier. The foreign key
+-- is the one rule for an unknown provider: the door does no lookup of its own, and the refusal
+-- names the value in its detail.
+--
+-- The earlier signature is dropped here: a re-runnable file that only replaces would leave the
+-- two side by side, and a call with nine arguments would then be ambiguous.
+DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date);
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -241,7 +250,8 @@ CREATE OR REPLACE FUNCTION put_document(
   p_archive_uri  text DEFAULT NULL,
   p_sha256       text DEFAULT NULL,
   p_mime         text DEFAULT NULL,
-  p_retrieved_at date DEFAULT NULL)
+  p_retrieved_at date DEFAULT NULL,
+  p_provider_id  text DEFAULT NULL)
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -252,10 +262,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id text;
 BEGIN
   INSERT INTO public.documents
-    (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at)
+    (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at, provider_id)
   VALUES
     (p_id::doc_id, p_kind, p_title, p_s3_key, p_uri, p_archive_uri, p_sha256, p_mime,
-     p_retrieved_at)
+     p_retrieved_at, p_provider_id)
   RETURNING id INTO v_id;
 
   -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
@@ -282,19 +292,26 @@ END $$;
 -- proposal of gabriel_agent must carry one and a proposal of gabriel_app must carry none, and
 -- the database holds both rules, so this door states neither.
 --
--- The earlier signature is dropped here: a re-runnable file that only replaces would leave the
--- two side by side, and a call with eight arguments would then be ambiguous.
+-- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
+-- side by side, and a call with fewer arguments would then be ambiguous.
+--
+-- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after its lease
+-- ended writes the same act with the same key, and the door then returns the proposal that stands
+-- and writes nothing.
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
 CREATE OR REPLACE FUNCTION propose_change(
-  p_op            text,
-  p_payload       jsonb,
-  p_src           text[],
-  p_target_kind   text    DEFAULT NULL,
-  p_target_id     uuid    DEFAULT NULL,
-  p_names         uuid[]  DEFAULT '{}',
-  p_confidence    numeric DEFAULT NULL,
-  p_dissent       boolean DEFAULT false,
-  p_model_call_id uuid    DEFAULT NULL)
+  p_op              text,
+  p_payload         jsonb,
+  p_src             text[],
+  p_target_kind     text    DEFAULT NULL,
+  p_target_id       uuid    DEFAULT NULL,
+  p_names           uuid[]  DEFAULT '{}',
+  p_confidence      numeric DEFAULT NULL,
+  p_dissent         boolean DEFAULT false,
+  p_model_call_id   uuid    DEFAULT NULL,
+  p_idempotency_key text    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -302,13 +319,19 @@ DECLARE v_id uuid;
 BEGIN
   INSERT INTO public.proposals
     (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-     model_call_id)
+     model_call_id, idempotency_key)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
      coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
      session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
-     p_model_call_id)
+     p_model_call_id, p_idempotency_key)
+  ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
   RETURNING id INTO v_id;
+
+  -- The conflict is the only way to get no row, so the key is set here.
+  IF v_id IS NULL THEN
+    SELECT p.id INTO STRICT v_id FROM public.proposals p WHERE p.idempotency_key = p_idempotency_key;
+  END IF;
   RETURN v_id;
 END $$;
 
@@ -747,6 +770,59 @@ BEGIN
 END $$;
 
 
+-- THE WAY BACK FOR A QUOTA THAT IS SPENT. A quota pause fails no job and spends no attempt, so the
+-- row returns to `queued` with the count it had before the claim, and the next claim counts the
+-- attempt again.
+--
+-- THE COUNT NEVER FALLS BELOW THE FAILURES THE ROW HOLDS. jobs_failures_within_attempts says that
+-- the failures never pass the attempts, and a row that already holds a failure of each claim
+-- would break it. GREATEST keeps the check true, and the attempt is then not given back: the
+-- failures are a record of claims that ran, so those claims did spend their attempts.
+--
+-- ONLY A RUNNING ROW GOES BACK. A row that ended or never ran has no claim to release.
+CREATE OR REPLACE FUNCTION release_job_for_quota(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.jobs j
+     SET status     = 'queued',
+         attempts   = GREATEST(j.attempts - 1, j.network_failures + j.rejected_failures),
+         claimed_at = NULL,
+         updated_at = now()
+   WHERE j.id = p_id AND j.status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running, and only a running job goes back for quota', p_id;
+  END IF;
+END $$;
+
+-- THE THREE NUMBERS THAT THE RUNNER READS, AS ONE STRICT READ. The lease, the wait on a spent quota
+-- and the wait on an empty queue are rows, and a row that is absent stops the runner loudly. A
+-- default here would let a runner start with a lease that nobody chose. The door returns these
+-- three and no other row of the table.
+CREATE OR REPLACE FUNCTION runner_settings()
+RETURNS TABLE (lease_seconds double precision, quota_wait_seconds double precision,
+               empty_wait_seconds double precision)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text;
+  v_value double precision;
+BEGIN
+  FOREACH v_key IN ARRAY ARRAY['job_claim_lease_seconds','runner_quota_wait_seconds',
+                               'runner_empty_wait_seconds'] LOOP
+    SELECT p.value::double precision INTO v_value FROM public.parameter p WHERE p.key = v_key;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'the parameter % is absent, and the runner reads no default', v_key;
+    END IF;
+    IF v_key = 'job_claim_lease_seconds' THEN lease_seconds := v_value;
+    ELSIF v_key = 'runner_quota_wait_seconds' THEN quota_wait_seconds := v_value;
+    ELSE empty_wait_seconds := v_value;
+    END IF;
+  END LOOP;
+  RETURN NEXT;
+END $$;
+
 -- THE END OF A JOB THAT FAILED. Without it a job that fails on each claim returns to the queue
 -- for ever, and the operator sees no reason.
 --
@@ -848,6 +924,10 @@ END $$;
 -- refused by name here, and the unique index answers for two callers at one instant. The store
 -- row is written by put_document, so the one rule of "a stored document starts no work" stays in
 -- one place.
+--
+-- THE PROVIDER IS THE LAST PARAMETER, OPTIONAL, and it goes to put_document unchanged. The earlier
+-- signature is dropped for the reason that put_document gives.
+DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text);
 CREATE OR REPLACE FUNCTION put_fetched_document(
   p_kind          text,
   p_title         text,
@@ -856,7 +936,8 @@ CREATE OR REPLACE FUNCTION put_fetched_document(
   p_sha256        text,
   p_mime          text,
   p_retrieved_at  date,
-  p_archive_uri   text DEFAULT NULL)
+  p_archive_uri   text DEFAULT NULL,
+  p_provider_id   text DEFAULT NULL)
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -896,7 +977,7 @@ BEGIN
   END IF;
 
   RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
-                             p_archive_uri, p_sha256, p_mime, p_retrieved_at);
+                             p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
 END $$;
 
 -- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
@@ -2068,6 +2149,39 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
+-- ================================================================================= THE TIER ==
+-- THE TIER OF A DOCUMENT IS READ FROM THE LICENCE OF ITS PROVIDER, AND IT IS NEVER STORED. One
+-- edit of a provider row moves every document of that provider, and no document row changes.
+--
+-- AN ALLOW-LIST, SO THE RULE FAILS CLOSED. Only the licences named below give 'cc-by'. A document
+-- with no provider, an id that names no document, any other licence, and a word that a later
+-- migration adds to the closed list give 'internal'. A paid filing is internal until a legal
+-- read of its terms. The function never returns NULL.
+--
+-- THE RESERVED ROW `inherited` IS ALWAYS INTERNAL. It says that nothing here supports the value,
+-- so no provider can make it public.
+--
+-- SECURITY DEFINER, AND THE REASON WAS MEASURED. PostgreSQL checks EXECUTE on a function that a
+-- view calls against the user of the view and not against its owner. A plain SQL function is
+-- inlined into the view, and its body then needs USAGE on public, which the read role does not
+-- hold. A SECURITY DEFINER function is never inlined, so the reader of an export needs EXECUTE
+-- on this function and nothing more.
+CREATE OR REPLACE FUNCTION document_tier(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE WHEN EXISTS (
+           SELECT 1
+             FROM public.documents d
+             JOIN public.document_provider p ON p.id = d.provider_id
+            WHERE d.id = p_document
+              AND d.id <> 'inherited'
+              AND p.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
+                                'copernicus', 'own'))
+         THEN 'cc-by' ELSE 'internal' END
+$$;
+
 
 -- ============================================================================== THE TRAVERSAL =
 -- T4 and docs/spec.md §4: complex read logic lives in a SQL function and never in the client.
