@@ -34,7 +34,7 @@ Read an ADR under docs/adr/ when the work touches the runtime, the schema, the f
 or a comment. Read the SQL under db/ for the authority on a constraint, never a document.
 
 The facts of this project. One operator. Windows. Docker Desktop. A local stack of PostgreSQL with
-PostGIS and pgvector, MinIO and PostgREST, on the loopback address alone. TypeScript on both sides.
+PostGIS and pgvector, SeaweedFS and PostgREST, on the loopback address alone. TypeScript on both sides.
 No team. No on-call. No paying user. No deployment.
 
 Four rules bind every step of this run.

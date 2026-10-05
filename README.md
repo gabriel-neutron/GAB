@@ -13,7 +13,7 @@ work items stay tracked as issues.
 
 ## Shape
 
-TypeScript end to end. PostgreSQL/PostGIS is the only GOLD datastore; MinIO holds the
+TypeScript end to end. PostgreSQL/PostGIS is the only GOLD datastore; SeaweedFS, an S3 server, holds the
 raw files as they arrived. They stay unchanged by convention: the store does not prevent an
 overwrite, because it has no versioning and no object lock. The frontend is React with Vite and
 TanStack Router, the component kit is shadcn, and the map library is MapLibre. The build decisions live in the ADR register in
