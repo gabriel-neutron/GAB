@@ -30,16 +30,16 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- "no role writes a table" holds for the tables granted below and NOT for a table nobody
 -- has written.
 -- Audit arm 4 proves that the list is still complete after the next migration.
-GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations, jobs
-  TO gabriel_app;
-GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations, jobs
-  TO gabriel_agent;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
+  relations, jobs TO gabriel_app;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
+  relations, jobs TO gabriel_agent;
 
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
 -- column that a tool has no use for.
-GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations
-  TO gabriel_research;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
+  relations TO gabriel_research;
 
 -- THE CONVERSATIONS ARE PRIVATE. gabriel_app reads the three tables, and no other role holds a
 -- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
@@ -50,7 +50,8 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- The seventeen doors, and nothing else.
-REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text)
+  FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
@@ -69,19 +70,24 @@ REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
+  FROM PUBLIC;
+
+-- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
+-- view calls, so the reader role of an export gets the grant together with that export.
+REVOKE ALL ON FUNCTION document_tier(text) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- THE FETCHED-DOCUMENT DOOR IS HELD BY THE TWO MACHINE ROLES, AND NOT BY THE OPERATOR, who holds
 -- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
-GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text)
+GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
-GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
+GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   TO gabriel_agent, gabriel_app, gabriel_research;
