@@ -32,6 +32,9 @@ export const seededVocabulary: {
     entityType('company', 'Company', '#007d50', '#53c48e', 30),
     entityType('person', 'Person', '#677000', '#a8b44b', 40),
     entityType('military_unit', 'Military unit', '#8254c4', '#b7a0e4', 50),
+    entityType('port', 'Port', '#a16100', '#df9b44', 60),
+    entityType('bank', 'Bank', '#b53c7f', '#e887b6', 70),
+    entityType('legal_act', 'Legal act', '#8b598e', '#e889ed', 80),
     // `unknown` takes the grey and sorts last: a grey says that no type was recognised.
     entityType('unknown', 'Unknown', '#6b7280', '#9ca3af', 900),
   ],

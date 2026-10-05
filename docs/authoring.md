@@ -1,7 +1,7 @@
 # Authoring a document
 
 Every document lives in `docs/`. `README.md` and `CLAUDE.md` stay at the repository root, and
-`CONTEXT.md` joins them when the glossary exists, because every skill reads it from that path.
+`GLOSSARY.md` joins them when the glossary exists, because every skill reads it from that path.
 
 **The operator owns `docs/`.** An agent proposes a change and names the document. It writes
 none.

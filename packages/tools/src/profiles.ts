@@ -8,7 +8,8 @@ export const PROFILE_LIMIT = 8;
 // document, and the chat reads as a role that stores nothing, so the chat profile does not hold it.
 export const PROFILES = {
   // The archive tool and the news tool are in no profile, because this one is full. The research
-  // MCP server still offers both in its web group.
+  // MCP server still offers both in its web group, and its graph group still offers the entity
+  // lookup, so the research model keeps that lookup there.
   research: [
     'search_graph',
     'neighbourhood',
@@ -19,7 +20,9 @@ export const PROFILES = {
     'enqueue_extract',
     'job_status',
   ],
-  extractor: ['document_text', 'lookup_entity', 'propose_change'],
+  // The model of the extractor reads with the first two. Code runs the two writes, so a model
+  // never names the proposal or the span that it stores.
+  extractor: ['document_text', 'lookup_entity', 'propose_change', 'put_claim_reading'],
   mapper: [],
   verifier: ['document_text', 'proposal_read'],
   chat: ['search_graph', 'neighbourhood', 'document_text', 'web_search', 'enqueue_extract'],

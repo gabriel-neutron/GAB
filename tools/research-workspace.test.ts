@@ -9,6 +9,8 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { namesSet } from './env-drift.ts';
+
 const ROOT = path.resolve(import.meta.dirname, '..');
 const WORKSPACE = path.join(ROOT, 'research');
 
@@ -21,15 +23,6 @@ const server = z.object({
 });
 
 const claudeFile = z.object({ mcpServers: z.record(z.string(), server) });
-
-// The names an environment file sets. A comment line or a blank line sets nothing.
-const namesSet = (text: string): Set<string> =>
-  new Set(
-    text
-      .split(/\r?\n/u)
-      .map((line) => /^\s*([A-Z_][A-Z0-9_]*)\s*=/u.exec(line)?.[1])
-      .filter((name): name is string => name !== undefined),
-  );
 
 const SERVER_SCRIPT = path.join(ROOT, 'packages', 'mcp', 'src', 'main.ts');
 

@@ -48,7 +48,7 @@ workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confus
 | PU1 | Everything is public, candidate layer included | Publication |
 | T1 | TypeScript end to end | Technical |
 | T2 | PostgreSQL/PostGIS is the single GOLD datastore | Technical |
-| T3 | Binary split: MinIO holds raw, PostgreSQL holds GOLD | Technical |
+| T3 | Binary split: the S3 store holds raw, PostgreSQL holds GOLD | Technical |
 | T4 | The frontend reads on its own; the backend serves writes only | Technical |
 | T5 | Qdrant and NATS are deferred; pgvector and a job table replace them | Technical |
 | T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
@@ -312,7 +312,7 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 ### T3 — Binary split: raw / GOLD
 
 **Replaces the earlier T3**, which called the raw file immutable without saying what held it so.
-**Decision.** S3 (MinIO) holds the raw file. PostgreSQL holds the processed and validated data. Between the two, the pipelines and the references. **The raw file is unchanged by convention, and not by a guarantee the store enforces.** The operator upholds it. No versioning, no object lock and no unique key stand behind it.
+**Decision.** S3 (SeaweedFS, ADR 0007) holds the raw file. PostgreSQL holds the processed and validated data. Between the two, the pipelines and the references. **The raw file is unchanged by convention, and not by a guarantee the store enforces.** The operator upholds it. No versioning, no object lock and no unique key stand behind it.
 **Why.** Two natures, two guarantees: the raw is not reworked and serves as evidence; the GOLD is continuously reworked. Mixing them loses both guarantees.
 **Why the earlier entry was wrong.** It said "immutable", and the word was measured and found false. The account that writes the bucket may put an object over a key that already exists, which replaces the bytes and deletes nothing. Removing the delete action stops removal and never destruction. Three mechanisms would have made the word true — bucket versioning, object lock at bucket creation, or a key that is the content hash under a unique constraint — and none is built. A guarantee that nothing enforces is a sentence a reader trusts and a machine ignores.
 **Accepted cost.** A source file can be overwritten by a retry, a re-ingest, or a second `documents` row that carries the same key, and nothing warns. Evidence rests on the care of one operator. The day a second person writes to the bucket, or the day the corpus is offered as evidence to somebody else, this entry is replaced again and one of the three mechanisms is built.
@@ -322,13 +322,14 @@ document, so an attribute's own integrity is not a foreign key. That guard stays
 
 **Decision.** The frontend reads the database through a read-only HTTP layer. The Node backend serves only editing and heavy processing.
 **Why.** The read path contains no business logic; a backend that relays SELECTs is dead weight.
+**Amended 4 October 2026 by ADR 0010 §8.** The writer also serves the reads of the private data (the #18 conversations). The public read path reads only the results.
 **Consequences.** There is no "direct" access from a browser: the real choice is between a generated HTTP layer and a hand-written one. Complex read logic — graph traversals — moves down into SQL functions. A publicly readable database is a surface for abuse through resource exhaustion, to be fenced in with a read-only role, timeouts, default limits and a CDN cache. Finally, "the frontend works on its own" means **without the Node backend**, not without infrastructure: a reachable database is still required.
 
 ### T5 — Qdrant and NATS are deferred
 
 **Decision.** pgvector in the existing database replaces Qdrant. A job table with locking replaces NATS.
 **Why.** At 100 documents and one operator, these two services add operational load for an undetectable gain. Moving to either one later is trivial; carrying them from day one costs two services and two synchronisations.
-**Consequence.** The first build runs on two services: PostgreSQL/PostGIS and MinIO.
+**Consequence.** The first build runs on two services: PostgreSQL/PostGIS and SeaweedFS.
 **Amended 3 October 2026 by ADR 0010 §10.** Two services are added: freellmapi and SearXNG.
 
 ### T6 — Two-tier validation

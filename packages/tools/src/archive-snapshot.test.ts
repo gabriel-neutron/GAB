@@ -276,6 +276,17 @@ describe('a capture', () => {
     expect(third.ok).toBe(true);
   });
 
+  test('the gap belongs to one web, so a second web captures at once', async () => {
+    const answer = saved(text('', 302, { location: '/web/20261005100001/https://example.org/x' }));
+    const now = () => new Date('2026-10-05T10:00:00Z');
+    const one = stubWeb(answer);
+    const two = stubWeb(answer);
+    const input = { url: URL_OFFLINE, capture: true };
+    expect((await callTool(archiveSnapshot, stored(), input, webReach(one, now))).ok).toBe(true);
+    expect((await callTool(archiveSnapshot, stored(), input, webReach(one, now))).ok).toBe(false);
+    expect((await callTool(archiveSnapshot, stored(), input, webReach(two, now))).ok).toBe(true);
+  });
+
   test('a rate limit of the archive is a refusal that says so', async () => {
     const web = stubWeb(saved(text('slow down', 429)));
     expect(await refusalOf(web, { url: URL_OFFLINE, capture: true }, stored())).toMatch(

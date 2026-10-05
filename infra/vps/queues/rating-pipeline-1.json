@@ -1,0 +1,20 @@
+{
+  "tickets": [
+    {
+      "n": 198
+    },
+    {
+      "n": 199,
+      "after": [198]
+    },
+    {
+      "n": 218,
+      "after": [198, 199]
+    },
+    {
+      "n": 230
+    }
+  ],
+  "maxRounds": 3,
+  "base": "integration/rating-pipeline"
+}

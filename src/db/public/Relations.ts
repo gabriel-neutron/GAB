@@ -1,3 +1,4 @@
+import type { RelationTypeKey } from './RelationType';
 import type { ProposalsId } from './Proposals';
 
 /** Identifier type for public.relations */
@@ -6,7 +7,7 @@ export type RelationsId = string & { __brand: 'public.relations' };
 export default interface Relations {
   id: RelationsId;
 
-  type: string;
+  type: RelationTypeKey;
 
   src_kind: string;
 
@@ -29,12 +30,14 @@ export default interface Relations {
   created_at: Date;
 
   updated_at: Date;
+
+  proposed_type: string | null;
 }
 
 export interface RelationsInitializer {
   id?: RelationsId;
 
-  type: string;
+  type: RelationTypeKey;
 
   src_kind?: string;
 
@@ -57,12 +60,14 @@ export interface RelationsInitializer {
   created_at?: Date;
 
   updated_at?: Date;
+
+  proposed_type?: string | null;
 }
 
 export interface RelationsMutator {
   id?: RelationsId;
 
-  type?: string;
+  type?: RelationTypeKey;
 
   src_kind?: string;
 
@@ -85,4 +90,6 @@ export interface RelationsMutator {
   created_at?: Date;
 
   updated_at?: Date;
+
+  proposed_type?: string | null;
 }

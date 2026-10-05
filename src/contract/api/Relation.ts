@@ -5,6 +5,8 @@ export default interface Relation {
 
   type: string | null;
 
+  proposed_type: string | null;
+
   src_kind: string | null;
 
   src_id: string | null;
@@ -31,6 +33,7 @@ export default interface Relation {
 export const relation = z.object({
   id: z.uuid().nullable(),
   type: z.string().nullable(),
+  proposed_type: z.string().nullable(),
   src_kind: z.string().nullable(),
   src_id: z.uuid().nullable(),
   dst_kind: z.string().nullable(),
