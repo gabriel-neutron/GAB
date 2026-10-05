@@ -14,9 +14,9 @@ const composeText = readFileSync(
 );
 
 describe('the local compose file', () => {
-  test('it holds the model gateway and the search service', () => {
+  test('it holds the model gateway, the search service and the object store', () => {
     expect(composeServiceNames(composeText)).toEqual(
-      expect.arrayContaining(['freellmapi', 'searxng']),
+      expect.arrayContaining(['freellmapi', 'searxng', 'seaweedfs']),
     );
   });
 
