@@ -2,7 +2,7 @@
 // and never as one failure in each test that reaches the service behind it. The test reads text
 // and opens no socket.
 
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -28,16 +28,20 @@ test('the drift sentence names the missing variable, and no other name and no va
 
 test('the run stops on the drift of infra/.env, and it goes on when no name is missing', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'env-drift-'));
-  mkdirSync(path.join(root, 'infra'));
-  writeFileSync(path.join(root, 'infra', '.env.example'), EXAMPLE);
-  writeFileSync(path.join(root, 'infra', '.env'), ACTUAL);
+  try {
+    mkdirSync(path.join(root, 'infra'));
+    writeFileSync(path.join(root, 'infra', '.env.example'), EXAMPLE);
+    writeFileSync(path.join(root, 'infra', '.env'), ACTUAL);
 
-  expect(() => {
-    assertNoEnvDrift(root);
-  }).toThrow(/\bB\b/u);
+    expect(() => {
+      assertNoEnvDrift(root);
+    }).toThrow(/\bB\b/u);
 
-  writeFileSync(path.join(root, 'infra', '.env'), `${ACTUAL}B=b-held-secret\n`);
-  expect(() => {
-    assertNoEnvDrift(root);
-  }).not.toThrow();
+    writeFileSync(path.join(root, 'infra', '.env'), `${ACTUAL}B=b-held-secret\n`);
+    expect(() => {
+      assertNoEnvDrift(root);
+    }).not.toThrow();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
