@@ -11,6 +11,18 @@ export const MAX_PAGES = 10;
 // boundary, or inside the first page when that page alone is longer.
 export const MAX_CHARACTERS = 40_000;
 
+/** The last page of a range. It throws a refusal for a range that is reversed or too long. */
+export const checkedRange = (fromPage: number, given: number | undefined): number => {
+  const toPage = given ?? fromPage + MAX_PAGES - 1;
+  if (toPage < fromPage)
+    throw new ToolRefusal(`the range ends at page ${toPage}, before it starts at ${fromPage}`);
+  if (toPage - fromPage + 1 > MAX_PAGES)
+    throw new ToolRefusal(
+      `the range holds ${toPage - fromPage + 1} pages, and a call reads at most ${MAX_PAGES}`,
+    );
+  return toPage;
+};
+
 // The set of the newest extractor answers when the caller names none, because an older set is a
 // reading that a newer one replaced.
 const PAGES = `WITH chosen AS (
@@ -56,15 +68,7 @@ export const documentText = defineTool({
   }),
   output: outputShape,
   async run(session, input) {
-    const toPage = input.toPage ?? input.fromPage + MAX_PAGES - 1;
-    if (toPage < input.fromPage)
-      throw new ToolRefusal(
-        `the range ends at page ${toPage}, before it starts at ${input.fromPage}`,
-      );
-    if (toPage - input.fromPage + 1 > MAX_PAGES)
-      throw new ToolRefusal(
-        `the range holds ${toPage - input.fromPage + 1} pages, and a call reads at most ${MAX_PAGES}`,
-      );
+    const toPage = checkedRange(input.fromPage, input.toPage);
 
     const found = await rowsOf(session, row, PAGES, [
       input.document,

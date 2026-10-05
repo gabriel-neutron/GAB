@@ -147,3 +147,38 @@ test('a good call returns the output of the tool as text', async () => {
   expect(isErrorOf(result)).toBe(false);
   expect(JSON.parse(textOf(result))).toStrictEqual({ entities: [] });
 });
+
+test('the document group runs fetch_document with the reach that the server was given', async () => {
+  const { pool, seen } = fakePool(() => []);
+  const puts: unknown[] = [];
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  await createServer(pool, {
+    store: {
+      put: (object) => {
+        puts.push(object);
+        return Promise.resolve(object.key);
+      },
+    },
+    now: () => new Date('2026-10-05T10:00:00Z'),
+  }).connect(serverSide);
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  await client.connect(clientSide);
+  const result = await client.callTool({
+    name: 'document',
+    arguments: { action: 'fetch_document', input: { url: 'http://127.0.0.1/' } },
+  });
+  expect(isErrorOf(result)).toBe(true);
+  expect(textOf(result)).toMatch(/127\.0\.0\.1.*refused/u);
+  expect(seen.texts).toStrictEqual([]);
+  expect(puts).toStrictEqual([]);
+});
+
+test('with no reach, fetch_document refuses and names the object store', async () => {
+  const client = await connected(fakePool(() => []).pool);
+  const result = await client.callTool({
+    name: 'document',
+    arguments: { action: 'fetch_document', input: { url: 'https://example.org/' } },
+  });
+  expect(isErrorOf(result)).toBe(true);
+  expect(textOf(result)).toContain('object store');
+});

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@gab/store": "workspace:*",
     "@gab/tools": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.23.0",
