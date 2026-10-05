@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { checkedRange, documentText } from './document-text.ts';
 import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
-import { MAX_SUBRESOURCES, renderPage } from './render-page.ts';
+import { renderPage } from './render-page.ts';
 import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
@@ -200,9 +200,6 @@ const storeFetched = async (session: Session, reach: Reach, fetched: Fetched) =>
   return { ...known, status };
 };
 
-const sameText = (a: readonly string[], b: readonly string[]): boolean =>
-  a.join('\n').replace(/\s+/gu, ' ').trim() === b.join('\n').replace(/\s+/gu, ' ').trim();
-
 const reasonOf = (fault: unknown): string =>
   (fault instanceof Error ? fault.message : String(fault)).split('\n')[0]?.slice(0, 200) ?? '';
 
@@ -225,10 +222,6 @@ const renderedOf = async (
       notices.push(
         `the page made ${plural(page.refused, 'request')} to the machine or to a private ` +
           'network, and each one was stopped',
-      );
-    if (page.capped)
-      notices.push(
-        `the page asked for more than ${MAX_SUBRESOURCES} files, and the rest were stopped`,
       );
     if (page.timedOut)
       notices.push(
@@ -343,21 +336,15 @@ export const fetchDocument = defineTool({
       const page = await renderedOf(got, mime, getOptions, notices);
       if (page !== null) {
         captcha ||= CAPTCHA.test(page.html);
-        // The browser writes the HTML again, so its bytes differ from the origin even when no
-        // script ran. Only a change of the text makes a second document worth storing.
-        if (sameText(page.pages, pages))
-          notices.push('the render changed no text, so no second document is stored');
-        else {
-          const stored = await storeFetched(session, reach, {
-            bytes: page.bytes,
-            mime: 'text/html',
-            uri: got.url,
-            title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
-            pages: page.pages,
-            day,
-          });
-          rendered = { id: stored.id, status: stored.status, title: stored.title };
-        }
+        const stored = await storeFetched(session, reach, {
+          bytes: page.bytes,
+          mime: 'text/html',
+          uri: got.url,
+          title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
+          pages: page.pages,
+          day,
+        });
+        rendered = { id: stored.id, status: stored.status, title: stored.title };
       }
     }
     if (captcha)
