@@ -57,7 +57,7 @@ afterAll(async () => {
 });
 
 // The real range check, with no address of the machine admitted.
-const strictReach = (store: Reach['store']): Reach => ({
+const strictReach = (store: NonNullable<Reach['store']>): Reach => ({
   store,
   now: () => FETCH_DAY,
   lookup: fixtureLookup,
