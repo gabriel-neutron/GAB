@@ -1,7 +1,6 @@
 // Red team, family F1: a search that did not work must never read as a search that found nothing.
-// The denial search of ADR 0011 section 10.1 step 3 is not built, so the one door that it will
-// read through is the fetch tool. Each test here names an answer that is no document of the
-// subject, and says that the tool stores nothing and takes no page for it. Every name is invented.
+// The fetch tool is the door that a denial search will read through. Each test names an answer
+// that is no document of the subject. The tool stores nothing for it. Every name is invented.
 
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
@@ -16,7 +15,7 @@ import {
 } from './fetch-fixture.ts';
 import { callTool, type Session, type Tool } from './tool.ts';
 
-// A session that fails the test when the tool reaches the database. A refusal comes before any write.
+// A session that fails the test when the tool reaches the database. A refusal comes first.
 const noSql: Session = {
   query: () => {
     throw new Error('the tool reached the database, and it had to refuse first');

@@ -27,6 +27,16 @@ const LITTLE_TEXT = 200;
 // its ingest module.
 const EXTRACTOR = 'text-1';
 
+// A bot check answers with status 200 and a few words. A caller that took it as a page would read
+// "searched, found nothing". A real article with a comment form has the same mark and a long text.
+const CHALLENGE_TEXT = 1000;
+const CHALLENGE_MARKS =
+  /g-recaptcha|h-captcha|cf-turnstile|cf-challenge|cdn-cgi\/challenge-platform|<title[^>]*>\s*(just a moment\.\.\.|attention required!)/iu;
+
+const isChallengePage = (bytes: Uint8Array, textLength: number): boolean =>
+  textLength < CHALLENGE_TEXT &&
+  CHALLENGE_MARKS.test(new TextDecoder('utf-8').decode(bytes.subarray(0, 262_144)));
+
 const UNIQUE_VIOLATION = '23505';
 
 const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS retrieved_at
@@ -206,6 +216,11 @@ export const fetchDocument = defineTool({
       if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
       throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
     }
+
+    if (mime === 'text/html' && isChallengePage(got.bytes, pages.join('').trim().length))
+      throw new ToolRefusal(
+        'the answer is a challenge page (a captcha or a browser check), not the document, and nothing is kept',
+      );
 
     const sha256 = createHash('sha256').update(got.bytes).digest('hex');
     const metadata = await metadataOf(got.bytes, mime);
