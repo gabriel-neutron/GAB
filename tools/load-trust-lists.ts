@@ -15,6 +15,7 @@ import { Client } from 'pg';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
+import { rowsOfCsv } from './csv.ts';
 import { connectionString } from './db-runtime.ts';
 import type { Ask } from './probe.ts';
 
@@ -52,45 +53,6 @@ const approvalsOf = (markdown: string): readonly Approval[] =>
       sha256: sha256 ?? '',
       reason: reason ?? '',
     }));
-
-// A semicolon-separated file, UTF-8, with a BOM allowed. A field in double quotes may hold a
-// semicolon, a line break or a doubled quote.
-const rowsOfCsv = (text: string): readonly Record<string, string>[] => {
-  const body = text.codePointAt(0) === 0xfeff ? text.slice(1) : text;
-  const table: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-  for (let at = 0; at < body.length; at += 1) {
-    const char = body[at] ?? '';
-    if (quoted) {
-      if (char === '"' && body[at + 1] === '"') {
-        field += '"';
-        at += 1;
-      } else if (char === '"') quoted = false;
-      else field += char;
-    } else if (char === '"') quoted = true;
-    else if (char === ';') {
-      row.push(field);
-      field = '';
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && body[at + 1] === '\n') at += 1;
-      row.push(field);
-      table.push(row);
-      row = [];
-      field = '';
-    } else field += char;
-  }
-  if (field !== '' || row.length > 0) {
-    row.push(field);
-    table.push(row);
-  }
-  const [header = [], ...lines] = table.filter((cells) => cells.some((cell) => cell.trim() !== ''));
-  const names = header.map((name) => name.trim());
-  return lines.map((cells) =>
-    Object.fromEntries(names.map((name, index) => [name, (cells[index] ?? '').trim()])),
-  );
-};
 
 // A blank optional field is absent. The door reads an absent field as NULL.
 const optional = z.preprocess(

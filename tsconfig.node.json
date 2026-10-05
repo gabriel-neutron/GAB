@@ -2,7 +2,9 @@
   // The configuration files at the root. They run in Node, not in the browser.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2024"],
+    // DOM is here for one reason: the originator load stores a file through the ingest door of
+    // the worker, and that door reads HTML with a library whose types name the DOM window.
+    "lib": ["ES2024", "DOM"],
     // Neither file is loaded by Node directly: Vite reads `vite.config.ts` and jiti reads
     // `eslint.config.ts`, and both resolve like a bundler. `nodenext` would describe a loader
     // that never runs, and it reads a CommonJS plugin as having no default export when the
