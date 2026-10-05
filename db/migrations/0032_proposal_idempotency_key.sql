@@ -1,5 +1,5 @@
 -- =============================================================================================
--- 0031 — a proposal of a job carries an idempotency key                                ORDERED
+-- 0032 — a proposal of a job carries an idempotency key                                ORDERED
 --
 -- A REQUEUED JOB WROTE ITS PROPOSALS A SECOND TIME. A claim whose lease ended returns to the
 -- queue, the next claim reads the same chunk with the same reader, and nothing told the second
