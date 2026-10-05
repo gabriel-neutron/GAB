@@ -32,7 +32,8 @@ test('the five profiles are data, and the real data passes the check', () => {
 
 test('the research profile fetches a page, and the chat profile, which stores nothing, does not', () => {
   expect(PROFILES.research).toContain('fetch_document');
-  expect(PROFILES.research).toHaveLength(7);
+  expect(PROFILES.research).toHaveLength(8);
+  expect(PROFILES.research).toContain('lookup_entity');
   expect(PROFILES.chat).not.toContain('fetch_document');
 });
 
