@@ -575,6 +575,19 @@ const textDocument = async (ask: Ask, id: string, uri: string, text: string): Pr
   );
 };
 
+// A controller fact and a no-belligerent-control fact need a document on a loaded register card.
+const registeredDocument = async (
+  ask: Ask,
+  id: string,
+  uri: string,
+  text: string,
+): Promise<void> => {
+  const host = new URL(uri).hostname;
+  await ensure(ask, `host:${host}`, host, 'organisation');
+  await card(ask, `host:${host}`, [host]);
+  await textDocument(ask, id, uri, text);
+};
+
 const propose = async (
   ask: Ask,
   originator: string,
@@ -614,7 +627,7 @@ test('an accepted controller fact that names a belligerent gives party true', as
   const held = await run(async (ask) => {
     await belligerents(ask);
     await ensure(ask, 'telegram:77', 'Channel Z');
-    await textDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
+    await registeredDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
     const id = await propose(
       ask,
       'telegram:77',
@@ -631,11 +644,56 @@ test('an accepted controller fact that names a belligerent gives party true', as
   expect(held.flags.party).toBe('true');
 });
 
-test('a controller fact whose span lacks the controller name is refused', async () => {
+test('a controller fact on a document that is on no register card is refused', async () => {
   const held = await run(async (ask) => {
     await belligerents(ask);
     await ensure(ask, 'telegram:77', 'Channel Z');
     await textDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
+    const id = await propose(
+      ask,
+      'telegram:77',
+      'controller',
+      { controller: 'RU', name: 'Ministry of Defence of Russia', relation: 'owns' },
+      'doc_decree',
+      factText,
+      'Ministry of Defence of Russia',
+    );
+    await decide(ask, id);
+    return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'telegram:77') };
+  });
+  expect(held.fact.status).toBe('refused');
+  expect(held.fact.refused_reason).toMatch(/register card/);
+  expect(held.flags.party).toBe('unknown');
+});
+
+test('a no-belligerent-control fact on a document that is on no register card is refused', async () => {
+  const text = 'Companies House record: registered in the United Kingdom, no belligerent owner.';
+  const held = await run(async (ask) => {
+    await belligerents(ask);
+    await ensure(ask, 'substack:ok', 'Outlet', 'organisation', 'GB');
+    await textDocument(ask, 'doc_ch', 'https://example.org/ch', text);
+    const id = await propose(
+      ask,
+      'substack:ok',
+      'no_belligerent_control',
+      { jurisdiction: 'GB', jurisdiction_name: 'United Kingdom', registry: 'Companies House' },
+      'doc_ch',
+      text,
+      'United Kingdom',
+    );
+    await decide(ask, id);
+    return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'substack:ok') };
+  });
+  expect(held.fact.status).toBe('refused');
+  expect(held.fact.refused_reason).toMatch(/register card/);
+  expect(held.flags.party).toBe('unknown');
+});
+
+test('a controller fact whose span lacks the controller name is refused', async () => {
+  const held = await run(async (ask) => {
+    await belligerents(ask);
+    await ensure(ask, 'telegram:77', 'Channel Z');
+    await registeredDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
     const id = await propose(
       ask,
       'telegram:77',
@@ -683,7 +741,7 @@ test('a fact with no span offsets is refused by the proposing door', async () =>
   await expect(
     run(async (ask) => {
       await ensure(ask, 'telegram:77', 'Channel Z');
-      await textDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
+      await registeredDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
       await ask(
         `SELECT public.propose_originator_fact('telegram:77', 'controller',
            '{"controller":"RU","name":"Ministry","relation":"owns"}'::jsonb,
@@ -697,7 +755,7 @@ test('a decided fact is not decided again', async () => {
   const found = await run(async (ask) => {
     await belligerents(ask);
     await ensure(ask, 'telegram:77', 'Channel Z');
-    await textDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
+    await registeredDocument(ask, 'doc_decree', 'https://example.org/decree', factText);
     const id = await propose(
       ask,
       'telegram:77',
@@ -718,7 +776,7 @@ test('party false needs a no-belligerent-control fact and a jurisdiction outside
     await belligerents(ask);
     await ensure(ask, 'substack:ok', 'Outlet', 'organisation', 'GB');
     await ensure(ask, 'substack:ru', 'Outlet RU', 'organisation', 'RU');
-    await textDocument(
+    await registeredDocument(
       ask,
       'doc_ch',
       'https://find-and-update.company-information.service.gov.uk/1',
@@ -907,7 +965,7 @@ const holdingSetup = async (ask: Ask, share: number | string): Promise<string> =
   await refresh(ask, 'host:holding.example');
   await ensure(ask, 'host:outlet.example', 'Outlet', 'organisation');
   const text = 'Register extract: Holding owns the outlet with a share of capital.';
-  await textDocument(ask, 'doc_reg', 'https://example.org/register', text);
+  await registeredDocument(ask, 'doc_reg', 'https://example.org/register', text);
   const id = await propose(
     ask,
     'host:outlet.example',
