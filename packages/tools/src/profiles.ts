@@ -4,13 +4,14 @@ import type { ToolName } from './catalogue.ts';
 export const PROFILE_LIMIT = 8;
 
 // A tool that is not built is absent from its profile and never a stub: a model that is offered a
-// tool calls it. The mapper holds no tool until its first tool is built, and the research and the
-// chat profiles gain their web tools the day those exist.
+// tool calls it. The mapper holds no tool until its first tool is built. The fetch tool stores a
+// document, and the chat reads as a role that stores nothing, so the chat profile does not hold it.
 export const PROFILES = {
   research: [
     'search_graph',
     'neighbourhood',
     'document_text',
+    'fetch_document',
     'propose_change',
     'enqueue_extract',
     'job_status',
