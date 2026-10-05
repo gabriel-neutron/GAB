@@ -38,6 +38,7 @@ const CORPUS: Corpus = {
   // The entity carries no geometry and no ancestor, so `api.full_map` places it nowhere.
   // These stories draw a card and never a canvas.
   positions: [],
+  relationTypes: [],
 };
 
 const SOURCES: readonly SourceRef[] =
