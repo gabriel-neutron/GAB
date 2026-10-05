@@ -3,7 +3,8 @@ import { setTimeout as sleepFor } from 'node:timers/promises';
 import { Pool } from 'pg';
 
 import { agentAddress } from './address.ts';
-import { AGENTS } from './agents.ts';
+import { makeExtractor } from './extractor/extractor.ts';
+import { readReaderConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
 // A stop signal ends the wait at once and the loop after the job in hand. A job that is cut off
@@ -11,11 +12,15 @@ import { openRunner } from './runner.ts';
 const stop = new AbortController();
 for (const name of ['SIGINT', 'SIGTERM'] as const) process.once(name, () => stop.abort());
 
+// The list is built at the start, so a value that is absent stops the start with its name and
+// claims nothing. No minimiser is passed yet, so each extraction job stops with no_minimiser.
+const agents = [makeExtractor(readReaderConfig('EXTRACTOR', process.env))];
+
 const pool = new Pool({ connectionString: agentAddress() });
 try {
   const runner = await openRunner({
     db: pool,
-    agents: AGENTS,
+    agents,
     sleep: (ms) => sleepFor(ms, undefined, { signal: stop.signal }).catch(() => undefined),
     now: () => performance.now(),
   });

@@ -118,6 +118,17 @@ BEGIN
   RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
+-- A READING IS A FACT AND NOT A STATE: what one reader saw in one page is written once. The
+-- comparison reads it, and a reading that changed after the comparison would change a claim in
+-- silence. The owner and the superuser ignore a grant, so a trigger holds it. The citation is
+-- held the same way until its write-once columns arrive.
+CREATE OR REPLACE FUNCTION claim_reading_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'a row of % is never %. It is the record of what a reader saw',
+    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+END $$;
+
 -- A MESSAGE ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
 -- ignore a grant, so a trigger holds it.
 CREATE OR REPLACE FUNCTION chat_message_append_only_fn() RETURNS trigger
@@ -370,6 +381,121 @@ BEGIN
     (p_job_id, p_agent, p_agent_version, p_endpoint, p_requested_model, p_served_model,
      p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
   RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE ONE DOOR INTO THE READINGS. A reader gives a page, two offsets in code points of that page
+-- and two enums, and never a quote: code reads the span again from the stored text. The door
+-- takes no reader number and no reader kind. It sets both from the job that the caller holds:
+-- extract_text is the first reader and second_read is the second, and both are model readers.
+-- The document is the document of the job, so a caller cannot name another one.
+--
+-- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A worker that lost its lease must not add a reading
+-- to a job that another worker now runs.
+--
+-- THE FIRST READER NAMES THE PROPOSAL THAT IT MADE, and that proposal cites the document of the
+-- job. The second reader ran no proposal, so it names none. The call is a call of this job.
+--
+-- THE KEY MAKES A SECOND WRITE OF ONE READING RETURN THE FIRST, as it does for a proposal.
+CREATE OR REPLACE FUNCTION put_claim_reading(
+  p_job                uuid,
+  p_claim              uuid,
+  p_text_extractor     text,
+  p_page               int,
+  p_start              int,
+  p_end                int,
+  p_modality           text,
+  p_adverse            boolean,
+  p_model_call         uuid,
+  p_input_form         text,
+  p_reader_fingerprint text,
+  p_chunk_hash         text,
+  p_idempotency_key    text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind      text;
+  v_doc       text;
+  v_reader_no smallint;
+  v_text      text;
+  v_id        uuid;
+BEGIN
+  SELECT j.kind, j.document_id INTO v_kind, v_doc
+    FROM public.jobs j
+   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
+     FOR SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running under this role, so it takes no reading', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_kind NOT IN ('extract_text','second_read') THEN
+    RAISE EXCEPTION 'a reading belongs to a job of extract_text or second_read, and this job is %',
+      v_kind
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_reader_no := CASE v_kind WHEN 'extract_text' THEN 1 ELSE 2 END;
+
+  SELECT t.text INTO v_text
+    FROM public.document_text t
+   WHERE t.document_id = v_doc AND t.extractor = p_text_extractor AND t.page = p_page;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'page % of the text set % of document % does not exist',
+      p_page, p_text_extractor, v_doc
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- char_length counts the characters of the database encoding, which is UTF-8: code points.
+  IF p_start IS NULL OR p_end IS NULL OR p_start < 0 OR p_start >= p_end
+     OR p_end > char_length(v_text) THEN
+    RAISE EXCEPTION 'the span % to % lies outside page %, which holds % code points',
+      p_start, p_end, p_page, char_length(v_text)
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_modality IS NULL
+     OR p_modality NOT IN ('enacts','asserts','attributes','alleges','denies') THEN
+    RAISE EXCEPTION 'the modality % is not one of enacts, asserts, attributes, alleges, denies',
+      coalesce(p_modality, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  IF v_reader_no = 1 THEN
+    IF p_claim IS NULL THEN
+      RAISE EXCEPTION 'a first reading names the proposal that it made'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.proposals p
+                    WHERE p.id = p_claim AND v_doc::doc_id = ANY (p.src)) THEN
+      RAISE EXCEPTION 'proposal % does not exist or does not cite document %', p_claim, v_doc
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+  ELSIF p_claim IS NOT NULL THEN
+    RAISE EXCEPTION 'the second reader names no claim, because it proposes nothing'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  IF p_model_call IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.model_call m
+                     WHERE m.id = p_model_call AND m.job_id = p_job) THEN
+    RAISE EXCEPTION 'a model reading names a call of job %', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.claim_reading
+    (claim_id, doc_id, text_extractor, page, start, "end", modality, adverse, reader_no,
+     reader_kind, model_call_id, input_form, reader_fingerprint, job_id, chunk_hash,
+     idempotency_key)
+  VALUES
+    (p_claim, v_doc, p_text_extractor, p_page, p_start, p_end, p_modality,
+     coalesce(p_adverse, false), v_reader_no, 'llm', p_model_call, p_input_form,
+     p_reader_fingerprint, p_job, p_chunk_hash, p_idempotency_key)
+  ON CONFLICT (idempotency_key) DO NOTHING
+  RETURNING id INTO v_id;
+
+  -- The conflict is the only way to get no row, so the key is set here.
+  IF v_id IS NULL THEN
+    SELECT r.id INTO STRICT v_id FROM public.claim_reading r
+     WHERE r.idempotency_key = p_idempotency_key;
+  END IF;
   RETURN v_id;
 END $$;
 
@@ -723,7 +849,7 @@ DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured')
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','second_read')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;

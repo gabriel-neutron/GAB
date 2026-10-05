@@ -153,6 +153,7 @@ export const stubAgent = (options: StubAgentOptions = {}): RunnerAgent => {
       }
       if (options.stopsAfterWriting === true && runs === 1)
         throw new Error('the worker stopped after it wrote');
+      return { refusals: [] };
     },
   };
 };
