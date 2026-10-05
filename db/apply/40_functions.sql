@@ -253,13 +253,12 @@ END $$;
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
 --
--- THE KEY AND THE JOB COME TOGETHER OR NOT AT ALL. A job that runs again after its lease ended
--- writes the same act with the same key, and the door then returns the proposal that stands and
--- writes nothing. The job must still be running: a worker whose claim was released and taken by
--- another must not write beside the new holder. The row is locked for the length of the call, so
--- the release cannot slip between the check and the write.
+-- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after its lease
+-- ended writes the same act with the same key, and the door then returns the proposal that stands
+-- and writes nothing.
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
 CREATE OR REPLACE FUNCTION propose_change(
   p_op              text,
   p_payload         jsonb,
@@ -270,25 +269,12 @@ CREATE OR REPLACE FUNCTION propose_change(
   p_confidence      numeric DEFAULT NULL,
   p_dissent         boolean DEFAULT false,
   p_model_call_id   uuid    DEFAULT NULL,
-  p_idempotency_key text    DEFAULT NULL,
-  p_job_id          uuid    DEFAULT NULL)
+  p_idempotency_key text    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
-  IF (p_idempotency_key IS NULL) <> (p_job_id IS NULL) THEN
-    RAISE EXCEPTION 'the key and the job are given together or not at all'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_job_id IS NOT NULL THEN
-    PERFORM 1 FROM public.jobs j WHERE j.id = p_job_id AND j.status = 'running' FOR SHARE;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'a keyed proposal names a running job, and job % is not one', p_job_id
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-  END IF;
-
   INSERT INTO public.proposals
     (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
      model_call_id, idempotency_key)

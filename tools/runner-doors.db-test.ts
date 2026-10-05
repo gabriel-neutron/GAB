@@ -147,16 +147,15 @@ const CALL = `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', '
 
 const PROPOSE = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A runner door test"}'::jsonb, ARRAY['doc_8f2a41']::text[],
-  NULL, NULL, '{}', NULL, false, $1::uuid, $2::text, $3::uuid) AS id`;
+  NULL, NULL, '{}', NULL, false, $1::uuid, $2::text) AS id`;
 
 const propose = async (
   ask: Ask,
   role: string,
   call: string | null,
   key: string | null,
-  job: string | null,
 ): Promise<string> => {
-  const [row] = await as(ask, role, async () => ids.parse(await ask(PROPOSE, [call, key, job])));
+  const [row] = await as(ask, role, async () => ids.parse(await ask(PROPOSE, [call, key])));
   if (row === undefined) throw new Error('no row came back');
   return row.id;
 };
@@ -175,8 +174,8 @@ const counted = z.array(z.object({ n: z.number().int() }));
 test('one key stores one proposal, and a second write with that key returns the first', async () => {
   const held = await inside(async (ask) => {
     const job = await running(ask);
-    const first = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A, job);
-    const again = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A, job);
+    const first = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A);
+    const again = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A);
     return { first, again, rows: counted.parse(await ask(COUNT, [KEY_A])) };
   });
   expect(held.again).toBe(held.first);
@@ -186,44 +185,18 @@ test('one key stores one proposal, and a second write with that key returns the 
 test('two keys store two proposals', async () => {
   const held = await inside(async (ask) => {
     const job = await running(ask);
-    const first = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A, job);
-    const second = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_B, job);
+    const first = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A);
+    const second = await propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_B);
     return { first, second };
   });
   expect(held.second).not.toBe(held.first);
-});
-
-test('a key that names no running job is refused', async () => {
-  await expect(
-    inside(async (ask) => {
-      const job = await running(ask);
-      const call = await callOf(ask, job);
-      await as(ask, 'gabriel_agent', () => ask('SELECT public.complete_job($1)', [job]));
-      return propose(ask, 'gabriel_agent', call, KEY_A, job);
-    }),
-  ).rejects.toThrow(/running job/);
-});
-
-test('a key with no job, and a job with no key, are refused', async () => {
-  await expect(
-    inside(async (ask) => {
-      const job = await running(ask);
-      return propose(ask, 'gabriel_agent', await callOf(ask, job), KEY_A, null);
-    }),
-  ).rejects.toThrow(/key and the job/);
-  await expect(
-    inside(async (ask) => {
-      const job = await running(ask);
-      return propose(ask, 'gabriel_agent', await callOf(ask, job), null, job);
-    }),
-  ).rejects.toThrow(/key and the job/);
 });
 
 test('a key that is not a digest of 64 hexadecimal characters is refused', async () => {
   await expect(
     inside(async (ask) => {
       const job = await running(ask);
-      return propose(ask, 'gabriel_agent', await callOf(ask, job), 'not a digest', job);
+      return propose(ask, 'gabriel_agent', await callOf(ask, job), 'not a digest');
     }),
   ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_key_is_digest' });
 });
@@ -231,8 +204,7 @@ test('a key that is not a digest of 64 hexadecimal characters is refused', async
 test('a proposal of the operator carries no key', async () => {
   await expect(
     inside(async (ask) => {
-      const job = await running(ask);
-      return propose(ask, 'gabriel_app', null, KEY_A, job);
+      return propose(ask, 'gabriel_app', null, KEY_A);
     }),
   ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_key_is_machine' });
 });
