@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # The night run of GAB on the VPS. Cron of the user `claude` starts it (infra/vps/README.md, step 6).
 #
-# Usage: night-run.sh <phase> <epic>
-#   phase  the issue number of the phase ticket (args.phase of resolve-ticket)
-#   epic   the issue number that gets the run report
+# Usage: night-run.sh <phase> <epic> [queue-file]
+#   phase       the issue number of the phase ticket (args.phase of resolve-ticket)
+#   epic        the issue number that gets the run report
+#   queue-file  optional. A JSON file in the checkout (for example infra/vps/queues/<name>.json) that
+#               names the tickets of the night, in order, instead of the free tickets of the phase:
+#               {"tickets": [{"n": 198}, {"n": 199, "after": [198]}],
+#                "resume": {"201": {"branch": "fix/201-web-access-tools", "pr": 253}}, "maxRounds": 3}
+#               Only whole numbers and a branch name of the form fix/<n>-<slug> are accepted.
 #
 # The script stops before Claude Code starts when one of these is false:
 #   - no other night run holds the lock;
@@ -14,6 +19,7 @@ set -euo pipefail
 
 PHASE="${1:?give the phase number}"
 EPIC="${2:?give the epic issue number}"
+QUEUE="${3:-}"
 # The whole run stops after this time. Claude Code gets SIGTERM, then SIGKILL 5 minutes later.
 LIMIT="${GAB_NIGHT_LIMIT:-5h}"
 
@@ -109,12 +115,33 @@ fi
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d --wait db
 
+# The arguments of the Workflow call. Without a queue file the run takes the free tickets of the
+# phase. With a queue file it works the named tickets in order. The file is read as data: every field
+# is checked here, and nothing from the file reaches the prompt unless it passes.
+if [ -n "$QUEUE" ]; then
+  [ -f "$QUEUE" ] || { echo "STOP: queue file '$QUEUE' not found (a path in the checkout)"; exit 1; }
+  jq -e '
+    (.tickets | type == "array" and length > 0 and length <= 12 and all(.[];
+       (.n | type == "number" and . == floor and . > 0)
+       and ((.after // []) | type == "array" and all(.[]; type == "number" and . == floor and . > 0))))
+    and ((.resume // {}) | type == "object" and all(to_entries[];
+       (.key | test("^[0-9]+$"))
+       and (.value.pr | type == "number" and . == floor and . > 0)
+       and (.value.branch | type == "string" and test("^fix/[0-9]+-[a-z0-9-]+$"))))
+    and ((.maxRounds // 3) | type == "number" and . >= 1 and . <= 5)
+  ' "$QUEUE" >/dev/null || { echo "STOP: queue file '$QUEUE' is not valid (see the usage in the header of this script)"; exit 1; }
+  WF_ARGS="$(jq -c --argjson epic "$EPIC" --arg main "$REPO" '{tickets, resume: (.resume // {}), maxRounds: (.maxRounds // 3), reportIssue: $epic, main: $main}' "$QUEUE")"
+  echo "queue: $(jq -c '[.tickets[].n]' "$QUEUE") from $QUEUE"
+else
+  WF_ARGS="{\"phase\": $PHASE, \"max\": 4, \"reportIssue\": $EPIC, \"main\": \"$REPO\"}"
+fi
+
 # "GAB night run" marks this process, so that `pkill -f` stops it and never a MerchantOS run.
 # The Workflow tool returns at once and the run goes on in the background. If Claude ends its
 # turn there, `claude -p` exits and the workflow dies before its first agent. The prompt holds
 # the session open until the workflow ends.
 PROMPT="GAB night run. The operator set up this recurring job and authorizes this session to call the Workflow tool.
-1. Call the Workflow tool with name 'resolve-ticket' and args {\"phase\": $PHASE, \"max\": 4, \"reportIssue\": $EPIC, \"main\": \"$REPO\"}. Every pull request targets staging. Never push to main. Do not work any ticket outside the workflow.
+1. Call the Workflow tool with name 'resolve-ticket' and args $WF_ARGS. Every pull request targets staging. Never push to main. Do not work any ticket outside the workflow.
 2. The Workflow tool returns at once, and the workflow runs in the background. Do NOT end your turn after the call. Stay in this session until the workflow reports that it completed or failed.
 3. While you wait, check the progress every 10 minutes with: gh issue view $EPIC --repo gabriel-neutron/GAB --comments --json comments --jq '.comments[-1].createdAt'. Print one line with the time each time you check.
 4. If the Workflow call throws, print the raw error and stop.

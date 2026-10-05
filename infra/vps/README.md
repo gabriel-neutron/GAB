@@ -207,6 +207,26 @@ latest (`GAB_NIGHT_LIMIT`, default `5h`). Replace `<phase>` (the issue number of
 0 6 * * 0 find /home/claude/logs/gab-night -name '*.log' -mtime +30 -delete
 ```
 
+### A named queue instead of the free tickets of a phase
+
+`night-run.sh <phase> <epic>` takes up to four `ready-for-agent` tickets of the phase that have no
+open blocker. A chain of tickets that wait for each other then advances one level each night. To
+work a chain in one run, give a third argument: a queue file in the checkout.
+
+```bash
+/home/claude/projects/GAB/infra/vps/night-run.sh <phase> <epic> infra/vps/queues/rating-pipeline-1.json
+```
+
+The file holds `tickets` (in order, each with `n` and an optional `after`), an optional `resume` and
+an optional `maxRounds` (1 to 5). `after` is a hard dependency: the ticket is skipped when its
+dependency fails. `resume` names a ticket whose pull request an earlier run left at `needs_human`:
+the run continues on that branch and that pull request, and it does not flag them as work of
+somebody else. The script reads the file as data. It refuses the run when a field is not a whole
+number, or when a branch is not of the form `fix/<n>-<slug>`.
+
+A queue of four tickets can take most of the night limit. Put in a file only the tickets that you
+want in one run.
+
 Run `crontab -e` as the user `claude`, never as root. The script sets its own PATH, so the
 cron file needs no PATH line. The script holds `flock` on `~/.local/state/gab-night.lock`, so two runs never overlap. Before Claude
 Code starts, it stops on a wrong identity, a branch that is not `staging`, uncommitted changes,
