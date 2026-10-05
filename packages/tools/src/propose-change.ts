@@ -13,7 +13,7 @@ const PROPOSED_OPS: readonly string[] = ['create_entity', 'create_relation', 'up
 const MAX_DOCUMENTS = 20;
 
 const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $4::text,
-  $5::uuid, $6::uuid[], NULL, false, $7::uuid)::text AS id`;
+  $5::uuid, $6::uuid[], NULL, false, $7::uuid, $8::text, $9::uuid)::text AS id`;
 
 const identified = z.strictObject({ id: z.uuid() });
 
@@ -70,6 +70,13 @@ export const proposeChange = defineTool({
     }),
     documents: z.array(documentId).min(1).max(MAX_DOCUMENTS),
     modelCallId: z.uuid().optional(),
+    // The runner sets the pair, and a profile that offers this tool to a model removes both
+    // fields: a model that chose its own key could hide a second fact behind a first.
+    idempotencyKey: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/u)
+      .optional(),
+    jobId: z.uuid().optional(),
   }),
   output: z.strictObject({ proposalId: z.uuid(), op: z.string() }),
   async run(session, input) {
@@ -100,6 +107,8 @@ export const proposeChange = defineTool({
       act.targetId,
       [...act.names],
       input.modelCallId ?? null,
+      input.idempotencyKey ?? null,
+      input.jobId ?? null,
     ]);
     if (made === undefined)
       throw new Error('the door stored a proposal and returned no identifier');

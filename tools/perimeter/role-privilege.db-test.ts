@@ -8,7 +8,8 @@ import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
-  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
+  propose_change:
+    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid)',
   record_model_call:
     'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
@@ -18,6 +19,8 @@ const DOORS = {
   fail_job: 'public.fail_job(uuid,text)',
   enqueue_job: 'public.enqueue_job(text,text)',
   complete_job: 'public.complete_job(uuid)',
+  release_job_for_quota: 'public.release_job_for_quota(uuid)',
+  runner_settings: 'public.runner_settings()',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
@@ -62,6 +65,8 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     fail_job: true,
     enqueue_job: true,
     complete_job: true,
+    release_job_for_quota: true,
+    runner_settings: true,
     set_entity_layout: true,
     open_conversation: false,
     append_chat_message: false,
@@ -84,6 +89,8 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
+    release_job_for_quota: false,
+    runner_settings: false,
     set_entity_layout: false,
     open_conversation: false,
     append_chat_message: false,
@@ -97,6 +104,8 @@ const REFUSED = [
   { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
   { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
+  { identity: 'app', call: 'SELECT public.release_job_for_quota(gen_random_uuid())' },
+  { identity: 'research', call: 'SELECT * FROM public.runner_settings()' },
 ] as const;
 
 for (const refused of REFUSED)
@@ -118,6 +127,8 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
+    release_job_for_quota: false,
+    runner_settings: false,
     set_entity_layout: false,
     open_conversation: true,
     append_chat_message: true,

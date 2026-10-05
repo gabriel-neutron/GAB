@@ -37,6 +37,8 @@ export default interface Proposals {
   decided_by: string | null;
 
   model_call_id: ModelCallId | null;
+
+  idempotency_key: string | null;
 }
 
 export interface ProposalsInitializer {
@@ -73,6 +75,8 @@ export interface ProposalsInitializer {
   decided_by?: string | null;
 
   model_call_id?: ModelCallId | null;
+
+  idempotency_key?: string | null;
 }
 
 export interface ProposalsMutator {
@@ -109,4 +113,6 @@ export interface ProposalsMutator {
   decided_by?: string | null;
 
   model_call_id?: ModelCallId | null;
+
+  idempotency_key?: string | null;
 }
