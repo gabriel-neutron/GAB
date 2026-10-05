@@ -29,6 +29,29 @@ export class ModelFailure extends Error {
   }
 }
 
+/** The agent ends its job for a reason that no retry inside the job mends. The runner fails the
+ * job with this reason under the limit of three claims, as it does for any other failure. */
+export class JobStop extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'JobStop';
+    this.reason = reason;
+  }
+}
+
+/** A tool call that the agent refused, and the sentence it gave. */
+export interface Refusal {
+  readonly tool: string;
+  readonly reason: string;
+}
+
+/** What an agent returns when its job ended well. */
+export interface AgentResult {
+  readonly refusals: readonly Refusal[];
+}
+
 /** What the runner gives to the agent of one job. */
 export interface AgentContext {
   readonly job: ClaimedJob;
@@ -52,9 +75,5 @@ export interface RunnerAgent {
   readonly questionsPerJob: number;
   /** The soft stop of the tokens of one job. */
   readonly tokenCap: number;
-  readonly run: (context: AgentContext) => Promise<void>;
+  readonly run: (context: AgentContext) => Promise<AgentResult>;
 }
-
-// Departure: no agent is built yet, so the registry is empty and the runner refuses to start on
-// it. An agent joins this list with its own change, and a test holds its own stubs.
-export const AGENTS: readonly RunnerAgent[] = [];

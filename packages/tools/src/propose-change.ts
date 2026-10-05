@@ -12,6 +12,11 @@ const PROPOSED_OPS: readonly string[] = ['create_entity', 'create_relation', 'up
 
 const MAX_DOCUMENTS = 20;
 
+/** The act that a machine may propose, as the tool and the reading of a reader both take it. */
+export const proposedAct = writeRequest.refine((act) => PROPOSED_OPS.includes(act.op), {
+  message: `a machine proposes one of ${PROPOSED_OPS.join(', ')}`,
+});
+
 const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $4::text,
   $5::uuid, $6::uuid[], NULL, false, $7::uuid, $8::text)::text AS id`;
 
@@ -65,9 +70,7 @@ export const proposeChange = defineTool({
     'and the proposal cites those and no others. The change waits for the operator to decide. ' +
     'Call lookup_entity first, so you do not propose an entity the record already holds.',
   input: z.strictObject({
-    act: writeRequest.refine((act) => PROPOSED_OPS.includes(act.op), {
-      message: `a machine proposes one of ${PROPOSED_OPS.join(', ')}`,
-    }),
+    act: proposedAct,
     documents: z.array(documentId).min(1).max(MAX_DOCUMENTS),
     modelCallId: z.uuid().optional(),
     // The runner sets the key. A model that chose its own key could hide a second fact behind a

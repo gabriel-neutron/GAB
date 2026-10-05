@@ -49,7 +49,7 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
--- The seventeen doors, and nothing else.
+-- The eighteen doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
@@ -70,6 +70,7 @@ REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 
@@ -175,6 +176,12 @@ GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION release_job_for_quota(uuid) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
+
+-- THE READING DOOR IS gabriel_agent ALONE. Only the worker that ran the reader knows what it read,
+-- and the door writes claim_reading and nothing else. No role holds a grant on claim_reading or on
+-- citation: the revoke above covers both, because this file runs after the migrations.
+GRANT EXECUTE ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text)
+  TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
