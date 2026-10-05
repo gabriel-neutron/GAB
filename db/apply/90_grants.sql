@@ -76,6 +76,62 @@ GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
 -- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
 GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text)
   TO gabriel_agent, gabriel_research;
+-- ------------------------------------------------------------------------- the originator ---
+-- NO ROLE HOLDS A GRANT ON A TABLE OF THE ORIGINATOR, and the REVOKE above already took every one.
+-- The doors below are the whole of the write path, and none of them writes through a model role
+-- except the three of gabriel_agent: it creates an originator at letter F, it proposes a fact with
+-- a stored span, and it asks code to decide that fact. No door of gabriel_agent writes a letter, a
+-- flag, a merge, an imprint or a resolution (L1).
+--
+-- THREE DOORS HAVE NO GRANT AT ALL. record_resolution, set_gold_set_letter and ack_letter_change
+-- are called by the definer doors of other tickets, and the owner needs no grant to run them.
+-- A grant here would let the operator backend write a track record by hand.
+--
+-- THE TWO READS BELONG TO gabriel_app ALONE. issuer_card_for and originator_letter_for answer the
+-- gate, which runs under the operator backend. The worker holds neither, so a letter never enters
+-- a prompt through a tool of the worker.
+REVOKE ALL ON FUNCTION ensure_originator(text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
+  FROM PUBLIC;
+REVOKE ALL ON FUNCTION decide_originator_fact(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_operator_letter(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION remove_operator_letter(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION contest_letter(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION confirm_fabrication(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_originator(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION link_imprint(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_party_false(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION review_originator_card(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION load_trust_list(text,text,date,text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION originator_exceptions() FROM PUBLIC;
+REVOKE ALL ON FUNCTION refresh_originator(text,timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION issuer_card_for(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION originator_letter_for(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_resolution(text,uuid,text,text,text,text,text,text,timestamptz,date)
+  FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_gold_set_letter(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ack_letter_change(uuid) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION ensure_originator(text,text,text,text,text)
+  TO gabriel_agent, gabriel_app;
+GRANT EXECUTE ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
+  TO gabriel_agent, gabriel_app;
+GRANT EXECUTE ON FUNCTION decide_originator_fact(uuid) TO gabriel_agent;
+
+GRANT EXECUTE ON FUNCTION set_operator_letter(text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION remove_operator_letter(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION contest_letter(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION confirm_fabrication(uuid,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION merge_originator(text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION link_imprint(text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION set_party_false(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION review_originator_card(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION load_trust_list(text,text,date,text,jsonb) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION originator_exceptions() TO gabriel_app;
+GRANT EXECUTE ON FUNCTION refresh_originator(text,timestamptz) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION issuer_card_for(text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION originator_letter_for(text,text) TO gabriel_app;
+
 GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
