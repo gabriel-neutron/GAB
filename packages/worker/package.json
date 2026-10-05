@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./ingest": "./src/ingest.ts"
+    "./ingest": "./src/ingest.ts",
+    "./report-claims": "./src/report-claims.ts"
   },
   "dependencies": {
     "@gab/model": "workspace:*",
