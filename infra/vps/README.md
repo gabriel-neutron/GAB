@@ -224,6 +224,25 @@ the run continues on that branch and that pull request, and it does not flag the
 somebody else. The script reads the file as data. It refuses the run when a field is not a whole
 number, or when a branch is not of the form `fix/<n>-<slug>`.
 
+### A whole spec on an integration branch
+
+When the queue file holds `"base": "integration/<name>"`, the run builds the tickets as one spec:
+
+1. The preflight creates `integration/<name>` from `staging` on the first night. On a later night it
+   merges the newest `staging` into the branch (a merge commit, never a force-push).
+2. Each ticket is built, reviewed and gated as before. Its pull request targets the integration
+   branch, and it merges there.
+3. The spec stage reads the whole branch (a spec reviewer and a standards reviewer), checks it with
+   `pnpm check` and `pnpm test`, fixes what blocks (at most one fix round), and opens or updates
+   ONE pull request from the integration branch to `staging`. If a blocking issue remains, the
+   pull request is a draft and says so.
+4. The operator merges that pull request. Until then `staging` receives nothing from the queue.
+
+Tickets that touch disjoint concrete paths still run side by side. They share one disposable
+database, so every `pnpm check`, `pnpm test` and database step runs one at a time under a lock. The
+gain over one pull request per night is the whole-branch review and a clean `staging`. It is not a
+shorter night.
+
 A queue of four tickets can take most of the night limit. Put in a file only the tickets that you
 want in one run.
 
