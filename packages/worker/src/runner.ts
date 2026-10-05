@@ -9,7 +9,13 @@ import {
 } from '@gab/model';
 import { z } from 'zod';
 
-import { ModelFailure, type Asked, type AgentContext, type RunnerAgent } from './agents.ts';
+import {
+  JobStop,
+  ModelFailure,
+  type Asked,
+  type AgentContext,
+  type RunnerAgent,
+} from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
 import { idempotencyKey, promptDigest } from './idempotency.ts';
 import type { Queryable } from './queryable.ts';
@@ -196,8 +202,16 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
 
   const work = async (agent: RunnerAgent, job: ClaimedJob): Promise<Step> => {
     try {
-      await agent.run(contextOf(agent, job));
+      const result = await agent.run(contextOf(agent, job));
+      // No table holds a refusal yet, so the log is its record. A refusal ends no job.
+      if (result.refusals.length > 0)
+        console.error('the agent refused tool calls', {
+          agent: agent.name,
+          job: job.id,
+          refusals: result.refusals,
+        });
     } catch (cause) {
+      if (cause instanceof JobStop) return failed(job, cause.reason);
       if (cause instanceof ModelFailure) {
         if (cause.failure.kind === REASON.quota) {
           await deps.db.query(RELEASE, [job.id]);

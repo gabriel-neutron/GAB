@@ -13,7 +13,7 @@ const claimed = z
       job_id: z.uuid(),
       job_document: z.string().min(1),
       job_attempts: z.number().int().positive(),
-      job_kind: z.enum(['extract_text', 'map_structured']),
+      job_kind: z.enum(['extract_text', 'map_structured', 'second_read']),
     }),
   )
   .max(1);
@@ -23,7 +23,7 @@ export interface ClaimedJob {
   readonly id: string;
   readonly documentId: string;
   readonly attempt: number;
-  readonly kind: 'extract_text' | 'map_structured';
+  readonly kind: 'extract_text' | 'map_structured' | 'second_read';
 }
 
 /** Takes one job for this connection, or answers null when no queued job is free to take. The
