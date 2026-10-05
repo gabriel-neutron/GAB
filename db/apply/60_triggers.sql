@@ -63,6 +63,11 @@ CREATE OR REPLACE TRIGGER relation_type_interval
   BEFORE UPDATE OF takes_interval ON relation_type
   FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
 
+-- The letter history is written once, and the day the gate re-ran is set once.
+CREATE OR REPLACE TRIGGER originator_letter_history_guard
+  BEFORE UPDATE OR DELETE ON originator_letter_history
+  FOR EACH ROW EXECUTE FUNCTION originator_letter_history_guard_fn();
+
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
@@ -72,5 +77,6 @@ ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
+ALTER TABLE originator_letter_history ENABLE ALWAYS TRIGGER originator_letter_history_guard;
 
 RESET ROLE;
