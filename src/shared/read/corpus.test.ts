@@ -1,5 +1,6 @@
 // The memory of the corpus, with a stubbed fetch. One read of the five views serves every
-// caller, a failure clears the memory, and a refresh reads again.
+// caller, a failure clears the memory, and a refresh reads again. The words of the relation types
+// travel with the corpus and are read once, because a refresh of the record does not change them.
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
@@ -53,6 +54,7 @@ const placedAt = (entity: { id: string; geom: unknown }): unknown => ({
 const RELATION_ROW = {
   id: 'e0a8a817-0dac-49db-8627-a342609a3092',
   type: 'operates',
+  proposed_type: null,
   src_kind: 'entity',
   src_id: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
   dst_kind: 'entity',
@@ -64,6 +66,14 @@ const RELATION_ROW = {
   promoted_from: '5f8d5190-1df6-46b4-b6aa-8066b505c01d',
   created_at: '2026-08-25T03:25:13.270163+00:00',
   updated_at: '2026-08-25T03:25:13.270163+00:00',
+};
+
+const RELATION_TYPE_ROW = {
+  key: 'operates',
+  label: 'operates',
+  inverse_label: 'is operated by',
+  takes_interval: true,
+  retired: false,
 };
 
 const PROPOSAL_ROW = {
@@ -95,6 +105,7 @@ const rowsOf = (view: string): readonly unknown[] => {
   if (view === 'document') return [DOCUMENT_ROW];
   if (view === 'entity') return entityRows;
   if (view === 'relation') return [RELATION_ROW];
+  if (view === 'relation_type') return [RELATION_TYPE_ROW];
   // The view answers for every entity, so its rows follow the entity rows of the moment.
   if (view === 'full_map') return entityRows.map((row) => placedAt(row));
   return [PROPOSAL_ROW];
@@ -110,6 +121,8 @@ const viewsRead = (): readonly string[] =>
   stub.mock.calls.map(([input]) => input.pathname.slice(1)).sort();
 
 const READ_ONCE = ['document', 'entity', 'full_map', 'proposal', 'relation'];
+
+const VOCABULARY = 'relation_type';
 
 // The whole sentence of a refusal, so a test cannot pass on a failure of another kind.
 const refusalOf = async (run: () => Promise<unknown>): Promise<string> => {
@@ -140,7 +153,7 @@ test('two callers of the corpus make one read of each view, and share the answer
   const first = await loadCorpus();
   const second = await loadCorpus();
 
-  expect(viewsRead()).toStrictEqual(READ_ONCE);
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, VOCABULARY].sort());
   expect(second).toBe(first);
 });
 
@@ -149,7 +162,7 @@ test('two callers that ask together make one read of each view', async () => {
 
   const [first, second] = await Promise.all([loadCorpus(), loadCorpus()]);
 
-  expect(viewsRead()).toStrictEqual(READ_ONCE);
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, VOCABULARY].sort());
   expect(second).toBe(first);
 });
 
@@ -165,7 +178,7 @@ test('a read that fails clears the memory, so the next caller reads again and ar
   const read = await loadCorpus();
 
   expect(read.entities.map((entity) => entity.label)).toStrictEqual(['MV Northern Ledger']);
-  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE].sort());
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE, VOCABULARY].sort());
 });
 
 test('a refresh reads the five views again, and gives the later record', async () => {
@@ -179,7 +192,7 @@ test('a refresh reads the five views again, and gives the later record', async (
   });
   const after = seen[0];
 
-  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE].sort());
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE, VOCABULARY].sort());
   expect(before.entities.map((entity) => entity.label)).toStrictEqual(['MV Northern Ledger']);
   expect(after?.entities.map((entity) => entity.label)).toStrictEqual([
     'MV Northern Ledger',
@@ -196,5 +209,5 @@ test('a refresh holds its later answer, and a caller after it reads no view agai
   });
   await loadCorpus();
 
-  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE].sort());
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE, VOCABULARY].sort());
 });

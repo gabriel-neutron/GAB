@@ -10,6 +10,7 @@ import {
   relationLines,
 } from '@/shared/canvas-label';
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
+import { relationWording } from '@/shared/relation-words';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
@@ -153,6 +154,7 @@ export function mountGraph(
 
   let ground = groundOf();
   let model = buildGraphModel(corpus, positions, types, ground);
+  const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
   let filter: FilterState = { hiddenTypes: [...stored.hiddenTypes] };
@@ -646,7 +648,7 @@ export function mountGraph(
     const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
     const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
     const type = model.graph.getEdgeAttribute(edge, 'relationType');
-    nameHover({ id: edge, lines: relationLines(from, type, to) });
+    nameHover({ id: edge, lines: relationLines(from, wordsOf(type).label, to) });
   });
   sigma.on('leaveEdge', ({ edge }) => {
     if (hovered?.id === edge) nameHover(null);

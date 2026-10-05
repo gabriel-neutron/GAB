@@ -1,5 +1,5 @@
-// Departure: the writer checks an interval before it proposes, so no writer test reaches the two
-// CHECKs on the interval of a relation. These tests insert the row directly.
+// Departure: the writer checks an interval before it proposes, so no writer test reaches the
+// trigger and the CHECK on the interval of a relation. These tests insert the row directly.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
