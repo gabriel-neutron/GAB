@@ -49,9 +49,9 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
--- The fifteen doors, and nothing else.
+-- The seventeen doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
@@ -62,6 +62,8 @@ REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_job_for_quota(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
@@ -81,7 +83,7 @@ GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabr
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   TO gabriel_agent, gabriel_app, gabriel_research;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
@@ -104,6 +106,8 @@ GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION release_job_for_quota(uuid) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
@@ -133,6 +137,11 @@ GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 --
 -- THE COMPLETION IS gabriel_agent FOR THE SAME REASON. Only the worker that ran the job knows that
 -- it succeeded, and the door ends a running row alone.
+
+-- THE RUNNER DOORS ARE gabriel_agent ALONE, FOR THE SAME REASON AS THE CLAIM. The release for a
+-- spent quota gives back a row that the worker holds, and it ends nothing. The settings read
+-- returns the three numbers of the runner and no other row of the parameter table, which no role
+-- can read.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still

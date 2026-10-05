@@ -303,6 +303,8 @@ const THE_DOOR_SET = [
   'public.record_model_call to gabriel_agent',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
+  'public.release_job_for_quota to gabriel_agent',
+  'public.runner_settings to gabriel_agent',
   'public.set_entity_layout to gabriel_agent',
 ];
 
