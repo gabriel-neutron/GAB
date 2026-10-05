@@ -61,8 +61,9 @@ ON CONFLICT (id) DO NOTHING;
 -- attribute, because a type list of 25 arms of service is a vocabulary that the data writes.
 --
 -- ITS TWO HUES HOLD THE BAND THE OTHER FOUR HOLD: 4.9:1 on the light page for colour_light, and
--- 8.5:1 on the dark page for colour_dark. The violet is free — the seeded hues are blue, cyan,
--- green, olive and grey.
+-- 8.5:1 on the dark page for colour_dark. The seeded hues are now blue, cyan, green, olive,
+-- violet, amber, magenta, plum and grey. The next type must have a new measured pair in the same
+-- band.
 -- >>> GENERATED entity_type
 INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
   ('vessel',        'Vessel',        '#2971c6', '#70adfb',  10),
@@ -70,6 +71,9 @@ INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
   ('company',       'Company',       '#007d50', '#53c48e',  30),
   ('person',        'Person',        '#677000', '#a8b44b',  40),
   ('military_unit', 'Military unit', '#8254c4', '#b7a0e4',  50),
+  ('port',          'Port',          '#a16100', '#df9b44',  60),
+  ('bank',          'Bank',          '#b53c7f', '#e887b6',  70),
+  ('legal_act',     'Legal act',     '#8b598e', '#e889ed',  80),
   ('unknown',       'Unknown',       '#6b7280', '#9ca3af', 900)
 ON CONFLICT (key) DO UPDATE SET
   label        = EXCLUDED.label,
