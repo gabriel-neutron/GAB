@@ -28,14 +28,21 @@ const faultOf = (given: unknown): { readonly code: string; readonly path: string
   return { code: issue?.code ?? '', path: (issue?.path ?? []).join('.') };
 };
 
-const INTERVAL_RULE = 'an interval belongs to one of owns, operates, flags, insures, appoints';
+const INTERVAL_RULE =
+  'an interval belongs to one of owns, operates, flags, insures, appoints, designated_by, ' +
+  'exempted_by, charters';
 
 test('a relation that states identity or control takes an interval', () => {
   const held = writeRequest.safeParse(relation({ type: 'operates', validFrom: '2026-01-01' }));
   expect(held.success).toBe(true);
 });
 
-test('a relation of another type takes no interval, and the sentence lists the five', () => {
+test('a designated_by relation takes an interval from its entry into force', () => {
+  const held = writeRequest.safeParse(relation({ type: 'designated_by', validFrom: '2022-06-03' }));
+  expect(held.success).toBe(true);
+});
+
+test('a relation of another type takes no interval, and the sentence lists the dated types', () => {
   expect(messageOf(relation({ validFrom: '2026-01-01' }))).toBe(INTERVAL_RULE);
   expect(messageOf(relation({ validTo: '2026-12-31' }))).toBe(INTERVAL_RULE);
 });

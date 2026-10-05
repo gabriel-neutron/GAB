@@ -5,13 +5,15 @@
 -- CREATE VIEW, so a data file that raises before 90_grants.sql would leave gabriel_read with no
 -- SELECT on the new views.
 --
--- THE MARKED REGION BELOW IS WRITTEN FROM src/shared/vocabulary/declarations.ts, WHICH IS THE
--- ONLY PLACE A TYPE IS DECLARED. `pnpm seed:vocabulary` emits it, an edit made by hand between
--- the markers is lost on the next emit, and a test compares the two with no database. Every
--- other line of this file is hand-written and the emitter never reads it. No role holds a write
--- on the table, and there is no propose-a-type path at run time: a row inserted by a function
--- exists in no .sql file, and ADR 0003 §5 makes `pnpm db:reset` a routine step, so such a row
--- dies by ordinary work.
+-- THE TWO MARKED REGIONS BELOW ARE WRITTEN FROM THE MODULES THAT DECLARE THEM: an entity type
+-- in src/shared/vocabulary/declarations.ts, and a relation type in
+-- packages/proposal/src/relation-types.ts, because the door of the writer reads that list too,
+-- and a package never imports from src/. `pnpm seed:vocabulary` emits both, an edit made by hand
+-- between the markers is lost on the next emit, and a test compares the two with no database.
+-- Every other line of this file is hand-written and the emitter never reads it. No role holds a
+-- write on either table, and there is no propose-a-type path at run time: a row inserted by a
+-- function exists in no .sql file, and ADR 0003 §5 makes `pnpm db:reset` a routine step, so such
+-- a row dies by ordinary work.
 --
 -- THERE IS NO ATTRIBUTE VOCABULARY, AND THAT IS M11. Migration 0010 dropped the table. An
 -- attribute key is whatever a person or an agent writes, and `api.key_usage` is the only place
@@ -81,6 +83,43 @@ ON CONFLICT (key) DO UPDATE SET
   colour_dark  = EXCLUDED.colour_dark,
   ord          = EXCLUDED.ord;
 -- <<< GENERATED entity_type
+
+
+-- ========================================================================== relation_type ===
+-- One direction only: `owns` exists, and `owned_by` never does. `inverse_label` is how a page
+-- reads the relation from its far end. `unknown` is mandatory, as it is for an entity: a word
+-- that fits no live type lands there, and the word stays in `relations.proposed_type`.
+--
+-- THE UPDATE NAMES NO `retired`. A re-apply must never bring a retired word back into service.
+-- `takes_interval` is written, and the trigger on this table refuses true to false while a dated
+-- relation of the type stands, so a seed that drops an interval stops the apply with a reason.
+-- >>> GENERATED relation_type
+INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
+  ('owns',              'owns',              'is owned by',                  true),
+  ('operates',          'operates',          'is operated by',               true),
+  ('flags',             'flags',             'is flagged by',                true),
+  ('insures',           'insures',           'is insured by',                true),
+  ('appoints',          'appoints',          'is appointed by',              true),
+  ('designated_by',     'designated by',     'designates',                   true),
+  ('exempted_by',       'exempted by',       'exempts',                      true),
+  ('charters',          'charters',          'is chartered by',              true),
+  ('settles_through',   'settles through',   'is the settlement channel of', false),
+  ('supplies_crude_to', 'supplies crude to', 'receives crude from',          false),
+  ('sells_products_to', 'sells products to', 'buys products from',           false),
+  ('berthed_at',        'berthed at',        'is the berth of',              false),
+  ('loads_at',          'loads at',          'is the loading place of',      false),
+  ('discharges_at',     'discharges at',     'is the discharge place of',    false),
+  ('sts_with',          'sts with',          'sts with',                     false),
+  ('inspected_at',      'inspected at',      'is the inspection place of',   false),
+  ('flagged_falsely',   'flagged falsely',   'is flagged falsely by',        false),
+  ('contradicts',       'contradicts',       'is contradicted by',           false),
+  ('subordinate_to',    'subordinate to',    'is superior to',               false),
+  ('unknown',           'is linked to',      'is linked to',                 false)
+ON CONFLICT (key) DO UPDATE SET
+  label          = EXCLUDED.label,
+  inverse_label  = EXCLUDED.inverse_label,
+  takes_interval = EXCLUDED.takes_interval;
+-- <<< GENERATED relation_type
 
 
 -- ============================================================================== parameter ===

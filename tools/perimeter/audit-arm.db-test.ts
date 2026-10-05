@@ -385,10 +385,11 @@ const READ_VIEWS = [
   'api.model_call SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
+  'api.relation_type SELECT',
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the twelve api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the thirteen api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
