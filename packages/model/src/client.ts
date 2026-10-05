@@ -30,6 +30,13 @@ const QUOTA_PATH = '/quota-forecast';
 const NETWORK_RETRIES = 3;
 const VALIDATION_RETRIES = 1;
 
+/** The longest one question can take, in milliseconds: a refused answer is asked again, and each
+ * round trip can fail on every call and wait the longest wait between two calls. A lease shorter
+ * than this over the questions of a job releases a claim under a worker that still works. */
+export const worstQuestionMs = (agent: Pick<AgentModel, 'timeoutMs' | 'maxWaitMs'>): number =>
+  (VALIDATION_RETRIES + 1) *
+  ((NETWORK_RETRIES + 1) * agent.timeoutMs + NETWORK_RETRIES * agent.maxWaitMs);
+
 const NO_CREDITS = 402;
 const BAD_REQUEST = 400;
 const TOO_MANY = 429;

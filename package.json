@@ -42,6 +42,7 @@
     "layout": "node --env-file=infra/.env packages/worker/src/layout-main.ts",
     "ingest": "node --env-file=infra/.env packages/worker/src/ingest-main.ts",
     "reconcile": "node --env-file=infra/.env packages/worker/src/reconcile-main.ts",
+    "runner": "node --env-file=infra/.env packages/worker/src/runner-main.ts",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },

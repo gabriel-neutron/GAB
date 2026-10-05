@@ -50,6 +50,43 @@ VALUES ('inherited', 'manual',
         'No document supports this value; it is inherited from an ancestor')
 ON CONFLICT (id) DO NOTHING;
 
+-- ======================================================================= document_provider ===
+-- HAND-WRITTEN, AND THIS FILE IS THE AUTHORITY FOR A LICENCE. One edited line moves every
+-- document of that provider, so the statement updates the name and the licence of a row that
+-- exists. No row gets an originator here.
+--
+-- WHERE NO TEXT STATES A LICENCE, THE ROW TAKES AN INTERNAL ONE. CREA and EGRUL are `restricted`
+-- until their terms are read. IMO GISIS and Equasis need a login, so they are
+-- `registration-terms`. Each of these words is internal tier, so an error here can only hold a
+-- document back, and it never publishes one.
+--
+-- `manual` AND `inherited` GET NO PROVIDER. A hand entry stays internal until a release decides
+-- to publish the operator's own entries; `own` is the row it would take.
+INSERT INTO document_provider (id, name, licence) VALUES
+  ('eu_eurlex',           'EU EUR-Lex',                 'eu-reuse'),
+  ('ofac_sdn',            'OFAC SDN',                   'public-domain'),
+  ('uk_sanctions_list',   'UK sanctions list',          'ogl-v3'),
+  ('eu_fsf',              'EU FSF',                     'eu-reuse'),
+  ('gleif',               'GLEIF',                      'cc0'),
+  ('crea',                'CREA',                       'restricted'),
+  ('datalastic',          'Datalastic',                 'commercial-no-redistribution'),
+  ('gfw',                 'GFW',                        'cc-by-nc-4.0'),
+  ('imo_gisis',           'IMO GISIS',                  'registration-terms'),
+  ('equasis',             'Equasis',                    'registration-terms'),
+  ('opensanctions',       'OpenSanctions',              'cc-by-nc-4.0'),
+  ('opencorporates',      'OpenCorporates',             'odbl'),
+  ('mca21',               'MCA21',                      'paid-filing'),
+  ('acra',                'ACRA',                       'paid-filing'),
+  ('cyprus_registrar',    'Cyprus Registrar',           'paid-filing'),
+  ('hk_icris',            'HK ICRIS',                   'paid-filing'),
+  ('egrul',               'EGRUL',                      'restricted'),
+  ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)',  'copernicus'),
+  ('osm',                 'OSM',                        'odbl'),
+  ('own',                 'own',                        'own')
+ON CONFLICT (id) DO UPDATE SET
+  name    = EXCLUDED.name,
+  licence = EXCLUDED.licence;
+
 
 -- ============================================================================ entity_type ===
 -- The first four words are the entity types of the committed fixture, which is SYNTHETIC.
@@ -130,8 +167,15 @@ ON CONFLICT (key) DO UPDATE SET
 -- FIFTEEN MINUTES, AND IT IS A CHOICE AND NOT A MEASUREMENT. No real job has run, so no
 -- duration of the work is known. It is long enough that a slow job is never released under the
 -- worker that holds it, and short enough that a stopped worker frees its row within one break.
+--
+-- THE TWO WAITS OF THE RUNNER ARE CHOICES TOO. A spent quota returns with the day of the gateway,
+-- so the runner looks again every ten minutes and spends no call to find out sooner. An empty
+-- queue is looked at every thirty seconds, which is the longest the operator waits after queuing
+-- a document with the runner idle. Neither number is a measurement.
 INSERT INTO parameter (key, value) VALUES
-  ('job_claim_lease_seconds', 900)
+  ('job_claim_lease_seconds', 900),
+  ('runner_quota_wait_seconds', 600),
+  ('runner_empty_wait_seconds', 30)
 ON CONFLICT (key) DO NOTHING;
 
 

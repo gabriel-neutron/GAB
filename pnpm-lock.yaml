@@ -279,12 +279,18 @@ importers:
 
   packages/worker:
     dependencies:
+      '@gab/model':
+        specifier: workspace:*
+        version: link:../model
       '@gab/store':
         specifier: workspace:*
         version: link:../store
       '@gab/text':
         specifier: workspace:*
         version: link:../text
+      '@gab/tools':
+        specifier: workspace:*
+        version: link:../tools
       pg:
         specifier: ^8.23.0
         version: 8.23.0
