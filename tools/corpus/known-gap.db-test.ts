@@ -55,6 +55,7 @@ test('the ingestion door takes no rating parameter', async () => {
     'p_sha256',
     'p_mime',
     'p_retrieved_at',
+    'p_provider_id',
   ]);
 });
 
