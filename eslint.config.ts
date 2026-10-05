@@ -23,7 +23,7 @@ const CANVAS_PAGES = ['map', 'graph'] as const;
  * policies below both read it**, so the side that is refused to the browser and the side that a
  * Node part may reach can never fall out of step.
  */
-const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools'] as const;
+const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as const;
 
 /**
  * **A comment records a reason, and never a reference.** A reason is a fact about the code, and it
@@ -590,7 +590,7 @@ export default defineConfig(
                 },
               },
               message:
-                'The writer, the model client, the store, the worker and the tool catalogue run in Node and hold the secrets or reach the database. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
+                'The writer, the model client, the store, the worker, the tool catalogue and the MCP server run in Node and hold the secrets or reach the database. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
             },
 
             // ...and a Node part reaches another Node part. Both sides come from the one list
