@@ -15,15 +15,9 @@ export interface RenderedPage {
   readonly html: string;
   /** Each request of the page that the range check refused. */
   readonly refused: number;
-  /** True when the page asked more files than the cap, and the rest were stopped. */
-  readonly capped: boolean;
   /** True when the budget ended before the page was quiet, and the HTML is what it had then. */
   readonly timedOut: boolean;
 }
-
-// The text of a page needs its scripts and its data, and a search result page asks a few dozen
-// files. A page that asks more is a page that this tool reads only in part.
-export const MAX_SUBRESOURCES = 100;
 
 // A picture, a sound or a font adds no text, so it is not fetched.
 const SKIPPED = new Set(['image', 'media', 'font']);
@@ -86,8 +80,6 @@ export const renderPage = async (
     if (out) refused += 1;
     return out;
   };
-  let asked = 0;
-  let capped = false;
   let mainServed = false;
 
   const subresource = async (route: Route): Promise<void> => {
@@ -96,12 +88,6 @@ export const renderPage = async (
       await settled(() => route.abort());
       return;
     }
-    if (asked >= MAX_SUBRESOURCES) {
-      capped = true;
-      await settled(() => route.abort());
-      return;
-    }
-    asked += 1;
     const timeoutMs = remaining();
     if (timeoutMs === 0) {
       await settled(() => route.abort());
@@ -166,7 +152,7 @@ export const renderPage = async (
       timedOut = true;
     }
     const html = await withinTime(page.content(), remaining() + READ_GRACE_MS);
-    return { html, refused, capped, timedOut };
+    return { html, refused, timedOut };
   } finally {
     await browser?.close().catch(() => undefined);
   }

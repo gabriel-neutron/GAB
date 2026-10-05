@@ -36,9 +36,10 @@ const TABLE =
   "authority names each ship, the port, the day and the result of the inspection. '.repeat(3) " +
   "+ '</p>');</script></body></html>";
 
-// A page whose text is all in its bytes. A render of it changes no text.
+// A page whose text is all in its bytes. A script adds no text to it. The browser writes the
+// doctype in upper case, so the rendered bytes differ from the bytes of the server.
 const STATIC =
-  '<html><head><title>A static page</title></head><body><article><h1>A static page</h1>' +
+  '<!doctype html><html><head><title>A static page</title></head><body><article><h1>A static page</h1>' +
   `<p>Run ${RUN}. The text of this page is in its bytes, and a script adds nothing.</p>` +
   '</article></body></html>';
 
@@ -211,14 +212,18 @@ test('a request of the page to a private address is stopped, counted, and not st
   });
 });
 
-test('a page with no script and render gives no second document', async () => {
+test('a page with no script and render gives two documents, and both ids come back', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
     const got = await fetched(ask, { url: `${base}/static`, render: true }, fixtureReach(store));
-    expect(got.rendered).toBeNull();
-    expect(got.notice).toMatch(/changed no text/u);
-    expect(store.puts).toHaveLength(1);
-    expect(await rowOf(ask, shaOf(STATIC))).toHaveLength(1);
+    expect(got.rendered).not.toBeNull();
+    expect(got.rendered?.document).not.toBe(got.document);
+    expect(got.pages[0]?.text).toContain(`Run ${RUN}`);
+    expect(store.puts).toHaveLength(2);
+    const [plain] = await rowOf(ask, shaOf(STATIC));
+    const [rendered] = await rowOf(ask, shaOf(store.puts[1]?.bytes ?? new Uint8Array()));
+    expect(plain?.id).toBe(got.document);
+    expect(rendered?.id).toBe(got.rendered?.document);
   });
 });
 
