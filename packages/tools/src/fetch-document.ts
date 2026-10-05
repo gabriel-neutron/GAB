@@ -11,6 +11,7 @@ import { checkedRange, documentText } from './document-text.ts';
 import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet } from './fetch-guard.ts';
 import { defineTool, type Session, ToolRefusal } from './tool.ts';
+import { unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -206,6 +207,10 @@ export const fetchDocument = defineTool({
       if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
       throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
     }
+
+    // A challenge or a missing page is no record of the source, and it leaves no object behind.
+    const unreadable = unreadablePage(mime, pages);
+    if (unreadable !== null) throw new ToolRefusal(unreadable);
 
     const sha256 = createHash('sha256').update(got.bytes).digest('hex');
     const metadata = await metadataOf(got.bytes, mime);
