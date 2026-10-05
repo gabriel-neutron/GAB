@@ -1207,6 +1207,23 @@ test('a false resolution on an operator-letter originator sets contested', async
   expect(flags.contested).toBe(true);
 });
 
+test('only a false or fabricated outcome labels an originator, and a true outcome never sets contested', async () => {
+  const held = await run(async (ask) => {
+    await resolutionFixture(ask);
+    await ask(`SELECT public.set_operator_letter('substack:r', 'B', 'a reviewed analyst')`);
+    await ask(resolution('first', 'true', 'issuer_record', null));
+    await ask(resolution('first_hand', 'true', 'verified_observation', null));
+    return flagsOf(ask, 'substack:r');
+  });
+  expect(held.contested).toBe(false);
+  await expect(
+    run(async (ask) => {
+      await resolutionFixture(ask);
+      await ask(resolution('first', 'source_false', 'issuer_record', null));
+    }),
+  ).rejects.toThrow();
+});
+
 test('a false resolution on an originator with no operator letter sets nothing', async () => {
   const flags = await run(async (ask) => {
     await resolutionFixture(ask);
