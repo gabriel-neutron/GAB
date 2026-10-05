@@ -59,6 +59,10 @@ CREATE OR REPLACE TRIGGER relations_interval
   BEFORE INSERT OR UPDATE OF type, valid_from, valid_to ON relations
   FOR EACH ROW EXECUTE FUNCTION check_relation_interval();
 
+CREATE OR REPLACE TRIGGER relations_one_open
+  BEFORE INSERT OR UPDATE OF type, src_kind, src_id, dst_kind, dst_id, valid_to ON relations
+  FOR EACH ROW EXECUTE FUNCTION check_relation_one_open();
+
 CREATE OR REPLACE TRIGGER relation_type_interval
   BEFORE UPDATE OF takes_interval ON relation_type
   FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
@@ -75,6 +79,7 @@ ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
+ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
 ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 ALTER TABLE originator_letter_history ENABLE ALWAYS TRIGGER originator_letter_history_guard;

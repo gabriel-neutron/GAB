@@ -177,6 +177,38 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- A RELATION OF A DATED TYPE HAS AN END DATE, AND ITS PAIR OF ENDS HOLDS ONE OPEN RELATION OF THAT
+-- TYPE. Open means no `valid_to`. Without the rule, a second `owns` between the same two ends is a
+-- second claim that nothing closes, and a reader cannot say which one stands. A type that takes no
+-- interval has no end date, so it may repeat. The advisory lock makes two concurrent inserts wait
+-- for each other: the second sees the first once it commits, and is refused.
+CREATE OR REPLACE FUNCTION check_relation_one_open() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE dated boolean;
+BEGIN
+  IF NEW.valid_to IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  SELECT t.takes_interval INTO dated FROM public.relation_type t WHERE t.key = NEW.type;
+  IF NOT coalesce(dated, false) THEN
+    RETURN NEW;
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    NEW.type || '|' || NEW.src_kind || '|' || NEW.src_id::text
+             || '|' || NEW.dst_kind || '|' || NEW.dst_id::text, 0));
+  IF EXISTS (SELECT 1 FROM public.relations r
+              WHERE r.type = NEW.type
+                AND r.src_kind = NEW.src_kind AND r.src_id = NEW.src_id
+                AND r.dst_kind = NEW.dst_kind AND r.dst_id = NEW.dst_id
+                AND r.valid_to IS NULL
+                AND r.id <> NEW.id) THEN
+    RAISE EXCEPTION 'a relation of type % between these ends is already open: give it an end date first', NEW.type
+      USING ERRCODE = 'unique_violation', CONSTRAINT = 'relations_one_open_per_type',
+            TABLE = 'relations', SCHEMA = 'public';
+  END IF;
+  RETURN NEW;
+END $$;
+
 -- The other side of the same rule: a type stops taking an interval only when no dated relation
 -- of it stands. The update holds the row lock, so a dated insert that waits on FOR SHARE above
 -- commits first and is seen here, or starts after and is refused there.

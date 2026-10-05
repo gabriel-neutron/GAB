@@ -1251,6 +1251,85 @@ test('set_operator_letter creates the originator when it is absent', async () =>
   expect(found).toBe('B/operator');
 });
 
+// ------------------------------------------------------------------- the rulings of the operator ---
+
+test('the operator letter is a prior: F holds only where no operator row exists', async () => {
+  const found = await run(async (ask) => {
+    await settler(ask);
+    await ensure(ask, 'substack:none');
+    await ensure(ask, 'substack:prior');
+    await ask(`SELECT public.set_operator_letter('substack:prior', 'B', 'a reviewed analyst')`);
+    await ensure(ask, 'substack:poor');
+    await ask(`SELECT public.set_operator_letter('substack:poor', 'B', 'a reviewed analyst')`);
+    await clusters(ask, 'substack:poor', 22, 12);
+    await ensure(ask, 'substack:carded');
+    await card(ask, 'substack:carded', ['carded.example']);
+    await ask(`SELECT public.set_operator_letter('substack:carded', 'C', 'the card is too high')`);
+    return {
+      none: await letterOf(ask, 'substack:none'),
+      prior: await letterOf(ask, 'substack:prior'),
+      poor: await letterOf(ask, 'substack:poor'),
+      carded: await letterOf(ask, 'substack:carded'),
+    };
+  });
+  expect(found).toStrictEqual({
+    none: 'F/track_record',
+    prior: 'B/operator',
+    poor: 'B/operator',
+    carded: 'C/operator',
+  });
+});
+
+test('one originator holds one letter, whatever the document and the path that cite it', async () => {
+  const found = await run(async (ask) => {
+    await ensure(ask, 'host:iea.org', 'International Energy Agency', 'organisation');
+    await ask(`SELECT public.set_operator_letter('host:iea.org', 'B', 'a reviewed agency')`);
+    await ensure(ask, 'host:iea.org', 'International Energy Agency', 'organisation');
+    for (const [id, uri] of [
+      ['doc_iea_a', 'https://www.iea.org/reports/oil-market-report'],
+      ['doc_iea_b', 'https://iea.org/data-and-statistics/charts'],
+      ['doc_iea_c', 'https://elsewhere.example/copy-of-iea'],
+    ] as const)
+      await ask(
+        `INSERT INTO public.documents (id, kind, title, uri, retrieved_at)
+         VALUES ($1, 'url', 'a page', $2, current_date)`,
+        [id, uri],
+      );
+    const letters = z
+      .array(z.object({ letter: z.string() }))
+      .parse(
+        await ask(
+          `SELECT public.originator_letter_for('host:iea.org', d) AS letter
+             FROM unnest(ARRAY['doc_iea_a','doc_iea_b','doc_iea_c']) AS d`,
+        ),
+      )
+      .map((row) => row.letter);
+    const rows = z
+      .array(z.object({ n: z.coerce.number() }))
+      .parse(await ask(`SELECT count(*) AS n FROM public.originator WHERE id = 'host:iea.org'`));
+    return { letters, rows: rows[0]?.n };
+  });
+  expect(found).toStrictEqual({ letters: ['B', 'B', 'B'], rows: 1 });
+});
+
+test('a late record that contradicts a true claim turns its cluster false', async () => {
+  const found = await run(async (ask) => {
+    await settler(ask);
+    await ensure(ask, 'substack:late');
+    await clusters(ask, 'substack:late', 22);
+    const before = await ask(`SELECT n, k FROM public.originator_track_counts('substack:late')`);
+    await ask(
+      `SELECT public.record_resolution('substack:late', gen_random_uuid(), 'doc_substacklate_1',
+                'first', 'false', 'issuer_record', 'doc_settle', NULL, '2026-03-01T00:00:00Z',
+                '2026-01-01')`,
+    );
+    const after = await ask(`SELECT n, k FROM public.originator_track_counts('substack:late')`);
+    return { before, after };
+  });
+  expect(found.before).toStrictEqual([{ n: 22, k: 22 }]);
+  expect(found.after).toStrictEqual([{ n: 22, k: 21 }]);
+});
+
 // ----------------------------------------------------------------------- the impersonation ---
 
 test('a lookalike id stays F with 22 of 22 until the merge, then takes the target letter', async () => {
