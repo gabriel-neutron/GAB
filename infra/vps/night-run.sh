@@ -7,8 +7,13 @@
 #   queue-file  optional. A JSON file in the checkout (for example infra/vps/queues/<name>.json) that
 #               names the tickets of the night, in order, instead of the free tickets of the phase:
 #               {"tickets": [{"n": 198}, {"n": 199, "after": [198]}],
-#                "resume": {"201": {"branch": "fix/201-web-access-tools", "pr": 253}}, "maxRounds": 3}
-#               Only whole numbers and a branch name of the form fix/<n>-<slug> are accepted.
+#                "resume": {"201": {"branch": "fix/201-web-access-tools", "pr": 253}}, "maxRounds": 3,
+#                "base": "integration/<name>"}
+#               With a base, every ticket merges into that integration branch, and the run ends with
+#               ONE pull request from it to staging (the spec stage of resolve-ticket). Without a base,
+#               each ticket merges into staging.
+#               Only whole numbers, a branch name of the form fix/<n>-<slug> and a base of the form
+#               integration/<name> are accepted.
 #
 # The script stops before Claude Code starts when one of these is false:
 #   - no other night run holds the lock;
@@ -129,8 +134,9 @@ if [ -n "$QUEUE" ]; then
        and (.value.pr | type == "number" and . == floor and . > 0)
        and (.value.branch | type == "string" and test("^fix/[0-9]+-[a-z0-9-]+$"))))
     and ((.maxRounds // 3) | type == "number" and . >= 1 and . <= 5)
+    and ((.base // "staging") | type == "string" and test("^(staging|integration/[a-z0-9-]+)$"))
   ' "$QUEUE" >/dev/null || { echo "STOP: queue file '$QUEUE' is not valid (see the usage in the header of this script)"; exit 1; }
-  WF_ARGS="$(jq -c --argjson epic "$EPIC" --arg main "$REPO" '{tickets, resume: (.resume // {}), maxRounds: (.maxRounds // 3), reportIssue: $epic, main: $main}' "$QUEUE")"
+  WF_ARGS="$(jq -c --argjson epic "$EPIC" --arg main "$REPO" '{tickets, resume: (.resume // {}), maxRounds: (.maxRounds // 3), base: (.base // "staging"), reportIssue: $epic, main: $main}' "$QUEUE")"
   echo "queue: $(jq -c '[.tickets[].n]' "$QUEUE") from $QUEUE"
 else
   WF_ARGS="{\"phase\": $PHASE, \"max\": 4, \"reportIssue\": $EPIC, \"main\": \"$REPO\"}"
@@ -141,7 +147,7 @@ fi
 # turn there, `claude -p` exits and the workflow dies before its first agent. The prompt holds
 # the session open until the workflow ends.
 PROMPT="GAB night run. The operator set up this recurring job and authorizes this session to call the Workflow tool.
-1. Call the Workflow tool with name 'resolve-ticket' and args $WF_ARGS. Every pull request targets staging. Never push to main. Do not work any ticket outside the workflow.
+1. Call the Workflow tool with name 'resolve-ticket' and args $WF_ARGS. Every pull request targets staging, or the integration branch named in the args (and then one spec pull request goes from it to staging). Never push to main. Do not work any ticket outside the workflow.
 2. The Workflow tool returns at once, and the workflow runs in the background. Do NOT end your turn after the call. Stay in this session until the workflow reports that it completed or failed.
 3. While you wait, check the progress every 10 minutes with: gh issue view $EPIC --repo gabriel-neutron/GAB --comments --json comments --jq '.comments[-1].createdAt'. Print one line with the time each time you check.
 4. If the Workflow call throws, print the raw error and stop.
