@@ -1,7 +1,6 @@
-// A page that hedges, negates, retracts or only quotes a reader must never come out of the
-// extractor as a plain statement. Every fixture is invented: the units, the places and the hosts
-// do not exist. Each test builds the same page in two shapes, because the extractor takes one road
-// for a page with an article and another for a page with none.
+// A page that hedges, negates, retracts or quotes a reader must not come out as a plain statement.
+// Every fixture is invented. Each page is built in two shapes, because the extractor takes one
+// road for a page with an article and another for a page with none.
 
 import { describe, expect, test } from 'vitest';
 
