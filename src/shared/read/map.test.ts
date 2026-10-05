@@ -296,6 +296,7 @@ const DOCUMENT_ROW = {
   admiralty: 'A1',
   admiralty_origin: 'human',
   created_at: '2026-08-25T03:25:13.270163+00:00',
+  cost_eur: null,
 };
 
 test('a web address of a document reaches the surface as it was stored', () => {

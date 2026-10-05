@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { sendAct, sendDecision, type WriteOutcome } from './door';
+import { sendAct, sendDecision, uploadDocument, type WriteOutcome } from './door';
 
 const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
 const TARGET = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -193,6 +193,43 @@ test('a decision answered by a gateway is unknown, and the sentence names the st
     state: 'unknown',
     doubt: 'The write service answered 502, and this page cannot read the answer.',
   });
+});
+
+const UPLOAD = {
+  fileName: 'mgt-7.pdf',
+  title: 'MGT-7',
+  content: 'JVBERi0=',
+  retrievedAt: '2026-10-01',
+};
+
+test('an upload goes to its own door, and each answer becomes its outcome', async () => {
+  said({ state: 'stored', documentId: 'doc_4f1c2a9e7b30', emptyPages: [2] });
+  expect(await uploadDocument(UPLOAD)).toStrictEqual({
+    state: 'stored',
+    documentId: 'doc_4f1c2a9e7b30',
+    emptyPages: [2],
+  });
+  expect(asked.map((one) => one.address)).toStrictEqual(['/write/upload-document']);
+
+  said({ state: 'known', documentId: 'doc_4f1c2a9e7b30', emptyPages: [] });
+  expect(await uploadDocument(UPLOAD)).toStrictEqual({
+    state: 'known',
+    documentId: 'doc_4f1c2a9e7b30',
+  });
+
+  said({ refusal: 'retrievedAt is required' }, 422);
+  expect(await uploadDocument(UPLOAD)).toStrictEqual({
+    state: 'refused',
+    refusal: 'retrievedAt is required',
+  });
+});
+
+test('an upload the writer could not finish is unknown, and never refused', async () => {
+  said({ refusal: 'the raw store or the database did not answer' }, 503);
+  expect((await uploadDocument(UPLOAD)).state).toBe('unknown');
+
+  answers(() => Promise.reject(new Error('the connection was dropped')));
+  expect((await uploadDocument(UPLOAD)).state).toBe('unknown');
 });
 
 test('a decision that never arrived is unknown, and the sentence states the act may have run', async () => {

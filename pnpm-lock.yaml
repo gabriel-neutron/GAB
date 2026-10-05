@@ -313,6 +313,12 @@ importers:
       '@gab/proposal':
         specifier: workspace:*
         version: link:../proposal
+      '@gab/store':
+        specifier: workspace:*
+        version: link:../store
+      '@gab/worker':
+        specifier: workspace:*
+        version: link:../worker
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.3)

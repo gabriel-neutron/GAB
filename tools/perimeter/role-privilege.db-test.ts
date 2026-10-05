@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
-  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text)',
+  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text,numeric)',
   propose_change:
     'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
   record_model_call:

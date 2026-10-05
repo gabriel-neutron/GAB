@@ -1,4 +1,5 @@
 import { DECISION_OPS, WRITE_OPS } from '@gab/proposal/request';
+import { LARGEST_UPLOAD_BODY } from '@gab/proposal/upload-limit';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
@@ -6,6 +7,7 @@ import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
+import { uploadDocument, type ObjectDoor } from './upload.ts';
 
 const STATUS = {
   signed: 200,
@@ -25,20 +27,21 @@ const PAYLOAD_TOO_LARGE = 413;
 
 const doorOf = (op: string): string => `/write/${op.replaceAll('_', '-')}`;
 
-/** The eight doors. No address here answers a GET: the writer serves no read and returns no row. */
-export const writeRoutes = (pool: Sessions): Hono => {
+// Departure: each door states its own cap. The upload carries a whole file, and one cap on every
+// address would give that larger cap to every act.
+const capped = (maxSize: number) =>
+  bodyLimit({
+    maxSize,
+    onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
+  });
+
+/** The nine doors. No address here answers a GET: the writer serves no read and returns no row. */
+export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
-  app.use(
-    '/write/*',
-    bodyLimit({
-      maxSize: LARGEST_BODY_BYTES,
-      onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
-    }),
-  );
 
   for (const op of WRITE_OPS)
-    app.post(doorOf(op), async (context) => {
+    app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await sign(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
@@ -46,10 +49,17 @@ export const writeRoutes = (pool: Sessions): Hono => {
   // A decision writes no proposal: it names one that waits, and it opens the promotion door of
   // the record or the rejection door.
   for (const op of DECISION_OPS)
-    app.post(doorOf(op), async (context) => {
+    app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await decide(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
+
+  // A file enters the record as a document and never as an act: it writes no proposal, and each
+  // claim it holds is proposed later and cites it.
+  app.post('/write/upload-document', capped(LARGEST_UPLOAD_BODY), async (context) => {
+    const act = await uploadDocument(pool, store, await context.req.text());
+    return context.json(act.reply, act.status);
+  });
 
   return app;
 };

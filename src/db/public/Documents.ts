@@ -29,6 +29,8 @@ export default interface Documents {
   created_at: Date;
 
   provider_id: DocumentProviderId | null;
+
+  cost_eur: string | null;
 }
 
 export interface DocumentsInitializer {
@@ -57,6 +59,8 @@ export interface DocumentsInitializer {
   created_at?: Date;
 
   provider_id?: DocumentProviderId | null;
+
+  cost_eur?: string | null;
 }
 
 export interface DocumentsMutator {
@@ -85,4 +89,6 @@ export interface DocumentsMutator {
   created_at?: Date;
 
   provider_id?: DocumentProviderId | null;
+
+  cost_eur?: string | null;
 }

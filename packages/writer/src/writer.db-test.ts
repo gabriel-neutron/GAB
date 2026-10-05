@@ -6,7 +6,9 @@ import { failureFrom } from './refusal.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
-const app = writeRoutes(pool);
+// An act door never reaches the raw store, so this one refuses every object.
+const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
+const app = writeRoutes(pool, NO_STORE);
 
 interface Held {
   readonly entities: number;
