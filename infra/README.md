@@ -6,13 +6,28 @@ The services the project runs on the operator's machine. The decision and its re
 ## First time
 
 1. Start Docker Desktop. Nothing here works until its engine runs.
-2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed.
+2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The four
+   `RAW_STORE_*_KEY` values are necessary: `docker compose` and `pnpm db:reset` stop without them.
+   Use only letters, digits, `.`, `_`, `+` and `-` in each key.
 3. Start the services:
 
 ```
 docker compose -f infra/docker-compose.yml up -d
 ```
 
+## The raw store
+
+SeaweedFS keeps each source file exactly as it arrived, in the private bucket `raw`. It starts
+with the other services, and it makes the bucket at start. The two accounts and their rights are
+in `seaweedfs/s3.json`, and the keys come from `.env`:
+
+- `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`: the application. It may put an object in
+  `raw` and list `raw`. It may not read, delete or change the bucket.
+- `RAW_STORE_ADMIN_ACCESS_KEY` and `RAW_STORE_ADMIN_SECRET_KEY`: the tests. They may read, write
+  and list `raw`.
+
+A caller with no key gets 403. The store keeps its bytes in the named volume `gab-raw-data`.
+Any other S3 provider can hold the bucket: set `RAW_STORE_ENDPOINT` and `RAW_STORE_REGION`.
 
 ## The model gateway and the search service
 
@@ -37,10 +52,9 @@ The VPS runs the same two services on the Tailscale address. See `vps/README.md`
 | Start | `docker compose -f infra/docker-compose.yml up -d` |
 | Stop, and keep the data | `docker compose -f infra/docker-compose.yml down` |
 | See the logs | `docker compose -f infra/docker-compose.yml logs -f db` |
-| Open the file browser | http://127.0.0.1:9001 |
 | Open a SQL prompt | `docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel` |
 
-`down` keeps the data. It lives in the named volume `gab-db-data`.
+`down` keeps the data. It lives in the named volumes `gab-db-data` and `gab-raw-data`.
 
 ## Destroy the data
 
@@ -58,6 +72,7 @@ test database, `gabriel_test`, again.
 | `127.0.0.1:5432` | PostgreSQL 17, with PostGIS and pgvector |
 | `127.0.0.1:3000` | The PostgREST read API, over the `api` schema |
 | `127.0.0.1:3001` | The same read API over `gabriel_test`, for the tests |
+| `127.0.0.1:9000` | SeaweedFS, the S3 API of the raw store (bucket `raw`) |
 | `127.0.0.1:4001` | freellmapi, the model gateway of the back-end AI (`/v1`, and a dashboard) |
 | `127.0.0.1:8888` | SearXNG, the engine of `web_search` (`/search?q=test&format=json`) |
 

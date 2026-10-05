@@ -49,7 +49,7 @@ a comment, a role or a tool. Read the SQL under db/ for the authority on a const
 document.
 
 The facts of this run. One operator, who is asleep. A VPS with Docker. A disposable local stack of
-PostgreSQL with PostGIS and pgvector, MinIO and PostgREST, on the loopback address alone. Its
+PostgreSQL with PostGIS and pgvector, SeaweedFS and PostgREST, on the loopback address alone. Its
 databases hold no record of value: you may reset them. TypeScript on both sides. No team.
 
 Rules that bind every agent of this run:

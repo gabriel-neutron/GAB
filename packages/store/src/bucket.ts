@@ -35,6 +35,13 @@ const ABSENT =
 const MISPLACED =
   'RAW_STORE_ENDPOINT is not an address, or RAW_STORE_REGION is blank. Correct it, or remove it.';
 
+/** The address and the region of the store. The test account must reach the same store. */
+export const storePlacement = (): { endpoint: string; region: string } => {
+  const where = placement.safeParse(process.env);
+  if (!where.success) throw new Error(MISPLACED);
+  return { endpoint: where.data.RAW_STORE_ENDPOINT, region: where.data.RAW_STORE_REGION };
+};
+
 /** The store and the one bucket in it. Nothing above this holds the address or the account. */
 export interface RawStore {
   readonly client: S3Client;
@@ -46,12 +53,11 @@ export interface RawStore {
 export const openStore = (): RawStore => {
   const held = secrets.safeParse(process.env);
   if (!held.success) throw new Error(ABSENT);
-  const where = placement.safeParse(process.env);
-  if (!where.success) throw new Error(MISPLACED);
+  const { endpoint, region } = storePlacement();
 
   const client = new S3Client({
-    endpoint: where.data.RAW_STORE_ENDPOINT,
-    region: where.data.RAW_STORE_REGION,
+    endpoint,
+    region,
     forcePathStyle: PATH_STYLE,
     credentials: {
       accessKeyId: held.data.RAW_STORE_ACCESS_KEY,
