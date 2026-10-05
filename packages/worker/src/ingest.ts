@@ -130,9 +130,10 @@ const PUT_DOCUMENT = `SELECT public.put_document($1, $2, $3, $4, $5, NULL, $6, $
   $10::numeric)`;
 const PUT_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
 
-// External constraint: the unique index on the hash answers for two callers at one instant. The
-// one that loses gets this name, and the row of the other one is the document.
-const SAME_BYTES = 'documents_sha256_key';
+// External constraint: the id comes from the hash, so the second of two callers with the same
+// bytes hits the primary key before the index on the hash. Either name is the same bytes only
+// when a row holds the hash after the rollback.
+const SAME_BYTES: ReadonlySet<unknown> = new Set(['documents_pkey', 'documents_sha256_key']);
 const UNIQUE_VIOLATION = '23505';
 
 const reasonOf = (error: unknown): string =>
@@ -178,7 +179,7 @@ const isSameBytes = (error: unknown): boolean =>
   'code' in error &&
   error.code === UNIQUE_VIOLATION &&
   'constraint' in error &&
-  error.constraint === SAME_BYTES;
+  SAME_BYTES.has(error.constraint);
 
 // Departure: the row and its text are written in one transaction, so a document never exists with
 // no text and a text never exists with no document. A fault rolls the transaction back, and the

@@ -147,7 +147,7 @@ const NOT_ANSWERED =
   'again: the same file is never stored twice';
 
 // External constraint: class 22 is a value the record cannot hold, and class 23 a rule the row
-// breaks. Each one came from the statement, so nothing was written. Every other fault is a
+// breaks. Each one came from the statement, so no row was written. Every other fault is a
 // service that did not answer.
 const refusedByRecord = (cause: unknown): boolean =>
   cause instanceof DatabaseError && /^2[23]/u.test(cause.code ?? '');

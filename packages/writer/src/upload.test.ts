@@ -1,7 +1,9 @@
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { DatabaseError } from 'pg';
 import { expect, test } from 'vitest';
 
-import { parseUpload } from './upload.ts';
+import type { Session } from './pool.ts';
+import { parseUpload, uploadDocument } from './upload.ts';
 
 const CONTENT = Buffer.from('the filing as it was bought').toString('base64');
 
@@ -93,4 +95,34 @@ test('a file over the cap is refused as too large', () => {
   expect(refusalOf({ ...WHOLE, content }).status).toBe(413);
   const atCap = Buffer.alloc(UPLOAD_FILE_BYTES).toString('base64');
   expect(parsed({ ...WHOLE, content: atCap }).ok).toBe(true);
+});
+
+test('the second of two uploads of the same bytes at one instant answers the first row', async () => {
+  const winner = 'doc_written_first';
+  let looked = 0;
+  const session: Session = {
+    query: (text) => {
+      if (text.includes('WHERE sha256')) {
+        looked += 1;
+        return Promise.resolve({ rows: looked === 1 ? [] : [{ id: winner }] });
+      }
+      if (text.includes('put_document(')) {
+        const raised = new DatabaseError('duplicate key value', 19, 'error');
+        raised.code = '23505';
+        raised.constraint = 'documents_pkey';
+        return Promise.reject(raised);
+      }
+      return Promise.resolve({ rows: [] });
+    },
+    release: () => undefined,
+  };
+  const act = await uploadDocument(
+    { connect: () => Promise.resolve(session) },
+    { put: (object) => Promise.resolve(object.key) },
+    JSON.stringify({ ...WHOLE, fileName: 'mgt-7.txt' }),
+  );
+  expect(act).toStrictEqual({
+    status: 200,
+    reply: { state: 'known', documentId: winner, emptyPages: [] },
+  });
 });
