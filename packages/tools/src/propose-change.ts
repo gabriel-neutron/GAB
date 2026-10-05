@@ -13,7 +13,7 @@ const PROPOSED_OPS: readonly string[] = ['create_entity', 'create_relation', 'up
 const MAX_DOCUMENTS = 20;
 
 const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $4::text,
-  $5::uuid, $6::uuid[], NULL, false, $7::uuid, $8::text, $9::uuid)::text AS id`;
+  $5::uuid, $6::uuid[], NULL, false, $7::uuid, $8::text)::text AS id`;
 
 const identified = z.strictObject({ id: z.uuid() });
 
@@ -70,8 +70,8 @@ export const proposeChange = defineTool({
     }),
     documents: z.array(documentId).min(1).max(MAX_DOCUMENTS),
     modelCallId: z.uuid().optional(),
-    // The runner sets the key, and a profile that offers this tool to a model removes the
-    // field: a model that chose its own key could hide a second fact behind a first.
+    // The runner sets the key. A model that chose its own key could hide a second fact behind a
+    // first one.
     idempotencyKey: z
       .string()
       .regex(/^[0-9a-f]{64}$/u)

@@ -9,7 +9,7 @@ import { probe, rolledBack, type Ask } from '../probe.ts';
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
   propose_change:
-    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid)',
+    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
   record_model_call:
     'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
