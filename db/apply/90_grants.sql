@@ -94,6 +94,7 @@ REVOKE ALL ON FUNCTION ensure_originator(text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_originator_fact(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ensure_originator_candidate(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_operator_letter(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION remove_operator_letter(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION contest_letter(text,text) FROM PUBLIC;
@@ -112,11 +113,12 @@ REVOKE ALL ON FUNCTION record_resolution(text,uuid,text,text,text,text,text,text
 REVOKE ALL ON FUNCTION set_gold_set_letter(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ack_letter_change(uuid) FROM PUBLIC;
 
-GRANT EXECUTE ON FUNCTION ensure_originator(text,text,text,text,text)
+GRANT EXECUTE ON FUNCTION ensure_originator(text,text,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION ensure_originator_candidate(text,text,text)
   TO gabriel_agent, gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
   TO gabriel_agent, gabriel_app;
-GRANT EXECUTE ON FUNCTION decide_originator_fact(uuid) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION decide_originator_fact(uuid) TO gabriel_app;
 
 GRANT EXECUTE ON FUNCTION set_operator_letter(text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION remove_operator_letter(text,text) TO gabriel_app;

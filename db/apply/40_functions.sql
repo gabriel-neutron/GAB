@@ -1336,7 +1336,8 @@ END $$;
 
 -- A NEW ORIGINATOR HAS LETTER F AND PARTY UNKNOWN, AND THIS DOOR NEVER WRITES A LETTER OR A FLAG.
 -- It fills a jurisdiction and a role that are still NULL, and it never changes a value that is set.
--- A jurisdiction from here can only make `party` true at the next refresh. When the display name
+-- A jurisdiction from here can only make `party` true at the next refresh, so only an operator role
+-- runs this door. A model role runs ensure_originator_candidate, which sets neither. When the display name
 -- is the display name of another originator, code records the collision, and the letter stays F
 -- until the operator merges the two.
 CREATE OR REPLACE FUNCTION ensure_originator(
@@ -1394,6 +1395,24 @@ BEGIN
   RETURN p_id;
 END $$;
 
+-- THE DOOR OF A MODEL ROLE. It creates an originator with a NULL jurisdiction and a NULL role, and it
+-- never fills an existing row. It refuses the kind `state_body`, which makes `party` true at the
+-- next refresh. An operator role or a register card sets a jurisdiction, a role and that kind.
+CREATE OR REPLACE FUNCTION ensure_originator_candidate(
+  p_id            text,
+  p_display_name  text,
+  p_kind          text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF p_kind IS NOT DISTINCT FROM 'state_body' THEN
+    RAISE EXCEPTION 'only an operator role creates a state body'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN public.ensure_originator(p_id, p_display_name, p_kind, NULL, NULL);
+END $$;
+
 -- AN AGENT PROPOSES A FACT, AND IT CARRIES THE SPAN THAT SHOWS IT. The door checks the shape of the
 -- call. It does not read the text: decide_originator_fact does, in code.
 CREATE OR REPLACE FUNCTION propose_originator_fact(
@@ -1426,7 +1445,10 @@ END $$;
 
 -- CODE DECIDES A FACT. It re-reads the span from the stored text of the document, at the stored
 -- page and offsets, and it accepts the fact only when the span contains the value that the fact
--- names. A failed check sets `refused` with the reason. An external free field is never an input:
+-- names. Only an operator role runs it: the needle of a controller fact is a value that the
+-- proposer chose, so the role that proposes a fact never decides it. A controller fact and a
+-- no-belligerent-control fact also need a document on a loaded register card.
+-- A failed check sets `refused` with the reason. An external free field is never an input:
 -- a fact whose document is a Wikidata, WHOIS or OpenStreetMap address is refused. The offsets
 -- count characters from 0, and the end is not included.
 CREATE OR REPLACE FUNCTION decide_originator_fact(p_id uuid)
@@ -1499,6 +1521,13 @@ BEGIN
     IF coalesce(btrim(v_needle, v_blank), '') = ''
        OR NOT EXISTS (SELECT 1 FROM public.originator i WHERE i.id = f.value ->> 'imprint') THEN
       v_reason := 'an imprint fact names the byline and an imprint that exists';
+    END IF;
+  END IF;
+
+  IF v_reason IS NULL AND f.kind IN ('controller', 'no_belligerent_control') THEN
+    SELECT * INTO v_card FROM public.issuer_card_for(v_uri);
+    IF v_card.issuer_id IS NULL THEN
+      v_reason := 'the document is not on a loaded register card';
     END IF;
   END IF;
 

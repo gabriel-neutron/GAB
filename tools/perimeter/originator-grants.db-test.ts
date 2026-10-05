@@ -38,9 +38,10 @@ const holdersOf = (names: readonly string[]): Promise<readonly string[]> =>
     found.parse(await ask(HOLDERS, [[...names]])).map((row) => row.found),
   );
 
-test('gabriel_agent holds three doors of the originator and no other', async () => {
+test('gabriel_agent holds two doors of the originator and no other', async () => {
   const names = [
     'ensure_originator',
+    'ensure_originator_candidate',
     'propose_originator_fact',
     'decide_originator_fact',
     'set_operator_letter',
@@ -62,8 +63,7 @@ test('gabriel_agent holds three doors of the originator and no other', async () 
   ];
   const held = (await holdersOf(names)).filter((row) => row.endsWith(' to gabriel_agent'));
   expect(held).toStrictEqual([
-    'decide_originator_fact to gabriel_agent',
-    'ensure_originator to gabriel_agent',
+    'ensure_originator_candidate to gabriel_agent',
     'propose_originator_fact to gabriel_agent',
   ]);
 });
@@ -82,7 +82,9 @@ test('gabriel_app holds the operator doors, and the doors of the code alone stay
     'refresh_originator',
     'review_originator_card',
     'ensure_originator',
+    'ensure_originator_candidate',
     'propose_originator_fact',
+    'decide_originator_fact',
     'issuer_card_for',
     'originator_letter_for',
   ];
@@ -161,12 +163,135 @@ test('gabriel_agent cannot call an operator door', async () => {
   ).rejects.toMatchObject({ code: '42501' });
 });
 
-test('gabriel_agent can call the door that creates an originator, and it gets letter F', async () => {
-  const row = await rolledBack('agent', async (ask) => {
-    await ask(`SELECT public.ensure_originator('telegram:42', 'A channel', 'account')`);
-    return ask(`SELECT 1 FROM public.originator WHERE id = 'telegram:42'`).catch(() => 'no-read');
+const flagRow = z.array(
+  z.object({
+    letter: z.string(),
+    party: z.string(),
+    sanctioned_controlled: z.boolean(),
+    jurisdiction: z.string().nullable(),
+    role: z.string().nullable(),
+    kind: z.string(),
+  }),
+);
+
+const FLAGS = `SELECT letter, party, sanctioned_controlled, jurisdiction, role, kind
+                 FROM public.originator WHERE id = $1`;
+
+test('gabriel_agent can call the door that creates a candidate, and it gets letter F', async () => {
+  const rows = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL ROLE gabriel_agent');
+    await ask(`SELECT public.ensure_originator_candidate('telegram:42', 'A channel', 'account')`);
+    await ask('RESET ROLE');
+    return flagRow.parse(await ask(FLAGS, ['telegram:42']));
   });
-  expect(row === 'no-read' || Array.isArray(row)).toBe(true);
+  expect(rows).toStrictEqual([
+    {
+      letter: 'F',
+      party: 'unknown',
+      sanctioned_controlled: false,
+      jurisdiction: null,
+      role: null,
+      kind: 'account',
+    },
+  ]);
+});
+
+test('gabriel_agent cannot reach ensure_originator, which sets a jurisdiction, a role and a kind', async () => {
+  await expect(
+    rolledBack('agent', (ask) =>
+      ask(`SELECT public.ensure_originator('host:x.example', 'X', 'state_body', 'RU', 'issuer')`),
+    ),
+  ).rejects.toMatchObject({ code: '42501' });
+  await expect(
+    rolledBack('agent', (ask) =>
+      ask(`SELECT public.ensure_originator('host:x.example', 'X', 'organisation', 'RU', NULL)`),
+    ),
+  ).rejects.toMatchObject({ code: '42501' });
+});
+
+test('gabriel_agent cannot create a state body, so it cannot make party true', async () => {
+  await expect(
+    rolledBack('agent', (ask) =>
+      ask(`SELECT public.ensure_originator_candidate('host:x.example', 'X', 'state_body')`),
+    ),
+  ).rejects.toMatchObject({ code: '22023' });
+});
+
+test('the candidate door of gabriel_agent writes no jurisdiction and no role, and fills no row', async () => {
+  const rows = await rolledBack('superuser', async (ask) => {
+    await ask(`SELECT public.ensure_originator('host:x.example', 'X', 'organisation')`);
+    await ask('SET LOCAL ROLE gabriel_agent');
+    await ask(`SELECT public.ensure_originator_candidate('host:x.example', 'X', 'organisation')`);
+    await ask(`SELECT public.ensure_originator_candidate('host:y.example', 'Y', 'organisation')`);
+    await ask('RESET ROLE');
+    await ask(`SELECT public.refresh_originator('host:x.example')`);
+    await ask(`SELECT public.refresh_originator('host:y.example')`);
+    return [
+      flagRow.parse(await ask(FLAGS, ['host:x.example'])),
+      flagRow.parse(await ask(FLAGS, ['host:y.example'])),
+    ];
+  });
+  for (const [row] of rows) {
+    expect(row?.jurisdiction).toBeNull();
+    expect(row?.role).toBeNull();
+    expect(row?.party).toBe('unknown');
+  }
+});
+
+test('gabriel_agent cannot decide a fact, so it cannot write party, a sanction flag or a sanction row', async () => {
+  const text = 'The Ministry of Defence of Russia owns Channel Z through a decree.';
+  const held = await rolledBack('superuser', async (ask) => {
+    const hash = 'a'.repeat(64);
+    await ask(
+      `INSERT INTO public.belligerent (code, name, conflict, approved_sha256, approved_on)
+       VALUES ('RU', 'Russia', 'the war', $1, '2026-03-01')`,
+      [hash],
+    );
+    await ask(`SELECT public.ensure_originator('host:register.example', 'Register', 'organisation')`);
+    await ask(
+      `INSERT INTO public.issuer_card
+         (issuer_id, hosts, url_patterns, approved_sha256, approved_on, approval_reason, source_file)
+       VALUES ('host:register.example', ARRAY['register.example'], ARRAY[]::text[], $1,
+               '2026-03-01', 'a test card', 'register-cards/t.yaml')`,
+      [hash],
+    );
+    await ask(
+      `INSERT INTO public.documents (id, kind, title, uri, retrieved_at)
+       VALUES ('doc_grant', 'url', 'a record', 'https://register.example/decree', current_date)`,
+    );
+    await ask(
+      `INSERT INTO public.document_text (document_id, extractor, page, text)
+       VALUES ('doc_grant', 'text-1', 1, $1)`,
+      [text],
+    );
+    await ask('SET LOCAL ROLE gabriel_agent');
+    await ask(`SELECT public.ensure_originator_candidate('telegram:77', 'Channel Z', 'account')`);
+    const fact = z
+      .array(z.object({ id: z.string() }))
+      .parse(
+        await ask(
+          `SELECT public.propose_originator_fact('telegram:77', 'controller',
+             '{"controller":"RU","name":"Ministry of Defence of Russia","relation":"owns"}'::jsonb,
+             'doc_grant', 1, 0, 40) AS id`,
+        ),
+      )[0]?.id;
+    await ask('SAVEPOINT before_decide');
+    const refusal = await ask(`SELECT public.decide_originator_fact($1::uuid)`, [fact]).then(
+      () => 'allowed',
+      (error: unknown) => z.object({ code: z.string() }).safeParse(error).data?.code ?? 'other',
+    );
+    await ask('ROLLBACK TO SAVEPOINT before_decide');
+    await ask('RESET ROLE');
+    return {
+      refusal,
+      flags: flagRow.parse(await ask(FLAGS, ['telegram:77'])),
+      sanctions: await ask('SELECT 1 FROM public.originator_sanction'),
+    };
+  });
+  expect(held.refusal).toBe('42501');
+  expect(held.flags[0]?.party).toBe('unknown');
+  expect(held.flags[0]?.sanctioned_controlled).toBe(false);
+  expect(held.sanctions).toStrictEqual([]);
 });
 
 test('gabriel_read cannot read an originator fact or call the exceptions door', async () => {
