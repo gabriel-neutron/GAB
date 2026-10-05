@@ -295,8 +295,9 @@ COMMENT ON VIEW api.full_map IS
 -- resolved clusters the counts and the list are NULL, because a rate over so few trials is noise
 -- that a reader takes for a measure. A natural person is hidden until the operator reviews the
 -- card. The counts repeat the cluster rule of originator_track_counts, because this file runs
--- before the functions exist, and a test holds the two equal. A sanction row whose check date has passed shows `checked` false: an expired flag shows as
--- unchecked, it keeps the display limits, and it gives no anchor.
+-- before the functions exist, and a test holds the two equal. A sanction row whose check date has
+-- passed shows `checked` false: an expired flag shows as unchecked, it keeps the display limits,
+-- and it gives no anchor.
 CREATE VIEW api.originator_card AS
   SELECT o.id, o.display_name, o.kind, o.imprint_id, o.party, o.sanctioned_controlled,
          (SELECT coalesce(jsonb_agg(jsonb_build_object(

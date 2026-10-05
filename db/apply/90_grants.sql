@@ -79,9 +79,12 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
 -- ------------------------------------------------------------------------- the originator ---
 -- NO ROLE HOLDS A GRANT ON A TABLE OF THE ORIGINATOR, and the REVOKE above already took every one.
 -- The doors below are the whole of the write path, and none of them writes through a model role
--- except the three of gabriel_agent: it creates an originator at letter F, it proposes a fact with
--- a stored span, and it asks code to decide that fact. No door of gabriel_agent writes a letter, a
--- flag, a merge, an imprint or a resolution (L1).
+-- except the two of gabriel_agent: ensure_originator_candidate and propose_originator_fact.
+-- ensure_originator_candidate creates an originator at letter F with no jurisdiction, no kind
+-- state_body and no flag. propose_originator_fact stores a fact as a proposal with a stored span.
+-- ensure_originator and decide_originator_fact belong to gabriel_app alone: an agent that could set
+-- a jurisdiction, a kind state_body or a decision could make a flag. No door of gabriel_agent
+-- writes a letter, a flag, a merge, an imprint or a resolution (L1).
 --
 -- THREE DOORS HAVE NO GRANT AT ALL. record_resolution, set_gold_set_letter and ack_letter_change
 -- are called by the definer doors of other tickets, and the owner needs no grant to run them.

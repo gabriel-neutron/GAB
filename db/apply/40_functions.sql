@@ -918,10 +918,12 @@ END $$;
 -- name no claim table and no digit. A claim cannot unlock its own letter, because the letter
 -- never reads it.
 --
--- NO MODEL ROLE WRITES A LETTER, A FLAG OR A STATE. gabriel_agent holds three doors: it creates an
--- originator at letter F, it proposes a fact with a stored span, and it asks code to decide that
--- fact. Every other door is the operator's, or it has no grant at all and a definer door of
--- another ticket calls it.
+-- NO MODEL ROLE WRITES A LETTER, A FLAG OR A STATE. gabriel_agent holds two doors:
+-- ensure_originator_candidate creates an originator at letter F, and propose_originator_fact
+-- proposes a fact with a stored span. ensure_originator and decide_originator_fact belong to
+-- gabriel_app alone, because an agent that sets a jurisdiction, a kind state_body or a decision
+-- could make a flag. Every other door is the operator's, or it has no grant at all and a definer
+-- door of another ticket calls it.
 --
 -- A MISSING PARAMETER ROW TURNS ITS RULE OFF. The function reads the row for each band and
 -- falls to the next lower result when the row is absent, so a deleted row never raises a letter.

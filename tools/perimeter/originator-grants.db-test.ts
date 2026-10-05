@@ -247,7 +247,9 @@ test('gabriel_agent cannot decide a fact, so it cannot write party, a sanction f
        VALUES ('RU', 'Russia', 'the war', $1, '2026-03-01')`,
       [hash],
     );
-    await ask(`SELECT public.ensure_originator('host:register.example', 'Register', 'organisation')`);
+    await ask(
+      `SELECT public.ensure_originator('host:register.example', 'Register', 'organisation')`,
+    );
     await ask(
       `INSERT INTO public.issuer_card
          (issuer_id, hosts, url_patterns, approved_sha256, approved_on, approval_reason, source_file)
@@ -266,15 +268,13 @@ test('gabriel_agent cannot decide a fact, so it cannot write party, a sanction f
     );
     await ask('SET LOCAL ROLE gabriel_agent');
     await ask(`SELECT public.ensure_originator_candidate('telegram:77', 'Channel Z', 'account')`);
-    const fact = z
-      .array(z.object({ id: z.string() }))
-      .parse(
-        await ask(
-          `SELECT public.propose_originator_fact('telegram:77', 'controller',
+    const fact = z.array(z.object({ id: z.string() })).parse(
+      await ask(
+        `SELECT public.propose_originator_fact('telegram:77', 'controller',
              '{"controller":"RU","name":"Ministry of Defence of Russia","relation":"owns"}'::jsonb,
              'doc_grant', 1, 0, 40) AS id`,
-        ),
-      )[0]?.id;
+      ),
+    )[0]?.id;
     await ask('SAVEPOINT before_decide');
     const refusal = await ask(`SELECT public.decide_originator_fact($1::uuid)`, [fact]).then(
       () => 'allowed',
