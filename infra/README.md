@@ -18,13 +18,16 @@ docker compose -f infra/docker-compose.yml up -d
 ## The raw store
 
 SeaweedFS keeps each source file exactly as it arrived, in the private bucket `raw`. It starts
-with the other services, and it makes the bucket at start. The two accounts and their rights are
-in `seaweedfs/s3.json`, and the keys come from `.env`:
+with the other services, and it makes the bucket at start. The three accounts and their rights
+are in `seaweedfs/s3.json`, and the keys come from `.env`:
 
 - `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`: the application. It may put an object in
   `raw` and list `raw`. It may not read, delete or change the bucket.
 - `RAW_STORE_ADMIN_ACCESS_KEY` and `RAW_STORE_ADMIN_SECRET_KEY`: the tests. They may read, write
   and list `raw`.
+- `RAW_STORE_RESEARCH_ACCESS_KEY` and `RAW_STORE_RESEARCH_SECRET_KEY`: the research workspace. It
+  may put an object in `raw`, and nothing else. `research/.env` takes these two values as
+  `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`.
 
 A caller with no key gets 403. The store keeps its bytes in the named volume `gab-raw-data`.
 Any other S3 provider can hold the bucket: set `RAW_STORE_ENDPOINT` and `RAW_STORE_REGION`.
