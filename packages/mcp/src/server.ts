@@ -4,7 +4,7 @@ import {
   ListToolsRequestSchema,
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { callTool, type Session } from '@gab/tools/tool';
+import { callTool, type Reach, type Session } from '@gab/tools/tool';
 
 import { GROUPS } from './groups.ts';
 
@@ -43,7 +43,12 @@ const faultSentence = (cause: unknown): string => {
     : `the database refused the call (SQLSTATE ${code})`;
 };
 
-const run = async (pool: SessionPool, name: string, raw: unknown): Promise<CallToolResult> => {
+const run = async (
+  pool: SessionPool,
+  reach: Reach | undefined,
+  name: string,
+  raw: unknown,
+): Promise<CallToolResult> => {
   const group = GROUPS.find((entry) => entry.name === name);
   if (group === undefined)
     return toolError(
@@ -66,7 +71,7 @@ const run = async (pool: SessionPool, name: string, raw: unknown): Promise<CallT
     return toolError(faultSentence(cause));
   }
   try {
-    const outcome = await callTool(tool, session, given.data.input);
+    const outcome = await callTool(tool, session, given.data.input, reach);
     if (!outcome.ok) return toolError(outcome.refusal);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
@@ -79,8 +84,8 @@ const run = async (pool: SessionPool, name: string, raw: unknown): Promise<CallT
 
 // The server registers its own handlers, so the input schema of a group goes out as it is built
 // and no tool of the catalogue is wrapped in a second schema.
-/** The MCP server of the research workspace: it lists the groups and runs each call. */
-export const createServer = (pool: SessionPool): McpServer => {
+/** The MCP server of the research workspace. With no reach, the fetch tool refuses each call. */
+export const createServer = (pool: SessionPool, reach?: Reach): McpServer => {
   const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
 
   mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({
@@ -92,7 +97,7 @@ export const createServer = (pool: SessionPool): McpServer => {
   }));
 
   mcp.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    run(pool, request.params.name, request.params.arguments),
+    run(pool, reach, request.params.name, request.params.arguments),
   );
 
   return mcp;

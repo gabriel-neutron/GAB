@@ -6,7 +6,7 @@ import { z } from 'zod';
 // catalogue. The group adds no logic: the input of each action is the input of its tool.
 export const RESEARCH_GROUPS = {
   graph: ['search_graph', 'neighbourhood', 'lookup_entity'],
-  document: ['document_text'],
+  document: ['document_text', 'fetch_document'],
   propose: ['propose_change', 'proposal_read'],
   job: ['enqueue_extract', 'job_status'],
 } as const satisfies Record<string, readonly ToolName[]>;
