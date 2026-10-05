@@ -7,7 +7,7 @@
 # steps of their own. A weaker gate must not carry the name of the stronger one.
 #
 # `OFFLINE` is a default here and it is a word the operator types anywhere else. The database
-# part of the suite needs Postgres, MinIO, the migrations and the fixture corpus, so it stays
+# part of the suite needs Postgres, the S3 store, the migrations and the fixture corpus, so it stays
 # with the operator. This workflow proves no perimeter, no role, no grant and no row.
 
 name: gates

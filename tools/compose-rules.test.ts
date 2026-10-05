@@ -1,5 +1,6 @@
 // The local compose file binds every port to the loopback address and pins every image. It holds
-// the two services of the back-end AI. The test reads text and opens no socket.
+// the two services of the back-end AI and the object store. The test reads text and opens no
+// socket.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -14,9 +15,9 @@ const composeText = readFileSync(
 );
 
 describe('the local compose file', () => {
-  test('it holds the model gateway and the search service', () => {
+  test('it holds the model gateway, the search service and the object store', () => {
     expect(composeServiceNames(composeText)).toEqual(
-      expect.arrayContaining(['freellmapi', 'searxng']),
+      expect.arrayContaining(['freellmapi', 'searxng', 'seaweedfs']),
     );
   });
 
