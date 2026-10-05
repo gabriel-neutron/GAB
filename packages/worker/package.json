@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./ingest": "./src/ingest.ts"
+  },
   "dependencies": {
     "@gab/model": "workspace:*",
     "@gab/store": "workspace:*",

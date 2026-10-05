@@ -61,6 +61,13 @@ export interface DocumentRow {
   readonly admiraltyOrigin: AdmiraltyOrigin | null;
 }
 
+/** A provider that distributes the bytes of a document, and the licence it gives them. */
+export interface DocumentProvider {
+  readonly id: string;
+  readonly name: string;
+  readonly licence: string;
+}
+
 /** A point, in WGS 84. The column holds any geometry; a surface that draws a dot needs a point. */
 export interface Point {
   readonly lon: number;

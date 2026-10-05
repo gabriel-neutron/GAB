@@ -396,6 +396,7 @@ const READ_HOLDS = `
 
 const READ_VIEWS = [
   'api.document SELECT',
+  'api.document_provider SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
   'api.full_graph SELECT',
@@ -411,7 +412,7 @@ const READ_VIEWS = [
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the thirteen api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the fifteen api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 

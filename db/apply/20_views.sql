@@ -35,17 +35,27 @@ DROP VIEW IF EXISTS api.entity;
 DROP VIEW IF EXISTS api.relation_type;
 DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
+DROP VIEW IF EXISTS api.document_provider;
 
 
 CREATE VIEW api.document AS
   SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at,
-         admiralty, admiralty_origin, created_at
+         admiralty, admiralty_origin, created_at, cost_eur
     FROM public.documents;
 -- s3_key is not published. The bucket is private, and #31 owns how a reader reaches a file.
 COMMENT ON VIEW api.document IS
   'One row per source. The raw file stays in the object store; this is the reference. The '
   'ADMIRALTY rating is a score of the SOURCE and never of a claim (S1): one document holds a '
   'corroborated fact and a rumour at the same score.';
+
+
+-- originator_id is not published: the originator of a claim is read through its own card.
+CREATE VIEW api.document_provider AS
+  SELECT id, name, licence FROM public.document_provider;
+COMMENT ON VIEW api.document_provider IS
+  'The providers that distribute the bytes of a document, and the licence each one gives. The '
+  'licence belongs to the provider and never to one fetch. A document with no provider is '
+  'internal.';
 
 
 CREATE VIEW api.entity_type AS
