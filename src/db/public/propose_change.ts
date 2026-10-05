@@ -16,6 +16,10 @@ export interface propose_change_params {
   p_dissent?: boolean;
 
   p_model_call_id?: string;
+
+  p_idempotency_key?: string;
+
+  p_job_id?: string;
 }
 
 export type propose_change_return_type = string;
