@@ -635,7 +635,7 @@ test('an accepted controller fact that names a belligerent gives party true', as
       { controller: 'RU', name: 'Ministry of Defence of Russia', relation: 'owns' },
       'doc_decree',
       factText,
-      'Ministry of Defence of Russia',
+      factText,
     );
     await decide(ask, id);
     return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'telegram:77') };
@@ -679,7 +679,7 @@ test('a no-belligerent-control fact on a document that is on no register card is
       { jurisdiction: 'GB', jurisdiction_name: 'United Kingdom', registry: 'Companies House' },
       'doc_ch',
       text,
-      'United Kingdom',
+      text,
     );
     await decide(ask, id);
     return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'substack:ok') };
@@ -763,7 +763,7 @@ test('a decided fact is not decided again', async () => {
       { controller: 'RU', name: 'Ministry of Defence of Russia', relation: 'owns' },
       'doc_decree',
       factText,
-      'Ministry of Defence of Russia',
+      factText,
     );
     return [await decide(ask, id), await decide(ask, id)];
   });
@@ -771,7 +771,8 @@ test('a decided fact is not decided again', async () => {
 });
 
 test('party false needs a no-belligerent-control fact and a jurisdiction outside the belligerents', async () => {
-  const text = 'Companies House record: registered in the United Kingdom, no belligerent owner.';
+  const text =
+    'Companies House record: Outlet and Outlet RU are registered in the United Kingdom, no belligerent owner.';
   const found = await run(async (ask) => {
     await belligerents(ask);
     await ensure(ask, 'substack:ok', 'Outlet', 'organisation', 'GB');
@@ -789,7 +790,7 @@ test('party false needs a no-belligerent-control fact and a jurisdiction outside
       { jurisdiction: 'GB', jurisdiction_name: 'United Kingdom', registry: 'Companies House' },
       'doc_ch',
       text,
-      'United Kingdom',
+      text,
     );
     await decide(ask, good);
     const bad = await propose(
@@ -799,12 +800,92 @@ test('party false needs a no-belligerent-control fact and a jurisdiction outside
       { jurisdiction: 'GB', jurisdiction_name: 'United Kingdom', registry: 'Companies House' },
       'doc_ch',
       text,
-      'United Kingdom',
+      text,
     );
     await decide(ask, bad);
     return [(await flagsOf(ask, 'substack:ok')).party, (await flagsOf(ask, 'substack:ru')).party];
   });
   expect(found).toStrictEqual(['false', 'unknown']);
+});
+
+test('a no-belligerent-control fact that cites a register page about another outlet is refused', async () => {
+  const text = 'Companies House record: Other Ltd is registered in the United Kingdom.';
+  const held = await run(async (ask) => {
+    await belligerents(ask);
+    await ensure(ask, 'telegram:77', 'Russian Channel');
+    await registeredDocument(
+      ask,
+      'doc_other',
+      'https://find-and-update.company-information.service.gov.uk/2',
+      text,
+    );
+    const id = await propose(
+      ask,
+      'telegram:77',
+      'no_belligerent_control',
+      { jurisdiction: 'GB', jurisdiction_name: 'United Kingdom', registry: 'Companies House' },
+      'doc_other',
+      text,
+      text,
+    );
+    await decide(ask, id);
+    return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'telegram:77') };
+  });
+  expect(held.fact.status).toBe('refused');
+  expect(held.fact.refused_reason).toMatch(/does not name the originator/);
+  expect(held.flags.party).toBe('unknown');
+});
+
+test('a controller fact that cites a register page about another outlet is refused', async () => {
+  const text = 'Register extract: Other Ltd is owned by the Ministry of Defence of Russia.';
+  const held = await run(async (ask) => {
+    await belligerents(ask);
+    await ensure(ask, 'telegram:77', 'Channel Z');
+    await registeredDocument(ask, 'doc_other', 'https://example.org/other', text);
+    const id = await propose(
+      ask,
+      'telegram:77',
+      'controller',
+      { controller: 'RU', name: 'Ministry of Defence of Russia', relation: 'owns' },
+      'doc_other',
+      text,
+      text,
+    );
+    await decide(ask, id);
+    return { fact: await factStatus(ask, id), flags: await flagsOf(ask, 'telegram:77') };
+  });
+  expect(held.fact.status).toBe('refused');
+  expect(held.fact.refused_reason).toMatch(/does not name the originator/);
+  expect(held.flags.party).toBe('unknown');
+});
+
+test('a sanction entry fact that cites a list page about another outlet is refused', async () => {
+  const text = 'Council Regulation: entry EU-12345 lists the outlet Other Ltd.';
+  const held = await run(async (ask) => {
+    await ensure(ask, 'host:eur-lex.europa.eu', 'EUR-Lex', 'organisation', 'EU');
+    await card(ask, 'host:eur-lex.europa.eu', ['eur-lex.europa.eu'], 'EU');
+    await ensure(ask, 'telegram:77', 'Channel Z');
+    await textDocument(ask, 'doc_eu', 'https://eur-lex.europa.eu/legal-content/y', text);
+    const id = await propose(
+      ask,
+      'telegram:77',
+      'sanction_entry',
+      { regime: 'EU', list_entry_id: 'EU-12345', listed_on: '2026-03-01' },
+      'doc_eu',
+      text,
+      text,
+    );
+    await decide(ask, id);
+    return {
+      fact: await factStatus(ask, id),
+      rows: await ask(
+        `SELECT 1 FROM public.originator_sanction WHERE originator_id = 'telegram:77'`,
+      ),
+    };
+  });
+  expect(held.fact.status).toBe('refused');
+  expect(held.fact.refused_reason).toMatch(/does not name the originator/);
+  expect(held.rows).toHaveLength(0);
 });
 
 test('set_party_false sets party false with a reason, and true still wins', async () => {
@@ -845,7 +926,7 @@ test('an accepted EU sanction entry fact writes a sanction row with its entry id
       { regime: 'EU', list_entry_id: 'EU-12345', listed_on: '2026-03-01' },
       'doc_eu',
       EU_TEXT,
-      'EU-12345',
+      EU_TEXT,
     );
     await decide(ask, id);
     return z
@@ -964,7 +1045,7 @@ const holdingSetup = async (ask: Ask, share: number | string): Promise<string> =
   );
   await refresh(ask, 'host:holding.example');
   await ensure(ask, 'host:outlet.example', 'Outlet', 'organisation');
-  const text = 'Register extract: Holding owns the outlet with a share of capital.';
+  const text = 'Register extract: Holding owns Outlet with a share of capital.';
   await registeredDocument(ask, 'doc_reg', 'https://example.org/register', text);
   const id = await propose(
     ask,
@@ -973,7 +1054,7 @@ const holdingSetup = async (ask: Ask, share: number | string): Promise<string> =
     { controller: 'host:holding.example', name: 'Holding', relation: 'owns', share },
     'doc_reg',
     text,
-    'Holding',
+    text,
   );
   await decide(ask, id);
   return id;

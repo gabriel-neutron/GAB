@@ -1481,7 +1481,10 @@ END $$;
 -- page and offsets, and it accepts the fact only when the span contains the value that the fact
 -- names. Only an operator role runs it: the needle of a controller fact is a value that the
 -- proposer chose, so the role that proposes a fact never decides it. A controller fact and a
--- no-belligerent-control fact also need a document on a loaded register card.
+-- no-belligerent-control fact also need a document on a loaded register card. The card belongs
+-- to the register, so it never ties a fact to its subject. For these two kinds and for a sanction
+-- entry, the same stored span must also name the subject originator, by its display name or its
+-- identifier, and not only the value that the proposer chose.
 -- A failed check sets `refused` with the reason. An external free field is never an input:
 -- a fact whose document is a Wikidata, WHOIS or OpenStreetMap address is refused. The offsets
 -- count characters from 0, and the end is not included.
@@ -1575,6 +1578,18 @@ BEGIN
            AND position(lower(v_needle) IN lower(substr(t.text, f.span_start + 1,
                                                         f.span_end - f.span_start))) > 0) THEN
       v_reason := 'the stored span does not contain the value of the fact';
+    ELSIF f.kind IN ('controller', 'no_belligerent_control', 'sanction_entry') AND NOT EXISTS (
+        SELECT 1
+          FROM public.document_text t
+          JOIN public.originator o ON o.id = f.originator_id
+         WHERE t.document_id = f.document_id AND t.page = f.page
+           AND position(lower(v_needle) IN lower(substr(t.text, f.span_start + 1,
+                                                        f.span_end - f.span_start))) > 0
+           AND (position(lower(o.display_name) IN lower(substr(t.text, f.span_start + 1,
+                                                               f.span_end - f.span_start))) > 0
+                OR position(lower(o.id) IN lower(substr(t.text, f.span_start + 1,
+                                                        f.span_end - f.span_start))) > 0)) THEN
+      v_reason := 'the stored span does not name the originator';
     END IF;
   END IF;
 
