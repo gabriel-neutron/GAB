@@ -10,6 +10,9 @@ export const PROFILES = {
   research: [
     'search_graph',
     'neighbourhood',
+    // The research AI looks up an identifier before it proposes an entity, so it does not make a
+    // second entity for one real object.
+    'lookup_entity',
     'document_text',
     'fetch_document',
     'propose_change',
