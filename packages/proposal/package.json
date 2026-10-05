@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./attribute-value": "./src/attribute-value.ts",
+    "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",
     "./payload": "./src/payload.ts",
     "./relation-types": "./src/relation-types.ts",
