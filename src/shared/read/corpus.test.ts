@@ -19,6 +19,7 @@ const DOCUMENT_ROW = {
   admiralty: 'B2',
   admiralty_origin: 'machine',
   created_at: '2026-08-25T03:25:13.270163+00:00',
+  cost_eur: null,
 };
 
 const NORTHERN = {

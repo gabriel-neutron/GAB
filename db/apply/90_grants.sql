@@ -50,7 +50,7 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- The seventeen doors, and nothing else.
-REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text)
+REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   FROM PUBLIC;
@@ -148,7 +148,7 @@ GRANT EXECUTE ON FUNCTION originator_letter_for(text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
-GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text)
+GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   TO gabriel_agent, gabriel_app, gabriel_research;

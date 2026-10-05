@@ -154,3 +154,64 @@ export async function sendDecision(op: DecisionOp, proposalId: string): Promise<
   if (sentence.state === 'undecided') return { state: 'unknown', doubt: NO_VERDICT };
   return sentence;
 }
+
+/** One file and the fields its document row records. The content is the file in base64. */
+export interface UploadBody {
+  readonly fileName: string;
+  readonly title: string;
+  readonly content: string;
+  readonly retrievedAt: string;
+  readonly uri?: string;
+  readonly providerId?: string;
+  readonly costEur?: number;
+}
+
+/** What one upload became. A known file is already a document, and its id is the one that
+ * holds the bytes. `unknown` is the upload whose result this page cannot learn. */
+export type UploadOutcome =
+  | {
+      readonly state: 'stored';
+      readonly documentId: string;
+      readonly emptyPages: readonly number[];
+    }
+  | { readonly state: 'known'; readonly documentId: string }
+  | { readonly state: 'refused'; readonly refusal: string }
+  | { readonly state: 'unknown'; readonly doubt: string };
+
+const uploaded = z.object({
+  state: z.enum(['stored', 'known']),
+  documentId: z.string(),
+  emptyPages: z.array(z.number()),
+});
+
+const UPLOAD_DOOR = `${PREFIX}/upload-document`;
+
+// External constraint: the writer answers 503 when the store or the record did not answer, and
+// the file may stand in the record. The same bytes are never stored twice, so a resend is safe.
+const UNAVAILABLE = 503;
+
+/** Send one file to the writer. Every failure arrives as a sentence, and never as an error. */
+export async function uploadDocument(body: UploadBody): Promise<UploadOutcome> {
+  let answer: Answer;
+  try {
+    const sent = await fetch(UPLOAD_DOOR, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    answer = { status: sent.status, body: await readBody(sent) };
+  } catch {
+    return { state: 'unknown', doubt: NO_ANSWER };
+  }
+
+  const held = uploaded.safeParse(answer.body);
+  if (held.success)
+    return held.data.state === 'stored'
+      ? { state: 'stored', documentId: held.data.documentId, emptyPages: held.data.emptyPages }
+      : { state: 'known', documentId: held.data.documentId };
+
+  const sentence = refused.safeParse(answer.body);
+  if (!sentence.success) return { state: 'unknown', doubt: unreadable(answer.status) };
+  if (answer.status === UNAVAILABLE) return { state: 'unknown', doubt: sentence.data.refusal };
+  return { state: 'refused', refusal: sentence.data.refusal };
+}
