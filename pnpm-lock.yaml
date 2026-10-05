@@ -266,6 +266,9 @@ importers:
       exiftool-vendored:
         specifier: ^38.3.0
         version: 38.3.0
+      playwright:
+        specifier: ^1.62.1
+        version: 1.62.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
