@@ -3,10 +3,11 @@ import { expect, test } from 'vitest';
 import { CATALOGUE } from './catalogue.ts';
 import { checkProfiles, PROFILE_LIMIT, PROFILES } from './profiles.ts';
 
-test('the catalogue holds the eight tools of the ticket, once each', () => {
+test('the catalogue holds the nine tools that are built, once each', () => {
   expect(CATALOGUE.map((tool) => tool.name).sort()).toStrictEqual([
     'document_text',
     'enqueue_extract',
+    'fetch_document',
     'job_status',
     'lookup_entity',
     'neighbourhood',
@@ -27,6 +28,12 @@ test('the five profiles are data, and the real data passes the check', () => {
   expect(() => {
     checkProfiles(PROFILES, CATALOGUE);
   }).not.toThrow();
+});
+
+test('the research profile fetches a page, and the chat profile, which stores nothing, does not', () => {
+  expect(PROFILES.research).toContain('fetch_document');
+  expect(PROFILES.research).toHaveLength(7);
+  expect(PROFILES.chat).not.toContain('fetch_document');
 });
 
 test('a profile holds no more than eight tools', () => {

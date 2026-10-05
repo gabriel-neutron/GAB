@@ -1,5 +1,6 @@
 import { documentText } from './document-text.ts';
 import { enqueueExtract } from './enqueue-extract.ts';
+import { fetchDocument } from './fetch-document.ts';
 import { jobStatus } from './job-status.ts';
 import { lookupEntity } from './lookup-entity.ts';
 import { neighbourhood } from './neighbourhood.ts';
@@ -12,6 +13,7 @@ export const CATALOGUE = [
   searchGraph,
   neighbourhood,
   documentText,
+  fetchDocument,
   lookupEntity,
   proposalRead,
   proposeChange,
