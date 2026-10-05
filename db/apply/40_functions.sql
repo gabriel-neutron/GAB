@@ -156,6 +156,44 @@ BEGIN
 END $$;
 
 
+-- M6. An interval belongs to a type that takes one, and the type row says so. FOR SHARE is the
+-- point: the foreign key takes FOR KEY SHARE alone, which does not block an update of
+-- takes_interval, so without it a dated insert and a flip of the flag to false both commit.
+-- The refusal keeps the name of the check it replaced.
+CREATE OR REPLACE FUNCTION check_relation_interval() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE dated boolean;
+BEGIN
+  IF NEW.valid_from IS NULL AND NEW.valid_to IS NULL THEN
+    RETURN NEW;
+  END IF;
+  SELECT t.takes_interval INTO dated FROM public.relation_type t
+   WHERE t.key = NEW.type FOR SHARE;
+  IF NOT coalesce(dated, false) THEN
+    RAISE EXCEPTION 'a relation of type % takes no interval', NEW.type
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope',
+            TABLE = 'relations', SCHEMA = 'public';
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- The other side of the same rule: a type stops taking an interval only when no dated relation
+-- of it stands. The update holds the row lock, so a dated insert that waits on FOR SHARE above
+-- commits first and is seen here, or starts after and is refused there.
+CREATE OR REPLACE FUNCTION check_relation_type_interval() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF OLD.takes_interval AND NOT NEW.takes_interval AND EXISTS (
+       SELECT 1 FROM public.relations r
+        WHERE r.type = NEW.key AND (r.valid_from IS NOT NULL OR r.valid_to IS NOT NULL)) THEN
+    RAISE EXCEPTION 'relation type % still holds a relation with an interval', NEW.key
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope',
+            TABLE = 'relation_type', SCHEMA = 'public';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
 -- ================================================================================ THE DOORS ==
 -- Fifteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
@@ -422,12 +460,16 @@ BEGIN
     RETURNING id INTO v_id;
 
   ELSIF p.op = 'create_relation' THEN
-    -- S2, the same split as create_entity above.
+    -- The same fallback as create_entity: a word that is not a live type lands as `unknown`,
+    -- and the word survives beside it. S2, the same split as create_entity above.
+    SELECT t.key INTO v_type FROM public.relation_type t
+      WHERE t.key = p.payload->>'type' AND NOT t.retired;
     INSERT INTO public.relations
-      (type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs, sources,
-       promoted_from)
+      (type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs,
+       sources, promoted_from)
     VALUES (
-      p.payload->>'type',
+      coalesce(v_type, 'unknown'),
+      CASE WHEN v_type IS NULL THEN p.payload->>'type' END,
       coalesce(p.payload->>'src_kind','entity'), (p.payload->>'src_id')::uuid,
       coalesce(p.payload->>'dst_kind','entity'), (p.payload->>'dst_id')::uuid,
       (p.payload->>'valid_from')::date, (p.payload->>'valid_to')::date,

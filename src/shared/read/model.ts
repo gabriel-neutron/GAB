@@ -29,6 +29,22 @@ export interface EntityTypeDeclaration {
  * that word. It is read beside the corpus, and never written by hand. */
 export type TypeVocabulary = readonly EntityTypeDeclaration[];
 
+/** What `relation_type` states about one type. A relation is stored in one direction only, so a
+ * page reads it from its source in `label` and from its far end in `inverseLabel`. */
+export interface RelationTypeDeclaration {
+  readonly key: string;
+  readonly label: string;
+  readonly inverseLabel: string;
+  /** M6: whether a relation of this type may carry `validFrom` and `validTo`. */
+  readonly takesInterval: boolean;
+  /** Out of service: the rows that carry the word keep it, and no new row takes it. */
+  readonly retired: boolean;
+}
+
+/** Every relation type the database declares, retired ones included: a promoted row still
+ * carries that word. */
+export type RelationTypeVocabulary = readonly RelationTypeDeclaration[];
+
 export type DocumentKind = 'file' | 'url' | 'api' | 'report' | 'manual';
 export type AdmiraltyOrigin = 'machine' | 'arbitrated' | 'human';
 
@@ -101,6 +117,8 @@ export type EndpointKind = 'entity' | 'relation';
 export interface Relation {
   readonly id: string;
   readonly type: string;
+  /** The extracted word, kept when it was not a live type. The row then stands as `unknown`. */
+  readonly proposedType: string | null;
   readonly srcKind: EndpointKind;
   readonly srcId: string;
   readonly dstKind: EndpointKind;
@@ -202,4 +220,7 @@ export interface Corpus {
    * entity says where it was located, and this says where the map draws it. The two differ for
    * the entity that inherits its point, and that difference is the whole reason this exists. */
   readonly positions: readonly MapPosition[];
+  /** The words of each relation type. Every surface that words a relation reads the corpus, so
+   * the list travels with it and no surface words a type from its key. */
+  readonly relationTypes: RelationTypeVocabulary;
 }

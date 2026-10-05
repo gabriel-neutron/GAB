@@ -30,15 +30,15 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- "no role writes a table" holds for the tables granted below and NOT for a table nobody
 -- has written.
 -- Audit arm 4 proves that the list is still complete after the next migration.
-GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
+GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations, jobs
   TO gabriel_app;
-GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
+GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
 -- column that a tool has no use for.
-GRANT SELECT ON documents, entity_type, proposals, entities, relations
+GRANT SELECT ON documents, entity_type, relation_type, proposals, entities, relations
   TO gabriel_research;
 
 -- THE CONVERSATIONS ARE PRIVATE. gabriel_app reads the three tables, and no other role holds a

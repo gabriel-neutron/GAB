@@ -54,12 +54,23 @@ CREATE OR REPLACE TRIGGER relations_endpoints
   BEFORE INSERT OR UPDATE OF src_id, dst_id, src_kind, dst_kind ON relations
   FOR EACH ROW EXECUTE FUNCTION check_relation_endpoints();
 
+-- M6, the interval rule, read on the type row from both sides.
+CREATE OR REPLACE TRIGGER relations_interval
+  BEFORE INSERT OR UPDATE OF type, valid_from, valid_to ON relations
+  FOR EACH ROW EXECUTE FUNCTION check_relation_interval();
+
+CREATE OR REPLACE TRIGGER relation_type_interval
+  BEFORE UPDATE OF takes_interval ON relation_type
+  FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
+
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
+ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
+ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 
 RESET ROLE;

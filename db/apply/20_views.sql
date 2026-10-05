@@ -31,6 +31,7 @@ DROP VIEW IF EXISTS api.value_support;
 DROP VIEW IF EXISTS api.proposal;
 DROP VIEW IF EXISTS api.relation;
 DROP VIEW IF EXISTS api.entity;
+DROP VIEW IF EXISTS api.relation_type;
 DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
 
@@ -54,6 +55,14 @@ COMMENT ON VIEW api.entity_type IS
   'themes, because its ground is imagery.';
 
 
+CREATE VIEW api.relation_type AS
+  SELECT key, label, inverse_label, takes_interval, retired FROM public.relation_type;
+COMMENT ON VIEW api.relation_type IS
+  'The closed list of relation types. Filter retired=is.false for the live vocabulary. A relation '
+  'is stored in one direction only: label reads it from its source, and inverse_label from its '
+  'far end. takes_interval says whether valid_from and valid_to may be set (M6).';
+
+
 CREATE VIEW api.entity AS
   SELECT id, type, proposed_type, label,
          -- GeoJSON, never raw. PostgREST serialises a PostGIS geometry as hex EWKB, and
@@ -70,14 +79,15 @@ COMMENT ON VIEW api.entity IS
 
 
 CREATE VIEW api.relation AS
-  SELECT id, type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to,
+  SELECT id, type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to,
          attrs, sources, promoted_from, created_at, updated_at
     FROM public.relations;
 COMMENT ON VIEW api.relation IS
   'A relation. It states its claim in its own columns — the type and the two ends — and it may '
   'carry no attribute at all, so `sources` is often the only evidence it has. An interval is '
-  'reserved for identity and ownership types (M6). src_kind and dst_kind may say relation: '
-  'nothing writes that today and nothing prevents it (M4).';
+  'reserved for the types that take one in api.relation_type (M6). src_kind and dst_kind may say '
+  'relation: nothing writes that today and nothing prevents it (M4). proposed_type carries the '
+  'extracted word when it was not a live type.';
 
 
 CREATE VIEW api.proposal AS
