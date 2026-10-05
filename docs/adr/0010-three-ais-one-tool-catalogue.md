@@ -33,13 +33,24 @@ badly among many tools:
 
 | Profile | Tools |
 |---|---|
-| research (MCP) | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `fetch_document`, `propose_change`, `enqueue_extract`, `job_status` |
+| research (MCP) | see "The MCP server" below |
 | extractor | `document_text`, `lookup_entity`, `propose_change` |
 | mapper (P6) | `file_schema_sample`, `propose_mapping` |
 | verifier | `document_text`, `proposal_read`, `vote` |
 | chat | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `enqueue_extract` |
 
-A lookup tool of #174 joins a profile only when that profile stays at eight tools or fewer.
+**The MCP server.** Amended 4 October 2026 (#200). Claude Code and Codex are large models. The
+MCP server gives them one surface with no tool limit. Its purpose: with it, the operator AI can
+do every action that the research needs. It reads the graph and the documents, fetches and stores
+a document, queries the external sources of #174, proposes a change, and starts and follows a
+job. The tools follow the deep-module rule: few tools, each with a small interface and more
+parameters. Tools are grouped by purpose, for example `graph`, `document`, `lookup`, `propose`
+and `job`. A new external source is a new value of the `source` parameter of `lookup`, with its
+own Zod schema, not a new tool. This ADR fixes no tool list. The list changes when the research
+needs change. When the AI selects tools badly, a skill or a document in `research/` tells it how
+to use them. The tool count does not decrease.
+
+The back-end profiles stay small, because the back-end AI is a small model on free tokens.
 
 ### 3. Each consumer has its own database role
 
@@ -115,9 +126,17 @@ ADMIRALTY letter and digit are internal tags that no gate reads. These parts of 
 ### 8. The chat is local and never proposes
 
 The chat runs on the operator's writer, not on the public deployment, which has no write path and
-no authentication (C5). It reads through `gabriel_read`, so T4 is not amended. **It never
+no authentication (C5). It reads the graph through `gabriel_read`. **It never
 proposes** (#18: a live answer never becomes a proposal directly), and it ships only with the
 #18 tables. It comes last, because MCP already gives Claude and Codex the same tools.
+
+**The results are public, and the conversations are private.** Amended 4 October 2026 (#211).
+All the data is in the deployed database: there is no second database. The #18 tables
+(conversations, messages, their citations) and the other working data that a result does not
+need are in a schema that the `api` views do not expose. `gabriel_read` has no grant on it. The
+public site and the public API therefore read only the results. The writer reads the conversations
+as `gabriel_app`, on the operator's machine or for a person to whom the operator gives the writer
+credentials. This amends T4: the writer also serves the reads of the private data.
 
 ### 9. Build order
 
@@ -151,6 +170,7 @@ Each step names what it unblocks for the research.
 | P4, #16 | `model_call` lands with the first agent. |
 | #25 | freellmapi by default, OpenRouter as the switch, pinned models, a second family for dissent. |
 | T9a | Quota pause, `complete_job`, lease rule, `jobs.kind`. |
+| T4 | The writer also serves the reads of the private data: the #18 conversations (§8). The public read path stays the only reader of the results. |
 | T5 | Two services are added: freellmapi and SearXNG. They hold no record of the project, run on the operator's VPS, and listen on its private network address only (`infra/vps/`). |
 
 ## Consequences
