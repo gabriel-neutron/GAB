@@ -13,7 +13,7 @@ export const MAX_BYTES = 1024 * 1024;
 /** A fault of an upstream. Its message is a constant sentence and holds no address and no key. */
 export class UpstreamFault extends Error {}
 
-export const webOf = (reach: Reach | undefined): Web => {
+export const webFromReach = (reach: Reach | undefined): Web => {
   if (reach?.web === undefined)
     throw new ToolRefusal('this surface gives no access to the web, so this tool answers nothing');
   return reach.web;

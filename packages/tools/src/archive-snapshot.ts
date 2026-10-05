@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { defineTool, ToolRefusal, type Web } from './tool.ts';
-import { anyAnswerOf, answerOf, UpstreamFault, webOf } from './web-access.ts';
+import { anyAnswerOf, answerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
 // External constraint: the archive has one host, and each address this tool returns is built from
 // it. The archive names a capture by a timestamp of fourteen digits, so that is the one part of
@@ -135,7 +135,7 @@ export const archiveSnapshot = defineTool({
   }),
   output: outputShape,
   async run(session, input, reach) {
-    const web = webOf(reach);
+    const web = webFromReach(reach);
     const { given, href } = checked(input.url);
 
     // The stored check applies to a capture alone: a lookup must work for a page that is not

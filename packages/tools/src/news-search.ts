@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { clipped, isWebAddress, UpstreamFault, answerOf, webOf } from './web-access.ts';
+import { clipped, isWebAddress, UpstreamFault, answerOf, webFromReach } from './web-access.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 
 // External constraint: GDELT DOC 2.0 has one host, and its list holds at most 250 rows. The cap
@@ -54,7 +54,7 @@ export const newsSearch = defineTool({
     }),
   output: outputShape,
   async run(_session, input, reach) {
-    const web = webOf(reach);
+    const web = webFromReach(reach);
     const url = new URL(GDELT);
     url.searchParams.set('query', input.query);
     url.searchParams.set('mode', 'artlist');
