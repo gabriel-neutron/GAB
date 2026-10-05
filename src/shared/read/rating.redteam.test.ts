@@ -46,9 +46,10 @@ describe('the band of a valid rating', () => {
     for (const letter of letters)
       for (const digit of digits) {
         const poor = 'DEF'.includes(letter) || digit >= 4;
-        expect(readRating(row(`${letter}${String(digit)}`, 'human')).poor, `${letter}${digit}`).toBe(
-          poor,
-        );
+        expect(
+          readRating(row(`${letter}${String(digit)}`, 'human')).poor,
+          `${letter}${digit}`,
+        ).toBe(poor);
       }
   });
 });

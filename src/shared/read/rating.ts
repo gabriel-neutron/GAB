@@ -13,6 +13,11 @@ export interface Rating {
   readonly poor: boolean;
 }
 
+/** The closed sets of the record: a letter and a figure, and the three origins. The wire type is a
+ * plain string, so the reader holds the sets itself. */
+const SHAPE = /^[A-F][1-6]$/;
+const ORIGINS: ReadonlySet<string> = new Set(['machine', 'arbitrated', 'human']);
+
 const ABSENT: Rating = { rated: false, score: 'not rated', scoreOrigin: '', poor: false };
 
 /** The letter is the reliability of the source and the figure the credibility of the report.
@@ -34,6 +39,15 @@ export function readRating(row: DocumentRow | undefined): Rating {
   if (row === undefined) return ABSENT;
   const { admiralty, admiraltyOrigin } = row;
   if (admiralty !== null && admiraltyOrigin !== null) {
+    // A value outside the closed sets is neither a rating nor an absence. The record refuses it,
+    // so it comes from a drift of the wire or a hand-built row, and it must not draw as a score.
+    if (!SHAPE.test(admiralty) || !ORIGINS.has(admiraltyOrigin))
+      return {
+        rated: false,
+        score: 'rating incomplete',
+        scoreOrigin: 'a rating or its origin is outside the closed sets of the record',
+        poor: false,
+      };
     return {
       rated: true,
       score: admiralty,
