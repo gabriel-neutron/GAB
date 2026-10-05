@@ -21,6 +21,7 @@
 SET ROLE gabriel_owner;
 
 -- ------------------------------------------------------------------------------------------
+DROP VIEW IF EXISTS api.originator_card;
 DROP VIEW IF EXISTS api.full_map;
 DROP VIEW IF EXISTS api.full_graph;
 DROP VIEW IF EXISTS api.layout;
@@ -288,5 +289,56 @@ COMMENT ON VIEW api.full_map IS
   'inherited. parent_id names that ancestor, and it is null when the entity stands at its own '
   'point. A null geom is an entity the map cannot place. The word is a claim of the analyst. It '
   'may be absent, and a surface must then draw the cautious state and never a measured one.';
+
+-- THE DATA OF THE SOURCE CARD, AND IT CARRIES NO LETTER. The letter is internal: the card shows the
+-- track record, and it never shows the letter (the letter is not a column here). Under five
+-- resolved clusters the counts and the list are NULL, because a rate over so few trials is noise
+-- that a reader takes for a measure. A natural person is hidden until the operator reviews the
+-- card. The counts repeat the cluster rule of originator_track_counts, because this file runs
+-- before the functions exist, and a test holds the two equal. A sanction row whose check date has
+-- passed shows `checked` false: an expired flag shows as unchecked, it keeps the display limits,
+-- and it gives no anchor.
+CREATE VIEW api.originator_card AS
+  SELECT o.id, o.display_name, o.kind, o.imprint_id, o.party, o.sanctioned_controlled,
+         (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                    'regime', s.regime, 'list_entry_id', s.list_entry_id,
+                    'listed_on', s.listed_on,
+                    'checked', (s.checked_until IS NULL OR s.checked_until >= current_date))
+                  ORDER BY s.regime, s.list_entry_id), '[]'::jsonb)
+            FROM public.originator_sanction s
+           WHERE s.originator_id = coalesce(o.merged_into, o.id)) AS sanctions,
+         o.letter_origin,
+         CASE WHEN t.n >= 5 THEN t.n END AS n_resolved,
+         CASE WHEN t.n >= 5 THEN t.k END AS n_true,
+         CASE WHEN t.n >= 5 THEN t.fabricated END AS n_fabricated,
+         CASE WHEN t.n >= 5 THEN
+           (SELECT jsonb_agg(jsonb_build_object(
+                      'claim_id', r.claim_id, 'claim_document', r.claim_document,
+                      'position', r.position, 'outcome', r.outcome,
+                      'settled_by', r.settled_by, 'resolved_at', r.resolved_at)
+                    ORDER BY r.resolved_at, r.id)
+              FROM public.originator_resolution r
+             WHERE r.originator_id = o.id
+               AND NOT (r.outcome = 'fabricated' AND r.fabrication_confirmed_at IS NULL))
+         END AS resolved_claims
+    FROM public.originator o
+   CROSS JOIN LATERAL (
+     SELECT count(*)::integer AS n,
+            (count(*) FILTER (WHERE g.is_true))::integer AS k,
+            (count(*) FILTER (WHERE g.is_fabricated))::integer AS fabricated
+       FROM (SELECT bool_and(c.outcome = 'true') AS is_true,
+                    bool_or(c.outcome = 'fabricated') AS is_fabricated
+               FROM public.originator_resolution c
+              WHERE c.originator_id = o.id
+                AND NOT (c.outcome = 'fabricated' AND c.fabrication_confirmed_at IS NULL)
+              GROUP BY c.claim_document) AS g) AS t
+   WHERE o.kind <> 'person' OR o.card_reviewed_at IS NOT NULL;
+COMMENT ON VIEW api.originator_card IS
+  'One row per originator: who first put a claim out. It carries the party relation, the sanctions '
+  'rows with `checked` false once their check date has passed, how the letter was reached '
+  '(letter_origin) and the track record. It carries no letter. n_resolved, n_true, n_fabricated '
+  'and resolved_claims are NULL under five resolved clusters. n_resolved counts clusters: the '
+  'claims of one document are one. A natural person has no row until the operator reviews the '
+  'card.';
 
 RESET ROLE;
