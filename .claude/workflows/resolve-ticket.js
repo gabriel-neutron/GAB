@@ -5,7 +5,7 @@ export const meta = {
   description:
     'Resolve GitHub tickets of GAB end to end: triage -> propose (debate on a real choice) -> independent design review -> test-first implementation -> review panel and gatekeeper (change-request loop) -> merge into staging and close the ticket',
   whenToUse:
-    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>} names the tickets. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /home/claude/projects/GAB (the VPS).',
+    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>, resume?: {<n>: {branch, pr}}} names the tickets. `resume` names a ticket whose earlier PR of this workflow is continued and not flagged. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /home/claude/projects/GAB (the VPS).',
   phases: [
     { title: 'Preflight', detail: 'identity, staging branch, disposable stack; with no tickets given, choose the queue of the phase' },
     { title: 'Triage', detail: 'per ticket: still current? duplicate? open PR, branch or assignee? what does it touch?' },
@@ -28,6 +28,11 @@ const MAIN_WORKTREE = (args && args.main) || '/home/claude/projects/GAB'
 const COMPOSE = `docker compose -f ${MAIN_WORKTREE}/infra/docker-compose.yml`
 
 const MAX_ROUNDS = (args && args.maxRounds) || 3
+
+// args.resume = {<ticket>: {branch, pr}}: an earlier run of this workflow left a PR for the ticket
+// (for example at needs_human). The run then continues on that branch and that PR, and does not
+// treat the PR as work of somebody else.
+const RESUME = (args && args.resume) || {}
 
 // Four tickets per night run. The operator chose it: four tickets cost about sixty agents, and
 // the morning report must stay readable in one sitting.
@@ -332,9 +337,9 @@ You TRIAGE ticket #${n}. READ-ONLY: no edits, no commits, no GitHub writes.
 2. Assignee: gabriel-neutron is the identity of this run, and the preflight of this run claims
    each ticket of its queue. So an assignee gabriel-neutron is the claim of this run, and not work
    in progress. If anyone other than gabriel-neutron holds it, status=flagged_in_progress.
-3. Existing work: gh pr list --repo ${REPO} --state open --search "${n} in:body", a search by title
+${RESUME[n] ? `3. Existing work: PR #${RESUME[n].pr} on branch ${RESUME[n].branch} is OUR earlier run (gabriel-neutron), left at needs_human. It is NOT a reason to flag. Read it (gh pr view ${RESUME[n].pr} --repo ${REPO} --comments) and the ticket comments, and list the paths it already touches plus the paths that the newer comments of the ticket need. Do not use flagged_in_progress for this PR.` : `3. Existing work: gh pr list --repo ${REPO} --state open --search "${n} in:body", a search by title
    words, and git ls-remote --heads origin for a branch that contains ${n}. An open PR or a live
-   branch for this ticket gives flagged_in_progress with the link.
+   branch for this ticket gives flagged_in_progress with the link.`}
 4. Still current? git fetch origin, then read the code the ticket names on origin/main and on
    origin/staging. Fixed on staging but not on main: flagged_stale ("fixed on staging, waits for
    the promotion" + the commit). Fixed everywhere, or the symptom is gone: flagged_stale.
@@ -442,8 +447,8 @@ const implementPrompt = (n, approach) => `${CTX(n)}
 ${ESCALATION}
 You IMPLEMENT ticket #${n} with this reviewed approach: "${approach}"
 You are in an isolated git worktree. Steps:
-1. Claim the ticket: gh issue edit ${n} --repo ${REPO} --add-assignee @me. Then git fetch origin, and
-   create the branch fix/${n}-<short-kebab-slug> from origin/staging.
+1. ${RESUME[n] ? `Continue an earlier run. Claim the ticket if it is not yet yours (gh issue edit ${n} --repo ${REPO} --add-assignee @me). git fetch origin, then work on the EXISTING branch ${RESUME[n].branch} of PR #${RESUME[n].pr}: make your worktree branch from origin/${RESUME[n].branch}, then bring in origin/staging (a merge commit, never a force-push of staging). Read the PR description and every review comment (gh pr view ${RESUME[n].pr} --repo ${REPO} --comments), the run reports on the ticket, and ALL ticket comments, in particular the rulings of the operator. Those rulings are binding. Do what is still missing and add a test for each ruling. Keep the work that passes; do not start again. Push to the SAME branch. Do NOT open a new PR; the result has pr_number ${RESUME[n].pr}.` : `Claim the ticket: gh issue edit ${n} --repo ${REPO} --add-assignee @me. Then git fetch origin, and
+   create the branch fix/${n}-<short-kebab-slug> from origin/staging.`}
 2. ${SETUP}
 3. ${DB_SYNC}
 4. TEST FIRST: write the test(s) that fail today and prove the problem of this ticket. A test that
@@ -463,11 +468,11 @@ You are in an isolated git worktree. Steps:
    the ticket, and return status=needs_human_prerequisite with it in prerequisites. Do the same for
    a question that one of the five cases above reserves to the operator.
 9. ${COMMIT(n)}
-Push the branch (git push -u origin <branch>). Open a DRAFT PR to staging
+Push the branch (git push -u origin <branch>). ${RESUME[n] ? `The PR already exists (#${RESUME[n].pr}); do not open another one.` : `Open a DRAFT PR to staging
 (gh pr create --repo ${REPO} --base staging --draft --body-file <tmp>). The body: "Closes #${n}",
 a summary, the red and green evidence, the migrations, and each assumption with its cost, in
 Simplified Technical English, ending with:
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Claude Code](https://claude.com/claude-code)`}
 If something only the operator can do stops you (a secret, a third-party account, a change to
 docs/, a decision of the five cases), return status=needs_human_prerequisite with a checklist in
 prerequisites instead of blocked. The stack is not such a case: step 3 starts it.
