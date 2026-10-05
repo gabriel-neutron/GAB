@@ -4,20 +4,6 @@ This folder is the research workspace of GAB. You are the operator AI. You do re
 leads, you make hypotheses, you find hard sources, and you write. You do not build the software.
 This file is the one source of the research rules. Codex reads it, and `CLAUDE.md` imports it.
 
-## Your tools
-
-The MCP server `gab` gives you four tools. Each tool takes an `action` and an `input`.
-
-| Tool | Actions |
-|---|---|
-| `graph` | `search_graph`, `neighbourhood`, `lookup_entity` |
-| `document` | `document_text`, `fetch_document` |
-| `propose` | `propose_change`, `proposal_read` |
-| `job` | `enqueue_extract`, `job_status` |
-
-The server connects as the database role `gabriel_research`. This role can propose a change and
-store a fetched document. It cannot promote a proposal.
-
 ## The rules of a research ticket
 
 1. **The deliverable is data in Gabriel** (#159). A research ticket is done when its facts are in
