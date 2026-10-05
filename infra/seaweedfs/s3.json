@@ -8,6 +8,16 @@
       "policyNames": ["gab-app-put-list"]
     },
     {
+      "name": "gab-research",
+      "credentials": [
+        {
+          "accessKey": "${RAW_STORE_RESEARCH_ACCESS_KEY}",
+          "secretKey": "${RAW_STORE_RESEARCH_SECRET_KEY}"
+        }
+      ],
+      "policyNames": ["gab-research-put"]
+    },
+    {
       "name": "gab-admin",
       "credentials": [
         {
@@ -22,6 +32,10 @@
     {
       "name": "gab-app-put-list",
       "content": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:PutObject\"],\"Resource\":[\"arn:aws:s3:::raw/*\"]},{\"Effect\":\"Allow\",\"Action\":[\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::raw\"]}]}"
+    },
+    {
+      "name": "gab-research-put",
+      "content": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:PutObject\"],\"Resource\":[\"arn:aws:s3:::raw/*\"]}]}"
     }
   ]
 }
