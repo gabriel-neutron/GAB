@@ -124,14 +124,17 @@ test('a claim marks the row running, stamps the role and counts the attempt', as
 });
 
 const queue = z.array(z.object({ id: z.uuid(), status: z.string(), attempts: z.number().int() }));
-const QUEUE = 'SELECT id, status, attempts FROM public.jobs ORDER BY id';
+// Departure: the query reads the jobs that this suite queued and no other. Other test files of the
+// same run commit and remove jobs of their own in public.jobs at the same time.
+const QUEUE =
+  'SELECT id, status, attempts FROM public.jobs WHERE document_id = ANY($1::text[]) ORDER BY id';
 
 test('a layout run and a reconcile run leave every job as they met it', async () => {
   await held(async (client) => {
-    const before = queue.parse((await client.query(QUEUE)).rows);
+    const before = queue.parse((await client.query(QUEUE, [SEEDED])).rows);
     await runLayout(client);
     await reconcileCorpus(client, openStore());
-    const after = queue.parse((await client.query(QUEUE)).rows);
+    const after = queue.parse((await client.query(QUEUE, [SEEDED])).rows);
     expect(before.some((job) => job.status === 'queued' && job.attempts === 0)).toBe(true);
     expect(after).toStrictEqual(before);
   });
