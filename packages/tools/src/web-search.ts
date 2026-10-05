@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { clipped, isWebAddress, jsonOf, UpstreamFault, webOf } from './web-access.ts';
+import { clipped, isWebAddress, jsonOf, UpstreamFault, webFromReach } from './web-access.ts';
 import { defineTool, ToolRefusal, type Web } from './tool.ts';
 
 const MAX_RESULTS = 20;
@@ -145,7 +145,7 @@ export const webSearch = defineTool({
   }),
   output: outputShape,
   async run(_session, input, reach) {
-    const web = webOf(reach);
+    const web = webFromReach(reach);
     const key = web.braveKey === undefined || web.braveKey === '' ? undefined : web.braveKey;
     const setting =
       web.searxngUrl === undefined || web.searxngUrl === '' ? undefined : web.searxngUrl;
