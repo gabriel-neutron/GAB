@@ -23,7 +23,7 @@ const placement = z.object({
 });
 
 // External constraint: the account may put an object in this bucket and list it, and nothing else.
-// It may write over a key that exists, and the root pair sits in the same process.
+// It may write over a key that exists, and the admin pair of the tests sits in the same process.
 const secrets = z.object({
   RAW_STORE_ACCESS_KEY: z.string().trim().min(1),
   RAW_STORE_SECRET_KEY: z.string().trim().min(1),
