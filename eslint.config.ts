@@ -305,6 +305,9 @@ export default defineConfig(
     ],
   },
 
+  // Each agent worktree is a whole second checkout, and typed linting of all of them fills the heap.
+  { ignores: ['.claude/worktrees'] },
+
   // The route tree is generated and carries its own banner. It is excluded by name, never by a
   // pattern that authored code can enter (ADR 0004 §8).
   { ignores: ['src/routeTree.gen.ts'] },
