@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
-  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
+  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text)',
   propose_change:
     'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
   record_model_call:
@@ -25,7 +25,7 @@ const DOORS = {
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
-  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text)',
+  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -135,6 +135,31 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     put_document_text: true,
     put_fetched_document: false,
   });
+});
+
+// THE TIER IS HELD BY NO ROLE YET. The reader of an export gets EXECUTE with the export, because
+// the owner of a view does not lend it. gabriel_read has no USAGE on public, so the superuser
+// asks on its behalf.
+const TIER_HELD = `SELECT r.role,
+    has_function_privilege(r.role, 'public.document_tier(text)', 'EXECUTE') AS held
+  FROM unnest($1::text[]) AS r(role) ORDER BY r.role`;
+
+const heldBy = z.array(z.object({ role: z.string(), held: z.boolean() }));
+
+test('no login role holds EXECUTE on the tier', async () => {
+  const roles = ['gabriel_agent', 'gabriel_app', 'gabriel_read', 'gabriel_research'];
+  const found = await probe('superuser', async (ask) =>
+    heldBy.parse(await ask(TIER_HELD, [roles])),
+  );
+  expect(found).toStrictEqual(roles.map((role) => ({ role, held: false })));
+});
+
+// The provider table is in public, and the read role reads the api views alone.
+test('gabriel_read holds no SELECT on the provider table', async () => {
+  const found = await probe('superuser', (ask) =>
+    ask("SELECT has_table_privilege('gabriel_read', 'public.document_provider', 'SELECT') AS held"),
+  );
+  expect(found).toStrictEqual([{ held: false }]);
 });
 
 // External constraint: role_table_grants reads the table ACL alone, and a grant on one column is

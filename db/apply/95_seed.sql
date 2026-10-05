@@ -50,6 +50,43 @@ VALUES ('inherited', 'manual',
         'No document supports this value; it is inherited from an ancestor')
 ON CONFLICT (id) DO NOTHING;
 
+-- ======================================================================= document_provider ===
+-- HAND-WRITTEN, AND THIS FILE IS THE AUTHORITY FOR A LICENCE. One edited line moves every
+-- document of that provider, so the statement updates the name and the licence of a row that
+-- exists. No row gets an originator here.
+--
+-- WHERE NO TEXT STATES A LICENCE, THE ROW TAKES AN INTERNAL ONE. CREA and EGRUL are `restricted`
+-- until their terms are read. IMO GISIS and Equasis need a login, so they are
+-- `registration-terms`. Each of these words is internal tier, so an error here can only hold a
+-- document back, and it never publishes one.
+--
+-- `manual` AND `inherited` GET NO PROVIDER. A hand entry stays internal until a release decides
+-- to publish the operator's own entries; `own` is the row it would take.
+INSERT INTO document_provider (id, name, licence) VALUES
+  ('eu_eurlex',           'EU EUR-Lex',                 'eu-reuse'),
+  ('ofac_sdn',            'OFAC SDN',                   'public-domain'),
+  ('uk_sanctions_list',   'UK sanctions list',          'ogl-v3'),
+  ('eu_fsf',              'EU FSF',                     'eu-reuse'),
+  ('gleif',               'GLEIF',                      'cc0'),
+  ('crea',                'CREA',                       'restricted'),
+  ('datalastic',          'Datalastic',                 'commercial-no-redistribution'),
+  ('gfw',                 'GFW',                        'cc-by-nc-4.0'),
+  ('imo_gisis',           'IMO GISIS',                  'registration-terms'),
+  ('equasis',             'Equasis',                    'registration-terms'),
+  ('opensanctions',       'OpenSanctions',              'cc-by-nc-4.0'),
+  ('opencorporates',      'OpenCorporates',             'odbl'),
+  ('mca21',               'MCA21',                      'paid-filing'),
+  ('acra',                'ACRA',                       'paid-filing'),
+  ('cyprus_registrar',    'Cyprus Registrar',           'paid-filing'),
+  ('hk_icris',            'HK ICRIS',                   'paid-filing'),
+  ('egrul',               'EGRUL',                      'restricted'),
+  ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)',  'copernicus'),
+  ('osm',                 'OSM',                        'odbl'),
+  ('own',                 'own',                        'own')
+ON CONFLICT (id) DO UPDATE SET
+  name    = EXCLUDED.name,
+  licence = EXCLUDED.licence;
+
 
 -- ============================================================================ entity_type ===
 -- The first four words are the entity types of the committed fixture, which is SYNTHETIC.
