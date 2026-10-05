@@ -148,7 +148,6 @@ export const stubAgent = (options: StubAgentOptions = {}): RunnerAgent => {
             inputForm: 'page-text',
             promptHash: asked.promptHash,
           }),
-          jobId: context.job.id,
         });
         if (!outcome.ok) throw new Error(outcome.refusal);
       }
