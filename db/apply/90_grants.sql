@@ -15,40 +15,74 @@ SET ROLE gabriel_owner;
 -- remove a privilege held through PUBLIC.
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 REVOKE ALL   ON SCHEMA public FROM gabriel_read;
-GRANT  USAGE ON SCHEMA public TO gabriel_app, gabriel_agent;
+GRANT  USAGE ON SCHEMA public TO gabriel_app, gabriel_agent, gabriel_research;
 
 REVOKE ALL ON ALL TABLES    IN SCHEMA public
-  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_read;
+  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
-  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_read;
+  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read;
 
 -- External constraint: no blanket function revoke runs here. PostGIS is in public, and as the
 -- superuser the revoke stops the map read. A default privilege of gabriel_owner, set for every
 -- schema, takes EXECUTE from PUBLIC on each function that gabriel_owner creates.
 
 -- External constraint: `REVOKE ALL ON ALL TABLES` is a snapshot and reaches no later table, so
--- "no role writes a table" holds for the six tables below and NOT for a table nobody has written.
+-- "no role writes a table" holds for the tables granted below and NOT for a table nobody
+-- has written.
 -- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_app;
 GRANT SELECT ON documents, entity_type, proposals, entities, relations, jobs
   TO gabriel_agent;
 
--- The eight doors, and nothing else.
+-- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
+-- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
+-- column that a tool has no use for.
+GRANT SELECT ON documents, entity_type, proposals, entities, relations
+  TO gabriel_research;
+
+-- THE CONVERSATIONS ARE PRIVATE. gabriel_app reads the three tables, and no other role holds a
+-- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
+GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
+
+-- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
+-- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
+GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
+
+-- The fifteen doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date) FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+  FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
+REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
+
+REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
+  TO gabriel_app, gabriel_agent, gabriel_research;
+
+-- THE FETCHED-DOCUMENT DOOR IS HELD BY THE TWO MACHINE ROLES, AND NOT BY THE OPERATOR, who holds
+-- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
+GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text)
+  TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
 
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date)
   TO gabriel_app;
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)
-  TO gabriel_agent, gabriel_app;
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+  TO gabriel_agent, gabriel_app, gabriel_research;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
 
@@ -59,16 +93,26 @@ GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
 -- so it opens nothing of the evidentiary layer.
 GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
 
+-- THE CALL RECORD IS gabriel_agent ALONE. Only the worker that asked the model knows what it
+-- asked, and the door writes model_call and nothing else.
+GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
+  TO gabriel_agent;
+
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
+  TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
--- ENQUEUE IS gabriel_app, AND IT IS NOT A GRANT OF ITS OWN. The job row is written inside
--- put_document, so the role that may put a document is the role that may queue work, and there
--- is no second way in. No role holds INSERT on jobs, so nothing queues work for a document that
--- did not enter through the door.
+-- ENQUEUE IS gabriel_app AND gabriel_agent, THROUGH enqueue_job. put_document writes a
+-- `store_only` row that is born done and queues nothing, so asking for work is its own grant. The
+-- operator asks for the one document that needs work, and a worker that finds a second step of
+-- work for a document asks for it too. No role holds INSERT on jobs, so nothing queues work for
+-- a document that did not enter through the door, and enqueue_job refuses a document with no
+-- bytes.
 --
 -- ONE PROCESS HOLDS ONE SECRET, and that is what carries the claim. A worker that held the
 -- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
@@ -86,6 +130,9 @@ GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 --
 -- THE FAILURE IS gabriel_agent, BESIDE THE CLAIM. Only the worker that ran the job knows why it
 -- failed, and the door ends a running row alone, so it opens nothing of the operator surface.
+--
+-- THE COMPLETION IS gabriel_agent FOR THE SAME REASON. Only the worker that ran the job knows that
+-- it succeeded, and the door ends a running row alone.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
@@ -100,12 +147,22 @@ GRANT USAGE   ON SCHEMA api TO gabriel_read;
 GRANT SELECT  ON ALL TABLES IN SCHEMA api TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
+-- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH FIVE VIEWS ONLY. A tool asks for
+-- an entity, a relation, a proposal, a document or a job, and for the neighbourhood of one entity.
+-- The list is written by name and never as ALL TABLES, so api.model_call, which holds the digests
+-- of the worker's prompts, stays closed to them. A view added later opens to nobody by default.
+GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job
+  TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
+  TO gabriel_app, gabriel_agent, gabriel_research;
+
 -- An api view is auto-updatable and runs with the rights of ITS OWNER. Measured: a role holding
 -- nothing on public.entities inserted a row through an ordinary api view. A probe built on a
 -- `serial` key passes for an unrelated reason, so that probe proves nothing. These two lines
 -- are the guard, and they cover every view including the ones nobody has written yet.
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA api
-  FROM gabriel_read, gabriel_app, gabriel_agent, PUBLIC;
+  FROM gabriel_read, gabriel_app, gabriel_agent, gabriel_research, PUBLIC;
 
 RESET ROLE;
 
@@ -129,9 +186,9 @@ RESET ROLE;
 --      SELECT r.rolname, g.rolname FROM pg_auth_members m
 --        JOIN pg_roles r ON r.oid = m.member JOIN pg_roles g ON g.oid = m.roleid
 --       WHERE m.roleid = 'gabriel_owner'::regrole
---          OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read');
+--          OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read');
 --      SELECT rolname FROM pg_roles
---       WHERE rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+--       WHERE rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
 --         AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolbypassrls OR rolreplication);
 --
 --   4. a write grant on any table — this one catches a later migration that adds a table and

@@ -12,11 +12,13 @@ const ENV_FILE = join(ROOT, 'infra', '.env');
 const PROJECT = 'gab';
 
 // External constraint: the bootstrap superuser owns the schema. gabriel_app runs the promoted acts,
-// gabriel_agent runs the proposal door only, and gabriel_read reads the api schema only, so a
+// gabriel_agent runs the proposal door only, gabriel_research proposes and stores fetched documents
+// only, and gabriel_read reads the api schema only, so a
 // test of the perimeter must log in as it.
 const LOGIN_ROLES = {
   app: { role: 'gabriel_app', variable: 'GABRIEL_APP_PASSWORD' },
   agent: { role: 'gabriel_agent', variable: 'GABRIEL_AGENT_PASSWORD' },
+  research: { role: 'gabriel_research', variable: 'GABRIEL_RESEARCH_PASSWORD' },
   read: { role: 'gabriel_read', variable: 'GABRIEL_READ_PASSWORD' },
 } as const;
 

@@ -1,6 +1,7 @@
 # ADR 0010 — Three AIs share one tool catalogue, and a source rule decides promotion
 
-**Status** Accepted · 3 October 2026
+**Status** Accepted · 3 October 2026 · §7 replaced by ADR 0011, 4 October 2026. A decision
+table, not a source rule, now decides promotion.
 
 The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work —
 ingestion, tagging, extraction — on free tokens, so that these two tools spend no time on it. Each
@@ -17,7 +18,7 @@ The list is in §10.
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from the job table | Ingestion, tagging, extraction, mapping (P6), scoring (S3) | Free, through freellmapi |
+| Back-end AI | The worker, from the job table | Ingestion, tagging, extraction, mapping (P6), span checks and gate inputs (ADR 0011) | Free, through freellmapi |
 | Front-end AI | A chat route on the local writer | A question in the interface (W8, W9) | Free, through freellmapi |
 
 **The cost rule.** Deterministic work is plain code with no model: hash, store, CSV load, PDF
@@ -111,112 +112,16 @@ workspace; this ADR only requires them.
 - `sha256` decides identity before `put_fetched_document`.
 - One fetch, one URL. No crawl and no schedule (PRD §5).
 
-### 7. Promotion by an evidence rule (rule v2)
+### 7. Promotion by rule: ADR 0011 replaces the score and the bands
 
-The operator decided rule v2 on 4 October 2026 (#207). Three adversarial reviews (red team,
-autonomy, standards editor) replaced the first version. **The rule decides from the quantity and
-the quality of the evidence, never from the type of claim. The models prepare the evidence; only
-the database decides.**
+**ADR 0011 (4 October 2026) replaces the rule score and the three bands** with an ordered decision
+table. The gate reads anchors and independent origin groups, with no score and no weights. The
+ADMIRALTY letter and digit are internal tags that no gate reads. These parts of §7 stay:
 
-**The ADMIRALTY digit is an output.** The letter (A–F) rates a source. The digit (1–6) rates one
-item of information after corroboration, so the rule computes it on the claim. The digit on a
-document is not an input. The 82 seed sources keep digit 6 ("not judged").
-
-**Agents.**
-
-| Agent | Job |
-|---|---|
-| Two blind extractors, two model families | Each finds the claim and its exact quote without the other. They must agree. If they do not, a third family re-extracts. |
-| Span check (code) | The quote is in the stored main text, with two sentences before and after it. Code finds a negation or an attribution ("according to"). |
-| Identity check (code) | The quote window holds one strong identifier (IMO, MMSI, LEI, registry number, date of birth) or two weak ones (full name and role or city). |
-| Origin tracer | Follows "according to", wire credits and links to the first-hand origin. Sets the access type. An unknown origin joins the earlier group (fail closed). |
-| Pro and contra searchers | Same budget each. The contra searcher looks for denials, delistings, sales and court decisions. |
-| Verifier, another family | Reads the quotes only, not the extractor's summary. |
-| `decide_by_rule` (database) | Decides. |
-
-**Points for each origin, not for each document.** Each independent origin counts once, at its
-best citation.
-
-| Access ↓ / letter → | A | B | C | D |
-|---|---|---|---|---|
-| Primary record of the issuing authority for this fact | 6 | – | – | – |
-| Other primary record (leak, copy), or first-hand report | 4 | 3 | 2 | 1 |
-| Secondary: repeats another source | 2 | 1 | 1 | 0 |
-| No attribution, or letter E or F | 0 | 0 | 0 | 0 |
-
-**Bands.**
-
-| Band | Condition |
-|---|---|
-| Accept | (a) one primary record of the issuing authority, read the same way by the two extractors, or (b) two or more independent origins of 3 points or more each. And the contra score is below 3, and the verifier agrees. One news report alone never accepts. |
-| Supersede a current value | Score 9 or more from three origins, or a primary record of the change. A new dated value is a new period only when the quote holds the date. |
-| Wait | The search is short. The rule decides again after 7, 30 and 90 days, and when a new document names the same identifier. After the 30-day retry, the claim goes to the operator. |
-| Drop | Score 0 after both searches, or a contra score of 6 or more from two origins against a claim of 3 or less. |
-| Operator | A contra score of 3 or more; three families split; `merge_entities`, a deletion or a new key; a value the operator promoted. |
-
-The computed digit: 1 = three origins or more and no contradiction; 2 = accepted; 6 = one origin.
-
-**Anti-planting.** A document published after the claim entered GAB counts 0 for an automatic
-acceptance. A fetch keeps the main text only, removes hidden text, and gives it to a model as data
-inside a fence.
-
-**Source ratings are automatic (#223).** The operator decided on 4 October 2026 that one model
-alone never rates a source, but a panel of agents does, with written rules. A rating applies to a
-publisher and a path, never to one document, in this order:
-
-1. Hard rules in code. Issuing authorities get A from lists loaded as data (the registration
-   authorities of GLEIF, the legal gazettes such as the EU Official Journal and the US Federal
-   Register, the sanctions-list publishers, IMO, the flag registries). Media are never on these
-   lists. User-content hosts get 0. A media under EU or US sanctions gets 0. A media that a
-   state controls or funds gets C at most, and 0 when the claim names that state or an entity
-   it controls.
-2. A rating panel of at least two model families: a collector fills a checklist with sourced
-   answers (owner, funding, editorial independence, corrections, named authors, sanctions,
-   retractions, history in GAB); an advocate argues for the highest letter; a critic searches
-   for bias and conflict of interest and argues for the lowest; a judge applies the rubric and
-   adds no fact. Code keeps the letter when the judge and one other agent agree. If not, a second
-   round runs; if it is still split, the lower letter counts. A panel gives B at most.
-3. The measured history: with 20 checked claims or more, the share of claims that independent
-   origins confirmed moves the letter by one step at most. Copies build no history.
-4. An operator rating replaces any other rating.
-
-A rating expires after 12 months, or when the owner of the domain changes. The audit of #220
-samples the ratings like the claims.
-
-**Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all are true:
-
-1. The parameter rows exist. With no parameter row, the door does nothing. Removing the rows
-   stops the rule at once.
-2. A rating never depends on the claim that it unlocks. A counted rating has origin
-   `operator`, `authority_list`, `panel` or `history`, never one model alone. The panel sees the
-   publisher, never the claims that wait on it, and a claim cannot start a new rating of a source
-   that already has one.
-3. The verifier of a second family agrees, after the last citation.
-4. The operation is never `merge_entities`, a deletion, or an update that replaces a value the
-   operator promoted.
-5. The attribute key already exists for that entity type (M11).
-6. Each counted citation passes the span check and the identity check.
-7. Thresholds go up automatically and go down only by an operator act. Agents can join two
-   origins and never split them.
-
-**Measurement.** Before launch: a gold set of 200 claims that the operator checked by hand; the
-rule runs on it in shadow mode, and its false accepts must be 1% or less. Each week: the operator
-audits a random 5% of the rule accepts (20 at least), by score band and source class. Each month:
-20 known-false canary claims; the rule must refuse them. When the false-accept rate goes above 2%,
-the threshold of that band goes up by 1; if it stays above 2%, code removes the parameter row.
-
-**Origin.** The door writes `decision_origin = 'rule:<version>'` in a typed column. The public
-views show it (S4, PU1). A rule decision is reversed by an inverse proposal built from
-`prior_value`.
-
-**Public wording.** The text follows the source and its modality: "Designated by OFAC on …",
-"Reuters reported, citing …", "alleged by X". The site never states an allegation as a fact. The
-ratings and the number of origins go in a details panel. The contradicting sources show next to
-the claim. A report of an error must hold a URL; a reported claim gets "disputed" and stays
-visible. Names stay visible. A lawyer reads the wording templates once before launch.
-
-**The operator's work comes in batches (#222):** documents, then gap patterns, then entities, then the
-audit sample.
+- no parameter row = rule off (ADR 0011 L11), and a second model family (ADR 0011 §3.1);
+- the rule never merges, never deletes, never replaces an operator value, never adds a key;
+- `decide_by_rule(p_id)` is a SECURITY DEFINER door that writes `decision_origin = 'rule:<version>'`
+  in a typed column, and an inverse proposal from `prior_value` reverses a rule decision.
 
 ### 8. The chat is local and never proposes
 
@@ -237,9 +142,10 @@ credentials. This amends T4: the writer also serves the reads of the private dat
 
 Each step names what it unblocks for the research.
 
-1. **Ingest command**: `sha256` deduplication, `put_document`, `jobs.kind = store_only`, and the
-   rating door of #19. *The existing reports and the 82 rated sources become documents that a
-   claim can cite.*
+1. **Ingest command**: `sha256` deduplication, `put_document`, `jobs.kind = store_only`, and
+   `load:originators` (ADR 0011 §7.1). *The existing reports become documents that a claim can cite, and the 82
+   rated sources become originators with operator letters; their documents carry no rating
+   (ADR 0011 §7.1).*
 2. **Research workspace and MCP server**: read, propose, `fetch_document`, the
    `gabriel_research` role. *Claude and Codex work on #159 and cite stored documents.*
 3. **Batch promotion (#145).** *The review keeps up with the volume.*
@@ -249,16 +155,16 @@ Each step names what it unblocks for the research.
    that #9 needs.*
 6. **Lookup tools of #174**: SearXNG, Wayback, GLEIF, and the others in order. *Wider sources for
    #159.*
-7. **#9 calibration**, then `decide_by_rule`. *The review load falls.*
+7. **#220 calibration**, then `decide_by_rule`. *The review load falls.*
 8. **Local chat** with the #18 tables. *W8 and W9 in the interface.*
 
 ### 10. Entries this ADR changes
 
 | Entry | Change |
 |---|---|
-| P1 | The operator, **or the source rule of §7**, moves a proposal to the evidentiary layer. Spec §2 invariant 5, spec §5 (the OPEN branch), PRD §4.3 and W6 follow. |
-| #42 resolution | Superseded. "No proposal skips the queue" is true only below the high threshold. #139 and #145 keep it for the review band. |
-| S3 | Dissent and the rule score order the review band. This replaces the order of #42. The band edges are the parameters of §7. |
+| P1 | The operator, **or the decision table of ADR 0011 §8** (this ADR §7), moves a proposal to the evidentiary layer. Spec §2 invariant 5, spec §5 (the OPEN branch), PRD §4.3 and W6 follow. |
+| #42 resolution | Superseded. "No proposal skips the queue" is true only for a claim that no open gate path of ADR 0011 §8 accepts. #139 and #145 keep it for those claims. |
+| S3 | The sort keys of ADR 0011 §10.1 step 6 (exposure, harm class, search gaps) order the queue, with no score. This replaces the order of #42. The parameters are the parameter rows of ADR 0011 §8 and §12. |
 | S4, PU1 | The decision origin is a typed column, published and labelled. |
 | ADR 0003 §7 | A fifth role, `gabriel_research`. New grants: `put_fetched_document`, `decide_by_rule`. |
 | P4, #16 | `model_call` lands with the first agent. |
@@ -272,9 +178,8 @@ Each step names what it unblocks for the research.
 - **A rule-promoted claim is a claim that no person read.** The dataset must say so for each
   claim (PU1), and S3's warning stays true: the agents share their blind spots, and no accuracy
   rate is defensible without an audit sample.
-- The rule is only as good as the ratings it counts. Lock 2 is the reason the rule can exist at
-  all; a change that lets a rating depend on the claim it unlocks, or lets one model rate alone,
-  reopens this ADR.
+- The rule is only as good as the register cards, the span checks and the audit (ADR 0011). A
+  change that lets a model write a letter, a state, a flag or an audit label reopens ADR 0011.
 - freellmapi has no service-level agreement (SLA) and quality falls late in the UTC day. The quota pause and the pinned
   model contain this; they do not remove it.
 - Two new services (freellmapi, SearXNG) run on the operator's VPS, on its private network address

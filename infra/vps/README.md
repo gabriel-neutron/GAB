@@ -10,7 +10,7 @@ never holds the real data.
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
 | `.env.example` | Copy to `/home/claude/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
 | `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
-| `searxng/settings.yml` | SearXNG settings, with JSON output on. |
+| `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
 | `night-run.sh` | The night run: lock, checks, time limit, `claude -p`. |
 
@@ -88,10 +88,13 @@ pnpm check
 ```
 
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
-The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`. An exited `minio-init` is normal.
+The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
-**Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` healthy, and `pnpm check`
-exits 0.
+The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its three
+accounts take the six `RAW_STORE_*_KEY` test values of `infra/.env`.
+
+**Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` and `seaweedfs` healthy, and
+`pnpm check` exits 0.
 
 ## 4. The GitHub identity of the VPS checkout
 
@@ -224,17 +227,18 @@ first runs: the second log shows `STOP: another night run holds`.
 ## 7. The PC uses the VPS services
 
 The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. **The names below do not exist in the code yet.** Today
-`packages/model/src/client.ts` has a fixed OpenRouter address. The build tickets of ADR 0010 §4
-(endpoint setting) and §9 step 6 (SearXNG) must fix the final names.
+through Tailscale. `packages/model/src/client.ts` reads the two model names below. The name of
+the SearXNG address does not exist in the code yet: the build ticket of ADR 0010 §9 step 6 must
+fix it.
 
-| Name to be fixed by the build tickets | Value on the PC (`infra/.env`) |
+| Name | Value on the PC (`infra/.env`) |
 |---|---|
-| `GABRIEL_MODEL_ENDPOINT` | `http://<VPS_TS_IP>:4001/v1` |
-| `GABRIEL_MODEL_KEY` | the unified `freellmapi-...` key from the dashboard |
-| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` |
+| `FREELLMAPI_BASE_URL` | `http://<VPS_TS_IP>:4001/v1` |
+| `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
+| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` (name not fixed yet) |
 
-`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4).
+`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4). An agent chooses its gateway with its
+`endpoint` setting, `freellmapi` or `openrouter`, and the code has no default.
 
 **Check (PC):** with the key in `$k`,
 `Invoke-RestMethod http://<VPS_TS_IP>:4001/v1/models -Headers @{Authorization="Bearer $k"}`

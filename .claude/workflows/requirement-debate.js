@@ -33,7 +33,7 @@ Read the tracker for the rulings of the operator: gh issue list --state open --l
 gh issue view <number> --comments. Read only. Write nothing there.
 
 The facts of this project. One operator. Windows. Docker Desktop. A local stack of PostgreSQL
-with PostGIS and pgvector, MinIO and PostgREST, on the loopback address alone. TypeScript on
+with PostGIS and pgvector, SeaweedFS and PostgREST, on the loopback address alone. TypeScript on
 both sides. Roughly one hundred documents. No team. No on-call. No paying user. No deployment.
 `
 

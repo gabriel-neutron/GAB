@@ -7,6 +7,7 @@ export type Origin = 'machine' | 'operator';
 
 const ORIGIN_OF: Readonly<Record<AuthorRole, Origin>> = {
   gabriel_agent: 'machine',
+  gabriel_research: 'machine',
   gabriel_app: 'operator',
 };
 

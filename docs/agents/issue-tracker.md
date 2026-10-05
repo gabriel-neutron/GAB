@@ -30,6 +30,26 @@ gh api user --jq .login    # must print: gabriel-neutron
 The token is a fine-grained PAT. If a `gh` call fails, read **Fault-finding** at the end of
 this document. Do not run `gh auth login` or `gh auth switch`.
 
+## Privacy: this repository is public, and the operator's machine is private
+
+The security rules of this project are strict. A ticket, a comment, a pull request, a commit
+message, a file and a log stay public for ever. The edit history of a comment also stays public.
+Because of this:
+
+- **Never write a local path.** No Windows home path, no Unix home path, no user name, no machine
+  name. Write the role of the place: "the local GAB checkout", "the operator data folder", "the
+  private data repository".
+- **Never write the content or the location of private data.** The private files are in
+  `gabriel-neutron/GAB-data` (private repository). `.private/` stays in `.gitignore`. A public
+  ticket may name a file by its name in `GAB-data`, never by its path on the PC.
+- **Never paste raw terminal output without a check.** Test runs, stack traces and `pnpm` logs
+  print the working directory. Replace it before posting.
+- **Check before every write.** Before `gh issue create`, `gh issue comment`, `gh pr create`
+  and `git commit`, search the text for the Windows user folder name, `C:`, `/home/`, a token and
+  an e-mail address. If one is found, stop and remove it.
+- **A leak cannot be retracted.** Editing a comment keeps the old text in its edit history. If a
+  leak happens, tell the operator at once. The operator removes the revision history.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** External PRs are not treated as feature requests. Set

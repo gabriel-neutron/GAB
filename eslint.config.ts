@@ -19,11 +19,11 @@ import { LIMITS, measure } from './tools/comment-budget.ts';
 const CANVAS_PAGES = ['map', 'graph'] as const;
 
 /**
- * The workspace packages that run in Node and hold a secret. **One list, and the two package
+ * The workspace packages that run in Node and hold a secret or reach the database. **One list, and the two package
  * policies below both read it**, so the side that is refused to the browser and the side that a
  * Node part may reach can never fall out of step.
  */
-const NODE_PACKAGES = ['writer', 'model', 'store', 'worker'] as const;
+const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as const;
 
 /**
  * **A comment records a reason, and never a reference.** A reason is a fact about the code, and it
@@ -305,6 +305,9 @@ export default defineConfig(
     ],
   },
 
+  // Each agent worktree is a whole second checkout, and typed linting of all of them fills the heap.
+  { ignores: ['.claude/worktrees'] },
+
   // The route tree is generated and carries its own banner. It is excluded by name, never by a
   // pattern that authored code can enter (ADR 0004 §8).
   { ignores: ['src/routeTree.gen.ts'] },
@@ -319,6 +322,7 @@ export default defineConfig(
       '.claude/workflows/gab-deep-review.js',
       '.claude/workflows/ready-for-agent-run.js',
       '.claude/workflows/requirement-debate.js',
+      '.claude/workflows/resolve-ticket.js',
     ],
   },
 
@@ -456,7 +460,10 @@ export default defineConfig(
       // `preview.ts`: putting the file in `ignores` above would drop it from every rule in this
       // block, and the file that reaches for a feature is the very file this block exists to
       // hold. A second stylesheet fails here, which is the intended gate.
-      'boundaries/ignore': ['src/index.css'],
+      //
+      // The login helper of the schema tests is ignored the same way: a test beside a package
+      // logs in through it, and no element describes a file under `tools/`.
+      'boundaries/ignore': ['src/index.css', 'tools/probe.ts'],
 
       'import/resolver': { typescript: { alwaysTryTypes: true } },
     },
@@ -586,7 +593,7 @@ export default defineConfig(
                 },
               },
               message:
-                'The writer, the model client, the store and the worker run in Node and hold the secrets. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
+                'The writer, the model client, the store, the worker, the tool catalogue and the MCP server run in Node and hold the secrets or reach the database. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
             },
 
             // ...and a Node part reaches another Node part. Both sides come from the one list

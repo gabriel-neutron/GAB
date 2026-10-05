@@ -3,6 +3,7 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
+import { assertNoEnvDrift } from './tools/env-drift.ts';
 import { testRunDatabase } from './tools/test-database.ts';
 
 // External constraint: the compose file sets the password of `gabriel_app` and the secret of the
@@ -30,6 +31,10 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
       'RAW_STORE_SECRET_KEY are set. To run the offline part on purpose, set OFFLINE=1 — that ' +
       'part proves no perimeter, no role, no grant and no row of the corpus.',
   );
+
+// Departure: a name that the example adds and the real file lacks fails each test that reaches its
+// service. One sentence, before any live project runs, names it once.
+if (!offlineWasAsked) assertNoEnvDrift(import.meta.dirname);
 
 // External constraint: the compose file publishes the read service of the test database on this
 // port. The guard above runs first, so a refused run opens no socket.
@@ -81,6 +86,8 @@ const liveProjects = [
   nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
   nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET, WRITER_GROUP),
   nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('tools', ['packages/tools/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('mcp', ['packages/mcp/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP),
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),

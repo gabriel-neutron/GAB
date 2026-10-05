@@ -21,6 +21,6 @@ export const CLOSED_SET = {
     'merge_entities',
   ],
   'proposals.target_kind': ENDPOINT,
-  'proposals.author_role': ['gabriel_agent', 'gabriel_app'],
+  'proposals.author_role': ['gabriel_agent', 'gabriel_app', 'gabriel_research'],
   'proposals.status': ['pending', 'accepted', 'rejected'],
 } as const;
