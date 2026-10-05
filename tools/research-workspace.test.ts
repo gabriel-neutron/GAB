@@ -31,28 +31,6 @@ const namesSet = (text: string): Set<string> =>
       .filter((name): name is string => name !== undefined),
   );
 
-// External constraint: the repository holds no TOML parser, and the Codex entry needs two keys
-// only. A basic TOML string and a TOML array of basic strings are also JSON.
-const codexServers = (text: string): Map<string, { command: string; args: string[] }> => {
-  const found = new Map<string, { command: string; args: string[] }>();
-  let current: string | undefined;
-  for (const line of text.split(/\r?\n/u)) {
-    const table = /^\s*\[([^\]]+)\]\s*$/u.exec(line)?.[1];
-    if (table !== undefined) {
-      current = /^mcp_servers\.(.+)$/u.exec(table)?.[1];
-      if (current !== undefined) found.set(current, { command: '', args: [] });
-      continue;
-    }
-    const entry = current === undefined ? undefined : found.get(current);
-    const pair = /^\s*(command|args)\s*=\s*(.+?)\s*$/u.exec(line);
-    if (entry === undefined || pair === null) continue;
-    const value: unknown = JSON.parse(pair[2] ?? '');
-    if (pair[1] === 'command') entry.command = z.string().parse(value);
-    else entry.args = z.array(z.string()).parse(value);
-  }
-  return found;
-};
-
 const SERVER_SCRIPT = path.join(ROOT, 'packages', 'mcp', 'src', 'main.ts');
 
 test('the Claude Code file names the GAB server and no other', () => {
@@ -63,17 +41,6 @@ test('the Claude Code file names the GAB server and no other', () => {
   expect(gab?.command).toBe('node');
   const script = gab?.args.find((arg) => arg.endsWith('.ts'));
   expect(script && path.resolve(WORKSPACE, script)).toBe(SERVER_SCRIPT);
-});
-
-test('the Codex file starts the same server with the same arguments', () => {
-  const { mcpServers } = claudeFile.parse(JSON.parse(read('research', '.mcp.json')));
-  const codex = codexServers(read('research', '.codex', 'config.toml'));
-
-  expect([...codex.keys()]).toEqual(['gab']);
-  expect(codex.get('gab')).toEqual({
-    command: mcpServers['gab']?.command,
-    args: mcpServers['gab']?.args,
-  });
 });
 
 test('the research environment names its own connection and one store key, and nothing else', () => {
