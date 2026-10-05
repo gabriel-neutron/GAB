@@ -261,14 +261,16 @@ export const fetchDocument = defineTool({
   name: 'fetch_document',
   description:
     'Reads one web page or file at one http or https address, stores its bytes as a document, ' +
-    'and returns the document id and the text of its pages. Cite the id in a proposal. A page ' +
-    'whose bytes are already stored comes back as "known", and nothing is written. The pages ' +
-    'follow the caps of document_text. An HTML page is also loaded in a headless browser when ' +
-    '"render" is true, or when its text is shorter than "renderBelow" characters (0 turns this ' +
-    'off). The browser runs the scripts of the page and clicks, fills and scrolls nothing. Its ' +
-    'HTML is a second document with the same address, named in "rendered", and the pages then ' +
-    'come from it; "document" stays the bytes that the server gave. "notice" says what the ' +
-    'render did, what it stopped, and when a page looks like a CAPTCHA.',
+    'and returns the document id and the text of its pages. Cite the id of the document that ' +
+    'gave the pages in a proposal. A page whose bytes are already stored comes back as ' +
+    '"known", and nothing is written. The pages follow the caps of document_text. An HTML page ' +
+    'is also loaded in a headless browser when "render" is true, or when its text is shorter ' +
+    'than "renderBelow" characters (0 stops the render). The browser runs the scripts of the ' +
+    'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
+    'address, named in "rendered"; "document" stays the bytes that the server gave. When ' +
+    '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
+    'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
+    'page looks like a CAPTCHA.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
