@@ -30,7 +30,7 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF session_user NOT IN ('gabriel_agent','gabriel_app') THEN
+  IF session_user NOT IN ('gabriel_agent','gabriel_app','gabriel_research') THEN
     RAISE EXCEPTION 'role % may not write a proposal', session_user
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -41,6 +41,12 @@ BEGIN
   NEW.prior_value := NULL;
   NEW.created_at  := now();
   NEW.xact        := pg_current_xact_id();
+  -- A machine act names the call that made it. This runs on the insert alone, so an agent row
+  -- from before the call table existed is still decided: the freeze trigger never reads this.
+  IF NEW.author_role = 'gabriel_agent' AND NEW.model_call_id IS NULL THEN
+    RAISE EXCEPTION 'a proposal of gabriel_agent names the model call that made it'
+      USING ERRCODE = 'check_violation';
+  END IF;
   RETURN NEW;
 END $$;
 
@@ -90,13 +96,35 @@ BEGIN
   END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
-      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at)
+      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
+      NEW.model_call_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
-      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at) THEN
+      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
+      OLD.model_call_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
+END $$;
+
+-- A CALL IS A FACT AND NOT A STATE: it is written once and never changes. The owner and the
+-- superuser ignore a grant, so a trigger holds it.
+CREATE OR REPLACE FUNCTION model_call_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'a model call is never deleted. It is the record of what the model was asked';
+  END IF;
+  RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
+END $$;
+
+-- A MESSAGE ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
+-- ignore a grant, so a trigger holds it.
+CREATE OR REPLACE FUNCTION chat_message_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'a row of % is never %. It is the record of what was said',
+    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
 -- M4. src_id and dst_id carry no foreign key, because the target is polymorphic. FOR KEY SHARE
@@ -129,11 +157,11 @@ END $$;
 
 
 -- ================================================================================ THE DOORS ==
--- Eight functions, and no role holds INSERT, UPDATE or DELETE on any table.
+-- Fifteen functions, and no role holds INSERT, UPDATE or DELETE on any table.
 
 -- P6, one ingestion door. The object goes to the store first, the row records it, and the job
--- is queued IN THE SAME TRANSACTION: a document row with no queued work is invisible to search,
--- to the agents and to the interface, and a queued job with no document row names nothing.
+-- row is written IN THE SAME TRANSACTION: a document row with no job row is invisible to the
+-- agents and to the interface, and a job row with no document row names nothing.
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -160,8 +188,9 @@ BEGIN
      p_retrieved_at)
   RETURNING id INTO v_id;
 
-  -- The queue takes the identifier and nothing else. What the work IS stays undecided: P6 puts
-  -- two paths behind this door, and no rule says which file takes which one.
+  -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
+  -- born `done`: nothing claims it and nothing finishes it. Work is asked for by enqueue_job,
+  -- for the one document that needs it, with the kind of work it needs.
   --
   -- A HAND-ENTERED SOURCE IS THE ONE EXCEPTION, and it is a rule of this line alone. A `manual`
   -- row carries no file and no address, so an agent would have nothing to read and the queue
@@ -170,8 +199,8 @@ BEGIN
   -- THE DATE IS NOT WHAT DECIDES IT. Since migration 0011 the retrieval date is demanded of the
   -- BYTES and not of the kind (doc_retrieved_with_bytes), so a `url` row with no date is a
   -- lawful row that names an address nobody has read yet. Such a row DOES earn a job.
-  INSERT INTO public.jobs (document_id)
-  SELECT v_id::doc_id WHERE p_kind <> 'manual';
+  INSERT INTO public.jobs (document_id, kind, status, finished_at)
+  SELECT v_id::doc_id, 'store_only', 'done', now() WHERE p_kind <> 'manual';
 
   RETURN v_id;
   -- It writes NO rating, and no role can write those columns. The scoring write path is decided,
@@ -179,28 +208,157 @@ BEGIN
 END $$;
 
 -- The candidate layer. gabriel_agent and gabriel_app may call it. The author role is stamped by
--- a trigger and is never a parameter.
+-- a trigger and is never a parameter. The call id is the last parameter and it is optional: a
+-- proposal of gabriel_agent must carry one and a proposal of gabriel_app must carry none, and
+-- the database holds both rules, so this door states neither.
+--
+-- The earlier signature is dropped here: a re-runnable file that only replaces would leave the
+-- two side by side, and a call with eight arguments would then be ambiguous.
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
 CREATE OR REPLACE FUNCTION propose_change(
-  p_op          text,
-  p_payload     jsonb,
-  p_src         text[],
-  p_target_kind text    DEFAULT NULL,
-  p_target_id   uuid    DEFAULT NULL,
-  p_names       uuid[]  DEFAULT '{}',
-  p_confidence  numeric DEFAULT NULL,
-  p_dissent     boolean DEFAULT false)
+  p_op            text,
+  p_payload       jsonb,
+  p_src           text[],
+  p_target_kind   text    DEFAULT NULL,
+  p_target_id     uuid    DEFAULT NULL,
+  p_names         uuid[]  DEFAULT '{}',
+  p_confidence    numeric DEFAULT NULL,
+  p_dissent       boolean DEFAULT false,
+  p_model_call_id uuid    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   INSERT INTO public.proposals
-    (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role)
+    (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
+     model_call_id)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
      coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
-     session_user)          -- overwritten by the stamp trigger; a value is needed for NOT NULL
+     session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
+     p_model_call_id)
   RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE ONE DOOR INTO THE RECORD OF A MODEL CALL. gabriel_agent holds it, and the role writes no
+-- table by hand. It takes the digest of the prompt and never the prompt, and the table refuses a
+-- digest that is not 64 hexadecimal characters. The outcome list is a CHECK of the table, so a
+-- word outside it is refused there, and a test holds that list against packages/model.
+CREATE OR REPLACE FUNCTION record_model_call(
+  p_agent           text,
+  p_agent_version   text,
+  p_endpoint        text,
+  p_requested_model text,
+  p_prompt_sha256   text,
+  p_latency_ms      int,
+  p_outcome         text,
+  p_job_id          uuid DEFAULT NULL,
+  p_served_model    text DEFAULT NULL,
+  p_input_tokens    int  DEFAULT NULL,
+  p_output_tokens   int  DEFAULT NULL)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  INSERT INTO public.model_call
+    (job_id, agent, agent_version, endpoint, requested_model, served_model, prompt_sha256,
+     input_tokens, output_tokens, latency_ms, outcome)
+  VALUES
+    (p_job_id, p_agent, p_agent_version, p_endpoint, p_requested_model, p_served_model,
+     p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE TWO DOORS INTO THE CONVERSATION STORE. gabriel_app alone holds them, and no role writes
+-- the three tables by hand. A blank title or a blank text is refused by the table, and a missing
+-- anchor row is refused by its foreign key.
+CREATE OR REPLACE FUNCTION open_conversation(
+  p_title        text,
+  p_anchor_kind  text DEFAULT NULL,
+  p_anchor_id    uuid DEFAULT NULL)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF (p_anchor_kind IS NULL) <> (p_anchor_id IS NULL)
+     OR p_anchor_kind NOT IN ('entity','relation') THEN
+    RAISE EXCEPTION 'an anchor is a kind, entity or relation, with its id, or it is neither'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.conversation (title, anchor_entity_id, anchor_relation_id)
+  VALUES (p_title,
+          CASE p_anchor_kind WHEN 'entity'   THEN p_anchor_id END,
+          CASE p_anchor_kind WHEN 'relation' THEN p_anchor_id END)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- A message and its citations are one write. p_citations is a jsonb array of objects with the
+-- keys kind, id and excerpt, and no other key. The kind is document, entity, relation or
+-- proposal. The door sets the one foreign key that matches the kind, so a row that does not
+-- exist refuses the whole message.
+CREATE OR REPLACE FUNCTION append_chat_message(
+  p_conversation_id uuid,
+  p_role            text,
+  p_text            text,
+  p_model_call_id   uuid  DEFAULT NULL,
+  p_citations       jsonb DEFAULT '[]')
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id    uuid;
+  v_cite  jsonb;
+  v_kind  text;
+  v_key   text;
+BEGIN
+  p_citations := coalesce(p_citations, '[]'::jsonb);
+  IF jsonb_typeof(p_citations) <> 'array' THEN
+    RAISE EXCEPTION 'the citations are an array' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.chat_message (conversation_id, role, text, model_call_id)
+  VALUES (p_conversation_id, p_role, p_text, p_model_call_id)
+  RETURNING id INTO v_id;
+
+  FOR v_cite IN SELECT value FROM jsonb_array_elements(p_citations) LOOP
+    IF jsonb_typeof(v_cite) <> 'object' THEN
+      RAISE EXCEPTION 'a citation is an object' USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    FOR v_key IN SELECT jsonb_object_keys(v_cite) LOOP
+      IF v_key NOT IN ('kind','id','excerpt') THEN
+        RAISE EXCEPTION 'a citation holds the keys kind, id and excerpt, and not %', v_key
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+    END LOOP;
+    IF jsonb_typeof(v_cite -> 'kind') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(v_cite -> 'id') IS DISTINCT FROM 'string'
+       OR jsonb_typeof(coalesce(v_cite -> 'excerpt', '""'::jsonb)) <> 'string' THEN
+      RAISE EXCEPTION 'a citation names a kind and an id, and its excerpt is text'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    v_kind := v_cite ->> 'kind';
+    IF v_kind NOT IN ('document','entity','relation','proposal') THEN
+      RAISE EXCEPTION 'a citation kind is document, entity, relation or proposal, and not %',
+        v_kind USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    INSERT INTO public.chat_citation
+      (message_id, document_id, entity_id, relation_id, proposal_id, excerpt)
+    VALUES
+      (v_id,
+       CASE v_kind WHEN 'document' THEN v_cite ->> 'id' END,
+       CASE v_kind WHEN 'entity'   THEN (v_cite ->> 'id')::uuid END,
+       CASE v_kind WHEN 'relation' THEN (v_cite ->> 'id')::uuid END,
+       CASE v_kind WHEN 'proposal' THEN (v_cite ->> 'id')::uuid END,
+       v_cite ->> 'excerpt');
+  END LOOP;
   RETURN v_id;
 END $$;
 
@@ -445,19 +603,23 @@ END $$;
 -- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The caller that ends a failed job reads the count,
 -- so this door refuses no claim on a count.
 --
+-- IT TAKES A WORK KIND AND NEVER A `store_only` ROW. The kind goes back to the caller, because
+-- the runner that routes the row has to know which path it takes.
+--
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
 -- caller supplies proves nothing about who holds the row. The earlier signature is dropped
 -- here: a re-runnable file that only replaces would leave the two side by side.
 DROP FUNCTION IF EXISTS claim_job(text);
+DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int)
+RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int, job_kind text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued'
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -473,8 +635,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.attempts
-       INTO job_id, job_document, job_attempts;
+  RETURNING j.id, j.document_id, j.attempts, j.kind
+       INTO job_id, job_document, job_attempts, job_kind;
 
   RETURN NEXT;
 END $$;
@@ -530,6 +692,151 @@ BEGIN
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job fails', p_id;
+  END IF;
+END $$;
+
+
+-- THE DOOR THAT ASKS FOR WORK. A stored document starts none, so this is the one way a work job
+-- appears. It takes a work kind alone, because `store_only` is written by put_document and is
+-- never queued. A document with no bytes has nothing to read, so it is refused. The unique index
+-- of the table refuses a second open job of one kind for one document, and it answers for two
+-- callers at one instant, which a check made here could not.
+CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id    uuid;
+  v_bytes text;
+BEGIN
+  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured') THEN
+    RAISE EXCEPTION 'a job asks for extract_text or map_structured, and this one asked for %',
+      coalesce(p_kind, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT d.s3_key INTO v_bytes FROM public.documents d WHERE d.id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_bytes IS NULL THEN
+    RAISE EXCEPTION 'document % holds no bytes, so no work can read it', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE TEXT OF A DOCUMENT, WRITTEN ONCE. p_pages is a jsonb array of strings, and the door sets
+-- the page number from the place of each string, counting from 1, so the caller cannot leave a
+-- gap or repeat a number. An empty string is a valid page. A document with no bytes has nothing
+-- that a text could come from, so it is refused.
+--
+-- THE PRIMARY KEY IS THE GUARD FOR A SECOND SET. A second set for the same document and
+-- extractor version collides on page 1 at the insert, and the caller receives the unique
+-- violation of the key. The door checks nothing else about the arguments: the CHECK of the
+-- table refuses a blank extractor, and the foreign key refuses an unknown document.
+CREATE OR REPLACE FUNCTION put_document_text(p_document text, p_pages jsonb, p_extractor text)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_bytes text;
+  v_count int;
+BEGIN
+  SELECT d.s3_key INTO v_bytes FROM public.documents d WHERE d.id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_bytes IS NULL THEN
+    RAISE EXCEPTION 'document % holds no bytes, so no text can be read from it', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO public.document_text (document_id, extractor, page, text)
+  SELECT p_document::doc_id, p_extractor, e.n::int, e.t
+    FROM jsonb_array_elements_text(p_pages) WITH ORDINALITY AS e(t, n);
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END $$;
+
+-- THE DOOR OF A MACHINE THAT FETCHED A SOURCE. put_document takes any kind and does not demand the
+-- bytes, so it is the operator's. This door is as narrow as the act it serves: an address that was
+-- read (`url` or `api`), the bytes that came back, the hash of those bytes and the day they came.
+-- A `file`, a `report` and a `manual` row stay with the operator.
+--
+-- THE HASH DECIDES THE IDENTITY, and the id is made from it: the same twelve characters that the
+-- worker takes for a file, so the two paths name one document alike. A second row for a hash is
+-- refused by name here, and the unique index answers for two callers at one instant. The store
+-- row is written by put_document, so the one rule of "a stored document starts no work" stays in
+-- one place.
+CREATE OR REPLACE FUNCTION put_fetched_document(
+  p_kind          text,
+  p_title         text,
+  p_s3_key        text,
+  p_uri           text,
+  p_sha256        text,
+  p_mime          text,
+  p_retrieved_at  date,
+  p_archive_uri   text DEFAULT NULL)
+RETURNS doc_id
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_blank text := E' \t\n\r\f\v';
+  v_known text;
+BEGIN
+  IF p_kind IS NULL OR p_kind NOT IN ('url','api') THEN
+    RAISE EXCEPTION 'a fetched document is a url or an api, and this one is %',
+      coalesce(p_kind, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_title IS NULL OR btrim(p_title, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has a title' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_s3_key IS NULL OR btrim(p_s3_key, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has its bytes in the store, and no object key was given'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_uri IS NULL OR btrim(p_uri, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has the address it came from'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_sha256 IS NULL OR btrim(p_sha256, v_blank) = '' THEN
+    RAISE EXCEPTION 'a fetched document has the hash of its bytes'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_retrieved_at IS NULL THEN
+    RAISE EXCEPTION 'a fetched document has the day it was retrieved'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT d.id INTO v_known FROM public.documents d WHERE d.sha256 = p_sha256;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the bytes with the hash % are already document %', p_sha256, v_known
+      USING ERRCODE = 'unique_violation';
+  END IF;
+
+  RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
+                             p_archive_uri, p_sha256, p_mime, p_retrieved_at);
+END $$;
+
+-- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
+-- be marked done by hand.
+CREATE OR REPLACE FUNCTION complete_job(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.jobs
+     SET status = 'done', finished_at = now(), updated_at = now()
+   WHERE id = p_id AND status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
 END $$;
 

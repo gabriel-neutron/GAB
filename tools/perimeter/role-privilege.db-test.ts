@@ -4,22 +4,32 @@
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { probe, rolledBack } from '../probe.ts';
+import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
-  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean)',
+  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
+  record_model_call:
+    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
   release_expired_claims: 'public.release_expired_claims()',
   fail_job: 'public.fail_job(uuid,text)',
+  enqueue_job: 'public.enqueue_job(text,text)',
+  complete_job: 'public.complete_job(uuid)',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
+  open_conversation: 'public.open_conversation(text,text,uuid)',
+  append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
+  put_document_text: 'public.put_document_text(text,jsonb,text)',
+  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
 
-const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, boolean>> => {
+const doorsHeldBy = async (
+  identity: 'app' | 'agent' | 'research',
+): Promise<Record<string, boolean>> => {
   const names = Object.keys(DOORS);
   const signatures = Object.values(DOORS);
   const rows = await probe(identity, async (ask) =>
@@ -40,16 +50,45 @@ const doorsHeldBy = async (identity: 'app' | 'agent'): Promise<Record<string, bo
 
 // The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
 // this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on propose_change, the layout door, the claim and the failure', async () => {
+test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout door, the claim and the failure', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
     propose_change: true,
     promote_proposal: false,
     reject_proposal: false,
+    record_model_call: true,
     claim_job: true,
     release_expired_claims: false,
     fail_job: true,
+    enqueue_job: true,
+    complete_job: true,
     set_entity_layout: true,
+    open_conversation: false,
+    append_chat_message: false,
+    put_document_text: true,
+    put_fetched_document: true,
+  });
+});
+
+// THE RESEARCH ROLE PROPOSES AND STORES A FETCHED DOCUMENT, AND IT CANNOT DECIDE OR CLAIM. It holds
+// no door of the operator, no door of the queue except the request for work, and no call record.
+test('gabriel_research holds EXECUTE on five doors and no other', async () => {
+  expect(await doorsHeldBy('research')).toStrictEqual({
+    put_document: false,
+    propose_change: true,
+    promote_proposal: false,
+    reject_proposal: false,
+    record_model_call: false,
+    claim_job: false,
+    release_expired_claims: false,
+    fail_job: false,
+    enqueue_job: true,
+    complete_job: false,
+    set_entity_layout: false,
+    open_conversation: false,
+    append_chat_message: false,
+    put_document_text: true,
+    put_fetched_document: true,
   });
 });
 
@@ -57,6 +96,7 @@ const REFUSED = [
   { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
   { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
+  { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
 ] as const;
 
 for (const refused of REFUSED)
@@ -72,10 +112,17 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     propose_change: true,
     promote_proposal: true,
     reject_proposal: true,
+    record_model_call: false,
     claim_job: false,
     release_expired_claims: true,
     fail_job: false,
+    enqueue_job: true,
+    complete_job: false,
     set_entity_layout: false,
+    open_conversation: true,
+    append_chat_message: true,
+    put_document_text: true,
+    put_fetched_document: false,
   });
 });
 
@@ -107,6 +154,13 @@ test('gabriel_agent writes no table, in any schema', async () => {
   expect(held).toStrictEqual([]);
 });
 
+test('gabriel_research writes no table, in any schema', async () => {
+  const held = await probe('superuser', async (ask) =>
+    writes.parse(await ask(WRITES_OF, ['gabriel_research'])).map((row) => row.found),
+  );
+  expect(held).toStrictEqual([]);
+});
+
 test('a column grant of UPDATE on an evidentiary table shows as a write', async () => {
   const held = await rolledBack('superuser', async (ask) => {
     await ask('GRANT UPDATE (label) ON public.entities TO gabriel_app');
@@ -123,6 +177,19 @@ test('gabriel_agent cannot mark a job by hand', async () => {
   ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table jobs' });
 });
 
+// Departure: the call record is a door too, and the table that the door writes stays closed. A
+// worker that could insert a row by hand could write a call that no model made.
+for (const identity of ['agent', 'app'] as const)
+  test(`gabriel_${identity} cannot write a model call by hand`, async () => {
+    await expect(
+      rolledBack(identity, (ask) =>
+        ask(`INSERT INTO public.model_call (agent, agent_version, endpoint, requested_model,
+               prompt_sha256, latency_ms, outcome)
+             VALUES ('a', 'v1', 'e', 'm', repeat('a', 64), 1, 'ok')`),
+      ),
+    ).rejects.toMatchObject({ code: '42501', message: 'permission denied for table model_call' });
+  });
+
 test('gabriel_app cannot queue work without a document', async () => {
   await expect(
     rolledBack('app', (ask) => ask("INSERT INTO public.jobs (document_id) VALUES ('manual')")),
@@ -137,13 +204,16 @@ const counted = z.array(z.object({ n: z.number().int() }));
 const DOCUMENT = 'doc_perimeter_queue';
 
 const PUT = `SELECT public.put_document($1, 'file', 'A perimeter test of the queue',
-  NULL, NULL, NULL, NULL, NULL, '2026-09-02'::date) AS id`;
+  'raw/perimeter-queue.pdf', NULL, NULL, NULL, 'application/pdf', '2026-09-02'::date) AS id`;
+
+const ENQUEUE = "SELECT public.enqueue_job($1, 'extract_text') AS id";
 
 // Departure: the one way a job appears. The rollback proves the two writes are one act: the
 // document row and the job row leave together, so neither can exist without the other.
-test('the ingestion door queues the work in the transaction that writes the document', async () => {
+test('the enqueue door queues the work in the transaction that asks for it', async () => {
   const inside = await rolledBack('app', async (ask) => {
     await ask(PUT, [DOCUMENT]);
+    await ask(ENQUEUE, [DOCUMENT]);
     return counted.parse(await ask(QUEUED, [DOCUMENT]));
   });
   expect(inside).toStrictEqual([{ n: 1 }]);
@@ -204,12 +274,27 @@ test('gabriel_read carries a five second statement timeout', async () => {
 const RESERVED = ['manual', 'inherited'] as const;
 
 const cites = (document: string): string => `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[],
+  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-const proposeCiting = (identity: 'app' | 'agent', document: string): Promise<readonly unknown[]> =>
-  rolledBack(identity, (ask) => ask(cites(document)));
+// A machine act names its call, and the agent holds the one door that records it. The operator
+// names none.
+const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise<string | null> => {
+  if (identity !== 'agent') return null;
+  const [row] = made.parse(
+    await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
+                 repeat('a', 64), 1, 'ok') AS id`),
+  );
+  return row?.id ?? null;
+};
+
+const proposeCiting = (
+  identity: 'app' | 'agent' | 'research',
+  document: string,
+): Promise<readonly unknown[]> =>
+  rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {
@@ -219,6 +304,13 @@ for (const document of RESERVED) {
       message:
         'new row for relation "proposals" violates check constraint ' +
         '"proposals_machine_not_reserved"',
+    });
+  });
+
+  test(`a research proposal that cites ${document} is refused`, async () => {
+    await expect(proposeCiting('research', document)).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'proposals_machine_not_reserved',
     });
   });
 
@@ -243,12 +335,13 @@ afterAll(async () => {
 });
 
 const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
-  rolledBack('agent', (ask) =>
+  rolledBack('agent', async (ask) =>
     ask(
       `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
          'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
-         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[]) AS id`,
-      [value, act],
+         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[],
+         NULL, NULL, '{}', NULL, false, $3::uuid) AS id`,
+      [value, act, await callOf('agent', ask)],
     ),
   );
 
@@ -271,3 +364,55 @@ test('a machine value that cites manual where the act does is refused', async ()
 test('a machine value that cites the document of its act is accepted', async () => {
   expect(made.parse(await valueCites(ORDINARY, [ORDINARY]))).toHaveLength(1);
 });
+
+// Departure: the conversations are the operator's and they are private. The read role has no
+// USAGE on public, the agent holds no grant, and the writer reads them as gabriel_app.
+const CHAT_TABLES = ['conversation', 'chat_message', 'chat_citation'] as const;
+
+for (const table of CHAT_TABLES) {
+  test(`gabriel_read cannot read ${table}`, async () => {
+    await expect(
+      probe('read', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).rejects.toMatchObject({ code: '42501', message: 'permission denied for schema public' });
+  });
+
+  test(`gabriel_agent cannot read ${table}`, async () => {
+    await expect(
+      probe('agent', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).rejects.toMatchObject({ code: '42501', message: `permission denied for table ${table}` });
+  });
+
+  test(`gabriel_app reads ${table}`, async () => {
+    expect(
+      await probe('app', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
+    ).toHaveLength(1);
+  });
+}
+
+const BY_HAND = [
+  ['conversation', "INSERT INTO public.conversation (title) VALUES ('a test')"],
+  ['conversation', "UPDATE public.conversation SET title = 'a test'"],
+  ['conversation', 'DELETE FROM public.conversation'],
+  [
+    'chat_message',
+    `INSERT INTO public.chat_message (conversation_id, role, text)
+       VALUES (gen_random_uuid(), 'user', 'a test')`,
+  ],
+  ['chat_message', "UPDATE public.chat_message SET text = 'a test'"],
+  ['chat_message', 'DELETE FROM public.chat_message'],
+  [
+    'chat_citation',
+    `INSERT INTO public.chat_citation (message_id, document_id)
+       VALUES (gen_random_uuid(), 'manual')`,
+  ],
+  ['chat_citation', "UPDATE public.chat_citation SET excerpt = 'a test'"],
+  ['chat_citation', 'DELETE FROM public.chat_citation'],
+] as const;
+
+for (const [table, sql] of BY_HAND)
+  test(`gabriel_app cannot write ${table} by hand: ${sql.split(' ')[0]}`, async () => {
+    await expect(rolledBack('app', (ask) => ask(sql))).rejects.toMatchObject({
+      code: '42501',
+      message: `permission denied for table ${table}`,
+    });
+  });

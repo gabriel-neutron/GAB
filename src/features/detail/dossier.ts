@@ -144,6 +144,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
 
 const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
   gabriel_agent: 'machine',
+  gabriel_research: 'machine',
   gabriel_app: 'operator',
 };
 

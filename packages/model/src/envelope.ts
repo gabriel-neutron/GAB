@@ -13,12 +13,23 @@ const choice = z.object({
   message: z.object({
     content: z.string().nullish(),
     refusal: z.string().nullish(),
+    tool_calls: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          function: z.object({ name: z.string().min(1), arguments: z.string() }),
+        }),
+      )
+      .nullish(),
   }),
   finish_reason: z.string().nullish(),
 });
 
 // `usage` is required. The cap is counted from it, and a cap that misses a call is not a cap.
+// `model` names the model that answered. A gateway can route a call to another model, and a body
+// with no name cannot prove otherwise.
 export const completion = z.object({
+  model: z.string().nullish(),
   choices: z.array(choice).min(1),
   usage,
 });
@@ -37,6 +48,8 @@ export const tokensOf = (body: unknown): number => {
 export const errorBody = z.object({
   error: z.object({
     message: z.string().nullish(),
+    code: z.union([z.string(), z.number()]).nullish(),
+    type: z.string().nullish(),
     metadata: z.object({ error_type: z.string().nullish() }).nullish(),
   }),
 });
@@ -48,7 +61,9 @@ export const refusalOf = (body: unknown): { word: string; said: string } => {
   const held = errorBody.safeParse(body);
   if (!held.success) return { word: '', said: '' };
   return {
-    word: (held.data.error.metadata?.error_type ?? '').toLowerCase(),
+    word: String(
+      held.data.error.metadata?.error_type ?? held.data.error.code ?? held.data.error.type ?? '',
+    ).toLowerCase(),
     said: (held.data.error.message ?? '').toLowerCase(),
   };
 };

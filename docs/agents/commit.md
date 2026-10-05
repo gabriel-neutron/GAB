@@ -71,3 +71,10 @@ Every reference. ADR 0006 §5 states it: a comment under `src/`, under `packages
 `.storybook` records a reason and never a pointer, and a commit message carries every reference it
 wants — a ticket, a document, a section, a commit hash or a tag. This is why the eviction from the
 source costs nothing.
+
+## Privacy of the message
+
+The repository is public, and a commit message stays in the history for ever. A header, a body
+and a trailer carry no local path, no user name, no machine name and no secret. Read
+`issue-tracker.md`, section "Privacy", before the first commit. Search the diff and the message
+for the Windows user folder name and for `C:` before `git commit`.

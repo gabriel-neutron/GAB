@@ -78,14 +78,14 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
             JOIN pg_catalog.pg_roles r ON r.oid = m.member
             JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
            WHERE m.roleid = 'gabriel_owner'::regrole
-              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
           UNION ALL
           SELECT r.rolname || ' is ' || a.attribute
             FROM pg_catalog.pg_roles r
            CROSS JOIN LATERAL (VALUES ('SUPERUSER', r.rolsuper), ('CREATEROLE', r.rolcreaterole),
                                       ('CREATEDB', r.rolcreatedb), ('BYPASSRLS', r.rolbypassrls),
                                       ('REPLICATION', r.rolreplication)) AS a(attribute, held)
-           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
+           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read') AND a.held
            ORDER BY 1`;
 
 // External constraint: a default with no IN SCHEMA is stored with defaclnamespace 0, which no
@@ -282,12 +282,25 @@ const DEFINER_DOORS = `
    ORDER BY 1`;
 
 const THE_DOOR_SET = [
+  'public.append_chat_message to gabriel_app',
   'public.claim_job to gabriel_agent',
+  'public.complete_job to gabriel_agent',
+  'public.enqueue_job to gabriel_agent',
+  'public.enqueue_job to gabriel_app',
+  'public.enqueue_job to gabriel_research',
   'public.fail_job to gabriel_agent',
+  'public.open_conversation to gabriel_app',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
+  'public.propose_change to gabriel_research',
   'public.put_document to gabriel_app',
+  'public.put_document_text to gabriel_agent',
+  'public.put_document_text to gabriel_app',
+  'public.put_document_text to gabriel_research',
+  'public.put_fetched_document to gabriel_agent',
+  'public.put_fetched_document to gabriel_research',
+  'public.record_model_call to gabriel_agent',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
   'public.set_entity_layout to gabriel_agent',
@@ -369,12 +382,13 @@ const READ_VIEWS = [
   'api.job SELECT',
   'api.key_usage SELECT',
   'api.layout SELECT',
+  'api.model_call SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the eleven api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the twelve api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -393,4 +407,42 @@ test('gabriel_read can execute api.neighbourhood, and not only hold the grant', 
     found.length,
     'the fixture holds an entity-to-entity relation, so the walk finds one',
   ).toBe(1);
+});
+
+const MACHINE_HOLDS = `
+  SELECT g.grantee || ' ' || g.table_schema || '.' || g.table_name || ' ' || g.privilege_type
+           AS found
+    FROM information_schema.role_table_grants g
+   WHERE g.grantee IN ('gabriel_app','gabriel_agent','gabriel_research')
+     AND g.table_schema = 'api'
+   ORDER BY 1`;
+
+const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
+
+// A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
+// to no tool until a person writes it in. api.model_call is the one that must stay closed.
+test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
+  const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
+    MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
+  );
+  expect(await foundBy(MACHINE_HOLDS)).toStrictEqual(expected);
+});
+
+const NEIGHBOURHOOD_HOLDERS = `
+  SELECT pg_catalog.pg_get_userbyid(a.grantee) AS found
+    FROM pg_catalog.pg_proc p
+   CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
+   WHERE p.pronamespace = 'api'::regnamespace AND p.proname = 'neighbourhood'
+     AND a.privilege_type = 'EXECUTE'
+   ORDER BY 1`;
+
+test('api.neighbourhood runs for the owner, the read role and the three tool roles alone', async () => {
+  expect(await foundBy(NEIGHBOURHOOD_HOLDERS)).toStrictEqual([
+    'gabriel_agent',
+    'gabriel_app',
+    'gabriel_owner',
+    'gabriel_read',
+    'gabriel_research',
+  ]);
 });

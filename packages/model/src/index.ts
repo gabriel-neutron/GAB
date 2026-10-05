@@ -6,6 +6,11 @@ export {
   type Answer,
   type Message,
   type Model,
+  type QuotaPool,
+  type QuotaRead,
   type Question,
   type Send,
+  type Tool,
+  type ToolCall,
+  type ToolUse,
 } from './client.ts';
