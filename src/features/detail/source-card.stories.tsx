@@ -78,6 +78,7 @@ const addressed = (uri: string): SourceCardModel => {
     admiralty: held.admiralty,
     admiralty_origin: held.admiraltyOrigin,
     created_at: null,
+    cost_eur: null,
   });
   const documents = corpus.documents.map((row) => (row.id === read.id ? read : row));
   return sourceIn(cardsOf({ ...corpus, documents }), read.id);

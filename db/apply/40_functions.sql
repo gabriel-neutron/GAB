@@ -238,9 +238,14 @@ END $$;
 -- is the one rule for an unknown provider: the door does no lookup of its own, and the refusal
 -- names the value in its detail.
 --
--- The earlier signature is dropped here: a re-runnable file that only replaces would leave the
--- two side by side, and a call with nine arguments would then be ambiguous.
+-- THE COST IS AFTER THE PROVIDER, AND IT IS OPTIONAL TOO, for the same reason. It is the price
+-- of a bought filing in euros. put_fetched_document passes ten arguments by position, so it
+-- stores no cost, and a fetch costs nothing that the record must keep.
+--
+-- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
+-- side by side, and a call with fewer arguments would then be ambiguous.
 DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date);
+DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date,text);
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -251,7 +256,8 @@ CREATE OR REPLACE FUNCTION put_document(
   p_sha256       text DEFAULT NULL,
   p_mime         text DEFAULT NULL,
   p_retrieved_at date DEFAULT NULL,
-  p_provider_id  text DEFAULT NULL)
+  p_provider_id  text DEFAULT NULL,
+  p_cost_eur     numeric DEFAULT NULL)
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -262,10 +268,11 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id text;
 BEGIN
   INSERT INTO public.documents
-    (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at, provider_id)
+    (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at, provider_id,
+     cost_eur)
   VALUES
     (p_id::doc_id, p_kind, p_title, p_s3_key, p_uri, p_archive_uri, p_sha256, p_mime,
-     p_retrieved_at, p_provider_id)
+     p_retrieved_at, p_provider_id, p_cost_eur)
   RETURNING id INTO v_id;
 
   -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
