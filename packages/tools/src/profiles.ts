@@ -19,7 +19,9 @@ export const PROFILES = {
     'enqueue_extract',
     'job_status',
   ],
-  extractor: ['document_text', 'lookup_entity', 'propose_change'],
+  // The model of the extractor reads with the first two. Code runs the two writes, so a model
+  // never names the proposal or the span that it stores.
+  extractor: ['document_text', 'lookup_entity', 'propose_change', 'put_claim_reading'],
   mapper: [],
   verifier: ['document_text', 'proposal_read'],
   chat: ['search_graph', 'neighbourhood', 'document_text', 'enqueue_extract'],
