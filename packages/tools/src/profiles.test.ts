@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { CATALOGUE } from './catalogue.ts';
 import { checkProfiles, PROFILE_LIMIT, PROFILES } from './profiles.ts';
 
-test('the catalogue holds the nine tools that are built, once each', () => {
+test('the catalogue holds the ten tools that are built, once each', () => {
   expect(CATALOGUE.map((tool) => tool.name).sort()).toStrictEqual([
     'document_text',
     'enqueue_extract',
@@ -13,6 +13,7 @@ test('the catalogue holds the nine tools that are built, once each', () => {
     'neighbourhood',
     'proposal_read',
     'propose_change',
+    'put_claim_reading',
     'search_graph',
   ]);
 });
@@ -57,4 +58,13 @@ test('a profile that names a tool outside the catalogue fails the check', () => 
   expect(() => {
     checkProfiles({ lost: ['search_graph', 'web_search'] }, CATALOGUE);
   }).toThrow(/lost.*web_search/);
+});
+
+test('the extractor profile holds the two reads of its model and the two writes of its code', () => {
+  expect(PROFILES.extractor).toStrictEqual([
+    'document_text',
+    'lookup_entity',
+    'propose_change',
+    'put_claim_reading',
+  ]);
 });

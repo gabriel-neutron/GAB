@@ -26,6 +26,8 @@ const DOORS = {
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
   put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
+  put_claim_reading:
+    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -72,6 +74,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
+    put_claim_reading: true,
   });
 });
 
@@ -96,6 +99,7 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
+    put_claim_reading: false,
   });
 });
 
@@ -134,6 +138,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     append_chat_message: true,
     put_document_text: true,
     put_fetched_document: false,
+    put_claim_reading: false,
   });
 });
 
