@@ -44,6 +44,15 @@ CREATE OR REPLACE TRIGGER chat_message_append_only
   BEFORE UPDATE OR DELETE ON chat_message
   FOR EACH ROW EXECUTE FUNCTION chat_message_append_only_fn();
 
+-- A reading is written once, and so is a citation.
+CREATE OR REPLACE TRIGGER claim_reading_append_only
+  BEFORE UPDATE OR DELETE ON claim_reading
+  FOR EACH ROW EXECUTE FUNCTION claim_reading_append_only_fn();
+
+CREATE OR REPLACE TRIGGER citation_append_only
+  BEFORE UPDATE OR DELETE ON citation
+  FOR EACH ROW EXECUTE FUNCTION claim_reading_append_only_fn();
+
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -77,6 +86,8 @@ ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
+ALTER TABLE claim_reading ENABLE ALWAYS TRIGGER claim_reading_append_only;
+ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
