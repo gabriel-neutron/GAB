@@ -103,9 +103,8 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
           {QUESTIONS[stance.verdict]}
         </span>
         <Button
-          // This control stands where `Reject` stood, and both are a button, so the node would
-          // be kept and the press that asked would land on `Reject it`. Only this one is keyed:
-          // a key on the row would drop the hand on all three paths.
+          // This control gets a node of its own, so the press that asked never lands on the answer
+          // that writes the row.
           key="confirm"
           variant={stance.verdict === 'rejected' ? 'destructive' : 'default'}
           size="xs"
@@ -123,6 +122,9 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
           {CONFIRM[stance.verdict]}
         </Button>
         <Button
+          // The control that keeps the act waiting takes the node of `Promote`, so the hand stays
+          // on it, whatever the merge note does to the positions.
+          key="stay"
           variant="outline"
           size="xs"
           className={KIT}
@@ -224,6 +226,8 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
         </span>
       )}
       <Button
+        // The control that keeps the act waiting takes this node when the question opens.
+        key="stay"
         size="xs"
         className={KIT}
         disabled={busy || noPromotion !== null}
