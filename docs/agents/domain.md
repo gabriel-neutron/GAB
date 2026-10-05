@@ -4,7 +4,7 @@ How a skill uses the documentation of this project while it explores the code.
 
 ## Where the words live
 
-- **`CONTEXT.md`**, at the repository root — the glossary and the ubiquitous language. The
+- **`GLOSSARY.md`**, at the repository root — the glossary and the ubiquitous language. The
   `mattpocock-skills:domain-modeling` skill writes it, and only when a term or a decision is
   settled. The `grilling` and `codebase-design` skills reach that skill.
 - **`docs/prd.md` and `docs/decisions.md`** — the domain words of this project, until the
@@ -16,7 +16,7 @@ How a skill uses the documentation of this project while it explores the code.
 **An absent file is a silent condition. Continue, and report nothing about it.** The glossary
 arrives when a term is settled, and never in advance.
 
-`CONTEXT.md` stays at the repository root, because every skill reads it from that path.
+`GLOSSARY.md` stays at the repository root, because every skill reads it from that path.
 `docs/authoring.md` records that exception to "every document lives in `docs/`".
 
 ## Use the words of the glossary

@@ -2,6 +2,7 @@ export { openBudget, type Budget } from './budget.ts';
 export { REASON, type Failure, type ReasonKind } from './failure.ts';
 export {
   openModel,
+  worstQuestionMs,
   type AgentModel,
   type Answer,
   type Message,

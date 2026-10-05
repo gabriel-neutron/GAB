@@ -14,6 +14,9 @@ const replyShape = z.strictObject({
   proposalId: z.string().optional(),
 });
 
+// An act door never reaches the raw store, so this one refuses every object.
+const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
+
 const lostSocket = (): Error => Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
 
 const postText = async (
@@ -21,7 +24,7 @@ const postText = async (
   door: string,
   text: string,
 ): Promise<[number, z.infer<typeof replyShape>]> => {
-  const answer = await writeRoutes(pool).request(`/write/${door}`, {
+  const answer = await writeRoutes(pool, NO_STORE).request(`/write/${door}`, {
     method: 'POST',
     headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: text,

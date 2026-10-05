@@ -8,6 +8,7 @@ import { neighbourhood } from './neighbourhood.ts';
 import { newsSearch } from './news-search.ts';
 import { proposalRead } from './proposal-read.ts';
 import { proposeChange } from './propose-change.ts';
+import { putClaimReading } from './put-claim-reading.ts';
 import { searchGraph } from './search-graph.ts';
 import { webSearch } from './web-search.ts';
 
@@ -20,6 +21,7 @@ export const CATALOGUE = [
   lookupEntity,
   proposalRead,
   proposeChange,
+  putClaimReading,
   enqueueExtract,
   jobStatus,
   webSearch,

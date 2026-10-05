@@ -16,7 +16,7 @@ strongest editing tools, and §4 removes editing from scope.
 In MapLibre a **layer is a first-class object of the library**, so the `layers` table stores
 something the renderer reads almost directly. `maplibre-gl` is driven directly — ADR 0004 §2.
 
-### 2. A tiered, entity-driven PMTiles coverage, self-hosted on MinIO
+### 2. A tiered, entity-driven PMTiles coverage, self-hosted on the S3 store
 
 **Amended 17 August 2026: this archive is an optimisation, and never a condition of running.** The
 operator ruled that the application must work with no configuration at all, and that a hosted
@@ -28,10 +28,11 @@ refused a whole-country file, so the coverage is **tiered**: the world at low zo
 ever blank, Russia and any country holding entities at middle zoom, and buffered areas around
 entities at zoom 15. **The breakpoints and the buffer radius are parameters to calibrate.**
 
-The archive is served from MinIO, in a **second, public bucket**. The raw bucket stays private, so
-T3 is untouched: a basemap is neither raw material nor evidence. MinIO satisfies PMTiles with no
-configuration — range requests and `ETag` are there by default, and the client sends only a
-CORS-safelisted header. **`mc cors set` is a dummy call in the community build.**
+The archive is served from the S3 store (ADR 0007), in a **second,
+public bucket**. The raw bucket stays private, so
+T3 is untouched: a basemap is neither raw material nor evidence. PMTiles needs range requests and an
+`ETag`, and the client sends only a CORS-safelisted header. **The store must prove range requests
+and `ETag` before the first archive is served.**
 
 ### 3. Imagery
 
@@ -90,7 +91,7 @@ There is no keyless global radar service, and raw Sentinel-1 needs a processing 
 Now: a readable radar quicklook, produced outside Gabriel, is attached as an ordinary **source
 document**. No map layer. Later: a georeferenced file prepared elsewhere is displayed through
 `cog://`. Bought scenes take the same path — one `gdal_translate -of COG` at ingest, the archive in
-MinIO, and a raster layer above the ground. **No new server component.**
+the S3 store, and a raster layer above the ground. **No new server component.**
 
 ### 6. What `layers` becomes
 

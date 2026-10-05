@@ -22,7 +22,7 @@ This document decides no table and no column. §3 says where the schema lives.
 ```mermaid
 flowchart LR
     subgraph RAW["Raw — unchanged by convention"]
-        S3["MinIO / S3<br/>original files"]
+        S3["SeaweedFS (S3)<br/>original files"]
     end
 
     subgraph GOLD["GOLD — PostgreSQL / PostGIS"]
@@ -60,7 +60,7 @@ flowchart LR
     UI -->|edit| BACK
 ```
 
-**Two services in the first build**: PostgreSQL/PostGIS and MinIO (T5). ADR 0010 adds two
+**Two services in the first build**: PostgreSQL/PostGIS and SeaweedFS (T5). ADR 0010 adds two
 services for the AI: freellmapi (the model endpoint) and SearXNG (web search). They run on the
 operator's VPS, on its private network address only, and hold no record of the project.
 

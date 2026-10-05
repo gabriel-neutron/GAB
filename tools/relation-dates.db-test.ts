@@ -1,5 +1,5 @@
-// Departure: the writer checks an interval before it proposes, so no writer test reaches the two
-// CHECKs on the interval of a relation. These tests insert the row directly.
+// Departure: the writer checks an interval before it proposes, so no writer test reaches the
+// trigger and the CHECK on the interval of a relation. These tests insert the row directly.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -68,4 +68,40 @@ test('an owns relation whose valid_from is after its valid_to is refused', async
 
 test('an owns relation with an ordered interval is written', async () => {
   await expect(inserted('owns', '2024-01-01', '2024-06-01')).resolves.toHaveLength(1);
+});
+
+// A relation of a dated type has an end date, and the pair of ends holds only one open relation
+// of that type at a time. An end date on the first lets the next one open.
+const openTwice = (
+  type: string,
+  from: string | null,
+  firstTo: string | null,
+  secondTo: string | null,
+): Promise<unknown> =>
+  probe('superuser', async (ask) => {
+    await ask('BEGIN');
+    try {
+      const end = await idOf(ask, INSERT_ENTITY, [await actOf(ask, PROPOSE_ENTITY)]);
+      const firstAct = await actOf(ask, PROPOSE_RELATION);
+      await ask(INSERT_RELATION, [type, end, from, firstTo, firstAct]);
+      const secondAct = await actOf(ask, PROPOSE_RELATION);
+      return await ask(INSERT_RELATION, [type, end, from, secondTo, secondAct]);
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+
+test('a second open relation of the same dated type between the same ends is refused', async () => {
+  await expect(openTwice('owns', '2024-01-01', null, null)).rejects.toMatchObject({
+    code: '23505',
+    constraint: 'relations_one_open_per_type',
+  });
+});
+
+test('a second relation of the same dated type opens once the first has an end date', async () => {
+  await expect(openTwice('owns', '2024-01-01', '2024-02-01', null)).resolves.toHaveLength(1);
+});
+
+test('a relation of a type that takes no interval may repeat', async () => {
+  await expect(openTwice('berthed_at', null, null, null)).resolves.toHaveLength(1);
 });

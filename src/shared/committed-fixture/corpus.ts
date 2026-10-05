@@ -2,6 +2,8 @@
  * Every row is invented. No claim here is about a real vessel, company or person. A story draws
  * this record; the application draws the read API, so no row here reaches a running surface. */
 
+import { SEEDED_RELATION_TYPES } from '@gab/proposal/relation-types';
+
 import type { Corpus, Entity, MapPosition, Point, Relation } from '../read/model';
 
 /** T4 puts the walk in SQL and no surface repeats it. This is the ONE walk in TypeScript here,
@@ -72,7 +74,7 @@ function resolvePositions(
   });
 }
 
-const record: Omit<Corpus, 'positions'> = {
+const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
   documents: [
     {
       id: 'manual',
@@ -492,6 +494,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'e1f20a34-7b8c-4d16-9052-a3b4c5d6e7f8',
       type: 'owns',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04',
       dstKind: 'entity',
@@ -508,6 +511,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a2b3c4d5-8e9f-4012-b345-c6d7e8f90a1b',
       type: 'appoints',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31',
       dstKind: 'entity',
@@ -521,6 +525,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'c3d4e5f6-9a0b-4123-c456-d7e8f90a1b2c',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7',
       dstKind: 'entity',
@@ -538,6 +543,7 @@ const record: Omit<Corpus, 'positions'> = {
       // and it is reached through the detail panel.
       id: 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d',
       type: 'contradicts',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31',
       dstKind: 'relation',
@@ -554,6 +560,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000001',
       type: 'owns',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '4b58c334-4e55-4b88-2c29-192a3b4c5d6e',
       dstKind: 'entity',
@@ -568,6 +575,7 @@ const record: Omit<Corpus, 'positions'> = {
       // A closed interval. A reader must not take this one as current.
       id: 'a10b2c3d-1111-4a11-9c33-000000000002',
       type: 'owns',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '5c69d445-5f66-4c99-3d3a-2a3b4c5d6e7f',
       dstKind: 'entity',
@@ -581,6 +589,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000003',
       type: 'owns',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '6d7ae556-6077-4daa-4e4b-3b4c5d6e7f80',
       dstKind: 'entity',
@@ -594,6 +603,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000004',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: 'd4e15ccd-d7e8-4411-b5b2-a2b3c4d5e6f7',
       dstKind: 'entity',
@@ -607,6 +617,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000005',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '18259001-1b22-4855-f9f6-e6f708192a3b',
       dstKind: 'entity',
@@ -620,6 +631,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000006',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '3a47b223-3d44-4a77-1b18-08192a3b4c5d',
       dstKind: 'entity',
@@ -633,6 +645,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000007',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '2936a112-2c33-4966-0a07-f708192a3b4c',
       dstKind: 'entity',
@@ -646,6 +659,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000008',
       type: 'berthed_at',
+      proposedType: null,
       srcKind: 'entity',
       srcId: 'e5f26dde-e8f9-4522-c6c3-b3c4d5e6f708',
       dstKind: 'entity',
@@ -663,6 +677,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000009',
       type: 'appoints',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '4b58c334-4e55-4b88-2c29-192a3b4c5d6e',
       dstKind: 'entity',
@@ -676,6 +691,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000010',
       type: 'appoints',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '6d7ae556-6077-4daa-4e4b-3b4c5d6e7f80',
       dstKind: 'entity',
@@ -689,6 +705,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000011',
       type: 'operates',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '5c69d445-5f66-4c99-3d3a-2a3b4c5d6e7f',
       dstKind: 'entity',
@@ -702,6 +719,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000012',
       type: 'operates',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '6d7ae556-6077-4daa-4e4b-3b4c5d6e7f80',
       dstKind: 'entity',
@@ -716,6 +734,7 @@ const record: Omit<Corpus, 'positions'> = {
       // A second endpoint that is a relation. M4: nothing supports it and nothing prevents it.
       id: 'a10b2c3d-1111-4a11-9c33-000000000013',
       type: 'contradicts',
+      proposedType: null,
       srcKind: 'entity',
       srcId: '5c69d445-5f66-4c99-3d3a-2a3b4c5d6e7f',
       dstKind: 'relation',
@@ -735,6 +754,7 @@ const record: Omit<Corpus, 'positions'> = {
     {
       id: 'a10b2c3d-1111-4a11-9c33-000000000030',
       type: 'subordinate_to',
+      proposedType: null,
       srcKind: 'entity',
       srcId: 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809',
       dstKind: 'entity',
@@ -894,4 +914,6 @@ const record: Omit<Corpus, 'positions'> = {
 export const corpus: Corpus = {
   ...record,
   positions: resolvePositions(record.entities, record.relations),
+  // The words the seed of the database declares. A story reaches no database, so it carries this.
+  relationTypes: SEEDED_RELATION_TYPES.map((row) => ({ ...row, retired: false })),
 };

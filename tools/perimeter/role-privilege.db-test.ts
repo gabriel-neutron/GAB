@@ -7,8 +7,9 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
-  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date)',
-  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
+  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text,numeric)',
+  propose_change:
+    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
   record_model_call:
     'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
@@ -18,11 +19,15 @@ const DOORS = {
   fail_job: 'public.fail_job(uuid,text)',
   enqueue_job: 'public.enqueue_job(text,text)',
   complete_job: 'public.complete_job(uuid)',
+  release_job_for_quota: 'public.release_job_for_quota(uuid)',
+  runner_settings: 'public.runner_settings()',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
   open_conversation: 'public.open_conversation(text,text,uuid)',
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
-  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text)',
+  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
+  put_claim_reading:
+    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -62,11 +67,14 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     fail_job: true,
     enqueue_job: true,
     complete_job: true,
+    release_job_for_quota: true,
+    runner_settings: true,
     set_entity_layout: true,
     open_conversation: false,
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
+    put_claim_reading: true,
   });
 });
 
@@ -84,11 +92,14 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
+    release_job_for_quota: false,
+    runner_settings: false,
     set_entity_layout: false,
     open_conversation: false,
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
+    put_claim_reading: false,
   });
 });
 
@@ -97,6 +108,8 @@ const REFUSED = [
   { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
   { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
+  { identity: 'app', call: 'SELECT public.release_job_for_quota(gen_random_uuid())' },
+  { identity: 'research', call: 'SELECT * FROM public.runner_settings()' },
 ] as const;
 
 for (const refused of REFUSED)
@@ -118,12 +131,40 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
+    release_job_for_quota: false,
+    runner_settings: false,
     set_entity_layout: false,
     open_conversation: true,
     append_chat_message: true,
     put_document_text: true,
     put_fetched_document: false,
+    put_claim_reading: false,
   });
+});
+
+// THE TIER IS HELD BY NO ROLE YET. The reader of an export gets EXECUTE with the export, because
+// the owner of a view does not lend it. gabriel_read has no USAGE on public, so the superuser
+// asks on its behalf.
+const TIER_HELD = `SELECT r.role,
+    has_function_privilege(r.role, 'public.document_tier(text)', 'EXECUTE') AS held
+  FROM unnest($1::text[]) AS r(role) ORDER BY r.role`;
+
+const heldBy = z.array(z.object({ role: z.string(), held: z.boolean() }));
+
+test('no login role holds EXECUTE on the tier', async () => {
+  const roles = ['gabriel_agent', 'gabriel_app', 'gabriel_read', 'gabriel_research'];
+  const found = await probe('superuser', async (ask) =>
+    heldBy.parse(await ask(TIER_HELD, [roles])),
+  );
+  expect(found).toStrictEqual(roles.map((role) => ({ role, held: false })));
+});
+
+// The provider table is in public, and the read role reads the api views alone.
+test('gabriel_read holds no SELECT on the provider table', async () => {
+  const found = await probe('superuser', (ask) =>
+    ask("SELECT has_table_privilege('gabriel_read', 'public.document_provider', 'SELECT') AS held"),
+  );
+  expect(found).toStrictEqual([{ held: false }]);
 });
 
 // External constraint: role_table_grants reads the table ACL alone, and a grant on one column is

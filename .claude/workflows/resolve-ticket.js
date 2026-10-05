@@ -5,7 +5,7 @@ export const meta = {
   description:
     'Resolve GitHub tickets of GAB end to end: triage -> propose (debate on a real choice) -> independent design review -> test-first implementation -> review panel and gatekeeper (change-request loop) -> merge into staging and close the ticket',
   whenToUse:
-    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>} names the tickets. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /home/claude/projects/GAB (the VPS).',
+    'Resolve one or more open GAB tickets with nobody in the loop, by hand or at night on the VPS. args: {tickets: [{n: 212, after?: [198]}], maxRounds?: 3, reportIssue?: <n>, resume?: {<n>: {branch, pr}}, base?: integration/<name>} names the tickets. With `base`, the tickets merge into that integration branch and one spec pull request goes to staging. `resume` names a ticket whose earlier PR of this workflow is continued and not flagged. With no tickets, args: {phase: <phase ticket>, reportIssue?: <n>, max?: 4} takes the ready-for-agent sub-issues of that phase that have no open blocker and no assignee, in tracker order. Tickets run one after the other, except two tickets whose triage found concrete, disjoint paths outside the hotspots. `after` is a hard dependency: the dependent ticket is skipped when its dependency fails. reportIssue receives the run table. main?: the path of the main checkout, default /home/claude/projects/GAB (the VPS).',
   phases: [
     { title: 'Preflight', detail: 'identity, staging branch, disposable stack; with no tickets given, choose the queue of the phase' },
     { title: 'Triage', detail: 'per ticket: still current? duplicate? open PR, branch or assignee? what does it touch?' },
@@ -15,6 +15,7 @@ export const meta = {
     { title: 'Review', detail: 'spec and standards reviewers (+ a risk lens when triage flags one), then an independent gatekeeper' },
     { title: 'Fix', detail: 'apply the change requests of the gatekeeper, and loop' },
     { title: 'Merge', detail: 'one at a time: rebase, check again, merge into staging, close the ticket' },
+    { title: 'Spec review', detail: 'with an integration branch: review the whole branch, check it, fix it, and open one pull request to staging' },
     { title: 'Report', detail: 'comments on flagged and blocked tickets, the run table, worktree cleanup' },
   ],
 }
@@ -28,6 +29,20 @@ const MAIN_WORKTREE = (args && args.main) || '/home/claude/projects/GAB'
 const COMPOSE = `docker compose -f ${MAIN_WORKTREE}/infra/docker-compose.yml`
 
 const MAX_ROUNDS = (args && args.maxRounds) || 3
+
+// The base branch of the run. By default every pull request targets staging and merges there ticket
+// by ticket. With args.base = 'integration/<name>' the run builds a whole spec: every ticket merges
+// into that integration branch, a final review reads the whole branch, and ONE pull request goes
+// from the integration branch to staging. staging receives nothing until the operator merges it.
+const BASE = (args && args.base) || 'staging'
+if (!/^(staging|integration\/[a-z0-9-]+)$/.test(BASE))
+  throw new Error('args.base must be staging or integration/<lower-case-name>, got: ' + BASE)
+const INTEGRATION = BASE !== 'staging'
+
+// args.resume = {<ticket>: {branch, pr}}: an earlier run of this workflow left a PR for the ticket
+// (for example at needs_human). The run then continues on that branch and that PR, and does not
+// treat the PR as work of somebody else.
+const RESUME = (args && args.resume) || {}
 
 // Four tickets per night run. The operator chose it: four tickets cost about sixty agents, and
 // the morning report must stay readable in one sitting.
@@ -53,8 +68,8 @@ PostgreSQL with PostGIS and pgvector, SeaweedFS and PostgREST, on the loopback a
 databases hold no record of value: you may reset them. TypeScript on both sides. No team.
 
 Rules that bind every agent of this run:
-1. Never push to main, never merge into main, and never force-push staging. The operator alone
-   promotes staging to main.
+1. Never push to main, never merge into main, and never force-push staging.${INTEGRATION ? ` The integration branch ${BASE} is never force-pushed either: its history only grows.` : ''} The operator alone
+   promotes staging to main.${INTEGRATION ? ` The pull requests of the tickets target ${BASE}. Only the spec stage of this run opens a pull request from ${BASE} to staging, and only the operator merges it.` : ''}
 2. The operator owns docs/. Never write a file under docs/, not with a tool and not with the
    shell. When the work needs a change there, post it as a question on the ticket.
 3. Never change .claude/skills, .claude/agents, .claude/hooks or .claude/settings.json.
@@ -123,20 +138,11 @@ const TESTS = `pnpm test runs the whole suite: the offline project, the storyboo
 live projects (store, writer, worker, contract, schema, perimeter, corpus, service). To run one
 file: pnpm test <path>. Never set OFFLINE=1 to make a red run green.`
 
-// The operator accepted these failures of origin/staging on 2026-10-04. A branch passes the gate when
-// it adds no failure to them. Any other red is a new red, also in a file the branch does not touch.
-const BASELINE = `ACCEPTED BASELINE of origin/staging. These failures exist on staging, and they do not
-block a PR:
-- pnpm check: TS2375 at src/features/detail/sidebar.tsx(77,10); lint errors and format faults
-  that origin/staging also shows.
-- pnpm test: 6 tests that need an object store at 127.0.0.1:9000 (5 in
-  packages/store/src/object.db-test.ts, 1 in packages/worker/src/claim.db-test.ts), and the story
-  'The Way Back From The Promotion Question Is Whole' in src/features/review/decide.stories.tsx.
-The operator accepted the baseline. It is never a reason to stop, to refuse a merge or to ask the
-operator again. The rule "any red is red" does not apply to it.
-A run is green when its failures are the same set or a smaller set. Prove it: run the same command
-on origin/staging and compare the failing names. Any failure that staging does not show is a new
-red, and it blocks the PR.`
+// A gate that accepts a list of failures cannot see a new failure in the same files, and a
+// broken test then merges unseen. So the gate accepts no failure.
+const NO_ACCEPTED_FAILURE = `NO ACCEPTED FAILURE: any red in pnpm check or pnpm test blocks the PR.
+This is also true for a failure that origin/staging shows, and for a failure in a file the branch
+does not touch. A red that the branch did not cause is still red: name the failing tests and stop.`
 
 const TRIAGE = {
   type: 'object',
@@ -163,6 +169,7 @@ const PREFLIGHT = {
   properties: {
     identity: { type: 'string', description: 'the login that gh api user printed' },
     staging: { type: 'boolean', description: 'true when origin/staging exists' },
+    base_ready: { type: 'boolean', description: 'true when origin/<base> exists and holds origin/staging; always true for staging' },
     stack: { type: 'string', description: 'ok, or why the disposable stack is not usable' },
     tickets: { type: 'array', items: { type: 'integer' }, description: 'the chosen queue, in tracker order; empty when tickets were given' },
     skipped: {
@@ -275,8 +282,8 @@ const MERGE = {
   type: 'object',
   properties: {
     status: { type: 'string', enum: ['merged_and_closed', 'needs_changes', 'failed'] },
-    check_green: { type: 'boolean', description: 'true when pnpm check shows no failure beyond the accepted baseline of staging. The baseline failures themselves do not make it false.' },
-    tests_green: { type: 'boolean', description: 'true when pnpm test shows no failure beyond the accepted baseline of staging. The baseline failures themselves do not make it false.' },
+    check_green: { type: 'boolean', description: 'true when pnpm check shows no failure. Any red makes it false.' },
+    tests_green: { type: 'boolean', description: 'true when pnpm test shows no failure. Any red makes it false.' },
     merge_sha: { type: 'string' },
     reason: { type: 'string' },
   },
@@ -296,6 +303,7 @@ only in step 4, and only when step 4 tells you to.
 
 1. gh api user --jq .login  -> identity. If it is not gabriel-neutron, stop here and return it.
 2. git fetch origin; git ls-remote --heads origin staging  -> staging is true when it exists.
+${INTEGRATION ? `   Integration branch ${BASE}: if origin/${BASE} does not exist, create it from staging with git push origin origin/staging:refs/heads/${BASE}. If it exists, bring staging into it in a temporary worktree: git worktree add <tmp> origin/${BASE}; in it git merge origin/staging (a merge commit; on a conflict, abort the merge and return base_ready=false with the files in conflict); git push origin HEAD:${BASE}; remove the worktree. Never force-push. base_ready is true when origin/${BASE} holds origin/staging.` : '   The base is staging: base_ready is true.'}
 3. Read only the variable names of ${MAIN_WORKTREE}/infra/.env, never the values:
    it must exist, and GABRIEL_DB_HOST and RAW_STORE_ENDPOINT must be absent or point at
    127.0.0.1 or localhost. Then ${COMPOSE} ps
@@ -325,6 +333,7 @@ if (!preflight) throw new Error('the preflight agent returned nothing')
 if (preflight.identity !== 'gabriel-neutron')
   return { ran: [], note: `stopped: gh acts as ${preflight.identity}, and every write must act as gabriel-neutron` }
 if (!preflight.staging) return { ran: [], note: 'stopped: origin/staging does not exist. The operator creates it from main.' }
+if (!preflight.base_ready) return { ran: [], note: `stopped: origin/${BASE} could not take the latest staging. The operator resolves it.` }
 if (preflight.stack !== 'ok') return { ran: [], note: `stopped: the disposable stack is not usable: ${preflight.stack}` }
 if (preflight.skipped.length) log('Skipped: ' + preflight.skipped.map(s => `#${s.n} ${s.why}`).join(' | '))
 
@@ -341,9 +350,9 @@ You TRIAGE ticket #${n}. READ-ONLY: no edits, no commits, no GitHub writes.
 2. Assignee: gabriel-neutron is the identity of this run, and the preflight of this run claims
    each ticket of its queue. So an assignee gabriel-neutron is the claim of this run, and not work
    in progress. If anyone other than gabriel-neutron holds it, status=flagged_in_progress.
-3. Existing work: gh pr list --repo ${REPO} --state open --search "${n} in:body", a search by title
+${RESUME[n] ? `3. Existing work: PR #${RESUME[n].pr} on branch ${RESUME[n].branch} is OUR earlier run (gabriel-neutron), left at needs_human. It is NOT a reason to flag. Read it (gh pr view ${RESUME[n].pr} --repo ${REPO} --comments) and the ticket comments, and list the paths it already touches plus the paths that the newer comments of the ticket need. Do not use flagged_in_progress for this PR.` : `3. Existing work: gh pr list --repo ${REPO} --state open --search "${n} in:body", a search by title
    words, and git ls-remote --heads origin for a branch that contains ${n}. An open PR or a live
-   branch for this ticket gives flagged_in_progress with the link.
+   branch for this ticket gives flagged_in_progress with the link.`}
 4. Still current? git fetch origin, then read the code the ticket names on origin/main and on
    origin/staging. Fixed on staging but not on main: flagged_stale ("fixed on staging, waits for
    the promotion" + the commit). Fixed everywhere, or the symptom is gone: flagged_stale.
@@ -451,8 +460,8 @@ const implementPrompt = (n, approach) => `${CTX(n)}
 ${ESCALATION}
 You IMPLEMENT ticket #${n} with this reviewed approach: "${approach}"
 You are in an isolated git worktree. Steps:
-1. Claim the ticket: gh issue edit ${n} --repo ${REPO} --add-assignee @me. Then git fetch origin, and
-   create the branch fix/${n}-<short-kebab-slug> from origin/staging.
+1. ${RESUME[n] ? `Continue an earlier run. Claim the ticket if it is not yet yours (gh issue edit ${n} --repo ${REPO} --add-assignee @me). git fetch origin, then work on the EXISTING branch ${RESUME[n].branch} of PR #${RESUME[n].pr}: make your worktree branch from origin/${RESUME[n].branch}, then bring in origin/${BASE} (a merge commit, never a force-push of ${BASE}). Read the PR description and every review comment (gh pr view ${RESUME[n].pr} --repo ${REPO} --comments), the run reports on the ticket, and ALL ticket comments, in particular the rulings of the operator. Those rulings are binding. Do what is still missing and add a test for each ruling. Keep the work that passes; do not start again. Push to the SAME branch. Do NOT open a new PR; the result has pr_number ${RESUME[n].pr}.` : `Claim the ticket: gh issue edit ${n} --repo ${REPO} --add-assignee @me. Then git fetch origin, and
+   create the branch fix/${n}-<short-kebab-slug> from origin/${BASE}.`}
 2. ${SETUP}
 3. ${DB_SYNC}
 4. TEST FIRST: write the test(s) that fail today and prove the problem of this ticket. A test that
@@ -465,18 +474,18 @@ You are in an isolated git worktree. Steps:
 6. A schema change goes in a new ordered file under db/migrations or in a re-runnable file under
    db/apply, and only adds: no DROP, no rename, no data loss. Run it on the disposable stack with
    step 3. It never reaches another database.
-7. pnpm check and ${TESTS} must show no failure beyond the baseline. ${BASELINE} Use the test-fixer agent for a red test if
+7. pnpm check and ${TESTS} must show no failure. ${NO_ACCEPTED_FAILURE} Use the test-fixer agent for a red test if
    you need it, but never weaken an assertion. pnpm check can regenerate a file under src/contract,
    src/db or src/routeTree.gen.ts: commit that file with the change.
 8. If the work needs a change under docs/, do not make it. Post the exact change as a question on
    the ticket, and return status=needs_human_prerequisite with it in prerequisites. Do the same for
    a question that one of the five cases above reserves to the operator.
 9. ${COMMIT(n)}
-Push the branch (git push -u origin <branch>). Open a DRAFT PR to staging
-(gh pr create --repo ${REPO} --base staging --draft --body-file <tmp>). The body: "Closes #${n}",
+Push the branch (git push -u origin <branch>). ${RESUME[n] ? `The PR already exists (#${RESUME[n].pr}); do not open another one.` : `Open a DRAFT PR to staging
+(gh pr create --repo ${REPO} --base ${BASE} --draft --body-file <tmp>). The body: "Closes #${n}",
 a summary, the red and green evidence, the migrations, and each assumption with its cost, in
 Simplified Technical English, ending with:
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Claude Code](https://claude.com/claude-code)`}
 If something only the operator can do stops you (a secret, a third-party account, a change to
 docs/, a decision of the five cases), return status=needs_human_prerequisite with a checklist in
 prerequisites instead of blocked. The stack is not such a case: step 3 starts it.
@@ -546,14 +555,14 @@ the second reader of this diff. Do not trust the claims of the implementer: prov
 edits, no commits, no merge.
 You are in an isolated worktree, and you hold the lock on the stack. git fetch origin.
 ${SETUP}
-1. RED on staging: check out origin/staging, copy in only the new or changed test files of the PR
+1. RED on the base: check out origin/${BASE}, copy in only the new or changed test files of the PR
    head, do the stack step below, and run them. They must FAIL, for the reason of the ticket.
    Discard the copy.
 2. GREEN on the branch: check out the PR head, do the stack step below, run the same tests (they
-   must pass), then pnpm check, then ${TESTS}. Both must show no failure beyond the baseline. ${BASELINE}
+   must pass), then pnpm check, then ${TESTS}. Both must show no failure. ${NO_ACCEPTED_FAILURE}
 The stack step: ${DB_SYNC}
 3. Read the reviews below. approve only if red and green are proven, pnpm check and pnpm test show
-   no failure beyond the baseline, and no blocking issue is valid. You can dismiss a blocking issue only when you prove it
+   no failure, and no blocking issue is valid. You can dismiss a blocking issue only when you prove it
    wrong; say why. Else changes_requested, with a concrete list that a reader can verify.
 Reviews: ${JSON.stringify(reviews, null, 1)}`
 
@@ -564,7 +573,7 @@ ${SETUP}
 ${DB_SYNC}
 Apply every request. If one seems wrong, apply it anyway, or explain with evidence in a PR comment
 why not. Never skip one in silence. Never weaken a test assertion. Never write under docs/.
-pnpm check and ${TESTS} must show no failure beyond the baseline. ${BASELINE} ${COMMIT(n)}
+pnpm check and ${TESTS} must show no failure. ${NO_ACCEPTED_FAILURE} ${COMMIT(n)}
 Push. Post a PR comment, in Simplified Technical English, that lists each request and what you did.
 Change requests: ${JSON.stringify(gate.change_requests, null, 1)}
 Gatekeeper summary: ${gate.summary}
@@ -575,22 +584,22 @@ You are the INDEPENDENT VALIDATOR who integrates an approved fix. PR #${pr}, bra
 ticket #${n}. The gatekeeper approved: ${gate.summary}
 You hold the lock on staging and on the stack. Isolated worktree.
 ${SETUP}
-1. git fetch origin; check out ${branch}; rebase it onto origin/staging. On a conflict that is not
+1. git fetch origin; check out ${branch}; rebase it onto origin/${BASE}. On a conflict that is not
    trivial, or on any failure below, abort and return needs_changes with the exact reason.
 2. The stack step: ${DB_SYNC}
-3. ${BASELINE}
+3. ${NO_ACCEPTED_FAILURE}
    Run pnpm check and set check_green. Run ${TESTS} and set tests_green. Each flag is true when the
-   run shows no failure beyond the baseline. A new red: stop, do not merge, return needs_changes
+   run shows no failure. Any red: stop, do not merge, return needs_changes
    with the failing tail. When both flags are true, push with --force-with-lease, on this branch only.
 4. Migrations in this PR: ${JSON.stringify(impl.migrations)}. They run on the disposable stack only.
    No other database exists for this run: never apply one anywhere else.
 5. Mark the PR ready (gh pr ready ${pr} --repo ${REPO}) and merge it with a merge commit:
-   gh pr merge ${pr} --repo ${REPO} --merge --subject "merge: ${branch} into staging"
+   gh pr merge ${pr} --repo ${REPO} --merge --subject "merge: ${branch} into ${BASE}"
    Never touch main.
 6. Close ticket #${n}: gh issue close ${n} --repo ${REPO} --comment "<body>". The body, in Simplified
    Technical English: an independent gatekeeper and reviewers validated it; it is merged into
-   staging at <sha> through PR #${pr}; the red and green evidence; the pnpm check and pnpm test
-   results; the migrations, if any; and "It reaches main when the operator promotes staging."
+   ${BASE} at <sha> through PR #${pr}; the red and green evidence; the pnpm check and pnpm test
+   results; the migrations, if any; and ${INTEGRATION ? `"It reaches staging when the operator merges the spec pull request of ${BASE}, and main when the operator promotes staging."` : '"It reaches main when the operator promotes staging."'}
 Return the structured result.`
 
 // Every agent that runs pnpm check, pnpm test or a db command shares one disposable stack, and
@@ -693,7 +702,7 @@ const runTicket = async t => {
       if (merged?.status === 'merged_and_closed') {
         if (!merged.check_green || !merged.tests_green)
           return { n, pr, branch: impl.branch, status: 'needs_human', reason: `merged at ${merged.merge_sha} with a red pnpm check or pnpm test: read staging`, rounds: round }
-        log(`#${n}: merged into staging and closed`)
+        log(`#${n}: merged into ${BASE} and closed`)
         return { n, pr, branch: impl.branch, status: 'merged_and_closed', sha: merged.merge_sha, rounds: round }
       }
       const reason = merged ? merged.reason : 'the merge agent failed'
@@ -702,7 +711,7 @@ const runTicket = async t => {
         break
       }
       await withLock(() =>
-        agent(fixPrompt(n, pr, impl.branch, { change_requests: [`The integration failed at merge time: ${reason}`], summary: 'Rebase onto origin/staging and fix the integration failure.' }), {
+        agent(fixPrompt(n, pr, impl.branch, { change_requests: [`The integration failed at merge time: ${reason}`], summary: 'Rebase onto origin/${BASE} and fix the integration failure.' }), {
           label: `fix #${n} (integration)`,
           phase: 'Fix',
           isolation: 'worktree',
@@ -719,12 +728,104 @@ const runTicket = async t => {
 for (const t of TICKETS) runTicket(t).then(r => settle[t.n](r), e => settle[t.n]({ n: t.n, status: 'error', reason: String(e) }))
 const results = await Promise.all(TICKETS.map(t => finished[t.n]))
 
+// --- Stage: Spec review. Only with an integration branch. The tickets were each reviewed alone; this
+// stage reads the whole branch once, as a spec, and checks the sum. It opens ONE pull request to
+// staging and never merges it.
+const SPEC_REVIEW = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', enum: ['approve', 'changes_requested'] },
+    blocking: { type: 'array', items: { type: 'string' }, description: 'each blocking issue: the file, what is wrong, the change it needs' },
+    summary: { type: 'string' },
+  },
+  required: ['verdict', 'blocking', 'summary'],
+}
+const SPEC_GATE = {
+  type: 'object',
+  properties: {
+    check_green: { type: 'boolean' },
+    tests_green: { type: 'boolean' },
+    tail: { type: 'string', description: 'the failing tail of a red run, else empty' },
+  },
+  required: ['check_green', 'tests_green', 'tail'],
+}
+const SPEC_PR = {
+  type: 'object',
+  properties: { pr: { type: 'integer' }, state: { type: 'string', description: 'opened, updated or none' }, note: { type: 'string' } },
+  required: ['pr', 'state', 'note'],
+}
+let specResult = null
+const mergedTickets = results.filter(r => r && r.status === 'merged_and_closed')
+if (INTEGRATION && mergedTickets.length) {
+  phase('Spec review')
+  const specList = JSON.stringify(mergedTickets.map(r => ({ n: r.n, pr: r.pr, sha: r.sha })))
+  const specHouse = `${HOUSE}
+You work on the integration branch ${BASE}. It holds these merged tickets: ${specList}. Read each ticket and its comments (gh issue view <n> --repo ${REPO} --comments), because together they are the spec.`
+  let open = []
+  let gate = null
+  for (let loop = 1; loop <= 2; loop++) {
+    const reviews = (
+      await parallel([
+        () =>
+          agent(
+            `${specHouse}
+You are an INDEPENDENT reviewer of the WHOLE branch. READ-ONLY. Lens: SPEC. Read the sum: git fetch origin; git diff origin/staging...origin/${BASE}. Does the branch, as one piece, do what the tickets ask, and does each ticket fit the others (the same names for the same tables, doors and columns; no ticket that assumes a part that no ticket builds; no duplicate part)? Also check the rulings of the operator in the ticket comments. Raise a BLOCKING issue only when it is real and specific.`,
+            { label: `spec review: spec r${loop}`, phase: 'Spec review', schema: SPEC_REVIEW },
+          ),
+        () =>
+          agent(
+            `${specHouse}
+You are an INDEPENDENT reviewer of the WHOLE branch. READ-ONLY. Lens: STANDARDS. git fetch origin; git diff origin/staging...origin/${BASE}. Check it against CLAUDE.md, docs/agents/commit.md, the ADRs that the code touches, the privacy rule (no local path or user name in any file, message or comment), and the simplest-solution rule: a part that no ticket asked for is blocking. Raise a BLOCKING issue only when it is real and specific.`,
+            { label: `spec review: standards r${loop}`, phase: 'Spec review', schema: SPEC_REVIEW },
+          ),
+      ])
+    ).filter(Boolean)
+    gate = await withLock(() =>
+      agent(
+        `${specHouse}
+You are the INDEPENDENT GATE of the whole branch. No edits, no commits. You hold the lock on the stack. Isolated worktree. ${SETUP}
+git fetch origin; check out origin/${BASE}. The stack step: ${DB_SYNC}
+${NO_ACCEPTED_FAILURE}
+Run pnpm check and set check_green. Run ${TESTS} and set tests_green. Each flag is true when the run shows no failure. On red, give the failing tail.`,
+        { label: `spec gate r${loop}`, phase: 'Spec review', schema: SPEC_GATE, isolation: 'worktree' },
+      ),
+    )
+    open = reviews.flatMap(r => r.blocking)
+    if (gate && !gate.check_green) open.push('pnpm check is red on the integration branch: ' + gate.tail)
+    if (gate && !gate.tests_green) open.push('pnpm test is red on the integration branch: ' + gate.tail)
+    log(`Spec review round ${loop}: ${open.length} blocking issue(s)`)
+    if (!open.length || loop === 2) break
+    await withLock(() =>
+      agent(
+        `${specHouse}
+You FIX the integration branch ${BASE}. Isolated worktree: git fetch origin; check out origin/${BASE} as a local branch. You hold the lock on the stack. ${SETUP}
+${DB_SYNC}
+Apply every blocking issue below. Write the test first when the issue is a defect. Never weaken an assertion. Never write under docs/. pnpm check and ${TESTS} must show no failure. ${NO_ACCEPTED_FAILURE}
+Commit (format of docs/agents/commit.md, no local path anywhere), then a normal push: git push origin HEAD:${BASE}. Never force.
+Issues: ${JSON.stringify(open, null, 1)}`,
+        { label: `spec fix r${loop}`, phase: 'Spec review', isolation: 'worktree' },
+      ),
+    )
+  }
+  const pr = await agent(
+    `${specHouse}
+Open or update the SPEC PULL REQUEST from ${BASE} to staging. Do NOT merge it.
+1. gh pr list --repo ${REPO} --base staging --head ${BASE} --state open --json number
+2. The body, in Simplified Technical English, with --body-file and a temporary file: the tickets merged in this branch with their PR numbers and shas; the state of pnpm check and pnpm test on the branch head (${gate ? `check_green=${gate.check_green}, tests_green=${gate.tests_green}` : 'not measured'}); the OPEN blocking issues of the whole-branch review (${JSON.stringify(open)}); and the line "Merge this pull request to bring the spec into staging. Nothing reaches main until you promote staging." No local path, no user name.
+3. If a pull request is open, update its body with gh pr edit. Else gh pr create --repo ${REPO} --base staging --head ${BASE} --title "spec: <name of the branch> into staging" --body-file <tmp>${open.length ? '; mark it as a draft (--draft), because blocking issues remain' : ''}.
+Return the number.`,
+    { label: 'spec pr', phase: 'Spec review', schema: SPEC_PR },
+  )
+  specResult = { base: BASE, merged: mergedTickets.map(r => r.n), open_blocking: open, check_green: gate ? gate.check_green : null, tests_green: gate ? gate.tests_green : null, pr: pr || null }
+}
+
 phase('Report')
 await agent(
   `${HOUSE}
 You REPORT on a resolve-ticket run. Do not change code. Never close an issue. Write every comment in
 Simplified Technical English, with --body-file and a temporary file.
 Results: ${JSON.stringify(results, null, 1)}
+Spec stage (integration branch): ${JSON.stringify(specResult)}
 Skipped at preflight: ${JSON.stringify(preflight.skipped)}
 1. For each flagged_* result: post ONE gh issue comment with the finding and its evidence (from
    reason; duplicate_of if set). The operator decides whether to close it.
@@ -740,10 +841,10 @@ Skipped at preflight: ${JSON.stringify(preflight.skipped)}
 4. Worktree cleanup: run git worktree list --porcelain (from any checkout; it lists every
    worktree). For each worktree whose path contains wf_, that is NOT locked, and whose branch is one
    of the merged branches of this run (${JSON.stringify(results.filter(r => r.status === 'merged_and_closed').map(r => r.branch))}), and is proven
-   merged (git fetch origin, then git merge-base --is-ancestor <branch> origin/staging):
+   merged (git fetch origin, then git merge-base --is-ancestor <branch> origin/${BASE}):
    git worktree remove <path>. Never force. Never remove a locked or unmerged worktree. Then
    git worktree prune.`,
   { label: 'report', phase: 'Report', effort: 'low' },
 )
 
-return { ran: results, skipped: preflight.skipped }
+return { ran: results, skipped: preflight.skipped, spec: specResult }

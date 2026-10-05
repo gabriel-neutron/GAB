@@ -59,6 +59,50 @@ const inserted = (type: string): Promise<unknown> =>
     return made.parse(await ask(INSERT_RELATION, [type, end.id, from]));
   });
 
+const landed = z.array(z.object({ type: z.string(), proposed_type: z.string().nullable() }));
+
+const PROMOTE = 'SELECT public.promote_proposal($1::uuid, $2::text) AS id';
+
+const DELETE = `SELECT public.propose_change($1::text, '{}'::jsonb, ARRAY['manual']::text[],
+  $2::text, $3::uuid) AS id`;
+
+const idOf = async (ask: Ask, text: string, values: readonly unknown[]): Promise<string> => {
+  const [row] = made.parse(await ask(text, values));
+  if (row === undefined) throw new Error('the statement returned no row');
+  return row.id;
+};
+
+// Each statement runs in its own transaction: an act is not decided by the transaction that
+// proposed it. The proposals stay, because the ledger is append-only, and the rows go.
+const promotedIn = async (ask: Ask, op: string, payload: string): Promise<string> =>
+  idOf(ask, PROMOTE, [await idOf(ask, PROPOSE, [op, payload]), 'a test']);
+
+const removed = async (ask: Ask, kind: 'entity' | 'relation', target: string): Promise<void> => {
+  await idOf(ask, PROMOTE, [await idOf(ask, DELETE, [`delete_${kind}`, kind, target]), 'a test']);
+};
+
+const endsPayload = (type: string, end: string): string =>
+  JSON.stringify({ type, src_kind: 'entity', src_id: end, dst_kind: 'entity', dst_id: end });
+
+const promotedOf = (type: string): Promise<z.infer<typeof landed>> =>
+  probe('app', async (ask) => {
+    const end = await promotedIn(ask, 'create_entity', ENTITY_PAYLOAD);
+    try {
+      const relation = await promotedIn(ask, 'create_relation', endsPayload(type, end));
+      try {
+        return landed.parse(
+          await ask('SELECT type, proposed_type FROM public.relations WHERE id = $1::uuid', [
+            relation,
+          ]),
+        );
+      } finally {
+        await removed(ask, 'relation', relation);
+      }
+    } finally {
+      await removed(ask, 'entity', end);
+    }
+  });
+
 test('a create_relation whose type is longer than 200 characters is refused at the proposal', async () => {
   await expect(proposed(TOO_LONG)).rejects.toMatchObject({
     code: '23514',
@@ -73,7 +117,11 @@ test('a relation whose type is longer than 200 characters is refused at the inse
   });
 });
 
-test('a type of 200 characters is still accepted at both doors', async () => {
+// Departure: no live type is 200 characters long, so the word cannot reach the column through
+// its foreign key. The promotion puts it beside the fallback row, and that is the door it reaches.
+test('a type of 200 characters is still accepted at the proposal and kept by the promotion', async () => {
   await expect(proposed(LONGEST)).resolves.toMatch(/^[0-9a-f-]{36}$/);
-  await expect(inserted(LONGEST)).resolves.toHaveLength(1);
+  await expect(promotedOf(LONGEST)).resolves.toStrictEqual([
+    { type: 'unknown', proposed_type: LONGEST },
+  ]);
 });

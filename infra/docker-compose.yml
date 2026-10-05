@@ -63,7 +63,7 @@ services:
     ports:
       - '127.0.0.1:3001:3000'
 
-  # The raw store: an S3 server that keeps each source file exactly as it arrived (T3, ADR 0012).
+  # The raw store: an S3 server that keeps each source file exactly as it arrived (T3, ADR 0007).
   # The accounts and their rights are in seaweedfs/s3.json, and the six keys come from infra/.env.
   # Each key holds letters, digits, '.', '_', '+' and '-' only. `-bucket=raw` makes the private
   # bucket at start, so no init job runs. Only the S3 port leaves the container.

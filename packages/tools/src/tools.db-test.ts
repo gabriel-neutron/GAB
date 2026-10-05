@@ -2,9 +2,10 @@
 // grants. Each gesture runs inside a transaction that rolls back, so the corpus stays as it was.
 
 import { expect, test } from 'vitest';
+import { IDENTIFIER_KEYS } from '@gab/proposal/identifiers';
 import { z } from 'zod';
 
-import { rolledBack, type Ask } from '../../../tools/probe.ts';
+import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { callTool, type Session, type Tool } from './tool.ts';
 
@@ -65,6 +66,8 @@ const hits = z.object({
   entities: z.array(z.object({ id: z.uuid(), label: z.string(), type: z.string() })),
 });
 
+const proposed = z.object({ proposalId: z.uuid(), op: z.string() });
+
 // ---------------------------------------------------------- search_graph ---
 
 test('search_graph finds an entity by a part of its name', async () => {
@@ -100,6 +103,56 @@ test('search_graph holds the list to the limit', async () => {
     hits.parse(await output(ask, 'search_graph', { query: 'a', limit: 2 })),
   );
   expect(found.entities.length).toBeLessThanOrEqual(2);
+});
+
+const IMO_HELD = `SELECT id::text AS id, attrs -> 'imo' ->> 'v' AS value
+  FROM api.entity WHERE jsonb_typeof(attrs -> 'imo' -> 'v') = 'string'
+  ORDER BY id LIMIT 1`;
+
+const imoHeld = z.array(z.object({ id: z.uuid(), value: z.string() }));
+
+test('each entity type of the map of spellings is a live type of the record', async () => {
+  const live = await probe('read', async (ask) =>
+    z
+      .array(z.object({ key: z.string() }))
+      .parse(await ask('SELECT key FROM api.entity_type WHERE NOT retired')),
+  );
+  const keys = live.map((row) => row.key);
+  for (const type of Object.keys(IDENTIFIER_KEYS)) expect(keys).toContain(type);
+});
+
+test('search_graph finds a hull by its imo, and the next proposal on it is update_attrs', async () => {
+  const found = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['page one']);
+    const [held] = imoHeld.parse(await ask(IMO_HELD));
+    if (held === undefined) throw new Error('the fixture holds no entity with an imo');
+    const result = hits.parse(
+      await output(ask, 'search_graph', { identifier: { key: 'imo', value: held.value } }),
+    );
+    const [hull] = result.entities;
+    if (hull === undefined) throw new Error('search_graph found no entity for the imo');
+    const made = proposed.parse(
+      await output(ask, 'propose_change', {
+        act: {
+          op: 'update_attrs',
+          targetKind: 'entity',
+          targetId: hull.id,
+          attrs: { imo: { v: held.value } },
+        },
+        documents: [DOC],
+      }),
+    );
+    return { held, result, made };
+  });
+  expect(found.result.entities.map((entity) => entity.id)).toStrictEqual([found.held.id]);
+  expect(found.made.op).toBe('update_attrs');
+});
+
+test('search_graph finds nothing for an imo that no entity holds', async () => {
+  const found = await rolledBack('research', async (ask) =>
+    hits.parse(await output(ask, 'search_graph', { identifier: { key: 'imo', value: '9074729' } })),
+  );
+  expect(found.entities).toStrictEqual([]);
 });
 
 // --------------------------------------------------------- neighbourhood ---
@@ -225,8 +278,6 @@ test('lookup_entity finds nothing for a value that no entity holds', async () =>
 });
 
 // -------------------------------------------------------- propose_change ---
-
-const proposed = z.object({ proposalId: z.uuid(), op: z.string() });
 
 const CREATE = {
   op: 'create_entity',

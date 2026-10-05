@@ -35,11 +35,20 @@ const reachedSources = (entry: string): string[] => {
   return [...seen.values()];
 };
 
-test('no run that a root script starts from this package reaches the claim door', () => {
-  const entries = entryFiles();
+// The runner is the one process that takes a job from the queue. Every other run is taken by hand,
+// and a hand-taken run that claimed a job would spend an attempt that the operator never asked for.
+const RUNNER = 'runner-main.ts';
+
+test('no hand-taken run that a root script starts from this package reaches the claim door', () => {
+  const entries = entryFiles().filter((entry) => entry !== RUNNER);
   expect(entries.length, 'the root manifest starts a run of this package').toBeGreaterThan(0);
   for (const entry of entries) {
     const claims = reachedSources(entry).some((text) => text.includes('claim_job'));
     expect(claims, `${entry} reaches claim_job`).toBe(false);
   }
+});
+
+test('the runner script is the one run that reaches the claim door', () => {
+  expect(entryFiles()).toContain(RUNNER);
+  expect(reachedSources(RUNNER).some((text) => text.includes('claim_job'))).toBe(true);
 });

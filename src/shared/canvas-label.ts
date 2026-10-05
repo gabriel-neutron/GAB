@@ -10,16 +10,12 @@ export const CANVAS_LABEL_CLASS = [
 
 // Three lines and not one: `A - type - B` truncated all three names at the width of the box.
 // The tuple is fixed length, so a caller that draws one line at a time tests none for undefined.
-// The detail panel reads these words too, so a relation is worded once for every surface.
+// The detail panel reads these lines too, so a relation is laid out once for every surface.
 export const relationLines = (
   from: string,
-  type: string,
+  typeWords: string,
   to: string,
-): readonly [string, string, string] => [from, `↓ ${relationTypeWords(type)}`, to];
-
-// `berthed_at` reads as `berthed at`, once, for the two canvases and for the panel. The raw
-// identifier then appears on no screen, which is the cost of one wording.
-export const relationTypeWords = (type: string): string => type.replaceAll('_', ' ');
+): readonly [string, string, string] => [from, `↓ ${typeWords}`, to];
 
 // The one wording of a borrowed position, for the hover label, the map index row and the detail
 // panel. An entity drawn at the point of its parent is NOT at that point, and the halo says only
