@@ -34,7 +34,8 @@ badly among many tools:
 | Profile | Tools |
 |---|---|
 | research (MCP) | see "The MCP server" below |
-| extractor | `document_text`, `lookup_entity`, `propose_change` |
+| extractor | `document_text`, `lookup_entity`, `propose_change`, `put_claim_reading` |
+| reader2 (ADR 0011 §3.1) | `document_text`, `put_claim_reading` |
 | mapper (P6) | `file_schema_sample`, `propose_mapping` |
 | verifier | `document_text`, `proposal_read`, `vote` |
 | chat | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `enqueue_extract` |
