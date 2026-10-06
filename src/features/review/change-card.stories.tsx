@@ -34,13 +34,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** Only what THIS act lacks is drawn. A hole every act carries tells the reader nothing; the
- * disagreement with no argument is real, and it is drawn. */
+ * dispute with no reason is real, and it is drawn. */
 export const OnlyWhatThisActLacksIsDrawn: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelector('[data-hole="argument"]')).not.toBeNull();
     await expect(canvas.queryByText(/quoted text/)).toBeNull();
     // The whole reason survives for a reader, and the card holds no paragraph of it.
-    await expect(canvas.getByText(/neither side of it/)).toBeInTheDocument();
+    await expect(canvas.getByText(/not which one/)).toBeInTheDocument();
   },
 };
 
@@ -53,6 +53,16 @@ export const AnActThatOnlyAddsKeysReadsAsAnAddition: Story = {
     await expect(canvas.queryByText('Modification')).toBeNull();
     await expect(canvasElement.querySelector('[data-kind="add"]')).not.toBeNull();
     await expect(canvasElement.querySelectorAll('[data-op="edit"]')).toHaveLength(0);
+  },
+};
+
+/** A disputed act says so on its card, in one word beside the mark. */
+export const ADisputedActSaysDisputed: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    const routing = canvasElement.querySelector('[data-routing="dissent"]');
+    await expect(routing).not.toBeNull();
+    await expect(canvas.getByText('disputed')).toBeInTheDocument();
+    await expect(canvas.getByText('Here because a check disputes it.')).toBeInTheDocument();
   },
 };
 
