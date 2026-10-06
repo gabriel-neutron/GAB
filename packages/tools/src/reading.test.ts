@@ -51,6 +51,36 @@ describe('the entry of the first reader', () => {
     expect(claimEntry.safeParse({ ...ENTRY, modality: 'suggests' }).success).toBe(false);
   });
 
+  // A notice of suspicion names a person with a date of birth and an address. The claim keeps the
+  // name, and the schema refuses each personal field.
+  for (const key of [
+    'date_of_birth',
+    'address',
+    'home_address',
+    'passport_number',
+    'phone',
+    'email',
+  ])
+    it(`refuses a claim that holds the personal field ${key}`, () => {
+      const act = {
+        op: 'create_entity',
+        type: 'person',
+        label: 'Ivan Petrov',
+        attrs: { [key]: { v: 'x' } },
+      };
+      expect(claimEntry.safeParse({ ...ENTRY, act }).success).toBe(false);
+    });
+
+  it('takes a claim about a person with no personal field', () => {
+    const act = {
+      op: 'create_entity',
+      type: 'person',
+      label: 'Ivan Petrov',
+      attrs: { role: { v: 'master' } },
+    };
+    expect(claimEntry.safeParse({ ...ENTRY, act }).success).toBe(true);
+  });
+
   it('refuses an entry with no act', () => {
     const { act, ...bare } = ENTRY;
     void act;

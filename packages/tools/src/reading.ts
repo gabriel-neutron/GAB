@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isPersonalAttribute } from './personal.ts';
 import { proposedAct } from './propose-change.ts';
 
 /** How a page states a claim. A reader picks one word, and code decides what follows from it. */
@@ -29,8 +30,22 @@ const ordered = (span: Span): boolean => span.start < span.end;
 
 const ORDER = { message: 'a span starts before it ends', path: ['end'] };
 
+// A personal field is never a claim of a machine reader, so the schema refuses its key.
+const personalKeys = (act: object): string[] =>
+  'attrs' in act && act.attrs !== null && typeof act.attrs === 'object'
+    ? Object.keys(act.attrs).filter(isPersonalAttribute)
+    : [];
+
+const NO_PERSONAL = {
+  message: 'a claim holds no date of birth, address, identity number, phone or e-mail',
+  path: ['act', 'attrs'],
+};
+
 /** One claim of the first reader: the act it proposes, and where the page states it. */
-export const claimEntry = readingBase.extend({ act: proposedAct }).refine(ordered, ORDER);
+export const claimEntry = readingBase
+  .extend({ act: proposedAct })
+  .refine(ordered, ORDER)
+  .refine((entry) => personalKeys(entry.act).length === 0, NO_PERSONAL);
 
 /** One claim of the second reader. It proposes nothing, so it gives no act. */
 export const readerTwoEntry = readingBase.refine(ordered, ORDER);
