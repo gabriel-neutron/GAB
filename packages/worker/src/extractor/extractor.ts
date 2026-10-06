@@ -1,6 +1,4 @@
-import { readFileSync } from 'node:fs';
-
-import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab/model';
+import type { Message, ToolUse } from '@gab/model';
 import { documentText } from '@gab/tools/document-text';
 import { proposeItem, proposeOf } from '@gab/tools/propose';
 import { searchGraph } from '@gab/tools/search-graph';
@@ -25,20 +23,21 @@ import {
 import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
+import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
 
 /** The name of the extractor in the record of each of its model calls. */
-export const EXTRACTOR_NAME = 'extractor';
+const EXTRACTOR_NAME = 'extractor';
 const VERSION = 'v4';
 
 /** The tools of the extractor. A test gives a stub for each one. The propose tool names the
  * model call that gave the batch. */
-export interface ExtractorTools {
+interface ExtractorTools {
   readonly documentText: Tool;
   readonly searchGraph: Tool;
   readonly propose: (modelCallId: string) => Tool;
 }
 
-export interface ExtractorOptions {
+interface ExtractorOptions {
   readonly tools?: ExtractorTools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -64,9 +63,6 @@ const checkAnswer = z.strictObject({
   ),
 });
 
-const promptOf = (given: string | undefined, file: string): string =>
-  given ?? readFileSync(new URL(file, import.meta.url), 'utf8');
-
 // Items that cite the same passages go to the checker in one question.
 const byPassage = (items: readonly ItemToCheck[]): ItemToCheck[][] => {
   const groups = new Map<string, ItemToCheck[]>();
@@ -85,17 +81,12 @@ export const makeExtractor = (
   options: ExtractorOptions = {},
 ): RunnerAgent => {
   const tools = options.tools ?? DEFAULT_TOOLS;
-  const prompt = promptOf(options.prompt, './prompt.md');
-  const checkPrompt = promptOf(options.checkPrompt, './check-prompt.md');
+  const prompt = promptOf(options.prompt, new URL('./prompt.md', import.meta.url));
+  const checkPrompt = promptOf(options.checkPrompt, new URL('./check-prompt.md', import.meta.url));
 
   // The model reads and looks up. A call to any other tool is refused, and the write is made by
   // code alone.
-  const offered = new Map([tools.documentText, tools.searchGraph].map((tool) => [tool.name, tool]));
-  const modelTools: ModelTool[] = [...offered.values()].map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input: tool.input,
-  }));
+  const offer = offerOf([tools.documentText, tools.searchGraph]);
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
     const { job } = context;
@@ -109,33 +100,25 @@ export const makeExtractor = (
     ): Promise<Asked<z.output<typeof chunkAnswer>>> => {
       if (turns >= config.turnCap) throw new JobStop('turn_cap');
       turns += 1;
-      try {
-        // A copy, so the question that was asked keeps the messages it held at that time.
-        return await context.ask(config.reader, {
+      // A copy, so the question that was asked keeps the messages it held at that time.
+      return withinBudget(
+        context.ask(config.reader, {
           messages: [...messages],
           shape: chunkAnswer,
-          tools: modelTools,
-        });
-      } catch (cause) {
-        if (cause instanceof ModelFailure && cause.failure.kind === REASON.overCap)
-          throw new JobStop('usage_cap');
-        throw cause;
-      }
+          tools: offer.forModel,
+        }),
+        'usage_cap',
+      );
     };
 
-    const answerCall = async (call: ToolUse): Promise<Message[]> => {
-      const tool = offered.get(call.name);
-      let content: string;
-      if (tool === undefined) {
-        const reason = `the tool ${call.name} is not offered to this model, and code runs the write`;
-        refusals.push({ tool: call.name, reason });
-        content = reason;
-      } else {
-        const outcome = await callTool(tool, session, call.input);
-        content = outcome.ok
-          ? JSON.stringify(outcome.output)
-          : `The tool refused the call: ${outcome.refusal}`;
-      }
+    const turnOf = async (call: ToolUse): Promise<Message[]> => {
+      const content = await answerCall(
+        offer.byName,
+        call,
+        refusals,
+        'to this model, and code runs the write',
+        async (tool) => outcomeText(await callTool(tool, session, call.input)),
+      );
       return [
         { role: 'assistant', call },
         { role: 'tool', call, content },
@@ -210,7 +193,7 @@ export const makeExtractor = (
       for (;;) {
         const asked = await ask(messages);
         if (asked.kind === 'call') {
-          messages.push(...(await answerCall(asked.call)));
+          messages.push(...(await turnOf(asked.call)));
           continue;
         }
         if (asked.value.items.length === 0) return null;

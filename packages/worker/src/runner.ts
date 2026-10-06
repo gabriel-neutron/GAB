@@ -54,7 +54,7 @@ export type Step =
   | { readonly did: 'done'; readonly job: string }
   | { readonly did: 'failed'; readonly job: string };
 
-export interface Runner {
+interface Runner {
   /** Takes at most one job, and waits when there is nothing to take. */
   readonly step: () => Promise<Step>;
   /** Steps until the signal aborts. */

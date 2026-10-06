@@ -39,36 +39,28 @@ const textOf = (env: Env, name: string): string => {
   return value;
 };
 
-const numberOf = (env: Env, name: string, whole: boolean): number => {
+// The range of each number is a rule of the model package, of the budget and of the chunks. Here a
+// value is only read as a number.
+const numberOf = (env: Env, name: string): number => {
   const text = textOf(env, name);
   const value = Number(text);
-  const fits = Number.isFinite(value) && value > 0 && (!whole || Number.isInteger(value));
-  if (!fits)
-    throw new Error(
-      `${name} is "${text}", and it must be a ${whole ? 'whole number' : 'number'} above zero.`,
-    );
+  if (!Number.isFinite(value)) throw new Error(`${name} is "${text}", and it is not a number.`);
   return value;
 };
 
-/** Reads one model from the variables that start with `prefix`. */
+/** Reads one model from the variables that start with `prefix`. The model package refuses a model
+ * that is not pinned. */
 const readModelConfig = (prefix: string, env: Env): ModelConfig => {
   const name = (part: string): string => `${prefix}_${part}`;
-
-  // The gateway picks the model of each call under `auto`, and the record then holds a model that
-  // nobody pinned.
-  const model = textOf(env, name('MODEL'));
-  if (model.toLowerCase() === 'auto')
-    throw new Error(`${name('MODEL')} is auto, and an agent runs on a pinned model.`);
-
   return {
-    model,
+    model: textOf(env, name('MODEL')),
     family: textOf(env, name('FAMILY')),
     line: {
-      firstWaitMs: numberOf(env, name('FIRST_WAIT_MS'), true),
-      waitGrowth: numberOf(env, name('WAIT_GROWTH'), false),
-      maxWaitMs: numberOf(env, name('MAX_WAIT_MS'), true),
-      timeoutMs: numberOf(env, name('TIMEOUT_MS'), true),
-      maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS'), true),
+      firstWaitMs: numberOf(env, name('FIRST_WAIT_MS')),
+      waitGrowth: numberOf(env, name('WAIT_GROWTH')),
+      maxWaitMs: numberOf(env, name('MAX_WAIT_MS')),
+      timeoutMs: numberOf(env, name('TIMEOUT_MS')),
+      maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS')),
     },
   };
 };
@@ -80,9 +72,9 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
   const config = {
     reader,
     checker: readModelConfig('CHECKER', env),
-    tokenCap: numberOf(env, 'EXTRACTOR_TOKEN_CAP', true),
-    turnCap: numberOf(env, 'EXTRACTOR_TURN_CAP', true),
-    chunkCap: numberOf(env, 'EXTRACTOR_CHUNK_CAP', true),
+    tokenCap: numberOf(env, 'EXTRACTOR_TOKEN_CAP'),
+    turnCap: numberOf(env, 'EXTRACTOR_TURN_CAP'),
+    chunkCap: numberOf(env, 'EXTRACTOR_CHUNK_CAP'),
   };
   if (config.checker.family.toLowerCase() === reader.family.toLowerCase())
     throw new Error(
@@ -96,7 +88,7 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
  * pinned and calls tools, and it has a token budget of its own. A lead with no search engine
  * finds no page, so a search setting is required too. */
 export const readLeadConfig = (env: Env): LeadConfig => {
-  const tokenCap = numberOf(env, 'LEAD_TOKEN_CAP', true);
+  const tokenCap = numberOf(env, 'LEAD_TOKEN_CAP');
   const searches = ['SEARXNG_URL', 'BRAVE_SEARCH_API_KEY'].some(
     (name) => (env[name]?.trim() ?? '') !== '',
   );

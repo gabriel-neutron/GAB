@@ -9,17 +9,7 @@ import {
   OpenAICompatibleChatLanguageModel,
 } from '@ai-sdk/openai-compatible';
 import { registerTelemetry } from 'ai';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
@@ -188,14 +178,17 @@ describe('the gateway', () => {
     expect(() => gatewayModel(PINNED, { FREELLMAPI_API_KEY: 'k' })).toThrow(/FREELLMAPI_BASE_URL/u);
   });
 
-  // The library sends a bare model name to the paid router of its vendor. The type refuses a
-  // name, and the adapter refuses it at run time too.
-  it('refuses a bare model name', () => {
-    expectTypeOf<string>().not.toExtend<Parameters<typeof openModel>[0]>();
-    const bare = PINNED as unknown as OpenAICompatibleChatLanguageModel;
-    expect(() => openModel(bare, LINE, { record: () => Promise.resolve('call') })).toThrow(
-      /free-model gateway/u,
-    );
+  it.each([
+    ['firstWaitMs', 0],
+    ['maxWaitMs', -1],
+    ['timeoutMs', 0],
+    ['maxAnswerTokens', 0],
+    ['waitGrowth', 0.5],
+  ] as const)('refuses a line with %s of %d', (key, value) => {
+    const model = gatewayModel(PINNED, { FREELLMAPI_BASE_URL: base, FREELLMAPI_API_KEY: 'k' });
+    expect(() =>
+      openModel(model, { ...LINE, [key]: value }, { record: () => Promise.resolve('call') }),
+    ).toThrow();
   });
 
   it('refuses a model that another provider made', () => {

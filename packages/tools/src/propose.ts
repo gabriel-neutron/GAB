@@ -17,7 +17,7 @@ import {
 } from './tool.ts';
 
 /** How a page states a claim. A caller picks one word, and code decides what follows from it. */
-export const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
+const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
 
 // Origin: decided, not calibrated. One page states few claims, and a longer list is a model that
 // repeats itself. A short excerpt is a quote of the claim and not a copy of the page.
@@ -109,7 +109,7 @@ export const proposeItem = z.strictObject({
 });
 
 /** One item of a batch, as a caller gives it. */
-export type ProposeItem = z.output<typeof proposeItem>;
+type ProposeItem = z.output<typeof proposeItem>;
 
 const proposeItems = z.array(proposeItem).min(1).max(MAX_ITEMS);
 
