@@ -59,12 +59,15 @@ it, how the page states it, and for its values the page and an excerpt copied fr
 The tool finds each excerpt in the page, also when the white space, the Unicode form or a hyphen at
 a line end differs, and calculates the offsets. An excerpt that the page does not hold refuses the
 whole batch, and the refusal names the item, so the model can correct it once. A value that no
-excerpt states, in any form of that value, marks the item as disputed. Code mints the identifier of
-each item, so a relation names an entity that an earlier item of the same batch creates. The door
+excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
+such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. Code mints
+the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The door
 writes each act with its citations in one transaction, and it holds the rules of the data: the
 page exists, the span lies in it, and a machine act cites at least one page. A pending act with the
-same operation, target, payload and sources is returned and not written again, so a retry or a
-second run writes no duplicate. The cited passage is private: the review card reads it through the
+same operation, target, payload, sources, role and originator is returned and not written again,
+so a retry or a second run writes no duplicate. The door adds to that act each citation that it
+does not hold yet. Another role or another originator is another witness, and its act stays
+separate. The cited passage is private: the review card reads it through the
 writer, and the public read never shows it. **Cost:** a model that cannot copy a quote word for
 word loses its claim, and an excerpt proves only that the page holds the words.
 
