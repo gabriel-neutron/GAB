@@ -77,7 +77,7 @@ prints `staging`.
 ```bash
 cd ~/projects/GAB
 command -v docker || curl -fsSL https://get.docker.com | sudo sh   # root
-sudo usermod -aG docker claude   # root; then log out, log in again, and check that `docker ps` works
+sudo usermod -aG docker "$USER"   # root; then log out, log in again, and check that `docker ps` works
 cp infra/vps/test-stack.env.example infra/.env
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d --wait db
@@ -148,7 +148,7 @@ it has the address. Let the kernel bind an address that does not exist yet, and 
 after Tailscale, so that a reboot does not lose the two services:
 
 ```bash
-# root: every line of this block uses sudo. A plain `>` would run as claude and fail.
+# root: every line of this block uses sudo. A plain `>` would run as the non-root user and fail.
 echo 'net.ipv4.ip_nonlocal_bind=1' | sudo tee /etc/sysctl.d/99-gab.conf
 sudo sysctl --system
 sudo mkdir -p /etc/systemd/system/docker.service.d
@@ -162,7 +162,7 @@ Then, **PC:** open `http://<VPS_TS_IP>:4001` in a browser. Enter the provider ke
 
 **Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `~/gab-services/.env`, run the
 `up -d` command again, and on the PC run
-`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 claude@<VPS public IP>`.
+`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 <user>@<VPS public IP>`.
 
 **Check (VPS):** `ss -ltnp | grep -E ':4001|:8888'` shows only the Tailscale address, never
 `0.0.0.0`. `docker compose --env-file ~/gab-services/.env -f services.compose.yml ps` shows
@@ -184,7 +184,8 @@ step 0 are the only lock on `main`. Keep the PAT on `gabriel-neutron/GAB` alone,
 permissions of step 0 alone.
 
 The docker compose rules of the allow list name one literal file,
-`~/projects/GAB/infra/docker-compose.yml`. A general `docker compose` rule gives root on the
+`~/projects/GAB/infra/docker-compose.yml`. A rule compares the text of the command, so the
+command must use this `~` form, not the full path. A general `docker compose` rule gives root on the
 host: a volume mount can read every file, and `down -v` of another project deletes its data.
 
 The work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No cron job
