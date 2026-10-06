@@ -1,11 +1,9 @@
-import { createHash } from 'node:crypto';
-
 import {
+  GATEWAY,
+  gatewayModel,
   openBudget,
   openModel,
-  type AgentModel,
-  type Message,
-  type Model,
+  type CallRecord,
   type Question,
 } from '@gab/model';
 import { z } from 'zod';
@@ -19,6 +17,7 @@ import {
 } from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 
 const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
 const REQUEUE = 'SELECT public.requeue_running_jobs()';
@@ -42,8 +41,9 @@ export interface RunnerDeps {
   readonly sleep: (ms: number) => Promise<void>;
   /** The clock in milliseconds, read to time each call of the model. */
   readonly now: () => number;
-  /** Opens the line to a model. The default is the client of the package. */
-  readonly open?: (settings: AgentModel) => Model;
+  /** Makes the pinned model of the free-model gateway. The default reads the gateway from the
+   * environment. */
+  readonly open?: (model: string) => ReturnType<typeof gatewayModel>;
 }
 
 /** What one step of the runner did. */
@@ -63,11 +63,6 @@ export interface Runner {
 // holds this sentence, because the cause can quote a path, an address or a document.
 const UNKNOWN_FAULT = 'the agent stopped with an error, and nothing more is known';
 
-// The record of a call holds the digest of what the model was asked and never the prompt, which
-// can quote an untrusted document.
-const promptDigest = (messages: readonly Message[]): string =>
-  createHash('sha256').update(JSON.stringify(messages)).digest('hex');
-
 /** Reads the settings and puts back each job that a crash left running. It throws, and starts
  * nothing, when an agent or a setting is absent. */
 export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
@@ -77,57 +72,53 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   const settings = settingsRow.parse((await deps.db.query(SETTINGS)).rows[0]);
   await deps.db.query(REQUEUE);
 
-  const open = deps.open ?? ((given: AgentModel): Model => openModel(given));
-  const lines = new Map(deps.agents.map((agent) => [agent, open(agent.settings)] as const));
+  // Each model is made at the start, so a gateway that is not set stops the start and claims
+  // nothing.
+  const open = deps.open ?? ((model: string) => gatewayModel(model));
+  const made = new Map(
+    deps.agents.flatMap((agent) => agent.models).map((one) => [one, open(one.model)] as const),
+  );
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
-  const record = async (
-    agent: RunnerAgent,
-    job: ClaimedJob,
-    row: { promptHash: string; latencyMs: number; outcome: string; served: string | undefined },
-  ): Promise<string> => {
-    const made = recorded.parse(
+  const record = async (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
+    recorded.parse(
       (
         await deps.db.query(RECORD, [
           agent.name,
           agent.version,
-          agent.settings.endpoint,
-          agent.settings.model,
-          row.promptHash,
-          row.latencyMs,
-          row.outcome,
+          GATEWAY,
+          call.requested,
+          call.promptSha256,
+          call.latencyMs,
+          call.outcome,
           job.id,
-          row.served ?? null,
-          null,
-          null,
+          call.served ?? null,
+          call.inputTokens,
+          call.outputTokens,
         ])
       ).rows[0],
-    );
-    return made.id;
-  };
+    ).id;
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
-    const line = lines.get(agent);
-    if (line === undefined) throw new Error(`The agent ${agent.name} has no line to a model.`);
     const budget = openBudget(agent.tokenCap);
 
-    const ask = async <T>(question: Omit<Question<T>, 'budget'>): Promise<Asked<T>> => {
-      const promptHash = promptDigest(question.messages);
-      const started = deps.now();
-      const answer = await line.ask<T>({ ...question, budget });
-      const latencyMs = Math.max(0, Math.round(deps.now() - started));
-      const outcome = answer.ok ? 'ok' : answer.failure.kind;
-      // The call lands before any proposal that it leads to, and it lands when it failed too.
-      const callId = await record(agent, job, {
-        promptHash,
-        latencyMs,
-        outcome,
-        served: answer.served,
+    const ask = async <T>(
+      model: ModelConfig,
+      question: Omit<Question<T>, 'budget'>,
+    ): Promise<Asked<T>> => {
+      const language = made.get(model);
+      if (language === undefined || !agent.models.includes(model))
+        throw new Error(`The agent ${agent.name} asks a model that it did not declare.`);
+      const line = openModel(language, model.line, {
+        record: (call) => record(agent, job, call),
+        sleep: deps.sleep,
+        now: deps.now,
       });
+      const answer = await line.ask<T>({ ...question, budget });
       if (!answer.ok) throw new ModelFailure(answer.failure);
       if (answer.served === undefined)
-        throw new Error('the client gave an answer with no served model');
-      const common = { callId, promptHash, served: answer.served, tokens: answer.tokens };
+        throw new Error('the adapter gave an answer with no served model');
+      const common = { callId: answer.callId, served: answer.served, tokens: answer.tokens };
       if ('call' in answer) return { kind: 'call', call: answer.call, ...common };
       return { kind: 'value', value: answer.value, ...common };
     };
