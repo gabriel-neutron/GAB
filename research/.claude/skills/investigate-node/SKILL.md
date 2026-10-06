@@ -24,6 +24,10 @@ pages to fetch next.
 - `companies_house`: read one UK company by its company number. It needs a key, and it says so
   when the key is not set.
 - `wikidata_ids`: find the other identifiers that Wikidata holds for one item.
+- `sanctions_match`: read one OpenSanctions entity, or search by IMO number or name for leads.
+  It needs a key, and it says so when the key is not set.
+- `vessel_events`: read the encounter, loitering and AIS gap events of one vessel for a range of
+  dates. It needs a free token, and it says so when the token is not set.
 
 ## Steps
 
@@ -49,6 +53,9 @@ pages to fetch next.
    register: it stores the answer as a document. With a name only, a lookup gives a list of
    leads and stores nothing. Choose the identifier from the list, then call the tool again with
    it.
+   When you hold an IMO number, call `sanctions_match` for leads and then read the entity that
+   fits. Store the official entry that it names with `fetch_document`. For the movement of a
+   vessel, call `vessel_events` with its GFW vessel id.
 10. Give the result as five lists: held, cited documents, pending proposals, gaps, next sources.
 
 ## Never
