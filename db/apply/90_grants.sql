@@ -49,6 +49,8 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, propos
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
+REVOKE ALL ON FUNCTION newest_text_extractor(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION newest_text_extractor(text) TO gabriel_agent, gabriel_research;
 
 -- THE CITED PASSAGE IS PRIVATE FOR THE SAME REASON. The writer reads it for the review card as
 -- gabriel_app. No view of the read API shows it.
@@ -77,7 +79,8 @@ REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
-REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION complete_job(uuid,int,int,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION refused_parts_said(int,text)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION start_lead(text)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_lead_document(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION lead_jobs()                 FROM PUBLIC;
@@ -131,7 +134,7 @@ GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
-GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION complete_job(uuid,int,int,text) TO gabriel_agent;
 
 -- A LEAD IS STARTED BY THE OPERATOR OR BY THE RESEARCH AI, AND NEVER BY THE WORKER. The agent that
 -- runs a lead starts no lead of its own, so the worker role holds no grant on the start. It

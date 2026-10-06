@@ -9,7 +9,7 @@ import { ContestedGlyph } from './contested-mark';
 import { Decide } from './decide';
 import { decisionSaid, type DecisionState } from './decision';
 import { NodePane } from './node-pane';
-import { passagesOf, type CitedPassages } from './passages';
+import { passagesOf, type QueuePassages } from './passages';
 import {
   actIdsOf,
   batchName,
@@ -68,7 +68,7 @@ export interface ReviewPageProps {
    * a promotion that was refused must not read as a promotion that landed. */
   readonly decision: DecisionState;
   /** The passages that the acts cite, read as the operator, or why this page holds none. */
-  readonly passages: CitedPassages;
+  readonly passages: QueuePassages;
   readonly onAct: (act: ReviewAct) => void;
 }
 

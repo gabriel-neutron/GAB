@@ -116,6 +116,12 @@ checker and its reason, or that the checker did not answer. The reason is frozen
 private: the review card shows it, and the public read does not. Every model call goes to the free
 model gateway and is recorded.
 
+The extractor reads a document in parts. When the door refuses the batch of a part a second time,
+the claims of that part are lost, and the job keeps the count of the refused parts and the first
+refusal. The status of the job shows them to the operator and to the research AI. A job whose
+every part was refused fails, with the same words as its reason. The interface reads the status of
+an extraction again by itself while the job waits or runs.
+
 The acts of one call that name each other are one linked batch. The review queue shows a batch as
 one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion
 writes each entity before the relation that names it, and one refused act refuses the whole batch:

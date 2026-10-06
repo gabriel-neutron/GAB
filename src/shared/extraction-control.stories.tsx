@@ -22,6 +22,7 @@ const job = (status: string, extra: Record<string, unknown> = {}): Record<string
   kind: 'extract_text',
   status,
   reason: null,
+  refused: null,
   proposals: 0,
   ...extra,
 });
@@ -68,7 +69,6 @@ export const TheOperatorStartsAnExtraction: Story = {
       );
     });
     await expect(asked).toStrictEqual(['/write/queue-extraction', '/write/document-jobs']);
-    await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeDisabled();
   },
 };
 
@@ -83,17 +83,61 @@ export const ARunningExtractionSaysSo: Story = {
   },
 };
 
-export const ADoneExtractionCountsItsProposals: Story = {
+export const ADoneExtractionCountsItsProposalsAndItsRefusedParts: Story = {
   play: async ({ canvas }) => {
-    writerAnswers(jobsOf(job('done', { proposals: 3 })));
+    writerAnswers(
+      jobsOf(
+        job('done', { proposals: 3, refused: '2 parts refused: item a: the page has no excerpt' }),
+      ),
+    );
     await userEvent.click(canvas.getByRole('button', { name: 'Read the status' }));
 
     await waitFor(async () => {
       await expect(canvas.getByRole('status')).toHaveTextContent(
-        'The extraction is done. It made 3 proposals.',
+        'The extraction is done. It made 3 proposals. 2 parts refused: item a: the page has no ' +
+          'excerpt.',
       );
     });
-    await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeDisabled();
+    // The record refuses a second open job, and a done document can be read again.
+    await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+export const AQueuedExtractionReadsItsStatusAgainByItself: Story = {
+  play: async ({ canvas }) => {
+    writerAnswers(jobsOf(job('queued')), jobsOf(job('running')), jobsOf(job('done')));
+    await userEvent.click(canvas.getByRole('button', { name: 'Read the status' }));
+
+    await waitFor(
+      async () => {
+        await expect(canvas.getByRole('status')).toHaveTextContent(
+          'The extraction is done. It made 0 proposals.',
+        );
+      },
+      { timeout: 15_000 },
+    );
+    await expect(asked).toStrictEqual([
+      '/write/document-jobs',
+      '/write/document-jobs',
+      '/write/document-jobs',
+    ]);
+  },
+};
+
+export const ALostAnswerIsADoubt: Story = {
+  play: async ({ canvas }) => {
+    writerAnswers({
+      status: 502,
+      body: { doubt: 'the record gave no answer to read, and the act may have run whole' },
+    });
+    await userEvent.click(canvas.getByRole('button', { name: 'Extract claims' }));
+
+    await waitFor(async () => {
+      await expect(canvas.getByRole('alert')).toHaveTextContent(
+        'The state of the extraction is not known. The write service did not confirm the act, ' +
+          'and the act may have run whole.',
+      );
+    });
   },
 };
 
@@ -137,15 +181,13 @@ export const ADocumentWithNoExtractionSaysSo: Story = {
 
 export const ARefusalOfTheWriterIsShown: Story = {
   play: async ({ canvas }) => {
-    writerAnswers({
-      status: 409,
-      body: { refusal: 'an extraction of this document is queued or runs already' },
-    });
+    const refusal = `document ${DOCUMENT} has a job of kind extract_text that is queued or runs already`;
+    writerAnswers({ status: 422, body: { refusal } });
     await userEvent.click(canvas.getByRole('button', { name: 'Extract claims' }));
 
     await waitFor(async () => {
       await expect(canvas.getByRole('status')).toHaveTextContent(
-        'The writer refused: an extraction of this document is queued or runs already.',
+        `Nothing was written. ${refusal}.`,
       );
     });
   },

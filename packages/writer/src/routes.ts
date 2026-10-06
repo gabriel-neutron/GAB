@@ -4,8 +4,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
-import { decide } from './decide.ts';
-import { decideBatch } from './decide-batch.ts';
+import { decide, decideBatch } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
 import { readLeads, startLead } from './lead.ts';
 import { readPassages } from './passages.ts';
@@ -16,8 +15,7 @@ import { uploadDocument, type ObjectDoor } from './upload.ts';
 // Departure: a doubt is the answer of the database that the writer lost on the way, and a gateway
 // that lost an answer names it 502. The act may stand, so it is never a refusal.
 const STATUS = {
-  signed: 200,
-  decided: 200,
+  done: 200,
   refused: 422,
   doubt: 502,
   unavailable: 503,
@@ -50,19 +48,19 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   // through the writer and never through the public read API.
   app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readPassages(pool, await context.req.text());
-    return context.json(read.reply, read.status);
+    return context.json(read.reply, STATUS[read.outcome]);
   });
 
   // The text of a lead can name a party before any source supports it, so it stays private.
   app.post('/private/leads', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readLeads(pool);
-    return context.json(read.reply, read.status);
+    return context.json(read.reply, STATUS[read.outcome]);
   });
 
   // The worker searches and stores the sources of a lead. It proposes nothing.
   app.post('/write/start-lead', capped(LARGEST_BODY_BYTES), async (context) => {
     const act = await startLead(pool, await context.req.text());
-    return context.json(act.reply, act.status);
+    return context.json(act.reply, STATUS[act.outcome]);
   });
 
   for (const op of WRITE_OPS)
@@ -95,14 +93,14 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   // A failed extraction is asked for again through the same door.
   app.post('/write/queue-extraction', capped(LARGEST_BODY_BYTES), async (context) => {
     const act = await queueExtraction(pool, await context.req.text());
-    return context.json(act.reply, act.status);
+    return context.json(act.reply, STATUS[act.outcome]);
   });
 
   // Departure: a read on a POST. The status is private to the operator, and the admission of a
   // JSON body from this site is the one guard the writer holds.
   app.post('/write/document-jobs', capped(LARGEST_BODY_BYTES), async (context) => {
     const act = await documentJobs(pool, await context.req.text());
-    return context.json(act.reply, act.status);
+    return context.json(act.reply, STATUS[act.outcome]);
   });
 
   return app;

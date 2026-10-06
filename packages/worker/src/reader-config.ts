@@ -1,4 +1,6 @@
-import type { ModelLine } from '@gab/model';
+import { checkLine, checkTokenCap, pinnedName, type ModelLine } from '@gab/model';
+
+import { checkChunkCap } from './chunk.ts';
 
 /** One pinned model of the free-model gateway, its family, and how the adapter reaches it. */
 export interface ModelConfig {
@@ -39,50 +41,64 @@ const textOf = (env: Env, name: string): string => {
   return value;
 };
 
-const numberOf = (env: Env, name: string, whole: boolean): number => {
+const numberOf = (env: Env, name: string): number => {
   const text = textOf(env, name);
   const value = Number(text);
-  const fits = Number.isFinite(value) && value > 0 && (!whole || Number.isInteger(value));
-  if (!fits)
-    throw new Error(
-      `${name} is "${text}", and it must be a ${whole ? 'whole number' : 'number'} above zero.`,
-    );
+  if (!Number.isFinite(value)) throw new Error(`${name} is "${text}", and it is not a number.`);
   return value;
+};
+
+// The range of each value is a rule of the model package and of the chunks. Here the check of its
+// owner runs at the start, and the sentence names the variables.
+const checked = <T>(name: string, check: () => T): T => {
+  try {
+    return check();
+  } catch (fault) {
+    throw new Error(`${name}: ${fault instanceof Error ? fault.message : String(fault)}`, {
+      cause: fault,
+    });
+  }
 };
 
 /** Reads one model from the variables that start with `prefix`. */
 const readModelConfig = (prefix: string, env: Env): ModelConfig => {
   const name = (part: string): string => `${prefix}_${part}`;
-
-  // The gateway picks the model of each call under `auto`, and the record then holds a model that
-  // nobody pinned.
   const model = textOf(env, name('MODEL'));
-  if (model.toLowerCase() === 'auto')
-    throw new Error(`${name('MODEL')} is auto, and an agent runs on a pinned model.`);
-
-  return {
-    model,
-    family: textOf(env, name('FAMILY')),
-    line: {
-      firstWaitMs: numberOf(env, name('FIRST_WAIT_MS'), true),
-      waitGrowth: numberOf(env, name('WAIT_GROWTH'), false),
-      maxWaitMs: numberOf(env, name('MAX_WAIT_MS'), true),
-      timeoutMs: numberOf(env, name('TIMEOUT_MS'), true),
-      maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS'), true),
-    },
+  const line = {
+    firstWaitMs: numberOf(env, name('FIRST_WAIT_MS')),
+    waitGrowth: numberOf(env, name('WAIT_GROWTH')),
+    maxWaitMs: numberOf(env, name('MAX_WAIT_MS')),
+    timeoutMs: numberOf(env, name('TIMEOUT_MS')),
+    maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS')),
   };
+  return {
+    model: checked(name('MODEL'), () => pinnedName(model)),
+    family: textOf(env, name('FAMILY')),
+    line: checked(`${prefix}_* (the line)`, () => checkLine(line)),
+  };
+};
+
+const turnCapOf = (env: Env): number => {
+  const cap = numberOf(env, 'EXTRACTOR_TURN_CAP');
+  if (!Number.isInteger(cap) || cap <= 0)
+    throw new Error(`EXTRACTOR_TURN_CAP is "${cap}", and it must be a whole number above zero.`);
+  return cap;
 };
 
 /** Reads the configuration of the extractor and of its checker. It throws a sentence that names
  * the variable when a value is absent, blank or wrong. */
 export const readExtractorConfig = (env: Env): ReaderConfig => {
   const reader = readModelConfig('EXTRACTOR', env);
+  const checker = readModelConfig('CHECKER', env);
+  const tokenCap = numberOf(env, 'EXTRACTOR_TOKEN_CAP');
+  const turnCap = turnCapOf(env);
+  const chunkCap = numberOf(env, 'EXTRACTOR_CHUNK_CAP');
   const config = {
     reader,
-    checker: readModelConfig('CHECKER', env),
-    tokenCap: numberOf(env, 'EXTRACTOR_TOKEN_CAP', true),
-    turnCap: numberOf(env, 'EXTRACTOR_TURN_CAP', true),
-    chunkCap: numberOf(env, 'EXTRACTOR_CHUNK_CAP', true),
+    checker,
+    tokenCap: checked('EXTRACTOR_TOKEN_CAP', () => checkTokenCap(tokenCap)),
+    turnCap,
+    chunkCap: checked('EXTRACTOR_CHUNK_CAP', () => checkChunkCap(chunkCap)),
   };
   if (config.checker.family.toLowerCase() === reader.family.toLowerCase())
     throw new Error(
@@ -96,7 +112,8 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
  * pinned and calls tools, and it has a token budget of its own. A lead with no search engine
  * finds no page, so a search setting is required too. */
 export const readLeadConfig = (env: Env): LeadConfig => {
-  const tokenCap = numberOf(env, 'LEAD_TOKEN_CAP', true);
+  const cap = numberOf(env, 'LEAD_TOKEN_CAP');
+  const tokenCap = checked('LEAD_TOKEN_CAP', () => checkTokenCap(cap));
   const searches = ['SEARXNG_URL', 'BRAVE_SEARCH_API_KEY'].some(
     (name) => (env[name]?.trim() ?? '') !== '',
   );

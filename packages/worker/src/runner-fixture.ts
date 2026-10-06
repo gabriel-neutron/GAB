@@ -125,7 +125,7 @@ export const gatewayOf = (
   };
 };
 
-export interface Stubs {
+interface Stubs {
   readonly deps: RunnerDeps;
   readonly slept: number[];
 }

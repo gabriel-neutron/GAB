@@ -76,6 +76,8 @@ const OLDEST = "UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1";
 const jobRow = z.object({
   status: z.string(),
   failure_reason: z.string().nullable(),
+  refused_parts: z.number(),
+  refusal: z.string().nullable(),
 });
 
 interface Held {
@@ -107,8 +109,13 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
 
     const read = async () =>
       jobRow.parse(
-        (await client.query('SELECT status, failure_reason FROM public.jobs WHERE id = $1', [job]))
-          .rows[0],
+        (
+          await client.query(
+            `SELECT status, failure_reason, refused_parts, refusal FROM public.jobs
+              WHERE id = $1`,
+            [job],
+          )
+        ).rows[0],
       );
 
     const step = async (agent: RunnerAgent, gateway: StubGateway): Promise<Step> => {
@@ -219,7 +226,7 @@ test('a refused batch goes back to the model once with its fault, and the correc
   });
 });
 
-test('a batch that is refused twice proposes nothing, and the job goes on', async () => {
+test('a batch that is refused twice proposes nothing, and the done job records the refused part', async () => {
   await inTransaction(async (held) => {
     const answers = [[INVENTED], [INVENTED], [ROSNEFT]];
     const gateway = gatewayOf((call) => answerOf(answers[call - 1] ?? []));
@@ -229,6 +236,23 @@ test('a batch that is refused twice proposes nothing, and the job goes on', asyn
       job: held.job,
     });
     expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Rosneft']);
+    const job = await held.read();
+    expect(job).toMatchObject({ status: 'done', failure_reason: null, refused_parts: 1 });
+    expect(job.refusal).toMatch(/^item ghost: /u);
+  });
+});
+
+test('a job whose every part is refused fails with the count and the first refusal', async () => {
+  await inTransaction(async (held) => {
+    const gateway = gatewayOf(() => answerOf([INVENTED]));
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'failed',
+      job: held.job,
+    });
+    const job = await held.read();
+    expect(job).toMatchObject({ status: 'failed', refused_parts: 2 });
+    expect(job.failure_reason).toMatch(/^2 parts refused: item ghost: /u);
   });
 });
 
