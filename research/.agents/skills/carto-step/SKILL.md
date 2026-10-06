@@ -10,7 +10,7 @@ the comment reports the data, and not a narrative.
 
 ## Tools
 
-- `propose_change`: the tool whose proposal ids this comment reports. This skill calls no tool.
+- `propose`: the tool whose proposal ids this comment reports. This skill calls no tool.
   It collects the ids that the other skills gave.
 
 ## Steps

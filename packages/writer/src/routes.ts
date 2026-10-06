@@ -6,6 +6,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
+import { readPassages } from './passages.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
 import { uploadDocument, type ObjectDoor } from './upload.ts';
@@ -36,11 +37,19 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The doors of the operator. No address here answers a GET, and the one read is the status of
- * the jobs of a document, which the public read never shows. */
+/** The doors of the operator, and two private reads: the status of the jobs of a document, and
+ * the passages that the acts cite. The public read never shows either one. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
+  app.use('/private/*', admitOwnSiteJson());
+
+  // The text of a document is private, so the passage that an act cites reaches the review card
+  // through the writer and never through the public read API.
+  app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readPassages(pool, await context.req.text());
+    return context.json(read.reply, read.status);
+  });
 
   for (const op of WRITE_OPS)
     app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {

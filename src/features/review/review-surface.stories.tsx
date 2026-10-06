@@ -13,6 +13,7 @@ const QUEUE = (
     queue={{ subjects: readQueue(reviewSample), verdicts: {} }}
     examination={{ subjectId: SAMPLE.contestedRow, sort: 'confidence' }}
     decision={{ step: 'idle' }}
+    passages={{ state: 'held', byAct: {} }}
     onAct={fn()}
   />
 );

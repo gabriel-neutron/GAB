@@ -15,6 +15,10 @@ const DOC = `doc_${SHA.slice(0, 12)}`;
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
 
+const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
+
+const PAGE = 'The Council adopted Regulation 2025/1476 on 18 July 2025.';
+
 const STORED = 'SELECT author_role, status FROM public.proposals WHERE id = $1';
 
 const answer = z.object({
@@ -42,7 +46,7 @@ test('the session check accepts a session that logs in as gabriel_research', asy
   await expect(probe('research', (ask) => assertSessionRole(poolOf(ask)))).resolves.toBe(undefined);
 });
 
-test('a call of propose_change through the server stores a proposal of gabriel_research', async () => {
+test('a call of propose through the server stores a proposal of gabriel_research', async () => {
   const found = await rolledBack('research', async (ask) => {
     await ask(STORE, [
       'url',
@@ -54,6 +58,7 @@ test('a call of propose_change through the server stores a proposal of gabriel_r
       '2026-09-02',
       null,
     ]);
+    await ask(WRITE_TEXT, [DOC, JSON.stringify([PAGE]), 'server-test-1']);
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
     await createServer(poolOf(ask)).connect(serverSide);
@@ -64,18 +69,27 @@ test('a call of propose_change through the server stores a proposal of gabriel_r
         await client.callTool({
           name: 'propose',
           arguments: {
-            action: 'propose_change',
+            action: 'propose',
             input: {
-              act: { op: 'create_entity', type: 'legal_act', label: 'Regulation 2025/1476' },
-              documents: [DOC],
+              items: [
+                {
+                  ref: 'act',
+                  act: { op: 'create_entity', type: 'legal_act', label: 'Regulation 2025/1476' },
+                  originator: 'The Council',
+                  modality: 'enacts',
+                  evidence: [{ document: DOC, page: 1, excerpt: 'adopted Regulation 2025/1476' }],
+                },
+              ],
             },
           },
         }),
       );
       const text = result.content.map((part) => part.text).join('');
       if (result.isError === true) return { refusal: text, rows: [] };
-      const made = z.object({ proposalId: z.uuid() }).parse(JSON.parse(text));
-      return { refusal: '', rows: await ask(STORED, [made.proposalId]) };
+      const made = z
+        .object({ proposals: z.array(z.object({ proposalId: z.uuid() })).length(1) })
+        .parse(JSON.parse(text));
+      return { refusal: '', rows: await ask(STORED, [made.proposals[0]?.proposalId]) };
     } finally {
       await client.close();
     }

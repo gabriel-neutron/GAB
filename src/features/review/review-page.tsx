@@ -9,6 +9,7 @@ import { ContestedGlyph } from './contested-mark';
 import { Decide } from './decide';
 import { decisionSaid, type DecisionState } from './decision';
 import { NodePane } from './node-pane';
+import { passagesOf, type CitedPassages } from './passages';
 import {
   changeLines,
   focusOf,
@@ -56,6 +57,8 @@ export interface ReviewPageProps {
   /** Where the last verdict stands with the record. The route sends it, and this page draws it:
    * a promotion that was refused must not read as a promotion that landed. */
   readonly decision: DecisionState;
+  /** The passages that the acts cite, read as the operator, or why this page holds none. */
+  readonly passages: CitedPassages;
   readonly onAct: (act: ReviewAct) => void;
 }
 
@@ -74,7 +77,7 @@ const TOGGLE = cn(
   'focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-export function ReviewPage({ queue, examination, decision, onAct }: ReviewPageProps) {
+export function ReviewPage({ queue, examination, decision, passages, onAct }: ReviewPageProps) {
   const { subjects, verdicts } = queue;
   const { subjectId, sort } = examination;
   // Which act the hand is on, and whether two acts stand open. Both die with the view: the
@@ -170,9 +173,16 @@ export function ReviewPage({ queue, examination, decision, onAct }: ReviewPagePr
             open ? null : 'max-w-[44rem]',
           )}
         >
-          <ChangeCard change={current} current={true} />
+          <ChangeCard change={current} current={true} passages={passagesOf(passages, current.id)} />
           {open
-            ? beside.map((change) => <ChangeCard key={change.id} change={change} current={false} />)
+            ? beside.map((change) => (
+                <ChangeCard
+                  key={change.id}
+                  change={change}
+                  current={false}
+                  passages={passagesOf(passages, change.id)}
+                />
+              ))
             : null}
         </div>
 

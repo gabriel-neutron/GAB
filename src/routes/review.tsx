@@ -5,6 +5,7 @@ import { readDecided } from '@/features/review/decided';
 import { sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
+import { readPassages } from '@/features/review/passages';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
 import { subjectsNamed } from '@/features/review/subjects-named';
 import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/review/verdict-flow';
@@ -44,7 +45,8 @@ export const Route = createFileRoute('/review')({
       loadDecidedActs(),
       loadEntityTypes(),
     ]);
-    return { corpus, decided, types };
+    const passages = await readPassages(corpus.proposals.map((proposal) => proposal.id));
+    return { corpus, decided, types, passages };
   },
 
   component: ReviewRoute,
@@ -54,7 +56,7 @@ export const Route = createFileRoute('/review')({
 function ReviewRoute() {
   const { subject, view } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, decided, types } = Route.useLoaderData();
+  const { corpus, decided, types, passages } = Route.useLoaderData();
   const router = useRouter();
 
   const [sort, setSort] = useState<SortKey>(readSort);
@@ -126,6 +128,7 @@ function ReviewRoute() {
           queue={{ subjects, verdicts }}
           examination={{ subjectId: subject === '' ? null : subject, sort }}
           decision={decision}
+          passages={passages}
           onAct={onAct}
         />
       }

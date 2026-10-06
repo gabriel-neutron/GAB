@@ -42,8 +42,9 @@ const section = (body: string, heading: string): string | undefined => {
   return found?.slice(heading.length);
 };
 
-const codeNames = (text: string): string[] =>
-  [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)].map((match) => match[1] ?? '');
+// Each line of the Tools section starts with the name of one tool, and a name can be one word.
+const listedTools = (text: string): string[] =>
+  [...text.matchAll(/^- `([a-z][a-z0-9_]*)`/gmu)].map((match) => match[1] ?? '');
 
 // Departure: the compile target of this folder does not hold the MCP package, and a static import
 // would pull the whole catalogue into it. The test loads the groups when it runs, and checks their
@@ -78,7 +79,7 @@ test.each(SKILLS)(
   'each tool under the Tools section of %s is offered by the research server',
   (skill) => {
     const { body } = split(read(sourceOf(skill)));
-    const tools = codeNames(section(body, 'Tools') ?? '');
+    const tools = listedTools(section(body, 'Tools') ?? '');
 
     expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
     for (const tool of tools)

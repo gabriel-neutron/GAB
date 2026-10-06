@@ -1,7 +1,6 @@
 import type { AgentModel, Failure, Question } from '@gab/model';
 
 import type { ClaimedJob } from './claim.ts';
-import type { KeyParts } from './idempotency.ts';
 import type { Queryable } from './queryable.ts';
 
 /** A question that the model answered with a value or with one tool call. */
@@ -61,8 +60,6 @@ export interface AgentContext {
   /** One question. The call is recorded before this returns, so a proposal that follows can name
    * it. A failed question is recorded too, and it throws a ModelFailure. */
   readonly ask: <T>(question: Omit<Question<T>, 'budget'>) => Promise<Asked<T>>;
-  /** The key of one act of this job, with the document and the reader filled in. */
-  readonly keyOf: (parts: Omit<KeyParts, 'documentId' | 'readerId'>) => string;
 }
 
 /** One back-end agent. The runner hands it a job of its kind and ends the job itself. */

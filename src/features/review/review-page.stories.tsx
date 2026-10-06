@@ -24,6 +24,7 @@ const meta = {
     queue: { subjects: SUBJECTS, verdicts: {} },
     examination: { subjectId: CONTESTED, sort: 'confidence' },
     decision: { step: 'idle' },
+    passages: { state: 'held', byAct: {} },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -271,5 +272,40 @@ export const ASentenceOfAnotherActSaysThatItIsOfAnotherAct: Story = {
     const said = canvas.getByRole('alert', { name: 'The record' });
     await expect(said).toHaveTextContent('This is about another act.');
     await expect(said).toHaveTextContent('It is not known whether the act was promoted.');
+  },
+};
+
+const PASSAGE = {
+  document: 'doc_8f2a41',
+  title: 'A port report of 12 March 2024',
+  page: 3,
+  text: 'The tanker left the quay on 12 March 2024, and Rosneft owns it.',
+};
+
+/** The operator decides on the proof itself: the card of a machine act shows the words of the
+ * page that the act cites, with the document and the page. */
+export const TheCardShowsThePassageThatTheActCites: Story = {
+  args: { passages: { state: 'held', byAct: { [FIRST_ACT]: [PASSAGE] } } },
+  play: async ({ canvas }) => {
+    const cited = canvas.getByRole('region', { name: 'The cited passages' });
+    await expect(cited).toHaveTextContent(PASSAGE.text);
+    await expect(cited).toHaveTextContent('A port report of 12 March 2024, page 3');
+  },
+};
+
+/** The text of a document is private. Where the writer does not answer, as on the public page,
+ * no passage is drawn, and one sentence says why. */
+export const ThePublicPageShowsNoPassage: Story = {
+  args: {
+    passages: {
+      state: 'private',
+      why: 'The cited passages are private, and the write service on this machine did not give them.',
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.queryByRole('region', { name: 'The cited passages' })).toBeNull();
+    await expect(canvasElement.querySelector('[data-passages="private"]')).toHaveTextContent(
+      'The cited passages are private',
+    );
   },
 };

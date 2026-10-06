@@ -3,9 +3,11 @@ import { Split } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 import { ChangeMark } from './change-mark';
+import { CitedPassages } from './cited-passages';
 import { Confidence } from './confidence';
 import { Difference } from './difference';
 import { Holes } from './holes';
+import type { ActPassages } from './passages';
 import type { Change } from './queue';
 import { SourceBadge } from './sources';
 
@@ -13,9 +15,10 @@ export interface ChangeCardProps {
   readonly change: Change;
   /** The act the controls at the foot act on. Two cards stand open when a key is contested. */
   readonly current: boolean;
+  readonly passages: ActPassages;
 }
 
-export function ChangeCard({ change, current }: ChangeCardProps) {
+export function ChangeCard({ change, current, passages }: ChangeCardProps) {
   // A row of an update carries the documents of the act. A row of a deletion carries the documents
   // of the lost value, so a deletion shows the documents of the act as well as its rows.
   const actSources =
@@ -77,6 +80,8 @@ export function ChangeCard({ change, current }: ChangeCardProps) {
           ))}
         </div>
       ) : null}
+
+      <CitedPassages cited={passages} />
 
       {change.rows.length === 0 ? null : (
         <Difference rows={change.rows} rowSources={change.rowSources} />
