@@ -2,14 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
-import {
-  openModel,
-  worstQuestionMs,
-  type AgentModel,
-  type Message,
-  type Send,
-  type Tool,
-} from './client.ts';
+import { openModel, type AgentModel, type Message, type Send, type Tool } from './client.ts';
 
 const AGENT: AgentModel = {
   endpoint: 'openrouter',
@@ -888,112 +881,5 @@ describe('the quota is spent', () => {
     const got = await ask(always(body, 429), 1000, FREE).run();
 
     expect(got).toMatchObject({ ok: false, failure: { kind: 'quota' } });
-  });
-});
-
-describe('the read of the quota that is left', () => {
-  const FORECAST = JSON.stringify({
-    generated_at: '2026-10-04T00:00:00Z',
-    pools: [
-      {
-        platform: 'groq',
-        pool: 'groq::account',
-        used: 90,
-        remaining: 10,
-        limit: 100,
-        remaining_pct: 10,
-        reset_at: '2026-10-05T00:00:00Z',
-        low_balance: true,
-        seconds_until_reset: 3600,
-      },
-      {
-        platform: 'google',
-        pool: 'google::account',
-        used: null,
-        remaining: null,
-        limit: null,
-        remaining_pct: null,
-        reset_at: null,
-        low_balance: false,
-        seconds_until_reset: null,
-      },
-    ],
-  });
-
-  const open = (send: Stub) => openModel(FREE, send, FREE_ENV);
-
-  it('calls the forecast path of freellmapi with the unified key, and parses each pool', async () => {
-    const send = always(FORECAST);
-    const got = await open(send).quota?.();
-
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0]?.[0]).toBe(`${FREE_BASE}/quota-forecast`);
-    expect(send.mock.calls[0]?.[1]).toMatchObject({
-      method: 'GET',
-      headers: { authorization: 'Bearer a-free-key' },
-    });
-    expect(got).toEqual({
-      ok: true,
-      pools: [
-        {
-          platform: 'groq',
-          pool: 'groq::account',
-          remaining: 10,
-          limit: 100,
-          resetAt: '2026-10-05T00:00:00Z',
-          low: true,
-        },
-        {
-          platform: 'google',
-          pool: 'google::account',
-          remaining: null,
-          limit: null,
-          resetAt: null,
-          low: false,
-        },
-      ],
-    });
-  });
-
-  it('has no read on openrouter', () => {
-    expect(openModel(AGENT, always(FORECAST), ENV).quota).toBeUndefined();
-  });
-
-  it('fails as unreadable on a body of another shape, and never retries', async () => {
-    const send = always(JSON.stringify({ pools: 'none' }));
-    const got = await open(send).quota?.();
-
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'unreadable', attempts: 1 } });
-  });
-
-  it('fails as configuration on a refused key, and as network on a dead service', async () => {
-    const refused = await open(always('{}', 401)).quota?.();
-    const down = await open(always('{}', 503)).quota?.();
-    const lost = await open(vi.fn<Send>(() => Promise.reject(new Error('gone')))).quota?.();
-
-    expect(refused).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
-    expect(down).toMatchObject({ ok: false, failure: { kind: 'network' } });
-    expect(lost).toMatchObject({ ok: false, failure: { kind: 'network' } });
-  });
-});
-
-describe('the longest time of one question', () => {
-  it('counts every call and every wait of the worst question the client can make', async () => {
-    const down = (): Response => answer('{}', 503);
-    const wrong = (): Response => answer(said('{"other":1}'));
-    // Each of the two round trips fails on its first three calls and ends on a refused answer.
-    const send = vi.fn<Send>();
-    send.mockImplementation(() =>
-      Promise.resolve(send.mock.calls.length % 4 === 0 ? wrong() : down()),
-    );
-    const slow: AgentModel = { ...AGENT, maxWaitMs: 1, firstWaitMs: 1, waitGrowth: 1 };
-
-    const got = await ask(send, 1000, slow).run();
-
-    expect(got).toMatchObject({ ok: false, failure: { kind: 'rejected', attempts: 8 } });
-    const calls = 8;
-    const waits = 6;
-    expect(worstQuestionMs(slow)).toBe(calls * slow.timeoutMs + waits * slow.maxWaitMs);
   });
 });

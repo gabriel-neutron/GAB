@@ -55,10 +55,8 @@ the SQL departs from an accepted decision and name the place where the correctio
 the address goes, the next reader can restore the rule and break the read. The cost is the defect
 above: a reference in SQL can become wrong, and nothing warns.
 
-A local lint rule refuses each shape of reference that it can identify. Inline configuration is
-off, so an author cannot disable the rule on a line. A hexadecimal colour is not a ticket number,
-and the rule lets it pass. The rule cannot read a stylesheet, so a reviewer keeps references out of
-the stylesheet.
+The reviewer holds this rule. A lint rule held it until October 2026, and it was removed because
+its patterns cost more upkeep than the defects it found.
 
 ## Consequences
 
