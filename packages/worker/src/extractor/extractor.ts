@@ -38,9 +38,8 @@ export interface ExtractorTools {
 }
 
 export interface ExtractorOptions {
-  /** Replaces personal data with placeholders of the same length, and names its version. With
-   * none, no model reads a stored document, and each job stops. */
-  readonly minimise?: Minimiser;
+  /** Replaces personal data with placeholders of the same length, and names its version. */
+  readonly minimise: Minimiser;
   readonly tools?: ExtractorTools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -102,10 +101,7 @@ const promptBytes = (given: string | undefined): Buffer =>
 
 /** The first reader. It reads each chunk of the newest text of a document, and code proposes each
  * claim that the model gives and stores where the page states it. The model writes nothing. */
-export const makeExtractor = (
-  config: ReaderConfig,
-  options: ExtractorOptions = {},
-): RunnerAgent => {
+export const makeExtractor = (config: ReaderConfig, options: ExtractorOptions): RunnerAgent => {
   const tools = options.tools ?? DEFAULT_TOOLS;
   const bytes = promptBytes(options.prompt);
   const prompt = bytes.toString('utf8');
@@ -123,9 +119,7 @@ export const makeExtractor = (
   }));
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
-    // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise?.apply;
-    if (minimise === undefined) throw new JobStop('no_minimiser');
+    const minimise = options.minimise.apply;
 
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
@@ -318,7 +312,7 @@ export const makeExtractor = (
     // Each question of the job counts one turn, so the cap is the most questions of one job.
     questionsPerJob: config.turnCap,
     tokenCap: config.tokenCap,
-    ...(options.minimise === undefined ? {} : { minimiser: options.minimise.version }),
+    minimiser: options.minimise.version,
     run,
   };
 };

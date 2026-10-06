@@ -266,6 +266,46 @@ BEGIN
   END LOOP;
 END $$;
 
+-- ========================================================================== THE COORDINATES ==
+
+-- EACH COORDINATE PAIR OF A TEXT, AS THE LITERAL, A TYPED PARSE AND ITS FORM. The latitude comes
+-- first. A decimal pair needs a decimal point in each number, and N, S, E or W after a number sets
+-- its sign. A pair in degrees and minutes, with or without seconds, needs N or S and E or W.
+CREATE OR REPLACE FUNCTION ev_coords(p_text text)
+RETURNS TABLE (literal text, lat numeric, lon numeric, lat_places int, lon_places int, form text)
+LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE
+  m text[];
+BEGIN
+  FOR m IN SELECT regexp_matches(coalesce(p_text, ''),
+             '(?<![0-9.])([-+]?\d{1,2}\.(\d+))\s*°?\s*([NSns])?\s*[,;]?\s*'
+             || '([-+]?\d{1,3}\.(\d+))\s*°?\s*([EWew])?(?![0-9])', 'g') LOOP
+    literal := m[1] || coalesce(m[3], '') || ' ' || m[4] || coalesce(m[6], '');
+    lat := m[1]::numeric * CASE WHEN upper(m[3]) = 'S' THEN -1 ELSE 1 END;
+    lon := m[4]::numeric * CASE WHEN upper(m[6]) = 'W' THEN -1 ELSE 1 END;
+    lat_places := char_length(m[2]);
+    lon_places := char_length(m[5]);
+    form := 'decimal';
+    RETURN NEXT;
+  END LOOP;
+  FOR m IN SELECT regexp_matches(coalesce(p_text, ''),
+             '(?<![0-9])(\d{1,2})\s*°\s*(\d{1,2}(?:\.\d+)?)\s*[''′]\s*'
+             || '(?:(\d{1,2}(?:\.\d+)?)\s*(?:"|″|'''')\s*)?([NSns])[\s,;]*'
+             || '(\d{1,3})\s*°\s*(\d{1,2}(?:\.\d+)?)\s*[''′]\s*'
+             || '(?:(\d{1,2}(?:\.\d+)?)\s*(?:"|″|'''')\s*)?([EWew])', 'g') LOOP
+    literal := m[1] || '°' || m[2] || '′' || coalesce(m[3] || '″', '') || m[4] || ' '
+               || m[5] || '°' || m[6] || '′' || coalesce(m[7] || '″', '') || m[8];
+    lat := (m[1]::numeric + m[2]::numeric / 60 + coalesce(m[3]::numeric, 0) / 3600)
+           * CASE WHEN upper(m[4]) = 'S' THEN -1 ELSE 1 END;
+    lon := (m[5]::numeric + m[6]::numeric / 60 + coalesce(m[7]::numeric, 0) / 3600)
+           * CASE WHEN upper(m[8]) = 'W' THEN -1 ELSE 1 END;
+    lat_places := NULL;
+    lon_places := NULL;
+    form := CASE WHEN m[3] IS NULL THEN 'dm' ELSE 'dms' END;
+    RETURN NEXT;
+  END LOOP;
+END $$;
+
 -- ======================================================================== THE CLAIM AND ITS FIELDS ==
 
 -- The kind of record that an entity type is, for the identity check and the adverse predicate.
@@ -278,7 +318,8 @@ $$;
 
 -- THE KIND OF A FIELD DECIDES ITS MATCH. An identifier matches exactly, a name may match fuzzily, a
 -- date and a number are parsed, and every other text is literal: a place is literal text alone. A
--- boolean is a flag of the claim, and no span holds it as text.
+-- geometry has the kind `coordinates` (ev_claim_fields). A boolean is a flag of the claim, and no
+-- span holds it as text.
 CREATE OR REPLACE FUNCTION ev_field_kind(p_key text, p_value jsonb) RETURNS text
 LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
@@ -306,6 +347,15 @@ BEGIN
   SELECT * INTO p FROM public.proposals x WHERE x.id = p_claim;
   IF p.op = 'create_entity' THEN
     v_subject := p.payload ->> 'label';
+    -- The geometry is a value. A point gives its latitude and longitude. Another shape gives no
+    -- value that code can find in a sentence.
+    IF p.payload ? 'geom' THEN
+      field := 'geom'; kind := 'coordinates'; is_subject := false;
+      value := CASE WHEN p.payload #>> '{geom,type}' = 'Point'
+                    THEN (p.payload #>> '{geom,coordinates,1}') || ' '
+                         || (p.payload #>> '{geom,coordinates,0}') END;
+      RETURN NEXT;
+    END IF;
   ELSIF p.op = 'create_relation' THEN
     SELECT e.label INTO v_subject FROM public.entities e
      WHERE e.id = (p.payload ->> 'src_id')::uuid AND coalesce(p.payload ->> 'src_kind', 'entity') = 'entity';
@@ -343,13 +393,14 @@ BEGIN
   END LOOP;
 END $$;
 
--- ONE FIELD AGAINST ONE TEXT: `found`, `held` when the text holds a date or a number that code
--- cannot parse without doubt, or `absent`.
+-- ONE FIELD AGAINST ONE TEXT: `found`, `held` when the text holds a date, a number or a coordinate
+-- pair that code cannot compare without doubt, or `absent`.
 CREATE OR REPLACE FUNCTION ev_field_in(p_kind text, p_value text, p_text text, p_locale text)
 RETURNS text
 LANGUAGE plpgsql STABLE AS $$
 DECLARE
   d record;
+  c record;
   v_held boolean := false;
 BEGIN
   IF p_kind = 'identifier' THEN
@@ -370,6 +421,19 @@ BEGIN
     -- a decimal part in another.
     IF coalesce(p_text, '') ~ '(?<![0-9.,])[0-9]{1,3}[.,][0-9]{3}(?![0-9.,])' THEN RETURN 'held'; END IF;
     RETURN 'absent';
+  ELSIF p_kind = 'coordinates' THEN
+    -- The claim value is decimal. A decimal pair matches when the claim, rounded to the places of
+    -- the text, gives the text. A pair in another form, or a shape that is not a point, is held.
+    IF p_value IS NULL THEN RETURN 'held'; END IF;
+    FOR c IN SELECT * FROM ev_coords(p_text) LOOP
+      IF c.form = 'decimal'
+         AND round(split_part(p_value, ' ', 1)::numeric, c.lat_places) = c.lat
+         AND round(split_part(p_value, ' ', 2)::numeric, c.lon_places) = c.lon THEN
+        RETURN 'found';
+      END IF;
+      IF c.form <> 'decimal' THEN v_held := true; END IF;
+    END LOOP;
+    RETURN CASE WHEN v_held THEN 'held' ELSE 'absent' END;
   ELSIF p_kind = 'flag' THEN
     RETURN 'found';
   END IF;

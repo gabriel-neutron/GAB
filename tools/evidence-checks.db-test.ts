@@ -228,6 +228,38 @@ test('a date with a month name needs no locale and matches', async () => {
   expect(row).toMatchObject({ support: 'value', counts: true, held: {} });
 });
 
+const SIKKA_POINT = { type: 'Point', coordinates: [69.8319, 22.4351] };
+
+test('a span that names only the subject of a claim with a geometry counts 0', async () => {
+  const page = 'The tanker Nayara Star is at 22.4351 N, 69.8319 E.';
+  const { row } = await checked({
+    page,
+    payload: { type: 'vessel', label: NAYARA, geom: SIKKA_POINT },
+    span: spanOf(page, 'The tanker Nayara Star'),
+  });
+  expect(row).toMatchObject({ support: 'name_only', counts: false });
+});
+
+test('a decimal coordinate pair in the span that matches the geometry is found', async () => {
+  const page = 'The tanker Nayara Star is at 22.4351 N, 69.8319 E.';
+  const { row } = await checked({
+    page,
+    payload: { type: 'vessel', label: NAYARA, geom: SIKKA_POINT },
+    span: spanOf(page, page),
+  });
+  expect(row).toMatchObject({ support: 'value', counts: true, held: {} });
+});
+
+test('a coordinate pair in degrees and minutes against a decimal geometry is held', async () => {
+  const page = 'The tanker Nayara Star is at 22°26.1′N 69°49.9′E.';
+  const { row } = await checked({
+    page,
+    payload: { type: 'vessel', label: NAYARA, geom: SIKKA_POINT },
+    span: spanOf(page, page),
+  });
+  expect(row.held['geom']).toBe('check_not_run');
+});
+
 test('an identifier with one look-alike character of another script fails', async () => {
   const page = 'The tanker Nayara Star (IMO 91234\u04213) left Sikka.';
   const { row } = await checked({ page, payload: NEW_VESSEL, span: spanOf(page, page) });

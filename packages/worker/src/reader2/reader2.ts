@@ -41,9 +41,8 @@ export interface Reader2Tools {
 }
 
 export interface Reader2Options {
-  /** Replaces personal data with placeholders of the same length, and names its version. With
-   * none, no model reads a stored document, and each job stops. */
-  readonly minimise?: Minimiser;
+  /** Replaces personal data with placeholders of the same length, and names its version. */
+  readonly minimise: Minimiser;
   readonly tools?: Reader2Tools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -67,7 +66,7 @@ const promptBytes = (given: string | undefined): Buffer =>
 
 /** The second, blind reader. It reads each chunk of the newest text of a document and stores where
  * each claim stands. Its input is the prompt and the chunk, and nothing of the first reader. */
-export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}): RunnerAgent => {
+export const makeReader2 = (config: ReaderConfig, options: Reader2Options): RunnerAgent => {
   const tools = options.tools ?? DEFAULT_TOOLS;
   const bytes = promptBytes(options.prompt);
   const prompt = bytes.toString('utf8');
@@ -79,9 +78,7 @@ export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}):
   const fingerprint = `${pinned} ${promptHash}`;
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
-    // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise?.apply;
-    if (minimise === undefined) throw new JobStop('no_minimiser');
+    const minimise = options.minimise.apply;
 
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
@@ -202,7 +199,7 @@ export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}):
     // Each question of the job counts one turn, so the cap is the most questions of one job.
     questionsPerJob: config.turnCap,
     tokenCap: config.tokenCap,
-    ...(options.minimise === undefined ? {} : { minimiser: options.minimise.version }),
+    minimiser: options.minimise.version,
     releaseOn: READER2_RELEASE,
     run,
   };

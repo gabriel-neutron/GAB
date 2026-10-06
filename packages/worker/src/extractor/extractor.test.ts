@@ -150,15 +150,6 @@ const textsOf = (question: Question<unknown> | undefined): string =>
   (question?.messages ?? []).map((message) => message.content).join('\n');
 
 describe('the gate of the minimiser', () => {
-  it('reads nothing and asks nothing with no minimiser, and the job stops with no_minimiser', async () => {
-    const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    const agent = makeExtractor(CONFIG, { tools: toolsOf().tools });
-
-    await expect(agent.run(scripted.context)).rejects.toStrictEqual(new JobStop('no_minimiser'));
-    expect(scripted.asked).toHaveLength(0);
-    expect(scripted.queries).toHaveLength(0);
-  });
-
   it('stops with minimiser_length when the minimiser changes the length', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
     const agent = makeExtractor(CONFIG, {

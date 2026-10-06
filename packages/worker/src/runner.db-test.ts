@@ -303,3 +303,23 @@ test('a failure on the third claim ends the job as failed with the reason of the
     expect(after.failure_reason).toBe('the model service did not answer, and nothing was written');
   });
 });
+
+test('a call of an agent with no minimiser record is refused, and the job fails with no model asked', async () => {
+  await inTransaction('extract_text', async (held) => {
+    await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
+    const { minimiser, ...bare } = stubAgent();
+    expect(minimiser).toBe('stub-minimiser');
+    const gateway = gatewayOf(ONE_CLAIM);
+
+    const { step } = await stepOf(held, [bare], gateway);
+
+    expect(step).toStrictEqual({ did: 'failed', job: held.job });
+    expect(await held.read()).toMatchObject({
+      status: 'failed',
+      attempts: 3,
+      failure_reason: 'no_minimiser',
+    });
+    expect(gateway.chats()).toBe(0);
+    expect(await callsOf(held)).toHaveLength(0);
+  });
+});

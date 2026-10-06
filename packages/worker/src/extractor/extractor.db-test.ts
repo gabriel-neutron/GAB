@@ -282,23 +282,6 @@ test('a requeued job with the same inputs writes no new proposal and no new read
   });
 });
 
-test('with no minimiser, a job on its third claim fails with no_minimiser and asks no model', async () => {
-  await inTransaction(async (held) => {
-    await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
-    const gateway = answers();
-
-    const step = await held.step(makeExtractor(CONFIG, {}), gateway);
-
-    expect(step).toStrictEqual({ did: 'failed', job: held.job });
-    expect(await held.read()).toMatchObject({
-      status: 'failed',
-      attempts: 3,
-      failure_reason: 'no_minimiser',
-    });
-    expect(gateway.chats()).toBe(0);
-  });
-});
-
 test('a model that never stops calling a tool fails the job with turn_cap on its third claim', async () => {
   await inTransaction(async (held) => {
     await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
