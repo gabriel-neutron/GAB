@@ -104,8 +104,16 @@ workspace; this ADR only requires them.
 
 ### 5. The job table grows a kind, an end and a pause
 
-- `jobs.kind`: `store_only`, `extract_text`, `map_structured`. Storing a page no longer starts an
-  extraction by itself.
+- `jobs.kind` (amended 6 October 2026). Storing a page no longer starts an extraction by itself.
+  Each kind is one step of the pipeline:
+  - `store_only`: the document is stored, and no work follows.
+  - `extract_text`: the extractor (reader 1) reads the text of one document and proposes claims.
+  - `map_structured`: the mapper proposes one mapping for each table of a structured file (P6).
+  - `second_read`: reader 2, of another model family, reads the same chunks blind (ADR 0011
+    §3.1).
+  - `load_mapped`: code loads the rows of a file under a promoted mapping, with no model (P6).
+  - `evidence_check`: code runs the span, identity and date checks of each citation, with no
+    model (ADR 0011 §3.1, §5).
 - A `complete_job` door. Today only `fail_job` ends a job.
 - **A quota pause spends no attempt.** The runner asks the gateway for quota before it claims. An
   exhausted quota pauses the runner; it does not fail the job. **This amends T9a.**
