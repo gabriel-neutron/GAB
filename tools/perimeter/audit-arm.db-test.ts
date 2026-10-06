@@ -323,6 +323,7 @@ const THE_DOOR_SET = [
   'public.remove_operator_letter to gabriel_app',
   'public.review_originator_card to gabriel_app',
   'public.runner_settings to gabriel_agent',
+  'public.second_read_done to gabriel_agent',
   'public.set_entity_layout to gabriel_agent',
   'public.set_operator_letter to gabriel_app',
   'public.set_party_false to gabriel_app',

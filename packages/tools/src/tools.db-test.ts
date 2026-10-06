@@ -450,7 +450,7 @@ const JOBS = z.object({
   ),
 });
 
-test('enqueue_extract queues one job, and job_status reports it with the stored row', async () => {
+test('enqueue_extract queues the extraction and the second reading, and job_status reports both', async () => {
   const found = await rolledBack('research', async (ask) => {
     await withDocument(ask, ['page one']);
     const job = queued.parse(await output(ask, 'enqueue_extract', { document: DOC }));
@@ -464,7 +464,11 @@ test('enqueue_extract queues one job, and job_status reports it with the stored 
     failureReason: null,
     finishedAt: null,
   });
-  expect(found.status.jobs.map((job) => job.status).sort()).toStrictEqual(['done', 'queued']);
+  expect(found.status.jobs.map((job) => job.status).sort()).toStrictEqual([
+    'done',
+    'queued',
+    'queued',
+  ]);
 });
 
 test('enqueue_extract of a second open job for one document is a fault of the database', async () => {
