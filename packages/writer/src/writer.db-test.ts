@@ -935,16 +935,26 @@ const askPassages = (body: unknown, origin?: string) =>
 
 // The fixture gives each machine act a citation of the whole first page, which holds the title.
 test('the private read gives the passage that a pending act cites, as the page states it', async () => {
+  // Another file of this project commits citations too, so the passage is read from the page
+  // that the citation names.
   const cited = await one(
-    `SELECT c.claim_id::text AS id, d.title FROM public.citation c
-       JOIN public.documents d ON d.id = c.doc_id ORDER BY c.claim_id LIMIT 1`,
+    `SELECT c.claim_id::text AS id, c.page,
+            substr(t.text, c.start + 1, c."end" - c.start) AS passage
+       FROM public.citation c
+       JOIN public.document_text t
+         ON (t.document_id, t.extractor, t.page) = (c.doc_id, c.text_extractor, c.page)
+      ORDER BY c.claim_id LIMIT 1`,
     [],
   );
   const answer = await askPassages({ proposalIds: [cited['id']] });
   expect(answer.status).toBe(200);
   const { passages } = passageShape.parse(await answer.json());
   expect(passages).toHaveLength(1);
-  expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
+  expect(passages[0]).toMatchObject({
+    proposalId: cited['id'],
+    page: cited['page'],
+    text: cited['passage'],
+  });
 });
 
 test('the private read refuses a request from another site', async () => {
