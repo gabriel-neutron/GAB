@@ -5,6 +5,7 @@ import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
+import { decideBatch } from './decide-batch.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
 import { readPassages } from './passages.ts';
 import type { Sessions } from './pool.ts';
@@ -64,6 +65,12 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
       const act = await decide(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
+
+  // The acts of a linked batch name each other, so the operator decides them as one unit.
+  app.post('/write/decide-batch', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await decideBatch(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
 
   // A file enters the record as a document and never as an act: it writes no proposal, and each
   // claim it holds is proposed later and cites it.

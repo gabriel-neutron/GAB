@@ -2,10 +2,10 @@
  * one job, because one state answers both. A hold has no home in the record, so it stays on
  * this pass alone, and it goes through no door. */
 
-import type { DecisionOp } from '@gab/proposal/request';
+import type { BatchVerdict, DecisionOp } from '@gab/proposal/request';
 
 import { interrupt, type Said } from '@/shared/said';
-import { sendDecision } from '@/shared/write/door';
+import { sendBatchDecision, sendDecision } from '@/shared/write/door';
 import { writeSaid, type WriteState, type WriteWords } from '@/shared/write/write-state';
 
 import type { Verdict } from './queue';
@@ -16,8 +16,10 @@ export type DoorVerdict = Exclude<Verdict, 'deferred'>;
 /** Every state that is not idle names the act it is about. A sentence that names no act reads
  * as the sentence of whatever act stands under the controls, and the two are not the same. */
 interface DecisionAbout {
+  /** The act, or the linked batch when `batch` is set. */
   readonly changeId: string;
   readonly verdict: Verdict;
+  readonly batch?: true;
 }
 
 export type DecisionState = WriteState<object, DecisionAbout>;
@@ -55,11 +57,31 @@ const UNSURE: Readonly<Record<Verdict, string>> = {
   deferred: 'It is not known whether the act was held.',
 };
 
+// A batch is decided as one unit, so each sentence says that it is about every act of it.
+const BATCH_GOING: Readonly<Record<Verdict, string>> = {
+  promoted: 'The promotion of the batch is going to the record.',
+  rejected: 'The rejection of the batch is going to the record.',
+  deferred: 'The hold of the batch is taken on this pass.',
+};
+
+const BATCH_DONE: Readonly<Record<Verdict, string>> = {
+  promoted:
+    'Every act of the batch is promoted. The record took them, and no door takes them back.',
+  rejected: 'Every act of the batch is rejected. They stay in the record as what was set aside.',
+  deferred: 'The batch is held on this pass. The record holds no hold, so a reload loses it.',
+};
+
+const BATCH_UNSURE: Readonly<Record<Verdict, string>> = {
+  promoted: 'It is not known whether the batch was promoted.',
+  rejected: 'It is not known whether the batch was rejected.',
+  deferred: 'It is not known whether the batch was held.',
+};
+
 const WORDS: WriteWords<object, DecisionAbout> = {
   idle: '',
-  working: ({ verdict }) => GOING[verdict],
-  done: ({ verdict }) => DONE[verdict],
-  unknown: ({ verdict }) => UNSURE[verdict],
+  working: ({ verdict, batch }) => (batch ? BATCH_GOING : GOING)[verdict],
+  done: ({ verdict, batch }) => (batch ? BATCH_DONE : DONE)[verdict],
+  unknown: ({ verdict, batch }) => (batch ? BATCH_UNSURE : UNSURE)[verdict],
 };
 
 /** The door of each verdict. The lookup is total, so a verdict that the record can take reaches
@@ -67,6 +89,11 @@ const WORDS: WriteWords<object, DecisionAbout> = {
 const DOOR: Readonly<Record<DoorVerdict, DecisionOp>> = {
   promoted: 'promote_proposal',
   rejected: 'reject_proposal',
+};
+
+const BATCH_DOOR: Readonly<Record<DoorVerdict, BatchVerdict>> = {
+  promoted: 'promote',
+  rejected: 'reject',
 };
 
 // The hand moved to another act, and the sentence stays: a refusal and a doubt must not go
@@ -97,4 +124,17 @@ export async function sendVerdict(changeId: string, verdict: Verdict): Promise<D
   if (verdict === 'deferred') return { step: 'done', changeId, verdict };
 
   return { ...(await sendDecision(DOOR[verdict], changeId)), changeId, verdict };
+}
+
+/** Take one verdict on a linked batch: every act of it, in one transaction. A hold reaches no
+ * door, as the hold of one act reaches none. */
+export async function sendBatchVerdict(batchId: string, verdict: Verdict): Promise<DecisionState> {
+  if (verdict === 'deferred') return { step: 'done', changeId: batchId, verdict, batch: true };
+
+  return {
+    ...(await sendBatchDecision(batchId, BATCH_DOOR[verdict])),
+    changeId: batchId,
+    verdict,
+    batch: true,
+  };
 }

@@ -21,6 +21,17 @@ export type DecisionOp = (typeof DECISION_OPS)[number];
 /** The body of one decision. The act is taken from the address, as it is for a write. */
 export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
 
+/** The two verdicts on a linked batch, which the operator decides as one unit. */
+export const BATCH_VERDICTS = ['promote', 'reject'] as const;
+
+export type BatchVerdict = (typeof BATCH_VERDICTS)[number];
+
+/** The body of one decision on a linked batch. */
+export const batchDecisionRequest = z.strictObject({
+  batchId: z.uuid(),
+  verdict: z.enum(BATCH_VERDICTS),
+});
+
 const endpointKind = z.enum(['entity', 'relation']);
 
 // THE SHAPE OF A REQUEST, AND NO RULE OF THE RECORD. The database holds each rule on a value: a

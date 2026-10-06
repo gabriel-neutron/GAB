@@ -41,6 +41,7 @@ const PROPOSAL_ROW = {
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,
   decided_by: null,
+  batch_id: null,
 };
 
 const SRC_ID = '0ea482d0-cd00-4c77-911e-419dd2d1779f';

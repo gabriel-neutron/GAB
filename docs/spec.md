@@ -107,6 +107,12 @@ citations together, refuses the whole batch on one fault, and returns a pending 
 already holds instead of a duplicate. The cited passage is private and reaches only the review
 card of the operator.
 
+The acts of one call that name each other are one linked batch. The review queue shows a batch as
+one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion
+writes each entity before the relation that names it, and one refused act refuses the whole batch:
+the refusal names the act and the reason, and nothing is written. An act that names no other act
+of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
+
 ## Technical baseline
 
 | ID | Decision | Reason |
