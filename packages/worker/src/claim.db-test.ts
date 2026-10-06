@@ -38,10 +38,13 @@ const BOUND = 1000;
 // ever. Two, because the second worker must find a free row beside the locked one.
 const SEEDED = ['doc_claim_suite_first', 'doc_claim_suite_second'];
 
-// External constraint: put_document is the one door that queues a job, and a job needs a
-// document. The ledger keeps no act of either row, so the suite can delete both.
-const SEED = `SELECT public.put_document(seeded.id, 'file', 'A test of the claim door',
-  NULL, NULL, NULL, NULL, NULL, '2026-09-27'::date) FROM unnest($1::text[]) AS seeded(id)`;
+// External constraint: enqueue_job is the one door that queues a job, and a job needs a document
+// that holds bytes. The ledger keeps no act of either row, so the suite can delete both.
+const PUT = `SELECT public.put_document(seeded.id, 'file', 'A test of the claim door',
+  'raw/claim-suite.pdf', NULL, NULL, NULL, 'application/pdf', '2026-09-27'::date)
+  FROM unnest($1::text[]) AS seeded(id)`;
+const ENQUEUE = `SELECT public.enqueue_job(seeded.id, 'extract_text')
+  FROM unnest($1::text[]) AS seeded(id)`;
 const REMOVE_JOBS = 'DELETE FROM public.jobs WHERE document_id = ANY($1::text[])';
 const REMOVE_DOCUMENTS = 'DELETE FROM public.documents WHERE id = ANY($1::text[])';
 
@@ -62,7 +65,7 @@ const committed = async (statements: readonly string[]): Promise<void> => {
 
 // Departure: the seed first removes the rows of a run that stopped before its cleanup.
 beforeAll(async () => {
-  await committed([REMOVE_JOBS, REMOVE_DOCUMENTS, SEED]);
+  await committed([REMOVE_JOBS, REMOVE_DOCUMENTS, PUT, ENQUEUE]);
 });
 
 afterAll(async () => {
@@ -101,35 +104,33 @@ test('two workers claim at the same time and never take the same row', async () 
   });
 });
 
-const marks = z.array(
-  z.object({ status: z.string(), attempts: z.number().int(), claimed_by: z.string() }),
-);
+const marks = z.array(z.object({ status: z.string(), claimed_by: z.string() }));
 
-const MARK = 'SELECT status, attempts, claimed_by FROM public.jobs WHERE id = $1::uuid';
+const MARK = 'SELECT status, claimed_by FROM public.jobs WHERE id = $1::uuid';
 const SESSION = z.array(z.object({ session_user: z.string() }));
 
-test('a claim marks the row running, stamps the role and counts the attempt', async () => {
+test('a claim marks the row running and stamps the role', async () => {
   await held(async (client) => {
     const taken = await claimJob(client);
     expect(taken).not.toBeNull();
     const [session] = SESSION.parse((await client.query('SELECT session_user')).rows);
     const found = marks.parse((await client.query(MARK, [taken?.id])).rows);
-    expect(found).toStrictEqual([
-      { status: 'running', attempts: 1, claimed_by: session?.session_user },
-    ]);
+    expect(found).toStrictEqual([{ status: 'running', claimed_by: session?.session_user }]);
   });
 });
 
-const queue = z.array(z.object({ id: z.uuid(), status: z.string(), attempts: z.number().int() }));
-const QUEUE = 'SELECT id, status, attempts FROM public.jobs ORDER BY id';
+const queue = z.array(z.object({ id: z.uuid(), status: z.string() }));
+// Departure: the query reads the jobs that this suite queued and no other. Other test files of the
+// same run commit and remove jobs of their own in public.jobs at the same time.
+const QUEUE = 'SELECT id, status FROM public.jobs WHERE document_id = ANY($1::text[]) ORDER BY id';
 
 test('a layout run and a reconcile run leave every job as they met it', async () => {
   await held(async (client) => {
-    const before = queue.parse((await client.query(QUEUE)).rows);
+    const before = queue.parse((await client.query(QUEUE, [SEEDED])).rows);
     await runLayout(client);
     await reconcileCorpus(client, openStore());
-    const after = queue.parse((await client.query(QUEUE)).rows);
-    expect(before.some((job) => job.status === 'queued' && job.attempts === 0)).toBe(true);
+    const after = queue.parse((await client.query(QUEUE, [SEEDED])).rows);
+    expect(before.some((job) => job.status === 'queued')).toBe(true);
     expect(after).toStrictEqual(before);
   });
 });

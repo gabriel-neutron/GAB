@@ -1,0 +1,20 @@
+{
+  "name": "@gab/text",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/extract.ts"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "linkedom": "^0.18.12",
+    "turndown": "^7.2.2",
+    "unpdf": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/turndown": "^5.0.5",
+    "vitest": "^4.1.10"
+  }
+}

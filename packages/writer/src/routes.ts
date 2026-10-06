@@ -1,19 +1,23 @@
 import { DECISION_OPS, WRITE_OPS } from '@gab/proposal/request';
+import { LARGEST_UPLOAD_BODY } from '@gab/proposal/upload-limit';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
-import { decide } from './decide.ts';
+import { decide, decideBatch } from './decide.ts';
+import { documentJobs, queueExtraction } from './extraction.ts';
+import { readLeads, startLead } from './lead.ts';
+import { readPassages } from './passages.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
+import { uploadDocument, type ObjectDoor } from './upload.ts';
 
+// Departure: a doubt is the answer of the database that the writer lost on the way, and a gateway
+// that lost an answer names it 502. The act may stand, so it is never a refusal.
 const STATUS = {
-  signed: 200,
-  decided: 200,
+  done: 200,
   refused: 422,
-  missing: 404,
-  blocked: 409,
-  undecided: 409,
+  doubt: 502,
   unavailable: 503,
 } as const;
 
@@ -25,20 +29,42 @@ const PAYLOAD_TOO_LARGE = 413;
 
 const doorOf = (op: string): string => `/write/${op.replaceAll('_', '-')}`;
 
-/** The eight doors. No address here answers a GET: the writer serves no read and returns no row. */
-export const writeRoutes = (pool: Sessions): Hono => {
+// Departure: each door states its own cap. The upload carries a whole file, and one cap on every
+// address would give that larger cap to every act.
+const capped = (maxSize: number) =>
+  bodyLimit({
+    maxSize,
+    onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
+  });
+
+/** The doors of the operator, and three private reads: the status of the jobs of a document,
+ * the passages that the acts cite, and the leads. The public read never shows any of them. */
+export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
-  app.use(
-    '/write/*',
-    bodyLimit({
-      maxSize: LARGEST_BODY_BYTES,
-      onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
-    }),
-  );
+  app.use('/private/*', admitOwnSiteJson());
+
+  // The text of a document is private, so the passage that an act cites reaches the review card
+  // through the writer and never through the public read API.
+  app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readPassages(pool, await context.req.text());
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // The text of a lead can name a party before any source supports it, so it stays private.
+  app.post('/private/leads', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readLeads(pool);
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // The worker searches and stores the sources of a lead. It proposes nothing.
+  app.post('/write/start-lead', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await startLead(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
 
   for (const op of WRITE_OPS)
-    app.post(doorOf(op), async (context) => {
+    app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await sign(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
@@ -46,10 +72,36 @@ export const writeRoutes = (pool: Sessions): Hono => {
   // A decision writes no proposal: it names one that waits, and it opens the promotion door of
   // the record or the rejection door.
   for (const op of DECISION_OPS)
-    app.post(doorOf(op), async (context) => {
+    app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await decide(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
+
+  // The acts of a linked batch name each other, so the operator decides them as one unit.
+  app.post('/write/decide-batch', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await decideBatch(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
+
+  // A file enters the record as a document and never as an act: it writes no proposal, and each
+  // claim it holds is proposed later and cites it.
+  app.post('/write/upload-document', capped(LARGEST_UPLOAD_BODY), async (context) => {
+    const act = await uploadDocument(pool, store, await context.req.text());
+    return context.json(act.reply, act.status);
+  });
+
+  // A failed extraction is asked for again through the same door.
+  app.post('/write/queue-extraction', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await queueExtraction(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
+
+  // Departure: a read on a POST. The status is private to the operator, and the admission of a
+  // JSON body from this site is the one guard the writer holds.
+  app.post('/write/document-jobs', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await documentJobs(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
 
   return app;
 };

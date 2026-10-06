@@ -36,10 +36,12 @@ const PROPOSAL_ROW = {
   confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
+  model_call_id: null,
   status: 'pending',
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,
   decided_by: null,
+  batch_id: null,
 };
 
 const SRC_ID = '0ea482d0-cd00-4c77-911e-419dd2d1779f';
@@ -195,15 +197,10 @@ test('each operation reads its own payload, and states what the act holds', () =
   }
 });
 
-test('a payload that states no value at all reaches the surface as an absence', () => {
-  const row = { ...PROPOSAL_ROW, op: 'create_entity', payload: {} };
-  expect(toDomain.proposal(row).payload).toEqual({
-    kind: 'entity',
-    type: null,
-    label: null,
-    geom: null,
-    attrs: {},
-  });
+// The record refuses a new entity with no type or no name, so the read refuses one too.
+test('a creation that states no name is refused', () => {
+  const row = { ...PROPOSAL_ROW, op: 'create_entity', payload: { type: 'vessel' } };
+  expect(() => toDomain.proposal(row)).toThrow();
 });
 
 test('the two ends of a proposed relation keep the spelling the act wrote', () => {
@@ -238,7 +235,7 @@ test('a creation keeps every key its promotion writes', () => {
       ],
     ],
   };
-  expect(created('create_entity', { geom: area })).toMatchObject({
+  expect(created('create_entity', { type: 'port', label: 'P', geom: area })).toMatchObject({
     geom: { kind: 'shape', shape: 'Polygon' },
   });
   const share = { share_pct: { v: 51, src: ['doc_8f2a41'] } };
@@ -295,6 +292,7 @@ const DOCUMENT_ROW = {
   admiralty: 'A1',
   admiralty_origin: 'human',
   created_at: '2026-08-25T03:25:13.270163+00:00',
+  cost_eur: null,
 };
 
 test('a web address of a document reaches the surface as it was stored', () => {
@@ -348,6 +346,7 @@ test('a borrowed position keeps its word and names the ancestor it came from', (
   expect(toDomain.mapPosition(MAP_ROW)).toStrictEqual({
     entityId: '94172363-dab1-4fc3-ae2a-16e3430879be',
     point: { lon: 19.902, lat: 54.65 },
+    area: null,
     precision: 'inherited',
     parentId: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
   });
@@ -367,19 +366,64 @@ test('an entity that no walk could place arrives with no point', () => {
   expect(toDomain.mapPosition({ ...MAP_ROW, geom: null }).point).toBeNull();
 });
 
-// A geometry column holds a point, a line or a polygon. A surface that draws a dot reads any
-// other shape as no position at all, and the map read is no exception.
-test('a position that is not a point is no position at all', () => {
-  const area = {
-    type: 'Polygon',
+const SQUARE_RING = [
+  [0, 0],
+  [10, 0],
+  [10, 10],
+  [0, 10],
+  [0, 0],
+];
+
+test('a point arrives with no area', () => {
+  expect(toDomain.mapPosition(MAP_ROW).area).toBeNull();
+});
+
+test('a polygon keeps its rings, and its point lies inside it', () => {
+  const read = toDomain.mapPosition({
+    ...MAP_ROW,
+    geom: { type: 'Polygon', coordinates: [SQUARE_RING] },
+    position_precision: null,
+    parent_id: null,
+  });
+  expect(read.area).toStrictEqual([[SQUARE_RING]]);
+  expect(read.point).toStrictEqual({ lon: 5, lat: 5 });
+});
+
+test('a multipolygon keeps every polygon, and its point lies in the largest one', () => {
+  const far = [
+    [20, 20],
+    [21, 20],
+    [21, 21],
+    [20, 21],
+    [20, 20],
+  ];
+  const read = toDomain.mapPosition({
+    ...MAP_ROW,
+    geom: { type: 'MultiPolygon', coordinates: [[far], [SQUARE_RING]] },
+    parent_id: null,
+  });
+  expect(read.area).toStrictEqual([[far], [SQUARE_RING]]);
+  expect(read.point).toStrictEqual({ lon: 5, lat: 5 });
+});
+
+// The view takes the point of an ancestor for a borrower, so the row is a point and the area is
+// not drawn: a borrowed position stays a point.
+test('a borrowed position stays a point', () => {
+  const read = toDomain.mapPosition(MAP_ROW);
+  expect(read.area).toBeNull();
+  expect(read.parentId).not.toBeNull();
+});
+
+// A line is not drawn by this surface, and it is no position at all.
+test('a line is no position at all', () => {
+  const line = {
+    type: 'LineString',
     coordinates: [
-      [
-        [0, 0],
-        [1, 0],
-        [1, 1],
-        [0, 0],
-      ],
+      [0, 0],
+      [1, 1],
     ],
   };
-  expect(toDomain.mapPosition({ ...MAP_ROW, geom: area }).point).toBeNull();
+  const read = toDomain.mapPosition({ ...MAP_ROW, geom: line });
+  expect(read.point).toBeNull();
+  expect(read.area).toBeNull();
 });

@@ -1,215 +1,163 @@
-# Gabriel — Technical specification
+# Gabriel — Technical overview
 
-**Version** 1.5 · 24 August 2026
-The contract. The *why* behind each choice is in `decisions.md`, referenced by identifier.
-This document decides no table and no column. §3 says where the schema lives.
+The general view of the build. It tells how the parts connect and which rules hold on every path.
+The code holds the details: read it for a table, a type or a function. The product rules are in
+`decisions.md`, and their identifiers (M8, P1) appear here.
 
-## Table of contents
-
-| § | Section | Read it when |
-|---|---|---|
-| 1 | Overview | You need the shape of the system. |
-| 2 | Invariants | Always. These rules hold on every write path. |
-| 3 | Schema | You need to know where the schema lives. |
-| 4 | Read path | You add a read, a query or a public surface. |
-| 5 | Write path | You add an ingest, an extraction or a promotion path. |
-| 6 | What is not specified here | Before you choose a value that no document gives. |
-
----
-
-## 1. Overview
+## The parts
 
 ```mermaid
 flowchart LR
-    subgraph RAW["Raw — unchanged by convention"]
-        S3["MinIO / S3<br/>original files"]
+    OP["Operator<br/>(browser)"]
+    AI["Research AI<br/>(Claude or Codex)"]
+
+    subgraph APP["Gabriel"]
+        UI["Web interface<br/>graph · map · review"]
+        READ["Read API<br/>(read only)"]
+        WRITE["Writer<br/>(write service)"]
+        MCP["MCP server<br/>(AI tools)"]
+        WORK["Worker<br/>(AI jobs)"]
+        DB[("PostgreSQL / PostGIS<br/>the data and its rules")]
+        RAW[("S3 raw store<br/>original files")]
     end
 
-    subgraph GOLD["GOLD — PostgreSQL / PostGIS"]
-        DOC["documents"]
-        ENT["entities"]
-        REL["relations"]
-        PRO["proposals"]
-        VEC["doc_chunks<br/>pgvector"]
-    end
+    MODEL["Model gateway"]
+    SEARCH["Web search"]
 
-    subgraph BACK["TypeScript backend — write"]
-        ING["Ingestion"]
-        AGT["Agents / workflows"]
-        JOB["Job worker"]
-    end
-
-    subgraph FRONT["Frontend — standalone read"]
-        RO["Read-only HTTP layer"]
-        UI["Graph · Map · Chat · Review queue"]
-    end
-
-    S3 --> ING
-    ING --> DOC
-    ING --> VEC
-    DOC --> AGT
-    VEC --> AGT
-    AGT --> PRO
-    PRO -->|promotion| ENT
-    PRO -->|promotion| REL
-    JOB --> AGT
-    ENT --> RO
-    REL --> RO
-    PRO --> RO
-    RO --> UI
-    UI -->|edit| BACK
+    OP --> UI
+    UI --> READ --> DB
+    UI --> WRITE --> DB
+    WRITE --> RAW
+    AI --> MCP --> DB
+    MCP --> RAW
+    MCP --> SEARCH
+    WORK --> DB
+    WORK --> RAW
+    WORK --> MODEL
 ```
 
-**Two services in the first build**: PostgreSQL/PostGIS and MinIO (T5). ADR 0010 adds two
-services for the AI: freellmapi (the model endpoint) and SearXNG (web search). They run on the
-operator's VPS, on its private network address only, and hold no record of the project.
+| Part | Job |
+|---|---|
+| PostgreSQL / PostGIS | Holds every record and enforces the rules below. |
+| S3 raw store | Keeps each original file unchanged. Any S3 server can hold it. |
+| Writer | The only write service for the operator: upload, edit, promote, reject, queue an extraction, start a lead. It also gives the operator the status of the jobs of a document and the leads, which the public read never shows. |
+| Read API | Read-only HTTP over a fixed set of public views. |
+| Web interface | The graph, the map, the review queue, search and entity pages. |
+| Worker | Takes AI jobs from a queue in the database and runs the agents. |
+| MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job, start a lead. Each tool says if it reads or writes. |
+| Model gateway, web search | External services. They hold no record of the project. |
 
----
+## Who can do what
 
-## 2. Invariants
+| Actor | Can | Cannot |
+|---|---|---|
+| Operator | Upload, edit, promote, reject, rate a source, start a lead. | — |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. | Promote. Read a lead. |
+| Worker agents | Read a document, propose a change with the passage that states it. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
+| Public | Read the public views. | Write. |
 
-These rules are never violated, whatever the write path.
+Each actor has its own database role. The database, not the application, holds these limits.
 
-**The last column is a requirement, and never a report.** It names the tier that must carry
-each rule when the build reaches it.
+## Rules that hold on every path
 
-| # | Invariant | Decision | Tier that must carry it |
-|---|---|---|---|
-| 1 | Every attribute carries at least one source. | M8 | Database. A check on the shape of the attribute object. |
-| 2 | Every cited source exists in `documents`. | S2 | Database. A list of sources carries no foreign key, so a guard proves each source named by an act, and a check holds the sources of a value inside that list. Invariant 5 then carries the guarantee into the evidentiary layer. |
-| 3 | A machine never signs an act as `manual`. `manual` is reserved to the human operator. | M8 | Database, by a privilege boundary and a stamp. `gabriel_agent` holds `EXECUTE` on no door that signs. A trigger stamps `author_role` from `session_user`, so the caller cannot state it. A check then refuses `manual` in the act. A value cannot hide one, because every source a value cites must also stand in the act. |
-| 4 | No attribute value is null; the unknown is the absence of a key. | M9 | Database. The same check as invariant 1. |
-| 5 | Nothing enters `entities` / `relations` without the promotion of a proposal: by the operator, or by the source rule of ADR 0010 §7. | P1 | Database, by a privilege boundary. No role writes those tables; a `SECURITY DEFINER` function does. The rule door decides only under its locks, and it stamps `decision_origin`. |
-| 6 | Every ADMIRALTY rating carries its origin. | S4 | Database. A check that ties the rating to its origin. |
+The database enforces each rule: by a constraint, a trigger, or a permission that the writing role
+cannot cross.
 
-The objects that carry these rules live in `db/migrations/` and `db/apply/`. **Read the SQL for
-the authority on a constraint, and never a document.**
+1. Every attribute carries at least one source (M8).
+2. Every cited source is a stored document (S2).
+3. A machine never signs as the operator (M8).
+4. No value is null or blank; the unknown is an absent key (M9).
+5. Nothing enters the evidentiary layer without a promotion (P1).
+6. Each public decision carries its origin (S4).
 
-The acceptance criterion in `prd.md` §7.3 asks for enforcement by the database, and it asks
-that of every invariant above. Invariants 2, 3 and 5 name the third tier that criterion
-allows: a **privilege boundary the writing role cannot cross**, held by ADR 0003 §7.
+## The read path
 
-**Invariant 2 has no foreign key, and it cannot have one.** A source is cited in a list and
-inside a JSON document, and PostgreSQL constrains neither. The guarantee is made at the door
-instead. It holds only while that door stays the one way in, which is invariant 5.
+The interface reads through the read API, with a read-only role and a fixed list of views. Complex
+reads, such as a graph traversal, run as SQL functions in the database. A timeout, a default limit
+and a cache protect the public read.
 
-**Invariant 3 is a rule about the signature, and not about the source.** Earlier versions of
-this row read "a machine proposal cites a real document, never `manual`". M8 is not narrowed:
-a machine still cites a real document, because `manual` is refused in the act and in a value,
-and `documents` is read on every proposal. What the row now names is the thing the database
-holds — a machine cannot sign as the operator. **`decided_by` is not in this invariant.** A
-decision signed by a name that nothing proves to be a person is an open question, and the
-tracker carries it. The grants file states that limit in full.
+The public read shows the record and the candidate layer, and nothing else (PU1). It shows no
+rejected proposal, no job, no lead and no model call. The machine roles read through their own grants.
 
-**Invariant 5 names two deciders and no direct write.** Earlier versions of this row read "or a
-direct operator action". P1 in `decisions.md` carries no such clause, and `prd.md` §4.3 agrees
-with the register: the analyst writes the evidentiary layer **by promotion**. An operator edit is
-an operator-authored proposal, promoted by the same path. ADR 0010 §7 adds one more door,
-`decide_by_rule`, which promotes a machine proposal only under its locks. The tracker carries the
-measurement behind this, and the six forgeries that decided it.
-
----
-
-## 3. Schema
-
-**The schema is written in the migration files, and nowhere else.** ADR 0003 §1 makes the
-`.sql` files the only source of truth. A migration is written when the build needs it, and it
-must satisfy §2 above.
-
-ADR 0003 §3 names the two kinds of file and the rule that separates them. **No document draws
-the schema.** A second drawing of a `CREATE TABLE` drifts from the first, so this document holds
-the rules and the `.sql` files hold the shape.
-
----
-
-## 4. Read path
-
-The frontend reads through a read-only HTTP layer (T4). The read path needs a read-only
-database role, an explicit allowlist, and a graph traversal that runs inside the database.
-
-**ADR 0003 §6 settles the allowlist, and this document does not repeat it.** The read role
-reaches one schema, and it reaches the base tables through nothing.
-
-Four guardrails hold the public read surface, and each one answers a different failure: the
-allowlist bounds the perimeter, a statement timeout and a default limit cut off a pathological
-query, a cache absorbs the public load, and a connection pooler prevents exhaustion. **The tool
-that fills each role is a reversible choice, and a configuration file holds it.**
-
-Complex read logic — graph traversal above all — lives in a SQL function, not in the
-client (T4).
-
----
-
-## 5. Write path
-
-**One door (P6).** Every file enters through `put_document`, which writes the object, writes
-the `documents` row and queues the work. Two paths run behind it. A file written straight
-into the bucket has no row, so it is invisible to search, to the agents and to the UI.
+## The write path
 
 ```
-put_document
-     → S3 (key returned; unchanged by convention)
-     → documents row (retrieved_at mandatory)
-     → job (queued)
-     ├── text path (P5)
-     │    → worker: text extraction → doc_chunks + embeddings
-     │    → agent workflow → proposals (src mandatory, never 'manual')
-     └── structured path (P6)
-          → agent reads the file schema and a sample
-          → mapping proposal → promotion → bulk load in code
-
-every machine proposal, from either path
-     → source rule (ADR 0010 §7): score from the cited sources
-          ├── score ≥ high threshold, all locks hold → promoted by the rule
-          ├── between the thresholds, or a lock fails → review queue + graph marker → human decision
-          └── score < low threshold                 → rejected by the rule
-     → entities / relations (evidentiary layer)
+a file  →  one ingestion door (P6)
+             → raw store (the original file)
+             → document record (source, retrieval date)
+             → text extraction
+             → a job in the queue
+                  → text file: the extractor reads the text as it is stored and
+                    proposes claims, each with a checked excerpt; a model of
+                    another family checks each claim against its passage
+                  → structured file: a mapping proposal; after promotion, code loads the rows
+every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
+promotion       →  entities and relations (the evidentiary layer)
 ```
 
-**Promotion by a source rule (ADR 0010 §7, which replaces the #42 resolution).** The score
-counts the independent sources a proposal cites and the ADMIRALTY rating of each. Two sources on
-the same upstream feed count as one. The minimum count, the minimum rating and the two thresholds
-are operational parameters, not code constants. **With no parameter row, the rule does nothing**,
-and every proposal goes to the review queue. ADR 0010 §7 holds the five locks of the rule door.
+A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
+writes no target. A rejected proposal is kept as a record.
 
-**The review band keeps the S3 order.** Dissent and the rule score put the doubtful proposals at
-the head of the queue. An operator-authored proposal never passes through the rule.
+An edit of the operator is a proposal and its promotion in one transaction, so it is written whole
+or not at all. Only the operator role holds the promotion, so a machine proposes and never decides.
+A value that an act keeps keeps each document that it already cites.
 
-**Two doors in, and each one is a function.** Nothing writes `entities` or `relations` directly.
-The operator promotion and `decide_by_rule` each run inside a function that holds the privilege
-alone. Each evidentiary row carries
-the identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal makes one row.
-**ADR 0003 §7 holds the mechanism and the roles**, and this paragraph does not repeat it.
+A machine proposes through one door, which takes a batch. Each act of a machine cites a page and a
+span of stored text, which code found from a quoted excerpt. The door writes the act and its
+citations together, refuses the whole batch on one fault, and returns a pending act that it
+already holds instead of a duplicate. The cited passage is private and reaches only the review
+card of the operator.
 
-**Applying a proposal**: a single transaction that writes the target, moves the proposal to
-`accepted`, and fills in `decided_at` / `decided_by`. A rejection moves it to `rejected`
-without writing the target — rejected proposals are never deleted, they are the record of
-what was set aside.
+Before the extractor writes its acts, a model of another family checks each one against its
+passage. An act that the check does not support, or that a failed check could not read, is
+written as disputed. An act with a value that no cited passage states is disputed too. The act
+keeps a short reason with the flag: the value that the passage does not state, the verdict of the
+checker and its reason, or that the checker did not answer. The reason is frozen with the act and
+private: the review card shows it, and the public read does not. Every model call goes to the free
+model gateway and is recorded.
 
-**Review surfaces (P3).** Two reads must stay cheap: the pending proposals attached to one
-graph element, and the full review queue. Each one needs its own index.
+The extractor reads a document in parts. When the door refuses the batch of a part a second time,
+the claims of that part are lost, and the job keeps the count of the refused parts and the first
+refusal. The status of the job shows them to the operator and to the research AI. A job whose
+every part was refused fails, with the same words as its reason. The interface reads the status of
+an extraction again by itself while the job waits or runs.
 
----
+The acts of one call that name each other are one linked batch. The review queue shows a batch as
+one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion
+writes each entity before the relation that names it, and one refused act refuses the whole batch:
+the refusal names the act and the reason, and nothing is written. An act that names no other act
+of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
+The door of one act refuses an act of a batch, so a batch is never half decided.
 
-## 6. What is not specified here
+## The lead path
 
-**Every open question lives on the tracker, as a ticket, and no list of them is kept in this
-document.** A copy of the tracker inside a document goes stale on the day a ticket closes, and
-the reader then holds two answers to one question.
+```
+a lead (a short text from the operator or the research AI)
+  → a job in the queue, with the text and no document
+  → the lead agent: web search, news search, graph search, a search of the stored documents
+  → each new page: fetch, store (the ingestion door), queue its extraction
+  → the extraction path above proposes the claims
+```
 
-Three rules follow, and each one is a defect if it is broken.
+The lead agent proposes nothing and starts no lead. It does not fetch a page whose address is
+already stored. It has no page limit, and its token budget stops it, with that reason. No schedule
+starts a lead. The text of a lead is private: only the operator reads the leads, and the worker
+reads the text of the one lead that it runs.
 
-- **Never settle an open question by writing code**, and never settle one by writing a default
-  value. Stop, and ask the operator.
-- **A settled question leaves the tracker for one of three homes, and never for this section.**
-  `decisions.md` takes it when it is scope. An ADR takes it when it is a build decision.
-  §2, §4 or §5 above take it when it is an invariant or a path.
-- **No code anticipates a decision that is not made.** The clearest case is a deployment with
-  authenticated editors: the operator intends one later, and it contradicts **C5** and
-  `prd.md` §2, so nothing is built towards it today.
+## Technical baseline
 
-Two kinds of value are deliberately unspecified for ever, and neither is a ticket. An
-**operational parameter** — the thresholds and minimums of the source rule,
-the zoom breakpoints, the buffer radius
-— is calibrated on real data and never written as a code constant. A **provisional shape** — a
-table that no rule above requires — is decided by the first migration that needs it.
+| ID | Decision | Reason |
+|---|---|---|
+| T1 | TypeScript end to end. | One language and shared types for one operator. |
+| T2 | PostgreSQL/PostGIS is the single datastore. | One service for relations, JSON and geometry. |
+| T3 | The raw file is in S3, the processed data in PostgreSQL. | The raw file is evidence and stays as it is; the data changes. The raw file is unchanged by convention only: the store does not lock it. |
+| T4 | The interface reads by itself; the backend serves writes only. | A backend that only passes reads on is dead weight. |
+| T5 | pgvector and a job table, no vector database and no message queue. | Two fewer services at our volume. |
+| T6 | The boundary (Zod) reads the shape of a request. The database holds each rule on data, and words its own refusal. | Each rule has one owner, and the guard holds for any writer. |
+
+The ADRs hold the other build decisions (`README.md`).
+
+## Operational values
+
+An operational value (a threshold, a radius, a zoom level) is set from real data, in configuration,
+and never as a code constant.

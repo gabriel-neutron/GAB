@@ -2,29 +2,29 @@
 # (SearXNG). They hold no record of the project. freellmapi keeps the provider keys in its volume.
 # See infra/vps/README.md, step 5.
 #
-# The env file is /home/claude/gab-services/.env, outside the checkout, because an agent of the night run
+# The env file is ~/gab-services/.env, outside the checkout, because an agent
 # works in the checkout. Start the services with:
-#   docker compose --env-file /home/claude/gab-services/.env -f services.compose.yml up -d --wait
+#   docker compose --env-file ~/gab-services/.env -f services.compose.yml up -d --wait
 #
 # Every port is bound to the Tailscale address of the VPS, and never to 0.0.0.0. The services have
 # no authentication that is safe on the public internet: freellmapi is single-user, and SearXNG
 # without its limiter is an open proxy.
 #
-# Every image tag is pinned (ADR 0002 §5). Put the tags in /home/claude/gab-services/.env.
+# Every image tag is pinned (ADR 0002). Put the tags in ~/gab-services/.env.
 name: gab-services
 
 services:
   freellmapi:
-    image: ghcr.io/tashfeenahmed/freellmapi:${FREELLMAPI_TAG:?set FREELLMAPI_TAG in /home/claude/gab-services/.env}
+    image: ghcr.io/tashfeenahmed/freellmapi:${FREELLMAPI_TAG:?set FREELLMAPI_TAG in ~/gab-services/.env}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3001
-      ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?set FREELLMAPI_ENCRYPTION_KEY in /home/claude/gab-services/.env}
+      ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?set FREELLMAPI_ENCRYPTION_KEY in ~/gab-services/.env}
     ports:
       # Host port 4001, not 3001: the test stack binds 127.0.0.1:3001 for postgrest-test, and the
       # SSH tunnel fallback of step 5 would collide with it.
-      - '${BIND_IP:?set BIND_IP in /home/claude/gab-services/.env}:4001:3001'
+      - '${BIND_IP:?set BIND_IP in ~/gab-services/.env}:4001:3001'
     volumes:
       - freellmapi-data:/app/server/data
     healthcheck:
@@ -39,16 +39,16 @@ services:
       retries: 3
 
   searxng:
-    image: searxng/searxng:${SEARXNG_TAG:?set SEARXNG_TAG in /home/claude/gab-services/.env}
+    image: searxng/searxng:${SEARXNG_TAG:?set SEARXNG_TAG in ~/gab-services/.env}
     restart: unless-stopped
     environment:
       SEARXNG_BASE_URL: http://${BIND_IP}:8888/
       # This value replaces server.secret_key of settings.yml.
-      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in /home/claude/gab-services/.env}
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in ~/gab-services/.env}
     ports:
       - '${BIND_IP}:8888:8080'
     volumes:
-      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ../searxng/settings.yml:/etc/searxng/settings.yml:ro
     healthcheck:
       test:
         - CMD

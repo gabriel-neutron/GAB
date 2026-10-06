@@ -7,11 +7,12 @@ import {
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openStore } from './bucket.ts';
+import { openStore, storePlacement } from './bucket.ts';
 import { listKeys } from './listing.ts';
 import { putObject } from './object.ts';
 
 const store = openStore();
+const { endpoint, region } = storePlacement();
 
 // Departure: one key per run, so two runs never write over each other. Each object stays: this
 // account may not delete one, and a reset of the volume is what removes them.
@@ -37,27 +38,27 @@ const GRANTS_NOTHING = {
   ],
 };
 
-const root = z.object({
-  MINIO_ROOT_USER: z.string().trim().min(1),
-  MINIO_ROOT_PASSWORD: z.string().trim().min(1),
+const admin = z.object({
+  RAW_STORE_ADMIN_ACCESS_KEY: z.string().trim().min(1),
+  RAW_STORE_ADMIN_SECRET_KEY: z.string().trim().min(1),
 });
 
-// External constraint: the account under test may write and may not read, so the account that
-// administers the store checks the round trip.
-const asRoot = (): S3Client => {
-  const held = root.parse(process.env);
+// External constraint: the account under test may write and may not read, so the account of the
+// tests, which may read the bucket, checks the round trip on the same store.
+const asAdmin = (): S3Client => {
+  const held = admin.parse(process.env);
   return new S3Client({
-    endpoint: 'http://127.0.0.1:9000',
-    region: 'us-east-1',
+    endpoint,
+    region,
     forcePathStyle: true,
     credentials: {
-      accessKeyId: held.MINIO_ROOT_USER,
-      secretAccessKey: held.MINIO_ROOT_PASSWORD,
+      accessKeyId: held.RAW_STORE_ADMIN_ACCESS_KEY,
+      secretAccessKey: held.RAW_STORE_ADMIN_SECRET_KEY,
     },
   });
 };
 
-const reader = asRoot();
+const reader = asAdmin();
 
 afterAll(() => {
   store.client.destroy();
@@ -90,7 +91,14 @@ test('the object exists, and it is not readable without a credential', async () 
   const found = await reader.send(new GetObjectCommand({ Bucket: store.bucket, Key: key }));
   expect(found.ContentLength).toBe(bytes.length);
 
-  const anonymous = await fetch(`http://127.0.0.1:9000/${store.bucket}/${key}`);
+  const anonymous = await fetch(`${endpoint}/${store.bucket}/${key}`);
+  expect(anonymous.status).toBe(FORBIDDEN);
+});
+
+// External constraint: a listing names every source file, so a caller with no key may not read
+// it either.
+test('the bucket cannot be listed without a credential', async () => {
+  const anonymous = await fetch(`${endpoint}/${store.bucket}?list-type=2`);
   expect(anonymous.status).toBe(FORBIDDEN);
 });
 

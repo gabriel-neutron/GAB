@@ -2,6 +2,7 @@ import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
 import type {
+  Area,
   Attributes,
   Corpus,
   Entity,
@@ -10,6 +11,7 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
+import { relationWording } from '@/shared/relation-words';
 
 import { natoSymbol, type NatoSymbol } from './nato-symbol';
 
@@ -23,6 +25,10 @@ export interface GeoEntity {
   readonly label: string;
   readonly lon: number;
   readonly lat: number;
+  /** The shape of an entity that a polygon locates, and null for a point. `lon` and `lat` are then
+   * a point inside it: the one mark of the entity, so the rail, the selection and the relations
+   * read an area as they read a point. */
+  readonly area: Area | null;
   readonly sources: readonly string[];
   /** M7 and M8: a value, and the documents that carry it. The index rows read these. */
   readonly attrs: Attributes;
@@ -45,6 +51,8 @@ export interface GeoLink {
   readonly fid: number;
   readonly id: string;
   readonly type: string;
+  /** The words of the type, read from the source end. The hover label reads these. */
+  readonly typeWords: string;
   readonly from: GeoEntity;
   readonly to: GeoEntity;
   readonly sources: readonly string[];
@@ -205,6 +213,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     label: entity.label,
     lon: at.point.lon,
     lat: at.point.lat,
+    area: at.area,
     sources: entity.sources,
     attrs: entity.attrs,
     // The identity and the words are separate on purpose. An ancestor that the entity list does
@@ -218,6 +227,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
   const byId = new Map(entities.map((entity) => [entity.id, entity]));
 
   const links: GeoLink[] = [];
+  const wordsOf = relationWording(read.relationTypes);
   read.relations.forEach((relation) => {
     const from = relation.srcKind === 'entity' ? byId.get(relation.srcId) : undefined;
     const to = relation.dstKind === 'entity' ? byId.get(relation.dstId) : undefined;
@@ -226,6 +236,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
       fid: links.length,
       id: relation.id,
       type: relation.type,
+      typeWords: wordsOf(relation.type).label,
       from,
       to,
       sources: relation.sources,
@@ -244,15 +255,25 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     }
   }
 
-  const bounds: Projection['bounds'] =
-    entities.length === 0
-      ? null
-      : [
-          Math.min(...entities.map((entity) => entity.lon)),
-          Math.min(...entities.map((entity) => entity.lat)),
-          Math.max(...entities.map((entity) => entity.lon)),
-          Math.max(...entities.map((entity) => entity.lat)),
-        ];
+  // The frame holds the whole of an area, and not its mark alone. A loop, because a spread of
+  // every vertex into `Math.min` overflows the stack on a large coastline.
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  const widen = (lon: number, lat: number): void => {
+    west = Math.min(west, lon);
+    south = Math.min(south, lat);
+    east = Math.max(east, lon);
+    north = Math.max(north, lat);
+  };
+  for (const entity of entities) {
+    widen(entity.lon, entity.lat);
+    for (const rings of entity.area ?? []) {
+      for (const ring of rings) for (const [lon, lat] of ring) widen(lon, lat);
+    }
+  }
+  const bounds: Projection['bounds'] = entities.length === 0 ? null : [west, south, east, north];
 
   return {
     entities,

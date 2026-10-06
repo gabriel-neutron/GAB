@@ -6,7 +6,7 @@ import { openEntityList, type EntityMatch, type RailOpenList } from './entity-li
 import type { GraphModel } from './model';
 import type { RailStep } from './rail-step';
 
-export interface GraphRailRows {
+interface GraphRailRows {
   readonly rail: RailRows;
   readonly lists: ReadonlyMap<string, RailOpenList>;
 }

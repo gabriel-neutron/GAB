@@ -63,52 +63,91 @@ services:
     ports:
       - '127.0.0.1:3001:3000'
 
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+  # The raw store: an S3 server that keeps each source file exactly as it arrived (T3, ADR 0007).
+  # The accounts and their rights are in seaweedfs/s3.json, and the six keys come from infra/.env.
+  # Each key holds letters, digits, '.', '_', '+' and '-' only. `-bucket=raw` makes the private
+  # bucket at start, so no init job runs. Only the S3 port leaves the container.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
     restart: unless-stopped
-    command: server /data --console-address ":9001"
+    command:
+      - mini
+      - -s3.port=9000
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -bucket=raw
+      - -admin.ui=false
+      - -webdav=false
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in infra/.env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in infra/.env}
-    ports:
-      # 9000 is the S3 API. 9001 is the console you open in a browser.
-      - '127.0.0.1:9000:9000'
-      - '127.0.0.1:9001:9001'
-    volumes:
-      - gab-minio-data:/data
-
-  # Runs on every up, and it is written to be repeatable. `mc admin user add` writes the secret
-  # of an existing account again, so two people on one stack must hold the same infra/.env.
-  minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-    depends_on:
-      - minio
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in infra/.env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in infra/.env}
       RAW_STORE_ACCESS_KEY: ${RAW_STORE_ACCESS_KEY:?set RAW_STORE_ACCESS_KEY in infra/.env}
       RAW_STORE_SECRET_KEY: ${RAW_STORE_SECRET_KEY:?set RAW_STORE_SECRET_KEY in infra/.env}
+      RAW_STORE_ADMIN_ACCESS_KEY: ${RAW_STORE_ADMIN_ACCESS_KEY:?set RAW_STORE_ADMIN_ACCESS_KEY in infra/.env}
+      RAW_STORE_ADMIN_SECRET_KEY: ${RAW_STORE_ADMIN_SECRET_KEY:?set RAW_STORE_ADMIN_SECRET_KEY in infra/.env}
+      RAW_STORE_RESEARCH_ACCESS_KEY: ${RAW_STORE_RESEARCH_ACCESS_KEY:?set RAW_STORE_RESEARCH_ACCESS_KEY in infra/.env}
+      RAW_STORE_RESEARCH_SECRET_KEY: ${RAW_STORE_RESEARCH_SECRET_KEY:?set RAW_STORE_RESEARCH_SECRET_KEY in infra/.env}
+    ports:
+      - '127.0.0.1:9000:9000'
     volumes:
-      - ./minio:/policy:ro
-    entrypoint: ['/bin/sh', '-c']
-    command:
-      - |
-        # Without this, every command below may fail and the container still exits 0, because the
-        # exit code is the code of the last line. A door that was never built looked healthy.
-        set -e
-        until mc alias set gab http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
-          echo "waiting for minio"; sleep 2;
-        done
-        mc mb --ignore-existing gab/raw
-        # T3 makes the raw file evidence. The bucket is private: no anonymous read.
-        mc anonymous set none gab/raw
-        mc admin policy create gab raw-write /policy/policy-raw-write.json
-        mc admin user add gab "$$RAW_STORE_ACCESS_KEY" "$$RAW_STORE_SECRET_KEY"
-        # An attach that is already in effect is an error, and this file runs again on every up.
-        mc admin policy attach gab raw-write --user "$$RAW_STORE_ACCESS_KEY" || true
-        mc ls gab
-        echo "bucket raw is ready and private"
+      - gab-raw-data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:9000/healthz']
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+
+  # The model gateway of the back-end AI (ADR 0010). It holds no record of the project. It keeps
+  # the provider keys, encrypted, in its own volume, and the operator enters them on its Keys page.
+  # The host port is 4001, because 127.0.0.1:3001 belongs to postgrest-test.
+  freellmapi:
+    image: ghcr.io/tashfeenahmed/freellmapi:v0.13.3
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?set FREELLMAPI_ENCRYPTION_KEY in infra/.env}
+    ports:
+      - '127.0.0.1:4001:3001'
+    volumes:
+      - freellmapi-data:/app/server/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/api/ping').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # The search engine of the web_search tool. The settings file turns JSON output on and the
+  # limiter off. The fallback secret is public and fits a loopback port only: set SEARXNG_SECRET in
+  # infra/.env to replace it.
+  searxng:
+    image: searxng/searxng:2026.10.2-19ffbcd30
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:8888/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-gab-local-searxng-loopback-only-secret}
+    ports:
+      - '127.0.0.1:8888:8080'
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
 
 volumes:
   gab-db-data:
-  gab-minio-data:
+  gab-raw-data:
+  freellmapi-data:

@@ -34,6 +34,16 @@ CREATE OR REPLACE TRIGGER proposals_append_only
   BEFORE UPDATE OR DELETE ON proposals
   FOR EACH ROW EXECUTE FUNCTION proposals_append_only_fn();
 
+-- A model call is written once.
+CREATE OR REPLACE TRIGGER model_call_append_only
+  BEFORE UPDATE OR DELETE ON model_call
+  FOR EACH ROW EXECUTE FUNCTION model_call_append_only_fn();
+
+-- A citation is written once.
+CREATE OR REPLACE TRIGGER citation_append_only
+  BEFORE UPDATE OR DELETE ON citation
+  FOR EACH ROW EXECUTE FUNCTION citation_append_only_fn();
+
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -44,10 +54,28 @@ CREATE OR REPLACE TRIGGER relations_endpoints
   BEFORE INSERT OR UPDATE OF src_id, dst_id, src_kind, dst_kind ON relations
   FOR EACH ROW EXECUTE FUNCTION check_relation_endpoints();
 
+-- M6, the interval rule, read on the type row from both sides.
+CREATE OR REPLACE TRIGGER relations_interval
+  BEFORE INSERT OR UPDATE OF type, valid_from, valid_to ON relations
+  FOR EACH ROW EXECUTE FUNCTION check_relation_interval();
+
+CREATE OR REPLACE TRIGGER relations_one_open
+  BEFORE INSERT OR UPDATE OF type, src_kind, src_id, dst_kind, dst_id, valid_to ON relations
+  FOR EACH ROW EXECUTE FUNCTION check_relation_one_open();
+
+CREATE OR REPLACE TRIGGER relation_type_interval
+  BEFORE UPDATE OF takes_interval ON relation_type
+  FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
+
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
+ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
+ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
+ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
+ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
+ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 
 RESET ROLE;

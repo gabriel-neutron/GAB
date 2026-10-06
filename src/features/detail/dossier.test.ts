@@ -7,6 +7,7 @@ import type {
   EntityTypeDeclaration,
   Proposal,
   Relation,
+  RelationTypeDeclaration,
 } from '@/shared/read/model';
 
 import { readDossier, readRelation, type PendingLine } from './dossier';
@@ -39,6 +40,7 @@ const OWNER: Entity = { ...VESSEL, id: 'e2', label: 'Ledger Shipping', attrs: {}
 const OWNED_BY: Relation = {
   id: 'r1',
   type: 'owned_by',
+  proposedType: null,
   srcKind: 'entity',
   srcId: 'e1',
   dstKind: 'entity',
@@ -56,6 +58,7 @@ const CORPUS: Corpus = {
   relations: [OWNED_BY],
   proposals: [],
   positions: [],
+  relationTypes: [],
 };
 
 test('a document that one list cites twice is one mark, one card and number 1', () => {
@@ -82,6 +85,27 @@ test('the relation panel and the entity page draw the same card for one document
   expect(relation.cards).toEqual(dossier.sources.map((card) => ({ ...card, holdsUp: [] })));
 });
 
+const OWNS: RelationTypeDeclaration = {
+  key: 'owns',
+  label: 'owns',
+  inverseLabel: 'is owned by',
+  takesInterval: true,
+  retired: false,
+};
+
+test('a relation read from its far end takes the inverse words of its type', () => {
+  const read: Corpus = {
+    ...CORPUS,
+    relations: [{ ...OWNED_BY, type: 'owns', srcId: OWNER.id, dstId: VESSEL.id }],
+    relationTypes: [OWNS],
+  };
+  const sentences = (entityId: string): readonly string[] =>
+    readDossier(read, entityId, [])?.relations.map((line) => line.sentence) ?? [];
+
+  expect(sentences(OWNER.id)).toEqual(['Ledger Shipping owns MV Northern Ledger']);
+  expect(sentences(VESSEL.id)).toEqual(['MV Northern Ledger is owned by Ledger Shipping']);
+});
+
 test('a point borrowed from a parent that the entity list lacks still states that it is borrowed', () => {
   const lost: Corpus = {
     ...CORPUS,
@@ -90,6 +114,7 @@ test('a point borrowed from a parent that the entity list lacks still states tha
         entityId: VESSEL.id,
         point: { lon: 4.4777, lat: 51.9244 },
         precision: 'inherited',
+        area: null,
         parentId: 'e9',
       },
     ],
@@ -119,6 +144,7 @@ const ACT: Proposal = {
   createdAt: '2026-09-01T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 };
 
 const SOURCE_1 = { id: 'd1', number: 1, name: 'Source 1 — Port call register' };
@@ -279,6 +305,7 @@ test('a point borrowed from a parent that the entity list holds names that paren
         entityId: VESSEL.id,
         point: { lon: 4.4777, lat: 51.9244 },
         precision: 'inherited',
+        area: null,
         parentId: OWNER.id,
       },
     ],

@@ -5,7 +5,7 @@ import type { AttributeSearchAnswer } from './attribute-search';
 import type { DocumentSearchAnswer } from './document-search';
 import type { NameSearchAnswer } from './name-search';
 
-export interface SearchPageProps {
+interface SearchPageProps {
   readonly query: string;
   readonly nameAnswer: NameSearchAnswer;
   readonly attributeAnswer: AttributeSearchAnswer;

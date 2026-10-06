@@ -1,7 +1,7 @@
 -- =============================================================================================
 -- 20 — the read surface                                                            RE-RUNNABLE
 --
--- ONE VIEW PER CONCEPT, NEVER PER SURFACE. docs/spec.md §4 and ADR 0003 §6. A surface-shaped
+-- ONE VIEW PER CONCEPT, NEVER PER SURFACE. docs/spec.md and ADR 0003. A surface-shaped
 -- view multiplies with the user interface; a concept-shaped one does not.
 --
 -- DROP then CREATE, and never CREATE OR REPLACE. Measured: CREATE OR REPLACE VIEW appends only
@@ -22,21 +22,20 @@ SET ROLE gabriel_owner;
 
 -- ------------------------------------------------------------------------------------------
 DROP VIEW IF EXISTS api.full_map;
-DROP VIEW IF EXISTS api.full_graph;
 DROP VIEW IF EXISTS api.layout;
 DROP VIEW IF EXISTS api.job;
-DROP VIEW IF EXISTS api.key_usage;
-DROP VIEW IF EXISTS api.value_support;
 DROP VIEW IF EXISTS api.proposal;
 DROP VIEW IF EXISTS api.relation;
 DROP VIEW IF EXISTS api.entity;
+DROP VIEW IF EXISTS api.relation_type;
 DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
+DROP VIEW IF EXISTS api.document_provider;
 
 
 CREATE VIEW api.document AS
   SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at,
-         admiralty, admiralty_origin, created_at
+         admiralty, admiralty_origin, created_at, cost_eur
     FROM public.documents;
 -- s3_key is not published. The bucket is private, and #31 owns how a reader reaches a file.
 COMMENT ON VIEW api.document IS
@@ -45,12 +44,28 @@ COMMENT ON VIEW api.document IS
   'corroborated fact and a rumour at the same score.';
 
 
+CREATE VIEW api.document_provider AS
+  SELECT id, name, licence FROM public.document_provider;
+COMMENT ON VIEW api.document_provider IS
+  'The providers that distribute the bytes of a document, and the licence each one gives. The '
+  'licence belongs to the provider and never to one fetch. A document with no provider is '
+  'internal.';
+
+
 CREATE VIEW api.entity_type AS
   SELECT key, label, colour_light, colour_dark, ord, retired FROM public.entity_type;
 COMMENT ON VIEW api.entity_type IS
   'The closed list of entity types. Filter retired=is.false for the live vocabulary. Two hues '
   'and not one: a single hex value fails one of the two pages. A map takes colour_dark on both '
   'themes, because its ground is imagery.';
+
+
+CREATE VIEW api.relation_type AS
+  SELECT key, label, inverse_label, takes_interval, retired FROM public.relation_type;
+COMMENT ON VIEW api.relation_type IS
+  'The closed list of relation types. Filter retired=is.false for the live vocabulary. A relation '
+  'is stored in one direction only: label reads it from its source, and inverse_label from its '
+  'far end. takes_interval says whether valid_from and valid_to may be set (M6).';
 
 
 CREATE VIEW api.entity AS
@@ -69,82 +84,40 @@ COMMENT ON VIEW api.entity IS
 
 
 CREATE VIEW api.relation AS
-  SELECT id, type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to,
+  SELECT id, type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to,
          attrs, sources, promoted_from, created_at, updated_at
     FROM public.relations;
 COMMENT ON VIEW api.relation IS
   'A relation. It states its claim in its own columns — the type and the two ends — and it may '
   'carry no attribute at all, so `sources` is often the only evidence it has. An interval is '
-  'reserved for identity and ownership types (M6). src_kind and dst_kind may say relation: '
-  'nothing writes that today and nothing prevents it (M4).';
+  'reserved for the types that take one in api.relation_type (M6). src_kind and dst_kind may say '
+  'relation: nothing writes that today and nothing prevents it (M4). proposed_type carries the '
+  'extracted word when it was not a live type.';
 
 
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
-         confidence, dissent, author_role, status, created_at, decided_at, decided_by
-    FROM public.proposals;
+         confidence, dissent, author_role, model_call_id, status, created_at, decided_at,
+         decided_by, batch_id
+    FROM public.proposals
+   -- PU1: a rejected act is not public. The public read role and any role that this list does
+   -- not name see no rejected row, so the rule fails closed. current_user in a view is the role
+   -- that reads it, and not the owner of the view.
+   WHERE status <> 'rejected'
+      OR current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research');
 COMMENT ON VIEW api.proposal IS
-  'The candidate layer AND the record of every change; `status` tells them apart. '
+  'The candidate layer AND the record of every change; `status` tells them apart. The public '
+  'read shows no rejected act. '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
   'holds it. `names` lists the other elements the act touches. author_role is the connection '
-  'role and never a person, and decided_by is NEVER proof of a human decision. Do not count '
+  'role and never a person. model_call_id names the call that made a machine act. It is NULL '
+  'for an act of the operator and for a machine act older than the call record. batch_id joins '
+  'the acts of a machine that name each other, and the operator decides them as one unit; a '
+  'single act has none. decided_by is '
+  'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
 
-
--- READ 5, AND IT REPLACES A TABLE. "Which values does this document hold up" is the mechanism
--- S1 calls central when a rating moves. The #97 proposal made this a mirror table kept by four
--- triggers; it is a view, because a fact must not have a second home.
--- A row with attr_key IS NULL is the source list of the ROW ITSELF, not of a value.
-CREATE VIEW api.value_support AS
-      SELECT 'entity'::text AS owner_kind, e.id AS owner_id, e.label AS owner_label,
-             s.doc AS doc_id, c.key AS attr_key, c.val -> 'v' AS value
-        FROM public.entities e
-        CROSS JOIN LATERAL jsonb_each(e.attrs) AS c(key, val)
-        CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-UNION ALL
-      SELECT 'entity', e.id, e.label, d, NULL, NULL
-        FROM public.entities e CROSS JOIN LATERAL unnest(e.sources) AS d
-UNION ALL
-      SELECT 'relation', r.id, r.type, s.doc, c.key, c.val -> 'v'
-        FROM public.relations r
-        CROSS JOIN LATERAL jsonb_each(r.attrs) AS c(key, val)
-        CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-UNION ALL
-      SELECT 'relation', r.id, r.type, d, NULL, NULL
-        FROM public.relations r CROSS JOIN LATERAL unnest(r.sources) AS d;
-COMMENT ON VIEW api.value_support IS
-  'Which PUBLISHED values a document holds up. Filter on doc_id when an ADMIRALTY rating moves. '
-  'It carries the value itself and not only the key, so the answer shows the figures. '
-  'attr_key IS NULL marks the source list of the ROW, not of a value. For the CANDIDATE claims '
-  'that cite the same document, read api.proposal with src=cs.{the id}.';
-
-
--- THE MONITORING VIEW M11 ASKED FOR, AND NOW THE WHOLE OF WHAT M11 LEFT. There is no vocabulary
--- table and no rule on a key beyond its shape, so this view is the only thing that shows which
--- keys the record carries. Two spellings of one concept stand side by side here, and reading it
--- is the only way anybody finds them.
---
--- IT READS BOTH TABLES THAT CARRY ATTRIBUTES. A view over entities alone would leave a key
--- written on a relation invisible, and a worklist with a hole is not a worklist.
-CREATE VIEW api.key_usage AS
-  WITH used AS (
-    SELECT 'entity' AS owner_kind, e.type AS owner_type, ok.key
-      FROM public.entities e
-      CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS ok(key)
-    UNION ALL
-    SELECT 'relation', r.type, ok.key
-      FROM public.relations r
-      CROSS JOIN LATERAL jsonb_object_keys(r.attrs) AS ok(key)
-  )
-  SELECT u.key, u.owner_kind, u.owner_type, count(*) AS claims
-    FROM used u
-   GROUP BY u.key, u.owner_kind, u.owner_type;
-COMMENT ON VIEW api.key_usage IS
-  'Every attribute key in use, on an entity or on a relation, with how often it is used and by '
-  'which type. Nothing declares a key, so this is the one place a semantic duplicate — '
-  'coal_stock beside coal_stock_tonnes — becomes visible. A low count is a typo. M11 accepted '
-  'that this makes the drift visible and prevents none of it. Read it periodically.';
 
 -- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
 -- place carries NULL here, which is not an error: the surface places it itself and the next run
@@ -160,32 +133,21 @@ COMMENT ON VIEW api.layout IS
   'itself. Every position of one run belongs beside the others of the same run.';
 
 
--- Departure: the queue is readable, or a row stuck in `running` is a state nobody can find.
--- It publishes no payload: a job carries an identifier, a state, the history of its claims,
--- and the reason and the hour it ended.
+-- Departure: the queue is readable by the tool roles, or a row stuck in `running` is a state
+-- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a
+-- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead is
+-- private work of the operator and names no document, so this view leaves it out.
 CREATE VIEW api.job AS
-  SELECT id, document_id, status, attempts, claimed_by, claimed_at, failure_reason, finished_at
-    FROM public.jobs;
+  SELECT id, document_id, status, claimed_by, claimed_at, failure_reason, finished_at
+    FROM public.jobs
+   WHERE kind <> 'research_lead';
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '
   'door. claimed_by is the CONNECTION ROLE that took the row and never a person or a process. '
-  '`attempts` counts every claim, including the ones a lease released, so it counts what was '
-  'taken and never what was tried. A failed job always states its reason in '
-  'failure_reason. finished_at is the hour a job ended, and NULL while it can still run.';
-
--- THE TWO READS THAT RETURN EVERY ROW, AND HOW THEY ESCAPE THE ROW CEILING. PostgREST caps rows
--- per role and never per view, so the one read role carries no row cap at all, and there is no
--- second role. The guard is time alone: statement_timeout on that role stops a read that runs away.
-CREATE VIEW api.full_graph AS
-  SELECT e.id, e.type, e.label, l.x, l.y
-    FROM api.entity e
-    LEFT JOIN api.layout l ON l.entity_id = e.id;
-COMMENT ON VIEW api.full_graph IS
-  'Every entity of the graph with the position the graph draws it at, in one read. The edges '
-  'come from api.relation, which returns every relation under the same rule. Read '
-  'api.layout for the meaning of a null position.';
-
+  'A job fails at once, and a failed job always states its reason in failure_reason. The '
+  'operator queues the document again for a new job. finished_at is the hour a job ended, and '
+  'NULL while it can still run.';
 
 -- THE FILTER IS GONE, AND THE ROW COUNT IS NOW EVERY ENTITY. An entity that states
 -- `position_precision` = `inherited` carries no geometry of its own. A filter on the geometry
@@ -214,8 +176,8 @@ COMMENT ON VIEW api.full_graph IS
 -- a relation from a row to itself, and none refuses a ring of three.
 --
 -- ONLY A POINT IS TAKEN, AT BOTH ENDS. An ancestor that carries an area is walked through, and
--- an entity that carries an area takes the inherited point over its own area. A surface that
--- draws a dot reads any other geometry as no position at all.
+-- an entity that carries an area takes the inherited point over its own area. A borrowed
+-- position is a point, and a surface never draws it as an area.
 --
 -- DISTINCT ON, AND NOT min(hop) ALONE. Two ancestors may stand at one distance, and a bare
 -- min(hop) would answer with two rows for one entity. The tie is broken on the identifier, so

@@ -12,7 +12,7 @@ type Entry<Value> =
   | { readonly held: false; readonly refusal: string };
 
 /** The value the act will carry, or the one sentence the analyst reads. */
-export type ClaimEntry = Entry<AttributeValue>;
+type ClaimEntry = Entry<AttributeValue>;
 
 type ScalarEntry = Entry<string | number | boolean>;
 

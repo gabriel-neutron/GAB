@@ -1,4 +1,4 @@
-// Writes both halves of the generated database types, and formats them. The formatter is part of
+// Writes the generated types of the api schema, and formats them. The formatter is part of
 // generation, so the committed bytes are already the bytes the format check accepts.
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { processDatabase } from 'kanel';
 import { format, resolveConfig } from 'prettier';
 
-import type { GeneratedFolders } from './kanel-configuration.ts';
-import { committedFolders, kanelConfigurations } from './kanel-configuration.ts';
+import { committedFolder, kanelConfiguration } from './kanel-configuration.ts';
+import type { DatabaseName } from './test-database.ts';
 
 // Prettier reads its options from the folder of the file it formats. The anchor is a path inside
 // the repository, so a scratch copy gets the options the committed folder gets.
-const PRETTIER_ANCHOR = join(committedFolders.contract, 'anchor.ts');
+const PRETTIER_ANCHOR = join(committedFolder, 'anchor.ts');
 
 /** Each file of one generated folder, as a path relative to that folder, sorted. */
 export const generatedFiles = async (folder: string): Promise<readonly string[]> => {
@@ -34,15 +34,16 @@ const formatFolder = async (folder: string): Promise<void> => {
   }
 };
 
-/** Generates the contract and the base tables into `folders`, formatted and ready to commit. */
-export const writeDatabaseTypes = async (folders: GeneratedFolders): Promise<void> => {
-  for (const configuration of kanelConfigurations(folders)) await processDatabase(configuration);
-  await formatFolder(folders.contract);
-  await formatFolder(folders.baseTables);
+/** Generates the types of the api schema of `database` into `folder`, formatted and ready to commit. */
+export const writeDatabaseTypes = async (folder: string, database: DatabaseName): Promise<void> => {
+  await processDatabase(kanelConfiguration(folder, database));
+  await formatFolder(folder);
 };
 
+// Departure: the command reads the test database, as the drift check does. A new migration then
+// reaches the committed types after `pnpm db:reset`, and the record does not have to run it first.
 if (argv[1] === fileURLToPath(import.meta.url)) {
-  await writeDatabaseTypes(committedFolders).catch((error: unknown) => {
+  await writeDatabaseTypes(committedFolder, 'gabriel_test').catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
   });

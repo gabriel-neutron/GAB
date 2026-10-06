@@ -9,7 +9,7 @@ import { DecidedPage } from './decided-page';
 
 const DECIDED: readonly DecidedAct[] = corpus.proposals.flatMap(
   ({ status, decidedAt, decidedBy, ...act }) =>
-    status === 'pending' || decidedAt === null || decidedBy === null
+    status !== 'accepted' || decidedAt === null || decidedBy === null
       ? []
       : [{ act, verdict: status, decidedAt, decidedBy }],
 );
@@ -31,15 +31,14 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Each decided act stands on one row, with its verdict, what it changed, the hour and the name
+/** Each promoted act stands on one row, with its verdict, what it changed, the hour and the name
  * that signed it, the latest decision first. */
 export const EachDecidedActStandsOnOneRow: Story = {
   play: async ({ canvas, canvasElement }) => {
     const rows = canvasElement.querySelectorAll('[data-decided]');
-    await expect(rows).toHaveLength(3);
+    await expect(rows).toHaveLength(2);
     await expect(rows[0]).toHaveTextContent('2026-07-25 07:30 UTC');
     await expect(rows[0]?.querySelector('[data-verdict="promoted"]')).toBeInTheDocument();
-    await expect(rows[2]?.querySelector('[data-verdict="rejected"]')).toBeInTheDocument();
     await expect(canvas.getByRole('columnheader', { name: 'Signed as' })).toBeInTheDocument();
   },
 };

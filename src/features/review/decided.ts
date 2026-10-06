@@ -3,8 +3,9 @@
 
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, EndpointKind, ProposalOp, Relation } from '@/shared/read/model';
+import { relationWording } from '@/shared/relation-words';
 
-import { payloadHeadline, relationPhrase, shortId } from './act-words';
+import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './act-words';
 import type { DoorVerdict } from './decision';
 import { originOf, type Origin } from './origin';
 import { VERDICT_WORDS } from './queue';
@@ -28,7 +29,6 @@ export interface DecidedRow {
 
 const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], DoorVerdict>> = {
   accepted: 'promoted',
-  rejected: 'rejected',
 };
 
 const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {
@@ -46,6 +46,7 @@ interface Names {
   readonly entityLabel: ReadonlyMap<string, string>;
   readonly madeFrom: ReadonlyMap<string, string>;
   readonly relationById: ReadonlyMap<string, Relation>;
+  readonly typeWordsOf: TypeWordsOf;
 }
 
 const labelIn =
@@ -75,10 +76,13 @@ function destroyedRelation(names: Names, act: DecidedAct['act']): string | null 
   if (typeof type !== 'string' || typeof srcId !== 'string' || typeof dstId !== 'string') {
     return null;
   }
-  return relationPhrase(labelIn(names), { kind: endKind(row['src_kind']), id: srcId }, type, {
-    kind: endKind(row['dst_kind']),
-    id: dstId,
-  });
+  return relationPhrase(
+    labelIn(names),
+    names.typeWordsOf,
+    { kind: endKind(row['src_kind']), id: srcId },
+    type,
+    { kind: endKind(row['dst_kind']), id: dstId },
+  );
 }
 
 function relationWords(names: Names, act: DecidedAct['act'], id: string): string {
@@ -88,6 +92,7 @@ function relationWords(names: Names, act: DecidedAct['act'], id: string): string
   }
   return relationPhrase(
     labelIn(names),
+    names.typeWordsOf,
     { kind: relation.srcKind, id: relation.srcId },
     relation.type,
     { kind: relation.dstKind, id: relation.dstId },
@@ -98,14 +103,10 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
   const payload = act.payload;
   switch (payload.kind) {
     case 'entity':
-      return (
-        names.madeFrom.get(act.id) ??
-        payload.label ??
-        `A new ${payload.type ?? 'entity'} the act does not name`
-      );
+      return names.madeFrom.get(act.id) ?? payload.label;
     case 'relation':
     case 'merge':
-      return payloadHeadline(labelIn(names), payload);
+      return payloadHeadline(labelIn(names), names.typeWordsOf, payload);
     case 'attrs':
     case 'columns':
     case 'delete': {
@@ -130,14 +131,14 @@ function keysOf(act: DecidedAct['act']): string {
       return named([payload.label !== null && 'Name', payload.type !== null && 'Type']);
     case 'entity':
       return named([
-        payload.label !== null && 'Name',
-        payload.type !== null && 'Type',
+        'Name',
+        'Type',
         payload.geom !== null && 'Location',
         ...Object.keys(payload.attrs),
       ]);
     case 'relation':
       return named([
-        payload.type !== null && 'Type',
+        'Type',
         payload.valid_from !== null && 'Valid from',
         payload.valid_to !== null && 'Valid to',
         ...Object.keys(payload.attrs),
@@ -160,10 +161,12 @@ const momentOf = (row: DecidedRow): number => Date.parse(row.decidedAt);
 
 /** Every decided act, the latest decision first. */
 export function readDecided(corpus: Corpus, acts: readonly DecidedAct[]): readonly DecidedRow[] {
+  const wordsOf = relationWording(corpus.relationTypes);
   const names: Names = {
     entityLabel: new Map(corpus.entities.map((row) => [row.id, row.label])),
     madeFrom: new Map(corpus.entities.map((row) => [row.promotedFrom, row.label])),
     relationById: new Map(corpus.relations.map((row) => [row.id, row])),
+    typeWordsOf: (type) => wordsOf(type).label,
   };
 
   const rows = acts.map(({ act, verdict, decidedAt, decidedBy }): DecidedRow => {

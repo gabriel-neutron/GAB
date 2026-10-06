@@ -23,6 +23,8 @@ export default interface Proposal {
 
   author_role: string | null;
 
+  model_call_id: string | null;
+
   status: string | null;
 
   created_at: string | null;
@@ -30,6 +32,8 @@ export default interface Proposal {
   decided_at: string | null;
 
   decided_by: string | null;
+
+  batch_id: string | null;
 }
 
 export const proposal = z.object({
@@ -44,8 +48,10 @@ export const proposal = z.object({
   confidence: z.number().nullable(),
   dissent: z.boolean().nullable(),
   author_role: z.string().nullable(),
+  model_call_id: z.uuid().nullable(),
   status: z.string().nullable(),
   created_at: z.string().nullable(),
   decided_at: z.string().nullable(),
   decided_by: z.string().nullable(),
+  batch_id: z.uuid().nullable(),
 });

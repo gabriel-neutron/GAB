@@ -18,6 +18,7 @@ const entity = (
   label,
   lon: point.lon,
   lat: point.lat,
+  area: null,
   sources: [],
   attrs: {},
   parentId,

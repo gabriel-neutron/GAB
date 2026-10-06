@@ -7,6 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.62",
+    "ai": "7.0.127",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-// The one place that says how the two generated folders are made. Nothing here runs on import.
+// The one place that says how the generated folder is made. Nothing here runs on import.
 
 import { join } from 'node:path';
 
@@ -16,30 +16,15 @@ import { makePgTsGenerator, useKanelContext } from 'kanel';
 import { makeGenerateZodSchemas } from 'kanel-zod';
 
 import { connectionString } from './db-runtime.ts';
+import type { DatabaseName } from './test-database.ts';
 
-const ROOT = join(import.meta.dirname, '..');
-
-/** Where each half of the generated database types is written. */
-export interface GeneratedFolders {
-  readonly contract: string;
-  readonly baseTables: string;
-}
-
-/** The two folders that the repository commits. */
-export const committedFolders: GeneratedFolders = {
-  contract: join(ROOT, 'src', 'contract'),
-  baseTables: join(ROOT, 'src', 'db'),
-};
+/** The folder of generated types that the repository commits. */
+export const committedFolder = join(import.meta.dirname, '..', 'src', 'contract');
 
 // A comment block under src is three lines and one hundred characters, and a view comment is
 // longer than both. The SQL holds those words and stays the authority, so the generated file
 // carries none of them.
 const noComment: GetMetadata = (_details, _generateFor, builtin) => ({
-  ...builtin,
-  comment: undefined,
-});
-
-const noPropertyComment: GetPropertyMetadata = (_property, _details, _generateFor, builtin) => ({
   ...builtin,
   comment: undefined,
 });
@@ -73,7 +58,7 @@ interface RoutineShape {
 }
 
 // The generator reads the type of a parameter by its position in the list, so a parameter is
-// dropped after it is written and never before. One pair of maps per generated folder.
+// dropped after it is written and never before. One pair of maps per generation.
 const routineShape = (): RoutineShape => {
   const argumentsOf = new Map<string, ReadonlySet<string>>();
   const optionalOf = new Map<string, ReadonlySet<string>>();
@@ -156,16 +141,9 @@ const withoutEmptyShape: PgTsPreRenderHook = (output) => {
   return kept;
 };
 
-// Every jsonb this schema holds is a JSON object, and each one carries a CHECK that says so.
-// The generator maps jsonb to `unknown`, and `unknown` swallows the null of a nullable column.
-// The bare key is the second lookup: a routine parameter is resolved by its type name alone.
-const JSON_OBJECT = 'Record<string, unknown>';
-
 // A driver returns a PostGIS geometry as hexadecimal EWKB and a transaction identifier as
 // digits, because it parses neither. The api views publish GeoJSON, which arrives as an object.
-const SHARED_TYPES: TypeMap = {
-  'pg_catalog.jsonb': JSON_OBJECT,
-  jsonb: JSON_OBJECT,
+const DRIVER_TYPES: TypeMap = {
   'public.geometry': 'string',
   'pg_catalog.xid8': 'string',
   'public.doc_id': 'string',
@@ -203,7 +181,7 @@ const WIRE_TYPES: TypeMap = {
   'pg_catalog.numeric': 'number',
 };
 
-const CONTRACT_TYPES: TypeMap = { ...SHARED_TYPES, ...WIRE_TYPES };
+const CONTRACT_TYPES: TypeMap = { ...DRIVER_TYPES, ...WIRE_TYPES };
 
 const CONTRACT_ZOD_TYPES: TypeMap = {
   'pg_catalog.jsonb': 'z.unknown()',
@@ -237,51 +215,31 @@ const notADomain: NonNullable<PgTsGeneratorConfig['filter']> = (pgType) => pgTyp
 // A view is read as a view: resolving one writes the base tables beside it and crosses the seam.
 const SHAPE = { preDeleteOutputFolder: true, resolveViews: false } as const;
 
-/** The Kanel configuration of each generated folder, in the order the folders are written. */
-export const kanelConfigurations = (folders: GeneratedFolders): readonly Config[] => {
-  const contractRoutine = routineShape();
-  const baseTableRoutine = routineShape();
-
-  return [
-    {
-      ...SHAPE,
-      // The read role holds nothing on the public schema, so it cannot introspect one column.
-      connection: connectionString('superuser'),
-      schemaNames: ['api'],
-      outputPath: folders.contract,
-      generators: [
-        makePgTsGenerator({
-          customTypeMap: CONTRACT_TYPES,
-          filter: notADomain,
-          getMetadata: noComment,
-          getPropertyMetadata: nullableWireColumn,
-          getRoutineMetadata: contractRoutine.stateShape,
-          preRenderHooks: [
-            contractRoutine.correctShape,
-            withoutEmptyShape,
-            withArrayDimensions,
-            // A cast is an escape hatch this repository refuses, and the plugin writes one by
-            // default around every schema it emits.
-            makeGenerateZodSchemas({ zodTypeMap: CONTRACT_ZOD_TYPES, castToSchema: false }),
-          ],
-        }),
-      ],
-    },
-    {
-      ...SHAPE,
-      connection: connectionString('superuser'),
-      schemaNames: ['public'],
-      outputPath: folders.baseTables,
-      generators: [
-        makePgTsGenerator({
-          customTypeMap: SHARED_TYPES,
-          filter: notADomain,
-          getMetadata: noComment,
-          getPropertyMetadata: noPropertyComment,
-          getRoutineMetadata: baseTableRoutine.stateShape,
-          preRenderHooks: [baseTableRoutine.correctShape, withoutEmptyShape],
-        }),
-      ],
-    },
-  ];
+/** The Kanel configuration that writes the types of the api schema of `database` to `folder`. */
+export const kanelConfiguration = (folder: string, database: DatabaseName): Config => {
+  const routine = routineShape();
+  return {
+    ...SHAPE,
+    // The read role holds nothing on the public schema, so it cannot introspect one column.
+    connection: connectionString('superuser', database),
+    schemaNames: ['api'],
+    outputPath: folder,
+    generators: [
+      makePgTsGenerator({
+        customTypeMap: CONTRACT_TYPES,
+        filter: notADomain,
+        getMetadata: noComment,
+        getPropertyMetadata: nullableWireColumn,
+        getRoutineMetadata: routine.stateShape,
+        preRenderHooks: [
+          routine.correctShape,
+          withoutEmptyShape,
+          withArrayDimensions,
+          // A cast is an escape hatch this repository refuses, and the plugin writes one by
+          // default around every schema it emits.
+          makeGenerateZodSchemas({ zodTypeMap: CONTRACT_ZOD_TYPES, castToSchema: false }),
+        ],
+      }),
+    ],
+  };
 };

@@ -5,7 +5,7 @@ import { readQueue } from './queue';
 import { ReviewPage } from './review-page';
 import { SAMPLE, reviewSample, sampleChange, sampleSubject } from './sample';
 
-const SUBJECTS = readQueue(reviewSample, null);
+const SUBJECTS = readQueue(reviewSample);
 
 const CONTESTED = SAMPLE.contestedRow;
 
@@ -24,6 +24,7 @@ const meta = {
     queue: { subjects: SUBJECTS, verdicts: {} },
     examination: { subjectId: CONTESTED, sort: 'confidence' },
     decision: { step: 'idle' },
+    passages: { state: 'held', byAct: {}, disputes: {} },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -148,7 +149,7 @@ export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
       step: 'unknown',
       changeId: FIRST_ACT,
       verdict: 'promoted',
-      doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+      doubt: 'The write service did not confirm the act, and the act may have run whole.',
     },
   },
   play: async ({ canvas }) => {
@@ -164,7 +165,7 @@ export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
 /** A promotion that landed says one thing that is true of every act. A promoted deletion makes
  * no row, so the sentence names none. */
 export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'promoted' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'promoted' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -177,7 +178,7 @@ export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
 /** A hold reaches no door and no column. The one place that ruling is told to the analyst is
  * this sentence, so the sentence is read here and it is read in no other story. */
 export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'deferred' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'deferred' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -191,7 +192,7 @@ export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
 /** A rejection freezes the act, and it deletes nothing. The sentence says what stands, because
  * an analyst who reads "rejected" as "gone" looks for the act in the wrong place. */
 export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'rejected' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'rejected' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -204,7 +205,7 @@ export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
 /** While one verdict is going to the record, no second verdict is taken: the second would decide
  * an act on a record the first one has already moved. */
 export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {
-  args: { decision: { step: 'deciding', changeId: FIRST_ACT, verdict: 'promoted' } },
+  args: { decision: { step: 'working', changeId: FIRST_ACT, verdict: 'promoted' } },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('status', { name: 'The record' })).toHaveTextContent(
       'The promotion is going to the record.',
@@ -271,5 +272,110 @@ export const ASentenceOfAnotherActSaysThatItIsOfAnotherAct: Story = {
     const said = canvas.getByRole('alert', { name: 'The record' });
     await expect(said).toHaveTextContent('This is about another act.');
     await expect(said).toHaveTextContent('It is not known whether the act was promoted.');
+  },
+};
+
+const PASSAGE = {
+  document: 'doc_8f2a41',
+  title: 'A port report of 12 March 2024',
+  page: 3,
+  text: 'The tanker left the quay on 12 March 2024, and Rosneft owns it.',
+};
+
+const WHY = 'the checker says unclear: the page names two owners';
+
+/** The operator decides on the proof itself: the card of a machine act shows the words of the
+ * page that the act cites, with the document and the page, and why a check disputes the act. */
+export const TheCardShowsThePassageThatTheActCites: Story = {
+  args: {
+    passages: {
+      state: 'held',
+      byAct: { [FIRST_ACT]: [PASSAGE] },
+      disputes: { [FIRST_ACT]: WHY },
+    },
+  },
+  play: async ({ canvas }) => {
+    const cited = canvas.getByRole('region', { name: 'The cited passages' });
+    await expect(cited).toHaveTextContent(PASSAGE.text);
+    await expect(cited).toHaveTextContent('A port report of 12 March 2024, page 3');
+    await expect(canvas.getByText(WHY)).toBeInTheDocument();
+  },
+};
+
+const BATCH = SAMPLE.linkedBatch;
+
+const BATCH_ACTS = sampleSubject(BATCH).changes.map((change) => change.id);
+
+/** A linked batch is one card: every act of it stands open, each with the passage it cites. */
+export const ALinkedBatchIsOneCardWithEveryActAndItsPassages: Story = {
+  args: {
+    examination: { subjectId: BATCH, sort: 'confidence' },
+    passages: {
+      state: 'held',
+      byAct: Object.fromEntries(BATCH_ACTS.map((id) => [id, [PASSAGE]])),
+      disputes: {},
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const card = canvas.getByRole('region', { name: 'One linked batch of 3 acts' });
+    await expect(card.querySelectorAll('[data-change]')).toHaveLength(3);
+    await expect(canvasElement.querySelectorAll('[data-change]')).toHaveLength(3);
+    await expect(card.querySelectorAll('[data-passage]')).toHaveLength(3);
+    await expect(card).toHaveTextContent('Ledger Shipping owns MV Test Ledger');
+  },
+};
+
+/** One verdict decides the whole batch, and the question says so before it sends. */
+export const OneVerdictDecidesTheWholeBatch: Story = {
+  args: { examination: { subjectId: BATCH, sort: 'confidence' } },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Promote every act of this batch?');
+    await userEvent.click(canvas.getByRole('button', { name: 'Promote it' }));
+    await expect(args.onAct).toHaveBeenCalledWith({
+      kind: 'decide-batch',
+      batchId: BATCH,
+      changeIds: BATCH_ACTS,
+      verdict: 'promoted',
+      reason: '',
+    });
+  },
+};
+
+/** A refused batch says that nothing of it was written, and it names the act and the reason. */
+export const ARefusedBatchNamesTheActAndTheReason: Story = {
+  args: {
+    examination: { subjectId: BATCH, sort: 'confidence' },
+    decision: {
+      step: 'refused',
+      batchId: BATCH,
+      verdict: 'promoted',
+      refusal:
+        'nothing of the batch is promoted, because the record refuses its new relation owns: ' +
+        'the target does not exist',
+    },
+  },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('alert', { name: 'The record' });
+    await expect(said).toHaveTextContent('Nothing was written');
+    await expect(said).toHaveTextContent('its new relation owns: the target does not exist');
+    await expect(said).not.toHaveTextContent('This is about another act.');
+  },
+};
+
+/** The text of a document is private. Where the writer does not answer, as on the public page,
+ * no passage is drawn, and one sentence says why. */
+export const ThePublicPageShowsNoPassage: Story = {
+  args: {
+    passages: {
+      state: 'private',
+      why: 'The cited passages are private, and the write service on this machine did not give them.',
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.queryByRole('region', { name: 'The cited passages' })).toBeNull();
+    await expect(canvasElement.querySelector('[data-passages="private"]')).toHaveTextContent(
+      'The cited passages are private',
+    );
   },
 };

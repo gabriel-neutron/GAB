@@ -3,13 +3,15 @@
 
 import { z } from 'zod';
 
-import { CLOSED_SET } from './closed-set';
+import { interiorPointOf } from './interior-point';
 import type {
+  Area,
   Attributes,
   DocumentRow,
   Entity,
   EntityPlacement,
   EntityTypeDeclaration,
+  RelationTypeDeclaration,
   MapPosition,
   Point,
   PriorValue,
@@ -18,8 +20,9 @@ import type {
   ProposalPayload,
   ProposedGeometry,
   Relation,
+  Ring,
 } from './model';
-import { wireRow } from './wire';
+import { row as rowOf } from './rows';
 
 const attribute = z.strictObject({
   v: z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.array(z.number())]),
@@ -32,17 +35,36 @@ const attributeObject = z.record(z.string(), attribute);
 const attributesOf = (value: unknown): Attributes =>
   value === undefined || value === null ? {} : attributeObject.parse(value);
 
-// A geometry column holds a point, a line or a polygon. A surface draws a dot, so it takes the
-// point and reads everything else as no position at all.
+// A geometry column holds a point, a line or a polygon. The map draws a point and an area, so it
+// keeps those two and reads a line as no position at all.
 const geoPoint = z.object({
   type: z.literal('Point'),
   coordinates: z.tuple([z.number(), z.number()], z.number()),
 });
 
+// A position may carry an altitude, and the map draws none of it.
+const pairs = (positions: readonly (readonly number[])[]): Ring =>
+  positions.map(([lon, lat]) => [lon ?? 0, lat ?? 0]);
+
 function pointOf(value: unknown): Point | null {
   const held = geoPoint.safeParse(value);
   if (!held.success) return null;
   return { lon: held.data.coordinates[0], lat: held.data.coordinates[1] };
+}
+
+const position = z.tuple([z.number(), z.number()], z.number());
+const ring = z.array(position).min(4);
+const geoPolygon = z.object({ type: z.literal('Polygon'), coordinates: z.array(ring).min(1) });
+const geoMultiPolygon = z.object({
+  type: z.literal('MultiPolygon'),
+  coordinates: z.array(z.array(ring).min(1)).min(1),
+});
+
+function areaOf(value: unknown): Area | null {
+  const polygon = geoPolygon.safeParse(value);
+  if (polygon.success) return [polygon.data.coordinates.map(pairs)];
+  const many = geoMultiPolygon.safeParse(value);
+  return many.success ? many.data.coordinates.map((rings) => rings.map(pairs)) : null;
 }
 
 // The act carries no kind of its own, so the operation states which payload it wrote.
@@ -68,11 +90,13 @@ function proposedGeometryOf(value: unknown): ProposedGeometry | null {
   return { kind: 'shape', shape: geometryType.parse(value).type };
 }
 
-const endpointKind = z.enum(CLOSED_SET['relations.src_kind']);
+const endpointKind = rowOf.relation.shape.src_kind;
 
+// The record refuses a new entity with no type or no name, and a new relation with no type or
+// no end, so neither payload reads a fallback for one.
 const entityPayload = z.looseObject({
-  type: z.string().nullish(),
-  label: z.string().nullish(),
+  type: z.string(),
+  label: z.string(),
   geom: z.unknown().optional(),
   attrs: z.unknown().optional(),
 });
@@ -82,11 +106,11 @@ const columnsPayload = z.looseObject({
   type: z.string().nullish(),
 });
 const relationPayload = z.looseObject({
-  type: z.string().nullish(),
+  type: z.string(),
   src_kind: endpointKind.nullish(),
-  src_id: z.string().nullish(),
+  src_id: z.string(),
   dst_kind: endpointKind.nullish(),
-  dst_id: z.string().nullish(),
+  dst_id: z.string(),
   valid_from: z.string().nullish(),
   valid_to: z.string().nullish(),
   attrs: z.unknown().optional(),
@@ -104,8 +128,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = entityPayload.parse(value);
       return {
         kind,
-        type: held.type ?? null,
-        label: held.label ?? null,
+        type: held.type,
+        label: held.label,
         geom: proposedGeometryOf(held.geom),
         attrs: attributesOf(held.attrs),
       };
@@ -123,11 +147,11 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       // External constraint: the promotion stores an end that states no kind as an entity.
       return {
         kind,
-        type: held.type ?? null,
+        type: held.type,
         src_kind: held.src_kind ?? 'entity',
-        src_id: held.src_id ?? null,
+        src_id: held.src_id,
         dst_kind: held.dst_kind ?? 'entity',
-        dst_id: held.dst_id ?? null,
+        dst_id: held.dst_id,
         valid_from: held.valid_from ?? null,
         valid_to: held.valid_to ?? null,
         attrs: attributesOf(held.attrs),
@@ -168,12 +192,23 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
 }
 
 function entityType(row: unknown): EntityTypeDeclaration {
-  const read = wireRow.entityType.parse(row);
+  const read = rowOf.entityType.parse(row);
   return {
     key: read.key,
     label: read.label,
     colourLight: read.colour_light,
     colourDark: read.colour_dark,
+    retired: read.retired,
+  };
+}
+
+function relationType(row: unknown): RelationTypeDeclaration {
+  const read = rowOf.relationType.parse(row);
+  return {
+    key: read.key,
+    label: read.label,
+    inverseLabel: read.inverse_label,
+    takesInterval: read.takes_interval,
     retired: read.retired,
   };
 }
@@ -189,7 +224,7 @@ function webAddressOf(value: string | null): string | null {
 }
 
 function document(row: unknown): DocumentRow {
-  const read = wireRow.document.parse(row);
+  const read = rowOf.document.parse(row);
   return {
     id: read.id,
     kind: read.kind,
@@ -204,7 +239,7 @@ function document(row: unknown): DocumentRow {
 }
 
 function entity(row: unknown): Entity {
-  const read = wireRow.entity.parse(row);
+  const read = rowOf.entity.parse(row);
   return {
     id: read.id,
     type: read.type,
@@ -218,10 +253,11 @@ function entity(row: unknown): Entity {
 }
 
 function relation(row: unknown): Relation {
-  const read = wireRow.relation.parse(row);
+  const read = rowOf.relation.parse(row);
   return {
     id: read.id,
     type: read.type,
+    proposedType: read.proposed_type,
     srcKind: read.src_kind,
     srcId: read.src_id,
     dstKind: read.dst_kind,
@@ -235,7 +271,7 @@ function relation(row: unknown): Relation {
 }
 
 function proposal(row: unknown): Proposal {
-  const read = wireRow.proposal.parse(row);
+  const read = rowOf.proposal.parse(row);
   return {
     id: read.id,
     op: read.op,
@@ -243,7 +279,7 @@ function proposal(row: unknown): Proposal {
     targetId: read.target_id,
     payload: payloadOf(read.op, read.payload),
     src: read.src,
-    names: read.names ?? [],
+    names: read.names,
     priorValue: priorValueOf(read.op, read.prior_value),
     confidence: read.confidence,
     dissent: read.dissent,
@@ -252,13 +288,14 @@ function proposal(row: unknown): Proposal {
     createdAt: read.created_at,
     decidedAt: read.decided_at,
     decidedBy: read.decided_by,
+    batchId: read.batch_id,
   };
 }
 
 // A run places an entity or it does not, so one half of a position is not a state the record
 // can hold: a row that carries one of the two arrives here as no position at all.
 function placement(row: unknown): EntityPlacement {
-  const read = wireRow.layout.parse(row);
+  const read = rowOf.layout.parse(row);
   const { x, y } = read;
   return {
     entityId: read.entity_id,
@@ -270,10 +307,14 @@ function placement(row: unknown): EntityPlacement {
 // four columns. A default word here would invent a measured position for a row the analyst said
 // nothing about, so `precision` passes through and it is never coalesced.
 function mapPosition(row: unknown): MapPosition {
-  const read = wireRow.fullMap.parse(row);
+  const read = rowOf.fullMap.parse(row);
+  const area = areaOf(read.geom);
   return {
     entityId: read.id,
-    point: pointOf(read.geom),
+    // An area has one mark, and it stands inside the area, so the rail, the selection and the
+    // relations read a point as they do for every other entity.
+    point: area === null ? pointOf(read.geom) : interiorPointOf(area),
+    area,
     precision: read.position_precision,
     parentId: read.parent_id,
   };
@@ -282,6 +323,7 @@ function mapPosition(row: unknown): MapPosition {
 /** Each one reads a row of the read API and gives the record row a surface works in. */
 export const toDomain = {
   entityType,
+  relationType,
   document,
   entity,
   relation,

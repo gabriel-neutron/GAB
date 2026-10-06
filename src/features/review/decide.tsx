@@ -9,9 +9,10 @@ import { VERDICT_WORDS } from './queue';
 import { VerdictMark } from './verdict-mark';
 
 export interface DecideProps {
-  /** What the act does to the row. It says whether the record can take a promotion of it. */
-  readonly kind: ChangeKind;
-  /** `null` while the act waits. The three controls act on one act, and never on a group. */
+  /** What the act does to the row, or a linked batch that the controls decide as one unit. It
+   * says whether the record can take a promotion of it. */
+  readonly kind: ChangeKind | 'batch';
+  /** `null` while the act or the batch waits. */
   readonly decision: Decision | null;
   /** One act reaches the record at a time. A second click sends a second decision on a row the
    * first one has already moved. */
@@ -47,13 +48,20 @@ const QUESTIONS: Readonly<Record<'promoted' | 'rejected', string>> = {
   rejected: 'Reject this act? A rejected act is frozen, and it never waits again.',
 };
 
+const BATCH_QUESTIONS: Readonly<Record<'promoted' | 'rejected', string>> = {
+  promoted:
+    'Promote every act of this batch? It writes all rows or none, and no door takes it back.',
+  rejected: 'Reject every act of this batch? A rejected act is frozen, and it never waits again.',
+};
+
 // External constraint: the record refuses a merge at promotion, because a merge has no write
 // path yet. The lookup is total, so a new kind states whether the record takes it.
-const NO_PROMOTION: Readonly<Record<ChangeKind, string | null>> = {
+const NO_PROMOTION: Readonly<Record<ChangeKind | 'batch', string | null>> = {
   add: null,
   edit: null,
   delete: null,
   merge: 'A merge has no write path yet.',
+  batch: null,
 };
 
 const CONFIRM: Readonly<Record<'promoted' | 'rejected', string>> = {
@@ -100,12 +108,11 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
         {/* The question is asked where the hand already is, and the hand may have left it. A
             reader meets the question because it interrupts, and never because it looks. */}
         <span role="alert" className={QUESTION}>
-          {QUESTIONS[stance.verdict]}
+          {(kind === 'batch' ? BATCH_QUESTIONS : QUESTIONS)[stance.verdict]}
         </span>
         <Button
-          // This control stands where `Reject` stood, and both are a button, so the node would
-          // be kept and the press that asked would land on `Reject it`. Only this one is keyed:
-          // a key on the row would drop the hand on all three paths.
+          // This control gets a node of its own, so the press that asked never lands on the answer
+          // that writes the row.
           key="confirm"
           variant={stance.verdict === 'rejected' ? 'destructive' : 'default'}
           size="xs"
@@ -123,6 +130,9 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
           {CONFIRM[stance.verdict]}
         </Button>
         <Button
+          // The control that keeps the act waiting takes the node of `Promote`, so the hand stays
+          // on it, whatever the merge note does to the positions.
+          key="stay"
           variant="outline"
           size="xs"
           className={KIT}
@@ -224,6 +234,8 @@ export function Decide({ kind, decision, busy, onDecide, onUndo }: DecideProps) 
         </span>
       )}
       <Button
+        // The control that keeps the act waiting takes this node when the question opens.
+        key="stay"
         size="xs"
         className={KIT}
         disabled={busy || noPromotion !== null}
