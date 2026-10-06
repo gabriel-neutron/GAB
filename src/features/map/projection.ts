@@ -10,6 +10,7 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
+import { relationWording } from '@/shared/relation-words';
 
 import { natoSymbol, type NatoSymbol } from './nato-symbol';
 
@@ -45,6 +46,8 @@ export interface GeoLink {
   readonly fid: number;
   readonly id: string;
   readonly type: string;
+  /** The words of the type, read from the source end. The hover label reads these. */
+  readonly typeWords: string;
   readonly from: GeoEntity;
   readonly to: GeoEntity;
   readonly sources: readonly string[];
@@ -218,6 +221,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
   const byId = new Map(entities.map((entity) => [entity.id, entity]));
 
   const links: GeoLink[] = [];
+  const wordsOf = relationWording(read.relationTypes);
   read.relations.forEach((relation) => {
     const from = relation.srcKind === 'entity' ? byId.get(relation.srcId) : undefined;
     const to = relation.dstKind === 'entity' ? byId.get(relation.dstId) : undefined;
@@ -226,6 +230,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
       fid: links.length,
       id: relation.id,
       type: relation.type,
+      typeWords: wordsOf(relation.type).label,
       from,
       to,
       sources: relation.sources,

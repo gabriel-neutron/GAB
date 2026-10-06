@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
+import { DATED_RELATIONS } from './relation-types.ts';
 
 /** The six acts the operator may sign. A merge is absent: no promotion path applies one. */
 export const WRITE_OPS = [
@@ -21,9 +22,9 @@ export type DecisionOp = (typeof DECISION_OPS)[number];
 /** The body of one decision. The act is taken from the address, as it is for a write. */
 export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
 
-// A relation carries an interval only when it states identity or control. The database holds
-// the same five words in a check constraint, and an interval elsewhere refuses the promotion.
-export const DATED_RELATIONS = ['owns', 'operates', 'flags', 'insures', 'appoints'] as const;
+// A relation carries an interval only when its type takes one. The database reads the same flag
+// on the type row, and an interval elsewhere refuses the promotion.
+export { DATED_RELATIONS };
 
 const endpointKind = z.enum(['entity', 'relation']);
 

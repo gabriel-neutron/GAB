@@ -876,7 +876,7 @@ export function mountMap({
       }
       if (hit.kind === 'link') {
         nameHover(
-          relationLines(hit.link.from.label, hit.link.type, hit.link.to.label),
+          relationLines(hit.link.from.label, hit.link.typeWords, hit.link.to.label),
           event.point,
         );
         return;

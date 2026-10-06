@@ -1,7 +1,6 @@
 # infra/vps — the VPS runbook
 
-The VPS does the coding and the tooling. Claude Code runs there, and a cron job starts the night
-run. The VPS also runs a **disposable** test stack and two services that hold no record of the
+The VPS does the coding and the tooling. Claude Code runs there. The VPS also runs a **disposable** test stack and two services that hold no record of the
 project: freellmapi and SearXNG. freellmapi keeps the provider keys in its volume. The real database, the writer and the worker stay on the operator's Windows PC. The VPS
 never holds the real data.
 
@@ -12,7 +11,6 @@ never holds the real data.
 | `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
 | `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
-| `night-run.sh` | The night run: lock, checks, time limit, `claude -p`. |
 
 Conventions: the user `claude`, checkouts under `/home/claude/projects/`. GAB is at
 `/home/claude/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
@@ -127,8 +125,7 @@ unset GH_TOKEN
 
 ## 5. freellmapi and SearXNG on the Tailscale address
 
-The env file stays outside the checkout, in `/home/claude/gab-services/`. An agent of the night run
-works in the checkout, and a deny rule does not stop a shell command that reads a file.
+The env file stays outside the checkout, in `/home/claude/gab-services/`. An agent works in the checkout, and a deny rule does not stop a shell command that reads a file.
 
 ```bash
 mkdir -p /home/claude/gab-services && chmod 700 /home/claude/gab-services
@@ -173,13 +170,12 @@ both services healthy. `sysctl net.ipv4.ip_nonlocal_bind` prints `= 1`.
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
 results, and `Invoke-RestMethod http://<VPS_TS_IP>:4001/api/ping` answers.
 
-## 6. Claude Code and the night run
+## 6. Claude Code
 
 Claude Code is already on the VPS for MerchantOS. The login belongs to `root`, so GAB uses it.
 The project settings come from the repository (`.claude/settings.json`). The local settings of
-step 4 add the PAT, an allow list and a deny list. The night run uses
-`--permission-mode acceptEdits`: a tool call outside the allow list is refused, and no prompt
-waits. Never use `--dangerously-skip-permissions` here: the VPS also holds MerchantOS.
+step 4 add the PAT, an allow list and a deny list. Never use `--dangerously-skip-permissions` here:
+the VPS also holds MerchantOS.
 
 The allow list and the deny list reduce mistakes. They are not a security control. `GH_TOKEN` is
 in the environment of each agent, and an allowed command such as `node` or `pnpm` can read it or
@@ -191,53 +187,26 @@ The docker compose rules of the allow list name one literal file,
 `/home/claude/projects/GAB/infra/docker-compose.yml`. A general `docker compose` rule gives root on the
 host: a volume mount can read every file, and `down -v` of another project deletes its data.
 
+The work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No cron job
+starts an agent.
+
 ```bash
 cd /home/claude/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
-chmod +x infra/vps/night-run.sh
-mkdir -p /home/claude/logs/gab-night
-crontab -e
 ```
-
-Add these lines. The times are UTC. The run starts at 00:30 UTC and stops at 05:30 UTC at the
-latest (`GAB_NIGHT_LIMIT`, default `5h`). Replace `<phase>` (the issue number of the phase ticket) and `<epic>` (the issue that gets the report) before each phase.
-
-```cron
-30 0 * * * /home/claude/projects/GAB/infra/vps/night-run.sh <phase> <epic>
-0 6 * * 0 find /home/claude/logs/gab-night -name '*.log' -mtime +30 -delete
-```
-
-Run `crontab -e` as the user `claude`, never as root. The script sets its own PATH, so the
-cron file needs no PATH line. The script holds `flock` on `~/.local/state/gab-night.lock`, so two runs never overlap. Before Claude
-Code starts, it stops on a wrong identity, a branch that is not `staging`, uncommitted changes,
-or a test stack that is not healthy. The log is
-`/home/claude/logs/gab-night/<UTC time>-phase<n>.log`.
-
-The allow list is a first version. After the first run, search the log for a refused tool call.
-Add a command to the allow list only when it is safe for an agent that nobody watches.
-
-**Check:** run the script once by hand on a small epic:
-`/home/claude/projects/GAB/infra/vps/night-run.sh <phase> <epic>`. The check passes only when the report
-comment of the run is on the epic issue. `END status=0` in the log alone does not prove that the
-workflow ended: `claude -p` can exit 0 after a refused tool call, or before the background
-workflow ran. The last line of the log gives the time of the last comment on the epic. Also, `tail -n 20
-/home/claude/logs/gab-night/*.log` shows `START`, then `END status=0`. Run it a second time while the
-first runs: the second log shows `STOP: another night run holds`.
 
 ## 7. The PC uses the VPS services
 
 The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. `packages/model/src/client.ts` reads the two model names below. The name of
-the SearXNG address does not exist in the code yet: the build ticket of ADR 0010 §9 step 6 must
-fix it.
+through Tailscale. `packages/model/src/client.ts` reads the two model names below.
 
 | Name | Value on the PC (`infra/.env`) |
 |---|---|
 | `FREELLMAPI_BASE_URL` | `http://<VPS_TS_IP>:4001/v1` |
 | `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
-| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` (name not fixed yet) |
+| `SEARXNG_URL` | `http://<VPS_TS_IP>:8888` |
 
-`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4). An agent chooses its gateway with its
+`OPENROUTER_API_KEY` stays the paid switch (ADR 0010). An agent chooses its gateway with its
 `endpoint` setting, `freellmapi` or `openrouter`, and the code has no default.
 
 **Check (PC):** with the key in `$k`,
@@ -248,27 +217,21 @@ lists the models. Do not paste the key into a chat or a ticket.
 
 | To stop | Command (VPS, in `/home/claude/projects/GAB`) |
 |---|---|
-| The night run, for good | `crontab -e`, put `#` before the `night-run.sh` line |
-| A run that is in progress | `pkill -f night-run.sh; pkill -f 'claude -p GAB night run'` |
 | freellmapi and SearXNG | `docker compose --env-file /home/claude/gab-services/.env -f infra/vps/services.compose.yml down` |
 | The test stack, keep data | `docker compose -f infra/docker-compose.yml down` |
 | The test stack, delete data | `docker compose -f infra/docker-compose.yml down -v` (test data only) |
 | GitHub access of the VPS | Revoke the VPS PAT on GitHub. The PC PAT stays valid. |
 | Tailscale access | `tailscale down`, or remove the VPS in the Tailscale admin console |
 
-A bad night run lands only as pull requests and branches into `staging`. To undo one, close the
+An agent lands its work only as pull requests and branches into `staging`. To undo one, close the
 PR, or `git revert` its merge on `staging`. Never force-push `staging`. Keep `down -v` of
 `services.compose.yml` for a full reset: it deletes the freellmapi volume and its provider keys.
 
-**Check:** `crontab -l | grep night-run` shows the line with `#`, and `docker ps` shows no
-container you stopped.
+**Check:** `docker ps` shows no container you stopped.
 
 ## 9. Daily check list
 
-- [ ] `tail -n 30 "$(ls -t /home/claude/logs/gab-night/*.log | head -1)"` ends with `END status=0`.
-      `124` means the time limit stopped the run.
-- [ ] `gh pr list --base staging` (PC) shows the PRs of the night. No PR targets `main`.
-- [ ] The report comment is on the epic issue.
+- [ ] `gh pr list --base staging` (PC) shows the open PRs. No PR targets `main`.
 - [ ] `docker ps --format '{{.Names}} {{.Status}}'` shows each container `healthy` or `Up`.
 - [ ] The freellmapi dashboard shows quota left for the day.
 - [ ] `df -h /` shows more than 10 GB free.

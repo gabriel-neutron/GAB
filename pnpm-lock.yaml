@@ -63,6 +63,9 @@ importers:
       '@gab/store':
         specifier: workspace:*
         version: link:packages/store
+      '@gab/worker':
+        specifier: workspace:*
+        version: link:packages/worker
       '@gab/writer':
         specifier: workspace:*
         version: link:packages/writer
@@ -266,6 +269,9 @@ importers:
       exiftool-vendored:
         specifier: ^38.3.0
         version: 38.3.0
+      playwright:
+        specifier: ^1.62.1
+        version: 1.62.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -279,12 +285,18 @@ importers:
 
   packages/worker:
     dependencies:
+      '@gab/model':
+        specifier: workspace:*
+        version: link:../model
       '@gab/store':
         specifier: workspace:*
         version: link:../store
       '@gab/text':
         specifier: workspace:*
         version: link:../text
+      '@gab/tools':
+        specifier: workspace:*
+        version: link:../tools
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -307,6 +319,12 @@ importers:
       '@gab/proposal':
         specifier: workspace:*
         version: link:../proposal
+      '@gab/store':
+        specifier: workspace:*
+        version: link:../store
+      '@gab/worker':
+        specifier: workspace:*
+        version: link:../worker
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.3)

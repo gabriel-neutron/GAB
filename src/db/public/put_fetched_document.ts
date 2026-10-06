@@ -14,4 +14,6 @@ export interface put_fetched_document_params {
   p_retrieved_at: Date;
 
   p_archive_uri?: string;
+
+  p_provider_id?: string;
 }

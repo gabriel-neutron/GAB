@@ -1,7 +1,9 @@
-import { relationTypeWords } from '@/shared/canvas-label';
 import type { EndpointKind, ProposalPayload } from '@/shared/read/model';
 
 type LabelOf = (id: string) => string | undefined;
+
+/** The words of a relation type, read from its source end. */
+export type TypeWordsOf = (type: string) => string;
 
 type PhrasedPayload = Extract<ProposalPayload, { readonly kind: 'relation' | 'merge' }>;
 
@@ -21,18 +23,31 @@ const endWords = (labelOf: LabelOf, end: End): string => {
   return labelOf(end.id) ?? `an entity absent from the record, ${shortId(end.id)}`;
 };
 
-export const relationPhrase = (labelOf: LabelOf, src: End, type: string | null, dst: End): string =>
-  `${endWords(labelOf, src)} ${type === null ? 'is linked to' : relationTypeWords(type)} ${endWords(labelOf, dst)}`;
+export const relationPhrase = (
+  labelOf: LabelOf,
+  typeWordsOf: TypeWordsOf,
+  src: End,
+  type: string | null,
+  dst: End,
+): string =>
+  `${endWords(labelOf, src)} ${type === null ? 'is linked to' : typeWordsOf(type)} ${endWords(labelOf, dst)}`;
 
 const entityEnd = (id: string | null): End => ({ kind: 'entity', id });
 
-export function payloadHeadline(labelOf: LabelOf, payload: PhrasedPayload): string {
+export function payloadHeadline(
+  labelOf: LabelOf,
+  typeWordsOf: TypeWordsOf,
+  payload: PhrasedPayload,
+): string {
   switch (payload.kind) {
     case 'relation':
-      return relationPhrase(labelOf, { kind: payload.src_kind, id: payload.src_id }, payload.type, {
-        kind: payload.dst_kind,
-        id: payload.dst_id,
-      });
+      return relationPhrase(
+        labelOf,
+        typeWordsOf,
+        { kind: payload.src_kind, id: payload.src_id },
+        payload.type,
+        { kind: payload.dst_kind, id: payload.dst_id },
+      );
     case 'merge':
       return `${payload.merge_ids.map((id) => endWords(labelOf, entityEnd(id))).join(', ')} into ${endWords(labelOf, entityEnd(payload.keep_id))}`;
   }
