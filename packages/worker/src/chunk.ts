@@ -10,11 +10,18 @@ export interface Chunk {
   readonly text: string;
 }
 
+/** Checks a chunk cap and gives it back. The configuration calls this at the start of the worker,
+ * so a cap out of range stops the start and no job. */
+export const checkChunkCap = (cap: number): number => {
+  if (!Number.isInteger(cap) || cap <= 0)
+    throw new Error('the chunk cap is a whole number of code points above zero');
+  return cap;
+};
+
 /** Cuts each page into parts of at most `cap` code points. A part never crosses a page, so the
  * model cites one page for each claim of a part. */
 export const chunkPages = (pages: readonly PageText[], cap: number): Chunk[] => {
-  if (!Number.isInteger(cap) || cap <= 0)
-    throw new Error('the chunk cap is a whole number of code points above zero');
+  checkChunkCap(cap);
 
   const chunks: Chunk[] = [];
   for (const { page, text } of pages) {

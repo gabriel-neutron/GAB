@@ -20,6 +20,15 @@ const read = (env: Env, name: string, shape: z.ZodType<string>): string => {
   return held.data;
 };
 
+/** Checks the name of a pinned model and gives it back. Under `auto` the gateway picks the model
+ * of each call, so one job could hold the work of two models. A pinned name is the only name that
+ * makes the served model checkable. */
+export const pinnedName = (pinned: string): string => {
+  const id = filled.parse(pinned);
+  if (id.toLowerCase() === 'auto') throw new Error('a model is pinned and never `auto`');
+  return id;
+};
+
 /** The one model of the free-model gateway that an agent pins. The address of the gateway depends
  * on the machine that hosts it, so the environment gives it and no code constant does. It throws
  * when a variable is absent or when the name is `auto`. */
@@ -28,10 +37,7 @@ export const gatewayModel = (
   env: Env = process.env,
   send?: Fetch,
 ): OpenAICompatibleChatLanguageModel => {
-  // Under `auto` the gateway picks the model of each call, so one job could hold the work of two
-  // models. A pinned name is the only name that makes the served model checkable.
-  const id = filled.parse(pinned);
-  if (id.toLowerCase() === 'auto') throw new Error('a model is pinned and never `auto`');
+  const id = pinnedName(pinned);
 
   const provider = createOpenAICompatible({
     name: GATEWAY,
