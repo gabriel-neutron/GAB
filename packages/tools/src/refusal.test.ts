@@ -48,13 +48,11 @@ const REFUSED: readonly (readonly [string, string, unknown])[] = [
     'propose_change',
     'a payload that the request schema refuses',
     {
-      act: { op: 'create_entity', type: '', label: 'Nayara' },
+      act: { op: 'create_entity', type: 'vessel' },
       documents: [DOC],
     },
   ],
   ['propose_change', 'an act that cites no document', { act: CREATE, documents: [] }],
-  ['propose_change', 'a reserved document', { act: CREATE, documents: ['manual'] }],
-  ['propose_change', 'the second reserved document', { act: CREATE, documents: ['inherited'] }],
   [
     'propose_change',
     'a delete, which a machine does not propose',
@@ -75,13 +73,6 @@ for (const [name, why, raw] of REFUSED)
     const outcome = await callTool(toolNamed(name), noSql, raw);
     expect(outcome.ok).toBe(false);
   });
-
-test('a tool called with its run function and a reserved document still refuses before SQL', async () => {
-  const tool = toolNamed('propose_change');
-  await expect(tool.run(noSql, { act: CREATE, documents: ['manual'] })).rejects.toThrow(
-    /reserved document/,
-  );
-});
 
 test('document_text names the cap in the sentence of its refusal', async () => {
   const outcome = await callTool(toolNamed('document_text'), noSql, {

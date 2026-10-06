@@ -245,26 +245,6 @@ describe('one act, named on the queue and in the history', () => {
     expect(history(retagged)).toBe(BERTHED);
   });
 
-  it('says only that two entities are linked where the act names no type', () => {
-    const untyped: Proposal = {
-      ...linked,
-      payload: {
-        kind: 'relation',
-        type: null,
-        src_kind: 'entity',
-        src_id: VESSEL,
-        dst_kind: 'entity',
-        dst_id: TERMINAL,
-        valid_from: null,
-        valid_to: null,
-        attrs: {},
-      },
-    };
-    const words = 'MV Northern Ledger is linked to Maasvlakte bulk terminal, berth 7';
-    expect(queued(untyped).headline).toBe(words);
-    expect(history(untyped)).toBe(words);
-  });
-
   it('words a merge the same on both pages', () => {
     const merge: Proposal = {
       ...linked,

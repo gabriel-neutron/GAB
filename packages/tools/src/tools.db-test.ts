@@ -345,7 +345,7 @@ test('propose_change refuses a relation whose end does not exist', async () => {
   expect(outcome).toMatchObject({ ok: false, refusal: expect.stringContaining(ABSENT) as string });
 });
 
-test('propose_change updates attributes and keeps the documents the value already held', async () => {
+test('propose_change updates attributes and cites the documents it names alone', async () => {
   const found = await rolledBack('research', async (ask) => {
     await withDocument(ask, ['page one']);
     const [held] = keyed.parse(await ask(KEYED));
@@ -381,7 +381,7 @@ test('propose_change refuses an update of a target that does not exist', async (
 test('propose_change refuses a payload that the proposal package refuses', async () => {
   const outcome = await rolledBack('research', (ask) =>
     call(ask, 'propose_change', {
-      act: { op: 'create_entity', type: '', label: 'Nayara' },
+      act: { op: 'create_entity', type: 'vessel' },
       documents: [DOC],
     }),
   );

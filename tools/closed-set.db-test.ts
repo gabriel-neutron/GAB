@@ -5,7 +5,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { CLOSED_SET } from '../src/shared/read/closed-set.ts';
+import { row } from '../src/shared/read/rows.ts';
 import { probe } from './probe.ts';
 
 const EVERY_CHECK = `
@@ -48,6 +48,18 @@ const named = (at: string): { table: string; column: string } => {
   if (table === undefined || column === undefined || rest.length > 0)
     throw new Error(`the key ${at} names no table and column`);
   return { table, column };
+};
+
+// Each closed set the rows of the read API state, named by the table and the column of the CHECK.
+const CLOSED_SET: Readonly<Record<string, readonly string[]>> = {
+  'documents.kind': row.document.shape.kind.options,
+  'documents.admiralty_origin': row.document.shape.admiralty_origin.unwrap().options,
+  'relations.src_kind': row.relation.shape.src_kind.options,
+  'relations.dst_kind': row.relation.shape.dst_kind.options,
+  'proposals.op': row.proposal.shape.op.options,
+  'proposals.target_kind': row.proposal.shape.target_kind.unwrap().options,
+  'proposals.author_role': row.proposal.shape.author_role.options,
+  'proposals.status': row.proposal.shape.status.options,
 };
 
 const declared = await readChecks();
