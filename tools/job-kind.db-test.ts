@@ -71,6 +71,19 @@ for (const kind of ['store_only', 'second_read'])
     ).rejects.toMatchObject({ code: '22023' });
   });
 
+// The second reader is gone, so a job of its kind that an old database still holds is never taken.
+test('claim_job takes no job of the second reader', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) => {
+      await ask(PUT_WITH_BYTES, [WITH_BYTES]);
+      await ask(`INSERT INTO public.jobs (document_id, kind) VALUES ($1, 'second_read')`, [
+        WITH_BYTES,
+      ]);
+      await claimUntil(ask, WITH_BYTES);
+    }),
+  ).rejects.toThrow(/held no job/);
+});
+
 test('enqueue_job refuses a second open job of one kind and accepts another kind', async () => {
   const held = await rolledBack('app', async (ask) => {
     await ask(PUT_WITH_BYTES, [WITH_BYTES]);

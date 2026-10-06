@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
-import { defineTool, ToolRefusal, type Session } from './tool.ts';
+import { defineTool, ToolRefusal, type ItemToCheck, type Session } from './tool.ts';
 
 /** How a page states a claim. A caller picks one word, and code decides what follows from it. */
 export const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
@@ -23,6 +23,8 @@ const PROPOSED_OPS: readonly string[] = ['create_entity', 'create_relation', 'up
 const MAX_ITEMS = 50;
 const MAX_EVIDENCE = 10;
 const MAX_EXCERPT = 600;
+// The words on each side of a passage that a checker reads with it, in code points.
+const CONTEXT_POINTS = 300;
 
 /** A local name of one item. A relation of the same batch names an entity by it. */
 const localRef = z
@@ -135,6 +137,7 @@ interface Cited {
   readonly page: number;
   readonly span: Span;
   readonly passage: string;
+  readonly context: string;
 }
 
 function refuse(ref: string, reason: string): never {
@@ -164,12 +167,16 @@ const cite = async (
       `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
         `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
+  const points = Array.from(page.text);
   return {
     document: given.document,
     textExtractor: page.extractor,
     page: given.page,
     span,
-    passage: Array.from(page.text).slice(span.start, span.end).join(''),
+    passage: points.slice(span.start, span.end).join(''),
+    context: points
+      .slice(Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS)
+      .join(''),
   };
 };
 
@@ -283,7 +290,7 @@ export const propose = defineTool({
     modelCallId: z.uuid().optional(),
   }),
   output: z.strictObject({ proposals: z.array(outcome) }),
-  async run(session, input) {
+  async run(session, input, reach) {
     const minted = new Map<string, Minted>();
     input.items.forEach((given, index) => {
       if (minted.has(given.ref)) refuse(given.ref, 'two items of the batch have this ref');
@@ -306,6 +313,21 @@ export const propose = defineTool({
       prepared.push({ given, act: draft.act, cited, unstated, id: minted.get(given.ref)?.id });
     }
 
+    // The check runs before the insert, because the door freezes the dispute flag at insert.
+    const toCheck: ItemToCheck[] = prepared.map(({ given, cited }) => ({
+      ref: given.ref,
+      claim: { act: given.act, originator: given.originator, modality: given.modality },
+      passages: cited.map((one) => ({
+        document: one.document,
+        page: one.page,
+        excerpt: one.passage,
+        context: one.context,
+      })),
+    }));
+    const supported = reach?.check === undefined ? null : await reach.check(toCheck);
+    const disputed = (ref: string, unstated: readonly string[]): boolean =>
+      unstated.length > 0 || (supported !== null && !supported.has(ref));
+
     const items = prepared.map(({ given, act, cited, unstated, id }) => {
       return {
         id,
@@ -315,7 +337,7 @@ export const propose = defineTool({
         target_kind: act.targetKind,
         target_id: act.targetId,
         names: act.names,
-        dissent: unstated.length > 0,
+        dissent: disputed(given.ref, unstated),
         model_call_id: input.modelCallId ?? null,
         originator: given.originator,
         modality: given.modality,
@@ -351,7 +373,7 @@ export const propose = defineTool({
           ref: given.ref,
           proposalId: row.proposal_id,
           written: row.written,
-          disputed: unstated.length > 0,
+          disputed: disputed(given.ref, unstated),
           unstated,
         };
       }),

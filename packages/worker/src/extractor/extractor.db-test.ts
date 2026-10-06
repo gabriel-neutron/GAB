@@ -5,10 +5,13 @@ import { z } from 'zod';
 import type { RunnerAgent } from '../agents.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
+  CHECKER,
+  claimsOf,
   completionOf,
   depsOf,
   gatewayOf,
-  STUB_MODEL,
+  READER,
+  verdictsOf,
   type StubGateway,
 } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
@@ -40,8 +43,8 @@ const CAP = Array.from(FIRST_CHUNK).length;
 const PAGE = FIRST_CHUNK + SECOND_CHUNK;
 
 const CONFIG: ReaderConfig = {
-  model: STUB_MODEL,
-  family: 'stub-family',
+  reader: READER,
+  checker: CHECKER,
   tokenCap: 10_000,
   turnCap: 10,
   chunkCap: CAP,
@@ -58,6 +61,10 @@ const itemOf = (ref: string, label: string, type: string, excerpt: string) => ({
 const NAYARA = itemOf('nayara', 'Nayara', 'vessel', 'The tanker Nayara');
 const ROSNEFT = itemOf('rosneft', 'Rosneft', 'company', 'Rosneft owns it');
 const INVENTED = itemOf('ghost', 'Ghost', 'vessel', 'The tanker Ghost');
+// Two claims of one passage, which the checker reads in one question.
+const LEFT = 'The tanker Nayara left Sikka';
+const NAYARA_LEFT = itemOf('nayara', 'Nayara', 'vessel', LEFT);
+const SIKKA = itemOf('sikka', 'Sikka', 'port', LEFT);
 
 const answerOf = (items: readonly unknown[]): Response => completionOf(JSON.stringify({ items }));
 
@@ -231,7 +238,7 @@ test('a model that never stops calling a tool fails the job with turn_cap', asyn
       () =>
         new Response(
           JSON.stringify({
-            model: STUB_MODEL.model,
+            model: READER.model,
             choices: [
               {
                 message: {
@@ -273,5 +280,101 @@ test('a spent token cap fails the job with usage_cap', async () => {
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
     expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'usage_cap' });
+  });
+});
+
+const dissentOf = async (held: Held): Promise<Record<string, boolean>> =>
+  Object.fromEntries((await citedOf(held)).map((row) => [row.label, row.dissent]));
+
+const calls = z.array(z.object({ requested_model: z.string(), outcome: z.string() }));
+
+const callsOf = async (held: Held) =>
+  calls.parse(
+    (
+      await held.client.query(
+        `SELECT requested_model, outcome FROM public.model_call WHERE job_id = $1
+          ORDER BY requested_model`,
+        [held.job],
+      )
+    ).rows,
+  );
+
+test('a model of another family checks each item, and an item it does not support is disputed', async () => {
+  await inTransaction(async (held) => {
+    const checked: string[][] = [];
+    const gateway = gatewayOf(
+      (call) => answerOf(call === 1 ? [NAYARA_LEFT, SIKKA] : [ROSNEFT]),
+      (_call, body) => {
+        const refs = claimsOf(body);
+        checked.push(refs);
+        return verdictsOf(
+          refs.map(
+            (ref) =>
+              [
+                ref,
+                ref === 'nayara' ? 'supported' : ref === 'sikka' ? 'unclear' : 'not_supported',
+              ] as const,
+          ),
+        );
+      },
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    // One question for each passage, and one verdict for each item.
+    expect(checked).toStrictEqual([['nayara', 'sikka'], ['rosneft']]);
+    expect(await dissentOf(held)).toStrictEqual({ Nayara: false, Rosneft: true, Sikka: true });
+    expect(await callsOf(held)).toStrictEqual([
+      { requested_model: CHECKER.model, outcome: 'ok' },
+      { requested_model: CHECKER.model, outcome: 'ok' },
+      { requested_model: READER.model, outcome: 'ok' },
+      { requested_model: READER.model, outcome: 'ok' },
+    ]);
+  });
+});
+
+test('a checker that fails drops no item, and marks each one as disputed', async () => {
+  await inTransaction(async (held) => {
+    const gateway = gatewayOf(
+      (call) => answerOf(call === 1 ? [NAYARA] : [ROSNEFT]),
+      (call, body) =>
+        call === 1
+          ? new Response(JSON.stringify({ error: { message: 'down' } }), { status: 401 })
+          : // Two verdicts for one item are no verdict.
+            verdictsOf([
+              ...claimsOf(body).map((ref) => [ref, 'supported'] as const),
+              ['rosneft', 'unclear'],
+            ]),
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await dissentOf(held)).toStrictEqual({ Nayara: true, Rosneft: true });
+  });
+});
+
+test('a checker that another model answers is refused, and the item is disputed', async () => {
+  await inTransaction(async (held) => {
+    const gateway = gatewayOf(
+      (call) => answerOf(call === 1 ? [NAYARA] : []),
+      (_call, body) =>
+        completionOf(
+          JSON.stringify({
+            verdicts: claimsOf(body).map((ref) => ({ ref, verdict: 'supported' })),
+          }),
+          READER.model,
+        ),
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await dissentOf(held)).toStrictEqual({ Nayara: true });
+    expect((await callsOf(held)).map((row) => row.outcome)).toContain('served_other');
   });
 });

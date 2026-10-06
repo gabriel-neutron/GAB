@@ -998,7 +998,7 @@ DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','second_read')
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;

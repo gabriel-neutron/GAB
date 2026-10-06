@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { readReaderConfig } from './reader-config.ts';
+import { readExtractorConfig } from './reader-config.ts';
 
 const FULL = {
-  EXTRACTOR_ENDPOINT: 'freellmapi',
   EXTRACTOR_MODEL: 'a-family/a-model',
   EXTRACTOR_FAMILY: 'a-family',
   EXTRACTOR_FIRST_WAIT_MS: '1000',
@@ -14,21 +13,40 @@ const FULL = {
   EXTRACTOR_TOKEN_CAP: '50000',
   EXTRACTOR_TURN_CAP: '40',
   EXTRACTOR_CHUNK_CAP: '6000',
+  CHECKER_MODEL: 'b-family/b-model',
+  CHECKER_FAMILY: 'b-family',
+  CHECKER_FIRST_WAIT_MS: '500',
+  CHECKER_WAIT_GROWTH: '3',
+  CHECKER_MAX_WAIT_MS: '30000',
+  CHECKER_TIMEOUT_MS: '20000',
+  CHECKER_MAX_ANSWER_TOKENS: '800',
 };
 
-describe('the configuration of a reader', () => {
+describe('the configuration of the extractor', () => {
   it('reads every value from the environment', () => {
-    expect(readReaderConfig('EXTRACTOR', FULL)).toStrictEqual({
-      model: {
-        endpoint: 'freellmapi',
+    expect(readExtractorConfig(FULL)).toStrictEqual({
+      reader: {
         model: 'a-family/a-model',
-        firstWaitMs: 1000,
-        waitGrowth: 2,
-        maxWaitMs: 60000,
-        timeoutMs: 30000,
-        maxAnswerTokens: 2000,
+        family: 'a-family',
+        line: {
+          firstWaitMs: 1000,
+          waitGrowth: 2,
+          maxWaitMs: 60000,
+          timeoutMs: 30000,
+          maxAnswerTokens: 2000,
+        },
       },
-      family: 'a-family',
+      checker: {
+        model: 'b-family/b-model',
+        family: 'b-family',
+        line: {
+          firstWaitMs: 500,
+          waitGrowth: 3,
+          maxWaitMs: 30000,
+          timeoutMs: 20000,
+          maxAnswerTokens: 800,
+        },
+      },
       tokenCap: 50000,
       turnCap: 40,
       chunkCap: 6000,
@@ -38,28 +56,34 @@ describe('the configuration of a reader', () => {
   for (const name of Object.keys(FULL))
     it(`stops with a sentence that names ${name} when it is absent`, () => {
       const env = Object.fromEntries(Object.entries(FULL).filter(([held]) => held !== name));
-      expect(() => readReaderConfig('EXTRACTOR', env)).toThrow(new RegExp(name, 'u'));
+      expect(() => readExtractorConfig(env)).toThrow(new RegExp(name, 'u'));
     });
 
   it('stops on a blank value', () => {
-    expect(() => readReaderConfig('EXTRACTOR', { ...FULL, EXTRACTOR_FAMILY: '  ' })).toThrow(
+    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_FAMILY: '  ' })).toThrow(
       /EXTRACTOR_FAMILY/u,
     );
   });
 
   it('stops on the model auto', () => {
-    expect(() => readReaderConfig('EXTRACTOR', { ...FULL, EXTRACTOR_MODEL: 'auto' })).toThrow(
-      /EXTRACTOR_MODEL.*auto/u,
+    expect(() => readExtractorConfig({ ...FULL, CHECKER_MODEL: 'auto' })).toThrow(
+      /CHECKER_MODEL.*auto/u,
     );
   });
 
   it('stops on a number that is not a whole number above zero', () => {
-    expect(() => readReaderConfig('EXTRACTOR', { ...FULL, EXTRACTOR_TURN_CAP: '0' })).toThrow(
+    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_TURN_CAP: '0' })).toThrow(
       /EXTRACTOR_TURN_CAP/u,
     );
   });
 
+  it('stops when the checker is of the family of the reader', () => {
+    expect(() => readExtractorConfig({ ...FULL, CHECKER_FAMILY: ' A-Family ' })).toThrow(
+      /CHECKER_FAMILY.*another family/u,
+    );
+  });
+
   it('holds no default: an empty environment names the first value it needs', () => {
-    expect(() => readReaderConfig('EXTRACTOR', {})).toThrow(/EXTRACTOR_/u);
+    expect(() => readExtractorConfig({})).toThrow(/EXTRACTOR_/u);
   });
 });
