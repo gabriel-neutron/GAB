@@ -8,7 +8,13 @@ import { z } from 'zod';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
-import { defineTool, ToolRefusal, type ItemToCheck, type Session } from './tool.ts';
+import {
+  defineTool,
+  ToolRefusal,
+  type CheckVerdict,
+  type ItemToCheck,
+  type Session,
+} from './tool.ts';
 
 /** How a page states a claim. A caller picks one word, and code decides what follows from it. */
 export const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
@@ -286,6 +292,35 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     refuse(ref, `the target ${act.targetId} does not exist`);
 };
 
+type UnstatedValue = ReturnType<typeof unstatedValues>[number];
+
+// Origin: the length that the record keeps. A longer reason is cut, so a long answer of the
+// checker never refuses the batch.
+const MAX_REASON = 1000;
+
+// Why an item is disputed, in the words that the review card shows, or null when nothing disputes
+// it. No answer of the checker on an item disputes it: a failure never lets an item pass.
+const disputeReason = (
+  unstated: readonly UnstatedValue[],
+  verdict: CheckVerdict | 'unchecked' | undefined,
+): string | null => {
+  const parts: string[] = [];
+  if (unstated.length > 0)
+    parts.push(
+      `no cited passage states ${unstated
+        .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
+        .join(', ')}`,
+    );
+  if (verdict === undefined) parts.push('the checker did not answer');
+  else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
+    parts.push(
+      verdict.reason.trim() === ''
+        ? `the checker says ${verdict.verdict}`
+        : `the checker says ${verdict.verdict}: ${verdict.reason.trim()}`,
+    );
+  return parts.length === 0 ? null : Array.from(parts.join('; ')).slice(0, MAX_REASON).join('');
+};
+
 const outcome = z.strictObject({
   ref: z.string(),
   proposalId: z.uuid(),
@@ -345,11 +380,12 @@ const proposeOf = (modelCallId: string | null) =>
           context: one.context,
         })),
       }));
-      const supported = reach?.check === undefined ? null : await reach.check(toCheck);
-      const disputed = (ref: string, unstated: readonly string[]): boolean =>
-        unstated.length > 0 || (supported !== null && !supported.has(ref));
+      const verdicts = reach?.check === undefined ? null : await reach.check(toCheck);
+      const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
+        disputeReason(unstated, verdicts === null ? 'unchecked' : verdicts.get(ref));
 
       const items = prepared.map(({ given, act, cited, unstated, id }) => {
+        const reason = reasonOf(given.ref, unstated);
         return {
           id,
           op: act.op,
@@ -358,7 +394,8 @@ const proposeOf = (modelCallId: string | null) =>
           target_kind: act.targetKind,
           target_id: act.targetId,
           names: act.names,
-          dissent: disputed(given.ref, unstated),
+          dissent: reason !== null,
+          dissent_reason: reason,
           model_call_id: modelCallId,
           originator: given.originator,
           modality: given.modality,
@@ -394,8 +431,8 @@ const proposeOf = (modelCallId: string | null) =>
             ref: given.ref,
             proposalId: row.proposal_id,
             written: row.written,
-            disputed: disputed(given.ref, unstated),
-            unstated,
+            disputed: reasonOf(given.ref, unstated) !== null,
+            unstated: [...new Set(unstated.map((one) => one.name))],
           };
         }),
       };

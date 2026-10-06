@@ -14,13 +14,18 @@ The user message is a JSON object. `passages` lists the passages: the document, 
 3. A claim is `not_supported` when the passages state a different value, or state the opposite.
 4. A claim is `unclear` when the passages do not let you decide.
 5. Do not give a confidence or a score.
+6. For a claim that is `not_supported` or `unclear`, give a `reason`: one short sentence that
+   names the value that the passages do not state, or state in another way.
 
 ## The answer
 
 Give one JSON object, and nothing else. Give one verdict for each claim, with its `ref`:
 
 ```json
-{ "verdicts": [{ "ref": "e1", "verdict": "supported" }] }
+{ "verdicts": [
+  { "ref": "e1", "verdict": "supported" },
+  { "ref": "e2", "verdict": "not_supported", "reason": "The passage gives 2019, not 2021." }
+] }
 ```
 
 `verdict` is one of `supported`, `not_supported` or `unclear`. Give no other key.

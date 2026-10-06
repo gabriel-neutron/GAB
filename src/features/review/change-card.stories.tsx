@@ -19,7 +19,7 @@ const ADDITION = CONTESTED.changes.find((change) => change.kind === 'add') ?? CH
 
 const meta = {
   component: ChangeCard,
-  args: { change: CHANGE, current: true, passages: { state: 'held', passages: [] } },
+  args: { change: CHANGE, current: true, passages: { state: 'held', passages: [], dispute: null } },
   parameters: { layout: 'fullscreen' },
   // The width of one card when two stand side by side. Every mark must survive it.
   render: (args) => (
@@ -47,7 +47,11 @@ export const OnlyWhatThisActLacksIsDrawn: Story = {
 /** An act that only names keys the record does not hold is an addition. The name of the
  * operation says `update`, and what the act does is what the card draws. */
 export const AnActThatOnlyAddsKeysReadsAsAnAddition: Story = {
-  args: { change: ADDITION, current: true, passages: { state: 'held', passages: [] } },
+  args: {
+    change: ADDITION,
+    current: true,
+    passages: { state: 'held', passages: [], dispute: null },
+  },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText('Addition')).toBeInTheDocument();
     await expect(canvas.queryByText('Modification')).toBeNull();
@@ -63,6 +67,33 @@ export const ADisputedActSaysDisputed: Story = {
     await expect(routing).not.toBeNull();
     await expect(canvas.getByText('disputed')).toBeInTheDocument();
     await expect(canvas.getByText('Here because a check disputes it.')).toBeInTheDocument();
+  },
+};
+
+/** A disputed act says why, in the words that the check recorded: the value that its passage does
+ * not state, or the verdict of the checker and its reason. */
+export const ADisputedActSaysWhy: Story = {
+  args: {
+    passages: {
+      state: 'held',
+      passages: [],
+      dispute: 'no cited passage states attrs.flag "Panama"; the checker did not answer',
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const why = canvasElement.querySelector('[data-dispute]');
+    await expect(why).not.toBeNull();
+    await expect(
+      canvas.getByText('no cited passage states attrs.flag "Panama"; the checker did not answer'),
+    ).toBeInTheDocument();
+  },
+};
+
+/** With no recorded reason, the card states no reason, and still says that the act is disputed. */
+export const ADisputeWithNoRecordedReasonStatesNone: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-dispute]')).toBeNull();
+    await expect(canvas.getByText('disputed')).toBeInTheDocument();
   },
 };
 
