@@ -7,9 +7,9 @@ export const PROFILE_LIMIT = 8;
 // tool calls it. The mapper holds no tool until its first tool is built. The fetch tool stores a
 // document, and the chat reads as a role that stores nothing, so the chat profile does not hold it.
 export const PROFILES = {
-  // The archive tool and the news tool are in no profile, because this one is full. The research
-  // MCP server still offers both in its web group, and its graph group still offers the entity
-  // lookup, so the research model keeps that lookup there.
+  // A profile holds at most eight tools. The entity lookup left this profile for that reason, and
+  // the archive tool and the news tool are in no profile. The research MCP server still offers all
+  // three, in its graph group and its web group, so the research model keeps them there.
   research: [
     'search_graph',
     'neighbourhood',

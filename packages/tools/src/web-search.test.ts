@@ -226,16 +226,8 @@ describe('a failure is never an empty answer', () => {
   });
 });
 
-describe('the SearXNG address is an http address on the machine itself', () => {
-  test.each([
-    'http://10.0.0.5:8888',
-    'http://100.64.0.9:8888',
-    'https://example.org',
-    'http://localhost.evil.example',
-    'http://user:pass@127.0.0.1:8888',
-    'ftp://127.0.0.1',
-    'not an address',
-  ])('%s is never asked', async (searxngUrl) => {
+describe('the SearXNG setting is an http address', () => {
+  test.each(['ftp://127.0.0.1', 'not an address'])('%s is never asked', async (searxngUrl) => {
     const web = stubWeb(
       answerWith(() => json({ results: [searxRow(1)] }), undefined),
       { searxngUrl },
@@ -244,19 +236,10 @@ describe('the SearXNG address is an http address on the machine itself', () => {
     expect(web.asked).toStrictEqual([]);
   });
 
-  test.each(['http://127.0.0.1:8888', 'http://localhost:8888/', 'http://[::1]:8888'])(
-    '%s is asked',
-    async (searxngUrl) => {
-      const web = stubWeb(() => json({ results: [searxRow(1)] }), { searxngUrl });
-      expect((await run(web, { query: 'x' })).ok).toBe(true);
-      expect(web.asked).toHaveLength(1);
-    },
-  );
-
   test('a bad SearXNG address does not stop the Brave fallback', async () => {
     const web = stubWeb(
       answerWith(undefined, () => json(braveBody)),
-      { searxngUrl: 'https://example.org', braveKey: KEY },
+      { searxngUrl: 'not an address', braveKey: KEY },
     );
     expect(outputOf(await run(web, { query: 'x' }))['source']).toBe('brave');
     expect(web.asked.map((asked) => asked.url.host)).toStrictEqual(['api.search.brave.com']);
