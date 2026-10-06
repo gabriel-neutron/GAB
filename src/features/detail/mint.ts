@@ -17,7 +17,7 @@ export interface MintForm {
 
 /** The act one minted claim carries, or the sentence that says why no act can be made. The kind
  * is carried out so that the analyst reads it before the act leaves the browser. */
-export type MintDraft =
+type MintDraft =
   | {
       readonly ready: true;
       readonly attrs: AttributeEdit;

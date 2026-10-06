@@ -73,7 +73,7 @@ export const refusalFrom = (cause: unknown, proposalId: string | null = null): s
 
 /** What one failure is. A refusal came from a statement, and nothing was written. A doubt came
  * from no statement, so the act may stand in the record. */
-export type Failure =
+type Failure =
   | { readonly raised: true; readonly refusal: string }
   | { readonly raised: false; readonly doubt: string };
 

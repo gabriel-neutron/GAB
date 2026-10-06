@@ -13,7 +13,7 @@ interface SignedRefusal {
 }
 
 /** What one request became. The caller maps the outcome, and takes no decision of its own. */
-export type SignedAct =
+type SignedAct =
   | {
       readonly outcome: 'signed';
       readonly reply: {

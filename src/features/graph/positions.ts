@@ -42,7 +42,7 @@ const reachOf = (stored: ReadonlyMap<string, EntityPosition>): number => {
 
 /** Where the canvas draws each entity, and how many of them the layout run never placed and the
  * band therefore holds. */
-export interface GraphPlacement {
+interface GraphPlacement {
   readonly positions: ReadonlyMap<string, NodePosition>;
   readonly unplaced: number;
 }

@@ -37,14 +37,12 @@ export function groundSource(ground: Ground, imagery: Imagery): GroundSource {
   return ground === 'plan' ? PLAN : imageryGround(imagery);
 }
 
-export const planIsHosted = (): boolean => hosted() !== null;
-
 // `raster-brightness-min: 1` with `raster-brightness-max: 0` inverts the luminance of one layer,
 // and a half turn of the hue puts the water back to blue. A CSS filter cannot do this, because
 // there is one canvas and the entity points are on it.
 const IMAGERY_DARK = 0.7;
 
-export interface GroundPaint {
+interface GroundPaint {
   readonly 'raster-brightness-min': number;
   readonly 'raster-brightness-max': number;
   readonly 'raster-hue-rotate': number;

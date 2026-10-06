@@ -5,7 +5,7 @@ export interface LayoutLink {
 }
 
 /** Where one entity is drawn. The units are the units of the picture and never pixels. */
-export interface LayoutPosition {
+interface LayoutPosition {
   readonly id: string;
   readonly x: number;
   readonly y: number;

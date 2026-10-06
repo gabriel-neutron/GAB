@@ -14,7 +14,7 @@ export interface LinkForm {
 }
 
 /** The act the button will send, or the one sentence the analyst reads instead. */
-export type LinkDraft =
+type LinkDraft =
   | { readonly ready: true; readonly act: Extract<ElementAct, { op: 'create_relation' }> }
   | { readonly ready: false; readonly reason: string };
 

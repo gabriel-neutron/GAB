@@ -8,7 +8,7 @@ import { DEFAULT_IMAGERY, type Imagery } from './imagery';
 import { ImageryControl } from './imagery-control';
 import type { Ground } from './workspace';
 
-export interface GroundControlProps {
+interface GroundControlProps {
   readonly map: RefObject<MapHandle | null>;
 }
 

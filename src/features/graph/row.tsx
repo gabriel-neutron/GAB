@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils';
 
 import type { RailOpenList } from './entity-list';
 
-export interface IndexRowsProps {
+interface IndexRowsProps {
   readonly list: RailOpenList;
   readonly onSelect: (id: string) => void;
   readonly onShowWholeList: () => void;

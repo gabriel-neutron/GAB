@@ -1,7 +1,7 @@
 import type { DocId } from '@/shared/read/model';
 
 /** The two surfaces that draw one named entity. Each reads the identity from the address. */
-export type Surface = 'map' | 'graph';
+type Surface = 'map' | 'graph';
 
 // Both exports are one job: each builds an address of this application, and each holds the one
 // encoding rule. No identifier shape is settled, so an unencoded `&`, `#`, `?` or space would

@@ -13,7 +13,7 @@ const CITED = 'SELECT id, s3_key FROM public.documents WHERE s3_key IS NOT NULL'
 const cited = z.array(z.object({ id: z.string().min(1), s3_key: z.string().min(1) }));
 
 /** What the bucket and the index disagree on. Two empty lists say the two of them agree. */
-export interface CorpusMismatch {
+interface CorpusMismatch {
   readonly objectsWithNoRow: readonly string[];
   readonly rowsWithNoObject: readonly { readonly documentId: string; readonly key: string }[];
 }
