@@ -21,10 +21,11 @@ test('the catalogue holds the thirteen tools that are built, once each', () => {
   ]);
 });
 
-test('the five profiles are data, and the real data passes the check', () => {
+test('the six profiles are data, and the real data passes the check', () => {
   expect(Object.keys(PROFILES)).toStrictEqual([
     'research',
     'extractor',
+    'reader2',
     'mapper',
     'verifier',
     'chat',
@@ -88,4 +89,11 @@ test('the extractor profile holds the two reads of its model and the two writes 
     'propose_change',
     'put_claim_reading',
   ]);
+});
+
+test('the second reader holds the read of its chunk and the write of its code, and nothing more', () => {
+  expect(PROFILES.reader2).toStrictEqual(['document_text', 'put_claim_reading']);
+  expect(PROFILES.reader2).not.toContain('proposal_read');
+  expect(PROFILES.reader2).not.toContain('propose_change');
+  expect(PROFILES.reader2).not.toContain('lookup_entity');
 });

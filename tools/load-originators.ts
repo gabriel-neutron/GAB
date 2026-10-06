@@ -473,6 +473,38 @@ export const checkedMapName = (file: string): void => {
 const PROPOSED_HEADER = ['id', 'canonical_id', 'kind', 'path', 'match_reason'] as const;
 const MAP_HEADER = ['id', 'canonical_id', 'document_id', 'claim_ids'] as const;
 
+/** One map row for each S-id of the report, a refused row too. A claim that cites a refused S-id
+ * then finds that S-id in the map with an empty document id. The claim ids are the raw text of
+ * the claim ids cell of the source list, so the claims load reads them as the operator wrote
+ * them. */
+export const sourcesMapRows = (
+  report: OriginatorReport,
+  sources: readonly Fields[],
+): readonly (readonly string[])[] => {
+  const claimIds = new Map<string, string[]>();
+  for (const row of sources) {
+    const id = row['id'] ?? '';
+    const cell = row['claims_ids'] ?? '';
+    if (id === '') continue;
+    const cells = claimIds.get(id) ?? [];
+    if (cell !== '' && !cells.includes(cell)) cells.push(cell);
+    claimIds.set(id, cells);
+  }
+  const written = new Set<string>();
+  return report.rows.flatMap((row) => {
+    if (!claimIds.has(row.id) || written.has(row.id)) return [];
+    written.add(row.id);
+    return [
+      [
+        row.id,
+        row.canonicalId ?? '',
+        row.documentId ?? '',
+        (claimIds.get(row.id) ?? []).join(', '),
+      ],
+    ];
+  });
+};
+
 const filesUnder = async (folder: string): Promise<readonly string[]> =>
   (await readdir(folder, { recursive: true, withFileTypes: true }))
     .filter((entry) => entry.isFile())
@@ -560,15 +592,9 @@ const loadRun = async (
     for (const row of report.rows) console.log(`${row.status.padEnd(9)} ${row.id}  ${row.detail}`);
     console.log(report.licence);
 
-    // Claim ids stay empty: no claim table exists yet, so no claim has an id to cite.
     await writeFile(
       join(out, 'sources-map.csv'),
-      csvOfRows(
-        MAP_HEADER,
-        report.rows
-          .filter((row) => row.canonicalId !== undefined)
-          .map((row) => [row.id, row.canonicalId ?? '', row.documentId ?? '', '']),
-      ),
+      csvOfRows(MAP_HEADER, sourcesMapRows(report, sources)),
     );
     return report.rows.some((row) => row.status === 'refused' || row.status === 'partial') ? 1 : 0;
   } finally {

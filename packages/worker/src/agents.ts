@@ -1,4 +1,4 @@
-import type { AgentModel, Failure, Question } from '@gab/model';
+import type { AgentModel, Failure, Question, ReasonKind } from '@gab/model';
 
 import type { ClaimedJob } from './claim.ts';
 import type { KeyParts } from './idempotency.ts';
@@ -75,5 +75,8 @@ export interface RunnerAgent {
   readonly questionsPerJob: number;
   /** The soft stop of the tokens of one job. */
   readonly tokenCap: number;
+  /** The failures of the model that return the job to the queue with no attempt spent, each with
+   * the reason that the runner gives. With none, a spent quota alone does it. */
+  readonly releaseOn?: Readonly<Partial<Record<ReasonKind, string>>>;
   readonly run: (context: AgentContext) => Promise<AgentResult>;
 }

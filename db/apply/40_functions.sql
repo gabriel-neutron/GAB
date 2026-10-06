@@ -499,6 +499,45 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE SECOND READER ASKS THIS BEFORE IT ASKS A MODEL. A requeued job must not pay the model again
+-- for a chunk whose readings are already stored, and the key of each reading holds the reading
+-- itself, so no key is known before the call. The check matches what is known before the call:
+-- the second reader, the document of the job, the chunk, the fingerprint and the input form.
+--
+-- IT READS AND WRITES NOTHING ELSE, AND IT RETURNS A BOOLEAN ALONE. No role reads the readings,
+-- so the answer gives no reading back.
+--
+-- THE JOB IS RUNNING, THE CALLER HOLDS IT, AND IT IS A JOB OF THE SECOND READER. A caller that
+-- does not hold the job learns nothing about the readings of its document.
+CREATE OR REPLACE FUNCTION second_read_done(
+  p_job                uuid,
+  p_chunk_hash         text,
+  p_reader_fingerprint text,
+  p_input_form         text)
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_doc text;
+BEGIN
+  SELECT j.document_id INTO v_doc
+    FROM public.jobs j
+   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
+     AND j.kind = 'second_read';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not a running second_read job under this role', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM public.claim_reading r
+     WHERE r.reader_no = 2
+       AND r.doc_id = v_doc::doc_id
+       AND r.chunk_hash = p_chunk_hash
+       AND r.reader_fingerprint = p_reader_fingerprint
+       AND r.input_form = p_input_form);
+END $$;
+
 -- THE TWO DOORS INTO THE CONVERSATION STORE. gabriel_app alone holds them, and no role writes
 -- the three tables by hand. A blank title or a blank text is refused by the table, and a missing
 -- anchor row is refused by its foreign key.
@@ -992,8 +1031,9 @@ DECLARE
   v_id    uuid;
   v_bytes text;
 BEGIN
-  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured') THEN
-    RAISE EXCEPTION 'a job asks for extract_text or map_structured, and this one asked for %',
+  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured','second_read') THEN
+    RAISE EXCEPTION
+      'a job asks for extract_text, map_structured or second_read, and this one asked for %',
       coalesce(p_kind, 'nothing')
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
