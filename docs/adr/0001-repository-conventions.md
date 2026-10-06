@@ -40,7 +40,7 @@ by a pattern that written code can enter.
 
 The drift check (`pnpm db:drift`) is a separate command. It makes the database types again from the
 test database and compares them with the committed types. A difference fails the check. It never
-reaches the record database.
+reaches the record database. `pnpm db:types` writes the committed types from the same test database.
 
 CI runs both commands on each pull request. One job starts the database stack with throwaway
 secrets, builds the test database from zero, runs the drift check and runs the whole suite, with
