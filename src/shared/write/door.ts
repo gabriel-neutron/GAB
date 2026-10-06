@@ -1,7 +1,7 @@
 // The requests that change the record. The address, the method, the headers, the status codes
 // and the shape of the answer stay inside; a caller names an act and the body it carries.
 
-import { type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
+import { type BatchVerdict, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import type { WriteResult } from './write-state';
@@ -98,6 +98,18 @@ export async function sendAct(
  * doubt about it is a doubt about a verdict. */
 export async function sendDecision(op: DecisionOp, proposalId: string): Promise<WriteResult> {
   const answer = await knock(doorOf(op), { proposalId });
+  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
+  if (decided.safeParse(answer.body).success) return { step: 'done' };
+  return unwrittenOf(answer.status, answer.body);
+}
+
+/** Decide every act of one linked batch as one unit. A refusal names the act that the record
+ * refused, and nothing of the batch was written. */
+export async function sendBatchDecision(
+  batchId: string,
+  verdict: BatchVerdict,
+): Promise<WriteResult> {
+  const answer = await knock('decide-batch', { batchId, verdict });
   if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
   if (decided.safeParse(answer.body).success) return { step: 'done' };
   return unwrittenOf(answer.status, answer.body);

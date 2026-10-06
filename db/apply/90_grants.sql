@@ -61,6 +61,7 @@ REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION decide_batch(uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
@@ -96,6 +97,8 @@ GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
+-- The decision on a linked batch is a promotion and a rejection, so the operator alone holds it.
+GRANT EXECUTE ON FUNCTION decide_batch(uuid,text,text) TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
