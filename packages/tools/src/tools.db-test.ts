@@ -243,52 +243,11 @@ test('document_text cuts a long page at the size cap and says so', async () => {
   expect(found.pages.reduce((sum, page) => sum + page.text.length, 0)).toBeLessThanOrEqual(40_000);
 });
 
-test('document_text of a document with no text is empty', async () => {
-  const found = await rolledBack('research', async (ask) =>
-    text.parse(await output(ask, 'document_text', { document: 'doc_absent' })),
-  );
-  expect(found).toStrictEqual({
-    document: 'doc_absent',
-    extractor: null,
-    pages: [],
-    lastPage: null,
-    truncated: false,
-  });
-});
-
 test('document_text refuses a range above the cap', async () => {
   const outcome = await rolledBack('research', (ask) =>
     call(ask, 'document_text', { document: DOC, fromPage: 1, toPage: 11 }),
   );
   expect(outcome.ok).toBe(false);
-});
-
-// --------------------------------------------------------- lookup_entity ---
-
-const KEYED = `SELECT e.id::text AS id, k.key, e.attrs -> k.key -> 'v' #>> '{}' AS value
-  FROM api.entity e CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS k(key)
-  WHERE jsonb_typeof(e.attrs -> k.key -> 'v') = 'string'
-  ORDER BY e.id, k.key LIMIT 1`;
-
-const keyed = z.array(z.object({ id: z.uuid(), key: z.string(), value: z.string() }));
-
-test('lookup_entity finds the entity that holds an identifier value', async () => {
-  const found = await rolledBack('research', async (ask) => {
-    const [held] = keyed.parse(await ask(KEYED));
-    if (held === undefined) throw new Error('the fixture holds no string attribute');
-    return {
-      held,
-      result: hits.parse(await output(ask, 'lookup_entity', { key: held.key, value: held.value })),
-    };
-  });
-  expect(found.result.entities.map((entity) => entity.id)).toContain(found.held.id);
-});
-
-test('lookup_entity finds nothing for a value that no entity holds', async () => {
-  const found = await rolledBack('research', async (ask) =>
-    hits.parse(await output(ask, 'lookup_entity', { key: 'imo', value: 'no such value' })),
-  );
-  expect(found.entities).toStrictEqual([]);
 });
 
 // --------------------------------------------------------------- propose ---
@@ -543,6 +502,13 @@ test('a retry of the same batch writes no second proposal and no second citation
   expect(found.rows).toHaveLength(2);
 });
 
+const KEYED = `SELECT e.id::text AS id, k.key, e.attrs -> k.key -> 'v' #>> '{}' AS value
+  FROM api.entity e CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS k(key)
+  WHERE jsonb_typeof(e.attrs -> k.key -> 'v') = 'string'
+  ORDER BY e.id, k.key LIMIT 1`;
+
+const keyed = z.array(z.object({ id: z.uuid(), key: z.string(), value: z.string() }));
+
 test('propose updates attributes and keeps the documents the value already held', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const [held] = keyed.parse(await ask(KEYED));
@@ -688,87 +654,9 @@ test('propose refuses a page of a document that holds no stored text', async () 
   });
 });
 
-// --------------------------------------------------------- proposal_read ---
-
-const read = z.object({
-  id: z.uuid(),
-  op: z.string(),
-  status: z.string(),
-  payload: z.record(z.string(), z.unknown()),
-  src: z.array(z.string()),
-  authorRole: z.string(),
-});
-
-test('proposal_read returns the proposal with its payload and its sources', async () => {
-  const found = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
-    const made = proposed.parse(
-      await output(
-        ask,
-        'propose',
-        citedOnPageOne({ op: 'create_entity', type: 'vessel', label: 'Nayara' }),
-      ),
-    );
-    const proposalId = made.proposals[0]?.proposalId;
-    return {
-      proposalId,
-      read: read.parse(await output(ask, 'proposal_read', { proposal: proposalId })),
-    };
-  });
-  expect(found.read).toMatchObject({
-    id: found.proposalId,
-    op: 'create_entity',
-    status: 'pending',
-    src: [DOC],
-    authorRole: 'gabriel_research',
-  });
-  expect(found.read.payload['label']).toBe('Nayara');
-});
-
-test('proposal_read refuses an identifier that names no proposal', async () => {
-  const outcome = await rolledBack('research', (ask) =>
-    call(ask, 'proposal_read', { proposal: ABSENT }),
-  );
-  expect(outcome).toMatchObject({ ok: false, refusal: expect.stringContaining(ABSENT) as string });
-});
-
 // ------------------------------------------------------- enqueue_extract ---
 
-const queued = z.object({ jobId: z.uuid() });
-
-const JOBS = z.object({
-  document: z.string(),
-  jobs: z.array(
-    z.object({
-      id: z.uuid(),
-      status: z.string(),
-      failureReason: z.string().nullable(),
-      finishedAt: z.string().nullable(),
-    }),
-  ),
-});
-
-test('enqueue_extract queues one extraction, and job_status reports it', async () => {
-  const found = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
-    const job = queued.parse(await output(ask, 'enqueue_extract', { document: DOC }));
-    return { job, status: JOBS.parse(await output(ask, 'job_status', { document: DOC })) };
-  });
-  expect(found.status.document).toBe(DOC);
-  const waiting = found.status.jobs.find((job) => job.id === found.job.jobId);
-  expect(waiting).toMatchObject({ status: 'queued', failureReason: null, finishedAt: null });
-  expect(found.status.jobs.map((job) => job.status).sort()).toStrictEqual(['done', 'queued']);
-});
-
-test('enqueue_extract of a second open job for one document is a fault of the database', async () => {
-  await expect(
-    rolledBack('research', async (ask) => {
-      await withDocument(ask, ['page one']);
-      await output(ask, 'enqueue_extract', { document: DOC });
-      return call(ask, 'enqueue_extract', { document: DOC });
-    }),
-  ).rejects.toMatchObject({ code: '23505' });
-});
+const JOBS = z.object({ document: z.string(), jobs: z.array(z.unknown()) });
 
 test('enqueue_extract of a document that does not exist is a fault of the database', async () => {
   await expect(

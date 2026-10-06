@@ -39,7 +39,7 @@ test('the role matrix of the doors', async () => {
     {
       "public.claim_job": "agent",
       "public.complete_job": "agent",
-      "public.document_jobs": "app",
+      "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
       "public.fail_job": "agent",
       "public.promote_proposal": "app",

@@ -3,6 +3,9 @@
 # normalise the whole tree in one commit, and that commit destroys `git blame`.
 * text=auto eol=lf
 
+# Vitest compares a snapshot byte for byte, so a snapshot keeps LF on each checkout.
+*.snap text eol=lf
+
 # These files must keep CRLF, or Windows tools fail to read them.
 *.ps1  text eol=crlf
 *.cmd  text eol=crlf
