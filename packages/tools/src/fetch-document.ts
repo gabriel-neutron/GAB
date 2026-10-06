@@ -12,6 +12,7 @@ import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
 import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
+import { unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -274,7 +275,8 @@ export const fetchDocument = defineTool({
     'address, named in "rendered"; "document" stays the bytes that the server gave. When ' +
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
-    'page looks like a CAPTCHA.',
+    'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
+    'refused, and a render of that kind is not stored.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -315,6 +317,10 @@ export const fetchDocument = defineTool({
       throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
     }
 
+    // A challenge or a missing page is no record of the source, and it leaves no object behind.
+    const unreadable = unreadablePage(mime, pages);
+    if (unreadable !== null) throw new ToolRefusal(unreadable);
+
     const metadata = await metadataOf(got.bytes, mime);
     const plain = await storeFetched(session, reach.store, {
       bytes: got.bytes,
@@ -340,7 +346,10 @@ export const fetchDocument = defineTool({
     if (html && (input.render || allText < input.renderBelow)) {
       // The plain document is stored first, so a fault of the browser loses no part of it.
       const page = await renderedOf(got, mime, getOptions, notices);
-      if (page !== null) {
+      // A render that gives a challenge or a missing page is not stored. The plain page stays.
+      const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
+      if (unreadableRender !== null) notices.push(`the render was not stored: ${unreadableRender}`);
+      else if (page !== null) {
         captcha ||= CAPTCHA.test(page.html);
         const stored = await storeFetched(session, reach.store, {
           bytes: page.bytes,
