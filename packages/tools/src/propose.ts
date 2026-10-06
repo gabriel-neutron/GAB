@@ -6,7 +6,7 @@ import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import { findExcerpt, type Span } from './excerpt.ts';
-import { documentId, rowsOf } from './fields.ts';
+import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
 import {
   defineTool,
@@ -139,10 +139,6 @@ const pageRow = z.strictObject({ extractor: z.string(), text: z.string() });
 const TABLE = { entity: 'api.entity', relation: 'api.relation' } as const;
 
 type Kind = keyof typeof TABLE;
-
-// External constraint: the door raises its refusals with this code, and any other code is a fault
-// of the database that the caller must see.
-const REFUSED_CODE = '22023';
 
 const fieldOf = (cause: object): string =>
   'hint' in cause && typeof cause.hint === 'string' ? cause.hint : '';
@@ -420,7 +416,7 @@ const proposeOf = (modelCallId: string | null) =>
       try {
         rows = await rowsOf(session, doorRow, BATCH, [JSON.stringify(items)]);
       } catch (cause) {
-        if (cause instanceof Error && 'code' in cause && cause.code === REFUSED_CODE)
+        if (isDoorRefusal(cause))
           throw new ToolRefusal(
             refusalOf(
               cause,

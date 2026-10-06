@@ -307,6 +307,7 @@ const jobs = z.object({
       kind: z.string(),
       status: z.string(),
       failureReason: z.string().nullable(),
+      refused: z.string().nullable(),
       proposals: z.number(),
     }),
   ),
@@ -330,10 +331,13 @@ test('enqueue_extract returns the job id, and job_status gives its kind, status 
       status: 'queued',
       proposals: 0,
       failureReason: null,
+      refused: null,
     },
   ]);
   expect(found.again.refused).toBe(true);
-  expect(found.again.text).toContain(`an extraction of ${DOC} is queued or runs already`);
+  expect(found.again.text).toContain(
+    `document ${DOC} has a job of kind extract_text that is queued or runs already`,
+  );
 });
 
 test('a refusal of the record reaches the AI with its reason', async () => {

@@ -46,9 +46,19 @@ export interface Refusal {
   readonly reason: string;
 }
 
-/** What an agent returns when its job ended well. */
+/** The parts of a job that reads a document in parts: how many it read, how many the propose
+ * door refused, and the first refusal. */
+export interface PartCount {
+  readonly parts: number;
+  readonly refused: number;
+  readonly firstRefusal: string | null;
+}
+
+/** What an agent returns when its job ran to its end. */
 export interface AgentResult {
   readonly refusals: readonly Refusal[];
+  /** Only an agent that reads in parts gives a count. */
+  readonly parts?: PartCount;
 }
 
 /** What the runner gives to the agent of one job. */

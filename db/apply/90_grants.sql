@@ -77,7 +77,8 @@ REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
-REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION complete_job(uuid,int,int,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION refused_parts_said(int,text)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION start_lead(text)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_lead_document(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION lead_jobs()                 FROM PUBLIC;
@@ -131,7 +132,7 @@ GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
-GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION complete_job(uuid,int,int,text) TO gabriel_agent;
 
 -- A LEAD IS STARTED BY THE OPERATOR OR BY THE RESEARCH AI, AND NEVER BY THE WORKER. The agent that
 -- runs a lead starts no lead of its own, so the worker role holds no grant on the start. It
