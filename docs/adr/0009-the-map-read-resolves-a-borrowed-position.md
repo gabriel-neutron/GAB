@@ -30,7 +30,7 @@ each other, and a database built from zero fails.
 - An own point wins. An entity that states the word and has a point keeps its own point and names
   no parent.
 - Only a point is taken. The walk climbs past an ancestor that has an area. An entity that has an
-  area takes the borrowed point, because a surface that draws a dot cannot draw an area.
+  area takes the borrowed point, because a borrowed position stays a point.
 - The climb has a fixed depth limit. The limit stops a loop in the data, because the schema does not
   refuse a ring of relations. When two ancestors are at the same distance, the identifier breaks the
   tie, so the answer is the same on each run.

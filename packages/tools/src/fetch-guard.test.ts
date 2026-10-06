@@ -29,12 +29,32 @@ describe('refusedAddress', () => {
     expect(refusedAddress(address)).toBe(true);
   });
 
+  // The hostile cases of the F6 review: a range that carries an IPv4 address inside an IPv6 one,
+  // or that no public host uses, must not reach the socket.
+  test.each([
+    ['an IPv4-compatible address of the machine', '::7f00:1'],
+    ['an IPv4-compatible address of a private network', '::a00:1'],
+    ['an IPv4-compatible address of the metadata service', '::a9fe:a9fe'],
+    ['an IPv4-translated address of the machine', '::ffff:0:7f00:1'],
+    ['an IPv4-translated address of a private network', '::ffff:0:a00:1'],
+    ['a site-local address', 'fec0::1'],
+    ['the last site-local block', 'feff:ffff::1'],
+    ['a segment-routing address', '5f00::1'],
+  ])('refuses %s', (_name, address) => {
+    expect(refusedAddress(address)).toBe(true);
+  });
+
   test.each(['8.8.8.8', '1.1.1.1', '172.32.0.1', '2606:4700:4700::1111', '2a00:1450:4001::64'])(
     'admits %s, a public address',
     (address) => {
       expect(refusedAddress(address)).toBe(false);
     },
   );
+
+  test('admits an IPv4-mapped public address and no address near the refused ranges', () => {
+    expect(refusedAddress('::ffff:8.8.8.8')).toBe(false);
+    expect(refusedAddress('2a01:4f8::1')).toBe(false);
+  });
 
   test('refuses a string that is no address, because nothing can be checked in it', () => {
     expect(refusedAddress('example.org')).toBe(true);
