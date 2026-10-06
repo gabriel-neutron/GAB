@@ -13,14 +13,14 @@ const IDLE: DecisionState = { step: 'idle' };
 describe('beginVerdict', () => {
   it('sends a verdict when no verdict is on the way', () => {
     expect(beginVerdict(IDLE, { changeId: ACT, verdict: 'promoted' })).toEqual({
-      step: 'deciding',
+      step: 'working',
       changeId: ACT,
       verdict: 'promoted',
     });
   });
 
   it('ignores a second verdict while the first is deciding', () => {
-    const deciding: DecisionState = { step: 'deciding', changeId: ACT, verdict: 'promoted' };
+    const deciding: DecisionState = { step: 'working', changeId: ACT, verdict: 'promoted' };
     expect(beginVerdict(deciding, { changeId: OTHER, verdict: 'rejected' })).toBeNull();
   });
 });
@@ -53,7 +53,7 @@ describe('settleVerdict', () => {
   });
 
   it('holds a deferred verdict and its reason, and reads nothing again', () => {
-    const decided: DecisionState = { step: 'decided', changeId: ACT, verdict: 'deferred' };
+    const decided: DecisionState = { step: 'done', changeId: ACT, verdict: 'deferred' };
     expect(
       settleVerdict(decided, { verdict: 'deferred', reason: 'Wait for the registry.' }),
     ).toEqual({
@@ -63,7 +63,7 @@ describe('settleVerdict', () => {
   });
 
   it('holds a landed promotion without the rest of the act, and reads the queue again', () => {
-    const decided: DecisionState = { step: 'decided', changeId: ACT, verdict: 'promoted' };
+    const decided: DecisionState = { step: 'done', changeId: ACT, verdict: 'promoted' };
     const act: Decision & { readonly kind: 'decide'; readonly changeId: string } = {
       kind: 'decide',
       changeId: ACT,
@@ -79,7 +79,7 @@ describe('settleVerdict', () => {
 
 describe('decisionAfterMove', () => {
   it('forgets a calm sentence when the hand moves', () => {
-    const decided: DecisionState = { step: 'decided', changeId: ACT, verdict: 'rejected' };
+    const decided: DecisionState = { step: 'done', changeId: ACT, verdict: 'rejected' };
     expect(decisionAfterMove(decided)).toEqual(IDLE);
   });
 
@@ -94,7 +94,7 @@ describe('decisionAfterMove', () => {
   });
 
   it('keeps a verdict that is on the way', () => {
-    const deciding: DecisionState = { step: 'deciding', changeId: ACT, verdict: 'promoted' };
+    const deciding: DecisionState = { step: 'working', changeId: ACT, verdict: 'promoted' };
     expect(decisionAfterMove(deciding)).toBe(deciding);
   });
 });

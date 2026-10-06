@@ -283,8 +283,8 @@ const candidatePayload = (
         ...(payload.type === null ? {} : { type: payload.type }),
       };
     case 'relation': {
-      const srcId = payload.src_id === null ? undefined : entities.get(payload.src_id);
-      const dstId = payload.dst_id === null ? undefined : entities.get(payload.dst_id);
+      const srcId = entities.get(payload.src_id);
+      const dstId = entities.get(payload.dst_id);
       if (srcId === undefined || dstId === undefined) {
         throw new Error('A candidate relation names an endpoint that the fixture does not hold.');
       }

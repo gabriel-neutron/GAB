@@ -10,13 +10,13 @@ import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
 import { uploadDocument, type ObjectDoor } from './upload.ts';
 
+// Departure: a doubt is the answer of the database that the writer lost on the way, and a gateway
+// that lost an answer names it 502. The act may stand, so it is never a refusal.
 const STATUS = {
   signed: 200,
   decided: 200,
   refused: 422,
-  missing: 404,
-  blocked: 409,
-  undecided: 409,
+  doubt: 502,
   unavailable: 503,
 } as const;
 

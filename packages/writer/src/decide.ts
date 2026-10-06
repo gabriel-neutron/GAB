@@ -1,12 +1,12 @@
 import { decisionRequest, type DecisionOp } from '@gab/proposal/request';
 import { z } from 'zod';
 
-import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
-import type { Session, Sessions } from './pool.ts';
-import { failureFrom, refusalFrom } from './refusal.ts';
+import { DECIDED_BY } from './decision.ts';
+import type { Sessions } from './pool.ts';
+import { refused, runStatement, type Unwritten } from './statement.ts';
 
-/** What one decision became. `blocked` is the act the record refused, and nothing was written.
- * `undecided` is the act whose answer never came back: it may stand in the record. */
+/** What one decision became. A refusal wrote nothing. A doubt is the decision whose answer never
+ * came back: it may stand in the record. */
 export type DecidedAct =
   | {
       readonly outcome: 'decided';
@@ -17,46 +17,19 @@ export type DecidedAct =
         readonly state: 'decided';
       };
     }
-  | {
-      readonly outcome: 'refused' | 'blocked' | 'unavailable';
-      readonly reply: { readonly refusal: string };
-    }
-  | {
-      // The act is named, because a caller that cannot learn what landed reads the record again
-      // under that name. A refusal names none, and the two answers never read alike.
-      readonly outcome: 'undecided';
-      readonly reply: { readonly doubt: string; readonly proposalId: string };
-    };
-
-const identifier = z.uuid();
+  | Unwritten;
 
 const STATEMENT: Readonly<Record<DecisionOp, string>> = {
-  promote_proposal: PROMOTE_PROPOSAL,
+  promote_proposal: 'SELECT public.promote_proposal($1::uuid, $2::text) AS id',
   reject_proposal: 'SELECT public.reject_proposal($1::uuid, $2::text)',
 };
 
+const identifier = z.uuid();
+
 // A promotion answers with the row it wrote. A rejection writes no row and answers nothing, so
 // the reply carries `null` and the caller reads one shape for both acts.
-const targetOf = (op: DecisionOp, row: Record<string, unknown> | undefined): string | null =>
+const targetOf = (op: DecisionOp, row: Readonly<Record<string, unknown>> | undefined) =>
   op === 'reject_proposal' ? null : identifier.parse(row?.['id']);
-
-const take = async (client: Session, op: DecisionOp, proposalId: string): Promise<DecidedAct> => {
-  try {
-    const found = await client.query(STATEMENT[op], [proposalId, DECIDED_BY]);
-    return {
-      outcome: 'decided',
-      reply: { proposalId, targetId: targetOf(op, found.rows[0]), state: 'decided' },
-    };
-  } catch (cause) {
-    // A raised failure states the record moved under the analyst: the act is decided already,
-    // or the row it names is gone. Nothing was written, and the queue must be read again.
-    const failure = failureFrom(cause);
-    if (failure.raised) return { outcome: 'blocked', reply: { refusal: failure.refusal } };
-    // The statement may have run whole. The act keeps its name here, and the caller reads it
-    // again in the record. A decision that landed must never be reported as a refusal.
-    return { outcome: 'undecided', reply: { doubt: failure.doubt, proposalId } };
-  }
-};
 
 /** Decide one act that waits. It raises nothing, and every failure arrives as a sentence. */
 export const decide = async (pool: Sessions, op: DecisionOp, raw: string): Promise<DecidedAct> => {
@@ -64,24 +37,17 @@ export const decide = async (pool: Sessions, op: DecisionOp, raw: string): Promi
   try {
     given = JSON.parse(raw);
   } catch {
-    return { outcome: 'refused', reply: { refusal: 'the body is not a JSON object' } };
+    return refused('the body is not a JSON object');
   }
 
   const request = decisionRequest.safeParse(given);
-  if (!request.success) return { outcome: 'refused', reply: { refusal: 'the body names no act' } };
+  if (!request.success) return refused('the body names no act');
 
-  // A pool that cannot give a client has reached no statement, so nothing was written and the
-  // answer is a refusal of the service and not of the record.
-  let client: Session;
-  try {
-    client = await pool.connect();
-  } catch (cause) {
-    return { outcome: 'unavailable', reply: { refusal: refusalFrom(cause) } };
-  }
-
-  try {
-    return await take(client, op, request.data.proposalId);
-  } finally {
-    client.release();
-  }
+  const { proposalId } = request.data;
+  const answer = await runStatement(pool, STATEMENT[op], [proposalId, DECIDED_BY]);
+  if (answer.outcome !== 'answered') return answer;
+  return {
+    outcome: 'decided',
+    reply: { proposalId, targetId: targetOf(op, answer.row), state: 'decided' },
+  };
 };

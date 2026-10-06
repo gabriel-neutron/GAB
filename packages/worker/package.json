@@ -12,6 +12,8 @@
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
     "@gab/tools": "workspace:*",
+    "graphology": "0.26.0",
+    "graphology-layout-forceatlas2": "0.10.1",
     "pg": "^8.23.0",
     "zod": "^4.4.3"
   },

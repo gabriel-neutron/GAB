@@ -43,7 +43,7 @@ jobs:
       # The type check, the lint and the format check.
       - run: pnpm run check
 
-      # The bundle guard reads the emitted chunks, so the build is the only way to reach it.
+      # The production build must compile.
       - run: pnpm run build
 
       # `tsr generate` runs inside the type check and writes the route tree. `--porcelain` names

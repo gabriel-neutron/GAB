@@ -45,31 +45,12 @@ export const OneChangeIsSavedOnce: Story = {
 // One act on the screen, two things in the record: the proposal, and the value it promoted.
 export const ASignedActNamesItsProposal: Story = {
   args: {
-    said: saveSaid({ step: 'signed', proposalId: PROPOSAL }, NOTHING),
+    said: saveSaid({ step: 'done', proposalId: PROPOSAL, targetId: PROPOSAL }, NOTHING),
     canSave: false,
   },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status');
     await expect(said).toHaveTextContent('The value is signed manual.');
-    await expect(said).toHaveTextContent(PROPOSAL);
-  },
-};
-
-// The proposal is committed and the promotion refused it. The act is not lost, and the sentence
-// names it, because that name is the only way back to it.
-export const AnUndecidedActSaysItWasNotSigned: Story = {
-  args: {
-    said: saveSaid(
-      { step: 'undecided', proposalId: PROPOSAL, refusal: 'the target no longer exists' },
-      NOTHING,
-    ),
-    canSave: false,
-  },
-  play: async ({ canvas }) => {
-    // The act may stand in the record under a name the analyst has not seen. A sentence that
-    // waits its turn is a sentence a reader of the screen never hears.
-    const said = canvas.getByRole('alert');
-    await expect(said).toHaveTextContent('it was not signed');
     await expect(said).toHaveTextContent(PROPOSAL);
   },
 };
@@ -114,7 +95,7 @@ export const AnUnknownResultTellsTheOperatorToReadAgain: Story = {
 };
 
 export const AnActOnTheWayTakesNoSecondSave: Story = {
-  args: { said: saveSaid({ step: 'saving' }, CHANGED), canSave: false },
+  args: { said: saveSaid({ step: 'working' }, CHANGED), canSave: false },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('button', { name: 'Save' })).toBeDisabled();
     await expect(canvas.getByRole('status')).toHaveTextContent(

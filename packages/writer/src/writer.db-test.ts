@@ -2,7 +2,6 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
-import { failureFrom } from './refusal.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -124,6 +123,22 @@ test('propose and promote inside one transaction is refused', async () => {
   } finally {
     await client.query('ROLLBACK').catch(() => undefined);
     client.release();
+  }
+});
+
+// The database stamps each hour from the start of the transaction, so an act proposed and
+// promoted in one transaction carries one hour twice.
+test('an operator edit is proposed and promoted in one transaction', async () => {
+  const target = await signedEntity('Writer test one transaction');
+  try {
+    const held = await one(
+      'SELECT p.created_at = p.decided_at AS one_act FROM public.proposals p' +
+        ' JOIN public.entities e ON e.promoted_from = p.id WHERE e.id = $1::uuid',
+      [target],
+    );
+    expect(held['one_act']).toBe(true);
+  } finally {
+    await removed(target);
   }
 });
 
@@ -305,32 +320,29 @@ test('an update that keeps the value re-cites the document the key already holds
   }
 });
 
-test('a kept value that drops a document reaches the caller as a sentence of the writer', async () => {
-  const target = await citedEntity('Writer test dropped document');
-  try {
-    const made = await one(
-      `SELECT public.propose_change('update_attrs',
-         '{"attrs":{"coal_stock_t":{"v":41200,"src":["doc_3c1104"]}}}'::jsonb,
-         ARRAY['doc_3c1104']::text[], 'entity', $1::uuid) AS id`,
-      [target],
-    );
-    const raised = await one('SELECT public.promote_proposal($1::uuid, $2::text)', [
-      made['id'],
-      'a test',
-    ]).then(
-      () => null,
-      (cause: unknown) => cause,
-    );
-    await one('SELECT public.reject_proposal($1::uuid, $2::text)', [made['id'], 'a test']);
-    expect(failureFrom(raised)).toStrictEqual({
-      raised: true,
-      refusal: 'the act keeps the value, so it must keep every document that value already cites',
-    });
-    expect(await heldAttributes(target)).toStrictEqual(HELD_CLAIM);
-  } finally {
-    await removed(target);
-  }
-});
+// A machine act that keeps a value names its own documents alone. The promotion keeps each
+// document that the value already cites, and a second spelling of one number is the same value.
+test.for(['41200', '41200.0'])(
+  'a kept value %s keeps each document it already cites, and adds the new one',
+  async (spelling) => {
+    const target = await citedEntity(`Writer test kept document ${spelling}`);
+    try {
+      const made = await one(
+        `SELECT public.propose_change('update_attrs',
+           jsonb_build_object('attrs', jsonb_build_object('coal_stock_t', jsonb_build_object(
+             'v', $2::numeric, 'src', jsonb_build_array('doc_3c1104')))),
+           ARRAY['doc_3c1104']::text[], 'entity', $1::uuid) AS id`,
+        [target, spelling],
+      );
+      await one('SELECT public.promote_proposal($1::uuid, $2::text)', [made['id'], 'a test']);
+      expect(await heldAttributes(target)).toStrictEqual({
+        coal_stock_t: { v: Number(spelling), src: ['doc_8f2a41', 'doc_3c1104'] },
+      });
+    } finally {
+      await removed(target);
+    }
+  },
+);
 
 test('a delete of an endpoint is refused and writes no proposal', async () => {
   const source = await signedEntity('Writer test endpoint source');
@@ -346,8 +358,11 @@ test('a delete of an endpoint is refused and writes no proposal', async () => {
 
     const before = await proposalsFor(target);
     const [status, reply] = await post('delete-entity', { targetId: target });
-    expect(status).toBe(409);
-    expect(reply.refusal).toBe('the entity is an endpoint of 1 relation, and it is not deleted');
+    expect(status).toBe(422);
+    expect(reply.refusal).toBe(
+      'targetId: the entity is an endpoint of 1 relation, and it is not deleted. Delete each of' +
+        ' those relations first, and then delete the entity again',
+    );
     expect(await proposalsFor(target)).toBe(before);
   } finally {
     await removed(relationId, source, target);
@@ -366,7 +381,7 @@ test('an update that names no attribute is refused and writes no proposal', asyn
       attrs: {},
     });
     expect(status).toBe(422);
-    // The door names the path before the sentence, as it does for every other refusal.
+    // The record names the field before its own sentence.
     expect(reply.refusal).toBe('attrs: an update names at least one attribute');
     expect(await proposalsFor(target)).toBe(before);
   } finally {
@@ -374,10 +389,9 @@ test('an update that names no attribute is refused and writes no proposal', asyn
   }
 });
 
-// THE KEY HAS A SHAPE, AND THE SHAPE IS NOT A VOCABULARY. The record refused this key before,
-// and the caller read a sentence about the kind of a value, which named no key. The round trip
-// is saved too. M11 stands: the door holds no list of permitted words.
-test('a key the record refuses is named by the door, and no round trip is spent', async () => {
+// THE KEY HAS A SHAPE, AND THE SHAPE IS NOT A VOCABULARY. M11 stands: the record holds no list
+// of permitted words, and it states the shape of a key in its refusal.
+test('a key the record refuses is named in the sentence of the record', async () => {
   const target = await signedEntity('Writer test minted key');
   try {
     const before = await proposalsFor(target);
@@ -387,7 +401,7 @@ test('a key the record refuses is named by the door, and no round trip is spent'
       attrs: { 'Coal Stock': { v: 41.5 } },
     });
     expect(status).toBe(422);
-    expect(reply.refusal).toContain('a key is lower case words of letters and digits');
+    expect(reply.refusal).toContain('attrs: each attribute key is lower case words');
     expect(await proposalsFor(target)).toBe(before);
 
     // The sentence of the key never answers a body whose `attrs` is not a record at all.
@@ -435,6 +449,14 @@ const COLUMNS_OF =
   'SELECT label, type, proposed_type, sources::text[] AS sources FROM public.entities WHERE id = $1::uuid';
 
 const NO_ENTITY = '5b7e2c90-1d4a-4e36-9f08-2a6c3d8e1f47';
+
+const UNCHANGED =
+  'the act changes neither the name nor the type of the entity, and nothing was applied';
+
+const absent = (end: 'source' | 'target', id: string): string =>
+  end === 'source'
+    ? `srcId: the source ${id} does not exist`
+    : `targetId: the target ${id} does not exist, and nothing was applied`;
 
 test('the name and the type change by one act, and a word with no type waits as unknown', async () => {
   const [, made] = await post('create-entity', { type: 'tanker', label: 'Writer test retype' });
@@ -515,17 +537,14 @@ test('an act that changes neither the name nor the type is refused and writes no
       type: 'vessel',
     });
     expect(status).toBe(422);
-    expect(reply.refusal).toBe('the act changes neither the name nor the type of the entity');
+    expect(reply.refusal).toBe(UNCHANGED);
     expect(await proposalsFor(target)).toBe(before);
 
     const [gone, goneReply] = await post('update-entity', {
       targetId: NO_ENTITY,
       label: 'Nobody',
     });
-    expect([gone, goneReply.refusal]).toStrictEqual([
-      404,
-      `the target ${NO_ENTITY} does not exist`,
-    ]);
+    expect([gone, goneReply.refusal]).toStrictEqual([422, absent('target', NO_ENTITY)]);
   } finally {
     await removed(target);
   }
@@ -548,8 +567,8 @@ test('a word that waits as unknown, sent again or kept by a rename to the same n
       [again, againReply.refusal],
       [kept, keptReply.refusal],
     ]).toStrictEqual([
-      [422, 'the act changes neither the name nor the type of the entity'],
-      [422, 'the act changes neither the name nor the type of the entity'],
+      [422, UNCHANGED],
+      [422, UNCHANGED],
     ]);
     expect(await proposalsFor(target)).toBe(before);
     expect(await one(COLUMNS_OF, [target])).toStrictEqual(held);
@@ -570,7 +589,7 @@ const proposalsNaming = async (id: string): Promise<number> =>
     )['n'],
   );
 
-test('an act on an element that does not exist answers 404 and writes no proposal', async () => {
+test('an act on an element that does not exist is refused and writes no proposal', async () => {
   const live = await signedEntity('Writer test absent end');
   try {
     const before = await proposalsNaming(NO_ENTITY);
@@ -588,14 +607,13 @@ test('an act on an element that does not exist answers 404 and writes no proposa
       const [status, reply] = await post(door, body);
       answers.push([door, status, reply.refusal]);
     }
-    const role = (word: string): string => `the ${word} ${NO_ENTITY} does not exist`;
     expect(answers).toStrictEqual([
-      ['create-relation', 404, role('source')],
-      ['create-relation', 404, role('target')],
-      ['update-attrs', 404, role('target')],
-      ['update-attrs', 404, role('target')],
-      ['delete-relation', 404, role('target')],
-      ['delete-entity', 404, role('target')],
+      ['create-relation', 422, absent('source', NO_ENTITY)],
+      ['create-relation', 422, `dstId: the target ${NO_ENTITY} does not exist`],
+      ['update-attrs', 422, absent('target', NO_ENTITY)],
+      ['update-attrs', 422, absent('target', NO_ENTITY)],
+      ['delete-relation', 422, absent('target', NO_ENTITY)],
+      ['delete-entity', 422, absent('target', NO_ENTITY)],
     ]);
     expect(await proposalsNaming(NO_ENTITY)).toBe(before);
     expect(await proposalsNaming(live)).toBe(beforeLive);
@@ -638,8 +656,9 @@ test('a relation that is an end of another relation is refused its delete', asyn
     const before = await proposalsFor(inner ?? '');
     const [refused, refusal] = await post('delete-relation', { targetId: inner });
     expect([refused, refusal.refusal]).toStrictEqual([
-      409,
-      'the relation is an endpoint of 1 relation, and it is not deleted',
+      422,
+      'targetId: the relation is an endpoint of 1 relation, and it is not deleted. Delete each' +
+        ' of those relations first, and then delete this relation again',
     ]);
     expect(await proposalsFor(inner ?? '')).toBe(before);
     expect(await liveRows(inner ?? '')).toBe(1);
@@ -745,8 +764,10 @@ test('the rejection door decides the act, and it writes no row', async () => {
 
   // The queue of a second analyst still holds the act. The second decision writes nothing.
   const [again, reply2] = await post('promote-proposal', { proposalId });
-  expect(again).toBe(409);
-  expect(reply2.refusal).toBe('the act is decided already, and a decided act is frozen');
+  expect(again).toBe(422);
+  expect(reply2.refusal).toBe(
+    `the act ${proposalId} is rejected already, and a decided act is frozen`,
+  );
   // A refusal names no act. The browser reads a name as the doubt, and this answer holds none.
   expect(reply2.proposalId).toBeUndefined();
 });
@@ -754,10 +775,9 @@ test('the rejection door decides the act, and it writes no row', async () => {
 test.for(['promote-proposal', 'reject-proposal'])(
   'the %s door refuses a decision that names no act of the record',
   async (door) => {
-    const [status, reply] = await post(door, {
-      proposalId: '00000000-0000-4000-8000-000000000000',
-    });
-    expect([status, reply.refusal]).toStrictEqual([409, 'the record holds no act under that name']);
+    const proposalId = '00000000-0000-4000-8000-000000000000';
+    const [status, reply] = await post(door, { proposalId });
+    expect([status, reply.refusal]).toStrictEqual([422, `the record holds no act ${proposalId}`]);
   },
 );
 
@@ -786,14 +806,106 @@ test('a promotion whose target is gone is refused, and the answer names no act',
     expect(gone).toBe(200);
 
     const [status, reply] = await post('promote-proposal', { proposalId });
-    expect(status).toBe(409);
-    expect(reply.refusal).toBe('the target no longer exists, and nothing was applied');
+    expect(status).toBe(422);
+    expect(reply.refusal).toBe(absent('target', target));
     // The database raised it, so nothing was written and the act still waits under its name.
     expect(reply.proposalId).toBeUndefined();
     expect(await decisionOf(proposalId)).toStrictEqual({ status: 'pending', decided_by: null });
   } finally {
     // A proposal is never deleted, so the act that still waits is decided before the test ends.
     await post('reject-proposal', { proposalId });
+    await removed(target);
+  }
+});
+
+// ------------------------------------------------------------- the rules of the record --
+
+const LONG_TYPE = 'x'.repeat(201);
+
+// Each rule lives in the database alone, and the database words its refusal. The act is refused
+// whole: the proposal rolls back with it, so the record ends where it began.
+test.for([
+  [
+    'an interval that starts after it ends',
+    'create-relation',
+    { type: 'owns', validFrom: '2026-02-01', validTo: '2026-01-01' },
+    'validFrom: an interval starts on or before the day it ends',
+  ],
+  [
+    'an interval on a type that takes none',
+    'create-relation',
+    { type: 'berthed_at', validFrom: '2026-01-01' },
+    'validFrom: a relation of type berthed_at takes no interval, so it has no first and no' +
+      ' last day',
+  ],
+  [
+    'a day that the calendar does not hold',
+    'create-relation',
+    { type: 'owns', validFrom: '2026-02-30' },
+    'validFrom: a new relation has a type and two ends, and each day of its interval is a day' +
+      ' of the calendar, written as year, month and day: 2026-01-31',
+  ],
+  [
+    'a relation type longer than 200 characters',
+    'create-relation',
+    { type: LONG_TYPE },
+    'type: the type of a relation is 200 characters at most',
+  ],
+  [
+    'a blank name',
+    'create-entity',
+    { type: 'vessel', label: ' ' },
+    'label: a new entity has a type and a name, and neither one is blank',
+  ],
+  [
+    'a position past the pole',
+    'create-entity',
+    { type: 'vessel', label: 'Writer test pole', geom: { type: 'Point', coordinates: [4, -91] } },
+    'geom: each position of the geometry is a longitude from -180 to 180 and a latitude from' +
+      ' -90 to 90, and no third number',
+  ],
+  [
+    'a line of one position',
+    'create-entity',
+    {
+      type: 'vessel',
+      label: 'Writer test line',
+      geom: { type: 'LineString', coordinates: [[4, 51]] },
+    },
+    'geom: the geometry is not a valid shape on the globe: a line has two positions or more,' +
+      ' and a ring has four or more and ends on the position it starts on',
+  ],
+  [
+    'a blank value',
+    'create-entity',
+    { type: 'vessel', label: 'Writer test blank', attrs: { flag: { v: ' ' } } },
+    'attrs: each attribute key is lower case words of letters and digits, joined by one' +
+      ' underscore, with 63 characters at most, and each value is a text that is not blank, a' +
+      ' number, a yes or no, or a flat list of them',
+  ],
+] as const)('the record refuses %s in its own words', async ([, door, body, sentence]) => {
+  const source = await signedEntity('Writer test rule source');
+  const target = await signedEntity('Writer test rule target');
+  try {
+    const ends = door === 'create-relation' ? { srcId: source, dstId: target } : {};
+    const before = await proposalsNaming(source);
+    const [status, reply] = await post(door, { ...body, ...ends });
+    expect([status, reply.refusal]).toStrictEqual([422, sentence]);
+    expect(await proposalsNaming(source)).toBe(before);
+  } finally {
+    await removed(source, target);
+  }
+});
+
+test('an act on the name and the type that names neither is refused in the words of the record', async () => {
+  const target = await signedEntity('Writer test names neither');
+  try {
+    const [status, reply] = await post('update-entity', { targetId: target });
+    expect([status, reply.refusal]).toStrictEqual([
+      422,
+      'label: the act names a new name, a new type, or both, and neither one is blank',
+    ]);
+  } finally {
     await removed(target);
   }
 });

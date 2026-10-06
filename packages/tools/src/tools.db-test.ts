@@ -341,8 +341,18 @@ const asResearch = async <T>(ask: Ask, work: () => Promise<T>): Promise<T> => {
   return done;
 };
 
-const proposeAgain = (ask: Ask, items: readonly unknown[]) =>
-  asResearch(ask, () => call(ask, 'propose', { items }));
+// A refusal of the door aborts the transaction, so each call stands in a savepoint, and the test
+// reads the rows after a refusal too.
+const proposeAgain = async (ask: Ask, items: readonly unknown[]) => {
+  await ask('SAVEPOINT propose');
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+  const outcome = await call(ask, 'propose', { items });
+  if (outcome.ok) {
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask('RELEASE SAVEPOINT propose');
+  } else await ask('ROLLBACK TO SAVEPOINT propose');
+  return outcome;
+};
 
 const proposeOnPage = async (ask: Ask, items: readonly unknown[]) => {
   await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
@@ -565,6 +575,108 @@ test('propose refuses an act that the write contract refuses, and names the item
   expect(outcome).toMatchObject({
     ok: false,
     refusal: expect.stringMatching(/^item blank: /u) as string,
+  });
+});
+
+// The record holds these rules at the insert, so a bad act never waits in the review queue. The
+// refusal names the item, the field and the sentence of the rule.
+test.for([
+  [
+    'an interval that starts after it ends',
+    { validFrom: '2024-03-12', validTo: '2024-01-01' },
+    'item owner: act.validFrom: an interval starts on or before the day it ends',
+  ],
+  [
+    'an interval on a type that takes none',
+    { type: 'berthed_at', validFrom: '2024-03-12' },
+    'item owner: act.validFrom: a relation of type berthed_at takes no interval',
+  ],
+  [
+    'a day that the calendar does not hold',
+    { validFrom: '2024-02-30' },
+    'item owner: act.validFrom: a new relation has a type and two ends',
+  ],
+] as const)('propose refuses %s at the insert', async ([, change, said]) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const outcome = await proposeOnPage(ask, [
+      item(
+        'owner',
+        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: held.id, ...change },
+        'On 12 March 2024',
+      ),
+    ]);
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(said) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+test('propose refuses a geometry that is no valid shape on the globe at the insert', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Nayara',
+          geom: { type: 'LineString', coordinates: [[69.6, 22.4]] },
+        },
+        'the tanker NAYARA',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      'item nayara: act.geom: the geometry is not a valid shape on the globe',
+    ) as string,
+  });
+});
+
+test('propose refuses a position past the pole at the insert', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Nayara',
+          geom: { type: 'Point', coordinates: [69.6, -91] },
+        },
+        'the tanker NAYARA',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('item nayara: act.geom: each position') as string,
+  });
+});
+
+test('propose refuses an update of a target that does not exist', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'update',
+        {
+          op: 'update_attrs',
+          targetKind: 'entity',
+          targetId: ABSENT,
+          attrs: { flag: { v: 'PA' } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(`item update: the target ${ABSENT} does not exist`) as string,
   });
 });
 

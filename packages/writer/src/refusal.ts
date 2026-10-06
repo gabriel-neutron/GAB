@@ -1,15 +1,16 @@
 import { DatabaseError } from 'pg';
 
-// Departure: two exports, one job. This file owns every word that a failure becomes, and the one
-// test that parts a refusal from a doubt. No other file reads the shape of a raised error.
+// Departure: two exports, one job. This file owns the one test that parts a refusal from a doubt,
+// and the one map from a failure to a sentence. No other file reads the shape of a raised error.
 
 const GENERIC = 'the database refused the act';
 const UNREACHABLE = 'the database did not answer, and nothing was written';
 const SLOW = 'the database took too long, and nothing was written';
 const DOUBT = 'the record gave no answer to read, and the act may have run whole';
 
-// External constraint: a message that PostgreSQL composes carries a ticket number, a path in this
-// repository and the address of the server, and none of those three may reach a screen.
+// External constraint: a message that PostgreSQL composes carries a table name, a path in this
+// repository or the address of the server, and none of those may reach a screen. So a failure
+// that no door worded gets the sentence of its code, and never its own text.
 const BY_CODE = new Map<string, string>([
   ['23505', 'the act repeats a value that must stay unique'],
   ['23503', 'the act names a document or an element that does not exist'],
@@ -26,49 +27,29 @@ const BY_CODE = new Map<string, string>([
   ['ENOTFOUND', UNREACHABLE],
 ]);
 
-const BY_SHAPE: readonly (readonly [string | RegExp, string])[] = [
-  [
-    'drops a document from the sources of that value',
-    'the act keeps the value, so it must keep every document that value already cites',
-  ],
-  ['is an endpoint of a relation', 'the target is an endpoint of a relation, and it stays'],
-  [
-    'no longer exists, and nothing was applied',
-    'the target no longer exists, and nothing was applied',
-  ],
-  [
-    'changes neither the name nor the type',
-    'the act changes neither the name nor the type of the entity',
-  ],
-  ['only a pending proposal is applied', 'the act is decided already, and a decided act is frozen'],
-  ['a decided act is frozen', 'the act is decided already, and a decided act is frozen'],
-  ['has no write path yet', 'the writer has no path for this act'],
-  // Departure: held to the whole sentence the record raises. `does not exist` alone also reads a
-  // missing table or a missing function, and those are a fault of the writer and not of the act.
-  [/^proposal \S+ does not exist$/u, 'the record holds no act under that name'],
-];
-
 const wordOf = (cause: unknown, key: 'code' | 'message'): string =>
   cause !== null && typeof cause === 'object' && key in cause
     ? String(Reflect.get(cause, key) ?? '')
     : '';
 
-const reads = (shape: string | RegExp, message: string): boolean =>
-  typeof shape === 'string' ? message.includes(shape) : shape.test(message);
+// External constraint: PostgreSQL names the table or the type of each rule that it checks itself.
+// A door names the rule it raises, and neither, so its message is a sentence it wrote for the
+// caller.
+// The hint is the field of the request that the caller corrects.
+const doorSentence = (cause: unknown): string | undefined => {
+  if (!(cause instanceof DatabaseError)) return undefined;
+  if (cause.constraint === undefined || cause.table !== undefined || cause.dataType !== undefined)
+    return undefined;
+  const sentence = cause.message.replaceAll(/\s+/gu, ' ').trim();
+  return cause.hint === undefined || cause.hint === '' ? sentence : `${cause.hint}: ${sentence}`;
+};
 
-const knownFrom = (code: string, message: string): string | undefined =>
-  BY_CODE.get(code) ?? BY_SHAPE.find(([shape]) => reads(shape, message))?.[1];
-
-const named = (sentence: string, proposalId: string | null): string =>
-  proposalId === null ? sentence : `${sentence}, and the act stays pending as ${proposalId}`;
-
-/** What the database raised, as one sentence this repository owns. It never carries a row. */
-export const refusalFrom = (cause: unknown, proposalId: string | null = null): string => {
+/** What the database raised, as one sentence. A door states its own; every other failure gets
+ * the sentence of its code. It never carries a row of the record. */
+export const refusalFrom = (cause: unknown): string => {
   const code = wordOf(cause, 'code');
-  const message = wordOf(cause, 'message').replaceAll(/\s+/gu, ' ').trim();
-  console.error('the database raised', { code, message, cause });
-  const known = knownFrom(code, message);
-  return known ?? named(GENERIC, proposalId);
+  console.error('the database raised', { code, cause });
+  return doorSentence(cause) ?? BY_CODE.get(code) ?? GENERIC;
 };
 
 /** What one failure is. A refusal came from a statement, and nothing was written. A doubt came

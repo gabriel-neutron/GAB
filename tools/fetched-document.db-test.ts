@@ -164,9 +164,7 @@ for (const document of ['manual', 'inherited'])
         await ask(TEXT, [id]);
         return ask(PROPOSE, [batchOf([id, document])]);
       }),
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('proposals_machine_not_reserved') as string,
-    });
+    ).rejects.toMatchObject({ code: '22023', constraint: 'proposals_machine_not_reserved' });
   });
 
 test('gabriel_research enqueues work for a fetched document and stores its text', async () => {

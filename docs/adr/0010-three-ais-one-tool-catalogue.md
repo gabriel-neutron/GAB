@@ -51,6 +51,21 @@ Each consumer has its own database role.
 one kind of row. No machine role can write a table directly. The grants file in `db/` holds the
 doors of each role, and the perimeter tests check them.
 
+**Every AI proposes through one tool and one door.** The extractor and the research AI call the
+same propose tool. A call is a batch of items: each item is one act, the party that first stated
+it, how the page states it, and for its values the page and an excerpt copied from the stored text.
+The tool finds each excerpt in the page, also when the white space, the Unicode form or a hyphen at
+a line end differs, and calculates the offsets. An excerpt that the page does not hold refuses the
+whole batch, and the refusal names the item, so the model can correct it once. A value that no
+excerpt states, in any form of that value, marks the item as disputed. Code mints the identifier of
+each item, so a relation names an entity that an earlier item of the same batch creates. The door
+writes each act with its citations in one transaction, and it holds the rules of the data: the
+page exists, the span lies in it, and a machine act cites at least one page. A pending act with the
+same operation, target, payload and sources is returned and not written again, so a retry or a
+second run writes no duplicate. The cited passage is private: the review card reads it through the
+writer, and the public read never shows it. **Cost:** a model that cannot copy a quote word for
+word loses its claim, and an excerpt proves only that the page holds the words.
+
 **The MCP server never calls the writer.** The writer signs each act as the operator. A call from an
 AI through the writer would enter the evidence as an operator act that nothing tells apart.
 
@@ -80,7 +95,7 @@ the operator secret.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
   left running. The operator queues a failed document again by hand. A job that runs again writes
-  no second set of proposals.
+  no second set of proposals, because the propose door returns the act that waits.
 
 ## The chat is local, and the conversations are private
 

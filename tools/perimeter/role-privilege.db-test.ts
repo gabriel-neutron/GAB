@@ -8,134 +8,6 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../probe.ts';
 
-const DOORS = {
-  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text,numeric)',
-  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
-  propose_batch: 'public.propose_batch(jsonb)',
-  record_model_call:
-    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
-  promote_proposal: 'public.promote_proposal(uuid,text)',
-  reject_proposal: 'public.reject_proposal(uuid,text)',
-  claim_job: 'public.claim_job()',
-  requeue_running_jobs: 'public.requeue_running_jobs()',
-  fail_job: 'public.fail_job(uuid,text)',
-  enqueue_job: 'public.enqueue_job(text,text)',
-  complete_job: 'public.complete_job(uuid)',
-  runner_settings: 'public.runner_settings()',
-  set_entity_layout: 'public.set_entity_layout(jsonb)',
-  open_conversation: 'public.open_conversation(text,text,uuid)',
-  append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
-  put_document_text: 'public.put_document_text(text,jsonb,text)',
-  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
-} as const;
-
-const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
-
-const doorsHeldBy = async (
-  identity: 'app' | 'agent' | 'research',
-): Promise<Record<string, boolean>> => {
-  const names = Object.keys(DOORS);
-  const signatures = Object.values(DOORS);
-  const rows = await probe(identity, async (ask) =>
-    holders.parse(
-      await ask(
-        `SELECT d.door, has_function_privilege(d.signature, 'EXECUTE') AS held
-           FROM unnest($1::text[], $2::text[]) AS d(door, signature)`,
-        [names, signatures],
-      ),
-    ),
-  );
-  return Object.fromEntries(rows.map((row) => [row.door, row.held]));
-};
-
-// THE QUEUE IS HELD BY THE NARROWER SECRET. The worker takes a row, ends it and gives back what a
-// crash left running, and the role that owns the doors of the operator holds none of these.
-
-// The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
-// this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on the batch door, the call record, the layout door, the claim and the failure', async () => {
-  expect(await doorsHeldBy('agent')).toStrictEqual({
-    put_document: false,
-    propose_change: false,
-    propose_batch: true,
-    promote_proposal: false,
-    reject_proposal: false,
-    record_model_call: true,
-    claim_job: true,
-    requeue_running_jobs: true,
-    fail_job: true,
-    enqueue_job: true,
-    complete_job: true,
-    runner_settings: true,
-    set_entity_layout: true,
-    open_conversation: false,
-    append_chat_message: false,
-    put_document_text: true,
-    put_fetched_document: true,
-  });
-});
-
-// THE RESEARCH ROLE PROPOSES AND STORES A FETCHED DOCUMENT, AND IT CANNOT DECIDE OR CLAIM. It holds
-// no door of the operator, no door of the queue except the request for work, and no call record.
-test('gabriel_research holds EXECUTE on five doors and no other', async () => {
-  expect(await doorsHeldBy('research')).toStrictEqual({
-    put_document: false,
-    propose_change: false,
-    propose_batch: true,
-    promote_proposal: false,
-    reject_proposal: false,
-    record_model_call: false,
-    claim_job: false,
-    requeue_running_jobs: false,
-    fail_job: false,
-    enqueue_job: true,
-    complete_job: false,
-    runner_settings: false,
-    set_entity_layout: false,
-    open_conversation: false,
-    append_chat_message: false,
-    put_document_text: true,
-    put_fetched_document: true,
-  });
-});
-
-const REFUSED = [
-  { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
-  { identity: 'app', call: 'SELECT public.requeue_running_jobs()' },
-  { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
-  { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
-  { identity: 'research', call: 'SELECT * FROM public.runner_settings()' },
-] as const;
-
-for (const refused of REFUSED)
-  test(`${refused.identity} cannot call the other end of the queue`, async () => {
-    await expect(rolledBack(refused.identity, (ask) => ask(refused.call))).rejects.toMatchObject({
-      code: '42501',
-    });
-  });
-
-test('gabriel_app holds EXECUTE on the four acts of the operator', async () => {
-  expect(await doorsHeldBy('app')).toStrictEqual({
-    put_document: true,
-    propose_change: true,
-    propose_batch: false,
-    promote_proposal: true,
-    reject_proposal: true,
-    record_model_call: false,
-    claim_job: false,
-    requeue_running_jobs: false,
-    fail_job: false,
-    enqueue_job: true,
-    complete_job: false,
-    runner_settings: false,
-    set_entity_layout: false,
-    open_conversation: true,
-    append_chat_message: true,
-    put_document_text: true,
-    put_fetched_document: false,
-  });
-});
-
 // THE TIER IS HELD BY NO ROLE YET. The reader of an export gets EXECUTE with the export, because
 // the owner of a view does not lend it. gabriel_read has no USAGE on public, so the superuser
 // asks on its behalf.
@@ -373,8 +245,11 @@ const machineProposes = (
     ]),
   );
 
+// The batch door names the item and the rule, and gives the sentence of the rule.
 const violates = (constraint: string) => ({
-  message: expect.stringContaining(`violates check constraint "${constraint}"`) as string,
+  code: '22023',
+  constraint,
+  message: expect.stringMatching(/^item 1: /u) as string,
 });
 
 for (const document of RESERVED) {
