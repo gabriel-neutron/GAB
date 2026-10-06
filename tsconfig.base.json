@@ -42,7 +42,7 @@
     // shortens a long type, and the shortened part usually names the mismatch.
     "noErrorTruncation": true,
 
-    // ADR 0004 §9. An error in the type definitions of a dependency is neither ours to fix
+    // ADR 0004. An error in the type definitions of a dependency is neither ours to fix
     // nor ours to suppress, and this repository permits no suppression.
     "skipLibCheck": true
   }

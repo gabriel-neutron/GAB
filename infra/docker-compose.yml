@@ -98,7 +98,7 @@ services:
       start_period: 20s
       retries: 6
 
-  # The model gateway of the back-end AI (ADR 0010 §4). It holds no record of the project. It keeps
+  # The model gateway of the back-end AI (ADR 0010). It holds no record of the project. It keeps
   # the provider keys, encrypted, in its own volume, and the operator enters them on its Keys page.
   # The host port is 4001, because 127.0.0.1:3001 belongs to postgrest-test.
   freellmapi:

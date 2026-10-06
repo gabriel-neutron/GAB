@@ -5,8 +5,8 @@
   // The target is not a preference. `projectService` in `eslint.config.ts` fails on a file that
   // no project includes. `.storybook/` is in neither `tsconfig.app.json`, which includes `src`
   // only, nor `tsconfig.node.json`, which names its files. Without this file `pnpm check` fails
-  // at once. ADR 0001 §1 answers the objection: a target with a different `lib` is a TypeScript
-  // configuration and not a workspace. §6 is not reached, and the repository is one package.
+  // at once. ADR 0001 answers the objection: a target with a different `lib` is a TypeScript
+  // configuration and not a workspace. Its rule on workspaces is not reached, and the repository is one package.
   //
   // `main.ts` runs in Node, and `preview.ts` runs in the browser. One file holds both, so
   // `main.ts` sees the DOM library that it does not need. That is the accepted cost. It is less

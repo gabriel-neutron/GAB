@@ -12,7 +12,7 @@
 -- between the markers is lost on the next emit, and a test compares the two with no database.
 -- Every other line of this file is hand-written and the emitter never reads it. No role holds a
 -- write on either table, and there is no propose-a-type path at run time: a row inserted by a
--- function exists in no .sql file, and ADR 0003 §5 makes `pnpm db:reset` a routine step, so such
+-- function exists in no .sql file, and ADR 0003 makes `pnpm db:reset` a routine step, so such
 -- a row dies by ordinary work.
 --
 -- THERE IS NO ATTRIBUTE VOCABULARY, AND THAT IS M11. Migration 0010 dropped the table. An
@@ -23,7 +23,7 @@
 -- history stays readable. The statement writes no such column, so a seeded word takes the
 -- default of the table and is in service.
 --
--- ADR 0003 §3 NAMES THIS FILE. Rows are a third kind, beside tables and functions: a re-runnable
+-- ADR 0003 NAMES THIS FILE. Rows are a third kind, beside tables and functions: a re-runnable
 -- data file, running last, after the grants.
 -- =============================================================================================
 

@@ -2,137 +2,78 @@
 
 **Status** Accepted · 11 August 2026
 
-### 1. SQL is the only source of truth
+## SQL is the source of truth
 
-The `.sql` files are the schema. Nothing else is. TypeScript types are **generated** from the live
-database by introspection: no column name is written twice, and no type is written by hand. A drift
-check regenerates them and fails if the result differs from what is committed — ADR 0001 §3 carries
-that step. **Drift is a failing build, not a discipline.**
+The SQL files in `db/` are the schema. TypeScript types are generated from the live database. Nobody
+writes a column name twice or writes a database type by hand. The drift check of ADR 0001 fails the
+build when the generated types differ from the committed types.
 
-A TypeScript-first tool that writes the SQL is **rejected**: SQL expresses every object this
-project puts in the database — triggers, the traversal function, the promotion transaction, PostGIS
-and pgvector types — and a TypeScript schema language expresses a subset. A subset gives two
-sources of truth.
+We refuse a TypeScript-first schema tool. SQL can express each object of this project: triggers,
+functions, PostGIS and pgvector types. A TypeScript schema language expresses only a part of them,
+and a part gives two sources of truth.
 
-### 2. `node-pg-migrate` applies the ordered files
+One exception: the seeded type vocabulary is declared in TypeScript. A tool generates its SQL rows
+from that declaration.
 
-An npm dependency, so no second binary is installed. If its SQL support does not match §3,
-replace the tool and keep §3: the file convention is the decision, and the tool is the smaller
-half.
+## Ordered files and re-runnable files
 
-### 3. Ordered files, and re-runnable files
+`node-pg-migrate` applies the files. The file convention is the decision. If the tool does not fit
+the convention, replace the tool and keep the convention.
 
-| Kind | Where | Runs |
-|---|---|---|
-| Tables, columns, indexes, roles, extensions, **types** | `db/migrations/` | Once, in order, each in a transaction |
-| Views, functions, triggers, grants | `db/apply/` | Every run, each file holding its whole current definition |
-| **Rows: seeded vocabularies and reserved documents** | `db/apply/95_seed.sql` | Every run, last, after the grants; adds and updates, never deletes |
+- **Ordered migrations** hold what holds data or what other objects depend on: tables, columns,
+  indexes, roles, extensions and types. Each one runs once, in order, in a transaction. A function
+  that a constraint calls is also schema, so it goes in an ordered file.
+- **Re-runnable files** hold views, functions, triggers, grants and seed rows. Each run applies all
+  of them. Each file holds the full current definition. Seed rows only add and update, never
+  delete.
 
-A seeded row is neither table nor function: it holds data, so it cannot be replaced wholesale like
-a view, but it is idempotent (`ON CONFLICT ... DO NOTHING` or `DO UPDATE`), so it is safe to
-re-run and belongs in `db/apply/`, not `db/migrations/`. The type vocabulary itself is declared in
-TypeScript, at `src/shared/vocabulary/declarations.ts`, and `pnpm seed:vocabulary` emits the marked
-region of `95_seed.sql` from it: that file is the one place a type is declared, and the SQL is
-generated, not authored.
+From an empty database, the migrations and then the re-runnable files give the current state, with
+no baseline dump and no step by hand.
 
-A table holds data, so its change must run once. A function holds none, so its whole text can be
-replaced on every run. **A table is never re-runnable.**
+We test a migration on the test database, built again from zero, never on real data.
 
-Two traps, both measured:
+## Two schemas, and the read role never touches a base table
 
-- **A trigger.** A plain second `CREATE TRIGGER` fails on the second apply. Write
-  `CREATE OR REPLACE TRIGGER`.
-- **A type or a domain.** A column's type cannot be replaced and a domain a `CHECK` depends on
-  cannot be dropped, so a type is **ordered** and lives beside the table that uses it. The same
-  reaches a `CHECK` that calls a function: `db/migrations/` runs before `db/apply/`, so a function
-  a constraint depends on is schema and belongs in the ordered file.
+The base tables are in `public`. The read role has no right on `public`. The `api` schema holds
+views and functions made for reading. The read role can only use `api`.
 
-`db/apply/` runs in this order: the `api` schema, views, functions, triggers, grants.
+A view in `api` runs with the rights of its owner, so it is the only door into `public`. But an
+updatable view can also write with those rights. Thus a grant inside `api` is not always a read. The
+grants file revokes each write on each object of `api` from each role other than the owner. It runs
+again on each apply, so it also covers a view that somebody adds later. This revoke is the only
+guard.
 
-### 4. Three commands reach the current state, from zero
+A view does not use `security_invoker`: the option checks `public` with the rights of the read role,
+and so it refuses the read too.
 
-```
-docker compose -f infra/docker-compose.yml up -d    the database exists and is empty
-pnpm db:migrate                                     ordered files, 0001 upward
-pnpm db:apply                                       re-runnable files, every one
-```
+Make one view for each concept, not for each screen. No read of data goes through a Node backend.
 
-No baseline dump, and no step applied by hand. `pnpm db:reset` drops and makes `gabriel_test`
-again, runs the ordered and re-runnable files on it, and loads the committed fixture. It never
-touches the record. A command that reads an empty database proves nothing, so these arrive with the
-schema they apply.
+## Roles by layer
 
-### 5. A migration is tested against an empty database, never against real data
+A grant, not a prompt, controls each write. The rule is by layer, not by table:
 
-`pnpm db:reset`, then the tests. The tests run on `gabriel_test` only. After a new migration, run
-`pnpm db:reset` again: no check tells a test run that `gabriel_test` is behind the record.
-**`pnpm check` runs `db:drift`, and `db:drift` applies the re-runnable files to `gabriel` unless
-`GABRIEL_DATABASE` names another database.** A plain `pnpm check` therefore deploys `db/apply` to
-the record.
+- The **owner** role owns the tables and the write functions. It never logs in.
+- The **application** role writes only through the write functions.
+- The **machine** roles can only propose into the candidate layer. They never write the evidence
+  layer or the configuration layer. Only the operator promotes.
+- The **read** role reads `api` and nothing more.
 
-### 6. Two schemas. The read role never touches a base table
+## Generated types and the read layer
 
-| Schema | Holds | `gabriel_read` gets |
-|---|---|---|
-| `public` | The base tables | Nothing. Not even `USAGE`. |
-| `api` | Views and functions built for reading | `USAGE`, `SELECT` on the views, `EXECUTE` on the functions |
+Kanel generates the types. One generated folder comes from `api`, and the user interface imports it.
+A second generated folder comes from `public`, and no code under `src/` imports it. We chose Kanel
+by a test with geometry, vector and JSON columns: it gave useful types where the other tool gave
+`any`.
 
-**A grant inside `api` is not always a read.** A view is auto-updatable and runs with the rights of
-**its owner**, so a write grant on a view passes every `REVOKE` on `public`. This was measured: a
-role with no privilege on `public.entities` wrote a row through an ordinary `api` view.
+PostgREST serves the `api` schema over HTTP as the read role. This generated layer cannot widen what
+a reader sees, because the grants of the read role hold that limit. To add a read, write a view. ADR
+0008 tells how a large read is bounded.
 
-The perimeter is a blanket revoke, in the grants file, of every write on every table of the read
-schema, from every role that is not the owner. **§1 refuses a second copy of the SQL, so this ADR
-quotes none: read the grants file.** The revoke covers every view, including the ones nobody has
-written yet, and it re-runs on every apply, so a convenience grant is erased rather than
-inherited. **A view carries no `security_invoker`.** The option checks the base table with the
-rights of the caller, and `gabriel_read` holds nothing on `public`, so the option refuses the read
-as well as the write. Measured on 19 August 2026, PostgreSQL 17.5: the same view returns
-`permission denied for table` with the option and returns its rows without it, while the blanket
-`REVOKE` above refuses the write in both cases. A view runs with the rights of its owner, and that
-is what makes it the only door into `public`. **The revoke is the guard, and it is the only one.**
+## Cost
 
-Two traps recorded so the next reader does not repeat them. `default_transaction_read_only` is
-`USERSET`, so the same session turns it off. And a probe built on a `serial` key **passes for an
-unrelated reason** — test with `uuid` or the test proves nothing.
-
-**One view per concept, not per surface.** A surface-shaped view multiplies with the user
-interface. Graph traversal stays a function, per T4. **No read of data passes through the Node
-backend.**
-
-### 7. Four roles, so a write is held by a grant and not by a prompt
-
-| Role | Writes |
-|---|---|
-| `gabriel_owner` | Nothing by connecting. It **owns** the tables and the write functions and never logs in |
-| `gabriel_app` | No table directly. It calls the write functions, and nothing else |
-| `gabriel_agent` | The candidate layer only. Never the evidentiary layer, never the configuration layer |
-| `gabriel_read` | Nothing. `USAGE`, `SELECT` and `EXECUTE` inside `api` only |
-
-**The rule is by layer, not by table name.** The four role names are fixed here; the tables that
-carry each layer are fixed by the first migration.
-
-### 8. The generator is Kanel, and it holds two folders
-
-`src/contract/` is generated from the `api` schema, and the user interface imports it. `src/db/` is
-generated from `public`, and **no file under `src/` may import `src/db/`**.
-
-Kanel writes one file per relation, inside a folder named after the schema. It was chosen by
-measurement against a database holding `geometry`, `geography`, `vector` and `jsonb`: with its type
-map it emits GeoJSON `Point` and `number[]`, where pg-to-ts emits `any` for everything it does not
-know.
-
-A mock and the database agree on **shape** and not on behaviour.
-
-### 9. PostgREST serves the `api` schema
-
-The read HTTP layer is **generated, not hand-written**. §6 already built what a generated layer
-needs. **A generated layer cannot widen the allowlist, because the layer does not hold it** — the
-grants of `gabriel_read` do, and PostgREST connects as that role. To add a read, write a view.
-
-**One tension, recorded and not hidden.** PostgREST is not TypeScript, and T1 asks for TypeScript
-end to end. It is read here as a **service**, like PostgreSQL and the object store.
-
-**Two reads return everything and cannot carry the default `LIMIT`** — the full-graph view and the
-full map view. They are exempt, and the mechanism of that exemption is open. The 5s
-`statement_timeout` still applies to both.
+- PostgREST is not TypeScript, but `decisions.md` T1 asks for TypeScript end to end. We treat
+  PostgREST as a service, like PostgreSQL and the object store.
+- The drift check applies the re-runnable files to the record database, unless a variable names
+  another database. Thus a plain `pnpm check` deploys them to the record.
+- Nothing tells a test run that the test database is older than the record. Build it again after
+  each new migration.
