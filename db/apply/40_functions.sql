@@ -656,11 +656,19 @@ BEGIN
     written := v_id IS NOT NULL;
     IF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
-      SELECT p.id, p.batch_id INTO STRICT v_id, v_held FROM public.proposals p
+      -- The share lock waits for a decision on that act that runs now. So a retry never joins a
+      -- batch that the operator decides at the same time.
+      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
                                           v_payload::jsonb, v_src, session_user::text,
-                                          btrim(v_item->>'originator', E' \t\n\r\f\v'));
+                                          btrim(v_item->>'originator', E' \t\n\r\f\v'))
+         FOR SHARE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
+                        'batch was written, so send the batch again', v_no
+          USING CONSTRAINT = 'proposal_pending';
+      END IF;
       v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
     END IF;
     IF v_batch IS NOT NULL AND NOT v_batches ? v_key THEN
@@ -938,6 +946,25 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- A LINKED BATCH IS DECIDED AS ONE UNIT (operator decision). The doors of one act refuse an act
+-- that waits in a batch, so no act of a batch is decided alone and a batch is never half decided.
+-- No role holds this step: it runs inside the two doors of one act.
+CREATE OR REPLACE FUNCTION refuse_batch_act(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_batch uuid;
+BEGIN
+  SELECT batch_id INTO v_batch FROM public.proposals
+   WHERE id = p_id AND status = 'pending' AND batch_id IS NOT NULL;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the act % is part of the linked batch %, and the operator decides a batch '
+                    'as one unit: decide the batch', p_id, v_batch
+      USING CONSTRAINT = 'batch_whole';
+  END IF;
+END $$;
+
 -- THE DECISION ON AN ACT THAT WAITS. Only the operator role holds it, and that grant is the rule
 -- "a machine proposes, only the operator promotes".
 CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
@@ -949,6 +976,8 @@ DECLARE
   v_table text;
   v_code  text;
 BEGIN
+  -- An act of a linked batch names another act of it, so it is promoted only with the batch.
+  PERFORM public.refuse_batch_act(p_id);
   -- The measured forgery: propose and accept inside one transaction. Refused by a stored
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
@@ -1005,6 +1034,8 @@ BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
+  -- An act of a linked batch is rejected only with the batch, as it is promoted only with it.
+  PERFORM public.refuse_batch_act(p_id);
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
    WHERE id = p_id AND status = 'pending';

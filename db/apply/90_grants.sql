@@ -59,6 +59,7 @@ REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text)   FROM PUBLIC;
+REVOKE ALL ON FUNCTION refuse_batch_act(uuid)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_batch(uuid,text,text) FROM PUBLIC;
