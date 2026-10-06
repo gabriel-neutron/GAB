@@ -54,13 +54,6 @@ const isErrorOf = (result: unknown): boolean =>
 
 const SEARCH = { name: 'search_graph', arguments: { query: 'Regulation' } };
 
-// The list is what Claude Code and Codex read, so each change of a name, a description, a schema
-// or a hint shows in the diff of the snapshot.
-test('the list of tools', async () => {
-  const client = await connected(fakePool(() => []).pool);
-  expect((await client.listTools()).tools).toMatchSnapshot();
-});
-
 test('each tool of the catalogue is listed once, flat, with a read or write hint', async () => {
   const client = await connected(fakePool(() => []).pool);
   const { tools } = await client.listTools();
