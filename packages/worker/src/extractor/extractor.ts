@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab/model';
 import { documentText } from '@gab/tools/document-text';
-import { lookupEntity } from '@gab/tools/lookup-entity';
-import { propose, proposeItem } from '@gab/tools/propose';
+import { proposeItem, proposeOfCall } from '@gab/tools/propose';
+import { searchGraph } from '@gab/tools/search-graph';
 import { callTool, type ItemToCheck, type Session, type Tool } from '@gab/tools/tool';
 import { z } from 'zod';
 
@@ -24,11 +24,12 @@ import type { ReaderConfig } from '../reader-config.ts';
 export const EXTRACTOR_NAME = 'extractor';
 const VERSION = 'v3';
 
-/** The three tools of the extractor. A test gives a stub for each one. */
+/** The tools of the extractor. A test gives a stub for each one. The propose tool names the
+ * model call that gave the batch. */
 export interface ExtractorTools {
   readonly documentText: Tool;
-  readonly lookupEntity: Tool;
-  readonly propose: Tool;
+  readonly searchGraph: Tool;
+  readonly propose: (modelCallId: string) => Tool;
 }
 
 export interface ExtractorOptions {
@@ -39,7 +40,7 @@ export interface ExtractorOptions {
   readonly checkPrompt?: string;
 }
 
-const DEFAULT_TOOLS: ExtractorTools = { documentText, lookupEntity, propose };
+const DEFAULT_TOOLS: ExtractorTools = { documentText, searchGraph, propose: proposeOfCall };
 
 // The answer of the model is the batch that the propose tool takes, so the research AI and the
 // extractor give one shape. An empty list is a chunk that states no claim.
@@ -81,9 +82,7 @@ export const makeExtractor = (
 
   // The model reads and looks up. A call to any other tool is refused, and the write is made by
   // code alone.
-  const offered = new Map(
-    [tools.documentText, tools.lookupEntity].map((tool) => [tool.name, tool]),
-  );
+  const offered = new Map([tools.documentText, tools.searchGraph].map((tool) => [tool.name, tool]));
   const modelTools: ModelTool[] = [...offered.values()].map((tool) => ({
     name: tool.name,
     description: tool.description,
@@ -195,15 +194,16 @@ export const makeExtractor = (
           continue;
         }
         if (asked.value.items.length === 0) return;
+        const proposer = tools.propose(asked.callId);
         const made = await callTool(
-          tools.propose,
+          proposer,
           session,
-          { items: asked.value.items, modelCallId: asked.callId },
+          { items: asked.value.items },
           { now: () => new Date(), check },
         );
         if (made.ok) return;
         if (retries === 0) {
-          refusals.push({ tool: tools.propose.name, reason: made.refusal });
+          refusals.push({ tool: proposer.name, reason: made.refusal });
           return;
         }
         retries -= 1;

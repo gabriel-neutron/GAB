@@ -33,38 +33,52 @@ const localRef = z
 
 const END = 'the id of an element of the record, or the ref of an earlier item of this batch';
 
+const ATTRIBUTES =
+  'write each attribute as {"key": {"v": value}}, for example {"imo": {"v": "9074729"}}; a ' +
+  'value is a text, a number, true or false, or a flat list of them; a key is lower case words ' +
+  'joined by one underscore, with the unit in the key, as capacity_dwt';
+
+const DAY = 'a day of the calendar, written as 2026-01-31';
+
+const ENTITY_TYPE = 'the key of an entity type; list_vocabulary gives each one';
+
+const RELATION_TYPE = 'the key of a relation type; list_vocabulary gives each one';
+
 // The shape a caller sees. The real check is the write contract, after each ref becomes the
 // identifier that code mints.
 const batchAct = z.discriminatedUnion('op', [
   z.strictObject({
     op: z.literal('create_entity'),
-    type: z.string(),
-    label: z.string(),
-    geom: z.unknown().optional(),
-    attrs: attributeEdit.optional(),
+    type: z.string().describe(ENTITY_TYPE),
+    label: z.string().describe('the name of the entity, as the page writes it'),
+    geom: z
+      .unknown()
+      .optional()
+      .describe('a GeoJSON geometry, for example {"type": "Point", "coordinates": [lon, lat]}'),
+    attrs: attributeEdit.optional().describe(ATTRIBUTES),
   }),
   z.strictObject({
     op: z.literal('create_relation'),
-    type: z.string(),
+    type: z.string().describe(RELATION_TYPE),
     srcKind: z.enum(['entity', 'relation']).optional(),
     srcId: z.string().describe(END),
     dstKind: z.enum(['entity', 'relation']).optional(),
     dstId: z.string().describe(END),
-    validFrom: z.string().optional(),
-    validTo: z.string().optional(),
-    attrs: attributeEdit.optional(),
+    validFrom: z.string().optional().describe(DAY),
+    validTo: z.string().optional().describe(DAY),
+    attrs: attributeEdit.optional().describe(ATTRIBUTES),
   }),
   z.strictObject({
     op: z.literal('update_attrs'),
     targetKind: z.enum(['entity', 'relation']),
     targetId: z.uuid(),
-    attrs: attributeEdit,
+    attrs: attributeEdit.describe(ATTRIBUTES),
   }),
 ]);
 
 const evidence = z.strictObject({
   document: documentId,
-  page: z.number().int().min(1),
+  page: z.number().int().min(1).describe('the page of the stored text, from 1'),
   excerpt: z
     .string()
     .trim()
@@ -83,7 +97,13 @@ export const proposeItem = z.strictObject({
     .min(1)
     .max(300)
     .describe('the party that first stated the claim, as the page names it'),
-  modality: z.enum(MODALITIES),
+  modality: z
+    .enum(MODALITIES)
+    .describe(
+      'how the page states the claim: enacts (the text makes it true, as a law), asserts (the ' +
+        'author states it), attributes (the author reports what another party states), alleges ' +
+        '(an accusation that is not proved), denies (the text says it is not true)',
+    ),
   evidence: z.array(evidence).min(1).max(MAX_EVIDENCE),
 });
 
@@ -274,109 +294,116 @@ const outcome = z.strictObject({
   unstated: z.array(z.string()),
 });
 
-export const propose = defineTool({
-  name: 'propose',
-  description:
-    'Proposes a batch of linked facts: new entities, new relations, and attributes to add. Each ' +
-    'item gives the act, the party that first stated it, how the page states it, and for its ' +
-    'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
-    'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
-    'the item. A value that no excerpt states marks the item as disputed. A relation names an ' +
-    'entity of an earlier item by its ref. A retry of the same batch writes nothing twice. The ' +
-    'proposals wait for the operator. Look up an entity first, so you do not propose one that ' +
-    'the record already holds.',
-  input: z.strictObject({
-    items: proposeItems,
-    modelCallId: z.uuid().optional(),
-  }),
-  output: z.strictObject({ proposals: z.array(outcome) }),
-  async run(session, input, reach) {
-    const minted = new Map<string, Minted>();
-    input.items.forEach((given, index) => {
-      if (minted.has(given.ref)) refuse(given.ref, 'two items of the batch have this ref');
-      minted.set(given.ref, { id: randomUUID(), kind: KIND_OF_OP[given.act.op] ?? null, index });
-    });
+// The model call of a back-end agent is known to its runner alone, so it is no input that a
+// caller gives.
+const proposeOf = (modelCallId: string | null) =>
+  defineTool({
+    name: 'propose',
+    description:
+      'Proposes a batch of linked facts: new entities, new relations, and attributes to add. Each ' +
+      'item gives the act, the party that first stated it, how the page states it, and for its ' +
+      'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
+      'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
+      'the item. A value that no excerpt states marks the item as disputed. A relation names an ' +
+      'entity of an earlier item by its ref. A retry of the same batch writes nothing twice. The ' +
+      'proposals wait for the operator. First call search_graph with each identifier, and ' +
+      'list_proposals for the document, so you propose no fact that the record or the queue ' +
+      'already holds.',
+    input: z.strictObject({ items: proposeItems }),
+    output: z.strictObject({ proposals: z.array(outcome) }),
+    async run(session, input, reach) {
+      const minted = new Map<string, Minted>();
+      input.items.forEach((given, index) => {
+        if (minted.has(given.ref)) refuse(given.ref, 'two items of the batch have this ref');
+        minted.set(given.ref, { id: randomUUID(), kind: KIND_OF_OP[given.act.op] ?? null, index });
+      });
 
-    const prepared = [];
-    for (const [index, given] of input.items.entries()) {
-      const request = await resolvedAct(session, given, index, minted);
-      const cited: Cited[] = [];
-      for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
-      const documents = [...new Set(cited.map((one) => one.document))];
-      await checkTarget(session, given.ref, request);
-      const draft = machineAct(request, documents);
-      if (!draft.ready) refuse(given.ref, draft.refusal);
-      const unstated = unstatedValues(
-        request,
-        cited.map((one) => one.passage),
-      );
-      prepared.push({ given, act: draft.act, cited, unstated, id: minted.get(given.ref)?.id });
-    }
-
-    // The check runs before the insert, because the door freezes the dispute flag at insert.
-    const toCheck: ItemToCheck[] = prepared.map(({ given, cited }) => ({
-      ref: given.ref,
-      claim: { act: given.act, originator: given.originator, modality: given.modality },
-      passages: cited.map((one) => ({
-        document: one.document,
-        page: one.page,
-        excerpt: one.passage,
-        context: one.context,
-      })),
-    }));
-    const supported = reach?.check === undefined ? null : await reach.check(toCheck);
-    const disputed = (ref: string, unstated: readonly string[]): boolean =>
-      unstated.length > 0 || (supported !== null && !supported.has(ref));
-
-    const items = prepared.map(({ given, act, cited, unstated, id }) => {
-      return {
-        id,
-        op: act.op,
-        payload: act.payload,
-        src: act.src,
-        target_kind: act.targetKind,
-        target_id: act.targetId,
-        names: act.names,
-        dissent: disputed(given.ref, unstated),
-        model_call_id: input.modelCallId ?? null,
-        originator: given.originator,
-        modality: given.modality,
-        citations: cited.map((one) => ({
-          document: one.document,
-          text_extractor: one.textExtractor,
-          page: one.page,
-          start: one.span.start,
-          end: one.span.end,
-        })),
-      };
-    });
-
-    let rows: z.output<typeof doorRow>[];
-    try {
-      rows = await rowsOf(session, doorRow, BATCH, [JSON.stringify(items)]);
-    } catch (cause) {
-      if (cause instanceof Error && 'code' in cause && cause.code === REFUSED_CODE)
-        throw new ToolRefusal(
-          refusalOf(
-            cause,
-            input.items.map((given) => given.ref),
-          ),
+      const prepared = [];
+      for (const [index, given] of input.items.entries()) {
+        const request = await resolvedAct(session, given, index, minted);
+        const cited: Cited[] = [];
+        for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        const documents = [...new Set(cited.map((one) => one.document))];
+        await checkTarget(session, given.ref, request);
+        const draft = machineAct(request, documents);
+        if (!draft.ready) refuse(given.ref, draft.refusal);
+        const unstated = unstatedValues(
+          request,
+          cited.map((one) => one.passage),
         );
-      throw cause;
-    }
+        prepared.push({ given, act: draft.act, cited, unstated, id: minted.get(given.ref)?.id });
+      }
 
-    return {
-      proposals: prepared.map(({ given, unstated }, index) => {
-        const row = rows.find((one) => one.item === index + 1);
-        if (row === undefined) throw new Error(`the door returned no proposal for ${given.ref}`);
+      // The check runs before the insert, because the door freezes the dispute flag at insert.
+      const toCheck: ItemToCheck[] = prepared.map(({ given, cited }) => ({
+        ref: given.ref,
+        claim: { act: given.act, originator: given.originator, modality: given.modality },
+        passages: cited.map((one) => ({
+          document: one.document,
+          page: one.page,
+          excerpt: one.passage,
+          context: one.context,
+        })),
+      }));
+      const supported = reach?.check === undefined ? null : await reach.check(toCheck);
+      const disputed = (ref: string, unstated: readonly string[]): boolean =>
+        unstated.length > 0 || (supported !== null && !supported.has(ref));
+
+      const items = prepared.map(({ given, act, cited, unstated, id }) => {
         return {
-          ref: given.ref,
-          proposalId: row.proposal_id,
-          written: row.written,
-          disputed: disputed(given.ref, unstated),
-          unstated,
+          id,
+          op: act.op,
+          payload: act.payload,
+          src: act.src,
+          target_kind: act.targetKind,
+          target_id: act.targetId,
+          names: act.names,
+          dissent: disputed(given.ref, unstated),
+          model_call_id: modelCallId,
+          originator: given.originator,
+          modality: given.modality,
+          citations: cited.map((one) => ({
+            document: one.document,
+            text_extractor: one.textExtractor,
+            page: one.page,
+            start: one.span.start,
+            end: one.span.end,
+          })),
         };
-      }),
-    };
-  },
-});
+      });
+
+      let rows: z.output<typeof doorRow>[];
+      try {
+        rows = await rowsOf(session, doorRow, BATCH, [JSON.stringify(items)]);
+      } catch (cause) {
+        if (cause instanceof Error && 'code' in cause && cause.code === REFUSED_CODE)
+          throw new ToolRefusal(
+            refusalOf(
+              cause,
+              input.items.map((given) => given.ref),
+            ),
+          );
+        throw cause;
+      }
+
+      return {
+        proposals: prepared.map(({ given, unstated }, index) => {
+          const row = rows.find((one) => one.item === index + 1);
+          if (row === undefined) throw new Error(`the door returned no proposal for ${given.ref}`);
+          return {
+            ref: given.ref,
+            proposalId: row.proposal_id,
+            written: row.written,
+            disputed: disputed(given.ref, unstated),
+            unstated,
+          };
+        }),
+      };
+    },
+  });
+
+/** The propose tool of the research AI. */
+export const propose = proposeOf(null);
+
+/** The propose tool of a back-end agent. Each proposal names the model call that gave it. */
+export const proposeOfCall = (modelCallId: string) => proposeOf(modelCallId);

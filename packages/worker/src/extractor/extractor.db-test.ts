@@ -248,8 +248,8 @@ test('a model that never stops calling a tool fails the job with turn_cap', asyn
                     {
                       id: 'call-1',
                       function: {
-                        name: 'lookup_entity',
-                        arguments: '{"key":"imo","value":"9876543"}',
+                        name: 'search_graph',
+                        arguments: '{"identifier":{"key":"imo","value":"9876543"}}',
                       },
                     },
                   ],

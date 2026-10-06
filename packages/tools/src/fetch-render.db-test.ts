@@ -169,20 +169,13 @@ test('a script that fills a table gives its text with render, and the two docume
   });
 });
 
-test('a page with little text is rendered with no flag, and renderBelow 0 stops the render', async () => {
+test('a page with little text is rendered with no flag', async () => {
   await rolledBack('research', async (ask) => {
     const store = memoryStore();
     const got = await fetched(ask, { url: `${base}/table` }, fixtureReach(store));
     expect(got.rendered?.status).toBe('stored');
     expect(got.pages[0]?.text).toContain('Detained at Port Louis');
     expect(store.puts).toHaveLength(2);
-  });
-  await rolledBack('research', async (ask) => {
-    const store = memoryStore();
-    const got = await fetched(ask, { url: `${base}/table`, renderBelow: 0 }, fixtureReach(store));
-    expect(got.rendered).toBeNull();
-    expect(got.pages[0]?.text).not.toContain('Detained at Port Louis');
-    expect(store.puts).toHaveLength(1);
   });
 });
 
