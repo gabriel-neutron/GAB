@@ -79,6 +79,11 @@ const requestOf = (key: string, url: string): RegisterRequest => ({
   url,
   register: 'OpenSanctions',
   headers: { accept: 'application/json', authorization: `ApiKey ${key}` },
+  // OpenSanctions merges two entities into one and redirects the old id to the new id.
+  moved: (location) => {
+    const id = decodeURIComponent(new URL(location, BASE).pathname.split('/').pop() ?? '');
+    return `OpenSanctions moved this entity to ${id}: read that id`;
+  },
 });
 
 const leadsOf = async (reach: Reach, key: string, query: URLSearchParams): Promise<Output> => {

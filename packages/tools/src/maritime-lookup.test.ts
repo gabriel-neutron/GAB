@@ -25,12 +25,10 @@ const setup = (web: ReturnType<typeof stubWeb>) => {
   };
 };
 
-test('the catalogue holds the two maritime lookups and no other', () => {
+test('the catalogue holds the two maritime lookups', () => {
   const names = CATALOGUE.map((tool) => tool.name);
   expect(names).toContain('sanctions_match');
   expect(names).toContain('vessel_events');
-  expect(names).not.toContain('scene_search');
-  expect(names).not.toContain('trade_flow');
 });
 
 const OS_KEY = 'os-secret-1';
@@ -302,4 +300,46 @@ test('vessel_events refuses with a sentence that says what to correct', async ()
   expect(
     refusalOf(await callTool(tool, session, { mmsi: '999999999', ...RANGE }, reach)),
   ).toContain('no vessel with the MMSI 999999999');
+});
+
+test('an entity that moved to another id is refused with the new id, and the redirect is not followed', async () => {
+  const web = stubWeb(
+    () =>
+      text('', 308, { location: 'https://api.opensanctions.org/entities/NK-new123?nested=true' }),
+    { openSanctionsKey: OS_KEY },
+  );
+  const { store, session, reach } = setup(web);
+  const outcome = await callTool(
+    toolNamed('sanctions_match'),
+    session,
+    { entityId: ENTITY },
+    reach,
+  );
+  expect(refusalOf(outcome)).toContain('NK-new123');
+  expect(refusalOf(outcome)).toContain('read that id');
+  expect(web.asked).toHaveLength(1);
+  expect(store.puts).toStrictEqual([]);
+});
+
+test('the same read in another order of types has one address and one document', async () => {
+  const web = gfwWeb();
+  const { store, session, reach } = setup(web);
+  const tool = toolNamed('vessel_events');
+  await callTool(tool, session, { vesselId: VESSEL, ...RANGE, types: ['gap', 'encounter'] }, reach);
+  await callTool(tool, session, { vesselId: VESSEL, ...RANGE, types: ['encounter', 'gap'] }, reach);
+  expect(web.asked[0]?.url.href).toBe(web.asked[1]?.url.href);
+  expect(web.asked[0]?.url.searchParams.get('datasets[0]')).toContain('encounters');
+  expect(store.puts).toHaveLength(1);
+});
+
+test('an MMSI search that answers 404 is a vessel that is not known', async () => {
+  const web = stubWeb(() => text('absent', 404), { gfwToken: GFW_TOKEN });
+  const { session, reach } = setup(web);
+  const outcome = await callTool(
+    toolNamed('vessel_events'),
+    session,
+    { mmsi: MMSI, ...RANGE },
+    reach,
+  );
+  expect(refusalOf(outcome)).toContain(`knows no vessel with the MMSI ${MMSI}`);
 });

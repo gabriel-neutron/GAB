@@ -92,8 +92,10 @@ const vesselIdsOf = async (reach: Reach, token: string, mmsi: string): Promise<s
     webFromReach(reach),
     requestOf(token, `${BASE}/v3/vessels/search?${query.toString()}`),
   );
-  const identities = shaped('Global Fishing Watch', searchAnswer, answer?.json)
-    .entries.map((entry) =>
+  const identities = (
+    answer === null ? [] : shaped('Global Fishing Watch', searchAnswer, answer.json).entries
+  )
+    .map((entry) =>
       entry.selfReportedInfo.filter((info) => info.ssvid === mmsi).map((info) => info.id),
     )
     .filter((ids) => ids.length > 0);
@@ -191,7 +193,7 @@ export const vesselEvents = defineTool({
         : [input.vesselId];
     const read = await eventsOf(session, reach, token, vessels, {
       ...input,
-      types: [...new Set(input.types)],
+      types: TYPES.filter((type) => input.types.includes(type)),
     });
     const { entries, nextOffset } = shaped('Global Fishing Watch', eventsAnswer, read.answer.json);
     return {
