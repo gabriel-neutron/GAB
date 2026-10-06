@@ -30,6 +30,10 @@ const COMPLETE = 'SELECT public.complete_job($1::uuid)';
 
 const MS = 1000;
 
+// A spent quota fails no job, so it returns the job to the queue for every agent. An agent that
+// must never fall back names more failures of its own.
+const RELEASE_ON: NonNullable<RunnerAgent['releaseOn']> = { [REASON.quota]: 'quota' };
+
 // Origin: decided by the operator on 26 September 2026. A job gets three claims. A failure on the
 // first or the second leaves the row running, and the end of its lease returns it to the queue.
 // The failure of the third ends the job as failed.
@@ -82,7 +86,7 @@ export type Step =
   | { readonly did: 'paused' }
   | { readonly did: 'idle' }
   | { readonly did: 'done'; readonly job: string }
-  | { readonly did: 'released'; readonly job: string }
+  | { readonly did: 'released'; readonly job: string; readonly reason: string }
   | { readonly did: 'failed'; readonly job: string }
   | { readonly did: 'left'; readonly job: string };
 
@@ -213,9 +217,17 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     } catch (cause) {
       if (cause instanceof JobStop) return failed(job, cause.reason);
       if (cause instanceof ModelFailure) {
-        if (cause.failure.kind === REASON.quota) {
+        const reason = (agent.releaseOn ?? RELEASE_ON)[cause.failure.kind];
+        if (reason !== undefined) {
+          // The door of the release takes no reason, so the log is the record of it, and the
+          // record of the call keeps the kind of the failure.
           await deps.db.query(RELEASE, [job.id]);
-          return { did: 'released', job: job.id };
+          console.error('the runner returned a job to the queue', {
+            agent: agent.name,
+            job: job.id,
+            reason,
+          });
+          return { did: 'released', job: job.id, reason };
         }
         return failed(job, cause.failure.reason);
       }
