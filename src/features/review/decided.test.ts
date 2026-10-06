@@ -38,6 +38,7 @@ const retyped: Proposal = {
   createdAt: '2026-08-02T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 };
 
 describe('the history of the record', () => {
@@ -75,6 +76,7 @@ describe('the history of the record', () => {
         dissent: false,
         authorRole: 'gabriel_agent',
         createdAt: '2026-08-01T00:00:00Z',
+        batchId: null,
       },
       verdict: 'accepted',
       decidedAt: '2026-08-01T00:05:00Z',
@@ -102,6 +104,7 @@ describe('the history of the record', () => {
             dissent: false,
             authorRole: 'gabriel_app',
             createdAt: '2026-08-01T00:00:00Z',
+            batchId: null,
           },
           verdict: 'accepted',
           decidedAt: '2026-08-01T00:05:00Z',

@@ -216,6 +216,9 @@ export interface Proposal {
   readonly createdAt: string;
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
+  /** The linked batch of a machine act, which the operator decides as one unit. A single act
+   * has none. */
+  readonly batchId: string | null;
 }
 
 export interface Corpus {

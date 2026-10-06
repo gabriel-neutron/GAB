@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+
+import { Pool } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -935,14 +938,11 @@ const askPassages = (body: unknown, origin?: string) =>
 
 // The fixture gives each machine act a citation of the whole first page, which holds the title.
 test('the private read gives the passage that a pending act cites, as the page states it', async () => {
-  // Another file of this project commits citations too, so the passage is read from the page
-  // that the citation names.
   const cited = await one(
-    `SELECT c.claim_id::text AS id, c.page,
-            substr(t.text, c.start + 1, c."end" - c.start) AS passage
-       FROM public.citation c
-       JOIN public.document_text t
-         ON (t.document_id, t.extractor, t.page) = (c.doc_id, c.text_extractor, c.page)
+    `SELECT c.claim_id::text AS id, d.title FROM public.citation c
+       JOIN public.documents d ON d.id = c.doc_id
+      WHERE c.text_extractor = 'fixture@1' AND c.start = 0
+        AND c."end" = char_length(d.title)
       ORDER BY c.claim_id LIMIT 1`,
     [],
   );
@@ -950,14 +950,200 @@ test('the private read gives the passage that a pending act cites, as the page s
   expect(answer.status).toBe(200);
   const { passages } = passageShape.parse(await answer.json());
   expect(passages).toHaveLength(1);
-  expect(passages[0]).toMatchObject({
-    proposalId: cited['id'],
-    page: cited['page'],
-    text: cited['passage'],
-  });
+  expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
 });
 
 test('the private read refuses a request from another site', async () => {
   const answer = await askPassages({ proposalIds: [] }, 'https://elsewhere.example');
   expect(answer.status).toBe(403);
+});
+
+// ------------------------------------------------------------------------- the batch door --
+
+// A research AI proposes a linked batch through its own door, as the MCP server does.
+const research = new Pool({
+  connectionString:
+    `postgresql://gabriel_research:${encodeURIComponent(z.string().parse(process.env['GABRIEL_RESEARCH_PASSWORD']))}` +
+    '@127.0.0.1:5432/gabriel_test',
+});
+
+afterAll(async () => {
+  await research.end();
+});
+
+interface Item {
+  readonly id: string;
+  readonly op: 'create_entity' | 'create_relation';
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly names?: readonly string[];
+}
+
+// The fixture gives each cited document one page of text, so each item cites its first letter.
+const proposedBatch = async (items: readonly Item[]): Promise<readonly string[]> => {
+  const page = await one(
+    'SELECT document_id, extractor FROM public.document_text WHERE page = 1 LIMIT 1',
+    [],
+  );
+  const made = await research.query<{ id: string }>(
+    'SELECT proposal_id AS id FROM public.propose_batch($1::jsonb) ORDER BY item',
+    [
+      JSON.stringify(
+        items.map((item) => ({
+          ...item,
+          names: item.names ?? [],
+          src: [page['document_id']],
+          originator: 'A batch test',
+          modality: 'asserts',
+          citations: [
+            {
+              document: page['document_id'],
+              text_extractor: page['extractor'],
+              page: 1,
+              start: 0,
+              end: 1,
+            },
+          ],
+        })),
+      ),
+    ],
+  );
+  return made.rows.map((row) => row.id);
+};
+
+const batchOf = async (proposalId: string): Promise<string | null> =>
+  z
+    .string()
+    .nullable()
+    .parse(
+      (await one('SELECT batch_id FROM api.proposal WHERE id = $1::uuid', [proposalId]))[
+        'batch_id'
+      ],
+    );
+
+const statusesOf = async (ids: readonly string[]): Promise<readonly string[]> =>
+  (
+    await pool.query<{ status: string }>(
+      'SELECT status FROM public.proposals WHERE id = ANY($1::uuid[]) ORDER BY status',
+      [[...ids]],
+    )
+  ).rows.map((row) => row.status);
+
+// A company that owns a vessel, both new. The relation stands first, so the door orders the
+// promotion. The name of the test makes each act its own, so no act of an earlier test waits.
+const linkedBatch = (test: string, vessel: string, owner: string, link: string): Item[] => [
+  {
+    id: link,
+    op: 'create_relation',
+    payload: { type: 'owns', src_id: owner, dst_id: vessel },
+    names: [owner, vessel],
+  },
+  { id: vessel, op: 'create_entity', payload: { type: 'vessel', label: `${test} vessel` } },
+  { id: owner, op: 'create_entity', payload: { type: 'company', label: `${test} owner` } },
+];
+
+test('a linked batch waits as one batch, and one promotion writes every item', async () => {
+  const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const ids = await proposedBatch(linkedBatch('Batch test promotion', vessel, owner, link));
+  try {
+    const batchId = await batchOf(link);
+    expect(batchId).not.toBeNull();
+    expect([await batchOf(vessel), await batchOf(owner)]).toStrictEqual([batchId, batchId]);
+
+    const [status, reply] = await post('decide-batch', { batchId, verdict: 'promote' });
+    expect([status, reply.state]).toStrictEqual([200, 'decided']);
+    expect(await statusesOf(ids)).toStrictEqual(['accepted', 'accepted', 'accepted']);
+    expect([await liveRows(vessel), await liveRows(owner), await liveRows(link)]).toStrictEqual([
+      1, 1, 1,
+    ]);
+  } finally {
+    await removed(link, vessel, owner);
+  }
+});
+
+test('two items that name no other item wait as two single acts', async () => {
+  const ids = await proposedBatch([
+    { id: randomUUID(), op: 'create_entity', payload: { type: 'vessel', label: 'Batch test one' } },
+    { id: randomUUID(), op: 'create_entity', payload: { type: 'vessel', label: 'Batch test two' } },
+  ]);
+  try {
+    expect(await Promise.all(ids.map(batchOf))).toStrictEqual([null, null]);
+  } finally {
+    for (const proposalId of ids) await post('reject-proposal', { proposalId });
+  }
+});
+
+test('a batch with one item that cannot be promoted writes nothing, and the refusal names it', async () => {
+  const end = await signedEntity('Batch test end that goes');
+  const [owner, link] = [randomUUID(), randomUUID()];
+  // The relation links the new company to an end of the record, which goes before the promotion.
+  const ids = await proposedBatch([
+    { id: owner, op: 'create_entity', payload: { type: 'company', label: 'Batch test refused' } },
+    {
+      id: link,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: owner, dst_id: end },
+      names: [owner, end],
+    },
+  ]);
+  const batchId = await batchOf(link);
+  try {
+    await removed(end);
+    const [status, reply] = await post('decide-batch', { batchId, verdict: 'promote' });
+    expect(status).toBe(422);
+    expect(reply.refusal).toBe(
+      'nothing of the batch is promoted, because the record refuses its new relation owns: ' +
+        `the target ${end} does not exist`,
+    );
+    expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending']);
+    expect(await liveRows(owner)).toBe(0);
+  } finally {
+    await post('decide-batch', { batchId, verdict: 'reject' });
+  }
+});
+
+test('one rejection rejects every item of the batch, and writes no row', async () => {
+  const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const ids = await proposedBatch(linkedBatch('Batch test rejection', vessel, owner, link));
+
+  const [status, reply] = await post('decide-batch', {
+    batchId: await batchOf(vessel),
+    verdict: 'reject',
+  });
+  expect([status, reply.state]).toStrictEqual([200, 'decided']);
+  expect(await statusesOf(ids)).toStrictEqual(['rejected', 'rejected', 'rejected']);
+  expect([await liveRows(vessel), await liveRows(owner), await liveRows(link)]).toStrictEqual([
+    0, 0, 0,
+  ]);
+});
+
+test.for(['promote-proposal', 'reject-proposal'])(
+  'the door of one act refuses an act of a linked batch, and the batch still waits whole (%s)',
+  async (door) => {
+    const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
+    const ids = await proposedBatch(linkedBatch(`Batch test ${door}`, vessel, owner, link));
+    const batchId = await batchOf(vessel);
+    try {
+      const [status, reply] = await post(door, { proposalId: vessel });
+      expect([status, reply.refusal]).toStrictEqual([
+        422,
+        `the act ${vessel} is part of the linked batch ${String(batchId)}, and the operator ` +
+          'decides a batch as one unit: decide the batch',
+      ]);
+      expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
+      expect(await liveRows(vessel)).toBe(0);
+    } finally {
+      await post('decide-batch', { batchId, verdict: 'reject' });
+    }
+  },
+);
+
+test('a decision on a batch that the record does not hold is refused', async () => {
+  const [status, reply] = await post('decide-batch', {
+    batchId: TARGET_OF_NO_ACT,
+    verdict: 'promote',
+  });
+  expect([status, reply.refusal]).toStrictEqual([
+    422,
+    `the record holds no batch ${TARGET_OF_NO_ACT} that waits`,
+  ]);
 });

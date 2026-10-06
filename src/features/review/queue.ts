@@ -23,8 +23,9 @@ import { originOf, type Origin } from './origin';
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
 export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge';
 
-/** What is being changed. The queue lists these, and never one act on its own. */
-export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge';
+/** What is being changed. The queue lists these, and never one act on its own. A batch holds the
+ * acts of a machine that name each other, and the operator decides them as one unit. */
+export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge' | 'batch';
 
 /** A verdict on one act. A promotion and a rejection are written to the record and cannot be
  * taken back; a hold is a state of this pass, because nothing in the record holds one. */
@@ -188,6 +189,7 @@ const SUBJECT_WORDS: Readonly<Record<SubjectKind, string>> = {
   'new-node': 'New entity',
   link: 'Relation',
   merge: 'Merge',
+  batch: 'Linked batch',
 };
 
 const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
@@ -218,6 +220,9 @@ function words(value: AttributeValue): string {
 interface Index {
   readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly entityById: ReadonlyMap<string, Entity>;
+  /** The name of each new entity that waits. Its promotion keeps the identifier of its act, so a
+   * relation of the same batch names it by that identifier before it stands in the record. */
+  readonly waitingLabelById: ReadonlyMap<string, string>;
   readonly relationById: ReadonlyMap<string, Relation>;
   readonly liveTypes: ReadonlySet<string> | null;
   readonly typeWordsOf: TypeWordsOf;
@@ -233,7 +238,7 @@ const storedTypeNote = (index: Index, type: string): string | null =>
 const labelIn =
   (index: Index) =>
   (id: string): string | undefined =>
-    index.entityById.get(id)?.label;
+    index.entityById.get(id)?.label ?? index.waitingLabelById.get(id);
 
 function addressOf(row: DocumentRow | undefined): SourceAddress | null {
   if (row === undefined) return null;
@@ -461,8 +466,10 @@ interface Filing {
   readonly kind: SubjectKind;
 }
 
-/** A node collects its acts. Everything else stands alone, under the identifier of the act. */
+/** A batch collects its acts, and so does a node. Everything else stands alone, under the
+ * identifier of the act. */
 function filingOf(proposal: Proposal): Filing {
+  if (proposal.batchId !== null) return { key: proposal.batchId, kind: 'batch' };
   switch (proposal.payload.kind) {
     case 'entity':
       return { key: proposal.id, kind: 'new-node' };
@@ -573,14 +580,27 @@ function changeOf(index: Index, proposal: Proposal): Change {
   };
 }
 
-function labelOf(index: Index, kind: SubjectKind, key: string, first: Change): string {
+const newNameOf = (change: Change): string | undefined =>
+  change.rows.find((row) => row.key === 'Name')?.proposed ?? undefined;
+
+function labelOf(
+  index: Index,
+  kind: SubjectKind,
+  key: string,
+  changes: readonly [Change, ...Change[]],
+): string {
+  const [first] = changes;
   switch (kind) {
     case 'node':
       return (
         index.entityById.get(key)?.label ?? `An entity absent from the record, ${shortId(key)}`
       );
     case 'new-node':
-      return first.rows.find((row) => row.key === 'Name')?.proposed ?? first.headline;
+      return newNameOf(first) ?? first.headline;
+    case 'batch': {
+      const named = changes.flatMap((change) => newNameOf(change) ?? []);
+      return named.length === 0 ? first.headline : named.join(', ');
+    }
     case 'merge':
       return first.headline;
     case 'link': {
@@ -618,6 +638,13 @@ export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subjec
   const index: Index = {
     documentById: new Map(read.documents.map((row) => [row.id, row])),
     entityById: new Map(read.entities.map((row) => [row.id, row])),
+    waitingLabelById: new Map(
+      read.proposals.flatMap((proposal) =>
+        proposal.status === 'pending' && proposal.payload.kind === 'entity'
+          ? [[proposal.id, proposal.payload.label] as const]
+          : [],
+      ),
+    ),
     relationById: new Map(read.relations.map((row) => [row.id, row])),
     liveTypes:
       types === undefined
@@ -638,19 +665,20 @@ export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subjec
 
   return [...filed].flatMap(([key, held]) => {
     const changes = [...held.changes].sort(weakestFirst);
-    const [first] = changes;
+    const [first, ...rest] = changes;
     // A key exists because an act was filed under it. This narrows the type, and guards nothing.
     if (first === undefined) return [];
     const entity = held.kind === 'node' ? index.entityById.get(key) : undefined;
     const relation = held.kind === 'link' ? index.relationById.get(key) : undefined;
     const standing = entity?.attrs ?? relation?.attrs ?? null;
-    const contestedKeys = contestedKeysOf(changes);
+    // The acts of a batch change different rows, so a key that two of them name is no contest.
+    const contestedKeys = held.kind === 'batch' ? [] : contestedKeysOf(changes);
     return [
       {
         id: key,
         kind: held.kind,
         kindWords: SUBJECT_WORDS[held.kind],
-        label: labelOf(index, held.kind, key, first),
+        label: labelOf(index, held.kind, key, [first, ...rest]),
         type: entity?.type ?? relation?.type ?? null,
         standing: standing === null ? [] : standingRows(index, standing),
         changes,
@@ -660,6 +688,14 @@ export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subjec
     ];
   });
 }
+
+/** The name of a linked batch, which says how many acts one verdict decides. */
+export const batchName = (subject: Subject): string =>
+  `One linked batch of ${String(subject.changes.length)} acts`;
+
+/** The acts that one verdict on a batch decides. */
+export const actIdsOf = (subject: Subject): readonly string[] =>
+  subject.changes.map((change) => change.id);
 
 /** The lowest confidence of a subject. A subject is only as sound as its weakest act. */
 const weakestOf = (subject: Subject): number => Math.min(...subject.changes.map(scoreOf));
