@@ -16,7 +16,7 @@ const NAMES = Object.keys(COMMANDS);
 const isName = (word: string): word is CommandName => Object.hasOwn(COMMANDS, word);
 
 /** What the words of the command line ask for: one sub-command, or the usage text. */
-export type Command =
+type Command =
   | {
       readonly kind: 'command';
       readonly name: CommandName;

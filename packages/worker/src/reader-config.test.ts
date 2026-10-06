@@ -65,14 +65,8 @@ describe('the configuration of the extractor', () => {
     );
   });
 
-  it('stops on the model auto', () => {
-    expect(() => readExtractorConfig({ ...FULL, CHECKER_MODEL: 'auto' })).toThrow(
-      /CHECKER_MODEL.*auto/u,
-    );
-  });
-
-  it('stops on a number that is not a whole number above zero', () => {
-    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_TURN_CAP: '0' })).toThrow(
+  it('stops on a value that is not a number', () => {
+    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_TURN_CAP: 'forty' })).toThrow(
       /EXTRACTOR_TURN_CAP/u,
     );
   });

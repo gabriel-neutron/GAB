@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { OpenAICompatibleChatLanguageModel } from '@ai-sdk/openai-compatible';
+import type { OpenAICompatibleChatLanguageModel } from '@ai-sdk/openai-compatible';
 import {
   AISDKError,
   APICallError,
@@ -92,7 +92,7 @@ export interface CallRecord {
   readonly outputTokens: number;
 }
 
-export interface ModelOptions {
+interface ModelOptions {
   /** Writes the record of one question and gives its identifier. The adapter returns no answer
    * before the record is written, so a proposal that follows can name it. */
   readonly record: (call: CallRecord) => Promise<string>;
@@ -103,7 +103,7 @@ export interface ModelOptions {
 
 // `tokens` counts the calls of this question alone, and the budget holds the job total.
 // `served` is absent when no answer arrived.
-export type Answer<T> = (
+type Answer<T> = (
   | { readonly ok: true; readonly value: T }
   | { readonly ok: true; readonly call: ToolUse }
   | { readonly ok: false; readonly failure: Failure }
@@ -379,7 +379,7 @@ export const openModel = (
   given: ModelLine,
   options: ModelOptions,
 ): Model => {
-  if (!(model instanceof OpenAICompatibleChatLanguageModel) || model.provider !== `${GATEWAY}.chat`)
+  if (model.provider !== `${GATEWAY}.chat`)
     throw new Error('the adapter takes a model of the free-model gateway only');
   const settings = line.parse(given);
   const pinned = model.modelId;

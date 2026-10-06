@@ -1,31 +1,29 @@
-import { readFileSync } from 'node:fs';
-
-import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab/model';
+import type { Message } from '@gab/model';
 import { enqueueExtract } from '@gab/tools/enqueue-extract';
 import { fetchDocument } from '@gab/tools/fetch-document';
 import { pageAddress } from '@gab/tools/fetch-guard';
 import { findDocument } from '@gab/tools/find-document';
 import { newsSearch } from '@gab/tools/news-search';
 import { searchGraph } from '@gab/tools/search-graph';
-import { callTool, type Reach, type Session, type Tool } from '@gab/tools/tool';
+import { callTool, type Reach, type Session } from '@gab/tools/tool';
 import { webSearch } from '@gab/tools/web-search';
 import { z } from 'zod';
 
 import {
   JobStop,
-  ModelFailure,
   type AgentContext,
   type AgentResult,
   type Refusal,
   type RunnerAgent,
 } from '../agents.ts';
 import { readLeadConfig, type LeadConfig } from '../reader-config.ts';
+import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
 
 /** The name of the lead agent in the record of each of its model calls. */
-export const LEAD_NAME = 'lead';
+const LEAD_NAME = 'lead';
 const VERSION = 'v1';
 
-export interface LeadOptions {
+interface LeadOptions {
   /** The object store, the web and the clock that the tools use. */
   readonly reach: Reach;
   /** The text of the prompt. The default is the versioned file beside this one. */
@@ -73,26 +71,20 @@ const addressesOf = (url: string): string[] => {
 };
 
 // The tools of the lead. None of them proposes, and none of them starts a lead.
-const OFFERED: readonly Tool[] = [
+const OFFER = offerOf([
   webSearch,
   newsSearch,
   searchGraph,
   findDocument,
   fetchDocument,
   enqueueExtract,
-];
+]);
 
 /** The lead agent. It searches, fetches and stores the pages of one lead, and queues the
  * extraction of each page that it stores. It proposes nothing and starts no lead. */
 export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerAgent => {
-  const prompt = options.prompt ?? readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
+  const prompt = promptOf(options.prompt, new URL('./prompt.md', import.meta.url));
   const { reach } = options;
-  const byName = new Map(OFFERED.map((tool) => [tool.name, tool]));
-  const modelTools: ModelTool[] = OFFERED.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input: tool.input,
-  }));
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
     const { job } = context;
@@ -129,7 +121,7 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
         return `Gabriel holds this page already as document ${known}, so it was not fetched again.`;
 
       const outcome = await callTool(fetchDocument, session, input, reach);
-      if (!outcome.ok) return `The tool refused the call: ${outcome.refusal}`;
+      if (!outcome.ok) return outcomeText(outcome);
       const page = fetched.parse(outcome.output);
       const document = page.rendered?.document ?? page.document;
       const status = page.rendered?.status ?? page.status;
@@ -149,20 +141,6 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
       });
     };
 
-    const answerOf = async (call: ToolUse): Promise<string> => {
-      const tool = byName.get(call.name);
-      if (tool === undefined) {
-        const reason = `the tool ${call.name} is not offered to the lead agent`;
-        refusals.push({ tool: call.name, reason });
-        return reason;
-      }
-      if (tool === fetchDocument) return fetchOf(call.input);
-      const outcome = await callTool(tool, session, call.input, reach);
-      return outcome.ok
-        ? JSON.stringify(outcome.output)
-        : `The tool refused the call: ${outcome.refusal}`;
-    };
-
     const messages: Message[] = [
       { role: 'system', content: prompt },
       {
@@ -172,25 +150,29 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
     ];
     // No page limit and no turn limit: the token budget of the job is the one stop.
     for (;;) {
-      let asked;
-      try {
-        asked = await context.ask(config.model, {
+      const asked = await withinBudget(
+        context.ask(config.model, {
           messages: [...messages],
           shape: finalAnswer,
-          tools: modelTools,
-        });
-      } catch (cause) {
-        if (cause instanceof ModelFailure && cause.failure.kind === REASON.overCap)
-          throw new JobStop(BUDGET_SPENT);
-        throw cause;
-      }
+          tools: OFFER.forModel,
+        }),
+        BUDGET_SPENT,
+      );
       // An answer that costs no token never spends the budget, and the budget is the one stop.
       if (asked.tokens === 0) throw new JobStop(NO_COUNT);
       if (asked.kind === 'value') return { refusals };
-      messages.push(
-        { role: 'assistant', call: asked.call },
-        { role: 'tool', call: asked.call, content: await answerOf(asked.call) },
+      const { call } = asked;
+      const content = await answerCall(
+        OFFER.byName,
+        call,
+        refusals,
+        'to the lead agent',
+        async (tool) =>
+          tool === fetchDocument
+            ? fetchOf(call.input)
+            : outcomeText(await callTool(tool, session, call.input, reach)),
       );
+      messages.push({ role: 'assistant', call }, { role: 'tool', call, content });
     }
   };
 
