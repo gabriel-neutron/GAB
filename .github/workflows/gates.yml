@@ -9,16 +9,19 @@
 # that proves a perimeter, a role, a grant or a row. Each secret of the stack is a random value
 # that the job makes and drops: the stack holds no real data, so no repository secret is needed.
 #
-# The cost is split by the change. A pull request into `main`, and a push to `main`, run both
-# jobs in full: it is the last gate. A pull request into any other branch (`staging`, a stacked
-# branch) that changes documents alone (`docs/`, `research/`, a Markdown file at the root) runs no job. The
-# `changes` job decides. A job that is skipped counts as passed for a required check.
+# The cost is split by the branch. The `changes` job sets a tier:
+#   full  a pull request into `main` and a push to `main`: every job and the whole suite.
+#   most  a push to `staging`: every job and the whole suite except the end-to-end test.
+#   fast  any other pull request: `no-stack` and the offline tests. The stack does not start.
+#   none  any other pull request that changes documents alone (`docs/`, `research/`, a Markdown
+#         file at the root): no job.
+# A job that is skipped counts as passed for a required check.
 
 name: gates
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
@@ -31,38 +34,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      code: ${{ steps.diff.outputs.code }}
+      tier: ${{ steps.diff.outputs.tier }}
 
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      # A push to `main` and a pull request into `main` always count as code. For any other pull
-      # request, a file outside the document paths counts as code.
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
           BASE_REF: ${{ github.base_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$EVENT" != "pull_request" ] || [ "$BASE_REF" = "main" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "push" ]; then
+            if [ "$REF" = "main" ]; then echo "tier=full" >> "$GITHUB_OUTPUT"; else echo "tier=most" >> "$GITHUB_OUTPUT"; fi
+            exit 0
+          fi
+          if [ "$BASE_REF" = "main" ]; then
+            echo "tier=full" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA")
           if printf '%s\n' "$files" \
             | grep -Ev '^(docs/|research/)|^[^/]+\.md$|^(LICENSE|Project-Status-Report\.html)$' \
             | grep -q .; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "tier=fast" >> "$GITHUB_OUTPUT"
           else
-            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "tier=none" >> "$GITHUB_OUTPUT"
           fi
 
   no-stack:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.tier != 'none'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -90,6 +96,11 @@ jobs:
       # `tsr generate` runs inside the type check and writes the route tree. `--porcelain` names
       # an untracked file as well as a changed one, so a new generated route fails here too. A
       # tree that differs from the committed one is a stale file and not a silent repair.
+      # The part of the suite that reaches no service. The `stack` job runs it again inside the
+      # larger run, so this step runs only when the stack does not start.
+      - if: needs.changes.outputs.tier == 'fast'
+        run: pnpm run test:fast
+
       - name: the generated files match the committed ones
         run: |
           if [ -n "$(git status --porcelain)" ]; then
@@ -100,7 +111,7 @@ jobs:
 
   stack:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.tier == 'most' || needs.changes.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -148,7 +159,9 @@ jobs:
 
       - run: pnpm run db:drift
 
-      - run: pnpm test
+      # The end-to-end test starts a child process and runs alone after every other project, so
+      # only a run for `main` pays for it.
+      - run: pnpm run ${{ needs.changes.outputs.tier == 'full' && 'test' || 'test:most' }}
 
       - name: the logs of the stack
         if: failure()
