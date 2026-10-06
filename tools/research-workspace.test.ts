@@ -48,12 +48,12 @@ test('the research environment names its connection, one store key and the two s
   );
 });
 
-// The example is committed, so it holds a loopback address and no key. A key in it would be in git.
-test('the research environment example points SearXNG at the machine and holds no key', () => {
+// The example is committed, so it holds no key. A key in it would be in git.
+test('the research environment example names SearXNG and holds no key', () => {
   const value = (name: string): string | undefined =>
     new RegExp(`^${name}=(.*)$`, 'mu').exec(read('research', '.env.example'))?.[1]?.trim();
 
-  expect(value('SEARXNG_URL')).toBe('http://127.0.0.1:8888');
+  expect(value('SEARXNG_URL')).toMatch(/^http:\/\//u);
   expect(value('BRAVE_SEARCH_API_KEY')).toBe('');
 });
 

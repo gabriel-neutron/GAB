@@ -12,10 +12,6 @@ const MAX_TITLE = 300;
 // key goes in a header to this host and never in an address.
 const BRAVE = 'https://api.search.brave.com/res/v1/web/search';
 
-// The local SearXNG is the one http host that a tool asks. Any other name is a name that a network
-// can point elsewhere, so only the machine itself passes.
-const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
-
 const NO_KEY = 'no Brave key is set, so this answer comes from SearXNG alone';
 
 const hit = z.strictObject({
@@ -63,13 +59,8 @@ const searxSearch = (setting: string, query: string): string => {
   } catch {
     throw new UpstreamFault('the SearXNG address is not an address');
   }
-  if (
-    base.protocol !== 'http:' ||
-    !LOOPBACK.has(base.hostname) ||
-    base.username !== '' ||
-    base.password !== ''
-  )
-    throw new UpstreamFault('the SearXNG address is not an http address on this machine');
+  if (base.protocol !== 'http:' && base.protocol !== 'https:')
+    throw new UpstreamFault('the SearXNG address is not an http address');
   const url = new URL(base.href);
   url.pathname = `${url.pathname.replace(/\/+$/u, '')}/search`;
   url.search = '';
