@@ -22,6 +22,8 @@ export default interface Document {
   admiralty_origin: string | null;
 
   created_at: string | null;
+
+  cost_eur: number | null;
 }
 
 export const document = z.object({
@@ -36,4 +38,5 @@ export const document = z.object({
   admiralty: z.string().nullable(),
   admiralty_origin: z.string().nullable(),
   created_at: z.string().nullable(),
+  cost_eur: z.number().nullable(),
 });

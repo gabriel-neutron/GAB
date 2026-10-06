@@ -26,7 +26,7 @@ const CLOSED = read(CLOSED_ID);
 const FROM = 'MV Northern Ledger';
 const TO = 'Maasvlakte bulk terminal, berth 7';
 
-/** The type as the read carries it, and the type as a surface says it. */
+/** The type as the read carries it, and the label its row declares. */
 const RAW_TYPE = 'berthed_at';
 const TYPE = 'berthed at';
 
@@ -75,7 +75,7 @@ export const TheTwoEndsAndTheTypeAreDrawn: Story = {
 export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
-    await expect(heading).toHaveTextContent(relationLines(FROM, RAW_TYPE, TO).join(''));
+    await expect(heading).toHaveTextContent(relationLines(FROM, TYPE, TO).join(''));
   },
 };
 

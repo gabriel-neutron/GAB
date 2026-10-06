@@ -8,6 +8,7 @@ import { foldEveryUnit } from './unit-folds';
 const subordinate = (child: string, parent: string): Relation => ({
   id: `${child}-${parent}`,
   type: 'subordinate_to',
+  proposedType: null,
   srcKind: 'entity',
   srcId: child,
   dstKind: 'entity',

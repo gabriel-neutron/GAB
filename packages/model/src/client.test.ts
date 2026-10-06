@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
-import { openModel, type AgentModel, type Message, type Send, type Tool } from './client.ts';
+import {
+  openModel,
+  worstQuestionMs,
+  type AgentModel,
+  type Message,
+  type Send,
+  type Tool,
+} from './client.ts';
 
 const AGENT: AgentModel = {
   endpoint: 'openrouter',
@@ -968,5 +975,25 @@ describe('the read of the quota that is left', () => {
     expect(refused).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
     expect(down).toMatchObject({ ok: false, failure: { kind: 'network' } });
     expect(lost).toMatchObject({ ok: false, failure: { kind: 'network' } });
+  });
+});
+
+describe('the longest time of one question', () => {
+  it('counts every call and every wait of the worst question the client can make', async () => {
+    const down = (): Response => answer('{}', 503);
+    const wrong = (): Response => answer(said('{"other":1}'));
+    // Each of the two round trips fails on its first three calls and ends on a refused answer.
+    const send = vi.fn<Send>();
+    send.mockImplementation(() =>
+      Promise.resolve(send.mock.calls.length % 4 === 0 ? wrong() : down()),
+    );
+    const slow: AgentModel = { ...AGENT, maxWaitMs: 1, firstWaitMs: 1, waitGrowth: 1 };
+
+    const got = await ask(send, 1000, slow).run();
+
+    expect(got).toMatchObject({ ok: false, failure: { kind: 'rejected', attempts: 8 } });
+    const calls = 8;
+    const waits = 6;
+    expect(worstQuestionMs(slow)).toBe(calls * slow.timeoutMs + waits * slow.maxWaitMs);
   });
 });

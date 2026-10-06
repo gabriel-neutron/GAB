@@ -1,0 +1,5 @@
+id;canonical_id;document_id;claim_ids
+S01;host:invented-one.example;doc_a1a1a1a1a1a1;C-ALPHA-1, C-ALPHA-4
+S02;host:invented-two.example;doc_b2b2b2b2b2b2;C-ALPHA-1
+S03;;;C-ALPHA-2
+S04;host:invented-four.example;doc_c4c4c4c4c4c4;C-GAMMA-9

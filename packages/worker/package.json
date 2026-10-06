@@ -3,9 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./ingest": "./src/ingest.ts",
+    "./report-claims": "./src/report-claims.ts"
+  },
   "dependencies": {
+    "@gab/model": "workspace:*",
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
+    "@gab/tools": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.4.3"
   },
