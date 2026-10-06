@@ -198,6 +198,25 @@ test('the second of two blocks with one claim id and other bytes is changed in t
   expect(report.lines.map((line) => line.status)).toStrictEqual(['stored', 'changed']);
 });
 
+test('a kept block with no Énoncé is stored with one job, and the report names the gap', async () => {
+  const plan = planClaims(
+    parseClaims('### C-SHAPE-4\n- **Chiffre** : 4\n- **Source** : an invented note\n', 'x.md'),
+    [],
+  );
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const report = await loadClaims(plan, doorOf(ask), DAY);
+    const documents = (await reportDocuments(ask)).filter((row) => row.title === 'C-SHAPE-4');
+    return { report, documents };
+  });
+
+  const [line] = outcome.report.lines;
+  expect(line?.status).toBe('stored');
+  expect(line?.detail).toContain('missing Énoncé');
+  expect(outcome.documents).toHaveLength(1);
+  expect(outcome.documents[0]?.id).toBe(line?.documentId);
+  expect(outcome.documents[0]?.jobs).toBe(1);
+});
+
 test('a load with no retrieval day stops before it writes', async () => {
   const outcome = await rolledBack('superuser', async (ask) => {
     const before = await count(ask, 'documents');

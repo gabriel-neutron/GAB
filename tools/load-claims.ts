@@ -145,8 +145,6 @@ const loadOne = async (
 ): Promise<Outcome> => {
   const { block } = claim;
   if (block.deleted) return { status: 'deleted', detail: `deleted: ${block.reason ?? ''}` };
-  if (!block.fields.some((field) => field.name.normalize('NFC').toLowerCase() === 'énoncé'))
-    return { status: 'refused', detail: 'the block has no Énoncé, so it holds no claim' };
 
   const sha256 = createHash('sha256').update(claim.bytes).digest('hex');
   const held = heldReports(

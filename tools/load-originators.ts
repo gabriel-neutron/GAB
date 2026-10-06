@@ -474,7 +474,7 @@ const PROPOSED_HEADER = ['id', 'canonical_id', 'kind', 'path', 'match_reason'] a
 const MAP_HEADER = ['id', 'canonical_id', 'document_id', 'claim_ids'] as const;
 
 /** One map row for each S-id of the report, a refused row too. A claim that cites a refused S-id
- * then finds it with no document id, and not no S-id at all. The claim ids are the raw text of
+ * then finds that S-id in the map with an empty document id. The claim ids are the raw text of
  * the claim ids cell of the source list, so the claims load reads them as the operator wrote
  * them. */
 export const sourcesMapRows = (
