@@ -198,7 +198,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
 
           <SaidLine said={uploadSaid(state, draft)} label={SAYS} />
 
-          {state.step === 'stored' || state.step === 'known' ? (
+          {state.step === 'done' ? (
             <ExtractionControl key={state.documentId} documentId={state.documentId} />
           ) : null}
 
