@@ -27,17 +27,22 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- is the caller. It separates gabriel_agent from gabriel_app, and it CANNOT separate the
 -- operator from the backend, because both hold the name gabriel_app.
 -- What makes two machine acts the same act: the operation, the target, the payload, the
--- sources, the role that wrote it and the party that first stated it. The stamp below and the
--- batch door read it, so both compute one digest. Two roles, or two originators, are two
--- witnesses, and the digest keeps them apart: a merge would lose the second witness.
+-- sources and the role that wrote it. The stamp below and the batch door read it, so both compute
+-- one digest. Two roles are two witnesses, and the digest keeps them apart: a merge would lose the
+-- second witness. The originator is not part of it, because a model words the same party in more
+-- than one way, and each wording would make a second act of one claim.
+--
+-- An act that waited before this digest keeps the digest it was written with, because a pending
+-- act is frozen. A retry of such an act writes it once more.
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text,text);
 CREATE OR REPLACE FUNCTION act_digest_of(
   p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
-  p_author_role text, p_originator text)
+  p_author_role text)
 RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
   SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
-                               p_author_role, p_originator)::text)
+                               p_author_role)::text)
 $$;
 
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
@@ -65,7 +70,7 @@ BEGIN
   -- never joined to an act of a machine.
   NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
     ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
-                       NEW.author_role, NEW.originator) END;
+                       NEW.author_role) END;
   RETURN NEW;
 END $$;
 
@@ -460,13 +465,15 @@ END $$;
 --
 -- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
 -- digest of a pending act makes a retry return the act that waits. That act keeps its own
--- identifier, so each later item that named the minted one names the act that waits instead.
--- The door adds to that act each citation of the item that it does not hold yet, so a second
--- passage of the same witness is kept, and a retry writes no citation twice.
+-- identifier and its own originator, so each later item that named the minted one names the act
+-- that waits instead. The door adds to that act each citation of the item that it does not hold
+-- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
 --
--- THE RULES OF THE DATA ARE HERE, and the tool only finds the excerpt. A machine act cites at
--- least one page. The page exists in the text of the document, the span lies in that page, and
--- the document is a source of the act. Each refusal names the item.
+-- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
+-- attributes. A machine act cites at least one page. The page exists in the text of the document,
+-- the span lies in that page, and the document is a source of the act. Each refusal names the
+-- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
+-- model gets its fault before the write; the promotion holds those two rules too.
 --
 -- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH, and the operator decides them as one unit. An
 -- item that names no other item, and that no other item names, stays a single act: a faulty claim
@@ -554,6 +561,12 @@ BEGIN
     IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
       RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
         USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    -- A change of a name or a type and a deletion rewrite what the operator already decided.
+    IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs') THEN
+      RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation or new '
+                      'attributes, and never a change of a name or a type, nor a deletion', v_no
+        USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
     IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
                                                  'denies') THEN
@@ -661,8 +674,7 @@ BEGIN
       SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text,
-                                          btrim(v_item->>'originator', E' \t\n\r\f\v'))
+                                          v_payload::jsonb, v_src, session_user::text)
          FOR SHARE;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
@@ -1250,7 +1262,8 @@ END $$;
 -- appears. It takes a work kind alone, because `store_only` is written by put_document and is
 -- never queued. A document with no bytes has nothing to read, so it is refused. The unique index
 -- of the table refuses a second open job of one kind for one document, and it answers for two
--- callers at one instant, which a check made here could not.
+-- callers at one instant, which a check made here could not. The door words that refusal itself,
+-- so no caller reads the name of the index.
 CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -1276,8 +1289,14 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
-  RETURNING id INTO v_id;
+  BEGIN
+    INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'document % has a job of kind % that is queued or runs already',
+      p_document, p_kind
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
+  END;
   RETURN v_id;
 END $$;
 
@@ -1336,16 +1355,28 @@ SET search_path = pg_catalog, public, pg_temp AS $$
    ORDER BY j.created_at DESC, j.id
 $$;
 
+-- THE WORDS OF THE PARTS THAT A JOB COULD NOT PROPOSE. The status of a done job and the reason of
+-- a failed one read the same words, so they are made here alone.
+CREATE OR REPLACE FUNCTION refused_parts_said(p_parts int, p_refusal text)
+RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE WHEN p_parts > 0
+              THEN p_parts || CASE WHEN p_parts = 1 THEN ' part' ELSE ' parts' END
+                   || ' refused: ' || p_refusal END
+$$;
+
 -- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
 -- through the model calls it recorded, and the operator role holds no read of those calls. So
 -- this door counts them, and returns the count and no row of a call. The `store_only` row of
 -- the ingestion is no work, so it is left out. The newest job comes first.
+DROP FUNCTION IF EXISTS document_jobs(text);
 CREATE OR REPLACE FUNCTION document_jobs(p_document text)
-RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text,
+RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text, job_refused text,
                proposal_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT j.id, j.kind, j.status, j.failure_reason,
+         public.refused_parts_said(j.refused_parts, j.refusal),
          (SELECT count(*) FROM public.model_call m
             JOIN public.proposals p ON p.model_call_id = m.id
            WHERE m.job_id = j.id)
@@ -1387,6 +1418,19 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END $$;
+
+-- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
+-- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
+-- text and the propose tool choose the set here, so they choose the same one. The caller reads the
+-- text with its own grant, so this is no door.
+CREATE OR REPLACE FUNCTION newest_text_extractor(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT t.extractor FROM public.document_text t
+   WHERE t.document_id = p_document
+   ORDER BY t.created_at DESC, t.extractor DESC
+   LIMIT 1
+$$;
 
 -- THE DOOR OF A MACHINE THAT FETCHED A SOURCE. put_document takes any kind and does not demand the
 -- bytes, so it is the operator's. This door is as narrow as the act it serves: an address that was
@@ -1454,19 +1498,38 @@ BEGIN
                              p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
 END $$;
 
--- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
--- be marked done by hand.
-CREATE OR REPLACE FUNCTION complete_job(p_id uuid)
-RETURNS void
+-- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
+-- cannot be marked done by hand.
+--
+-- A JOB THAT READS IN PARTS GIVES ITS COUNT OF PARTS, the count that the propose door refused,
+-- and the first refusal. The job keeps the count and the reason, so no lost claim is silent. A job
+-- whose every part was refused proposed nothing, so it fails with the same words as its reason.
+-- The door returns the status that it wrote. The earlier signature is dropped first.
+DROP FUNCTION IF EXISTS complete_job(uuid);
+CREATE OR REPLACE FUNCTION complete_job(p_id uuid, p_parts int DEFAULT 0, p_refused int DEFAULT 0,
+                                        p_refusal text DEFAULT NULL)
+RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_status text;
 BEGIN
+  IF p_refused < 0 OR p_refused > p_parts THEN
+    RAISE EXCEPTION 'a job refuses from none to all of its % parts, and not %', p_parts, p_refused
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_status := CASE WHEN p_refused > 0 AND p_refused = p_parts THEN 'failed' ELSE 'done' END;
   UPDATE public.jobs
-     SET status = 'done', finished_at = now(), updated_at = now()
+     SET status = v_status,
+         refused_parts = p_refused,
+         refusal = p_refusal,
+         failure_reason = CASE WHEN v_status = 'failed'
+                               THEN public.refused_parts_said(p_refused, p_refusal) END,
+         finished_at = now(), updated_at = now()
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
+  RETURN v_status;
 END $$;
 
 

@@ -135,3 +135,26 @@ export const AnEmptyLeadCannotStart: Story = {
     await expect(dialog.getByRole('button', { name: 'Start the lead' })).toBeDisabled();
   },
 };
+
+export const ALostStartIsADoubt: Story = {
+  play: async ({ canvasElement }) => {
+    writerAnswers(leadsOf(), {
+      status: 502,
+      body: { doubt: 'the record gave no answer to read, and the act may have run whole' },
+    });
+    const dialog = within(await opened(canvasElement));
+    await waitFor(async () => {
+      await expect(dialog.getByRole('status')).toHaveTextContent('No lead was given.');
+    });
+
+    await userEvent.type(dialog.getByLabelText('Lead'), LEAD);
+    await userEvent.click(dialog.getByRole('button', { name: 'Start the lead' }));
+
+    await waitFor(async () => {
+      await expect(dialog.getByRole('alert')).toHaveTextContent(
+        'The state of the leads is not known. The write service did not confirm the act, and ' +
+          'the act may have run whole.',
+      );
+    });
+  },
+};

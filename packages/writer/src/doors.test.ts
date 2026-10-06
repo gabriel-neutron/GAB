@@ -40,6 +40,21 @@ const post = (
   body: unknown,
 ): Promise<[number, z.infer<typeof replyShape>]> => postText(pool, door, JSON.stringify(body));
 
+const privateRead = async (
+  pool: Sessions,
+  door: string,
+  body: unknown,
+): Promise<[number, unknown]> => {
+  const answer = await writeRoutes(pool, NO_STORE).request(door, {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return [answer.status, await answer.json()];
+};
+
+const DOCUMENT = { documentId: 'doc_0123456789ab' };
+
 const ENTITY = { type: 'vessel', label: 'MV Northern Ledger' };
 
 // Departure: each failure is logged whole for the operator, and the log is not under test.
@@ -116,3 +131,28 @@ test.each(['[]', 'null', '"x"'])(
     ]);
   },
 );
+
+// A lost answer of a queue door may stand as a job, so it is a doubt on every door.
+test.each([
+  ['/write/queue-extraction', 'enqueue_job', DOCUMENT],
+  ['/write/document-jobs', 'document_jobs', DOCUMENT],
+  ['/write/start-lead', 'start_lead', { lead: 'a company and its vessels' }],
+  ['/private/leads', 'lead_jobs', {}],
+  ['/private/passages', 'citation', { proposalIds: [] }],
+])('a lost answer on %s is a doubt, and the client goes back', async (door, on, body) => {
+  const held = faultyPool([{ on, cause: lostSocket() }]);
+
+  expect(await privateRead(held.pool, door, body)).toStrictEqual([502, { doubt: DOUBT }]);
+  expect(held.releases()).toBe(1);
+});
+
+test.each([
+  ['/write/queue-extraction', DOCUMENT],
+  ['/write/start-lead', { lead: 'a company and its vessels' }],
+  ['/private/passages', { proposalIds: [] }],
+])('a pool that gives no client answers 503 on %s', async (door, body) => {
+  expect(await privateRead(unreachablePool(), door, body)).toStrictEqual([
+    503,
+    { refusal: UNREACHABLE },
+  ]);
+});

@@ -90,7 +90,7 @@ function proposedGeometryOf(value: unknown): ProposedGeometry | null {
   return { kind: 'shape', shape: geometryType.parse(value).type };
 }
 
-const endpointKind = z.enum(['entity', 'relation']);
+const endpointKind = rowOf.relation.shape.src_kind;
 
 // The record refuses a new entity with no type or no name, and a new relation with no type or
 // no end, so neither payload reads a fallback for one.

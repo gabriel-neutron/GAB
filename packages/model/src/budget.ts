@@ -7,10 +7,17 @@ export interface Budget {
   readonly add: (tokens: number) => void;
 }
 
-/** The token cap of one job. The caller passes the value, and no code constant gives one. */
-export const openBudget = (cap: number): Budget => {
+/** Checks a token cap and gives it back. A caller that reads the cap at its start calls this, so
+ * a cap out of range stops the start and no job. */
+export const checkTokenCap = (cap: number): number => {
   if (!Number.isInteger(cap) || cap <= 0)
     throw new Error('the token cap of a job is a whole number above zero');
+  return cap;
+};
+
+/** The token cap of one job. The caller passes the value, and no code constant gives one. */
+export const openBudget = (cap: number): Budget => {
+  checkTokenCap(cap);
 
   let used = 0;
 

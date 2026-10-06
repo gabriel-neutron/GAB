@@ -15,9 +15,6 @@ export interface Signed {
   readonly targetId: string;
 }
 
-// The development server proxies this path to the writer, so the browser stays same-origin.
-const PREFIX = '/write';
-
 // A dropped connection carries the request bytes with it. The writer may have written the act,
 // and the browser has no witness either way.
 const NO_ANSWER = 'The write service did not answer, and the act may have reached it.';
@@ -31,7 +28,8 @@ const UNCONFIRMED = 'The write service did not confirm the act, and the act may 
 
 const signed = z.object({ proposalId: z.string(), targetId: z.string() });
 
-const decided = z.object({ state: z.literal('decided') });
+// A decision answers no row that the screen reads, so its done step carries nothing.
+const decided = z.object({ state: z.literal('decided') }).transform(() => ({}));
 
 const refused = z.object({ refusal: z.string() });
 
@@ -62,12 +60,13 @@ interface Answer {
   readonly body: unknown;
 }
 
+// The development server proxies each address to the writer, so the browser stays same-origin.
 const knock = async (
-  door: string,
+  address: string,
   body: Readonly<Record<string, unknown>>,
 ): Promise<Answer | null> => {
   try {
-    const answer = await fetch(`${PREFIX}/${door}`, {
+    const answer = await fetch(address, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -78,42 +77,38 @@ const knock = async (
   }
 };
 
-const doorOf = (op: WriteOp | DecisionOp): string => op.replaceAll('_', '-');
-
-/** Send one act to the writer. Every failure arrives as a sentence, and never as a raised error:
- * a screen that must report a refusal cannot report it from a catch. */
-export async function sendAct(
-  op: WriteOp,
+/** Ask one door of the writer, and read its answer through `done`. Every failure arrives as a
+ * sentence, and never as a raised error: a screen that must report a refusal cannot report it
+ * from a catch. A lost answer is a doubt, because the act may have run whole. */
+export async function askWriter<Done extends object>(
+  address: string,
   body: Readonly<Record<string, unknown>>,
-): Promise<WriteResult<Signed>> {
-  const answer = await knock(doorOf(op), body);
+  done: z.ZodType<Done>,
+): Promise<WriteResult<Done>> {
+  const answer = await knock(address, body);
   if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
-  const held = signed.safeParse(answer.body);
-  if (held.success)
-    return { step: 'done', proposalId: held.data.proposalId, targetId: held.data.targetId };
+  const held = done.safeParse(answer.body);
+  if (held.success) return { step: 'done', ...held.data };
   return unwrittenOf(answer.status, answer.body);
 }
+
+const doorOf = (op: WriteOp | DecisionOp): string => `/write/${op.replaceAll('_', '-')}`;
+
+/** Send one act to the writer. */
+export const sendAct = (
+  op: WriteOp,
+  body: Readonly<Record<string, unknown>>,
+): Promise<WriteResult<Signed>> => askWriter(doorOf(op), body, signed);
 
 /** Decide one act that already waits in the record. It writes no proposal: it names one, so a
  * doubt about it is a doubt about a verdict. */
-export async function sendDecision(op: DecisionOp, proposalId: string): Promise<WriteResult> {
-  const answer = await knock(doorOf(op), { proposalId });
-  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
-  if (decided.safeParse(answer.body).success) return { step: 'done' };
-  return unwrittenOf(answer.status, answer.body);
-}
+export const sendDecision = (op: DecisionOp, proposalId: string): Promise<WriteResult> =>
+  askWriter(doorOf(op), { proposalId }, decided);
 
 /** Decide every act of one linked batch as one unit. A refusal names the act that the record
  * refused, and nothing of the batch was written. */
-export async function sendBatchDecision(
-  batchId: string,
-  verdict: BatchVerdict,
-): Promise<WriteResult> {
-  const answer = await knock('decide-batch', { batchId, verdict });
-  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
-  if (decided.safeParse(answer.body).success) return { step: 'done' };
-  return unwrittenOf(answer.status, answer.body);
-}
+export const sendBatchDecision = (batchId: string, verdict: BatchVerdict): Promise<WriteResult> =>
+  askWriter('/write/decide-batch', { batchId, verdict }, decided);
 
 /** One file and the fields its document row records. The content is the file in base64. */
 export interface UploadBody {
@@ -148,7 +143,7 @@ const UNAVAILABLE = 503;
 
 /** Send one file to the writer. Every failure arrives as a sentence, and never as an error. */
 export async function uploadDocument(body: UploadBody): Promise<WriteResult<Uploaded>> {
-  const answer = await knock('upload-document', { ...body });
+  const answer = await knock('/write/upload-document', { ...body });
   if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
 
   const held = uploaded.safeParse(answer.body);

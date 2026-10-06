@@ -13,14 +13,12 @@ import type { Verdict } from './queue';
 /** The two verdicts a door takes. A hold reaches no door, so no answer of a door names one. */
 export type DoorVerdict = Exclude<Verdict, 'deferred'>;
 
-/** Every state that is not idle names the act it is about. A sentence that names no act reads
- * as the sentence of whatever act stands under the controls, and the two are not the same. */
-interface DecisionAbout {
-  /** The act, or the linked batch when `batch` is set. */
-  readonly changeId: string;
-  readonly verdict: Verdict;
-  readonly batch?: true;
-}
+/** Every state that is not idle names the act or the linked batch it is about. A sentence that
+ * names no act reads as the sentence of whatever act stands under the controls, and the two are
+ * not the same. */
+export type DecisionAbout =
+  | { readonly changeId: string; readonly verdict: Verdict }
+  | { readonly batchId: string; readonly verdict: Verdict };
 
 export type DecisionState = WriteState<object, DecisionAbout>;
 
@@ -49,12 +47,10 @@ const DONE: Readonly<Record<Verdict, string>> = {
 // finishes: an urgent sentence never waits behind a network read.
 const READ_AGAIN = 'The queue is read again.';
 
-// Departure: a hold reaches no door, so it is never unknown. The one state of a write holds
-// every verdict, so the hold has words here too.
-const UNSURE: Readonly<Record<Verdict, string>> = {
+// A hold reaches no door, so it is never unknown.
+const UNSURE: Readonly<Record<DoorVerdict, string>> = {
   promoted: 'It is not known whether the act was promoted.',
   rejected: 'It is not known whether the act was rejected.',
-  deferred: 'It is not known whether the act was held.',
 };
 
 // A batch is decided as one unit, so each sentence says that it is about every act of it.
@@ -71,17 +67,25 @@ const BATCH_DONE: Readonly<Record<Verdict, string>> = {
   deferred: 'The batch is held on this pass. The record holds no hold, so a reload loses it.',
 };
 
-const BATCH_UNSURE: Readonly<Record<Verdict, string>> = {
+const BATCH_UNSURE: Readonly<Record<DoorVerdict, string>> = {
   promoted: 'It is not known whether the batch was promoted.',
   rejected: 'It is not known whether the batch was rejected.',
-  deferred: 'It is not known whether the batch was held.',
 };
+
+const isBatch = (about: DecisionAbout): about is Extract<DecisionAbout, { batchId: string }> =>
+  'batchId' in about;
+
+/** The act or the batch that a state is about. */
+const idOf = (about: DecisionAbout): string => (isBatch(about) ? about.batchId : about.changeId);
 
 const WORDS: WriteWords<object, DecisionAbout> = {
   idle: '',
-  working: ({ verdict, batch }) => (batch ? BATCH_GOING : GOING)[verdict],
-  done: ({ verdict, batch }) => (batch ? BATCH_DONE : DONE)[verdict],
-  unknown: ({ verdict, batch }) => (batch ? BATCH_UNSURE : UNSURE)[verdict],
+  working: (about) => (isBatch(about) ? BATCH_GOING : GOING)[about.verdict],
+  done: (about) => (isBatch(about) ? BATCH_DONE : DONE)[about.verdict],
+  unknown: (about) =>
+    about.verdict === 'deferred'
+      ? DONE.deferred
+      : (isBatch(about) ? BATCH_UNSURE : UNSURE)[about.verdict],
 };
 
 /** The door of each verdict. The lookup is total, so a verdict that the record can take reaches
@@ -109,7 +113,7 @@ export function decisionSaid(state: DecisionState, currentId: string | null): De
   const said = writeSaid<object, DecisionAbout>(state, WORDS);
   if (state.step === 'idle') return { ...said, busy: false };
 
-  const elsewhere = currentId !== null && state.changeId !== currentId;
+  const elsewhere = currentId !== null && idOf(state) !== currentId;
   const sentence = about(elsewhere, said.sentence);
   // The record moved under the analyst, or the answer never came. Both interrupt, and both end
   // at one read of the record.
@@ -129,12 +133,7 @@ export async function sendVerdict(changeId: string, verdict: Verdict): Promise<D
 /** Take one verdict on a linked batch: every act of it, in one transaction. A hold reaches no
  * door, as the hold of one act reaches none. */
 export async function sendBatchVerdict(batchId: string, verdict: Verdict): Promise<DecisionState> {
-  if (verdict === 'deferred') return { step: 'done', changeId: batchId, verdict, batch: true };
+  if (verdict === 'deferred') return { step: 'done', batchId, verdict };
 
-  return {
-    ...(await sendBatchDecision(batchId, BATCH_DOOR[verdict])),
-    changeId: batchId,
-    verdict,
-    batch: true,
-  };
+  return { ...(await sendBatchDecision(batchId, BATCH_DOOR[verdict])), batchId, verdict };
 }

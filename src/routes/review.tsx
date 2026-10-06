@@ -94,7 +94,10 @@ function ReviewRoute() {
         return;
       case 'decide': {
         // A decision is an event handler and never an effect.
-        const deciding = beginVerdict(decision, act);
+        const deciding = beginVerdict(decision, {
+          changeId: act.changeId,
+          verdict: act.verdict,
+        });
         if (deciding === null) return;
         setDecision(deciding);
         void sendVerdict(act.changeId, act.verdict).then(async (answer) => {
@@ -106,11 +109,7 @@ function ReviewRoute() {
         return;
       }
       case 'decide-batch': {
-        const deciding = beginVerdict(decision, {
-          changeId: act.batchId,
-          verdict: act.verdict,
-          batch: true,
-        });
+        const deciding = beginVerdict(decision, { batchId: act.batchId, verdict: act.verdict });
         if (deciding === null) return;
         setDecision(deciding);
         void sendBatchVerdict(act.batchId, act.verdict).then(async (answer) => {

@@ -6,7 +6,7 @@ import { defineTool } from './tool.ts';
 // The door counts the proposals of each job through the model calls that it recorded, and it
 // returns no row of a call. The newest job comes first.
 const STATUS = `SELECT job_id::text AS id, job_kind AS kind, job_status AS status,
-         job_reason AS reason, proposal_count::int AS proposals
+         job_reason AS reason, job_refused AS refused, proposal_count::int AS proposals
     FROM public.document_jobs($1::text)`;
 
 const row = z.strictObject({
@@ -14,6 +14,7 @@ const row = z.strictObject({
   kind: z.string(),
   status: z.string(),
   reason: z.string().nullable(),
+  refused: z.string().nullable(),
   proposals: z.number().int(),
 });
 
@@ -21,8 +22,8 @@ export const jobStatus = defineTool({
   name: 'job_status',
   description:
     'Lists the jobs of one document, newest first, with the kind of work, the status (queued, ' +
-    'running, done or failed), the reason of a failure and the number of proposals that the ' +
-    'job made. When the extraction is done, list_proposals with the document gives its ' +
+    'running, done or failed), the reason of a failure, the parts of the document that the ' +
+    'propose door refused, and the number of proposals that the job made. When the extraction is done, list_proposals with the document gives its ' +
     'proposals. A failed job does not run again: queue the document again. A document that ' +
     'entered by a hand entry has no job.',
   input: z.strictObject({ document: documentId }),
@@ -34,6 +35,7 @@ export const jobStatus = defineTool({
         kind: z.string(),
         status: z.string(),
         failureReason: z.string().nullable(),
+        refused: z.string().nullable(),
         proposals: z.number().int(),
       }),
     ),
@@ -47,6 +49,7 @@ export const jobStatus = defineTool({
         kind: job.kind,
         status: job.status,
         failureReason: job.reason,
+        refused: job.refused,
         proposals: job.proposals,
       })),
     };

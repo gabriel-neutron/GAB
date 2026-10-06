@@ -2,21 +2,10 @@ import { proposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import { readBody } from './body.ts';
 import { DECIDED_BY } from './decision.ts';
 import type { Sessions } from './pool.ts';
-import { refused, runStatement, type Unwritten } from './statement.ts';
-
-/** What one request became. The caller maps the outcome, and takes no decision of its own. */
-type SignedAct =
-  | {
-      readonly outcome: 'signed';
-      readonly reply: {
-        readonly proposalId: string;
-        readonly targetId: string;
-        readonly state: 'signed';
-      };
-    }
-  | Unwritten;
+import { refused, runStatement, type DoorAct } from './statement.ts';
 
 const objectBody = z.record(z.string(), z.unknown());
 
@@ -26,14 +15,6 @@ const signedRow = z.object({ proposal_id: z.uuid(), target_id: z.uuid() });
 // not at all. The database holds each rule on the act, and it words its own refusal.
 const SIGN = `SELECT proposal_id, target_id FROM public.sign_change($1::text, $2::text,
   $3::jsonb, $4::text[], $5::text, $6::uuid, $7::uuid[])`;
-
-const readBody = (raw: string): unknown => {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-};
 
 // A top-level field such as `type` names the box the caller must correct, so it leads. A deeper
 // path is the address of a value inside a schema, and it is no sentence for a person: the
@@ -49,11 +30,13 @@ export const sign = async (
   pool: Sessions,
   op: (typeof WRITE_OPS)[number],
   raw: string,
-): Promise<SignedAct> => {
-  const given = objectBody.safeParse(readBody(raw));
-  if (!given.success) return refused('the body is not a JSON object');
+): Promise<
+  DoorAct<{ readonly proposalId: string; readonly targetId: string; readonly state: 'signed' }>
+> => {
+  const given = readBody(raw, objectBody, 'the body is not a JSON object');
+  if (given.outcome !== 'read') return given;
 
-  const request = writeRequest.safeParse({ ...given.data, op });
+  const request = writeRequest.safeParse({ ...given.body, op });
   if (!request.success) return refused(request.error.issues.map(faulted).join('; '));
 
   const act = proposalAct(request.data);
@@ -68,9 +51,9 @@ export const sign = async (
   ]);
   if (answer.outcome !== 'answered') return answer;
 
-  const row = signedRow.parse(answer.row);
+  const row = signedRow.parse(answer.rows[0]);
   return {
-    outcome: 'signed',
+    outcome: 'done',
     reply: { proposalId: row.proposal_id, targetId: row.target_id, state: 'signed' },
   };
 };

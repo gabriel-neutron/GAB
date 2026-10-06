@@ -125,7 +125,16 @@ test('an extraction waits in the queue, and its status shows it', async () => {
   expect(await send('document-jobs', { documentId })).toStrictEqual([
     200,
     {
-      jobs: [{ id: jobId, kind: 'extract_text', status: 'queued', reason: null, proposals: 0 }],
+      jobs: [
+        {
+          id: jobId,
+          kind: 'extract_text',
+          status: 'queued',
+          reason: null,
+          refused: null,
+          proposals: 0,
+        },
+      ],
     },
   ]);
 });
@@ -135,23 +144,37 @@ test('a second extraction is refused while the first can still run', async () =>
   await queue(documentId);
 
   expect(await send('queue-extraction', { documentId })).toStrictEqual([
-    409,
-    { refusal: 'an extraction of this document is queued or runs already' },
+    422,
+    {
+      refusal: `document ${documentId} has a job of kind extract_text that is queued or runs already`,
+    },
   ]);
 });
 
-test('a done extraction counts the proposals it made', async () => {
+test('a done extraction counts the proposals it made and the parts that were refused', async () => {
   const documentId = await storedDocument();
   const jobId = await queue(documentId);
   await running(jobId);
   const proposalId = await proposedBy(jobId, documentId);
-  await agent.query('SELECT public.complete_job($1::uuid)', [jobId]);
+  await agent.query('SELECT public.complete_job($1::uuid, 3, 2, $2)', [
+    jobId,
+    'item a: the page does not hold the excerpt',
+  ]);
 
   try {
     expect(await send('document-jobs', { documentId })).toStrictEqual([
       200,
       {
-        jobs: [{ id: jobId, kind: 'extract_text', status: 'done', reason: null, proposals: 1 }],
+        jobs: [
+          {
+            id: jobId,
+            kind: 'extract_text',
+            status: 'done',
+            reason: null,
+            refused: '2 parts refused: item a: the page does not hold the excerpt',
+            proposals: 1,
+          },
+        ],
       },
     ]);
   } finally {
@@ -172,12 +195,20 @@ test('a failed extraction shows its reason and is queued again', async () => {
     200,
     {
       jobs: [
-        { id: againId, kind: 'extract_text', status: 'queued', reason: null, proposals: 0 },
+        {
+          id: againId,
+          kind: 'extract_text',
+          status: 'queued',
+          reason: null,
+          refused: null,
+          proposals: 0,
+        },
         {
           id: failedId,
           kind: 'extract_text',
           status: 'failed',
           reason: 'the model did not answer',
+          refused: null,
           proposals: 0,
         },
       ],

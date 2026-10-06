@@ -254,7 +254,7 @@ exports[`the list of tools 1`] = `
       "openWorldHint": false,
       "readOnlyHint": true,
     },
-    "description": "Lists the jobs of one document, newest first, with the kind of work, the status (queued, running, done or failed), the reason of a failure and the number of proposals that the job made. When the extraction is done, list_proposals with the document gives its proposals. A failed job does not run again: queue the document again. A document that entered by a hand entry has no job.",
+    "description": "Lists the jobs of one document, newest first, with the kind of work, the status (queued, running, done or failed), the reason of a failure, the parts of the document that the propose door refused, and the number of proposals that the job made. When the extraction is done, list_proposals with the document gives its proposals. A failed job does not run again: queue the document again. A document that entered by a hand entry has no job.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -368,7 +368,7 @@ exports[`the list of tools 1`] = `
       "openWorldHint": true,
       "readOnlyHint": false,
     },
-    "description": "Reads one web page or file at one http or https address, stores its bytes as a document, and returns the document id and the text of its pages. Cite the id of the document that gave the pages in a proposal. A page whose bytes are already stored comes back as "known", and nothing is written. The pages follow the caps of document_text. An HTML page is also loaded in a headless browser when "render" is true, or when its text is shorter than 200 characters. The browser runs the scripts of the page and clicks, fills and scrolls nothing. Its HTML is a second document with the same address, named in "rendered"; "document" stays the bytes that the server gave. When "rendered" is present, the pages come from it: cite rendered.document and queue the extraction of that id. "notice" says what the render did, what it stopped, and when a page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is refused, and a render of that kind is not stored.",
+    "description": "Reads one web page or file at one http or https address, stores its bytes as a document, and returns the document id and the text of its pages. Cite the id of the document that gave the pages in a proposal. A page whose bytes are already stored comes back as "known", and nothing is written. The pages follow the caps of document_text. An HTML page is also loaded in a headless browser when its text is shorter than 200 characters. The browser runs the scripts of the page and clicks, fills and scrolls nothing. Its HTML is a second document with the same address, named in "rendered"; "document" stays the bytes that the server gave. When "rendered" is present, the pages come from it: cite rendered.document and queue the extraction of that id. "notice" says what the render did, what it stopped, and when a page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is refused, and a render of that kind is not stored.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -377,10 +377,6 @@ exports[`the list of tools 1`] = `
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer",
-        },
-        "render": {
-          "default": false,
-          "type": "boolean",
         },
         "toPage": {
           "maximum": 9007199254740991,

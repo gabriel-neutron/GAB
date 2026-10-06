@@ -90,3 +90,52 @@ test.each([
     { name: 'label', value: label },
   ]);
 });
+
+const flagged = (value: boolean) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'vessel',
+    label: 'tanker',
+    attrs: { sanctioned: { v: value } },
+  });
+
+test.each([
+  ['The tanker is sanctioned: yes.', true],
+  ['Sanctioned: true', true],
+  ['Sanctionné : oui', true],
+  ['Sanctioned: no.', false],
+  ['Sanctioned: false', false],
+  ['Sanctionné : non', false],
+])('the passage %j states the yes or no %s', (passage, value) => {
+  expect(unstatedValues(flagged(value), [`tanker ${passage}`])).toStrictEqual([]);
+});
+
+test.each([
+  ['The tanker left port.', true],
+  ['The tanker left port.', false],
+  ['Sanctioned: yes.', false],
+  ['Sanctioned: no.', true],
+])('the passage %j does not state the yes or no %s', (passage, value) => {
+  expect(unstatedValues(flagged(value), [`tanker ${passage}`])).toStrictEqual([
+    { name: 'attrs.sanctioned', value },
+  ]);
+});
+
+test.each([
+  ['The margin is -5 tonnes.', -5],
+  ['The margin is \u22125 tonnes.', -5],
+  ['The margin is minus 5 tonnes.', -5],
+  ['La marge est de moins 5 tonnes.', -5],
+  ['The margin is 5 tonnes.', 5],
+])('the passage %j states the number %s', (passage, value) => {
+  expect(unstatedValues(entityWith('tanker', value), [`tanker ${passage}`])).toStrictEqual([]);
+});
+
+test.each([
+  ['The margin is 5 tonnes.', -5],
+  ['Pages 3-5 of the register.', -5],
+])('the passage %j does not state the number %s', (passage, value) => {
+  expect(unstatedValues(entityWith('tanker', value), [`tanker ${passage}`])).toStrictEqual([
+    { name: 'attrs.dwt', value },
+  ]);
+});

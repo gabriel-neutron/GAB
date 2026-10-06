@@ -95,7 +95,7 @@ test('the tools that are not marked as reads are the five writes', async () => {
 test('no input asks for a value that only the runner knows', async () => {
   const client = await connected(fakePool(() => []).pool);
   const text = JSON.stringify((await client.listTools()).tools.map((tool) => tool.inputSchema));
-  for (const word of ['modelCallId', 'callId', 'idempotency', 'renderBelow'])
+  for (const word of ['modelCallId', 'callId', 'idempotency', 'renderBelow', '"render"'])
     expect(text).not.toContain(word);
 });
 
@@ -178,7 +178,7 @@ for (const code of ['22023', '23503', 'P0001'])
     });
     const client = await connected(pool);
     const result = await client.callTool({
-      name: 'enqueue_extract',
+      name: 'job_status',
       arguments: { document: 'doc_absent' },
     });
     expect(isErrorOf(result)).toBe(true);

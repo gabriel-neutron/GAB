@@ -99,7 +99,11 @@ test('enqueue_job refuses a second open job of one kind and accepts another kind
     await ask("SELECT public.enqueue_job($1, 'map_structured')", [WITH_BYTES]);
     return { refusal, rows: jobs.parse(await ask(JOBS_OF, [WITH_BYTES])) };
   });
-  expect(held.refusal).toMatchObject({ code: '23505' });
+  expect(held.refusal).toMatchObject({
+    code: '22023',
+    constraint: 'jobs_one_open_per_kind',
+    message: `document ${WITH_BYTES} has a job of kind extract_text that is queued or runs already`,
+  });
   expect(held.rows.map((row) => `${row.kind}:${row.status}`)).toStrictEqual([
     'extract_text:queued',
     'map_structured:queued',

@@ -348,9 +348,8 @@ export const ARefusedBatchNamesTheActAndTheReason: Story = {
     examination: { subjectId: BATCH, sort: 'confidence' },
     decision: {
       step: 'refused',
-      changeId: BATCH,
+      batchId: BATCH,
       verdict: 'promoted',
-      batch: true,
       refusal:
         'nothing of the batch is promoted, because the record refuses its new relation owns: ' +
         'the target does not exist',

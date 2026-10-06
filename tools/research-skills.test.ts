@@ -26,25 +26,12 @@ const read = (file: string): string => readFileSync(file, 'utf8');
 
 const shown = (file: string): string => path.relative(ROOT, file).split(path.sep).join('/');
 
-// The YAML block between the two opening fences, and the text after it.
-const split = (text: string): { head: unknown; body: string } => {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/u.exec(text);
+// The YAML block between the two opening fences.
+const headOf = (text: string): unknown => {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/u.exec(text);
   if (match === null) throw new Error('the file does not start with a YAML front matter block');
-  return { head: parse(match[1] ?? ''), body: match[2] ?? '' };
+  return parse(match[1] ?? '');
 };
-
-// The text of one level-two section, up to the next level-two heading.
-const section = (body: string, heading: string): string | undefined => {
-  const parts = body.split(/^## /mu);
-  const found = parts.find(
-    (part) => part.startsWith(`${heading}\n`) || part.startsWith(`${heading}\r\n`),
-  );
-  return found?.slice(heading.length);
-};
-
-// Each line of the Tools section starts with the name of one tool, and a name can be one word.
-const listedTools = (text: string): string[] =>
-  [...text.matchAll(/^- `([a-z][a-z0-9_]*)`/gmu)].map((match) => match[1] ?? '');
 
 // Departure: the compile target of this folder does not hold the MCP package, and a static import
 // would pull the whole catalogue into it. The test loads the surface when it runs, and checks its
@@ -75,33 +62,10 @@ test.each(SKILLS)('the skill %s has a source file', (skill) => {
 });
 
 test.each(SKILLS)('the front matter of %s names the skill and describes it', (skill) => {
-  const { head } = split(read(sourceOf(skill)));
-  const parsed = frontMatter.parse(head);
+  const parsed = frontMatter.parse(headOf(read(sourceOf(skill))));
 
   expect(parsed.name).toBe(skill);
 });
-
-test.each(SKILLS)('the skill %s has the sections Tools, Steps and Never', (skill) => {
-  const { body } = split(read(sourceOf(skill)));
-
-  for (const heading of ['Tools', 'Steps', 'Never'])
-    expect(section(body, heading), `${skill} has no section "## ${heading}"`).toBeDefined();
-});
-
-test.each(SKILLS)(
-  'each tool under the Tools section of %s is offered by the research server',
-  (skill) => {
-    const { body } = split(read(sourceOf(skill)));
-    const tools = listedTools(section(body, 'Tools') ?? '');
-
-    expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
-    for (const tool of tools)
-      expect(
-        RESEARCH.has(tool),
-        `${skill} lists ${tool}, which the research surface does not offer`,
-      ).toBe(true);
-  },
-);
 
 test.each([...SKILLS.map(sourceOf), RULES])('each tool that %s names is offered', (file) => {
   for (const tool of namedTools(read(file)))

@@ -65,16 +65,29 @@ describe('the configuration of the extractor', () => {
     );
   });
 
-  it('stops on the model auto', () => {
+  it('stops on a value that is not a number', () => {
+    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_TURN_CAP: 'forty' })).toThrow(
+      /EXTRACTOR_TURN_CAP/u,
+    );
+  });
+
+  // The ranges are rules of the model package and of the chunks. The worker calls those checks at
+  // its start, so a value out of range stops the start and no job.
+  it('stops at the start on the model auto', () => {
     expect(() => readExtractorConfig({ ...FULL, CHECKER_MODEL: 'auto' })).toThrow(
       /CHECKER_MODEL.*auto/u,
     );
   });
 
-  it('stops on a number that is not a whole number above zero', () => {
-    expect(() => readExtractorConfig({ ...FULL, EXTRACTOR_TURN_CAP: '0' })).toThrow(
-      /EXTRACTOR_TURN_CAP/u,
-    );
+  it.each([
+    ['EXTRACTOR_TIMEOUT_MS', '0', /EXTRACTOR_.*timeoutMs/su],
+    ['CHECKER_WAIT_GROWTH', '0.5', /CHECKER_.*waitGrowth/su],
+    ['CHECKER_MAX_ANSWER_TOKENS', '-1', /CHECKER_.*maxAnswerTokens/su],
+    ['EXTRACTOR_TOKEN_CAP', '0', /EXTRACTOR_TOKEN_CAP.*token cap/u],
+    ['EXTRACTOR_CHUNK_CAP', '1.5', /EXTRACTOR_CHUNK_CAP.*chunk cap/u],
+    ['EXTRACTOR_TURN_CAP', '0', /EXTRACTOR_TURN_CAP/u],
+  ])('stops at the start when %s is %s', (name, value, said) => {
+    expect(() => readExtractorConfig({ ...FULL, [name]: value })).toThrow(said);
   });
 
   it('stops when the checker is of the family of the reader', () => {
@@ -99,6 +112,12 @@ describe('the configuration of the lead agent', () => {
 
   it('stops with a sentence that names LEAD_TOKEN_CAP when it is absent', () => {
     expect(() => readLeadConfig({ ...LEAD, LEAD_TOKEN_CAP: undefined })).toThrow(/LEAD_TOKEN_CAP/u);
+  });
+
+  it('stops on a token cap out of range', () => {
+    expect(() => readLeadConfig({ ...LEAD, LEAD_TOKEN_CAP: '-5' })).toThrow(
+      /LEAD_TOKEN_CAP.*token cap/u,
+    );
   });
 
   it('stops with a sentence that names SEARXNG_URL when no search engine is set', () => {
