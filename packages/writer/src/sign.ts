@@ -1,202 +1,20 @@
-import { proposalAct, type ProposalAct } from '@gab/proposal/payload';
-import { writeRequest, type WriteRequest, type WRITE_OPS } from '@gab/proposal/request';
+import { proposalAct } from '@gab/proposal/payload';
+import { writeRequest, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
-import { DECIDED_BY, PROMOTE_PROPOSAL } from './decision.ts';
-import type { Session, Sessions } from './pool.ts';
-import { failureFrom, refusalFrom } from './refusal.ts';
+import { readBody } from './body.ts';
+import { DECIDED_BY } from './decision.ts';
+import type { Sessions } from './pool.ts';
+import { refused, runStatement, type DoorAct } from './statement.ts';
 
-const TABLE = { entity: 'public.entities', relation: 'public.relations' } as const;
-
-interface SignedRefusal {
-  readonly refusal: string;
-}
-
-/** What one request became. The caller maps the outcome, and takes no decision of its own. */
-export type SignedAct =
-  | {
-      readonly outcome: 'signed';
-      readonly reply: {
-        readonly proposalId: string;
-        readonly targetId: string;
-        readonly state: 'signed';
-      };
-    }
-  | {
-      readonly outcome: 'refused' | 'missing' | 'blocked' | 'unavailable';
-      readonly reply: SignedRefusal;
-    }
-  | {
-      readonly outcome: 'undecided';
-      readonly reply:
-        | { readonly refusal: string; readonly proposalId: string }
-        | { readonly doubt: string; readonly proposalId?: string };
-    };
-
-const refused = (refusal: string): SignedAct => ({ outcome: 'refused', reply: { refusal } });
-const missing = (refusal: string): SignedAct => ({ outcome: 'missing', reply: { refusal } });
-const blocked = (refusal: string): SignedAct => ({ outcome: 'blocked', reply: { refusal } });
-const unavailable = (refusal: string): SignedAct => ({
-  outcome: 'unavailable',
-  reply: { refusal },
-});
-
-// Departure: a doubt carries its own key and never `refusal`, so the browser cannot read an act
-// that may stand in the record as an act that was refused.
-const doubted = (doubt: string, proposalId: string | undefined): SignedAct => ({
-  outcome: 'undecided',
-  reply: proposalId === undefined ? { doubt } : { doubt, proposalId },
-});
-
-const identifier = z.uuid();
-const counted = z.coerce.number();
 const objectBody = z.record(z.string(), z.unknown());
 
-const rows = async (
-  client: Session,
-  text: string,
-  values: readonly unknown[],
-): Promise<readonly Record<string, unknown>[]> => (await client.query(text, [...values])).rows;
+const signedRow = z.object({ proposal_id: z.uuid(), target_id: z.uuid() });
 
-// External constraint: on a dead socket the ROLLBACK fails too, and its error names no cause. The
-// first error is the one that says what happened, and the pool drops a dead client on release.
-const inTransaction = async <T>(client: Session, run: () => Promise<T>): Promise<T> => {
-  await client.query('BEGIN');
-  try {
-    const held = await run();
-    await client.query('COMMIT');
-    return held;
-  } catch (cause) {
-    await client.query('ROLLBACK').catch((lost: unknown) => {
-      console.error('the writer could not roll back', { lost });
-    });
-    throw cause;
-  }
-};
-
-const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $4::text,
-  $5::uuid, $6::uuid[], $7::numeric, $8::boolean) AS id`;
-
-const propose = async (client: Session, act: ProposalAct): Promise<string> => {
-  const found = await rows(client, PROPOSE, [
-    act.op,
-    JSON.stringify(act.payload),
-    [...act.src],
-    act.targetKind,
-    act.targetId,
-    [...act.names],
-    // An act of the operator carries no confidence. A score is a machine's reading of its own
-    // extraction, and a machine may not assert certainty in the name of the operator.
-    null,
-    false,
-  ]);
-  return identifier.parse(found[0]?.['id']);
-};
-
-const promote = async (client: Session, proposalId: string): Promise<string> => {
-  const found = await rows(client, PROMOTE_PROPOSAL, [proposalId, DECIDED_BY]);
-  return identifier.parse(found[0]?.['id']);
-};
-
-type Endpoint = 'entity' | 'relation';
-
-const present = async (client: Session, kind: Endpoint, id: string): Promise<boolean> =>
-  (await rows(client, `SELECT 1 FROM ${TABLE[kind]} WHERE id = $1::uuid`, [id])).length === 1;
-
-const attributesOf = async (client: Session, kind: Endpoint, id: string): Promise<unknown> => {
-  const found = await rows(client, `SELECT attrs FROM ${TABLE[kind]} WHERE id = $1::uuid`, [id]);
-  return found[0]?.['attrs'];
-};
-
-const USES = `SELECT count(*) AS uses FROM public.relations r
-  WHERE (r.src_kind = $2::text AND r.src_id = $1::uuid)
-     OR (r.dst_kind = $2::text AND r.dst_id = $1::uuid)`;
-
-const endpointUses = async (client: Session, kind: Endpoint, id: string): Promise<number> =>
-  counted.parse((await rows(client, USES, [id, kind]))[0]?.['uses']);
-
-type Ground =
-  | { readonly ready: true; readonly prior: unknown }
-  | { readonly ready: false; readonly act: SignedAct };
-
-const ready: Ground = { ready: true, prior: null };
-
-const COLUMNS = `SELECT e.label, e.type, e.proposed_type,
-  EXISTS (SELECT 1 FROM public.entity_type t WHERE t.key = $2::text AND NOT t.retired) AS live
-  FROM public.entities e WHERE e.id = $1::uuid`;
-
-const columnsRow = z.object({
-  label: z.string(),
-  type: z.string(),
-  proposed_type: z.string().nullable(),
-  live: z.boolean(),
-});
-
-const UNCHANGED = 'the act changes neither the name nor the type of the entity';
-
-type ColumnsAct = Extract<WriteRequest, { op: 'update_entity' }>;
-
-// The promotion resolves a word that is not a live type to `unknown`, and keeps the word beside
-// it. The same resolution is read here, so an act that would change nothing is never written.
-const groundOfColumns = async (client: Session, request: ColumnsAct): Promise<Ground> => {
-  const found = (await rows(client, COLUMNS, [request.targetId, request.type ?? null]))[0];
-  if (found === undefined)
-    return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
-  const held = columnsRow.parse(found);
-  const type = request.type === undefined ? held.type : held.live ? request.type : 'unknown';
-  const word = request.type === undefined ? held.proposed_type : held.live ? null : request.type;
-  const label = request.label ?? held.label;
-  if (label === held.label && type === held.type && word === held.proposed_type)
-    return { ready: false, act: refused(UNCHANGED) };
-  return ready;
-};
-
-// Every read below removes a failure that `promote_proposal` raises after the proposal is
-// already committed, which would strand an undecided act for a fault that nobody chose.
-const groundOf = async (client: Session, request: WriteRequest): Promise<Ground> => {
-  if (request.op === 'create_relation') {
-    if (!(await present(client, request.srcKind, request.srcId)))
-      return { ready: false, act: missing(`the source ${request.srcId} does not exist`) };
-    if (!(await present(client, request.dstKind, request.dstId)))
-      return { ready: false, act: missing(`the target ${request.dstId} does not exist`) };
-    return ready;
-  }
-
-  if (request.op === 'update_attrs') {
-    const prior = await attributesOf(client, request.targetKind, request.targetId);
-    if (prior === undefined)
-      return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
-    return { ready: true, prior };
-  }
-
-  if (request.op === 'update_entity') return groundOfColumns(client, request);
-
-  if (request.op === 'delete_entity' || request.op === 'delete_relation') {
-    const kind: Endpoint = request.op === 'delete_entity' ? 'entity' : 'relation';
-    if (!(await present(client, kind, request.targetId)))
-      return { ready: false, act: missing(`the target ${request.targetId} does not exist`) };
-    const uses = await endpointUses(client, kind, request.targetId);
-    if (uses > 0)
-      return {
-        ready: false,
-        act: blocked(
-          `the ${kind} is an endpoint of ${uses} ${uses === 1 ? 'relation' : 'relations'}, ` +
-            'and it is not deleted',
-        ),
-      };
-    return ready;
-  }
-
-  return ready;
-};
-
-const readBody = (raw: string): unknown => {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-};
+// The door proposes the act and promotes it in one transaction, so the act is written whole or
+// not at all. The database holds each rule on the act, and it words its own refusal.
+const SIGN = `SELECT proposal_id, target_id FROM public.sign_change($1::text, $2::text,
+  $3::jsonb, $4::text[], $5::text, $6::uuid, $7::uuid[])`;
 
 // A top-level field such as `type` names the box the caller must correct, so it leads. A deeper
 // path is the address of a value inside a schema, and it is no sentence for a person: the
@@ -207,65 +25,35 @@ const faulted = (issue: { readonly path: PropertyKey[]; readonly message: string
   return `${first}: ${issue.message}`;
 };
 
-// One act, in two transactions. `promote_proposal` refuses a proposal that the calling
-// transaction wrote, so the proposal commits first and the promotion opens a second one.
+/** Sign one act of the operator. It raises nothing, and every failure arrives as a sentence. */
 export const sign = async (
   pool: Sessions,
   op: (typeof WRITE_OPS)[number],
   raw: string,
-): Promise<SignedAct> => {
-  const given = objectBody.safeParse(readBody(raw));
-  if (!given.success) return refused('the body is not a JSON object');
+): Promise<
+  DoorAct<{ readonly proposalId: string; readonly targetId: string; readonly state: 'signed' }>
+> => {
+  const given = readBody(raw, objectBody, 'the body is not a JSON object');
+  if (given.outcome !== 'read') return given;
 
-  const request = writeRequest.safeParse({ ...given.data, op });
+  const request = writeRequest.safeParse({ ...given.body, op });
   if (!request.success) return refused(request.error.issues.map(faulted).join('; '));
 
-  // A pool that cannot give a client has written nothing, and the reason belongs to the same
-  // map as a raised error: the address of the server is never a sentence for a screen.
-  let client: Session;
-  try {
-    client = await pool.connect();
-  } catch (cause) {
-    return unavailable(refusalFrom(cause));
-  }
+  const act = proposalAct(request.data);
+  const answer = await runStatement(pool, SIGN, [
+    DECIDED_BY,
+    act.op,
+    JSON.stringify(act.payload),
+    act.src,
+    act.targetKind,
+    act.targetId,
+    act.names,
+  ]);
+  if (answer.outcome !== 'answered') return answer;
 
-  try {
-    const ground = await groundOf(client, request.data);
-    if (!ground.ready) return ground.act;
-
-    const draft = proposalAct(request.data, ground.prior);
-    if (!draft.ready) return refused(draft.refusal);
-    const act: ProposalAct = draft.act;
-
-    // Departure: the name comes back before the COMMIT, so a lost COMMIT still names the act
-    // that it may have written.
-    const written: { id?: string } = {};
-    let proposalId: string;
-    try {
-      proposalId = await inTransaction(client, async () => {
-        written.id = await propose(client, act);
-        return written.id;
-      });
-    } catch (cause) {
-      const failure = failureFrom(cause);
-      if (failure.raised) return refused(failure.refusal);
-      return doubted(failure.doubt, written.id);
-    }
-
-    try {
-      const targetId = await inTransaction(client, () => promote(client, proposalId));
-      return { outcome: 'signed', reply: { proposalId, targetId, state: 'signed' } };
-    } catch (cause) {
-      const failure = failureFrom(cause);
-      if (!failure.raised) return doubted(failure.doubt, proposalId);
-      // Departure: the proposal is committed and a trigger refuses its deletion. A rejection is a
-      // decision the operator did not take, so the act stays pending and the caller is told which.
-      return {
-        outcome: 'undecided',
-        reply: { refusal: refusalFrom(cause, proposalId), proposalId },
-      };
-    }
-  } finally {
-    client.release();
-  }
+  const row = signedRow.parse(answer.rows[0]);
+  return {
+    outcome: 'done',
+    reply: { proposalId: row.proposal_id, targetId: row.target_id, state: 'signed' },
+  };
 };

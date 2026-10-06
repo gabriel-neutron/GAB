@@ -35,11 +35,13 @@ test('the read service counts the acts the committed fixture leaves waiting', as
 const names = z.array(z.object({ name: z.string() }));
 
 // A departure: the views and the doors are read from the catalogue and never written by hand, so
-// a view or a door created later is covered on the day it is created.
+// a view or a door created later is covered on the day it is created. A view that the read role
+// holds no grant on is not public, and it is the next test.
 const API_VIEWS = `
   SELECT c.relname AS name
     FROM pg_catalog.pg_class c
    WHERE c.relnamespace = 'api'::regnamespace AND c.relkind = 'v'
+     AND pg_catalog.has_table_privilege('gabriel_read', c.oid, 'SELECT')
    ORDER BY 1`;
 
 const VIEWS = await probe('superuser', async (ask) =>
@@ -48,6 +50,11 @@ const VIEWS = await probe('superuser', async (ask) =>
 
 test('the catalogue gives the view tests a view to read', () => {
   expect(VIEWS).toContain('entity');
+});
+
+test('the read service refuses the job view, because a job is not public', async () => {
+  const answer = await askReadApi('job');
+  expect(answer.status).toBe(401);
 });
 
 // A cache taken before a reset answers 404, and one taken after a drop answers an empty list.

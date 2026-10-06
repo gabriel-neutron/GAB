@@ -9,7 +9,7 @@ import type { RawObject } from '@gab/store';
 import { refusedAddress, type Resolved } from './fetch-guard.ts';
 import type { Reach } from './tool.ts';
 
-export interface Route {
+interface Route {
   readonly status?: number;
   readonly headers?: Readonly<Record<string, string>>;
   readonly body?: Uint8Array | string;

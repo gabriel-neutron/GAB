@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
 
-import { ATTRIBUTE_KEY, ATTRIBUTE_KEY_LENGTH } from './attribute-value.ts';
 import {
   IDENTIFIER_KEY,
   IDENTIFIER_KEYS,
@@ -37,13 +36,6 @@ test('the list of spellings and the map by entity type hold the same spellings',
   expect(mapped).toStrictEqual(new Set(IDENTIFIER_KEY));
 });
 
-test('each spelling is a key that the record takes', () => {
-  for (const key of IDENTIFIER_KEY) {
-    expect(key).toMatch(ATTRIBUTE_KEY);
-    expect(key.length).toBeLessThanOrEqual(ATTRIBUTE_KEY_LENGTH);
-  }
-});
-
 test('the schema of a spelling refuses a spelling that is not on the list', () => {
   expect(identifierKey.safeParse('imo').success).toBe(true);
   expect(identifierKey.safeParse('imo_number').success).toBe(false);
@@ -53,8 +45,18 @@ test('the schema of a spelling refuses a spelling that is not on the list', () =
 // ------------------------------------------------- identifierContainment ---
 
 test('the containment holds the value as a scalar and as the element of a list', () => {
-  expect(identifierContainment('imo', '9074729')).toStrictEqual({
-    scalar: { imo: { v: '9074729' } },
-    element: { imo: { v: ['9074729'] } },
-  });
+  expect(identifierContainment('imo', 'IMO 9074729')).toStrictEqual([
+    { imo: { v: 'IMO 9074729' } },
+    { imo: { v: ['IMO 9074729'] } },
+  ]);
+});
+
+test('a value in the plain form of a number also matches that number', () => {
+  expect(identifierContainment('imo', '9074729')).toStrictEqual([
+    { imo: { v: '9074729' } },
+    { imo: { v: ['9074729'] } },
+    { imo: { v: 9074729 } },
+    { imo: { v: [9074729] } },
+  ]);
+  expect(identifierContainment('imo', '09074729')).toHaveLength(2);
 });

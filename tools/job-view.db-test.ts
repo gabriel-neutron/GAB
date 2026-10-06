@@ -32,8 +32,9 @@ const claimUntil = async (ask: Ask, document: string): Promise<string> => {
 };
 
 // External constraint: one connection sees the rows of its own open transaction only, so the
-// superuser claims and fails the job, then reads as gabriel_read, and the rollback removes all.
-test('a failed job shows its reason and its end hour to the read role', async () => {
+// superuser claims and fails the job, then reads as the research role, and the rollback removes
+// all. The public read role does not read a job.
+test('a failed job shows its reason and its end hour to the research role', async () => {
   const rows = await probe('superuser', async (ask) => {
     await ask('BEGIN');
     try {
@@ -41,7 +42,7 @@ test('a failed job shows its reason and its end hour to the read role', async ()
       await ask(ENQUEUE, [DOCUMENT]);
       const job = await claimUntil(ask, DOCUMENT);
       await ask('SELECT public.fail_job($1, $2)', [job, REASON]);
-      await ask('SET LOCAL ROLE gabriel_read');
+      await ask('SET LOCAL ROLE gabriel_research');
       return shown.parse(await ask(SHOWN, [job]));
     } finally {
       await ask('ROLLBACK');

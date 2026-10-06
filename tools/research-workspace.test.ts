@@ -9,10 +9,17 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { namesSet } from './env-drift.ts';
-
 const ROOT = path.resolve(import.meta.dirname, '..');
 const WORKSPACE = path.join(ROOT, 'research');
+
+// The names an environment file sets. A comment line or a blank line sets nothing.
+const namesSet = (text: string): Set<string> =>
+  new Set(
+    text
+      .split(/\r?\n/u)
+      .map((line) => /^\s*([A-Z_][A-Z0-9_]*)\s*=/u.exec(line)?.[1])
+      .filter((name): name is string => name !== undefined),
+  );
 
 const read = (...parts: string[]): string => readFileSync(path.join(ROOT, ...parts), 'utf8');
 
@@ -36,12 +43,14 @@ test('the Claude Code file names the GAB server and no other', () => {
   expect(script && path.resolve(WORKSPACE, script)).toBe(SERVER_SCRIPT);
 });
 
-test('the research environment names its connection, one store key and the two search settings, and nothing else', () => {
+test('the research environment names its connection, the store and the two search settings, and nothing else', () => {
   expect(namesSet(read('research', '.env.example'))).toEqual(
     new Set([
       'GAB_RESEARCH_DATABASE_URL',
       'RAW_STORE_ACCESS_KEY',
       'RAW_STORE_SECRET_KEY',
+      'RAW_STORE_ENDPOINT',
+      'RAW_STORE_REGION',
       'SEARXNG_URL',
       'BRAVE_SEARCH_API_KEY',
     ]),
@@ -59,13 +68,17 @@ test('the research environment example names SearXNG and holds no key', () => {
 
 // Departure: the example of the build stack is the list of its secrets. The real file is never
 // read, because it holds the operator secret.
-test('the research environment shares no name with the build stack except the store key', () => {
+test('the research environment shares no name with the build stack except the store', () => {
   const research = namesSet(read('research', '.env.example'));
   const build = namesSet(read('infra', '.env.example'));
 
-  expect(new Set([...research].filter((name) => build.has(name)))).toEqual(
-    new Set(['RAW_STORE_ACCESS_KEY', 'RAW_STORE_SECRET_KEY']),
-  );
+  const store = new Set([
+    'RAW_STORE_ACCESS_KEY',
+    'RAW_STORE_SECRET_KEY',
+    'RAW_STORE_ENDPOINT',
+    'RAW_STORE_REGION',
+  ]);
+  expect([...research].filter((name) => build.has(name) && !store.has(name))).toStrictEqual([]);
 });
 
 test('git ignores the research environment file and keeps its example', () => {
@@ -79,4 +92,21 @@ test('git ignores the research environment file and keeps its example', () => {
 
   expect(ignored('research/.env')).toBe(true);
   expect(ignored('research/.env.example')).toBe(false);
+});
+
+// Claude Code and Codex read the rules of the parent folder too. The first line of each research
+// rules file says that it wins, so a research session never builds, commits or pushes.
+test.each(['CLAUDE.md', 'AGENTS.md'])('the first line of %s overrides the build rules', (file) => {
+  const [first] = read('research', file).split(/\r?\n/u);
+  expect(first).toMatch(/override the build rules of the parent repository/u);
+  expect(first).toMatch(/never commits/u);
+});
+
+// The example is committed, so it names no store. Empty values reach the local stack.
+test('the research environment example leaves the address of the store empty', () => {
+  const value = (name: string): string | undefined =>
+    new RegExp(`^${name}=(.*)$`, 'mu').exec(read('research', '.env.example'))?.[1]?.trim();
+
+  expect(value('RAW_STORE_ENDPOINT')).toBe('');
+  expect(value('RAW_STORE_REGION')).toBe('');
 });

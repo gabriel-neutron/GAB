@@ -209,3 +209,20 @@ export const AClaimTheDocumentHoldsUpIsNamed: Story = {
     }
   },
 };
+
+// The record holds the bytes of this document, so the operator can extract its claims here.
+export const AStoredDocumentOffersAnExtraction: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+// A hand entry holds no bytes, so nothing can be extracted from it.
+export const AHandEntryOffersNoExtraction: Story = {
+  args: { source: UNRATED },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.queryByRole('button', { name: 'Extract claims' })).toBeNull();
+  },
+};

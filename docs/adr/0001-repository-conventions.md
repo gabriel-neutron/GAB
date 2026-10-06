@@ -13,7 +13,7 @@ with another part. Do not make a package for a plan or for a preference.
 
 Under `src/`, there are four kinds of folder:
 
-- **A feature.** One surface of the user interface, in one flat folder.
+- **A feature.** One surface of the user interface, in one folder.
 - **`shared/`.** The user interface kit, and what one feature needs from another feature.
 - **`routes/`.** The route files that the router reads.
 - **A generated folder.** ADR 0003 tells what writes it and who can import it.
@@ -30,20 +30,26 @@ did not declare fails.
 
 ## The two commands
 
-- `pnpm check` runs the drift check, the type check, the lint and the format check. It does not run
-  the tests.
+- `pnpm check` runs the type check, the lint and the format check. It reaches no database, and it
+  does not run the tests.
 - `pnpm test` runs the tests. Vitest is the only test runner, for every kind of test.
 
 TypeScript runs with all strict checks. The linter is `typescript-eslint` and the formatter is
 Prettier. The repository allows no suppression. A generated file can be excluded by its name, never
 by a pattern that written code can enter.
 
-The drift check makes the database types again and compares them with the committed types. A
-difference fails the check.
+The drift check (`pnpm db:drift`) is a separate command. It makes the database types again from the
+test database and compares them with the committed types. A difference fails the check. It never
+reaches the record database. `pnpm db:types` writes the committed types from the same test database.
 
-**Definition of done:** `pnpm check` passes, the tests of the change pass, and the change does what
-its ticket asks, and a separate review agent finds nothing that blocks. The agent then merges into
-`staging`. The operator promotes `staging` to `main`.
+CI runs both commands on each pull request. One job starts the database stack with throwaway
+secrets, builds the test database from zero, runs the drift check and runs the whole suite, with
+the database tests. The database owns the data rules, so this job is the only automatic proof of
+them.
+
+**Definition of done:** `pnpm check` passes, the tests of the change pass, CI is green, the change
+does what its ticket asks, and a separate review agent finds nothing that blocks. The agent then
+merges into `staging`. The operator promotes `staging` to `main`.
 
 ## Reason
 
@@ -56,9 +62,12 @@ enough to run after each file.
 
 ## Cost
 
-- `pnpm check` needs a running database for each task, also for a task that does not touch SQL.
-- `pnpm check` can write. The drift check and the route generator can change a generated file, so
-  a person can find a generated file in the diff.
+- A local run of the drift check or of the database tests needs the local stack and a fresh test
+  database (`pnpm db:reset`).
+- `pnpm check` can write. The route generator can change a generated file, so a person can find a
+  generated file in the diff.
+- The CI job builds the database image and starts the stack on each pull request, so it is the
+  slowest gate.
 - A green `pnpm check` shows that the change compiles and obeys the rules. It does not show that
   the change is correct.
 - No layout rule keeps the public read safe. The read role of the database and the read address

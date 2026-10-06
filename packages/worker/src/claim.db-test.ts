@@ -104,30 +104,25 @@ test('two workers claim at the same time and never take the same row', async () 
   });
 });
 
-const marks = z.array(
-  z.object({ status: z.string(), attempts: z.number().int(), claimed_by: z.string() }),
-);
+const marks = z.array(z.object({ status: z.string(), claimed_by: z.string() }));
 
-const MARK = 'SELECT status, attempts, claimed_by FROM public.jobs WHERE id = $1::uuid';
+const MARK = 'SELECT status, claimed_by FROM public.jobs WHERE id = $1::uuid';
 const SESSION = z.array(z.object({ session_user: z.string() }));
 
-test('a claim marks the row running, stamps the role and counts the attempt', async () => {
+test('a claim marks the row running and stamps the role', async () => {
   await held(async (client) => {
     const taken = await claimJob(client);
     expect(taken).not.toBeNull();
     const [session] = SESSION.parse((await client.query('SELECT session_user')).rows);
     const found = marks.parse((await client.query(MARK, [taken?.id])).rows);
-    expect(found).toStrictEqual([
-      { status: 'running', attempts: 1, claimed_by: session?.session_user },
-    ]);
+    expect(found).toStrictEqual([{ status: 'running', claimed_by: session?.session_user }]);
   });
 });
 
-const queue = z.array(z.object({ id: z.uuid(), status: z.string(), attempts: z.number().int() }));
+const queue = z.array(z.object({ id: z.uuid(), status: z.string() }));
 // Departure: the query reads the jobs that this suite queued and no other. Other test files of the
 // same run commit and remove jobs of their own in public.jobs at the same time.
-const QUEUE =
-  'SELECT id, status, attempts FROM public.jobs WHERE document_id = ANY($1::text[]) ORDER BY id';
+const QUEUE = 'SELECT id, status FROM public.jobs WHERE document_id = ANY($1::text[]) ORDER BY id';
 
 test('a layout run and a reconcile run leave every job as they met it', async () => {
   await held(async (client) => {
@@ -135,7 +130,7 @@ test('a layout run and a reconcile run leave every job as they met it', async ()
     await runLayout(client);
     await reconcileCorpus(client, openStore());
     const after = queue.parse((await client.query(QUEUE, [SEEDED])).rows);
-    expect(before.some((job) => job.status === 'queued' && job.attempts === 0)).toBe(true);
+    expect(before.some((job) => job.status === 'queued')).toBe(true);
     expect(after).toStrictEqual(before);
   });
 });

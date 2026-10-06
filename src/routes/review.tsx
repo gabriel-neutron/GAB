@@ -2,9 +2,10 @@ import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-r
 import { useMemo, useState } from 'react';
 
 import { readDecided } from '@/features/review/decided';
-import { sendVerdict, type DecisionState } from '@/features/review/decision';
+import { sendBatchVerdict, sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
+import { readPassages } from '@/features/review/passages';
 import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
 import { subjectsNamed } from '@/features/review/subjects-named';
 import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/review/verdict-flow';
@@ -19,10 +20,6 @@ export interface ReviewSearch {
   readonly subject: string;
   readonly view: ReviewView;
 }
-
-/** The confidence threshold is an operational parameter, and never a constant of the source. No
- * path carries one to the browser today, so an act with no disagreement states no reason. */
-const THRESHOLD = null;
 
 const IDLE: DecisionState = { step: 'idle' };
 
@@ -48,7 +45,8 @@ export const Route = createFileRoute('/review')({
       loadDecidedActs(),
       loadEntityTypes(),
     ]);
-    return { corpus, decided, types };
+    const passages = await readPassages(corpus.proposals.map((proposal) => proposal.id));
+    return { corpus, decided, types, passages };
   },
 
   component: ReviewRoute,
@@ -58,7 +56,7 @@ export const Route = createFileRoute('/review')({
 function ReviewRoute() {
   const { subject, view } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, decided, types } = Route.useLoaderData();
+  const { corpus, decided, types, passages } = Route.useLoaderData();
   const router = useRouter();
 
   const [sort, setSort] = useState<SortKey>(readSort);
@@ -70,7 +68,7 @@ function ReviewRoute() {
   const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
-  const queued = useMemo(() => readQueue(corpus, THRESHOLD, types), [corpus, types]);
+  const queued = useMemo(() => readQueue(corpus, types), [corpus, types]);
   const query = useScreenQuery({
     named: queued,
     choose: (subjectId) => {
@@ -96,13 +94,32 @@ function ReviewRoute() {
         return;
       case 'decide': {
         // A decision is an event handler and never an effect.
-        const deciding = beginVerdict(decision, act);
+        const deciding = beginVerdict(decision, {
+          changeId: act.changeId,
+          verdict: act.verdict,
+        });
         if (deciding === null) return;
         setDecision(deciding);
         void sendVerdict(act.changeId, act.verdict).then(async (answer) => {
           const { held, readAgain } = settleVerdict(answer, act);
           setDecision(answer);
           if (held !== null) setVerdicts((all) => ({ ...all, [act.changeId]: held }));
+          if (readAgain) await refreshCorpus(() => router.invalidate());
+        });
+        return;
+      }
+      case 'decide-batch': {
+        const deciding = beginVerdict(decision, { batchId: act.batchId, verdict: act.verdict });
+        if (deciding === null) return;
+        setDecision(deciding);
+        void sendBatchVerdict(act.batchId, act.verdict).then(async (answer) => {
+          const { held, readAgain } = settleVerdict(answer, act);
+          setDecision(answer);
+          if (held !== null)
+            setVerdicts((all) => ({
+              ...all,
+              ...Object.fromEntries([act.batchId, ...act.changeIds].map((id) => [id, held])),
+            }));
           if (readAgain) await refreshCorpus(() => router.invalidate());
         });
         return;
@@ -130,6 +147,7 @@ function ReviewRoute() {
           queue={{ subjects, verdicts }}
           examination={{ subjectId: subject === '' ? null : subject, sort }}
           decision={decision}
+          passages={passages}
           onAct={onAct}
         />
       }

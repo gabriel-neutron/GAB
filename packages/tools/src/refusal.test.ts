@@ -19,7 +19,13 @@ const toolNamed = (name: string): Tool => {
 const DOC = 'doc_0123456789ab';
 const ID = '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b';
 
-const CREATE = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
+const ITEM = {
+  ref: 'nayara',
+  act: { op: 'create_entity', type: 'vessel', label: 'Nayara' },
+  originator: 'The port authority',
+  modality: 'asserts',
+  evidence: [{ document: DOC, page: 1, excerpt: 'the tanker Nayara' }],
+};
 
 const REFUSED: readonly (readonly [string, string, unknown])[] = [
   ['search_graph', 'a blank query', { query: '  ' }],
@@ -40,34 +46,21 @@ const REFUSED: readonly (readonly [string, string, unknown])[] = [
     { document: DOC, fromPage: 5, toPage: 2 },
   ],
   ['document_text', 'a range that starts at page zero', { document: DOC, fromPage: 0 }],
-  ['lookup_entity', 'a blank key', { key: '', value: '9123456' }],
-  ['proposal_read', 'an identifier that is not one', { proposal: 'p1' }],
+  ['read_entity', 'an entity that is no identifier', { entity: 'nayara' }],
+  ['list_proposals', 'a status outside the list', { status: 'open' }],
+  ['find_document', 'neither a url nor a title', {}],
+  ['list_vocabulary', 'a field that nothing declares', { type: 'vessel' }],
   ['enqueue_extract', 'a blank document', { document: ' ' }],
   ['job_status', 'a missing document', {}],
+  ['propose', 'an empty batch', { items: [] }],
   [
-    'propose_change',
-    'a payload that the request schema refuses',
-    {
-      act: { op: 'create_entity', type: '', label: 'Nayara' },
-      documents: [DOC],
-    },
-  ],
-  ['propose_change', 'an act that cites no document', { act: CREATE, documents: [] }],
-  ['propose_change', 'a reserved document', { act: CREATE, documents: ['manual'] }],
-  ['propose_change', 'the second reserved document', { act: CREATE, documents: ['inherited'] }],
-  [
-    'propose_change',
+    'propose',
     'a delete, which a machine does not propose',
-    {
-      act: { op: 'delete_entity', targetId: ID },
-      documents: [DOC],
-    },
+    { items: [{ ...ITEM, act: { op: 'delete_entity', targetId: ID } }] },
   ],
-  [
-    'propose_change',
-    'a field that nothing declares',
-    { act: CREATE, documents: [DOC], role: 'app' },
-  ],
+  ['propose', 'an item with no excerpt', { items: [{ ...ITEM, evidence: [] }] }],
+  ['propose', 'two items with one ref', { items: [ITEM, ITEM] }],
+  ['propose', 'a field that nothing declares', { items: [ITEM], role: 'app' }],
 ];
 
 for (const [name, why, raw] of REFUSED)
@@ -75,13 +68,6 @@ for (const [name, why, raw] of REFUSED)
     const outcome = await callTool(toolNamed(name), noSql, raw);
     expect(outcome.ok).toBe(false);
   });
-
-test('a tool called with its run function and a reserved document still refuses before SQL', async () => {
-  const tool = toolNamed('propose_change');
-  await expect(tool.run(noSql, { act: CREATE, documents: ['manual'] })).rejects.toThrow(
-    /reserved document/,
-  );
-});
 
 test('document_text names the cap in the sentence of its refusal', async () => {
   const outcome = await callTool(toolNamed('document_text'), noSql, {

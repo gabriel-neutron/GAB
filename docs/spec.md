@@ -40,20 +40,20 @@ flowchart LR
 |---|---|
 | PostgreSQL / PostGIS | Holds every record and enforces the rules below. |
 | S3 raw store | Keeps each original file unchanged. Any S3 server can hold it. |
-| Writer | The only write service for the operator: upload, edit, promote, reject. |
+| Writer | The only write service for the operator: upload, edit, promote, reject, queue an extraction, start a lead. It also gives the operator the status of the jobs of a document and the leads, which the public read never shows. |
 | Read API | Read-only HTTP over a fixed set of public views. |
 | Web interface | The graph, the map, the review queue, search and entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
-| MCP server | Gives the research AI its tools: search, fetch, propose, queue a job. |
+| MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job, start a lead. Each tool says if it reads or writes. |
 | Model gateway, web search | External services. They hold no record of the project. |
 
 ## Who can do what
 
 | Actor | Can | Cannot |
 |---|---|---|
-| Operator | Upload, edit, promote, reject, rate a source. | — |
-| Research AI | Read, fetch and store documents, propose a change, queue a job. | Promote. |
-| Worker agents | Read a document, write readings, propose a change. | Promote. |
+| Operator | Upload, edit, promote, reject, rate a source, start a lead. | — |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. | Promote. Read a lead. |
+| Worker agents | Read a document, propose a change with the passage that states it. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database, not the application, holds these limits.
@@ -76,6 +76,9 @@ The interface reads through the read API, with a read-only role and a fixed list
 reads, such as a graph traversal, run as SQL functions in the database. A timeout, a default limit
 and a cache protect the public read.
 
+The public read shows the record and the candidate layer, and nothing else (PU1). It shows no
+rejected proposal, no job, no lead and no model call. The machine roles read through their own grants.
+
 ## The write path
 
 ```
@@ -84,8 +87,9 @@ a file  →  one ingestion door (P6)
              → document record (source, retrieval date)
              → text extraction
              → a job in the queue
-                  → text file: the extractor reads and proposes claims;
-                    a second reader of another model family reads again
+                  → text file: the extractor reads the text as it is stored and
+                    proposes claims, each with a checked excerpt; a model of
+                    another family checks each claim against its passage
                   → structured file: a mapping proposal; after promotion, code loads the rows
 every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
 promotion       →  entities and relations (the evidentiary layer)
@@ -93,6 +97,52 @@ promotion       →  entities and relations (the evidentiary layer)
 
 A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
 writes no target. A rejected proposal is kept as a record.
+
+An edit of the operator is a proposal and its promotion in one transaction, so it is written whole
+or not at all. Only the operator role holds the promotion, so a machine proposes and never decides.
+A value that an act keeps keeps each document that it already cites.
+
+A machine proposes through one door, which takes a batch. Each act of a machine cites a page and a
+span of stored text, which code found from a quoted excerpt. The door writes the act and its
+citations together, refuses the whole batch on one fault, and returns a pending act that it
+already holds instead of a duplicate. The cited passage is private and reaches only the review
+card of the operator.
+
+Before the extractor writes its acts, a model of another family checks each one against its
+passage. An act that the check does not support, or that a failed check could not read, is
+written as disputed. An act with a value that no cited passage states is disputed too. The act
+keeps a short reason with the flag: the value that the passage does not state, the verdict of the
+checker and its reason, or that the checker did not answer. The reason is frozen with the act and
+private: the review card shows it, and the public read does not. Every model call goes to the free
+model gateway and is recorded.
+
+The extractor reads a document in parts. When the door refuses the batch of a part a second time,
+the claims of that part are lost, and the job keeps the count of the refused parts and the first
+refusal. The status of the job shows them to the operator and to the research AI. A job whose
+every part was refused fails, with the same words as its reason. The interface reads the status of
+an extraction again by itself while the job waits or runs.
+
+The acts of one call that name each other are one linked batch. The review queue shows a batch as
+one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion
+writes each entity before the relation that names it, and one refused act refuses the whole batch:
+the refusal names the act and the reason, and nothing is written. An act that names no other act
+of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
+The door of one act refuses an act of a batch, so a batch is never half decided.
+
+## The lead path
+
+```
+a lead (a short text from the operator or the research AI)
+  → a job in the queue, with the text and no document
+  → the lead agent: web search, news search, graph search, a search of the stored documents
+  → each new page: fetch, store (the ingestion door), queue its extraction
+  → the extraction path above proposes the claims
+```
+
+The lead agent proposes nothing and starts no lead. It does not fetch a page whose address is
+already stored. It has no page limit, and its token budget stops it, with that reason. No schedule
+starts a lead. The text of a lead is private: only the operator reads the leads, and the worker
+reads the text of the one lead that it runs.
 
 ## Technical baseline
 
@@ -103,7 +153,7 @@ writes no target. A rejected proposal is kept as a record.
 | T3 | The raw file is in S3, the processed data in PostgreSQL. | The raw file is evidence and stays as it is; the data changes. The raw file is unchanged by convention only: the store does not lock it. |
 | T4 | The interface reads by itself; the backend serves writes only. | A backend that only passes reads on is dead weight. |
 | T5 | pgvector and a job table, no vector database and no message queue. | Two fewer services at our volume. |
-| T6 | Validation at the boundary (Zod) and in the database (checks). | Readable errors in the app, and a guard that holds for any writer. |
+| T6 | The boundary (Zod) reads the shape of a request. The database holds each rule on data, and words its own refusal. | Each rule has one owner, and the guard holds for any writer. |
 
 The ADRs hold the other build decisions (`README.md`).
 

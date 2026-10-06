@@ -21,14 +21,9 @@
 SET ROLE gabriel_owner;
 
 -- ------------------------------------------------------------------------------------------
-DROP VIEW IF EXISTS api.originator_card;
 DROP VIEW IF EXISTS api.full_map;
-DROP VIEW IF EXISTS api.full_graph;
 DROP VIEW IF EXISTS api.layout;
-DROP VIEW IF EXISTS api.model_call;
 DROP VIEW IF EXISTS api.job;
-DROP VIEW IF EXISTS api.key_usage;
-DROP VIEW IF EXISTS api.value_support;
 DROP VIEW IF EXISTS api.proposal;
 DROP VIEW IF EXISTS api.relation;
 DROP VIEW IF EXISTS api.entity;
@@ -49,7 +44,6 @@ COMMENT ON VIEW api.document IS
   'corroborated fact and a rumour at the same score.';
 
 
--- originator_id is not published: the originator of a claim is read through its own card.
 CREATE VIEW api.document_provider AS
   SELECT id, name, licence FROM public.document_provider;
 COMMENT ON VIEW api.document_provider IS
@@ -104,72 +98,26 @@ COMMENT ON VIEW api.relation IS
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
          confidence, dissent, author_role, model_call_id, status, created_at, decided_at,
-         decided_by
-    FROM public.proposals;
+         decided_by, batch_id
+    FROM public.proposals
+   -- PU1: a rejected act is not public. The public read role and any role that this list does
+   -- not name see no rejected row, so the rule fails closed. current_user in a view is the role
+   -- that reads it, and not the owner of the view.
+   WHERE status <> 'rejected'
+      OR current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research');
 COMMENT ON VIEW api.proposal IS
-  'The candidate layer AND the record of every change; `status` tells them apart. '
+  'The candidate layer AND the record of every change; `status` tells them apart. The public '
+  'read shows no rejected act. '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
   'holds it. `names` lists the other elements the act touches. author_role is the connection '
   'role and never a person. model_call_id names the call that made a machine act. It is NULL '
-  'for an act of the operator and for a machine act older than the call record. decided_by is '
+  'for an act of the operator and for a machine act older than the call record. batch_id joins '
+  'the acts of a machine that name each other, and the operator decides them as one unit; a '
+  'single act has none. decided_by is '
   'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
 
-
--- READ 5, AND IT REPLACES A TABLE. "Which values does this document hold up" is the mechanism
--- S1 calls central when a rating moves. The #97 proposal made this a mirror table kept by four
--- triggers; it is a view, because a fact must not have a second home.
--- A row with attr_key IS NULL is the source list of the ROW ITSELF, not of a value.
-CREATE VIEW api.value_support AS
-      SELECT 'entity'::text AS owner_kind, e.id AS owner_id, e.label AS owner_label,
-             s.doc AS doc_id, c.key AS attr_key, c.val -> 'v' AS value
-        FROM public.entities e
-        CROSS JOIN LATERAL jsonb_each(e.attrs) AS c(key, val)
-        CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-UNION ALL
-      SELECT 'entity', e.id, e.label, d, NULL, NULL
-        FROM public.entities e CROSS JOIN LATERAL unnest(e.sources) AS d
-UNION ALL
-      SELECT 'relation', r.id, r.type, s.doc, c.key, c.val -> 'v'
-        FROM public.relations r
-        CROSS JOIN LATERAL jsonb_each(r.attrs) AS c(key, val)
-        CROSS JOIN LATERAL jsonb_array_elements_text(c.val -> 'src') AS s(doc)
-UNION ALL
-      SELECT 'relation', r.id, r.type, d, NULL, NULL
-        FROM public.relations r CROSS JOIN LATERAL unnest(r.sources) AS d;
-COMMENT ON VIEW api.value_support IS
-  'Which PUBLISHED values a document holds up. Filter on doc_id when an ADMIRALTY rating moves. '
-  'It carries the value itself and not only the key, so the answer shows the figures. '
-  'attr_key IS NULL marks the source list of the ROW, not of a value. For the CANDIDATE claims '
-  'that cite the same document, read api.proposal with src=cs.{the id}.';
-
-
--- THE MONITORING VIEW M11 ASKED FOR, AND NOW THE WHOLE OF WHAT M11 LEFT. There is no vocabulary
--- table and no rule on a key beyond its shape, so this view is the only thing that shows which
--- keys the record carries. Two spellings of one concept stand side by side here, and reading it
--- is the only way anybody finds them.
---
--- IT READS BOTH TABLES THAT CARRY ATTRIBUTES. A view over entities alone would leave a key
--- written on a relation invisible, and a worklist with a hole is not a worklist.
-CREATE VIEW api.key_usage AS
-  WITH used AS (
-    SELECT 'entity' AS owner_kind, e.type AS owner_type, ok.key
-      FROM public.entities e
-      CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS ok(key)
-    UNION ALL
-    SELECT 'relation', r.type, ok.key
-      FROM public.relations r
-      CROSS JOIN LATERAL jsonb_object_keys(r.attrs) AS ok(key)
-  )
-  SELECT u.key, u.owner_kind, u.owner_type, count(*) AS claims
-    FROM used u
-   GROUP BY u.key, u.owner_kind, u.owner_type;
-COMMENT ON VIEW api.key_usage IS
-  'Every attribute key in use, on an entity or on a relation, with how often it is used and by '
-  'which type. Nothing declares a key, so this is the one place a semantic duplicate — '
-  'coal_stock beside coal_stock_tonnes — becomes visible. A low count is a typo. M11 accepted '
-  'that this makes the drift visible and prevents none of it. Read it periodically.';
 
 -- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
 -- place carries NULL here, which is not an error: the surface places it itself and the next run
@@ -185,45 +133,21 @@ COMMENT ON VIEW api.layout IS
   'itself. Every position of one run belongs beside the others of the same run.';
 
 
--- Departure: the queue is readable, or a row stuck in `running` is a state nobody can find.
--- It publishes no payload: a job carries an identifier, a state, the history of its claims,
--- and the reason and the hour it ended.
+-- Departure: the queue is readable by the tool roles, or a row stuck in `running` is a state
+-- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a
+-- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead is
+-- private work of the operator and names no document, so this view leaves it out.
 CREATE VIEW api.job AS
-  SELECT id, document_id, status, attempts, claimed_by, claimed_at, failure_reason, finished_at
-    FROM public.jobs;
+  SELECT id, document_id, status, claimed_by, claimed_at, failure_reason, finished_at
+    FROM public.jobs
+   WHERE kind <> 'research_lead';
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '
   'door. claimed_by is the CONNECTION ROLE that took the row and never a person or a process. '
-  '`attempts` counts every claim, including the ones a lease released, so it counts what was '
-  'taken and never what was tried. A failed job always states its reason in '
-  'failure_reason. finished_at is the hour a job ended, and NULL while it can still run.';
-
--- Departure: the calls of one job, and the call of one proposal, are read here. It publishes
--- the digest of a prompt and never a prompt: the prompt can quote an untrusted document.
-CREATE VIEW api.model_call AS
-  SELECT id, job_id, agent, agent_version, endpoint, requested_model, served_model,
-         prompt_sha256, input_tokens, output_tokens, latency_ms, outcome, created_at
-    FROM public.model_call;
-COMMENT ON VIEW api.model_call IS
-  'One question to a model, written once and never changed. Read the calls of a job with '
-  'job_id=eq.{id}, and the call of a proposal through api.proposal.model_call_id. '
-  'requested_model is the name the agent asked for, and served_model is the one that answered: '
-  'they can differ, and served_model is NULL when no model answered. prompt_sha256 is a digest '
-  'and never the prompt. outcome is ok or the kind of failure. A chat call has no job_id.';
-
--- THE TWO READS THAT RETURN EVERY ROW, AND HOW THEY ESCAPE THE ROW CEILING. PostgREST caps rows
--- per role and never per view, so the one read role carries no row cap at all, and there is no
--- second role. The guard is time alone: statement_timeout on that role stops a read that runs away.
-CREATE VIEW api.full_graph AS
-  SELECT e.id, e.type, e.label, l.x, l.y
-    FROM api.entity e
-    LEFT JOIN api.layout l ON l.entity_id = e.id;
-COMMENT ON VIEW api.full_graph IS
-  'Every entity of the graph with the position the graph draws it at, in one read. The edges '
-  'come from api.relation, which returns every relation under the same rule. Read '
-  'api.layout for the meaning of a null position.';
-
+  'A job fails at once, and a failed job always states its reason in failure_reason. The '
+  'operator queues the document again for a new job. finished_at is the hour a job ended, and '
+  'NULL while it can still run.';
 
 -- THE FILTER IS GONE, AND THE ROW COUNT IS NOW EVERY ENTITY. An entity that states
 -- `position_precision` = `inherited` carries no geometry of its own. A filter on the geometry
@@ -299,56 +223,5 @@ COMMENT ON VIEW api.full_map IS
   'inherited. parent_id names that ancestor, and it is null when the entity stands at its own '
   'point. A null geom is an entity the map cannot place. The word is a claim of the analyst. It '
   'may be absent, and a surface must then draw the cautious state and never a measured one.';
-
--- THE DATA OF THE SOURCE CARD, AND IT CARRIES NO LETTER. The letter is internal: the card shows the
--- track record, and it never shows the letter (the letter is not a column here). Under five
--- resolved clusters the counts and the list are NULL, because a rate over so few trials is noise
--- that a reader takes for a measure. A natural person is hidden until the operator reviews the
--- card. The counts repeat the cluster rule of originator_track_counts, because this file runs
--- before the functions exist, and a test holds the two equal. A sanction row whose check date has
--- passed shows `checked` false: an expired flag shows as unchecked, it keeps the display limits,
--- and it gives no anchor.
-CREATE VIEW api.originator_card AS
-  SELECT o.id, o.display_name, o.kind, o.imprint_id, o.party, o.sanctioned_controlled,
-         (SELECT coalesce(jsonb_agg(jsonb_build_object(
-                    'regime', s.regime, 'list_entry_id', s.list_entry_id,
-                    'listed_on', s.listed_on,
-                    'checked', (s.checked_until IS NULL OR s.checked_until >= current_date))
-                  ORDER BY s.regime, s.list_entry_id), '[]'::jsonb)
-            FROM public.originator_sanction s
-           WHERE s.originator_id = coalesce(o.merged_into, o.id)) AS sanctions,
-         o.letter_origin,
-         CASE WHEN t.n >= 5 THEN t.n END AS n_resolved,
-         CASE WHEN t.n >= 5 THEN t.k END AS n_true,
-         CASE WHEN t.n >= 5 THEN t.fabricated END AS n_fabricated,
-         CASE WHEN t.n >= 5 THEN
-           (SELECT jsonb_agg(jsonb_build_object(
-                      'claim_id', r.claim_id, 'claim_document', r.claim_document,
-                      'position', r.position, 'outcome', r.outcome,
-                      'settled_by', r.settled_by, 'resolved_at', r.resolved_at)
-                    ORDER BY r.resolved_at, r.id)
-              FROM public.originator_resolution r
-             WHERE r.originator_id = o.id
-               AND NOT (r.outcome = 'fabricated' AND r.fabrication_confirmed_at IS NULL))
-         END AS resolved_claims
-    FROM public.originator o
-   CROSS JOIN LATERAL (
-     SELECT count(*)::integer AS n,
-            (count(*) FILTER (WHERE g.is_true))::integer AS k,
-            (count(*) FILTER (WHERE g.is_fabricated))::integer AS fabricated
-       FROM (SELECT bool_and(c.outcome = 'true') AS is_true,
-                    bool_or(c.outcome = 'fabricated') AS is_fabricated
-               FROM public.originator_resolution c
-              WHERE c.originator_id = o.id
-                AND NOT (c.outcome = 'fabricated' AND c.fabrication_confirmed_at IS NULL)
-              GROUP BY c.claim_document) AS g) AS t
-   WHERE o.kind <> 'person' OR o.card_reviewed_at IS NOT NULL;
-COMMENT ON VIEW api.originator_card IS
-  'One row per originator: who first put a claim out. It carries the party relation, the sanctions '
-  'rows with `checked` false once their check date has passed, how the letter was reached '
-  '(letter_origin) and the track record. It carries no letter. n_resolved, n_true, n_fabricated '
-  'and resolved_claims are NULL under five resolved clusters. n_resolved counts clusters: the '
-  'claims of one document are one. A natural person has no row until the operator reviews the '
-  'card.';
 
 RESET ROLE;

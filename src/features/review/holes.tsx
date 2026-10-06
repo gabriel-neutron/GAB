@@ -2,7 +2,7 @@ import { FileQuestion, GitMerge, MessageSquareDashed, SearchX, Trash2 } from 'lu
 
 import type { Hole, HoleKind } from './queue';
 
-export interface HolesProps {
+interface HolesProps {
   readonly holes: readonly Hole[];
 }
 

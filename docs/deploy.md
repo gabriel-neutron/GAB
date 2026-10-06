@@ -23,8 +23,28 @@ The read API serves the `api` schema as `gabriel_read`. It writes nothing.
 
 ## The writer and the worker
 
-Run `pnpm writer`, `pnpm layout` and `pnpm reconcile` on the operator's machine, with the same
-`infra/.env` as above. They run as they do against the local stack. Only the values change.
+Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
+The worker is one command with four sub-commands: `pnpm worker run` takes the queued AI jobs,
+`pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout, and
+`pnpm worker reconcile` compares the raw store with the document index. They run as they do
+against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
+start, it puts back each job that is still running.
+
+`pnpm worker run` needs the model gateway and two models. Set `FREELLMAPI_BASE_URL` and
+`FREELLMAPI_API_KEY`, the `EXTRACTOR_` values and the `CHECKER_` values, as `infra/.env.example`
+lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
+worker does not start when they are the same.
+
+The lead agent of `pnpm worker run` asks the extractor model. Set `LEAD_TOKEN_CAP`, the token
+budget of one lead, and `SEARXNG_URL`, the address of the search service. The worker stores each
+page that a lead fetches, so it also needs the raw store values. When one of these values is
+absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
+names the value.
+
+`BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
+that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
+gives no result. A lead runs only when the operator or the research AI starts it: no schedule
+starts one.
 
 ## Public writes
 

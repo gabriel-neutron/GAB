@@ -1,6 +1,7 @@
 import type { WriteRequest } from '@gab/proposal/request';
 
-import { sendAct, type WriteOutcome } from './door';
+import { sendAct, type Signed } from './door';
+import type { WriteResult } from './write-state';
 
 /** Departure: each end of a new relation is an entity, so no relation is written on a relation.
  * A `null` name or type is a column the act leaves as it stands, and one of the two is set. */
@@ -53,6 +54,6 @@ const bodyOf = (act: ElementAct): Readonly<Record<string, unknown>> => {
 
 /** Every failure arrives as a sentence, and never as a raised error: a screen that must report a
  * refusal cannot report it from a catch. */
-export async function writeElement(act: ElementAct): Promise<WriteOutcome> {
+export async function writeElement(act: ElementAct): Promise<WriteResult<Signed>> {
   return sendAct(act.op, bodyOf(act));
 }

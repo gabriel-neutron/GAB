@@ -789,6 +789,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-03T09:12:00Z',
       decidedAt: null,
       decidedBy: null,
+      batchId: null,
     },
     {
       // Low confidence, no dissent. S3 sends it to review on the second condition.
@@ -817,6 +818,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-04T14:38:00Z',
       decidedAt: null,
       decidedBy: null,
+      batchId: null,
     },
     {
       // No dissent, high confidence. S3 does not send it to review. P1 does not let it through.
@@ -841,6 +843,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-05T08:02:00Z',
       decidedAt: null,
       decidedBy: null,
+      batchId: null,
     },
     {
       id: '2d3e4f50-7182-49ab-c234-56789abcdef0',
@@ -864,6 +867,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-22T11:45:00Z',
       decidedAt: '2026-07-22T16:20:00Z',
       decidedBy: 'operator',
+      batchId: null,
     },
     {
       // Rejected, and kept. It is the record of what was set aside.
@@ -886,6 +890,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-19T10:05:00Z',
       decidedAt: '2026-07-19T18:41:00Z',
       decidedBy: 'operator',
+      batchId: null,
     },
     {
       // Written by the operator, and not by an agent. An operator edit is a proposal too, and
@@ -908,6 +913,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-25T07:30:00Z',
       decidedAt: '2026-07-25T07:30:00Z',
       decidedBy: 'operator',
+      batchId: null,
     },
   ],
 };

@@ -56,6 +56,8 @@ export interface SourceCardModel {
   /** Cited, and with no row in `documents`. It is drawn and never hidden: a surface that drops
    * evidence in silence is worse than one that says what it dropped. */
   readonly missing: boolean;
+  /** The record holds the bytes of the document, so the worker can extract its claims. */
+  readonly extractable: boolean;
 }
 
 export interface RecordRow {
@@ -198,6 +200,7 @@ function cardOf(
     retrievedAt: row?.retrievedAt ?? null,
     holdsUp,
     missing: row === undefined,
+    extractable: row?.sha256 !== undefined && row.sha256 !== null,
   };
 }
 

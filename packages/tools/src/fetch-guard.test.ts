@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { refusedAddress } from './fetch-guard.ts';
+import { FetchRefusal, pageAddress, refusedAddress } from './fetch-guard.ts';
 
 describe('refusedAddress', () => {
   test.each([
@@ -59,5 +59,17 @@ describe('refusedAddress', () => {
   test('refuses a string that is no address, because nothing can be checked in it', () => {
     expect(refusedAddress('example.org')).toBe(true);
     expect(refusedAddress('')).toBe(true);
+  });
+});
+
+describe('pageAddress', () => {
+  test('gives the address that a fetch stores: no fragment, a host in small letters', () => {
+    expect(pageAddress(' HTTPS://Example.ORG#top ')).toBe('https://example.org/');
+    expect(pageAddress('https://example.org/a/b?q=1#part')).toBe('https://example.org/a/b?q=1');
+  });
+
+  test('refuses an address that is never fetched', () => {
+    expect(() => pageAddress('file:///etc/passwd')).toThrow(FetchRefusal);
+    expect(() => pageAddress('not an address')).toThrow(FetchRefusal);
   });
 });

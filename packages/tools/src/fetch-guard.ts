@@ -107,8 +107,15 @@ const parsed = (raw: string, base?: URL): URL => {
     throw new FetchRefusal(
       `only an http or an https address is fetched, and this one is ${url.protocol.replace(/:$/u, '')}`,
     );
+  // A client never sends the fragment, so two addresses that differ only in it give one page, and
+  // the page is stored under one address.
+  url.hash = '';
   return url;
 };
+
+/** The address under which a fetch stores the page of `raw`, before any redirect. It throws a
+ * FetchRefusal for an address that is never fetched. */
+export const pageAddress = (raw: string): string => parsed(raw.trim()).href;
 
 // The socket asks this function for the address, and it gets only an address that passed.
 const guardedLookup =

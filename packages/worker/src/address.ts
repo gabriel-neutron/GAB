@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-// External constraint: the compose file of the local stack fixes the database name.
-const DATABASE = 'gabriel';
-
 // External constraint: the doors of the machine layer are held by this role. It reads the corpus
 // and writes through a door, and it signs nothing: a trigger stamps the author from the connection.
 const AGENT_ROLE = 'gabriel_agent';
@@ -20,6 +17,9 @@ const placement = z.object({
     absentWhenEmpty,
     z.coerce.number().int().min(1).max(65_535).default(5432),
   ),
+  // Departure: the cluster holds the published record and the database the tests write. An
+  // absent name is the record, and a test run names the other one.
+  GABRIEL_DATABASE: z.enum(['gabriel', 'gabriel_test']).default('gabriel'),
   GABRIEL_DB_SSL: z.preprocess(
     absentWhenEmpty,
     z
@@ -40,14 +40,15 @@ const addressOf = (role: string, variable: string): string => {
   const where = placement.safeParse(process.env);
   if (!where.success)
     throw new Error(
-      'GABRIEL_DB_HOST, GABRIEL_DB_PORT or GABRIEL_DB_SSL holds a value the worker cannot use. ' +
-        'The port is a number from 1 to 65535, and GABRIEL_DB_SSL is true or false.',
+      'GABRIEL_DB_HOST, GABRIEL_DB_PORT, GABRIEL_DB_SSL or GABRIEL_DATABASE holds a value the ' +
+        'worker cannot use. The port is a number from 1 to 65535, GABRIEL_DB_SSL is true or ' +
+        'false, and GABRIEL_DATABASE is gabriel or gabriel_test.',
     );
-  const { GABRIEL_DB_HOST, GABRIEL_DB_PORT, GABRIEL_DB_SSL } = where.data;
+  const { GABRIEL_DB_HOST, GABRIEL_DB_PORT, GABRIEL_DB_SSL, GABRIEL_DATABASE } = where.data;
   const password = encodeURIComponent(held.data);
   const server = `${GABRIEL_DB_HOST}:${String(GABRIEL_DB_PORT)}`;
   const tls = GABRIEL_DB_SSL ? PG_TLS_QUERY : '';
-  return `postgresql://${role}:${password}@${server}/${DATABASE}${tls}`;
+  return `postgresql://${role}:${password}@${server}/${GABRIEL_DATABASE}${tls}`;
 };
 
 /** The URL a hand-taken command of this package signs with. It throws when the secret is absent. */

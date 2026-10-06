@@ -12,9 +12,8 @@ SET ROLE gabriel_owner;
 -- Departure: M11 puts no vocabulary tier here. `attrs_valid` holds the shape of each key and
 -- each attribute on the column, and nothing else is a rule on the free half of the model.
 
--- Departure: no table describes a key. `api.key_usage` counts each key in use, and that view is
--- the whole of M11's mitigation: it shows the drift, and it does not prevent it. The cost is
--- that `coal_stock`, `coal_stock_t` and `coal_stock_tonnes` can stand on one type, all valid.
+-- Departure: no table describes a key. The cost is that `coal_stock`, `coal_stock_t` and
+-- `coal_stock_tonnes` can stand on one type, all valid.
 
 -- External constraint: this file runs again at each apply, so the drop below removes the old
 -- vocabulary functions from a database that still holds them.
@@ -27,6 +26,25 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- current_user inside a SECURITY DEFINER function is the OWNER, never the caller. session_user
 -- is the caller. It separates gabriel_agent from gabriel_app, and it CANNOT separate the
 -- operator from the backend, because both hold the name gabriel_app.
+-- What makes two machine acts the same act: the operation, the target, the payload, the
+-- sources and the role that wrote it. The stamp below and the batch door read it, so both compute
+-- one digest. Two roles are two witnesses, and the digest keeps them apart: a merge would lose the
+-- second witness. The originator is not part of it, because a model words the same party in more
+-- than one way, and each wording would make a second act of one claim.
+--
+-- An act that waited before this digest keeps the digest it was written with, because a pending
+-- act is frozen. A retry of such an act writes it once more.
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text,text);
+CREATE OR REPLACE FUNCTION act_digest_of(
+  p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
+  p_author_role text)
+RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
+  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                               p_author_role)::text)
+$$;
+
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
@@ -47,6 +65,12 @@ BEGIN
     RAISE EXCEPTION 'a proposal of gabriel_agent names the model call that made it'
       USING ERRCODE = 'check_violation';
   END IF;
+  -- THE DIGEST OF A MACHINE ACT. A pending act with the same digest is the same act, and the
+  -- unique index returns it to a retry. The operator gets none, so an act of the operator is
+  -- never joined to an act of a machine.
+  NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
+    ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
+                       NEW.author_role) END;
   RETURN NEW;
 END $$;
 
@@ -96,12 +120,12 @@ BEGIN
   END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
-      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id, NEW.idempotency_key)
+      NEW.confidence, NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
+      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
-      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id, OLD.idempotency_key) THEN
+      OLD.confidence, OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
+      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -118,24 +142,16 @@ BEGIN
   RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
--- A READING IS A FACT AND NOT A STATE: what one reader saw in one page is written once. The
--- comparison reads it, and a reading that changed after the comparison would change a claim in
--- silence. The owner and the superuser ignore a grant, so a trigger holds it. The citation is
--- held the same way until its write-once columns arrive.
-CREATE OR REPLACE FUNCTION claim_reading_append_only_fn() RETURNS trigger
+-- A CITATION IS A FACT AND NOT A STATE: where a page states a claim is written once, with the
+-- claim. A citation that changed after the decision would change the proof in silence. The owner
+-- and the superuser ignore a grant, so a trigger holds it. The reading table went in 0041, and
+-- the drop below removes its function, and the trigger that used it, from an older database.
+DROP FUNCTION IF EXISTS claim_reading_append_only_fn() CASCADE;
+CREATE OR REPLACE FUNCTION citation_append_only_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  RAISE EXCEPTION 'a row of % is never %. It is the record of what a reader saw',
-    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
-END $$;
-
--- A MESSAGE ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
--- ignore a grant, so a trigger holds it.
-CREATE OR REPLACE FUNCTION chat_message_append_only_fn() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  RAISE EXCEPTION 'a row of % is never %. It is the record of what was said',
-    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+  RAISE EXCEPTION 'a citation is never %. It is the record of where a page states a claim',
+    CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
 -- M4. src_id and dst_id carry no foreign key, because the target is polymorphic. FOR KEY SHARE
@@ -150,8 +166,9 @@ BEGIN
     ELSE PERFORM 1 FROM public.relations WHERE id = NEW.src_id FOR KEY SHARE;
   END IF;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'src % (%) does not exist', NEW.src_id, NEW.src_kind
-      USING ERRCODE = 'foreign_key_violation';
+    RAISE EXCEPTION 'the source % does not exist', NEW.src_id
+      USING ERRCODE = 'foreign_key_violation', CONSTRAINT = 'relation_ends_exist',
+            HINT = 'srcId';
   END IF;
 
   IF NEW.dst_kind = 'entity'
@@ -159,8 +176,9 @@ BEGIN
     ELSE PERFORM 1 FROM public.relations WHERE id = NEW.dst_id FOR KEY SHARE;
   END IF;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'dst % (%) does not exist', NEW.dst_id, NEW.dst_kind
-      USING ERRCODE = 'foreign_key_violation';
+    RAISE EXCEPTION 'the target % does not exist', NEW.dst_id
+      USING ERRCODE = 'foreign_key_violation', CONSTRAINT = 'relation_ends_exist',
+            HINT = 'dstId';
   END IF;
 
   RETURN NEW;
@@ -181,9 +199,9 @@ BEGIN
   SELECT t.takes_interval INTO dated FROM public.relation_type t
    WHERE t.key = NEW.type FOR SHARE;
   IF NOT coalesce(dated, false) THEN
-    RAISE EXCEPTION 'a relation of type % takes no interval', NEW.type
-      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope',
-            TABLE = 'relations', SCHEMA = 'public';
+    RAISE EXCEPTION 'a relation of type % takes no interval, so it has no first and no last day',
+      NEW.type
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope', HINT = 'validFrom';
   END IF;
   RETURN NEW;
 END $$;
@@ -215,7 +233,7 @@ BEGIN
                 AND r.id <> NEW.id) THEN
     RAISE EXCEPTION 'a relation of type % between these ends is already open: give it an end date first', NEW.type
       USING ERRCODE = 'unique_violation', CONSTRAINT = 'relations_one_open_per_type',
-            TABLE = 'relations', SCHEMA = 'public';
+            HINT = 'validTo';
   END IF;
   RETURN NEW;
 END $$;
@@ -305,19 +323,102 @@ BEGIN
   -- a rate_document act, and it is built with the first caller that scores a document.
 END $$;
 
--- The candidate layer. gabriel_agent and gabriel_app may call it. The author role is stamped by
--- a trigger and is never a parameter. The call id is the last parameter and it is optional: a
--- proposal of gabriel_agent must carry one and a proposal of gabriel_app must carry none, and
--- the database holds both rules, so this door states neither.
+-- THE SENTENCE OF EACH RULE THAT A TABLE HOLDS. PostgreSQL composes the message of a CHECK, a
+-- key or a unique index itself, and that message names a table and not the fault. A door that
+-- writes a table catches such a refusal and raises the sentence below in its place, with the same
+-- code and the same rule name. The field is the field of the request that the caller corrects.
+-- A door names its rule and no table, so a reader of the refusal can tell the two apart.
+CREATE OR REPLACE FUNCTION raise_rule(p_rule text, p_table text, p_code text)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_sentence text;
+  v_field    text;
+BEGIN
+  IF coalesce(p_table, '') = '' THEN
+    RETURN;
+  END IF;
+  SELECT r.sentence, r.field INTO v_sentence, v_field FROM (VALUES
+    ('proposals_payload_attrs', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('entities_attrs_valid', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('relations_attrs_valid', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('proposals_update_names_attrs', 'attrs', 'an update names at least one attribute'),
+    ('proposals_update_entity_shape', 'label',
+     'the act names a new name, a new type, or both, and neither one is blank'),
+    ('proposals_create_entity_shape', 'label',
+     'a new entity has a type and a name, and neither one is blank'),
+    ('entities_label_check', 'label', 'the name of an entity is not blank'),
+    ('proposals_create_relation_shape', 'validFrom',
+     'a new relation has a type and two ends, and each day of its interval is a day of the '
+     'calendar, written as year, month and day: 2026-01-31'),
+    ('relations_type_check', 'type', 'the type of a relation is not blank'),
+    ('proposals_create_relation_type_length', 'type',
+     'the type of a relation is 200 characters at most'),
+    ('relations_type_length', 'type', 'the type of a relation is 200 characters at most'),
+    ('rel_dates_order', 'validFrom', 'an interval starts on or before the day it ends'),
+    ('proposals_payload_geom', 'geom',
+     'the geometry is a Point, a MultiPoint, a LineString, a MultiLineString, a Polygon or a '
+     'MultiPolygon, with a type, coordinates and no other key, and with no empty list'),
+    ('proposals_payload_geom_position', 'geom',
+     'each position of the geometry is a longitude from -180 to 180 and a latitude from -90 to '
+     '90, and no third number'),
+    ('entities_geom_on_globe', 'geom',
+     'the geometry is not a valid shape on the globe: a line has two positions or more, and a '
+     'ring has four or more and ends on the position it starts on'),
+    ('proposals_op_target_kind', 'targetKind', 'the act names a target of the wrong kind'),
+    ('proposals_target_pairs', 'targetId', 'the act names its target with a kind and an id'),
+    ('proposals_target_required', 'targetId', 'the act names its target'),
+    ('proposals_src_shape', 'documents', 'the act cites at least one document'),
+    ('proposals_machine_not_reserved', 'documents',
+     'a machine cannot cite the reserved documents manual and inherited'),
+    ('proposals_src_within', 'documents',
+     'each document that a value cites is also a document of the act')
+  ) AS r(rule, field, sentence)
+  WHERE r.rule = p_rule;
+  IF v_sentence IS NULL THEN
+    RETURN;
+  END IF;
+  RAISE EXCEPTION USING MESSAGE = v_sentence, ERRCODE = p_code, CONSTRAINT = p_rule,
+    HINT = v_field;
+END $$;
+
+-- A REFUSAL OF ONE ITEM OF A BATCH. The rule keeps its own sentence and its field from the table
+-- above, and the sentence goes on with the number of the item, so the caller corrects that item.
+-- A rule that the table does not word keeps the sentence that it raised.
+CREATE OR REPLACE FUNCTION raise_item_rule(p_item int, p_rule text, p_code text, p_said text)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_said  text := p_said;
+  v_field text := '';
+BEGIN
+  BEGIN
+    PERFORM public.raise_rule(p_rule, 'proposals', p_code);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_field = PG_EXCEPTION_HINT;
+  END;
+  RAISE EXCEPTION 'item %: %', p_item, v_said
+    USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = coalesce(p_rule, ''),
+          HINT = coalesce(v_field, '');
+END $$;
+
+-- THE DOOR OF THE OPERATOR. gabriel_app alone calls it, through the writer. A machine proposes
+-- through propose_batch, which writes the citations with the act. The author role is stamped by
+-- a trigger and is never a parameter.
 --
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
---
--- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after its lease
--- ended writes the same act with the same key, and the door then returns the proposal that stands
--- and writes nothing.
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
-DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
 CREATE OR REPLACE FUNCTION propose_change(
   p_op              text,
@@ -328,29 +429,278 @@ CREATE OR REPLACE FUNCTION propose_change(
   p_names           uuid[]  DEFAULT '{}',
   p_confidence      numeric DEFAULT NULL,
   p_dissent         boolean DEFAULT false,
-  p_model_call_id   uuid    DEFAULT NULL,
-  p_idempotency_key text    DEFAULT NULL)
+  p_model_call_id   uuid    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_id uuid;
+DECLARE
+  v_id    uuid;
+  v_rule  text;
+  v_table text;
+  v_code  text;
 BEGIN
   INSERT INTO public.proposals
     (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-     model_call_id, idempotency_key)
+     model_call_id)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
      coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
      session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
-     p_model_call_id, p_idempotency_key)
-  ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+     p_model_call_id)
   RETURNING id INTO v_id;
-
-  -- The conflict is the only way to get no row, so the key is set here.
-  IF v_id IS NULL THEN
-    SELECT p.id INTO STRICT v_id FROM public.proposals p WHERE p.idempotency_key = p_idempotency_key;
-  END IF;
   RETURN v_id;
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
+-- THE ONE DOOR OF A MACHINE. gabriel_agent and gabriel_research call it with a batch of items.
+-- Each item is one act, the party that first stated it, and its citations: the page and the span
+-- that code found for each excerpt. The door writes every act and every citation in one
+-- transaction, so a fault in one item refuses the whole batch.
+--
+-- CODE MINTS THE IDENTIFIER OF EACH ITEM, so an item can name an entity that an earlier item of
+-- the batch creates. The promotion gives the new row that identifier.
+--
+-- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
+-- digest of a pending act makes a retry return the act that waits. That act keeps its own
+-- identifier and its own originator, so each later item that named the minted one names the act
+-- that waits instead. The door adds to that act each citation of the item that it does not hold
+-- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
+--
+-- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
+-- attributes. A machine act cites at least one page. The page exists in the text of the document,
+-- the span lies in that page, and the document is a source of the act. Each refusal names the
+-- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
+-- model gets its fault before the write; the promotion holds those two rules too.
+--
+-- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH, and the operator decides them as one unit. An
+-- item that names no other item, and that no other item names, stays a single act: a faulty claim
+-- never blocks a good claim of the same page. A retry joins the batch of the act that waits.
+CREATE OR REPLACE FUNCTION propose_batch(p_items jsonb)
+RETURNS TABLE (item int, proposal_id uuid, written boolean)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_item     jsonb;
+  v_no       int;
+  v_minted   uuid;
+  v_id       uuid;
+  v_payload  text;
+  v_names    uuid[];
+  v_target   uuid;
+  v_src      text[];
+  v_cite     jsonb;
+  v_length   int;
+  v_moved    jsonb := '{}'::jsonb;
+  v_from     text;
+  v_to       text;
+  v_rule     text;
+  v_code     text;
+  v_said     text;
+  v_valid    boolean;
+  v_group    jsonb := '{}'::jsonb;
+  v_joined   text[];
+  v_key      text;
+  v_batches  jsonb := '{}'::jsonb;
+  v_batch    uuid;
+  v_held     uuid;
+BEGIN
+  IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'a batch holds at least one item'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  -- THE GROUPS OF LINKED ITEMS. Each item starts as a group of its own. Each item then joins its
+  -- group to the groups of the items that it names, in any order of the items. Each group takes
+  -- the identifier of one of its items.
+  SELECT coalesce(jsonb_object_agg(e.value->>'id', e.value->>'id'), '{}'::jsonb) INTO v_group
+    FROM jsonb_array_elements(p_items) AS e WHERE e.value->>'id' IS NOT NULL;
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    SELECT array_agg(DISTINCT v_group->>n.ref) INTO v_joined
+      FROM (SELECT jsonb_array_elements_text(
+                     CASE WHEN jsonb_typeof(v_item->'names') = 'array' THEN v_item->'names'
+                          ELSE '[]'::jsonb END)
+            UNION SELECT v_item->>'id'
+            UNION SELECT v_item->>'target_id'
+            UNION SELECT v_item->'payload'->>'src_id'
+            UNION SELECT v_item->'payload'->>'dst_id') AS n(ref)
+     WHERE n.ref IS NOT NULL AND v_group ? n.ref;
+    IF cardinality(v_joined) > 1 THEN
+      v_key := v_joined[1];
+      SELECT jsonb_object_agg(g.key, CASE WHEN g.value = ANY (v_joined) THEN v_key ELSE g.value END)
+        INTO v_group FROM jsonb_each_text(v_group) AS g;
+    END IF;
+  END LOOP;
+
+  FOR v_item, v_no IN SELECT e.value, e.ordinality::int FROM jsonb_array_elements(p_items)
+                         WITH ORDINALITY AS e(value, ordinality) LOOP
+    v_minted  := (v_item->>'id')::uuid;
+    -- The promotion gives the new row this identifier, so it must not be the identifier of a
+    -- row that the record already holds.
+    IF EXISTS (SELECT 1 FROM public.entities e WHERE e.id = v_minted)
+       OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id = v_minted) THEN
+      RAISE EXCEPTION 'item %: the identifier % is already the identifier of a row of the record',
+        v_no, v_minted
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    v_payload := coalesce(v_item->'payload', 'null'::jsonb)::text;
+    v_names   := ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item->'names', '[]'))::uuid);
+    v_target  := (v_item->>'target_id')::uuid;
+    v_src     := ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item->'src', '[]')));
+
+    -- An earlier item that waited already gave its own identifier. A minted identifier is a
+    -- random uuid, so a text replace finds it alone.
+    FOR v_from, v_to IN SELECT key, value #>> '{}' FROM jsonb_each(v_moved) LOOP
+      v_payload := replace(v_payload, v_from, v_to);
+      v_names   := array_replace(v_names, v_from::uuid, v_to::uuid);
+      IF v_target = v_from::uuid THEN v_target := v_to::uuid; END IF;
+    END LOOP;
+
+    IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
+      RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    -- A change of a name or a type and a deletion rewrite what the operator already decided.
+    IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs') THEN
+      RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation or new '
+                      'attributes, and never a change of a name or a type, nor a deletion', v_no
+        USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
+    END IF;
+    IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
+                                                 'denies') THEN
+      RAISE EXCEPTION 'item %: the modality is one of enacts, asserts, attributes, alleges, '
+                      'denies', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF coalesce(jsonb_typeof(v_item->'citations'), 'absent') <> 'array'
+       OR jsonb_array_length(v_item->'citations') = 0 THEN
+      RAISE EXCEPTION 'item %: a machine act cites at least one page', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    FOR v_cite IN SELECT value FROM jsonb_array_elements(v_item->'citations') LOOP
+      IF NOT (v_cite->>'document') = ANY (v_src) THEN
+        RAISE EXCEPTION 'item %: the act cites page % of %, and that document is not a source '
+                        'of the act', v_no, v_cite->>'page', v_cite->>'document'
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+      SELECT char_length(t.text) INTO v_length
+        FROM public.document_text t
+       WHERE t.document_id = v_cite->>'document'
+         AND t.extractor = v_cite->>'text_extractor'
+         AND t.page = (v_cite->>'page')::int;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'item %: page % of the text % of document % does not exist', v_no,
+          v_cite->>'page', v_cite->>'text_extractor', v_cite->>'document'
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+      -- char_length counts the characters of the database encoding, which is UTF-8: code points.
+      IF coalesce((v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
+                  OR (v_cite->>'end')::int > v_length, true) THEN
+        RAISE EXCEPTION 'item %: the span % to % lies outside page %, which holds % code points',
+          v_no, v_cite->>'start', v_cite->>'end', v_cite->>'page', v_length
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+    END LOOP;
+
+    -- THREE RULES THAT THE TABLE CANNOT HOLD, AND THE PROMOTION HOLDS TOO LATE. A relation table
+    -- and a geometry column refuse them, after the act waited in the queue. The scope of an
+    -- interval reads the type row, so no CHECK of this table can hold it.
+    IF v_item->>'op' = 'create_relation' THEN
+      IF NOT coalesce(pg_input_is_valid(v_payload::jsonb->>'valid_from', 'date'), true)
+         OR NOT coalesce(pg_input_is_valid(v_payload::jsonb->>'valid_to', 'date'), true) THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_create_relation_shape', '23514',
+                                       'the day is not a day of the calendar');
+      END IF;
+      IF (v_payload::jsonb->>'valid_from')::date > (v_payload::jsonb->>'valid_to')::date THEN
+        PERFORM public.raise_item_rule(v_no, 'rel_dates_order', '23514',
+                                       'an interval starts on or before the day it ends');
+      END IF;
+      IF (v_payload::jsonb ? 'valid_from' OR v_payload::jsonb ? 'valid_to')
+         AND NOT EXISTS (SELECT 1 FROM public.relation_type t
+                          WHERE t.key = v_payload::jsonb->>'type' AND t.takes_interval) THEN
+        RAISE EXCEPTION 'item %: a relation of type % takes no interval, so it has no first and '
+                        'no last day', v_no, v_payload::jsonb->>'type'
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'rel_dates_scope',
+                HINT = 'validFrom';
+      END IF;
+    END IF;
+    IF v_payload::jsonb ? 'geom' THEN
+      BEGIN
+        v_valid := public.ST_IsValid(public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'));
+      EXCEPTION WHEN OTHERS THEN
+        v_valid := false;
+      END;
+      IF NOT coalesce(v_valid, false) THEN
+        PERFORM public.raise_item_rule(v_no, 'entities_geom_on_globe', '23514',
+                                       'the geometry is not a valid shape on the globe');
+      END IF;
+    END IF;
+
+    -- A group of one item is a single act. The first item of a group that already waits gives
+    -- the group its batch, so a retry joins the batch that the first call made.
+    v_key   := v_group->>(v_item->>'id');
+    v_batch := CASE WHEN (SELECT count(*) FROM jsonb_each_text(v_group) g WHERE g.value = v_key) > 1
+                    THEN coalesce((v_batches->>v_key)::uuid, v_key::uuid) END;
+
+    v_id := NULL;
+    -- A rule of the table refuses the act, and the caller must know which item it refused.
+    BEGIN
+      INSERT INTO public.proposals
+        (id, op, target_kind, target_id, payload, src, names, confidence, dissent,
+         dissent_reason, author_role, model_call_id, originator, batch_id)
+      VALUES
+        (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
+         v_src::doc_id[], v_names, (v_item->>'confidence')::numeric,
+         coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason',
+         session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
+         (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
+         v_batch)
+      ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
+      RETURNING id, batch_id INTO v_id, v_held;
+    EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
+      GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_code = RETURNED_SQLSTATE,
+                              v_said = MESSAGE_TEXT;
+      PERFORM public.raise_item_rule(v_no, v_rule, v_code, v_said);
+    END;
+
+    written := v_id IS NOT NULL;
+    IF v_id IS NULL THEN
+      -- The conflict is the only way to get no row, so the act waits under its digest.
+      -- The share lock waits for a decision on that act that runs now. So a retry never joins a
+      -- batch that the operator decides at the same time.
+      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
+       WHERE p.status = 'pending'
+         AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                          v_payload::jsonb, v_src, session_user::text)
+         FOR SHARE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
+                        'batch was written, so send the batch again', v_no
+          USING CONSTRAINT = 'proposal_pending';
+      END IF;
+      v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
+    END IF;
+    IF v_batch IS NOT NULL AND NOT v_batches ? v_key THEN
+      v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
+    END IF;
+
+    INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+    SELECT DISTINCT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int,
+           (c->>'start')::int, (c->>'end')::int, v_item->>'modality'
+      FROM jsonb_array_elements(v_item->'citations') AS c
+     WHERE NOT EXISTS (
+             SELECT 1 FROM public.citation h
+              WHERE h.claim_id = v_id AND h.doc_id = c->>'document'
+                AND h.text_extractor = c->>'text_extractor' AND h.page = (c->>'page')::int
+                AND h.start = (c->>'start')::int AND h."end" = (c->>'end')::int
+                AND h.modality = v_item->>'modality');
+
+    item := v_no; proposal_id := v_id;
+    RETURN NEXT;
+  END LOOP;
 END $$;
 
 -- THE ONE DOOR INTO THE RECORD OF A MODEL CALL. gabriel_agent holds it, and the role writes no
@@ -384,282 +734,33 @@ BEGIN
   RETURN v_id;
 END $$;
 
--- THE ONE DOOR INTO THE READINGS. A reader gives a page, two offsets in code points of that page
--- and two enums, and never a quote: code reads the span again from the stored text. The door
--- takes no reader number and no reader kind. It sets both from the job that the caller holds:
--- extract_text is the first reader and second_read is the second, and both are model readers.
--- The document is the document of the job, so a caller cannot name another one.
---
--- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A worker that lost its lease must not add a reading
--- to a job that another worker now runs.
---
--- THE FIRST READER NAMES THE PROPOSAL THAT IT MADE, and that proposal cites the document of the
--- job. The second reader ran no proposal, so it names none. The call is a call of this job.
---
--- THE KEY MAKES A SECOND WRITE OF ONE READING RETURN THE FIRST, as it does for a proposal.
-CREATE OR REPLACE FUNCTION put_claim_reading(
-  p_job                uuid,
-  p_claim              uuid,
-  p_text_extractor     text,
-  p_page               int,
-  p_start              int,
-  p_end                int,
-  p_modality           text,
-  p_adverse            boolean,
-  p_model_call         uuid,
-  p_input_form         text,
-  p_reader_fingerprint text,
-  p_chunk_hash         text,
-  p_idempotency_key    text)
+-- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the two doors
+-- below, which are owned by the same role. It encodes no rule about WHO may decide.
+CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text)
 RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_kind      text;
-  v_doc       text;
-  v_reader_no smallint;
-  v_text      text;
-  v_id        uuid;
-BEGIN
-  SELECT j.kind, j.document_id INTO v_kind, v_doc
-    FROM public.jobs j
-   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
-     FOR SHARE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not running under this role, so it takes no reading', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF v_kind NOT IN ('extract_text','second_read') THEN
-    RAISE EXCEPTION 'a reading belongs to a job of extract_text or second_read, and this job is %',
-      v_kind
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  v_reader_no := CASE v_kind WHEN 'extract_text' THEN 1 ELSE 2 END;
-
-  SELECT t.text INTO v_text
-    FROM public.document_text t
-   WHERE t.document_id = v_doc AND t.extractor = p_text_extractor AND t.page = p_page;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'page % of the text set % of document % does not exist',
-      p_page, p_text_extractor, v_doc
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  -- char_length counts the characters of the database encoding, which is UTF-8: code points.
-  IF p_start IS NULL OR p_end IS NULL OR p_start < 0 OR p_start >= p_end
-     OR p_end > char_length(v_text) THEN
-    RAISE EXCEPTION 'the span % to % lies outside page %, which holds % code points',
-      p_start, p_end, p_page, char_length(v_text)
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_modality IS NULL
-     OR p_modality NOT IN ('enacts','asserts','attributes','alleges','denies') THEN
-    RAISE EXCEPTION 'the modality % is not one of enacts, asserts, attributes, alleges, denies',
-      coalesce(p_modality, 'nothing')
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  IF v_reader_no = 1 THEN
-    IF p_claim IS NULL THEN
-      RAISE EXCEPTION 'a first reading names the proposal that it made'
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM public.proposals p
-                    WHERE p.id = p_claim AND v_doc::doc_id = ANY (p.src)) THEN
-      RAISE EXCEPTION 'proposal % does not exist or does not cite document %', p_claim, v_doc
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-  ELSIF p_claim IS NOT NULL THEN
-    RAISE EXCEPTION 'the second reader names no claim, because it proposes nothing'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  IF p_model_call IS NULL
-     OR NOT EXISTS (SELECT 1 FROM public.model_call m
-                     WHERE m.id = p_model_call AND m.job_id = p_job) THEN
-    RAISE EXCEPTION 'a model reading names a call of job %', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  INSERT INTO public.claim_reading
-    (claim_id, doc_id, text_extractor, page, start, "end", modality, adverse, reader_no,
-     reader_kind, model_call_id, input_form, reader_fingerprint, job_id, chunk_hash,
-     idempotency_key)
-  VALUES
-    (p_claim, v_doc, p_text_extractor, p_page, p_start, p_end, p_modality,
-     coalesce(p_adverse, false), v_reader_no, 'llm', p_model_call, p_input_form,
-     p_reader_fingerprint, p_job, p_chunk_hash, p_idempotency_key)
-  ON CONFLICT (idempotency_key) DO NOTHING
-  RETURNING id INTO v_id;
-
-  -- The conflict is the only way to get no row, so the key is set here.
-  IF v_id IS NULL THEN
-    SELECT r.id INTO STRICT v_id FROM public.claim_reading r
-     WHERE r.idempotency_key = p_idempotency_key;
-  END IF;
-  RETURN v_id;
-END $$;
-
--- THE SECOND READER ASKS THIS BEFORE IT ASKS A MODEL. A requeued job must not pay the model again
--- for a chunk whose readings are already stored, and the key of each reading holds the reading
--- itself, so no key is known before the call. The check matches what is known before the call:
--- the second reader, the document of the job, the chunk, the fingerprint and the input form.
---
--- IT READS AND WRITES NOTHING ELSE, AND IT RETURNS A BOOLEAN ALONE. No role reads the readings,
--- so the answer gives no reading back.
---
--- THE JOB IS RUNNING, THE CALLER HOLDS IT, AND IT IS A JOB OF THE SECOND READER. A caller that
--- does not hold the job learns nothing about the readings of its document.
-CREATE OR REPLACE FUNCTION second_read_done(
-  p_job                uuid,
-  p_chunk_hash         text,
-  p_reader_fingerprint text,
-  p_input_form         text)
-RETURNS boolean
-LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_doc text;
-BEGIN
-  SELECT j.document_id INTO v_doc
-    FROM public.jobs j
-   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
-     AND j.kind = 'second_read';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not a running second_read job under this role', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  RETURN EXISTS (
-    SELECT 1 FROM public.claim_reading r
-     WHERE r.reader_no = 2
-       AND r.doc_id = v_doc::doc_id
-       AND r.chunk_hash = p_chunk_hash
-       AND r.reader_fingerprint = p_reader_fingerprint
-       AND r.input_form = p_input_form);
-END $$;
-
--- THE TWO DOORS INTO THE CONVERSATION STORE. gabriel_app alone holds them, and no role writes
--- the three tables by hand. A blank title or a blank text is refused by the table, and a missing
--- anchor row is refused by its foreign key.
-CREATE OR REPLACE FUNCTION open_conversation(
-  p_title        text,
-  p_anchor_kind  text DEFAULT NULL,
-  p_anchor_id    uuid DEFAULT NULL)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_id uuid;
-BEGIN
-  IF (p_anchor_kind IS NULL) <> (p_anchor_id IS NULL)
-     OR p_anchor_kind NOT IN ('entity','relation') THEN
-    RAISE EXCEPTION 'an anchor is a kind, entity or relation, with its id, or it is neither'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  INSERT INTO public.conversation (title, anchor_entity_id, anchor_relation_id)
-  VALUES (p_title,
-          CASE p_anchor_kind WHEN 'entity'   THEN p_anchor_id END,
-          CASE p_anchor_kind WHEN 'relation' THEN p_anchor_id END)
-  RETURNING id INTO v_id;
-  RETURN v_id;
-END $$;
-
--- A message and its citations are one write. p_citations is a jsonb array of objects with the
--- keys kind, id and excerpt, and no other key. The kind is document, entity, relation or
--- proposal. The door sets the one foreign key that matches the kind, so a row that does not
--- exist refuses the whole message.
-CREATE OR REPLACE FUNCTION append_chat_message(
-  p_conversation_id uuid,
-  p_role            text,
-  p_text            text,
-  p_model_call_id   uuid  DEFAULT NULL,
-  p_citations       jsonb DEFAULT '[]')
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_id    uuid;
-  v_cite  jsonb;
-  v_kind  text;
-  v_key   text;
-BEGIN
-  p_citations := coalesce(p_citations, '[]'::jsonb);
-  IF jsonb_typeof(p_citations) <> 'array' THEN
-    RAISE EXCEPTION 'the citations are an array' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  INSERT INTO public.chat_message (conversation_id, role, text, model_call_id)
-  VALUES (p_conversation_id, p_role, p_text, p_model_call_id)
-  RETURNING id INTO v_id;
-
-  FOR v_cite IN SELECT value FROM jsonb_array_elements(p_citations) LOOP
-    IF jsonb_typeof(v_cite) <> 'object' THEN
-      RAISE EXCEPTION 'a citation is an object' USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-    FOR v_key IN SELECT jsonb_object_keys(v_cite) LOOP
-      IF v_key NOT IN ('kind','id','excerpt') THEN
-        RAISE EXCEPTION 'a citation holds the keys kind, id and excerpt, and not %', v_key
-          USING ERRCODE = 'invalid_parameter_value';
-      END IF;
-    END LOOP;
-    IF jsonb_typeof(v_cite -> 'kind') IS DISTINCT FROM 'string'
-       OR jsonb_typeof(v_cite -> 'id') IS DISTINCT FROM 'string'
-       OR jsonb_typeof(coalesce(v_cite -> 'excerpt', '""'::jsonb)) <> 'string' THEN
-      RAISE EXCEPTION 'a citation names a kind and an id, and its excerpt is text'
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-    v_kind := v_cite ->> 'kind';
-    IF v_kind NOT IN ('document','entity','relation','proposal') THEN
-      RAISE EXCEPTION 'a citation kind is document, entity, relation or proposal, and not %',
-        v_kind USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-
-    INSERT INTO public.chat_citation
-      (message_id, document_id, entity_id, relation_id, proposal_id, excerpt)
-    VALUES
-      (v_id,
-       CASE v_kind WHEN 'document' THEN v_cite ->> 'id' END,
-       CASE v_kind WHEN 'entity'   THEN (v_cite ->> 'id')::uuid END,
-       CASE v_kind WHEN 'relation' THEN (v_cite ->> 'id')::uuid END,
-       CASE v_kind WHEN 'proposal' THEN (v_cite ->> 'id')::uuid END,
-       v_cite ->> 'excerpt');
-  END LOOP;
-  RETURN v_id;
-END $$;
-
--- THE ONE DOOR INTO THE EVIDENTIARY LAYER. It encodes no rule about WHO may call it, so this
--- file stays neutral on #42.
-CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   p       public.proposals%ROWTYPE;
   v_id    uuid;
   v_old   jsonb;
   v_prior jsonb;
-  v_lost  text;
+  v_attrs jsonb;
   v_type  text;
+  v_uses  bigint;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it';
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
 
   -- FOR UPDATE closes the concurrent replay; the status test closes the serial one. #17 (a).
   SELECT * INTO p FROM public.proposals WHERE id = p_id FOR UPDATE;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'proposal % does not exist', p_id;
+    RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
   END IF;
   IF p.status <> 'pending' THEN
-    RAISE EXCEPTION 'proposal % is %, and only a pending proposal is applied', p_id, p.status;
-  END IF;
-
-  -- The measured forgery: propose and accept inside one transaction. Refused by a stored
-  -- column, so the legitimate shape — proposed now, decided later — still passes.
-  IF p.xact = pg_current_xact_id() THEN
-    RAISE EXCEPTION 'proposal % was written by this transaction, and an act is not decided by '
-                    'the transaction that proposed it', p_id
-      USING ERRCODE = 'insufficient_privilege';
+    RAISE EXCEPTION 'the act % is % already, and a decided act is frozen', p_id, p.status
+      USING CONSTRAINT = 'proposal_pending';
   END IF;
 
   -- ---------------------------------------------------------------------------- creations --
@@ -671,9 +772,12 @@ BEGIN
     -- S2: the row-level list backs label, type and geom, and never whatever an attribute's own
     -- src cites. payload.sources is the act's own citation for those columns; a candidate that
     -- gives none (no agent proposes a create today, #25) keeps the wider p.src, as before.
+    -- The new row takes the identifier of its act, so an act of the same batch that names it
+    -- before the promotion names the row that the promotion makes.
     INSERT INTO public.entities
-      (type, proposed_type, label, geom, attrs, sources, promoted_from)
+      (id, type, proposed_type, label, geom, attrs, sources, promoted_from)
     VALUES (
+      p.id,
       coalesce(v_type, 'unknown'),
       CASE WHEN v_type IS NULL THEN p.payload->>'type' END,
       p.payload->>'label',
@@ -692,9 +796,10 @@ BEGIN
     SELECT t.key INTO v_type FROM public.relation_type t
       WHERE t.key = p.payload->>'type' AND NOT t.retired;
     INSERT INTO public.relations
-      (type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs,
+      (id, type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs,
        sources, promoted_from)
     VALUES (
+      p.id,
       coalesce(v_type, 'unknown'),
       CASE WHEN v_type IS NULL THEN p.payload->>'type' END,
       coalesce(p.payload->>'src_kind','entity'), (p.payload->>'src_id')::uuid,
@@ -715,22 +820,25 @@ BEGIN
     END IF;
     -- #17 (c): a promotion that applies nothing must not commit as a success.
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
     END IF;
 
-    -- S2: the src of an attribute backs that one value alone. A changed value may cite new
-    -- sources alone, and prior_value keeps the old claim. A kept value that dropped a document
-    -- would lose corroboration, so it is refused. jsonb equality reads 41200.0 as 41200.
-    SELECT string_agg(n.k, ', ' ORDER BY n.k) INTO v_lost
-      FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val)
-     WHERE v_old ? n.k
-       AND v_old->n.k->'v' = n.val->'v'
-       AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(v_old->n.k->'src') AS o(doc)
-                    WHERE NOT ((n.val->'src') @> to_jsonb(o.doc)));
-    IF v_lost IS NOT NULL THEN
-      RAISE EXCEPTION 'the write keeps the value of % and drops a document from the sources of '
-                      'that value', v_lost;
-    END IF;
+    -- S2: the src of an attribute backs that one value alone. A changed value cites the sources
+    -- of the act alone, and prior_value keeps the old claim. A kept value keeps each document it
+    -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
+    -- reads 41200.0 as 41200.
+    SELECT jsonb_object_agg(n.k,
+             CASE WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
+                  THEN jsonb_build_object('v', n.val->'v', 'src',
+                         (v_old->n.k->'src') || coalesce(
+                           (SELECT jsonb_agg(y.doc ORDER BY y.ord)
+                              FROM jsonb_array_elements(n.val->'src') WITH ORDINALITY AS y(doc, ord)
+                             WHERE NOT (v_old->n.k->'src') @> jsonb_build_array(y.doc)),
+                           '[]'::jsonb))
+                  ELSE n.val END)
+      INTO v_attrs
+      FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val);
 
     -- ONLY THE KEYS THE ACT NAMED. A whole-row copy would freeze and republish every other
     -- key, and api.proposal publishes the copy.
@@ -740,11 +848,11 @@ BEGIN
 
     IF p.target_kind = 'entity' THEN
       UPDATE public.entities
-         SET attrs = attrs || coalesce(p.payload->'attrs','{}'::jsonb), updated_at = now()
+         SET attrs = attrs || coalesce(v_attrs,'{}'::jsonb), updated_at = now()
        WHERE id = p.target_id;
     ELSE
       UPDATE public.relations
-         SET attrs = attrs || coalesce(p.payload->'attrs','{}'::jsonb), updated_at = now()
+         SET attrs = attrs || coalesce(v_attrs,'{}'::jsonb), updated_at = now()
        WHERE id = p.target_id;
     END IF;
     -- The row-level `sources` list is NOT extended here. It backs the typed columns outside
@@ -756,7 +864,8 @@ BEGIN
   ELSIF p.op = 'update_entity' THEN
     SELECT to_jsonb(e) INTO v_old FROM public.entities e WHERE id = p.target_id FOR UPDATE;
     IF v_old IS NULL THEN
-      RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
     END IF;
 
     SELECT t.key INTO v_type FROM public.entity_type t
@@ -788,8 +897,9 @@ BEGIN
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                  WHEN v_type IS NULL THEN p.payload->>'type' END);
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'the act changes neither the name nor the type of %, and nothing was '
-                      'applied', p.target_id;
+      RAISE EXCEPTION 'the act changes neither the name nor the type of the entity, and nothing '
+                      'was applied'
+        USING CONSTRAINT = 'act_changes_something';
     END IF;
     v_id := p.target_id;
 
@@ -798,25 +908,33 @@ BEGIN
     IF p.target_kind = 'entity' THEN
       SELECT to_jsonb(e) INTO v_prior FROM public.entities e WHERE id = p.target_id FOR UPDATE;
       IF v_prior IS NULL THEN
-        RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+        RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+          USING CONSTRAINT = 'target_exists', HINT = 'targetId';
       END IF;
-      IF EXISTS (SELECT 1 FROM public.relations r
-                  WHERE (r.src_kind = 'entity' AND r.src_id = p.target_id)
-                     OR (r.dst_kind = 'entity' AND r.dst_id = p.target_id)) THEN
-        RAISE EXCEPTION 'entity % is an endpoint of a relation, and it is not deleted',
-                        p.target_id;
+      SELECT count(*) INTO v_uses FROM public.relations r
+       WHERE (r.src_kind = 'entity' AND r.src_id = p.target_id)
+          OR (r.dst_kind = 'entity' AND r.dst_id = p.target_id);
+      IF v_uses > 0 THEN
+        RAISE EXCEPTION 'the entity is an endpoint of % %, and it is not deleted. Delete each of '
+                        'those relations first, and then delete the entity again',
+                        v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
+          USING CONSTRAINT = 'endpoint_free', HINT = 'targetId';
       END IF;
       DELETE FROM public.entities WHERE id = p.target_id;
     ELSE
       SELECT to_jsonb(r) INTO v_prior FROM public.relations r WHERE id = p.target_id FOR UPDATE;
       IF v_prior IS NULL THEN
-        RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+        RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+          USING CONSTRAINT = 'target_exists', HINT = 'targetId';
       END IF;
-      IF EXISTS (SELECT 1 FROM public.relations r
-                  WHERE (r.src_kind = 'relation' AND r.src_id = p.target_id)
-                     OR (r.dst_kind = 'relation' AND r.dst_id = p.target_id)) THEN
-        RAISE EXCEPTION 'relation % is an endpoint of a relation, and it is not deleted',
-                        p.target_id;
+      SELECT count(*) INTO v_uses FROM public.relations r
+       WHERE (r.src_kind = 'relation' AND r.src_id = p.target_id)
+          OR (r.dst_kind = 'relation' AND r.dst_id = p.target_id);
+      IF v_uses > 0 THEN
+        RAISE EXCEPTION 'the relation is an endpoint of % %, and it is not deleted. Delete each '
+                        'of those relations first, and then delete this relation again',
+                        v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
+          USING CONSTRAINT = 'endpoint_free', HINT = 'targetId';
       END IF;
       DELETE FROM public.relations WHERE id = p.target_id;
     END IF;
@@ -825,8 +943,9 @@ BEGIN
   ELSE
     -- M12 makes a merge reversible through an alias table and a full snapshot. Neither table
     -- exists, so a merge cannot land, and it must not half-land.
-    RAISE EXCEPTION 'the operation % has no write path yet. M12 needs an alias table and a '
-                    'snapshot before a merge can be undone', p.op;
+    RAISE EXCEPTION 'the act % has no write path yet: a merge cannot be undone until the record '
+                    'holds an alias table and a snapshot', p.op
+      USING CONSTRAINT = 'op_has_path';
   END IF;
 
   UPDATE public.proposals
@@ -839,6 +958,83 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- A LINKED BATCH IS DECIDED AS ONE UNIT (operator decision). The doors of one act refuse an act
+-- that waits in a batch, so no act of a batch is decided alone and a batch is never half decided.
+-- No role holds this step: it runs inside the two doors of one act.
+CREATE OR REPLACE FUNCTION refuse_batch_act(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_batch uuid;
+BEGIN
+  SELECT batch_id INTO v_batch FROM public.proposals
+   WHERE id = p_id AND status = 'pending' AND batch_id IS NOT NULL;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the act % is part of the linked batch %, and the operator decides a batch '
+                    'as one unit: decide the batch', p_id, v_batch
+      USING CONSTRAINT = 'batch_whole';
+  END IF;
+END $$;
+
+-- THE DECISION ON AN ACT THAT WAITS. Only the operator role holds it, and that grant is the rule
+-- "a machine proposes, only the operator promotes".
+CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  -- An act of a linked batch names another act of it, so it is promoted only with the batch.
+  PERFORM public.refuse_batch_act(p_id);
+  -- The measured forgery: propose and accept inside one transaction. Refused by a stored
+  -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
+  -- signs an act of its own in one transaction through sign_change, which proposes it there.
+  IF EXISTS (SELECT 1 FROM public.proposals
+              WHERE id = p_id AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the act % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_id
+      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
+  END IF;
+  RETURN public.apply_proposal(p_id, p_decided_by);
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
+-- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
+-- role holds it, so a machine still proposes and never decides. The act is written whole or not
+-- at all: a refusal at the promotion rolls the proposal back with it.
+CREATE OR REPLACE FUNCTION sign_change(
+  p_decided_by  text,
+  p_op          text,
+  p_payload     jsonb,
+  p_src         text[],
+  p_target_kind text,
+  p_target_id   uuid,
+  p_names       uuid[])
+RETURNS TABLE (proposal_id uuid, target_id uuid)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  proposal_id := public.propose_change(p_op, p_payload, p_src, p_target_kind, p_target_id,
+                                       p_names);
+  target_id := public.apply_proposal(proposal_id, p_decided_by);
+  RETURN NEXT;
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
 -- A rejection writes the decision and leaves the row. A rejected act is never deleted: it is
 -- the record of what was set aside. It carries NO REASON, and that is decided and not pending:
 -- the record keeps the status, the hour and the name of a rejection, and nothing else.
@@ -848,47 +1044,137 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it';
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
+  -- An act of a linked batch is rejected only with the batch, as it is promoted only with it.
+  PERFORM public.refuse_batch_act(p_id);
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
    WHERE id = p_id AND status = 'pending';
   IF NOT FOUND THEN
     IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE id = p_id) THEN
-      RAISE EXCEPTION 'proposal % does not exist', p_id;
+      RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
     END IF;
-    RAISE EXCEPTION 'proposal % is not pending, and a decided act is frozen', p_id;
+    RAISE EXCEPTION 'the act % is decided already, and a decided act is frozen', p_id
+      USING CONSTRAINT = 'proposal_pending';
   END IF;
+END $$;
+
+-- THE DECISION ON A LINKED BATCH, AS ONE UNIT. Only the operator role holds it, as it holds the
+-- promotion of one act. A promotion writes each act that waits in the batch, an entity before the
+-- relation that names it, or it writes none: the first refusal stops the whole transaction, and
+-- the sentence names the act and the reason. A rejection rejects each act that waits in the batch.
+CREATE OR REPLACE FUNCTION decide_batch(p_batch uuid, p_verdict text, p_decided_by text)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_left  uuid[];
+  v_count int;
+  p       public.proposals%ROWTYPE;
+  v_said  text;
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  IF coalesce(p_verdict, '') NOT IN ('promote', 'reject') THEN
+    RAISE EXCEPTION 'a decision on a batch is promote or reject' USING CONSTRAINT = 'batch_verdict';
+  END IF;
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+
+  -- The lock closes a second decision on the same batch while this one runs.
+  PERFORM 1 FROM public.proposals
+    WHERE batch_id = p_batch AND status = 'pending' ORDER BY id FOR UPDATE;
+  SELECT array_agg(id ORDER BY id) INTO v_left FROM public.proposals
+   WHERE batch_id = p_batch AND status = 'pending';
+  v_count := coalesce(cardinality(v_left), 0);
+  IF v_count = 0 THEN
+    RAISE EXCEPTION 'the record holds no batch % that waits', p_batch
+      USING CONSTRAINT = 'batch_pending';
+  END IF;
+
+  IF p_verdict = 'reject' THEN
+    UPDATE public.proposals
+       SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
+     WHERE id = ANY (v_left);
+    RETURN v_count;
+  END IF;
+
+  -- The same guard as the promotion of one act: no act is decided by the transaction that
+  -- proposed it.
+  IF EXISTS (SELECT 1 FROM public.proposals
+              WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the batch % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_batch
+      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
+  END IF;
+
+  WHILE cardinality(v_left) > 0 LOOP
+    -- The next act names no act of the batch that still waits.
+    SELECT * INTO p FROM public.proposals x
+     WHERE x.id = ANY (v_left)
+       AND NOT EXISTS (
+             SELECT 1 FROM unnest(x.names || ARRAY[x.target_id,
+                                                   (x.payload->>'src_id')::uuid,
+                                                   (x.payload->>'dst_id')::uuid]) AS n(id)
+              WHERE n.id = ANY (v_left) AND n.id <> x.id)
+     ORDER BY x.id
+     LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'nothing of the batch is promoted, because its acts name each other in a '
+                      'circle' USING CONSTRAINT = 'batch_order';
+    END IF;
+    BEGIN
+      PERFORM public.apply_proposal(p.id, p_decided_by);
+    EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+      GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                              v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+      -- A rule of a table gets its own sentence, as it gets it for one act.
+      BEGIN
+        PERFORM public.raise_rule(v_rule, v_table, v_code);
+      EXCEPTION WHEN OTHERS THEN
+        GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT;
+      END;
+      RAISE EXCEPTION 'nothing of the batch is promoted, because the record refuses its %: %',
+        CASE p.op
+          WHEN 'create_entity'   THEN 'new entity ' || (p.payload->>'label')
+          WHEN 'create_relation' THEN 'new relation ' || (p.payload->>'type')
+          ELSE 'act ' || p.id::text END,
+        v_said
+        USING ERRCODE = v_code, CONSTRAINT = coalesce(nullif(v_rule, ''), 'batch_item');
+    END;
+    v_left := array_remove(v_left, p.id);
+  END LOOP;
+  RETURN v_count;
 END $$;
 
 
 -- THE CLAIM. It is a door and not a table write, because no role holds UPDATE on any table, and
 -- a worker that could write `jobs` directly could also write it into a state no claim produced.
 --
--- SKIP LOCKED IS THE WHOLE MECHANISM. The row is locked for the length of the caller's
--- transaction, so a second worker walks past it instead of waiting behind it. Ordinary FOR
--- UPDATE would serialise every worker on the oldest row and give one queue with one throat.
---
--- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The caller that ends a failed job reads the count,
--- so this door refuses no claim on a count.
+-- SKIP LOCKED KEEPS TWO CLAIMS OFF ONE ROW. The row is locked for the length of the caller's
+-- transaction, so a second claim walks past it instead of waiting behind it.
 --
 -- IT TAKES A WORK KIND AND NEVER A `store_only` ROW. The kind goes back to the caller, because
--- the runner that routes the row has to know which path it takes.
+-- the runner that routes the row has to know which path it takes. A lead has no document, and its
+-- text goes back with it: the worker reads the text of the lead that it holds and of no other.
 --
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
--- caller supplies proves nothing about who holds the row. The earlier signature is dropped
--- here: a re-runnable file that only replaces would leave the two side by side.
+-- caller supplies proves nothing about who holds the row. The earlier signatures are dropped
+-- here: a re-runnable file that only replaces would leave them side by side.
 DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int, job_kind text)
+RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','second_read')
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','research_lead')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -900,103 +1186,57 @@ BEGIN
 
   UPDATE public.jobs j
      SET status     = 'running',
-         attempts   = j.attempts + 1,
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.attempts, j.kind
-       INTO job_id, job_document, job_attempts, job_kind;
+  RETURNING j.id, j.document_id, j.kind, j.lead
+       INTO job_id, job_document, job_kind, job_lead;
 
   RETURN NEXT;
 END $$;
 
 
--- THE WAY BACK. Without it a worker that stops between the claim and the work holds its row for
--- ever, and the queue delivers at most once.
+-- THE WAY BACK AFTER A CRASH. A runner that stops in the middle of a job leaves its row `running`,
+-- and the open-job index then refuses a new job of that kind for that document. The runner calls
+-- this at its start, before its first claim, so the work continues.
 --
--- THE ATTEMPT IS SPENT. The claim counted it at the hour it took the row, and nothing here
--- rewrites a count that is already written.
---
--- THE LEASE IS A ROW AND NOT A NUMBER IN THIS FILE, and STRICT is the point: an absent lease
--- stops the release loudly instead of releasing every running row or none of them.
-CREATE OR REPLACE FUNCTION release_expired_claims()
+-- ONLY THE ROWS OF THE CALLER GO BACK. One runner works for one operator, so at its start no job
+-- of its role is in the hands of a live process.
+CREATE OR REPLACE FUNCTION requeue_running_jobs()
 RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_lease    interval;
-  v_released int;
+DECLARE v_requeued int;
 BEGIN
-  SELECT make_interval(secs => p.value::double precision) INTO STRICT v_lease
-    FROM public.parameter p WHERE p.key = 'job_claim_lease_seconds';
-
   UPDATE public.jobs j
      SET status     = 'queued',
          claimed_at = NULL,
          updated_at = now()
-   WHERE j.status = 'running'
-     AND j.claimed_at + v_lease < now();
+   WHERE j.status = 'running' AND j.claimed_by = session_user;
 
-  GET DIAGNOSTICS v_released = ROW_COUNT;
-  RETURN v_released;
+  GET DIAGNOSTICS v_requeued = ROW_COUNT;
+  RETURN v_requeued;
 END $$;
 
-
--- THE WAY BACK FOR A QUOTA THAT IS SPENT. A quota pause fails no job and spends no attempt, so the
--- row returns to `queued` with the count it had before the claim, and the next claim counts the
--- attempt again.
---
--- THE COUNT NEVER FALLS BELOW THE FAILURES THE ROW HOLDS. jobs_failures_within_attempts says that
--- the failures never pass the attempts, and a row that already holds a failure of each claim
--- would break it. GREATEST keeps the check true, and the attempt is then not given back: the
--- failures are a record of claims that ran, so those claims did spend their attempts.
---
--- ONLY A RUNNING ROW GOES BACK. A row that ended or never ran has no claim to release.
-CREATE OR REPLACE FUNCTION release_job_for_quota(p_id uuid)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  UPDATE public.jobs j
-     SET status     = 'queued',
-         attempts   = GREATEST(j.attempts - 1, j.network_failures + j.rejected_failures),
-         claimed_at = NULL,
-         updated_at = now()
-   WHERE j.id = p_id AND j.status = 'running';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not running, and only a running job goes back for quota', p_id;
-  END IF;
-END $$;
-
--- THE THREE NUMBERS THAT THE RUNNER READS, AS ONE STRICT READ. The lease, the wait on a spent quota
--- and the wait on an empty queue are rows, and a row that is absent stops the runner loudly. A
--- default here would let a runner start with a lease that nobody chose. The door returns these
--- three and no other row of the table.
+-- THE WAIT OF THE RUNNER ON AN EMPTY QUEUE, AS ONE STRICT READ. The number is a row, and a row
+-- that is absent stops the runner loudly. The door returns this number and no other row of the
+-- table. The earlier signature returned three numbers, so it is dropped first.
+DROP FUNCTION IF EXISTS runner_settings();
 CREATE OR REPLACE FUNCTION runner_settings()
-RETURNS TABLE (lease_seconds double precision, quota_wait_seconds double precision,
-               empty_wait_seconds double precision)
+RETURNS TABLE (empty_wait_seconds double precision)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_key text;
-  v_value double precision;
 BEGIN
-  FOREACH v_key IN ARRAY ARRAY['job_claim_lease_seconds','runner_quota_wait_seconds',
-                               'runner_empty_wait_seconds'] LOOP
-    SELECT p.value::double precision INTO v_value FROM public.parameter p WHERE p.key = v_key;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'the parameter % is absent, and the runner reads no default', v_key;
-    END IF;
-    IF v_key = 'job_claim_lease_seconds' THEN lease_seconds := v_value;
-    ELSIF v_key = 'runner_quota_wait_seconds' THEN quota_wait_seconds := v_value;
-    ELSE empty_wait_seconds := v_value;
-    END IF;
-  END LOOP;
+  SELECT p.value::double precision INTO empty_wait_seconds
+    FROM public.parameter p WHERE p.key = 'runner_empty_wait_seconds';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the parameter runner_empty_wait_seconds is absent, and no default stands';
+  END IF;
   RETURN NEXT;
 END $$;
 
--- THE END OF A JOB THAT FAILED. Without it a job that fails on each claim returns to the queue
--- for ever, and the operator sees no reason.
+-- THE END OF A JOB THAT FAILED. The runner calls it on the first failure, so the operator sees
+-- the reason and can queue the document again.
 --
 -- ONLY A RUNNING ROW ENDS, and the reason is required: a `failed` row with no reason gives the
 -- operator nothing to act on. No failure kind is written, because the three kinds name the fault
@@ -1022,7 +1262,8 @@ END $$;
 -- appears. It takes a work kind alone, because `store_only` is written by put_document and is
 -- never queued. A document with no bytes has nothing to read, so it is refused. The unique index
 -- of the table refuses a second open job of one kind for one document, and it answers for two
--- callers at one instant, which a check made here could not.
+-- callers at one instant, which a check made here could not. The door words that refusal itself,
+-- so no caller reads the name of the index.
 CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -1031,9 +1272,9 @@ DECLARE
   v_id    uuid;
   v_bytes text;
 BEGIN
-  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured','second_read') THEN
+  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured') THEN
     RAISE EXCEPTION
-      'a job asks for extract_text, map_structured or second_read, and this one asked for %',
+      'a job asks for extract_text or map_structured, and this one asked for %',
       coalesce(p_kind, 'nothing')
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -1048,10 +1289,101 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+  BEGIN
+    INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'document % has a job of kind % that is queued or runs already',
+      p_document, p_kind
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
+  END;
+  RETURN v_id;
+END $$;
+
+-- THE DOOR THAT STARTS A LEAD. The operator and the research AI give a short text, and the worker
+-- searches and stores the sources for it. The role that asked is kept from the connection, never
+-- from a label of the caller. The worker role holds no grant on it, so the agent that runs a lead
+-- starts no lead of its own.
+CREATE OR REPLACE FUNCTION start_lead(p_lead text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF p_lead IS NULL OR btrim(p_lead, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a lead states what to search for'
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_lead_text';
+  END IF;
+  INSERT INTO public.jobs (kind, lead, lead_by)
+  VALUES ('research_lead', btrim(p_lead, E' \t\n\r\f\v'), session_user)
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;
+
+-- THE RECORD OF WHAT A LEAD STORED. Only the worker that runs the lead calls it, and only while
+-- the lead runs. A second record of one document is no fault, and it writes nothing.
+CREATE OR REPLACE FUNCTION record_lead_document(p_job uuid, p_document text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  PERFORM 1 FROM public.jobs j
+   WHERE j.id = p_job AND j.kind = 'research_lead' AND j.status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not a running lead, and only a running lead stores a document', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.lead_document (job_id, document_id) VALUES (p_job, p_document::doc_id)
+  ON CONFLICT DO NOTHING;
+END $$;
+
+-- THE LEADS, FOR THE OPERATOR. Each lead comes with its text, its state and the documents that it
+-- stored, the newest lead first. The text is private, so only the operator role holds this read.
+CREATE OR REPLACE FUNCTION lead_jobs()
+RETURNS TABLE (job_id uuid, lead text, lead_by text, job_status text, job_reason text,
+               created_at timestamptz, documents jsonb)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.id, j.lead, j.lead_by, j.status, j.failure_reason, j.created_at,
+         coalesce((SELECT jsonb_agg(jsonb_build_object('id', d.id, 'title', d.title, 'url', d.uri)
+                                    ORDER BY l.created_at, d.id)
+                     FROM public.lead_document l
+                     JOIN public.documents d ON d.id = l.document_id
+                    WHERE l.job_id = j.id), '[]'::jsonb)
+    FROM public.jobs j
+   WHERE j.kind = 'research_lead'
+   ORDER BY j.created_at DESC, j.id
+$$;
+
+-- THE WORDS OF THE PARTS THAT A JOB COULD NOT PROPOSE. The status of a done job and the reason of
+-- a failed one read the same words, so they are made here alone.
+CREATE OR REPLACE FUNCTION refused_parts_said(p_parts int, p_refusal text)
+RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE WHEN p_parts > 0
+              THEN p_parts || CASE WHEN p_parts = 1 THEN ' part' ELSE ' parts' END
+                   || ' refused: ' || p_refusal END
+$$;
+
+-- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
+-- through the model calls it recorded, and the operator role holds no read of those calls. So
+-- this door counts them, and returns the count and no row of a call. The `store_only` row of
+-- the ingestion is no work, so it is left out. The newest job comes first.
+DROP FUNCTION IF EXISTS document_jobs(text);
+CREATE OR REPLACE FUNCTION document_jobs(p_document text)
+RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text, job_refused text,
+               proposal_count bigint)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.id, j.kind, j.status, j.failure_reason,
+         public.refused_parts_said(j.refused_parts, j.refusal),
+         (SELECT count(*) FROM public.model_call m
+            JOIN public.proposals p ON p.model_call_id = m.id
+           WHERE m.job_id = j.id)
+    FROM public.jobs j
+   WHERE j.document_id = p_document AND j.kind <> 'store_only'
+   ORDER BY j.created_at DESC, j.id
+$$;
 
 -- THE TEXT OF A DOCUMENT, WRITTEN ONCE. p_pages is a jsonb array of strings, and the door sets
 -- the page number from the place of each string, counting from 1, so the caller cannot leave a
@@ -1086,6 +1418,19 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END $$;
+
+-- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
+-- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
+-- text and the propose tool choose the set here, so they choose the same one. The caller reads the
+-- text with its own grant, so this is no door.
+CREATE OR REPLACE FUNCTION newest_text_extractor(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT t.extractor FROM public.document_text t
+   WHERE t.document_id = p_document
+   ORDER BY t.created_at DESC, t.extractor DESC
+   LIMIT 1
+$$;
 
 -- THE DOOR OF A MACHINE THAT FETCHED A SOURCE. put_document takes any kind and does not demand the
 -- bytes, so it is the operator's. This door is as narrow as the act it serves: an address that was
@@ -1153,19 +1498,38 @@ BEGIN
                              p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
 END $$;
 
--- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
--- be marked done by hand.
-CREATE OR REPLACE FUNCTION complete_job(p_id uuid)
-RETURNS void
+-- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
+-- cannot be marked done by hand.
+--
+-- A JOB THAT READS IN PARTS GIVES ITS COUNT OF PARTS, the count that the propose door refused,
+-- and the first refusal. The job keeps the count and the reason, so no lost claim is silent. A job
+-- whose every part was refused proposed nothing, so it fails with the same words as its reason.
+-- The door returns the status that it wrote. The earlier signature is dropped first.
+DROP FUNCTION IF EXISTS complete_job(uuid);
+CREATE OR REPLACE FUNCTION complete_job(p_id uuid, p_parts int DEFAULT 0, p_refused int DEFAULT 0,
+                                        p_refusal text DEFAULT NULL)
+RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_status text;
 BEGIN
+  IF p_refused < 0 OR p_refused > p_parts THEN
+    RAISE EXCEPTION 'a job refuses from none to all of its % parts, and not %', p_parts, p_refused
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_status := CASE WHEN p_refused > 0 AND p_refused = p_parts THEN 'failed' ELSE 'done' END;
   UPDATE public.jobs
-     SET status = 'done', finished_at = now(), updated_at = now()
+     SET status = v_status,
+         refused_parts = p_refused,
+         refusal = p_refusal,
+         failure_reason = CASE WHEN v_status = 'failed'
+                               THEN public.refused_parts_said(p_refused, p_refusal) END,
+         finished_at = now(), updated_at = now()
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
+  RETURN v_status;
 END $$;
 
 
@@ -1197,1131 +1561,6 @@ BEGIN
     FROM jsonb_to_recordset(p_layout) AS p(id uuid, x double precision, y double precision);
 END $$;
 
-
--- ====================================================================== THE ORIGINATOR AND ITS LETTER =
--- A letter rates the originator and nothing else. It is computed from the register card, the
--- measured track record, the gold set and the operator's prior, and the functions that compute it
--- name no claim table and no digit. A claim cannot unlock its own letter, because the letter
--- never reads it.
---
--- NO MODEL ROLE WRITES A LETTER, A FLAG OR A STATE. gabriel_agent holds two doors:
--- ensure_originator_candidate creates an originator at letter F, and propose_originator_fact
--- proposes a fact with a stored span. ensure_originator and decide_originator_fact belong to
--- gabriel_app alone, because an agent that sets a jurisdiction, a kind state_body or a decision
--- could make a flag. Every other door is the operator's, or it has no grant at all and a definer
--- door of another ticket calls it.
---
--- A MISSING PARAMETER ROW TURNS ITS RULE OFF. The function reads the row for each band and
--- falls to the next lower result when the row is absent, so a deleted row never raises a letter.
-
--- The host of an address, lower case, with no `www.`. A host is the key of an issuer.
-CREATE OR REPLACE FUNCTION trust_uri_host(p_uri text) RETURNS text
-LANGUAGE sql IMMUTABLE
-SET search_path = pg_catalog, pg_temp AS $$
-  SELECT lower(regexp_replace(
-           substring(p_uri FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)'),
-           '^www\.', ''))
-$$;
-
-CREATE OR REPLACE FUNCTION originator_param(p_key text) RETURNS numeric
-LANGUAGE sql STABLE
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT p.value FROM public.parameter p WHERE p.key = p_key
-$$;
-
--- The Wilson bounds of a true share. k of n, and z from the parameter table.
-CREATE OR REPLACE FUNCTION wilson_lower(p_k numeric, p_n numeric, p_z numeric) RETURNS numeric
-LANGUAGE sql IMMUTABLE
-SET search_path = pg_catalog, pg_temp AS $$
-  SELECT CASE WHEN p_n IS NULL OR p_n <= 0 THEN NULL ELSE
-    ((p_k / p_n) + p_z * p_z / (2 * p_n)
-     - p_z * sqrt((((p_k / p_n) * (1 - p_k / p_n)) + p_z * p_z / (4 * p_n)) / p_n))
-    / (1 + p_z * p_z / p_n)
-  END
-$$;
-
-CREATE OR REPLACE FUNCTION wilson_upper(p_k numeric, p_n numeric, p_z numeric) RETURNS numeric
-LANGUAGE sql IMMUTABLE
-SET search_path = pg_catalog, pg_temp AS $$
-  SELECT CASE WHEN p_n IS NULL OR p_n <= 0 THEN NULL ELSE
-    ((p_k / p_n) + p_z * p_z / (2 * p_n)
-     + p_z * sqrt((((p_k / p_n) * (1 - p_k / p_n)) + p_z * p_z / (4 * p_n)) / p_n))
-    / (1 + p_z * p_z / p_n)
-  END
-$$;
-
--- THE COUNTS OF THE TRACK RECORD, AND THE UNIT IS THE CLUSTER. The claims that rest on one
--- document are one cluster, because one document is one piece of evidence: twenty-two claims of
--- one page are not twenty-two trials. A cluster is true only if every one of its rows is true,
--- and a false row or a confirmed fabrication makes it false. A fabrication that nobody confirmed
--- is not counted at all: it contests the originator and waits for the operator.
-CREATE OR REPLACE FUNCTION originator_track_counts(p_id text)
-RETURNS TABLE (n integer, k integer, fabricated integer)
-LANGUAGE sql STABLE
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT count(*)::integer,
-         (count(*) FILTER (WHERE g.is_true))::integer,
-         (count(*) FILTER (WHERE g.is_fabricated))::integer
-    FROM (SELECT bool_and(r.outcome = 'true') AS is_true,
-                 bool_or(r.outcome = 'fabricated') AS is_fabricated
-            FROM public.originator_resolution r
-           WHERE r.originator_id = p_id
-             AND NOT (r.outcome = 'fabricated' AND r.fabrication_confirmed_at IS NULL)
-           GROUP BY r.claim_document) AS g
-$$;
-
--- THE E OF THE BOUND: the upper bound of the true share is under the limit with
--- enough resolved clusters. A missing row turns it off.
-CREATE OR REPLACE FUNCTION originator_track_is_e(p_id text) RETURNS boolean
-LANGUAGE plpgsql STABLE
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_z numeric := public.originator_param('letter_wilson_z');
-  v_min numeric := public.originator_param('letter_e_min_resolved');
-  v_upper numeric := public.originator_param('letter_e_wilson_upper');
-  v_counts record;
-BEGIN
-  IF v_z IS NULL OR v_min IS NULL OR v_upper IS NULL THEN
-    RETURN false;
-  END IF;
-  SELECT * INTO v_counts FROM public.originator_track_counts(p_id);
-  RETURN v_counts.n > 0 AND v_counts.n >= v_min
-     AND public.wilson_upper(v_counts.k, v_counts.n, v_z) < v_upper;
-END $$;
-
--- THE FIRST CAP AND THE STEP LIMIT. A measured letter is B to E from the track record. The first
--- one is capped at C when the cap row exists, so 22 clean clusters from F give C and not B. After
--- that, the letter moves one step for each full `letter_step_days` since the last measured
--- letter, in the direction of the raw result. A missing step row turns the limit off.
-CREATE OR REPLACE FUNCTION originator_step_letter(p_id text, p_raw text, p_as_of timestamptz)
-RETURNS text
-LANGUAGE plpgsql STABLE
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_order text[] := ARRAY['A', 'B', 'C', 'D', 'E'];
-  v_prev text;
-  v_prev_at timestamptz;
-  v_days numeric;
-  v_allowed integer;
-  v_from integer;
-  v_to integer;
-BEGIN
-  IF p_raw IS NULL OR p_raw = 'F' THEN
-    RETURN 'F';
-  END IF;
-
-  SELECT h.letter, h.changed_at INTO v_prev, v_prev_at
-    FROM public.originator_letter_history h
-   WHERE h.originator_id = p_id AND h.letter_origin = 'track_record' AND h.letter <> 'F'
-   ORDER BY h.changed_at DESC, h.id
-   LIMIT 1;
-
-  IF NOT FOUND THEN
-    IF p_raw IN ('A', 'B') AND public.originator_param('letter_first_cap_c') IS NOT NULL THEN
-      RETURN 'C';
-    END IF;
-    RETURN p_raw;
-  END IF;
-
-  v_days := public.originator_param('letter_step_days');
-  IF v_days IS NULL THEN
-    RETURN p_raw;
-  END IF;
-
-  v_from := array_position(v_order, v_prev);
-  v_to := array_position(v_order, p_raw);
-  v_allowed := floor(greatest(extract(epoch FROM (p_as_of - v_prev_at)) / 86400, 0) / v_days)::integer;
-  IF abs(v_to - v_from) <= v_allowed THEN
-    RETURN p_raw;
-  END IF;
-  RETURN v_order[v_from + sign(v_to - v_from)::integer * v_allowed];
-END $$;
-
--- THE LETTER. Code evaluates the rows in this order, and the first that matches decides:
---   a merged id uses the letter of its target;
---   a confirmed fabrication gives E, whatever else holds, also for an operator letter;
---   the operator letter, a prior that the bands do not move and that time never changes;
---   E from the upper bound of the track record;
---   F while the name collides with another originator and nobody merged the two;
---   A when a register card names the originator;
---   the gold-set letter of an own algorithm;
---   A to D from the lower bound of the track record;
---   F in every other case.
-CREATE OR REPLACE FUNCTION compute_originator_letter(p_id text, p_as_of timestamptz DEFAULT now())
-RETURNS TABLE (letter text, letter_origin text, reason jsonb)
-LANGUAGE plpgsql STABLE
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  o public.originator%ROWTYPE;
-  v_counts record;
-  v_z numeric := public.originator_param('letter_wilson_z');
-  v_lower numeric;
-  v_raw text;
-BEGIN
-  SELECT * INTO o FROM public.originator x WHERE x.id = p_id;
-  IF NOT FOUND THEN
-    RETURN;
-  END IF;
-
-  IF o.merged_into IS NOT NULL THEN
-    RETURN QUERY
-      SELECT m.letter, m.letter_origin,
-             jsonb_build_object('merged_into', o.merged_into, 'target', m.reason)
-        FROM public.compute_originator_letter(o.merged_into, p_as_of) m;
-    RETURN;
-  END IF;
-
-  SELECT * INTO v_counts FROM public.originator_track_counts(p_id);
-
-  IF v_counts.fabricated > 0 THEN
-    RETURN QUERY SELECT 'E'::text, 'track_record'::text,
-                        jsonb_build_object('rule', 'confirmed_fabrication',
-                                           'fabricated', v_counts.fabricated);
-    RETURN;
-  END IF;
-
-  IF o.operator_letter IS NOT NULL THEN
-    RETURN QUERY SELECT o.operator_letter, 'operator'::text,
-                        jsonb_build_object('rule', 'operator_letter',
-                                           'reason', o.operator_letter_reason);
-    RETURN;
-  END IF;
-
-  IF public.originator_track_is_e(p_id) THEN
-    RETURN QUERY SELECT public.originator_step_letter(p_id, 'E', p_as_of), 'track_record'::text,
-                        jsonb_build_object('rule', 'upper_bound', 'resolved', v_counts.n,
-                                           'true', v_counts.k);
-    RETURN;
-  END IF;
-
-  IF o.name_collides_with IS NOT NULL THEN
-    RETURN QUERY SELECT 'F'::text, 'track_record'::text,
-                        jsonb_build_object('rule', 'name_collision',
-                                           'collides_with', o.name_collides_with);
-    RETURN;
-  END IF;
-
-  IF EXISTS (SELECT 1 FROM public.issuer_card c WHERE c.issuer_id = p_id) THEN
-    RETURN QUERY SELECT 'A'::text, 'register'::text, jsonb_build_object('rule', 'register_card');
-    RETURN;
-  END IF;
-
-  IF o.gold_set_letter IS NOT NULL THEN
-    RETURN QUERY SELECT o.gold_set_letter, 'gold_set'::text,
-                        jsonb_build_object('rule', 'gold_set', 'ref', o.gold_set_ref);
-    RETURN;
-  END IF;
-
-  IF v_z IS NOT NULL AND v_counts.n > 0 THEN
-    v_lower := public.wilson_lower(v_counts.k, v_counts.n, v_z);
-    IF public.originator_param('letter_a_min_resolved') IS NOT NULL
-       AND v_counts.n >= public.originator_param('letter_a_min_resolved')
-       AND v_counts.k = v_counts.n THEN
-      v_raw := 'A';
-    ELSIF public.originator_param('letter_b_wilson_lower') IS NOT NULL
-       AND v_lower >= public.originator_param('letter_b_wilson_lower') THEN
-      v_raw := 'B';
-    ELSIF public.originator_param('letter_c_wilson_lower') IS NOT NULL
-       AND v_lower >= public.originator_param('letter_c_wilson_lower') THEN
-      v_raw := 'C';
-    ELSIF public.originator_param('letter_d_wilson_lower') IS NOT NULL
-       AND public.originator_param('letter_d_min_resolved') IS NOT NULL
-       AND v_counts.n >= public.originator_param('letter_d_min_resolved')
-       AND v_lower >= public.originator_param('letter_d_wilson_lower') THEN
-      v_raw := 'D';
-    END IF;
-  END IF;
-
-  RETURN QUERY SELECT public.originator_step_letter(p_id, v_raw, p_as_of), 'track_record'::text,
-                      jsonb_build_object('rule', 'bands', 'resolved', v_counts.n,
-                                         'true', v_counts.k, 'raw', coalesce(v_raw, 'F'));
-END $$;
-
--- The letter that applies to one citation. A signed author with too few resolved claims uses the
--- letter of the imprint, and only on the imprint's own canonical host. A byline on another host
--- inherits nothing. A missing parameter row turns the rule off.
-CREATE OR REPLACE FUNCTION originator_letter_for(p_originator text, p_document text)
-RETURNS text
-LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  o public.originator%ROWTYPE;
-  v_min numeric := public.originator_param('staff_author_min_resolved');
-  v_resolved integer;
-  v_host text;
-  v_imprint_letter text;
-BEGIN
-  SELECT * INTO o FROM public.originator x WHERE x.id = p_originator;
-  IF NOT FOUND THEN
-    RETURN NULL;
-  END IF;
-
-  IF o.imprint_id IS NOT NULL AND v_min IS NOT NULL AND o.imprint_id LIKE 'host:%' THEN
-    SELECT c.n INTO v_resolved FROM public.originator_track_counts(p_originator) c;
-    SELECT public.trust_uri_host(d.uri) INTO v_host FROM public.documents d WHERE d.id = p_document;
-    IF v_resolved < v_min AND v_host IS NOT NULL AND v_host = substr(o.imprint_id, 6) THEN
-      SELECT i.letter INTO v_imprint_letter FROM public.originator i WHERE i.id = o.imprint_id;
-      RETURN v_imprint_letter;
-    END IF;
-  END IF;
-
-  RETURN o.letter;
-END $$;
-
--- The register card whose host and address pattern match an address, or NULL. A pattern is an SQL
--- LIKE pattern, and a card with no pattern covers every address of its hosts.
-CREATE OR REPLACE FUNCTION issuer_card_for(p_uri text) RETURNS public.issuer_card
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT c.*
-    FROM public.issuer_card c
-   WHERE public.trust_uri_host(p_uri) = ANY (c.hosts)
-     AND (cardinality(c.url_patterns) = 0
-          OR EXISTS (SELECT 1 FROM unnest(c.url_patterns) AS pattern WHERE p_uri LIKE pattern))
-   ORDER BY c.issuer_id
-   LIMIT 1
-$$;
-
--- ONE ORIGINATOR, ONE REFRESH. Code computes the flags and the letter and stores them. The
--- refresh writes a history row only when the letter changes, and it writes nothing when no value
--- changed. It sets `contested` and never clears it: only an operator door clears it.
---
--- THE CONTEST BY THE TRACK RECORD COUNTS A RESOLUTION NEWER THAN THE LAST ACT OF THE OPERATOR.
--- Without that date, the same six failures would contest the letter again the moment the operator
--- decided, and the queue would never empty.
-CREATE OR REPLACE FUNCTION refresh_originator(p_id text, p_as_of timestamptz DEFAULT now())
-RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  o public.originator%ROWTYPE;
-  v_target public.originator%ROWTYPE;
-  v_computed record;
-  v_party text := 'unknown';
-  v_party_reason text;
-  v_controlled boolean := false;
-  v_share numeric := public.originator_param('sanction_control_share');
-  v_contested boolean;
-  v_contested_reason text;
-  v_counts record;
-  v_dependent text;
-  v_today date := (p_as_of AT TIME ZONE 'UTC')::date;
-BEGIN
-  SELECT * INTO o FROM public.originator x WHERE x.id = p_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-
-  DELETE FROM public.originator_sanction s
-   WHERE s.originator_id = p_id AND s.source = 'host_table'
-     AND NOT EXISTS (SELECT 1 FROM public.sanctioned_hosts h
-                      WHERE (h.host_or_account = p_id
-                             OR (o.scheme = 'host' AND h.host_or_account = substr(p_id, 6)))
-                        AND h.regime = s.regime AND h.list_entry_id = s.list_entry_id);
-
-  INSERT INTO public.originator_sanction
-    (originator_id, regime, list_entry_id, listed_on, source, checked_until)
-  SELECT p_id, h.regime, h.list_entry_id, h.listed_on, 'host_table', h.checked_until
-    FROM public.sanctioned_hosts h
-   WHERE h.host_or_account = p_id OR (o.scheme = 'host' AND h.host_or_account = substr(p_id, 6))
-  ON CONFLICT (originator_id, regime, list_entry_id) DO UPDATE
-     SET listed_on = EXCLUDED.listed_on, checked_until = EXCLUDED.checked_until
-   WHERE originator_sanction.source = 'host_table'
-     AND (originator_sanction.listed_on, originator_sanction.checked_until)
-         IS DISTINCT FROM (EXCLUDED.listed_on, EXCLUDED.checked_until);
-
-  INSERT INTO public.originator_sanction
-    (originator_id, regime, list_entry_id, listed_on, source, source_fact)
-  SELECT p_id, f.value ->> 'regime', f.value ->> 'list_entry_id',
-         (f.value ->> 'listed_on')::date, 'list_document', f.id
-    FROM public.originator_fact f
-   WHERE f.originator_id = p_id AND f.kind = 'sanction_entry' AND f.status = 'accepted'
-  ON CONFLICT (originator_id, regime, list_entry_id) DO NOTHING;
-
-  IF o.merged_into IS NOT NULL THEN
-    SELECT * INTO v_target FROM public.originator x WHERE x.id = o.merged_into;
-    v_party := v_target.party;
-    v_party_reason := 'the party relation of ' || o.merged_into;
-    v_controlled := v_target.sanctioned_controlled;
-  ELSE
-    IF o.kind = 'state_body' AND o.jurisdiction IS NOT NULL
-       AND EXISTS (SELECT 1 FROM public.belligerent b WHERE b.code = o.jurisdiction) THEN
-      v_party := 'true';
-      v_party_reason := 'a state body of a belligerent';
-    ELSIF EXISTS (SELECT 1 FROM public.originator_fact f
-                   WHERE f.originator_id = p_id AND f.kind = 'controller'
-                     AND f.status = 'accepted'
-                     AND (f.value ->> 'controller' IN (SELECT b.code FROM public.belligerent b)
-                          OR f.value ->> 'controller' IN (SELECT t.id FROM public.originator t
-                                                           WHERE t.party = 'true'))) THEN
-      v_party := 'true';
-      v_party_reason := 'an accepted controller fact names a belligerent or a party';
-    ELSIF o.party_false_reason IS NOT NULL THEN
-      v_party := 'false';
-      v_party_reason := 'operator act: ' || o.party_false_reason;
-    ELSIF EXISTS (SELECT 1 FROM public.originator_fact f
-                   WHERE f.originator_id = p_id AND f.kind = 'no_belligerent_control'
-                     AND f.status = 'accepted'
-                     AND NOT EXISTS (SELECT 1 FROM public.belligerent b
-                                      WHERE b.code = f.value ->> 'jurisdiction')
-                     AND (o.jurisdiction IS NULL
-                          OR NOT EXISTS (SELECT 1 FROM public.belligerent b
-                                          WHERE b.code = o.jurisdiction))) THEN
-      v_party := 'false';
-      v_party_reason := 'a record shows no belligerent owner or controller';
-    END IF;
-
-    v_controlled := v_share IS NOT NULL AND EXISTS (
-      SELECT 1
-        FROM public.originator_fact f
-        JOIN public.originator_sanction s ON s.originator_id = f.value ->> 'controller'
-       WHERE f.originator_id = p_id AND f.kind = 'controller' AND f.status = 'accepted'
-         AND jsonb_typeof(f.value -> 'share') = 'number'
-         AND (f.value ->> 'share')::numeric >= v_share
-         AND (s.checked_until IS NULL OR s.checked_until >= v_today));
-  END IF;
-
-  SELECT * INTO v_computed FROM public.compute_originator_letter(p_id, p_as_of);
-
-  v_contested := o.contested;
-  v_contested_reason := o.contested_reason;
-  IF o.operator_letter IS NOT NULL AND NOT o.contested AND public.originator_track_is_e(p_id)
-     AND EXISTS (SELECT 1 FROM public.originator_resolution r
-                  WHERE r.originator_id = p_id
-                    AND NOT (r.outcome = 'fabricated' AND r.fabrication_confirmed_at IS NULL)
-                    AND r.resolved_at > coalesce(o.last_operator_act_at, '-infinity'::timestamptz))
-  THEN
-    SELECT * INTO v_counts FROM public.originator_track_counts(p_id);
-    v_contested := true;
-    v_contested_reason := format('track record: %s true of %s resolved clusters', v_counts.k, v_counts.n);
-  END IF;
-
-  IF v_computed.letter IS DISTINCT FROM o.letter THEN
-    INSERT INTO public.originator_letter_history
-      (originator_id, letter, letter_origin, reason, changed_at)
-    VALUES (p_id, v_computed.letter, v_computed.letter_origin, v_computed.reason, p_as_of);
-  END IF;
-
-  UPDATE public.originator x
-     SET letter = v_computed.letter, letter_origin = v_computed.letter_origin,
-         party = v_party, party_reason = v_party_reason,
-         sanctioned_controlled = v_controlled,
-         contested = v_contested, contested_reason = v_contested_reason
-   WHERE x.id = p_id
-     AND (x.letter, x.letter_origin, x.party, x.party_reason, x.sanctioned_controlled,
-          x.contested, x.contested_reason)
-         IS DISTINCT FROM (v_computed.letter, v_computed.letter_origin, v_party, v_party_reason,
-                           v_controlled, v_contested, v_contested_reason);
-
-  IF o.merged_into IS NULL THEN
-    FOR v_dependent IN SELECT m.id FROM public.originator m WHERE m.merged_into = p_id LOOP
-      PERFORM public.refresh_originator(v_dependent, p_as_of);
-    END LOOP;
-  END IF;
-
-  RETURN v_computed.letter;
-END $$;
-
--- A NEW ORIGINATOR HAS LETTER F AND PARTY UNKNOWN, AND THIS DOOR NEVER WRITES A LETTER OR A FLAG.
--- It fills a jurisdiction and a role that are still NULL, and it never changes a value that is set.
--- A jurisdiction from here can only make `party` true at the next refresh, so only an operator role
--- runs this door. A model role runs ensure_originator_candidate, which sets neither. When the display name
--- is the display name of another originator, code records the collision, and the letter stays F
--- until the operator merges the two.
-CREATE OR REPLACE FUNCTION ensure_originator(
-  p_id            text,
-  p_display_name  text,
-  p_kind          text,
-  p_jurisdiction  text DEFAULT NULL,
-  p_role          text DEFAULT NULL)
-RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  o public.originator%ROWTYPE;
-  v_scheme text := split_part(p_id, ':', 1);
-  v_collides text;
-BEGIN
-  IF p_id IS NULL OR p_id !~ '^[a-z]+:.+$' THEN
-    RAISE EXCEPTION 'an originator id is <scheme>:<value>, and % is not', coalesce(p_id, 'nothing')
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.originator_scheme s WHERE s.scheme = v_scheme) THEN
-    RAISE EXCEPTION 'the scheme % is not in the closed list of schemes', v_scheme
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_role = 'issuer' THEN
-    RAISE EXCEPTION 'only a loaded register card makes an originator an issuer'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF (p_kind = 'own_algorithm' OR p_role = 'own_algorithm') AND v_scheme <> 'gab' THEN
-    RAISE EXCEPTION 'an own algorithm has a gab id, and % is not one', p_id
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF v_scheme = 'gab' AND p_kind IS DISTINCT FROM 'own_algorithm' THEN
-    RAISE EXCEPTION 'a gab id is an own algorithm, and the kind % is not'
-      , coalesce(p_kind, 'nothing') USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  SELECT * INTO o FROM public.originator x WHERE x.id = p_id FOR UPDATE;
-  IF NOT FOUND THEN
-    SELECT x.id INTO v_collides
-      FROM public.originator x
-     WHERE x.id <> p_id
-       AND lower(regexp_replace(btrim(x.display_name), '\s+', ' ', 'g'))
-         = lower(regexp_replace(btrim(p_display_name), '\s+', ' ', 'g'))
-     ORDER BY x.created_at, x.id
-     LIMIT 1;
-    INSERT INTO public.originator (id, display_name, kind, jurisdiction, role, name_collides_with)
-    VALUES (p_id, p_display_name, p_kind, p_jurisdiction, p_role, v_collides);
-  ELSIF (o.jurisdiction IS NULL AND p_jurisdiction IS NOT NULL)
-     OR (o.role IS NULL AND p_role IS NOT NULL) THEN
-    UPDATE public.originator x
-       SET jurisdiction = coalesce(x.jurisdiction, p_jurisdiction), role = coalesce(x.role, p_role)
-     WHERE x.id = p_id;
-  END IF;
-  RETURN p_id;
-END $$;
-
--- THE DOOR OF A MODEL ROLE. It creates an originator with a NULL jurisdiction and a NULL role, and it
--- never fills an existing row. It refuses the kind `state_body`, which makes `party` true at the
--- next refresh. An operator role or a register card sets a jurisdiction, a role and that kind.
-CREATE OR REPLACE FUNCTION ensure_originator_candidate(
-  p_id            text,
-  p_display_name  text,
-  p_kind          text)
-RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_kind IS NOT DISTINCT FROM 'state_body' THEN
-    RAISE EXCEPTION 'only an operator role creates a state body'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  RETURN public.ensure_originator(p_id, p_display_name, p_kind, NULL, NULL);
-END $$;
-
--- AN AGENT PROPOSES A FACT, AND IT CARRIES THE SPAN THAT SHOWS IT. The door checks the shape of the
--- call. It does not read the text: decide_originator_fact does, in code.
-CREATE OR REPLACE FUNCTION propose_originator_fact(
-  p_originator  text,
-  p_kind        text,
-  p_value       jsonb,
-  p_document    text,
-  p_page        integer,
-  p_start       integer,
-  p_end         integer)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_id uuid;
-BEGIN
-  IF p_page IS NULL OR p_start IS NULL OR p_end IS NULL THEN
-    RAISE EXCEPTION 'a fact carries a stored span: a page and two offsets'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_value IS NULL OR jsonb_typeof(p_value) <> 'object' THEN
-    RAISE EXCEPTION 'the value of a fact is a JSON object' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  INSERT INTO public.originator_fact
-    (originator_id, kind, value, document_id, page, span_start, span_end)
-  VALUES (p_originator, p_kind, p_value, p_document, p_page, p_start, p_end)
-  RETURNING id INTO v_id;
-  RETURN v_id;
-END $$;
-
--- CODE DECIDES A FACT. It re-reads the span from the stored text of the document, at the stored
--- page and offsets, and it accepts the fact only when the span contains the value that the fact
--- names. Only an operator role runs it: the needle of a controller fact is a value that the
--- proposer chose, so the role that proposes a fact never decides it. A controller fact and a
--- no-belligerent-control fact also need a document on a loaded register card. The card belongs
--- to the register, so it never ties a fact to its subject. For these two kinds and for a sanction
--- entry, the same stored span must also name the subject originator, by its display name or its
--- identifier, and not only the value that the proposer chose.
--- A failed check sets `refused` with the reason. An external free field is never an input:
--- a fact whose document is a Wikidata, WHOIS or OpenStreetMap address is refused. The offsets
--- count characters from 0, and the end is not included.
-CREATE OR REPLACE FUNCTION decide_originator_fact(p_id uuid)
-RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  f public.originator_fact%ROWTYPE;
-  v_uri text;
-  v_needle text;
-  v_reason text;
-  v_card public.issuer_card%ROWTYPE;
-  v_blank text := E' \t\n\r\f\v';
-BEGIN
-  SELECT * INTO f FROM public.originator_fact x WHERE x.id = p_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'fact % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-  IF f.status <> 'proposed' THEN
-    RETURN f.status;
-  END IF;
-
-  SELECT d.uri INTO v_uri FROM public.documents d WHERE d.id = f.document_id;
-
-  IF v_uri ~* '(^|[/.])(wikidata\.org|wikipedia\.org|openstreetmap\.org)(/|$)' OR v_uri ~* 'whois' THEN
-    v_reason := 'an external free field is never an input';
-  ELSIF f.kind = 'controller' THEN
-    v_needle := f.value ->> 'name';
-    IF coalesce(btrim(f.value ->> 'controller', v_blank), '') = ''
-       OR coalesce(btrim(v_needle, v_blank), '') = ''
-       OR coalesce(btrim(f.value ->> 'relation', v_blank), '') = '' THEN
-      v_reason := 'a controller fact names the controller, its name and the relation';
-    ELSIF f.value ? 'share' AND (jsonb_typeof(f.value -> 'share') <> 'number'
-          OR (f.value ->> 'share')::numeric NOT BETWEEN 0 AND 100) THEN
-      v_reason := 'the share is a number from 0 to 100';
-    ELSIF NOT (EXISTS (SELECT 1 FROM public.belligerent b WHERE b.code = f.value ->> 'controller')
-               OR EXISTS (SELECT 1 FROM public.originator c WHERE c.id = f.value ->> 'controller')) THEN
-      v_reason := 'the controller is neither a belligerent code nor an originator';
-    END IF;
-  ELSIF f.kind = 'no_belligerent_control' THEN
-    v_needle := f.value ->> 'jurisdiction_name';
-    IF coalesce(f.value ->> 'jurisdiction', '') !~ '^[A-Z]{2}$'
-       OR coalesce(btrim(v_needle, v_blank), '') = ''
-       OR coalesce(btrim(f.value ->> 'registry', v_blank), '') = '' THEN
-      v_reason := 'the fact names a jurisdiction code, its name and the registry';
-    END IF;
-  ELSIF f.kind = 'sanction_entry' THEN
-    v_needle := f.value ->> 'list_entry_id';
-    IF coalesce(f.value ->> 'regime', '') NOT IN ('EU', 'US')
-       OR coalesce(btrim(v_needle, v_blank), '') = '' THEN
-      v_reason := 'a sanction entry names an EU or US regime and a list entry id';
-    ELSE
-      BEGIN
-        PERFORM (f.value ->> 'listed_on')::date;
-        IF f.value ->> 'listed_on' IS NULL THEN
-          v_reason := 'a sanction entry names the day of the listing';
-        END IF;
-      EXCEPTION WHEN others THEN
-        v_reason := 'the day of the listing is not a real date';
-      END;
-      IF v_reason IS NULL THEN
-        SELECT * INTO v_card FROM public.issuer_card_for(v_uri);
-        IF v_card.issuer_id IS NULL OR v_card.sanctions_regime IS DISTINCT FROM (f.value ->> 'regime') THEN
-          v_reason := 'the document is not on a register card of the EU or US sanctions list';
-        END IF;
-      END IF;
-    END IF;
-  ELSE
-    v_needle := f.value ->> 'byline';
-    IF coalesce(btrim(v_needle, v_blank), '') = ''
-       OR NOT EXISTS (SELECT 1 FROM public.originator i WHERE i.id = f.value ->> 'imprint') THEN
-      v_reason := 'an imprint fact names the byline and an imprint that exists';
-    END IF;
-  END IF;
-
-  IF v_reason IS NULL AND f.kind IN ('controller', 'no_belligerent_control') THEN
-    SELECT * INTO v_card FROM public.issuer_card_for(v_uri);
-    IF v_card.issuer_id IS NULL THEN
-      v_reason := 'the document is not on a loaded register card';
-    END IF;
-  END IF;
-
-  IF v_reason IS NULL THEN
-    IF NOT EXISTS (SELECT 1 FROM public.document_text t
-                    WHERE t.document_id = f.document_id AND t.page = f.page) THEN
-      v_reason := 'no stored span: the document holds no stored text at that page';
-    ELSIF NOT EXISTS (
-        SELECT 1 FROM public.document_text t
-         WHERE t.document_id = f.document_id AND t.page = f.page
-           AND position(lower(v_needle) IN lower(substr(t.text, f.span_start + 1,
-                                                        f.span_end - f.span_start))) > 0) THEN
-      v_reason := 'the stored span does not contain the value of the fact';
-    ELSIF f.kind IN ('controller', 'no_belligerent_control', 'sanction_entry') AND NOT EXISTS (
-        SELECT 1
-          FROM public.document_text t
-          JOIN public.originator o ON o.id = f.originator_id
-         WHERE t.document_id = f.document_id AND t.page = f.page
-           AND position(lower(v_needle) IN lower(substr(t.text, f.span_start + 1,
-                                                        f.span_end - f.span_start))) > 0
-           AND (position(lower(o.display_name) IN lower(substr(t.text, f.span_start + 1,
-                                                               f.span_end - f.span_start))) > 0
-                OR position(lower(o.id) IN lower(substr(t.text, f.span_start + 1,
-                                                        f.span_end - f.span_start))) > 0)) THEN
-      v_reason := 'the stored span does not name the originator';
-    END IF;
-  END IF;
-
-  IF v_reason IS NOT NULL THEN
-    UPDATE public.originator_fact x
-       SET status = 'refused', refused_reason = v_reason, decided_at = now()
-     WHERE x.id = p_id;
-    RETURN 'refused';
-  END IF;
-
-  UPDATE public.originator_fact x
-     SET status = 'accepted', decided_at = now()
-   WHERE x.id = p_id;
-  PERFORM public.refresh_originator(f.originator_id);
-  RETURN 'accepted';
-END $$;
-
--- THE TRACK RECORD HAS NO ROLE GRANT. A definer door of another ticket calls it, once a claim is
--- settled by ground truth: an issuer record, a verified observation or an operator decision that
--- names its evidence. It refuses what is not ground truth:
---   a position other than `first` or `first_hand` (a repeater adds nothing);
---   a settlement by a rule, by agent agreement or by other media;
---   a settling record captured before the claim document, which is a restatement;
---   a settling document that is the claim document, which is circular.
--- A false outcome contests an originator with an operator letter, and a fabricated outcome
--- contests any originator. A fabrication counts only after the operator confirms it.
-CREATE OR REPLACE FUNCTION record_resolution(
-  p_originator             text,
-  p_claim                  uuid,
-  p_claim_document         text,
-  p_position               text,
-  p_outcome                text,
-  p_settled_by             text,
-  p_settling_document      text,
-  p_operator_note          text,
-  p_settling_captured_at   timestamptz,
-  p_claim_document_date    date)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  o public.originator%ROWTYPE;
-  v_id uuid;
-BEGIN
-  SELECT * INTO o FROM public.originator x WHERE x.id = p_originator FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_originator USING ERRCODE = 'foreign_key_violation';
-  END IF;
-  IF p_position IS NULL OR p_position NOT IN ('first', 'first_hand') THEN
-    RAISE EXCEPTION 'the position % adds nothing to a track record: only a first or first-hand claim counts',
-      coalesce(p_position, 'nothing') USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_settled_by IS NULL OR p_settled_by NOT IN ('issuer_record', 'verified_observation', 'operator_decision') THEN
-    RAISE EXCEPTION 'settled_by % is not ground truth: a rule, an agent and other media never settle a claim',
-      coalesce(p_settled_by, 'nothing') USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_claim_document_date IS NULL THEN
-    RAISE EXCEPTION 'a resolved claim has the date of its claim document'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_settling_document IS NOT NULL AND p_settling_document = p_claim_document THEN
-    RAISE EXCEPTION 'the settling document is the claim document, which is circular'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_settling_captured_at IS NOT NULL
-     AND (p_settling_captured_at AT TIME ZONE 'UTC')::date < p_claim_document_date THEN
-    RAISE EXCEPTION 'the settling record was captured before the claim document, so it restates a record that existed first'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  INSERT INTO public.originator_resolution
-    (originator_id, claim_id, claim_document, position, outcome, settled_by, settling_document,
-     operator_note, settling_captured_at, claim_document_date, resolved_at)
-  VALUES (p_originator, p_claim, p_claim_document, p_position, p_outcome, p_settled_by,
-          p_settling_document, p_operator_note, p_settling_captured_at, p_claim_document_date,
-          clock_timestamp())
-  RETURNING id INTO v_id;
-
-  IF p_outcome = 'fabricated' AND NOT o.contested THEN
-    UPDATE public.originator x
-       SET contested = true, contested_reason = 'a fabrication waits for the operator'
-     WHERE x.id = p_originator;
-  ELSIF p_outcome = 'false' AND o.operator_letter IS NOT NULL AND NOT o.contested THEN
-    UPDATE public.originator x
-       SET contested = true, contested_reason = 'a first or first-hand claim was proved false'
-     WHERE x.id = p_originator;
-  END IF;
-
-  PERFORM public.refresh_originator(p_originator);
-  RETURN v_id;
-END $$;
-
--- The operator doors. Each needs a reason that is not blank, it stamps the date of the act, and it
--- calls the refresh. The date is the clock and not the start of the transaction, so a resolution
--- recorded after the act is newer than the act.
-CREATE OR REPLACE FUNCTION set_operator_letter(p_id text, p_letter text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_scheme text := split_part(p_id, ':', 1);
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'an operator letter needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_letter IS NULL OR p_letter NOT IN ('A', 'B', 'C', 'D', 'E', 'F') THEN
-    RAISE EXCEPTION 'a letter is A to F' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  INSERT INTO public.originator (id, display_name, kind)
-  VALUES (p_id, p_id,
-          CASE WHEN v_scheme = 'gab' THEN 'own_algorithm'
-               WHEN v_scheme IN ('telegram', 'x', 'vk', 'substack', 'livejournal') THEN 'account'
-               ELSE 'organisation' END)
-  ON CONFLICT (id) DO NOTHING;
-  UPDATE public.originator x
-     SET operator_letter = p_letter, operator_letter_reason = p_reason,
-         contested = false, contested_reason = NULL, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_id;
-  PERFORM public.refresh_originator(p_id);
-END $$;
-
-CREATE OR REPLACE FUNCTION remove_operator_letter(p_id text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'removing an operator letter needs a reason'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET operator_letter = NULL, operator_letter_reason = NULL,
-         contested = false, contested_reason = NULL, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_id AND x.operator_letter IS NOT NULL;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % holds no operator letter', p_id
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  PERFORM public.refresh_originator(p_id);
-END $$;
-
-CREATE OR REPLACE FUNCTION contest_letter(p_id text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a contest needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET contested = true, contested_reason = p_reason, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-  PERFORM public.refresh_originator(p_id);
-END $$;
-
-CREATE OR REPLACE FUNCTION confirm_fabrication(p_resolution uuid, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_originator text;
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'confirming a fabrication needs a reason'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator_resolution r
-     SET fabrication_confirmed_at = coalesce(r.fabrication_confirmed_at, clock_timestamp())
-   WHERE r.id = p_resolution AND r.outcome = 'fabricated'
-  RETURNING r.originator_id INTO v_originator;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'resolution % does not exist or is not a fabrication', p_resolution
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET contested = false, contested_reason = NULL, last_operator_act_at = clock_timestamp()
-   WHERE x.id = v_originator;
-  PERFORM public.refresh_originator(v_originator);
-END $$;
-
--- A merge says that two ids are one. The merged id uses the letter and the flags of the target.
--- A chain is refused: the target is not itself merged, and nothing is merged into the source.
-CREATE OR REPLACE FUNCTION merge_originator(p_from text, p_into text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a merge needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_from = p_into THEN
-    RAISE EXCEPTION 'an originator is not merged into itself' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.originator x WHERE x.id = p_into AND x.merged_into IS NOT NULL)
-     OR EXISTS (SELECT 1 FROM public.originator x WHERE x.merged_into = p_from) THEN
-    RAISE EXCEPTION 'a merge makes no chain of ids' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET merged_into = p_into, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_from;
-  IF NOT FOUND OR NOT EXISTS (SELECT 1 FROM public.originator x WHERE x.id = p_into) THEN
-    RAISE EXCEPTION 'both ids of a merge must exist' USING ERRCODE = 'foreign_key_violation';
-  END IF;
-  PERFORM public.refresh_originator(p_from);
-END $$;
-
-CREATE OR REPLACE FUNCTION link_imprint(p_author text, p_imprint text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'linking an imprint needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET imprint_id = p_imprint, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_author;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_author USING ERRCODE = 'foreign_key_violation';
-  END IF;
-END $$;
-
-CREATE OR REPLACE FUNCTION set_party_false(p_id text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a party act needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET party_false_reason = p_reason, last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-  PERFORM public.refresh_originator(p_id);
-END $$;
-
--- The card of a natural person stays hidden until the operator reviews it.
-CREATE OR REPLACE FUNCTION review_originator_card(p_id text, p_reason text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a card review needs a reason' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET card_reviewed_at = now(), last_operator_act_at = clock_timestamp()
-   WHERE x.id = p_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'originator % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-END $$;
-
--- THE GOLD-SET LETTER OF AN OWN ALGORITHM. No role holds it: the definer doors of the audit
--- ticket call it.
-CREATE OR REPLACE FUNCTION set_gold_set_letter(p_id text, p_letter text, p_gold_set_ref text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_gold_set_ref IS NULL OR btrim(p_gold_set_ref, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a gold-set letter names its gold-set run' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_letter IS NULL OR p_letter NOT IN ('A', 'B', 'C', 'D', 'E', 'F') THEN
-    RAISE EXCEPTION 'a letter is A to F' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.originator x
-     SET gold_set_letter = p_letter, gold_set_ref = p_gold_set_ref
-   WHERE x.id = p_id AND x.kind = 'own_algorithm';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION '% is not an own algorithm that exists', p_id
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  PERFORM public.refresh_originator(p_id);
-END $$;
-
--- The gate calls this after it re-ran on the claims that cite the originator. No role holds it.
-CREATE OR REPLACE FUNCTION ack_letter_change(p_id uuid)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  UPDATE public.originator_letter_history h
-     SET gate_rerun_at = coalesce(h.gate_rerun_at, now())
-   WHERE h.id = p_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'letter change % does not exist', p_id USING ERRCODE = 'foreign_key_violation';
-  END IF;
-END $$;
-
--- THE QUEUE OF THE OPERATOR. It is a function of `public` and not a view of `api`, so the read
--- role cannot call it.
-CREATE OR REPLACE FUNCTION originator_exceptions()
-RETURNS TABLE (originator_id text, reason text, detail jsonb)
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT q.originator_id, q.reason, q.detail
-    FROM (
-      SELECT o.id AS originator_id, 'contested'::text AS reason,
-             jsonb_build_object('reason', o.contested_reason) AS detail
-        FROM public.originator o WHERE o.contested
-      UNION ALL
-      SELECT r.originator_id, 'unconfirmed_fabrication',
-             jsonb_build_object('resolution', r.id, 'claim', r.claim_id)
-        FROM public.originator_resolution r
-       WHERE r.outcome = 'fabricated' AND r.fabrication_confirmed_at IS NULL
-      UNION ALL
-      SELECT f.originator_id, 'imprint_fact',
-             jsonb_build_object('fact', f.id, 'imprint', f.value ->> 'imprint')
-        FROM public.originator_fact f
-        JOIN public.originator o ON o.id = f.originator_id
-       WHERE f.kind = 'imprint' AND f.status = 'accepted'
-         AND o.imprint_id IS DISTINCT FROM (f.value ->> 'imprint')
-      UNION ALL
-      SELECT o.id, 'name_collision', jsonb_build_object('collides_with', o.name_collides_with)
-        FROM public.originator o
-       WHERE o.name_collides_with IS NOT NULL AND o.merged_into IS NULL
-      UNION ALL
-      SELECT o.id, 'card_review', '{}'::jsonb
-        FROM public.originator o
-       WHERE o.kind = 'person' AND o.card_reviewed_at IS NULL
-    ) AS q
-   ORDER BY q.originator_id, q.reason
-$$;
-
--- THE LOAD OF AN APPROVED LIST. The file name says which list: `belligerents.csv`,
--- `sanctioned-hosts.csv`, or `register-cards/<issuer>.yaml`. The load replaces the rows of that
--- list in one transaction, records the load, and refreshes each originator that the change
--- touches. The same file with the same hash, loaded last, writes nothing and returns NULL. The loader checks the
--- hash of the bytes against APPROVALS.md, and this door records the hash that it was given.
-CREATE OR REPLACE FUNCTION load_trust_list(
-  p_file         text,
-  p_sha256       text,
-  p_approved_on  date,
-  p_reason       text,
-  p_rows         jsonb)
-RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_last text;
-  v_count integer;
-  v_touched text[] := '{}';
-  v_all boolean := false;
-  v_id text;
-  v_row record;
-BEGIN
-  IF p_sha256 IS NULL OR p_sha256 !~ '^[0-9a-f]{64}$' THEN
-    RAISE EXCEPTION 'the hash of a list is 64 hexadecimal characters'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_approved_on IS NULL OR p_reason IS NULL OR btrim(p_reason, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a load names the day of the approval and its reason'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' THEN
-    RAISE EXCEPTION 'the rows of a list are a JSON array' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_file NOT IN ('belligerents.csv', 'sanctioned-hosts.csv')
-     AND p_file !~ '^register-cards/[^/]+\.yaml$' THEN
-    RAISE EXCEPTION 'the file % is not a list that the loader knows', p_file
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  SELECT l.sha256 INTO v_last FROM public.trust_list_load l
-   WHERE l.file = p_file ORDER BY l.loaded_at DESC, l.id LIMIT 1;
-  IF v_last = p_sha256 THEN
-    RETURN NULL;
-  END IF;
-
-  IF p_file = 'belligerents.csv' THEN
-    DELETE FROM public.belligerent;
-    INSERT INTO public.belligerent (code, name, conflict, approved_sha256, approved_on)
-    SELECT r.code, r.name, r.conflict, p_sha256, p_approved_on
-      FROM jsonb_to_recordset(p_rows) AS r(code text, name text, conflict text);
-    v_all := true;
-
-  ELSIF p_file = 'sanctioned-hosts.csv' THEN
-    SELECT coalesce(array_agg(h.host_or_account), '{}') INTO v_touched FROM public.sanctioned_hosts h;
-    FOR v_row IN
-      SELECT * FROM jsonb_to_recordset(p_rows)
-        AS r(outlet text, host_or_account text, regime text, list_entry_id text, list_url text,
-             outlet_registration text, entry_registration text)
-       WHERE r.outlet_registration IS NOT NULL AND r.entry_registration IS NOT NULL
-         AND r.outlet_registration <> r.entry_registration
-    LOOP
-      RAISE EXCEPTION 'the outlet % has registration number % and the list entry has %',
-        v_row.outlet, v_row.outlet_registration, v_row.entry_registration
-        USING ERRCODE = 'check_violation';
-    END LOOP;
-    DELETE FROM public.sanctioned_hosts;
-    INSERT INTO public.sanctioned_hosts
-      (outlet, host_or_account, regime, list_entry_id, list_url, outlet_registration,
-       entry_registration, listed_on, checked_until, approved_sha256, approved_on)
-    SELECT r.outlet, r.host_or_account, r.regime, r.list_entry_id, r.list_url,
-           r.outlet_registration, r.entry_registration, r.listed_on, r.checked_until,
-           p_sha256, p_approved_on
-      FROM jsonb_to_recordset(p_rows)
-        AS r(outlet text, host_or_account text, regime text, list_entry_id text, list_url text,
-             outlet_registration text, entry_registration text, listed_on date,
-             checked_until date);
-    SELECT v_touched || coalesce(array_agg(h.host_or_account), '{}') INTO v_touched
-      FROM public.sanctioned_hosts h;
-
-  ELSE
-    SELECT coalesce(array_agg(c.issuer_id), '{}') INTO v_touched
-      FROM public.issuer_card c WHERE c.source_file = p_file;
-    DELETE FROM public.issuer_card WHERE source_file = p_file;
-    FOR v_row IN
-      SELECT * FROM jsonb_to_recordset(p_rows)
-        AS r(issuer text, display_name text, kind text, jurisdiction text, fields jsonb)
-    LOOP
-      IF EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(v_row.fields, '[]'::jsonb)) AS e
-                  WHERE jsonb_typeof(e) <> 'object' OR coalesce(e ->> 'name', '') = ''
-                     OR coalesce(e ->> 'declarant', '') NOT IN ('issuer', 'holder')) THEN
-        RAISE EXCEPTION 'each field of a card has a name and a declarant, issuer or holder'
-          USING ERRCODE = 'check_violation';
-      END IF;
-      INSERT INTO public.originator (id, display_name, kind, jurisdiction, role)
-      VALUES (v_row.issuer, coalesce(v_row.display_name, v_row.issuer),
-              coalesce(v_row.kind, 'organisation'), v_row.jurisdiction, 'issuer')
-      ON CONFLICT (id) DO UPDATE SET role = 'issuer'
-        WHERE public.originator.role IS DISTINCT FROM 'issuer';
-    END LOOP;
-    INSERT INTO public.issuer_card
-      (issuer_id, hosts, tls_names, url_patterns, record_kinds, fields, identifier_types,
-       terms_of_use, jurisdiction, sanctions_regime, approved_sha256, approved_on,
-       approval_reason, source_file)
-    SELECT r.issuer, r.hosts, coalesce(r.tls_names, '{}'), coalesce(r.url_patterns, '{}'),
-           coalesce(r.record_kinds, '{}'), coalesce(r.fields, '[]'::jsonb),
-           coalesce(r.identifier_types, '{}'), r.terms_of_use, r.jurisdiction,
-           r.sanctions_regime, p_sha256, p_approved_on, p_reason, p_file
-      FROM jsonb_to_recordset(p_rows)
-        AS r(issuer text, hosts text[], tls_names text[], url_patterns text[],
-             record_kinds text[], fields jsonb, identifier_types text[], terms_of_use text,
-             jurisdiction text, sanctions_regime text);
-    SELECT v_touched || coalesce(array_agg(c.issuer_id), '{}') INTO v_touched
-      FROM public.issuer_card c WHERE c.source_file = p_file;
-  END IF;
-
-  v_count := jsonb_array_length(p_rows);
-  INSERT INTO public.trust_list_load (file, sha256, approved_on, reason, row_count)
-  VALUES (p_file, p_sha256, p_approved_on, p_reason, v_count);
-
-  FOR v_id IN
-    SELECT o.id FROM public.originator o
-     WHERE v_all
-        OR (p_file = 'sanctioned-hosts.csv'
-            AND (o.id = ANY (v_touched) OR (o.scheme = 'host' AND substr(o.id, 6) = ANY (v_touched))))
-        OR (p_file LIKE 'register-cards/%' AND o.id = ANY (v_touched))
-     ORDER BY o.id
-  LOOP
-    PERFORM public.refresh_originator(v_id);
-  END LOOP;
-
-  RETURN v_count;
-END $$;
-
--- THE LETTER HISTORY IS WRITTEN ONCE. One column changes after the insert: the day the gate re-ran,
--- and only from NULL. The owner and the superuser ignore a grant, so a trigger holds it.
-CREATE OR REPLACE FUNCTION originator_letter_history_guard_fn() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'a letter change is never deleted. It is the record of what the gate must re-run';
-  END IF;
-  IF OLD.gate_rerun_at IS NOT NULL
-     OR (to_jsonb(NEW) - 'gate_rerun_at') IS DISTINCT FROM (to_jsonb(OLD) - 'gate_rerun_at') THEN
-    RAISE EXCEPTION 'a letter change is never rewritten. Only the day the gate re-ran is set, once';
-  END IF;
-  RETURN NEW;
-END $$;
 
 -- ================================================================================= THE TIER ==
 -- THE TIER OF A DOCUMENT IS READ FROM THE LICENCE OF ITS PROVIDER, AND IT IS NEVER STORED. One

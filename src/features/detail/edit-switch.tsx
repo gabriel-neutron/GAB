@@ -2,7 +2,7 @@ import { Button } from '@/shared/ui/button';
 
 export type DetailView = 'reading' | 'writing';
 
-export interface EditSwitchProps {
+interface EditSwitchProps {
   readonly view: DetailView;
   /** An act is in flight. Its sentence stands in the writing view only, so the view holds. */
   readonly busy: boolean;
