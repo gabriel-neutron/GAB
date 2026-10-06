@@ -1116,6 +1116,27 @@ test('one rejection rejects every item of the batch, and writes no row', async (
   ]);
 });
 
+test.for(['promote-proposal', 'reject-proposal'])(
+  'the door of one act refuses an act of a linked batch, and the batch still waits whole (%s)',
+  async (door) => {
+    const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
+    const ids = await proposedBatch(linkedBatch(`Batch test ${door}`, vessel, owner, link));
+    const batchId = await batchOf(vessel);
+    try {
+      const [status, reply] = await post(door, { proposalId: vessel });
+      expect([status, reply.refusal]).toStrictEqual([
+        422,
+        `the act ${vessel} is part of the linked batch ${String(batchId)}, and the operator ` +
+          'decides a batch as one unit: decide the batch',
+      ]);
+      expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
+      expect(await liveRows(vessel)).toBe(0);
+    } finally {
+      await post('decide-batch', { batchId, verdict: 'reject' });
+    }
+  },
+);
+
 test('a decision on a batch that the record does not hold is refused', async () => {
   const [status, reply] = await post('decide-batch', {
     batchId: TARGET_OF_NO_ACT,

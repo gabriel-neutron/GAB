@@ -112,6 +112,7 @@ one card, and the operator promotes or rejects it as one unit, in one transactio
 writes each entity before the relation that names it, and one refused act refuses the whole batch:
 the refusal names the act and the reason, and nothing is written. An act that names no other act
 of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
+The door of one act refuses an act of a batch, so a batch is never half decided.
 
 ## Technical baseline
 
