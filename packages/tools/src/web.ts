@@ -44,9 +44,11 @@ const bodyOf = async (response: Response, maxBytes: number): Promise<string> => 
 export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
   const searxngUrl = given(env['SEARXNG_URL']);
   const braveKey = given(env['BRAVE_SEARCH_API_KEY']);
+  const companiesHouseKey = given(env['COMPANIES_HOUSE_API_KEY']);
   return {
     ...(searxngUrl === undefined ? {} : { searxngUrl }),
     ...(braveKey === undefined ? {} : { braveKey }),
+    ...(companiesHouseKey === undefined ? {} : { companiesHouseKey }),
     get: async (url, request) => {
       const response = await fetcher(url, {
         method: 'GET',

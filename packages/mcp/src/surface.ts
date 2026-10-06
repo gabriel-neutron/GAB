@@ -40,6 +40,26 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same answer is stored once, so a second lookup writes nothing. A name search stores
+  // nothing.
+  gleif_lookup: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  companies_house: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  wikidata_ids: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
     readOnlyHint: false,

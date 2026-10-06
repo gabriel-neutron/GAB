@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,10 +7,10 @@ import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
 import { checkedRange, documentText } from './document-text.ts';
-import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
-import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
+import { storeAnswer } from './store-answer.ts';
+import { defineTool, ToolRefusal } from './tool.ts';
 import { unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
@@ -31,31 +30,6 @@ const RENDER_BUDGET_MS = 30_000;
 // The words that the common CAPTCHA services put in a page. A page that holds one is stored as it
 // is, and the answer says so; nothing on it is solved or avoided.
 const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
-
-// External constraint: the worker writes the text of a stored file under this same word, and a
-// second word would make two sets of pages for one reading. The worker holds the other copy, in
-// its ingest module.
-const EXTRACTOR = 'text-1';
-
-const UNIQUE_VIOLATION = '23505';
-
-const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS retrieved_at
-                 FROM public.documents d WHERE d.sha256 = $1`;
-
-// One statement is one transaction, and it holds inside the transaction of a caller too. The row
-// is written first and its text second, so a document never exists with no text.
-const STORE = `WITH stored AS (
-    SELECT public.put_fetched_document('url', $1, $2, $3, $4, $5, $6::date)::text AS id)
-  SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
-
-const knownRow = z.object({
-  id: z.string(),
-  title: z.string(),
-  mime: z.string().nullable(),
-  retrieved_at: z.string().nullable(),
-});
-
-const storedRow = z.object({ id: z.string(), pages: z.number().int() });
 
 // The process of exiftool lives as long as the module uses it. A caller that ends ends it too, or
 // the process holds the event loop open.
@@ -148,61 +122,6 @@ const titleOf = (mime: string, bytes: Uint8Array, metadata: Metadata, url: strin
     metadata.title ??
     `${hostname}${decodeURI(pathname)}`;
   return chosen.slice(0, MAX_TITLE);
-};
-
-const isUniqueViolation = (fault: unknown): boolean =>
-  typeof fault === 'object' && fault !== null && 'code' in fault && fault.code === UNIQUE_VIOLATION;
-
-const knownOf = async (session: Session, sha256: string) => {
-  const [row] = await rowsOf(session, knownRow, KNOWN, [sha256]);
-  return row;
-};
-
-interface Fetched {
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-  readonly uri: string;
-  readonly title: string;
-  readonly pages: readonly string[];
-  readonly day: string;
-}
-
-// Bytes already stored are known by their hash, and nothing is written for them.
-export const storeFetched = async (
-  session: Session,
-  store: NonNullable<Reach['store']>,
-  fetched: Fetched,
-) => {
-  const sha256 = createHash('sha256').update(fetched.bytes).digest('hex');
-  let status: 'known' | 'stored' = 'known';
-  let known = await knownOf(session, sha256);
-  if (known === undefined) {
-    // The key holds the hash alone, as the worker writes it, so the two paths name one object.
-    const key = await store.put({
-      key: `raw/${sha256}`,
-      bytes: fetched.bytes,
-      mime: fetched.mime,
-    });
-    try {
-      await rowsOf(session, storedRow, STORE, [
-        fetched.title,
-        key,
-        fetched.uri,
-        sha256,
-        fetched.mime,
-        fetched.day,
-        JSON.stringify(fetched.pages),
-        EXTRACTOR,
-      ]);
-      status = 'stored';
-    } catch (fault) {
-      // A second caller stored the same bytes at the same instant.
-      if (!isUniqueViolation(fault)) throw fault;
-    }
-    known = await knownOf(session, sha256);
-    if (known === undefined) throw new Error('the door stored a document and no row holds it');
-  }
-  return { ...known, status };
 };
 
 const reasonOf = (fault: unknown): string =>
@@ -320,7 +239,8 @@ export const fetchDocument = defineTool({
     if (unreadable !== null) throw new ToolRefusal(unreadable);
 
     const metadata = await metadataOf(got.bytes, mime);
-    const plain = await storeFetched(session, reach.store, {
+    const plain = await storeAnswer(session, reach.store, {
+      kind: 'url',
       bytes: got.bytes,
       mime,
       uri: got.url,
@@ -344,7 +264,8 @@ export const fetchDocument = defineTool({
       if (unreadableRender !== null) notices.push(`the render was not stored: ${unreadableRender}`);
       else if (page !== null) {
         captcha ||= CAPTCHA.test(page.html);
-        const stored = await storeFetched(session, reach.store, {
+        const stored = await storeAnswer(session, reach.store, {
+          kind: 'url',
           bytes: page.bytes,
           mime: 'text/html',
           uri: got.url,
