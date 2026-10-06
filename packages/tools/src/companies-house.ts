@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { readRegister, storeRegister, type RegisterRequest } from './register-answer.ts';
+import { readRegister, shaped, storeRegister, type RegisterRequest } from './register-answer.ts';
 import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
 import { webFromReach } from './web-access.ts';
 
@@ -32,13 +32,6 @@ const leadList = z.object({
     )
     .default([]),
 });
-
-const shaped = <Shape extends z.ZodType>(shape: Shape, json: unknown): z.output<Shape> => {
-  const found = shape.safeParse(json);
-  if (!found.success)
-    throw new ToolRefusal('Companies House gave an answer that this tool does not read');
-  return found.data;
-};
 
 const outputShape = z.strictObject({
   record: z
@@ -85,7 +78,7 @@ const leadsOf = async (reach: Reach, key: string, name: string): Promise<Output>
   if (answer === null) throw new ToolRefusal('Companies House holds no list for this name');
   return {
     record: null,
-    leads: shaped(leadList, answer.json).items.map((item) => ({
+    leads: shaped('Companies House', leadList, answer.json).items.map((item) => ({
       companyNumber: item.company_number,
       title: item.title,
       companyStatus: item.company_status ?? null,
@@ -110,7 +103,7 @@ const recordOf = async (
       documents.push({ part, document: null, status: 'none' });
       continue;
     }
-    if (part === 'profile') held = shaped(profile, answer.json);
+    if (part === 'profile') held = shaped('Companies House', profile, answer.json);
     const title = `Companies House ${part} ${number}`;
     const stored = await storeRegister(session, reach, { ...request, title }, answer);
     documents.push({ part, document: stored.document, status: stored.status });

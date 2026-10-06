@@ -1,4 +1,4 @@
-// The only place where a surface opens a socket to the web for a search. A redirect is handed back
+// The only place where a surface opens a socket to the web for a tool. A redirect is handed back
 // and never followed, because a public host that redirects to a private address turns a fetch
 // against the machine. The hosts asked are constants of the tools.
 

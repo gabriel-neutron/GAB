@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { readRegister, storeRegister } from './register-answer.ts';
+import { readRegister, shaped, storeRegister } from './register-answer.ts';
 import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
 import { webFromReach } from './web-access.ts';
 
@@ -35,15 +35,10 @@ const leadList = z.object({
   data: z.array(z.object({ attributes: z.object({ lei: z.string(), entity }) })),
 });
 
-const shaped = <Shape extends z.ZodType>(shape: Shape, json: unknown): z.output<Shape> => {
-  const found = shape.safeParse(json);
-  if (!found.success) throw new ToolRefusal('GLEIF gave an answer that this tool does not read');
-  return found.data;
-};
-
 const stored = z.enum(['known', 'stored']);
 
 const outputShape = z.strictObject({
+  notices: z.array(z.string()),
   record: z
     .strictObject({
       lei: z.string(),
@@ -77,8 +72,9 @@ const leadsOf = async (reach: Reach, name: string): Promise<Output> => {
   });
   if (answer === null) throw new ToolRefusal('GLEIF holds no list for this name');
   return {
+    notices: [],
     record: null,
-    leads: shaped(leadList, answer.json).data.map(({ attributes }) => ({
+    leads: shaped('GLEIF', leadList, answer.json).data.map(({ attributes }) => ({
       lei: attributes.lei,
       legalName: attributes.entity.legalName.name,
       jurisdiction: attributes.entity.jurisdiction ?? null,
@@ -97,15 +93,22 @@ const recordOf = async (session: Session, reach: Reach, lei: string): Promise<Ou
 
   const held = await read(`${BASE}/lei-records/${lei}`, `GLEIF LEI record ${lei}`);
   if (held === null) throw new ToolRefusal(`GLEIF holds no record of ${lei}`);
-  const { data } = shaped(leiRecord, held.answer.json);
+  const { data } = shaped('GLEIF', leiRecord, held.answer.json);
 
+  const notices: string[] = [];
   const parents: NonNullable<Output['record']>['parents'] = [];
   for (const level of LEVELS) {
     const given = data.relationships?.[`${level}-parent`]?.links ?? {};
     // A link is followed only inside GLEIF, so an answer cannot send the tool to another host.
     const kind = given['relationship-record'] === undefined ? 'exception' : 'relationship';
     const url = given['relationship-record'] ?? given['reporting-exception'];
-    if (url?.startsWith(`${BASE}/`) !== true) continue;
+    if (url === undefined) continue;
+    if (!url.startsWith(`${BASE}/`)) {
+      notices.push(
+        `the ${level} parent link was not followed: it is not an https address of GLEIF`,
+      );
+      continue;
+    }
     const part = await read(url, `GLEIF ${level} parent ${kind} of ${lei}`);
     if (part === null)
       throw new ToolRefusal(`GLEIF gave a link for the ${level} parent of ${lei} and no answer`);
@@ -117,10 +120,11 @@ const recordOf = async (session: Session, reach: Reach, lei: string): Promise<Ou
       parentLei:
         kind === 'exception'
           ? null
-          : shaped(relationship, part.answer.json).data.attributes.relationship.endNode.id,
+          : shaped('GLEIF', relationship, part.answer.json).data.attributes.relationship.endNode.id,
     });
   }
   return {
+    notices,
     record: {
       lei: data.attributes.lei,
       legalName: data.attributes.entity.legalName.name,
@@ -139,7 +143,8 @@ export const gleifLookup = defineTool({
     'answer for the direct and the ultimate parent, each once as an api document, and gives ' +
     'the document ids, the legal name and the LEI of each parent. A parent that GLEIF does not ' +
     'name has an exception answer, and its parentLei is null. Call it again with the LEI of a ' +
-    'parent to read that parent. With a name instead of an LEI, it returns a list of leads ' +
+    'parent to read that parent. A parent link that is not an https address of GLEIF is not ' +
+    'followed, and "notices" says so. With a name instead of an LEI, it returns a list of leads ' +
     'and stores nothing: read the LEI that you choose.',
   input: z.strictObject({
     lei: z

@@ -65,6 +65,7 @@ test('the research environment example names SearXNG and holds no key', () => {
 
   expect(value('SEARXNG_URL')).toMatch(/^http:\/\//u);
   expect(value('BRAVE_SEARCH_API_KEY')).toBe('');
+  expect(value('COMPANIES_HOUSE_API_KEY')).toBe('');
 });
 
 // Departure: the example of the build stack is the list of its secrets. The real file is never

@@ -142,7 +142,13 @@ test('gleif_lookup follows a link inside GLEIF only', async () => {
   );
   const { session, reach } = setup(web);
   const outcome = await callTool(toolNamed('gleif_lookup'), session, { lei: LEI }, reach);
-  expect(outcome).toMatchObject({ ok: true, output: { record: { parents: [] } } });
+  expect(outcome).toMatchObject({
+    ok: true,
+    output: {
+      record: { parents: [] },
+      notices: ['the direct parent link was not followed: it is not an https address of GLEIF'],
+    },
+  });
   expect(web.asked.map((asked) => asked.url.host)).toStrictEqual(['api.gleif.org']);
 });
 
@@ -151,7 +157,11 @@ test('a name search in GLEIF is a lead and stores nothing', async () => {
   const outcome = await callTool(toolNamed('gleif_lookup'), noSql, { name: 'Child' }, reach);
   expect(outcome).toStrictEqual({
     ok: true,
-    output: { record: null, leads: [{ lei: LEI, legalName: 'Child Ltd', jurisdiction: 'GB' }] },
+    output: {
+      notices: [],
+      record: null,
+      leads: [{ lei: LEI, legalName: 'Child Ltd', jurisdiction: 'GB' }],
+    },
   });
   expect(store.puts).toStrictEqual([]);
 });
