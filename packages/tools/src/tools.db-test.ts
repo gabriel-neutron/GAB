@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
-import { callTool, type Session, type Tool } from './tool.ts';
+import { callTool, type Reach, type Session, type Tool } from './tool.ts';
 
 const SHA = 'f'.repeat(64);
 const DOC = `doc_${SHA.slice(0, 12)}`;
@@ -324,7 +324,7 @@ const batchOf = (outcome: Awaited<ReturnType<typeof call>>) => {
 };
 
 const ROWS = `SELECT p.id::text AS id, p.author_role, p.status, p.src::text[] AS src, p.payload,
-    p.dissent, p.originator, c.page, c.start, c."end", c.modality, c.text_extractor
+    p.dissent, p.dissent_reason, p.originator, c.page, c.start, c."end", c.modality, c.text_extractor
   FROM public.proposals p LEFT JOIN public.citation c ON c.claim_id = p.id
   WHERE p.src::text[] @> ARRAY[$1::text] ORDER BY p.created_at, p.id`;
 
@@ -336,6 +336,7 @@ const documentRows = z.array(
     src: z.array(z.string()),
     payload: z.record(z.string(), z.unknown()),
     dissent: z.boolean(),
+    dissent_reason: z.string().nullable(),
     originator: z.string().nullable(),
     page: z.number().nullable(),
     start: z.number().nullable(),
@@ -368,6 +369,7 @@ test('propose stores the act of the role, its originator and the citation of its
     status: 'pending',
     src: [DOC],
     dissent: false,
+    dissent_reason: null,
     originator: 'The port authority',
     page: 1,
     modality: 'asserts',
@@ -429,7 +431,82 @@ test('a value that its excerpt does not state marks the item as disputed', async
   expect(found.batch.proposals).toMatchObject([
     { disputed: true, unstated: ['attrs.flag'], written: true },
   ]);
-  expect(found.rows[0]?.dissent).toBe(true);
+  expect(found.rows[0]).toMatchObject({
+    dissent: true,
+    dissent_reason: 'no cited passage states attrs.flag "Panama"',
+  });
+});
+
+const SEATRADE = item(
+  'owner',
+  { op: 'create_entity', type: 'company', label: 'Seatrade Ltd' },
+  'through Sea­trade Ltd.',
+);
+
+const SIKKA = item('port', { op: 'create_entity', type: 'port', label: 'Sikka' }, 'left Sikka');
+
+// The checker supports one item, does not support a second one, and gives no verdict on a third.
+const checker: Reach = {
+  now: () => new Date(),
+  check: async () =>
+    Promise.resolve(
+      new Map([
+        ['nayara', { verdict: 'supported' as const }],
+        ['owner', { verdict: 'not_supported' as const, reason: 'the page names another owner' }],
+      ]),
+    ),
+};
+
+test('the record keeps why the checker disputes an item, and nothing for an item it supports', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      { items: [NAYARA, SEATRADE, SIKKA] },
+      checker,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const reasonOf = (ref: string) => {
+    const id = found.batch.proposals.find((one) => one.ref === ref)?.proposalId;
+    return found.rows.find((row) => row.id === id)?.dissent_reason;
+  };
+  expect(reasonOf('nayara')).toBeNull();
+  expect(reasonOf('owner')).toBe('the checker says not_supported: the page names another owner');
+  expect(reasonOf('port')).toBe('the checker did not answer');
+});
+
+// A free model can give a reason with control characters, or a reason that is very long.
+const messy: Reach = {
+  now: () => new Date(),
+  check: async () =>
+    Promise.resolve(
+      new Map([
+        ['owner', { verdict: 'unclear' as const, reason: `two\u0000\nowners ${'x'.repeat(2000)}` }],
+      ]),
+    ),
+};
+
+test('a messy reason of the checker is kept as one cut line of plain text', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      { items: [SEATRADE] },
+      messy,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const reason = found.rows[0]?.dissent_reason ?? '';
+  expect(found.batch.proposals).toMatchObject([{ disputed: true, written: true }]);
+  expect(reason.startsWith('the checker says unclear: two owners xxx')).toBe(true);
+  expect(reason).toHaveLength(1000);
 });
 
 test('a relation of a batch names an entity that the same batch creates', async () => {
