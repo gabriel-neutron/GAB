@@ -17,6 +17,7 @@ const DECIDED_ROW = {
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: '2026-08-25T04:00:00+00:00',
   decided_by: 'the writer door',
+  batch_id: null,
 };
 
 let acceptedRows: readonly unknown[] = [DECIDED_ROW];

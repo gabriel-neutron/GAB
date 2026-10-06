@@ -2,7 +2,7 @@ import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-r
 import { useMemo, useState } from 'react';
 
 import { readDecided } from '@/features/review/decided';
-import { sendVerdict, type DecisionState } from '@/features/review/decision';
+import { sendBatchVerdict, sendVerdict, type DecisionState } from '@/features/review/decision';
 import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { readPassages } from '@/features/review/passages';
@@ -101,6 +101,26 @@ function ReviewRoute() {
           const { held, readAgain } = settleVerdict(answer, act);
           setDecision(answer);
           if (held !== null) setVerdicts((all) => ({ ...all, [act.changeId]: held }));
+          if (readAgain) await refreshCorpus(() => router.invalidate());
+        });
+        return;
+      }
+      case 'decide-batch': {
+        const deciding = beginVerdict(decision, {
+          changeId: act.batchId,
+          verdict: act.verdict,
+          batch: true,
+        });
+        if (deciding === null) return;
+        setDecision(deciding);
+        void sendBatchVerdict(act.batchId, act.verdict).then(async (answer) => {
+          const { held, readAgain } = settleVerdict(answer, act);
+          setDecision(answer);
+          if (held !== null)
+            setVerdicts((all) => ({
+              ...all,
+              ...Object.fromEntries([act.batchId, ...act.changeIds].map((id) => [id, held])),
+            }));
           if (readAgain) await refreshCorpus(() => router.invalidate());
         });
         return;

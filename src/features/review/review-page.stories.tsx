@@ -293,6 +293,67 @@ export const TheCardShowsThePassageThatTheActCites: Story = {
   },
 };
 
+const BATCH = SAMPLE.linkedBatch;
+
+const BATCH_ACTS = sampleSubject(BATCH).changes.map((change) => change.id);
+
+/** A linked batch is one card: every act of it stands open, each with the passage it cites. */
+export const ALinkedBatchIsOneCardWithEveryActAndItsPassages: Story = {
+  args: {
+    examination: { subjectId: BATCH, sort: 'confidence' },
+    passages: {
+      state: 'held',
+      byAct: Object.fromEntries(BATCH_ACTS.map((id) => [id, [PASSAGE]])),
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const card = canvas.getByRole('region', { name: 'One linked batch of 3 acts' });
+    await expect(card.querySelectorAll('[data-change]')).toHaveLength(3);
+    await expect(canvasElement.querySelectorAll('[data-change]')).toHaveLength(3);
+    await expect(card.querySelectorAll('[data-passage]')).toHaveLength(3);
+    await expect(card).toHaveTextContent('Ledger Shipping owns MV Test Ledger');
+  },
+};
+
+/** One verdict decides the whole batch, and the question says so before it sends. */
+export const OneVerdictDecidesTheWholeBatch: Story = {
+  args: { examination: { subjectId: BATCH, sort: 'confidence' } },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
+    await expect(canvas.getByRole('alert')).toHaveTextContent('Promote every act of this batch?');
+    await userEvent.click(canvas.getByRole('button', { name: 'Promote it' }));
+    await expect(args.onAct).toHaveBeenCalledWith({
+      kind: 'decide-batch',
+      batchId: BATCH,
+      changeIds: BATCH_ACTS,
+      verdict: 'promoted',
+      reason: '',
+    });
+  },
+};
+
+/** A refused batch says that nothing of it was written, and it names the act and the reason. */
+export const ARefusedBatchNamesTheActAndTheReason: Story = {
+  args: {
+    examination: { subjectId: BATCH, sort: 'confidence' },
+    decision: {
+      step: 'refused',
+      changeId: BATCH,
+      verdict: 'promoted',
+      batch: true,
+      refusal:
+        'nothing of the batch is promoted, because the record refuses its new relation owns: ' +
+        'the target does not exist',
+    },
+  },
+  play: async ({ canvas }) => {
+    const said = canvas.getByRole('alert', { name: 'The record' });
+    await expect(said).toHaveTextContent('Nothing was written');
+    await expect(said).toHaveTextContent('its new relation owns: the target does not exist');
+    await expect(said).not.toHaveTextContent('This is about another act.');
+  },
+};
+
 /** The text of a document is private. Where the writer does not answer, as on the public page,
  * no passage is drawn, and one sentence says why. */
 export const ThePublicPageShowsNoPassage: Story = {
