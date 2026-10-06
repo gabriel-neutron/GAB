@@ -167,13 +167,17 @@ interface Fetched {
 }
 
 // Bytes already stored are known by their hash, and nothing is written for them.
-const storeFetched = async (session: Session, reach: Reach, fetched: Fetched) => {
+const storeFetched = async (
+  session: Session,
+  store: NonNullable<Reach['store']>,
+  fetched: Fetched,
+) => {
   const sha256 = createHash('sha256').update(fetched.bytes).digest('hex');
   let status: 'known' | 'stored' = 'known';
   let known = await knownOf(session, sha256);
   if (known === undefined) {
     // The key holds the hash alone, as the worker writes it, so the two paths name one object.
-    const key = await reach.store.put({
+    const key = await store.put({
       key: `raw/${sha256}`,
       bytes: fetched.bytes,
       mime: fetched.mime,
@@ -280,7 +284,7 @@ export const fetchDocument = defineTool({
   }),
   output: outputShape,
   async run(session, input, reach) {
-    if (reach === undefined)
+    if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
 
@@ -312,7 +316,7 @@ export const fetchDocument = defineTool({
     }
 
     const metadata = await metadataOf(got.bytes, mime);
-    const plain = await storeFetched(session, reach, {
+    const plain = await storeFetched(session, reach.store, {
       bytes: got.bytes,
       mime,
       uri: got.url,
@@ -338,7 +342,7 @@ export const fetchDocument = defineTool({
       const page = await renderedOf(got, mime, getOptions, notices);
       if (page !== null) {
         captcha ||= CAPTCHA.test(page.html);
-        const stored = await storeFetched(session, reach, {
+        const stored = await storeFetched(session, reach.store, {
           bytes: page.bytes,
           mime: 'text/html',
           uri: got.url,
