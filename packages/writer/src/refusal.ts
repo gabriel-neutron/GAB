@@ -32,12 +32,14 @@ const wordOf = (cause: unknown, key: 'code' | 'message'): string =>
     ? String(Reflect.get(cause, key) ?? '')
     : '';
 
-// External constraint: PostgreSQL names the table of each rule that it checks itself. A door
-// names the rule it raises, and no table, so its message is a sentence it wrote for the caller.
+// External constraint: PostgreSQL names the table or the type of each rule that it checks itself.
+// A door names the rule it raises, and neither, so its message is a sentence it wrote for the
+// caller.
 // The hint is the field of the request that the caller corrects.
 const doorSentence = (cause: unknown): string | undefined => {
   if (!(cause instanceof DatabaseError)) return undefined;
-  if (cause.constraint === undefined || cause.table !== undefined) return undefined;
+  if (cause.constraint === undefined || cause.table !== undefined || cause.dataType !== undefined)
+    return undefined;
   const sentence = cause.message.replaceAll(/\s+/gu, ' ').trim();
   return cause.hint === undefined || cause.hint === '' ? sentence : `${cause.hint}: ${sentence}`;
 };

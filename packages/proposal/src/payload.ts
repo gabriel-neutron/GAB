@@ -17,7 +17,7 @@ export interface ProposalAct {
 
 type Sourced = Record<string, { readonly v: AttributeEdit[string]['v']; readonly src: string[] }>;
 
-// S2: the src of an attribute backs that one value alone, and the operator types each value by
+// The src of an attribute backs that one value alone, and the operator types each value by
 // hand. The promotion keeps each document that a kept value already cites.
 const sourcedAttributes = (edit: AttributeEdit | undefined): Sourced => {
   const sourced: Sourced = {};
@@ -37,7 +37,7 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
           label: request.label,
           ...(request.geom === undefined ? {} : { geom: request.geom }),
           attrs: sourcedAttributes(request.attrs),
-          // S2: the row-level list backs label, type and geom alone. The operator types each by
+          // The row-level list backs label, type and geom alone. The operator types each by
           // hand, so it is manual alone.
           sources: [MANUAL],
         },
@@ -59,7 +59,7 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
           ...(request.validFrom === undefined ? {} : { valid_from: request.validFrom }),
           ...(request.validTo === undefined ? {} : { valid_to: request.validTo }),
           attrs: sourcedAttributes(request.attrs),
-          // S2: the row-level list backs type, the two endpoints and the dates alone. The
+          // The row-level list backs type, the two endpoints and the dates alone. The
           // operator sets each by hand, so it is manual alone.
           sources: [MANUAL],
         },

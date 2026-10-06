@@ -80,6 +80,16 @@ test('a code the map knows wins over a message that a shape reads', () => {
   );
 });
 
+test('a rule of a type that PostgreSQL checks itself gives the sentence of its code', () => {
+  const composed = raisedError(
+    '23514',
+    'value for domain doc_id violates check constraint "doc_id_check"',
+  );
+  composed.constraint = 'doc_id_check';
+  composed.dataType = 'doc_id';
+  expect(refusalFrom(composed)).toBe('the act breaks a rule the record holds on its shape');
+});
+
 // Departure: the two answers are parted by the error that PostgreSQL itself raises. Any other
 // failure reached no statement that answered, and the act may stand in the record.
 test('a failure with no code is a doubt, and a raised failure keeps its refusal', () => {
