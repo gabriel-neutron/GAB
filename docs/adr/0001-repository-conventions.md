@@ -2,78 +2,75 @@
 
 **Status** Accepted · 10 August 2026
 
-### 1. The workspace, converted per §6
+## Decision
 
-`pnpm-workspace.yaml` declares two package roots: `.`, the root `package.json`, and `packages/*`,
-one folder per deployable part. §6 sets the condition for this conversion, and it was met: the
-worker and the writer are each a second deployable part, as code, and each imports `@gab/store` or
-`@gab/proposal`, a module the root also imports.
+The repository is a pnpm workspace. The web application is the root package. Each other part that
+deploys alone is a package under `packages/`. The database schema (`db/`), the infrastructure
+(`infra/`), the tools (`tools/`) and the documentation (`docs/`) each have a top-level folder.
 
-The database schema, the infrastructure and the documentation each get a top-level folder. Under
-`src/`, four kinds of folder exist and no fifth is improvised:
+Make a new package only when a second deployable part exists as code, and when it shares a module
+with another part. Do not make a package for a plan or for a preference.
 
-- **A feature.** One feature, one flat folder.
-- **`shared/`, the seam.** The user interface kit, and what one feature needs from another.
-- **`routes/`.** The route files the router reads.
-- **A generated folder.** §8 of ADR 0003 says what writes it and who may import it.
+Under `src/`, there are four kinds of folder:
 
-**A feature never imports another feature.** **`shared/` is a leaf**: every feature may import it,
-and it imports no feature. **`routes/` is the only folder that may import a feature.**
+- **A feature.** One surface of the user interface, in one folder.
+- **`shared/`.** The user interface kit, and what one feature needs from another feature.
+- **`routes/`.** The route files that the router reads.
+- **A generated folder.** ADR 0003 tells what writes it and who can import it.
 
-**The lint configuration is where this layout is stated, and it is the only place.** Each folder is
-declared there, the default is refusal, and a folder that nobody declared fails the lint on
-purpose. A tree drawn in a document would be a second copy of the repository, and a copy drifts.
+A feature never imports another feature. `shared/` imports no feature. Only `routes/` can import a
+feature.
 
-A file that belongs to no folder above is excluded **by name** — the mount and the router instance.
-A name is not a pattern that authored code can enter.
+The lint configuration is the only statement of this layout. It declares each folder, and it
+refuses a folder that nobody declared. Do not draw the tree in a document, because a copy of the
+tree drifts from the code.
 
-### 2. pnpm, and Node 24
+The project uses pnpm and the Node LTS line. pnpm resolves strictly, so an import that the package
+did not declare fails.
 
-pnpm resolves strictly: a package that imports something it did not declare fails. Node is pinned
-to the 24 LTS line in `.nvmrc` and in `engines.node`. Pin the line, never the patch.
+## The two commands
 
-### 3. `pnpm check`
+- `pnpm check` runs the type check, the lint and the format check. It reaches no database, and it
+  does not run the tests.
+- `pnpm test` runs the tests. Vitest is the only test runner, for every kind of test.
 
-It runs the type check, the lint, the format check and the drift check. **It never runs the tests.**
+TypeScript runs with all strict checks. The linter is `typescript-eslint` and the formatter is
+Prettier. The repository allows no suppression. A generated file can be excluded by its name, never
+by a pattern that written code can enter.
 
-TypeScript runs with every strict check on. The lint set is `typescript-eslint`. The formatter is
-Prettier, and it never touches `docs/`. All three are pinned before the first source file: a rule
-set added later is answered with suppressions, and this repository allows none.
+The drift check (`pnpm db:drift`) is a separate command. It makes the database types again from the
+test database and compares them with the committed types. A difference fails the check. It never
+reaches the record database. `pnpm db:types` writes the committed types from the same test database.
 
-**The drift check regenerates the database types and fails when the result differs from what is
-committed.** It needs a running database, it is measured by the diff and never by the exit code of
-the generator, and its comparison is scoped to the generated folders. A drift check that reads an
-empty database proves nothing, so it is added with the schema it guards.
+CI runs both commands on each pull request. One job starts the database stack with throwaway
+secrets, builds the test database from zero, runs the drift check and runs the whole suite, with
+the database tests. The database owns the data rules, so this job is the only automatic proof of
+them.
 
-This step writes, and so does the type check, which generates the route tree. A person who runs
-`pnpm check` may find a generated file in the diff.
+**Definition of done:** `pnpm check` passes, the tests of the change pass, CI is green, the change
+does what its ticket asks, and a separate review agent finds nothing that blocks. The agent then
+merges into `staging`. The operator promotes `staging` to `main`.
 
-### 4. `pnpm test`
+## Reason
 
-A separate command, because the suite is slow and a check that runs after each file must stay fast.
+Strict resolution, strict types and zero suppressions find errors before review. A lint rule is the
+only layout rule that cannot drift, because it fails the build. Separate features let one agent
+build each surface in isolation. One test runner gives one configuration for all tests.
 
-**The runner is Vitest**, for every kind of test: a parser, a payload validator, a query against
-PostgreSQL and a rendered component. One runner, one configuration.
+The check and the tests are two commands because the tests are slow, and the check must stay fast
+enough to run after each file.
 
-This section chooses a tool and not a policy. **The test policy is open, and the tracker carries
-it.**
+## Cost
 
-### 5. Definition of done
-
-An agent reports **DONE** when `pnpm check` passes and the change matches its ticket. **An agent
-commits its own work, and it never claims more.** The operator accepts a change after reading the
-diff.
-
-### 6. When this layout becomes a workspace
-
-Convert when a second deployable part exists **as code**, and one module is imported by both. Not
-on a plan, and not on a preference.
-
-## Consequences
-
-- A green `pnpm check` means the change compiles and conforms. It does not mean it is correct.
-- **`pnpm check` needs a running database**, on every task, not only one that touches SQL.
-- No repository layout keeps T4 true. That guarantee lives in the `gabriel_read` role and in the
-  base URL given to the frontend at build time.
-- One package does not mean one `tsconfig`. The browser bundle, the Node configuration files and
-  the Storybook folder are separate compile targets in one package.
+- A local run of the drift check or of the database tests needs the local stack and a fresh test
+  database (`pnpm db:reset`).
+- `pnpm check` can write. The route generator can change a generated file, so a person can find a
+  generated file in the diff.
+- The CI job builds the database image and starts the stack on each pull request, so it is the
+  slowest gate.
+- A green `pnpm check` shows that the change compiles and obeys the rules. It does not show that
+  the change is correct.
+- No layout rule keeps the public read safe. The read role of the database and the read address
+  given to the frontend keep it safe (ADR 0003).
+- One package can hold more than one compile target: the browser bundle, the Node configuration
+  files and the Storybook folder each have their own TypeScript configuration.

@@ -5,7 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import type { Theme } from '@/shared/theme-provider';
 
-export interface ModeToggleProps {
+interface ModeToggleProps {
   readonly theme: Theme;
   readonly onThemeChange: (theme: Theme) => void;
 }

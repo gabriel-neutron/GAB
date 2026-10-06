@@ -2,38 +2,37 @@
 
 **Status** Accepted · 7 September 2026
 
-ADR 0003 §9 exempts two reads from the default `LIMIT` — the full-graph view and the full map view
-— and leaves the mechanism of that exemption open. This settles it. The exemption itself is not
-reopened; only its mechanism is decided here.
+## Context
 
-### 1. No row cap is set
+ADR 0003 exempts two reads from the default row limit: the full graph and the full map. It does
+not tell how. This ADR decides the mechanism. It does not reopen the exemption.
 
-`db-max-rows` is not configured. `infra/docker-compose.yml` carries no such line, and PostgREST
-serves `gabriel_read` with no row ceiling.
+## Decision
 
-PostgREST caps rows **per role and never per view**, so any cap large enough for the full graph is
-a cap on every read of that role. A number that covers the biggest read is not a fence for the
-others; it is the same absence, written as a number that will one day be wrong in silence.
+**No row cap is set on the read role.** The API serves the read role with no row ceiling.
 
-### 2. `statement_timeout` is the bound
+**Time is the only bound.** The read role has a short statement timeout. The database stops a read
+that runs away, and nothing else stops it.
 
-5 seconds on the read role, as ADR 0003 §9 already states. A read that runs away is stopped by
-time, and by nothing else.
+## Reason
 
-**The measurement that produced this**, taken on 7 September 2026 in one rolled-back transaction
-against 10,000 entities and 25,000 relations: the full graph returned 35,044 rows and 9.6 MB in
-77 ms; the full map returned 5,024 rows and 819 kB in 11 ms. Both sit three orders of magnitude
-inside the timeout, so a row cap would not have fired before the timeout on any read measured.
+PostgREST sets a row cap for each role, not for each view. A cap that is large enough for the full
+graph is the same cap for each other read of that role. So the cap is not a fence for the other
+reads. It is only a number that will become wrong one day, with no warning.
+
+A measurement on 7 September 2026 supports this. With a synthetic corpus of 10,000 entities and
+25,000 relations, the full graph and the full map each returned in less than one tenth of a second.
+That is far inside the timeout. A row cap would not have stopped any measured read before the
+timeout.
 
 ## Consequences
 
-- **A cap set too low truncates a full read in silence**, which is the failure the exempt views
-  exist to prevent. That failure is now impossible, and the opposite one is open: a read that
-  returns more than a surface can hold, inside 5 seconds.
-- **Every read of `gabriel_read` is uncapped, and not only the two exempt views.** The register
-  names default limits among the fences for a *publicly readable* database. This database is not
-  one: ADR 0002 §4 binds every port to `127.0.0.1`, and one operator holds the machine. The tension
-  is recorded and not dismissed. The day the port leaves the loopback address, this decision is
-  reopened by a new ADR, together with the exemption itself.
-- **What proves it wrong.** A read that stays inside 5 seconds and still returns more rows than a
-  surface can draw. A cap returns on that day, with a measured number and a new ADR.
+- **A cap that is too low can no longer cut a full read with no warning.** The exempt views exist
+  to prevent that failure. The opposite failure is now possible: a read that returns more than a
+  surface can hold, inside the timeout.
+- **Each read of the read role has no row cap**, not only the two exempt views. The register names
+  default limits as a fence for a publicly readable database. The local database is not public: its
+  ports are on the loopback address, and one operator holds the machine. On the day the read port
+  leaves the loopback address, a new ADR reopens this decision and the exemption.
+- **What proves it wrong:** a read that stays inside the timeout and returns more rows than a
+  surface can draw. On that day, a measured cap comes back with a new ADR.

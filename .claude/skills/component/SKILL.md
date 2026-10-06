@@ -11,26 +11,18 @@ density, the parts of the kit and the lint set. A value copied here goes stale i
 
 ## The steps
 
-1. **Read the ticket whole.** It carries what the component does, the rules it holds, and the
+1. **Read the ticket or the request whole.** It carries what the component does, the rules it holds, and the
    check that says it works. State back in five lines: what it does, its rules, its "Works when",
    and its check.
 2. **Place the file.** See *Placement*.
-3. **Write the derivation**, before the `.tsx` exists.
-4. **Write the component.** Read *What to write* first. Your instinct writes the left column.
-5. **Write one story for each state the ticket names.**
-6. **Run the check command, then the test command**, then answer *Before you report*.
+3. **Write the component.** Read *What to write* first. Your instinct writes the left column.
+   Logic that needs its own unit test goes in a `.ts` beside it.
+4. **Write a story** for a page, and for a part with real logic. See *The story*.
+5. **Run the check command, then the test command**, then answer *Before you report*.
 
-**No ticket names this component: stop.** A shared file is the exception. It has no ticket, its
-contract is its two call sites, and you name both in your report.
-
-**Climb the ladder before you ask.** Read the document that governs the task, search the code for
-a precedent, then `gh issue list --search` for a ruling. **A form the operator refused lives in the
-tracker and in no file.** Then take the reversible option, record it under ASSUMED with its cost
-and what proves it wrong, and continue.
-
-**Ask only three things**, and only at the end of the task: a ticket contradicts an ADR or a rule
-below; a value must sit in an ancestor of a live canvas; a dependency is missing. Each is costly to
-reverse. A contradiction is a question and never a licence.
+**Decide, and continue.** Search the code for a precedent, take the simplest option, and note it in
+your report. Ask the operator only a product question (`docs/authoring.md`). A conflict with an
+ADR is yours to settle: update the ADR in the same change.
 
 **A folder that drives a live canvas:** read [`CANVAS.md`](CANVAS.md) before step 2.
 
@@ -50,8 +42,7 @@ reverse. A contradiction is a question and never a licence.
 
 | Do | Do not |
 |---|---|
-| Compute in the derivation, draw in the component | Call `filter`, `sort`, `reduce`, `join`, `slice`, `Object.keys`, `Object.entries`, `localeCompare`, `toFixed`, `toLocaleString`, `Intl.` or `new Date` in a `.tsx`. One `.map` over a derived array is the exception |
-| Join a derivation to the `.ts` that holds that surface's derivation. A second file is a second job | Split a derivation because a file feels long |
+| Put a rule of the product (a filter, a sort, a match) that needs its own test in a `.ts` beside the `.tsx`. Small display code stays in the `.tsx` | Make a `.ts` for one line of display code |
 | Keep props under five, each a domain value or a callback. `selected`, `disabled` and `open` stay | Give a feature component `variant`, `size`, `color` or `isCompact` |
 | Name a callback for what happened: `onSelect(id)` | `setSidebar` |
 | Key a list on the domain identifier | Key on an array position |
@@ -90,7 +81,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | Do | Do not |
 |---|---|
 | Take every colour from a token | Write a hex, or a raw palette class |
-| Find the `--color-<name>` line before you use a name outside the kit set. Where it is absent, use the class, report it under ASSUMED, and name the file that must declare it | Trust a colour class to paint. An undeclared token emits no rule at all, in silence |
+| Find the `--color-<name>` line before you use a name outside the kit set. Where it is absent, use the class, note it in your report, and name the file that must declare it | Trust a colour class to paint. An undeclared token emits no rule at all, in silence |
 | Mark data in words as well as with a hue | Let a hue be the only mark |
 | Compose every class list with the merge helper | Build a class list with a template string or `+` |
 | Correct the kit at the call site in `className` | Edit a vendored file. The kit is closed |
@@ -112,7 +103,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | `N/A`, `—` or `0` for an absent value | A blank cell, under a header that names the key |
 | `truncate` alone | `truncate min-w-0`, with the full value under `title` |
 | A bare figure in a column | `font-mono text-right tabular-nums` |
-| A text size with no line height, or a length the theme already names | `text-small/4`, `tracking-caps`. A lint rule refuses the hand-written length |
+| A text size with no line height, or a length the theme already names | `text-small/4`, `tracking-caps` |
 
 ## Controls
 
@@ -123,7 +114,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | Copy the kit `focus-visible` recipe whole onto every control | Use `ring` alone. It paints at rest, and with no colour utility it paints `currentcolor` |
 | Give a kit part that is a link `asChild` and one `<a>` | Put a second control on a row that is already a button |
 | Draw a read-only value with `defaultValue` | Write `value` with no `onChange` |
-| Build the `disabled` control the ticket asks for, and put the tension under ASK | Fade the data to say "not editable" |
+| Build the `disabled` control the ticket asks for, and note the tension in your report | Fade the data to say "not editable" |
 | Use a 14px line icon from the set installed, and give an icon-only control an `aria-label` | Let an icon alone label a destructive action |
 | Write sentence case | Use uppercase outside a small table header |
 
@@ -146,7 +137,7 @@ A story is the authoring format of a component check, and not a second test runn
 
 | Do | Do not |
 |---|---|
-| Write one story for each state the ticket names, and name the export for the criterion it proves | Write `Primary`, `WithProps`, or a permutation the ticket does not name |
+| Write a story for each page, and for a part with real logic. Name the export for the criterion it proves | Write a story file for a very small part that a page story already covers, or `Primary`, `WithProps` |
 | Follow CSF, and copy the shape from a story already in the tree | Break the format. The indexer throws before the first test starts |
 | Await every matcher, and take `expect` from the story test package | Use the Vitest `expect`, or drop an `await` |
 | Assert a role, an accessible name, the text, or a `data-` attribute | Assert a class name or a colour |
@@ -164,13 +155,12 @@ The code says what it does. A comment earns its place in three cases only, and i
 
 | Do | Do not |
 |---|---|
-| Write a comment block of three lines or fewer, and a line of 100 characters or fewer | Write a file header that states the surface. The ticket states it |
+| Keep a comment short | Write a file header that states the surface. The ticket states it |
 | Delete or correct every comment your change made false, in each file you touch | Leave a sentence that the code no longer obeys |
 | Put a ruling of the operator, and the defect that produced a rule, in the tracker and in the commit body | Write either one in the code. A history in a comment grows and no command reads it |
 | Keep a guess in one place, and say what is guessed and what proves it wrong | Spread a guess over two files, or name the ticket in the file |
 
-A comment carries no path, no `§` and no ticket number. The lint refuses each one, and it cannot
-be suppressed. Carry the reference in your report.
+A comment carries no path, no `§` and no ticket number. Carry the reference in your report.
 
 ## Before you report
 
@@ -182,5 +172,5 @@ be suppressed. Carry the reference in your report.
 4. Walk each row of *What to write* against the file.
 5. The check command passes and the test command passes.
 
-Report as RESULT, FILES, CHECK, RULES, ASSUMED, ASK. Leave the commit to the operator. Reach for
+Report what you changed, the checks you ran and each choice you made. Reach for
 the visual check agent only for what a story cannot hold: the live canvas, and a whole route.

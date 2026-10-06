@@ -5,7 +5,7 @@
 import type { GeoEntity } from './projection';
 
 /** Where one entity stands in the circle around a shared point. */
-export interface SpreadSlot {
+interface SpreadSlot {
   /** 0-based position in the circle. */
   readonly order: number;
   /** How many entities share this circle. Always at least 1. */

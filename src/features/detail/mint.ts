@@ -2,7 +2,6 @@
  * record corrects a key that stands; this makes one that does not. Two boxes are read into one
  * act, or into one sentence, so the reader and the words of the reader are one job. */
 
-import { ATTRIBUTE_KEY, ATTRIBUTE_KEY_LENGTH } from '@gab/proposal/attribute-value';
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { ClaimControl } from './claims';
@@ -17,7 +16,7 @@ export interface MintForm {
 
 /** The act one minted claim carries, or the sentence that says why no act can be made. The kind
  * is carried out so that the analyst reads it before the act leaves the browser. */
-export type MintDraft =
+type MintDraft =
   | {
       readonly ready: true;
       readonly attrs: AttributeEdit;
@@ -31,14 +30,6 @@ const NO_KEY = 'Write the key of the claim.';
 
 const NO_VALUE = 'Write the value of the claim.';
 
-// The same two rules `attrs_valid` holds in the record. The sentence states each part of the
-// shape, because `coal__stock` and `coal_stock_` break a rule that a shorter sentence hides.
-const KEY_SHAPE =
-  'A key is lower case words of letters and digits, joined by one underscore.' +
-  ' It starts with a letter, and it ends with a letter or a digit: coal_stock_t.';
-
-const KEY_LENGTH = `A key is ${String(ATTRIBUTE_KEY_LENGTH)} characters at most.`;
-
 const STANDS_ALREADY = 'This entity holds that key. Correct its value in the record above.';
 
 const refused = (refusal: string): MintDraft => ({ ready: false, refusal });
@@ -50,8 +41,6 @@ export function readMint(rows: readonly RecordRow[], form: MintForm): MintDraft 
 
   if (key === '' && text.trim() === '') return refused(NOTHING);
   if (key === '') return refused(NO_KEY);
-  if (key.length > ATTRIBUTE_KEY_LENGTH) return refused(KEY_LENGTH);
-  if (!ATTRIBUTE_KEY.test(key)) return refused(KEY_SHAPE);
   if (rows.some((row) => row.claim.key === key)) return refused(STANDS_ALREADY);
   if (text.trim() === '') return refused(NO_VALUE);
 

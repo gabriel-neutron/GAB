@@ -5,6 +5,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { SEEDED_RELATION_TYPES } from '../packages/proposal/src/relation-types.ts';
 import { seededVocabulary } from '../src/shared/vocabulary/declarations.ts';
 import { probe } from './probe.ts';
 
@@ -42,6 +43,35 @@ test('entity_type holds every declared type and no other', async () => {
       colour_light: row.colourLight,
       colour_dark: row.colourDark,
       ord: row.ord,
+      retired: retiredWhenSeeded,
+    })),
+  );
+});
+
+const relationTypeRows = z.array(
+  z.object({
+    key: z.string(),
+    label: z.string(),
+    inverse_label: z.string(),
+    takes_interval: z.boolean(),
+    retired: z.boolean(),
+  }),
+);
+
+const RELATION_TYPES = `
+  SELECT key, label, inverse_label, takes_interval, retired FROM public.relation_type`;
+
+test('relation_type holds every declared type and no other', async () => {
+  const live = await probe('superuser', async (ask) =>
+    relationTypeRows.parse(await ask(RELATION_TYPES)),
+  );
+
+  expect(byKey(live)).toStrictEqual(
+    byKey(SEEDED_RELATION_TYPES).map((row) => ({
+      key: row.key,
+      label: row.label,
+      inverse_label: row.inverseLabel,
+      takes_interval: row.takesInterval,
       retired: retiredWhenSeeded,
     })),
   );

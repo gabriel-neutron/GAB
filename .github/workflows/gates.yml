@@ -1,14 +1,13 @@
-# The gates that nobody has to remember. Every command below already existed in `package.json`,
-# and every one of them was voluntary: no hook and no runner called them.
+# The gates that nobody has to remember. Two jobs run on each pull request.
 #
-# The name is not `check`. `pnpm check` is defined in ADR 0001 §3 and it begins with the drift
-# check, which needs the database. Nothing here reaches the database, so this workflow runs
-# `check:static` — `pnpm check` without that first step — and then the build and the suite as
-# steps of their own. A weaker gate must not carry the name of the stronger one.
+# `no-stack` reaches no service: the type check, the lint, the format check, the build and the
+# check that the generated files match the committed ones.
 #
-# `OFFLINE` is a default here and it is a word the operator types anywhere else. The database
-# part of the suite needs Postgres, MinIO, the migrations and the fixture corpus, so it stays
-# with the operator. This workflow proves no perimeter, no role, no grant and no row.
+# `stack` starts the services that the suite reaches (the database, the read service of the test
+# database and the S3 store), builds the test database from zero, runs the drift check against it,
+# and then runs the whole suite. The database owns the data rules, so this job is the one check
+# that proves a perimeter, a role, a grant or a row. Each secret of the stack is a random value
+# that the job makes and drops: the stack holds no real data, so no repository secret is needed.
 
 name: gates
 
@@ -41,14 +40,10 @@ jobs:
       # operator installed.
       - run: pnpm install --frozen-lockfile
 
-      # The story project runs in a real Chromium. Only that browser is installed: the suite
-      # asks for no other, and each one costs a download on every run.
-      - run: pnpm exec playwright install --with-deps chromium
-
       # The type check, the lint and the format check.
-      - run: pnpm run check:static
+      - run: pnpm run check
 
-      # The bundle guard reads the emitted chunks, so the build is the only way to reach it.
+      # The production build must compile.
       - run: pnpm run build
 
       # `tsr generate` runs inside the type check and writes the route tree. `--porcelain` names
@@ -62,6 +57,56 @@ jobs:
             exit 1
           fi
 
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The story project runs in a real Chromium. Only that browser is installed: the suite
+      # asks for no other, and each one costs a download on every run.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Each name of the example gets a random value of letters and digits, so the file sets
+      # every name the suite expects, the compose file starts, and each access key differs.
+      - name: a throwaway environment for the stack
+        run: |
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*([A-Z_][A-Z0-9_]*)[[:space:]]*= ]]; then
+              echo "${BASH_REMATCH[1]}=$(openssl rand -hex 16)"
+            fi
+          done < infra/.env.example > infra/.env
+
+      # Only the services that the suite reaches. The model gateway and the search service are
+      # stubbed in each test that uses them.
+      - name: start the database and the S3 store
+        run: >-
+          docker compose --env-file infra/.env -f infra/docker-compose.yml -p gab
+          up --detach --wait --wait-timeout 300 db seaweedfs
+
+      - run: pnpm run db:reset
+
+      # The reset sets the password of the read role. A read service that starts before it fails
+      # its login, waits longer after each failure, and can miss the first tests.
+      - name: start the read service of the test database
+        run: >-
+          docker compose --env-file infra/.env -f infra/docker-compose.yml -p gab
+          up --detach --wait --wait-timeout 300 postgrest-test
+
+      - run: pnpm run db:drift
+
       - run: pnpm test
-        env:
-          OFFLINE: '1'
+
+      - name: the logs of the stack
+        if: failure()
+        run: docker compose --env-file infra/.env -f infra/docker-compose.yml -p gab logs --tail 200

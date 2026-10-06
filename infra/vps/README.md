@@ -1,23 +1,21 @@
 # infra/vps — the VPS runbook
 
-The VPS does the coding and the tooling. Claude Code runs there, and a cron job starts the night
-run. The VPS also runs a **disposable** test stack and two services that hold no record of the
+The VPS does the coding and the tooling. Claude Code runs there. The VPS also runs a **disposable** test stack and two services that hold no record of the
 project: freellmapi and SearXNG. freellmapi keeps the provider keys in its volume. The real database, the writer and the worker stay on the operator's Windows PC. The VPS
 never holds the real data.
 
 | File | Use |
 |---|---|
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
-| `.env.example` | Copy to `/home/claude/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
+| `.env.example` | Copy to `~/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
 | `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
-| `searxng/settings.yml` | SearXNG settings, with JSON output on. |
+| `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
-| `night-run.sh` | The night run: lock, checks, time limit, `claude -p`. |
 
-Conventions: the user `claude`, checkouts under `/home/claude/projects/`. GAB is at
-`/home/claude/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
-**root** need `sudo` (install, systemd, sysctl). All other commands run as `claude` on the VPS.
-The user `claude` must be in the `docker` group (`sudo usermod -aG docker claude`, then log in again). After each step, do the **Check**. If a check fails, stop.
+Conventions: a non-root user that runs the agents, with checkouts under `~/projects/`. GAB is at
+`~/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
+**root** need `sudo` (install, systemd, sysctl). All other commands run as that user on the VPS.
+That user must be in the `docker` group (`sudo usermod -aG docker "$USER"`, then log in again). After each step, do the **Check**. If a check fails, stop.
 
 ## 0. Prerequisites, and what only the operator can do
 
@@ -64,7 +62,7 @@ manager is used: the system Node must be 24.
 sudo apt-get update && sudo apt-get install -y git jq python-is-python3 unzip   # root
 node -v                       # must print v24.*; else install Node 24 from NodeSource (root)
 sudo corepack enable          # root
-mkdir -p /home/claude/projects && cd /home/claude/projects
+mkdir -p ~/projects && cd ~/projects
 git clone --branch staging https://github.com/gabriel-neutron/GAB.git
 cd GAB && pnpm install --frozen-lockfile
 ```
@@ -77,9 +75,9 @@ prints `staging`.
 ## 3. The disposable test stack
 
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 command -v docker || curl -fsSL https://get.docker.com | sudo sh   # root
-sudo usermod -aG docker claude   # root; then log out, log in again, and check that `docker ps` works
+sudo usermod -aG docker "$USER"   # root; then log out, log in again, and check that `docker ps` works
 cp infra/vps/test-stack.env.example infra/.env
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d --wait db
@@ -88,10 +86,13 @@ pnpm check
 ```
 
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
-The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`. An exited `minio-init` is normal.
+The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
-**Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` healthy, and `pnpm check`
-exits 0.
+The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its three
+accounts take the six `RAW_STORE_*_KEY` test values of `infra/.env`.
+
+**Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` and `seaweedfs` healthy, and
+`pnpm check` exits 0.
 
 ## 4. The GitHub identity of the VPS checkout
 
@@ -99,7 +100,7 @@ exits 0.
 the VPS can be the MerchantOS account. The token is pinned in the GAB checkout only.
 
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 command -v gh || sudo apt-get install -y gh   # root
 cp infra/vps/claude-settings.local.example.json .claude/settings.local.json
 chmod 600 .claude/settings.local.json
@@ -124,23 +125,22 @@ unset GH_TOKEN
 
 ## 5. freellmapi and SearXNG on the Tailscale address
 
-The env file stays outside the checkout, in `/home/claude/gab-services/`. An agent of the night run
-works in the checkout, and a deny rule does not stop a shell command that reads a file.
+The env file stays outside the checkout, in `~/gab-services/`. An agent works in the checkout, and a deny rule does not stop a shell command that reads a file.
 
 ```bash
-mkdir -p /home/claude/gab-services && chmod 700 /home/claude/gab-services
-ENVF=/home/claude/gab-services/.env
-cp /home/claude/projects/GAB/infra/vps/.env.example "$ENVF" && chmod 600 "$ENVF"
+mkdir -p ~/gab-services && chmod 700 ~/gab-services
+ENVF=~/gab-services/.env
+cp ~/projects/GAB/infra/vps/.env.example "$ENVF" && chmod 600 "$ENVF"
 sed -i "s/^BIND_IP=.*/BIND_IP=$(tailscale ip -4)/" "$ENVF"
 sed -i "s/^FREELLMAPI_ENCRYPTION_KEY=.*/FREELLMAPI_ENCRYPTION_KEY=$(openssl rand -hex 32)/" "$ENVF"
 sed -i "s/^SEARXNG_SECRET=.*/SEARXNG_SECRET=$(openssl rand -hex 32)/" "$ENVF"
 docker manifest inspect ghcr.io/tashfeenahmed/freellmapi:v0.13.3 >/dev/null && echo tag-ok
-cd /home/claude/projects/GAB/infra/vps
+cd ~/projects/GAB/infra/vps
 docker compose --env-file "$ENVF" -f services.compose.yml up -d --wait
 ```
 
 If `tag-ok` does not show, find the tag on the package page of the freellmapi repository, and
-set `FREELLMAPI_TAG` in `/home/claude/gab-services/.env`. For SearXNG, choose a tag from Docker Hub
+set `FREELLMAPI_TAG` in `~/gab-services/.env`. For SearXNG, choose a tag from Docker Hub
 (`searxng/searxng`, format `YYYY.M.D-<commit>`). Never `latest`.
 
 Docker binds a port only when the address exists. After a reboot, `tailscaled` can start before
@@ -148,7 +148,7 @@ it has the address. Let the kernel bind an address that does not exist yet, and 
 after Tailscale, so that a reboot does not lose the two services:
 
 ```bash
-# root: every line of this block uses sudo. A plain `>` would run as claude and fail.
+# root: every line of this block uses sudo. A plain `>` would run as the non-root user and fail.
 echo 'net.ipv4.ip_nonlocal_bind=1' | sudo tee /etc/sysctl.d/99-gab.conf
 sudo sysctl --system
 sudo mkdir -p /etc/systemd/system/docker.service.d
@@ -160,23 +160,22 @@ sudo systemctl daemon-reload
 Then, **PC:** open `http://<VPS_TS_IP>:4001` in a browser. Enter the provider keys on the
 **Keys** page. Copy the unified key (`freellmapi-...`) into the `infra/.env` of the PC (step 7).
 
-**Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `/home/claude/gab-services/.env`, run the
+**Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `~/gab-services/.env`, run the
 `up -d` command again, and on the PC run
-`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 claude@<VPS public IP>`.
+`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 <user>@<VPS public IP>`.
 
 **Check (VPS):** `ss -ltnp | grep -E ':4001|:8888'` shows only the Tailscale address, never
-`0.0.0.0`. `docker compose --env-file /home/claude/gab-services/.env -f services.compose.yml ps` shows
+`0.0.0.0`. `docker compose --env-file ~/gab-services/.env -f services.compose.yml ps` shows
 both services healthy. `sysctl net.ipv4.ip_nonlocal_bind` prints `= 1`.
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
 results, and `Invoke-RestMethod http://<VPS_TS_IP>:4001/api/ping` answers.
 
-## 6. Claude Code and the night run
+## 6. Claude Code
 
 Claude Code is already on the VPS for MerchantOS. The login belongs to `root`, so GAB uses it.
 The project settings come from the repository (`.claude/settings.json`). The local settings of
-step 4 add the PAT, an allow list and a deny list. The night run uses
-`--permission-mode acceptEdits`: a tool call outside the allow list is refused, and no prompt
-waits. Never use `--dangerously-skip-permissions` here: the VPS also holds MerchantOS.
+step 4 add the PAT, an allow list and a deny list. Never use `--dangerously-skip-permissions` here:
+the VPS also holds MerchantOS.
 
 The allow list and the deny list reduce mistakes. They are not a security control. `GH_TOKEN` is
 in the environment of each agent, and an allowed command such as `node` or `pnpm` can read it or
@@ -185,56 +184,31 @@ step 0 are the only lock on `main`. Keep the PAT on `gabriel-neutron/GAB` alone,
 permissions of step 0 alone.
 
 The docker compose rules of the allow list name one literal file,
-`/home/claude/projects/GAB/infra/docker-compose.yml`. A general `docker compose` rule gives root on the
+`~/projects/GAB/infra/docker-compose.yml`. A rule compares the text of the command, so the
+command must use this `~` form, not the full path. A general `docker compose` rule gives root on the
 host: a volume mount can read every file, and `down -v` of another project deletes its data.
 
+The work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No cron job
+starts an agent.
+
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
-chmod +x infra/vps/night-run.sh
-mkdir -p /home/claude/logs/gab-night
-crontab -e
 ```
-
-Add these lines. The times are UTC. The run starts at 00:30 UTC and stops at 05:30 UTC at the
-latest (`GAB_NIGHT_LIMIT`, default `5h`). Replace `<phase>` (the issue number of the phase ticket) and `<epic>` (the issue that gets the report) before each phase.
-
-```cron
-30 0 * * * /home/claude/projects/GAB/infra/vps/night-run.sh <phase> <epic>
-0 6 * * 0 find /home/claude/logs/gab-night -name '*.log' -mtime +30 -delete
-```
-
-Run `crontab -e` as the user `claude`, never as root. The script sets its own PATH, so the
-cron file needs no PATH line. The script holds `flock` on `~/.local/state/gab-night.lock`, so two runs never overlap. Before Claude
-Code starts, it stops on a wrong identity, a branch that is not `staging`, uncommitted changes,
-or a test stack that is not healthy. The log is
-`/home/claude/logs/gab-night/<UTC time>-phase<n>.log`.
-
-The allow list is a first version. After the first run, search the log for a refused tool call.
-Add a command to the allow list only when it is safe for an agent that nobody watches.
-
-**Check:** run the script once by hand on a small epic:
-`/home/claude/projects/GAB/infra/vps/night-run.sh <phase> <epic>`. The check passes only when the report
-comment of the run is on the epic issue. `END status=0` in the log alone does not prove that the
-workflow ended: `claude -p` can exit 0 after a refused tool call, or before the background
-workflow ran. The last line of the log gives the time of the last comment on the epic. Also, `tail -n 20
-/home/claude/logs/gab-night/*.log` shows `START`, then `END status=0`. Run it a second time while the
-first runs: the second log shows `STOP: another night run holds`.
 
 ## 7. The PC uses the VPS services
 
 The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. **The names below do not exist in the code yet.** Today
-`packages/model/src/client.ts` has a fixed OpenRouter address. The build tickets of ADR 0010 §4
-(endpoint setting) and §9 step 6 (SearXNG) must fix the final names.
+through Tailscale. The model adapter in `packages/model` reads the two model names below.
 
-| Name to be fixed by the build tickets | Value on the PC (`infra/.env`) |
+| Name | Value on the PC (`infra/.env`) |
 |---|---|
-| `GABRIEL_MODEL_ENDPOINT` | `http://<VPS_TS_IP>:4001/v1` |
-| `GABRIEL_MODEL_KEY` | the unified `freellmapi-...` key from the dashboard |
-| `GABRIEL_SEARCH_URL` | `http://<VPS_TS_IP>:8888` |
+| `FREELLMAPI_BASE_URL` | `http://<VPS_TS_IP>:4001/v1` |
+| `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
+| `SEARXNG_URL` | `http://<VPS_TS_IP>:8888` |
 
-`OPENROUTER_API_KEY` stays the paid switch (ADR 0010 §4).
+Every model call goes to freellmapi, and to no paid router (ADR 0010). The adapter refuses a
+model of any other provider.
 
 **Check (PC):** with the key in `$k`,
 `Invoke-RestMethod http://<VPS_TS_IP>:4001/v1/models -Headers @{Authorization="Bearer $k"}`
@@ -242,29 +216,23 @@ lists the models. Do not paste the key into a chat or a ticket.
 
 ## 8. Rollback, and stop everything
 
-| To stop | Command (VPS, in `/home/claude/projects/GAB`) |
+| To stop | Command (VPS, in `~/projects/GAB`) |
 |---|---|
-| The night run, for good | `crontab -e`, put `#` before the `night-run.sh` line |
-| A run that is in progress | `pkill -f night-run.sh; pkill -f 'claude -p GAB night run'` |
-| freellmapi and SearXNG | `docker compose --env-file /home/claude/gab-services/.env -f infra/vps/services.compose.yml down` |
+| freellmapi and SearXNG | `docker compose --env-file ~/gab-services/.env -f infra/vps/services.compose.yml down` |
 | The test stack, keep data | `docker compose -f infra/docker-compose.yml down` |
 | The test stack, delete data | `docker compose -f infra/docker-compose.yml down -v` (test data only) |
 | GitHub access of the VPS | Revoke the VPS PAT on GitHub. The PC PAT stays valid. |
 | Tailscale access | `tailscale down`, or remove the VPS in the Tailscale admin console |
 
-A bad night run lands only as pull requests and branches into `staging`. To undo one, close the
+An agent lands its work only as pull requests and branches into `staging`. To undo one, close the
 PR, or `git revert` its merge on `staging`. Never force-push `staging`. Keep `down -v` of
 `services.compose.yml` for a full reset: it deletes the freellmapi volume and its provider keys.
 
-**Check:** `crontab -l | grep night-run` shows the line with `#`, and `docker ps` shows no
-container you stopped.
+**Check:** `docker ps` shows no container you stopped.
 
 ## 9. Daily check list
 
-- [ ] `tail -n 30 "$(ls -t /home/claude/logs/gab-night/*.log | head -1)"` ends with `END status=0`.
-      `124` means the time limit stopped the run.
-- [ ] `gh pr list --base staging` (PC) shows the PRs of the night. No PR targets `main`.
-- [ ] The report comment is on the epic issue.
+- [ ] `gh pr list --base staging` (PC) shows the open PRs. No PR targets `main`.
 - [ ] `docker ps --format '{{.Names}} {{.Status}}'` shows each container `healthy` or `Up`.
 - [ ] The freellmapi dashboard shows quota left for the day.
 - [ ] `df -h /` shows more than 10 GB free.

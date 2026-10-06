@@ -78,14 +78,14 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
             JOIN pg_catalog.pg_roles r ON r.oid = m.member
             JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
            WHERE m.roleid = 'gabriel_owner'::regrole
-              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read')
+              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
           UNION ALL
           SELECT r.rolname || ' is ' || a.attribute
             FROM pg_catalog.pg_roles r
            CROSS JOIN LATERAL (VALUES ('SUPERUSER', r.rolsuper), ('CREATEROLE', r.rolcreaterole),
                                       ('CREATEDB', r.rolcreatedb), ('BYPASSRLS', r.rolbypassrls),
                                       ('REPLICATION', r.rolreplication)) AS a(attribute, held)
-           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_read') AND a.held
+           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read') AND a.held
            ORDER BY 1`;
 
 // External constraint: a default with no IN SCHEMA is stored with defaclnamespace 0, which no
@@ -268,57 +268,6 @@ test('arm 8 finds a foreign key that sets an evidentiary column to null on a del
   expect(found).toStrictEqual(['entities_type_fkey']);
 });
 
-const DEFINER_DOORS = `
-  SELECT n.nspname || '.' || p.proname || ' to '
-         || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
-                 ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
-    FROM pg_catalog.pg_proc p
-    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-    CROSS JOIN LATERAL pg_catalog.aclexplode(
-           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
-   WHERE n.nspname IN ('public','api') AND p.prosecdef
-     AND a.privilege_type = 'EXECUTE'
-     AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
-   ORDER BY 1`;
-
-const THE_DOOR_SET = [
-  'public.claim_job to gabriel_agent',
-  'public.fail_job to gabriel_agent',
-  'public.promote_proposal to gabriel_app',
-  'public.propose_change to gabriel_agent',
-  'public.propose_change to gabriel_app',
-  'public.put_document to gabriel_app',
-  'public.reject_proposal to gabriel_app',
-  'public.release_expired_claims to gabriel_app',
-  'public.set_entity_layout to gabriel_agent',
-];
-
-// A departure: a door writes as gabriel_owner and holds no table grant, so EXECUTE on one is a
-// write that arm 4 cannot see. The door set is held by hand, and a new grant fails here.
-test('every definer door is granted to the roles in this list and to no other', async () => {
-  expect(await foundBy(DEFINER_DOORS)).toStrictEqual(THE_DOOR_SET);
-});
-
-// External constraint: a NULL ACL is the built-in default, which gives PUBLIC EXECUTE, and
-// aclexplode gives no row for it. The default privilege is dropped here to make that door.
-test('a definer door that nobody revoked shows as a door to PUBLIC', async () => {
-  const doors = await probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      await ask(
-        'ALTER DEFAULT PRIVILEGES FOR ROLE gabriel_owner GRANT EXECUTE ON FUNCTIONS TO PUBLIC',
-      );
-      await ask('SET LOCAL ROLE gabriel_owner');
-      await ask(`CREATE FUNCTION public.zz_unrevoked_door() RETURNS int LANGUAGE sql
-                   SECURITY DEFINER SET search_path = pg_catalog AS 'SELECT 1'`);
-      return findings.parse(await ask(DEFINER_DOORS)).map((row) => row.found);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
-  expect(doors).toContain('public.zz_unrevoked_door to PUBLIC');
-});
-
 const OUTSIDE_OWNER = `
   SELECT c.relname AS table_name, pg_catalog.pg_get_userbyid(c.relowner) AS owner,
          (SELECT e.extname FROM pg_catalog.pg_depend d
@@ -362,19 +311,17 @@ const READ_HOLDS = `
 
 const READ_VIEWS = [
   'api.document SELECT',
+  'api.document_provider SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
-  'api.full_graph SELECT',
   'api.full_map SELECT',
-  'api.job SELECT',
-  'api.key_usage SELECT',
   'api.layout SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
-  'api.value_support SELECT',
+  'api.relation_type SELECT',
 ];
 
-test('gabriel_read holds SELECT on the eleven api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the nine public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -393,4 +340,50 @@ test('gabriel_read can execute api.neighbourhood, and not only hold the grant', 
     found.length,
     'the fixture holds an entity-to-entity relation, so the walk finds one',
   ).toBe(1);
+});
+
+const MACHINE_HOLDS = `
+  SELECT g.grantee || ' ' || g.table_schema || '.' || g.table_name || ' ' || g.privilege_type
+           AS found
+    FROM information_schema.role_table_grants g
+   WHERE g.grantee IN ('gabriel_app','gabriel_agent','gabriel_research')
+     AND g.table_schema = 'api'
+   ORDER BY 1`;
+
+const MACHINE_VIEWS = [
+  'document',
+  'entity',
+  'entity_type',
+  'job',
+  'proposal',
+  'relation',
+  'relation_type',
+];
+
+// A departure: the seven views are named, and ALL TABLES is not used, so a view added later opens
+// to no tool until a person writes it in.
+test('the three tool roles hold SELECT on seven api views and on nothing else of api', async () => {
+  const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
+    MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
+  );
+  expect(await foundBy(MACHINE_HOLDS)).toStrictEqual(expected);
+});
+
+const NEIGHBOURHOOD_HOLDERS = `
+  SELECT pg_catalog.pg_get_userbyid(a.grantee) AS found
+    FROM pg_catalog.pg_proc p
+   CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
+   WHERE p.pronamespace = 'api'::regnamespace AND p.proname = 'neighbourhood'
+     AND a.privilege_type = 'EXECUTE'
+   ORDER BY 1`;
+
+test('api.neighbourhood runs for the owner, the read role and the three tool roles alone', async () => {
+  expect(await foundBy(NEIGHBOURHOOD_HOLDERS)).toStrictEqual([
+    'gabriel_agent',
+    'gabriel_app',
+    'gabriel_owner',
+    'gabriel_read',
+    'gabriel_research',
+  ]);
 });

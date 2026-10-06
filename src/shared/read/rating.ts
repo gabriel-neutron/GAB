@@ -4,7 +4,7 @@
 import type { DocumentRow } from './model';
 
 /** What one document says about itself, in the words a surface draws. */
-export interface Rating {
+interface Rating {
   readonly rated: boolean;
   /** `not rated` where it is not rated. Never a dash, and never a zero. */
   readonly score: string;

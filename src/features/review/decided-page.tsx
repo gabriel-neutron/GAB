@@ -19,12 +19,12 @@ export function DecidedPage({ rows }: DecidedPageProps) {
     >
       <div className="max-w-[60rem] shrink-0 space-y-1 text-xs text-label">
         <p>
-          Each act the record promoted or rejected, the latest decision first. A decided act is
-          frozen, and no door opens it again.
+          Each act the record promoted, the latest decision first. A promoted act is frozen, and no
+          door opens it again. A rejected act is not public, so this page does not list it.
         </p>
         <p>
           A hold is not listed, because the record holds no hold. The record keeps no reason for a
-          promotion or a rejection.
+          promotion.
         </p>
         <p>
           The last column is the name the write service signs a verdict with. It does not prove that

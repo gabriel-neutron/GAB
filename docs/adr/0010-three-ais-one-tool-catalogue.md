@@ -1,188 +1,195 @@
-# ADR 0010 — Three AIs share one tool catalogue, and a source rule decides promotion
+# ADR 0010 — Three AIs share one tool catalogue
 
-**Status** Accepted · 3 October 2026
+**Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
+table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
+2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
+check by a second model family. · The lead agent added 6 October 2026.
 
-The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work —
-ingestion, tagging, extraction — on free tokens, so that these two tools spend no time on it. Each
-tool must be available to the web interface and to every AI. This ADR decides how. An adversarial
-review of the first proposal, on 3 October 2026, found 21 faults; this text holds the corrected
-version.
+## Context
 
-It **amends P1, S3, S4, PU1, P4, T5, T9a, ADR 0003 §7, #16 and #25**, and it **supersedes the
-resolution of #42**.
-The list is in §10.
+The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work on
+free tokens. Each tool must be available to the web interface and to each AI. This ADR decides how.
 
-### 1. Three AIs, and each one has one job
+## Three AIs, and each one has one job
 
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from the job table | Ingestion, tagging, extraction, mapping (P6), scoring (S3) | Free, through freellmapi |
-| Front-end AI | A chat route on the local writer | A question in the interface (W8, W9) | Free, through freellmapi |
+| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Free, through a model gateway |
+| Front-end AI | A chat route on the local writer | A question in the interface | Free, through a model gateway |
 
-**The cost rule.** Deterministic work is plain code with no model: hash, store, CSV load, PDF
-text, a registry API call. Repetitive judgement is the back-end AI. Reasoning is the operator AI.
-The operator AI never ingests with its own tokens: it stores a document and queues its extraction.
+**The cost rule.** Deterministic work is plain code with no model: hash, store, load, text
+extraction, a call to a registry API. Repetitive judgement is the back-end AI. Reasoning is the
+operator AI. The operator AI never ingests with its own tokens: it stores a document and queues its
+extraction.
 
-### 2. One catalogue, and a profile of eight tools or fewer per consumer
+## One catalogue, and few tools for each back-end agent
 
-`packages/tools` holds every tool once: a Zod input, a Zod output and one function. A surface is
-an adapter and holds no logic. Each consumer sees a **profile**, because a small model chooses
-badly among many tools:
+The tools package holds each tool once: a checked input, a checked output and one function. A
+surface is an adapter and holds no logic. Each back-end agent gives its model only the few tools of
+its job, because a small model chooses badly among many tools. The code of the agent holds that
+list.
 
-| Profile | Tools |
-|---|---|
-| research (MCP) | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `fetch_document`, `propose_change`, `enqueue_extract`, `job_status` |
-| extractor | `document_text`, `lookup_entity`, `propose_change` |
-| mapper (P6) | `file_schema_sample`, `propose_mapping` |
-| verifier | `document_text`, `proposal_read`, `vote` |
-| chat | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `enqueue_extract` |
+The operator AI reaches the catalogue through an MCP server, with no tool limit, because Claude Code
+and Codex are large models. With it, the operator AI can do each action that the research needs.
 
-A lookup tool of #174 joins a profile only when that profile stays at eight tools or fewer.
+**The MCP tools are flat.** Each catalogue tool is one MCP tool, with its own exact input schema
+and a hint that says whether it reads or writes. So the permission rules of Claude Code and Codex
+allow each read and ask the operator before each write. A group of tools behind one envelope was
+tried first: a model guessed the action names and the shape of the input, and a client could not
+allow the reads alone. A new external source is a new catalogue tool. This ADR fixes no list of
+tools.
 
-### 3. Each consumer has its own database role
+- The reads let the AI see the record before it proposes: an entity with its relations and
+  sources, the pending proposals, the vocabulary, a stored document, and the jobs of a document.
+- No input asks for a value that only a runner knows. The runner gives the record of its model
+  call to the propose tool in code, and the door makes the duplicate key from the act.
+- **A refusal says what to correct.** A shape refusal names the field and says how to write it. A
+  refusal of the record gives the sentence of the rule and its field. A fault of the connection
+  or of a role gives its code alone, because its text can name a host or a role.
 
-| Consumer | Surface | Role | Propose | Store | Promote |
-|---|---|---|---|---|---|
-| Operator | Interface → writer | `gabriel_app` | yes | `put_document` | yes |
-| Claude, Codex | MCP (stdio) | `gabriel_research` (new) | yes | `put_fetched_document` | no |
-| Back-end agents | Runner | `gabriel_agent` | yes | `put_fetched_document` | no |
-| Promotion rule | Runner | `gabriel_agent` | — | — | `decide_by_rule` only |
-| Chat | Writer route | `gabriel_read`, and enqueue through the writer | **no** | no | no |
+## Machine roles propose, and only the operator or the rule promotes
 
-**The MCP server never calls `/write/*`.** A writer door signs as the operator
-(`packages/writer/src/sign.ts`), so a call from Claude through it would enter the evidentiary
-layer as an operator act that nothing tells apart.
+Each consumer has its own database role.
 
-**`put_fetched_document` is a new, narrow door.** `put_document` is granted to `gabriel_app` only.
-The new door requires the bytes, `sha256`, `uri` and `retrieved_at`, and refuses a second row for
-the same `sha256`.
+- **The operator**, through the interface and the writer, can store, propose, promote and queue an
+  extraction.
+- **The operator AI**, through the MCP server, has its own research role. It can store a fetched
+  document and propose. It cannot promote.
+- **The back-end agents** have the agent role. They can store a fetched document, write their own
+  outputs and propose. They cannot promote, and they cannot start a lead.
+- **The promotion rule** runs as the agent role and does only the rule decision. ADR 0011 now holds
+  that rule.
+- **The chat** reads through the read role and can queue an extraction. It never proposes, because
+  a live answer must never become a proposal directly.
 
-**The research workspace is separate from the build workspace.** It is a `research/` folder with
-its own `AGENTS.md` (the one source of the research rules, read by Codex), a `CLAUDE.md` that
-imports it, its own MCP configuration and its own environment file. The research sessions must
-not read `infra/.env`, which holds the operator secret. The operator sets the deny rules of that
-workspace; this ADR only requires them.
+**A machine role writes only through narrow doors.** Each door is a database function that writes
+one kind of row. No machine role can write a table directly. The grants file in `db/` holds the
+doors of each role, and the perimeter tests check them.
 
-### 4. The model transport
+**Every AI proposes through one tool and one door.** The extractor and the research AI call the
+same propose tool. A call is a batch of items: each item is one act, the party that first stated
+it, how the page states it, and for its values the page and an excerpt copied from the stored text.
+The tool finds each excerpt in the page, also when the white space, the Unicode form or a hyphen at
+a line end differs, and calculates the offsets. An excerpt that the page does not hold refuses the
+whole batch, and the refusal names the item, so the model can correct it once. A value that no
+excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
+such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. A yes or no
+needs a word of yes or no, and a negative number needs its minus sign or a word for it. Code mints
+the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The items
+that name each other stay one linked batch, which the operator promotes or rejects as one unit. The door
+writes each act with its citations in one transaction, and it holds the rules of the data: a
+machine proposes a new entity, a new relation or new attributes and never a change of a name or a
+type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
+page. A pending act with the same operation, target, payload, sources and role is returned and not
+written again, so a retry or a second run writes no duplicate. The door adds to that act each
+citation that it does not hold yet. Another role is another witness, and its act stays separate.
+The originator does not make a second act, because a model words one party in more than one way:
+the act that waits keeps the originator that it was written with. The cited passage is private:
+the review card reads it through the
+writer, and the public read never shows it. **Cost:** a model that cannot copy a quote word for
+word loses its claim, and an excerpt proves only that the page holds the words.
 
-- freellmapi is the default endpoint, and OpenRouter is the paid switch. The endpoint is a
-  setting of each agent, next to `model`. **This amends #25**, which chose OpenRouter.
-- **A back-end agent pins one model and never uses `auto`.** If the served model differs from the
-  requested model, the answer is refused. Two models in one job make the extraction inconsistent
-  and turn dissent into noise.
-- **Dissent needs a second model family.** The verifier is pinned to a family that differs from
-  the extractor (#25 item 4).
-- **A `model_call` table lands in the same change as the first agent**: agent version, requested
-  model, served model, tokens, latency, outcome. P4 already requires the emitting agent; without
-  this table a disputed claim cannot be traced to a prompt or a model.
-- Zod at the boundary (T6) stays the only check of structure. The gateway checks only that JSON
-  parses.
+**The MCP server never calls the writer.** The writer signs each act as the operator. A call from an
+AI through the writer would enter the evidence as an operator act that nothing tells apart.
 
-### 5. The job table grows a kind, an end and a pause
+**The research workspace is separate from the build workspace.** A research session must not read
+the operator secret. Its rules override the build rules of the repository, so a research session
+never changes code and never commits. It reaches the object store by its address, so the store
+can run on another machine.
 
-- `jobs.kind`: `store_only`, `extract_text`, `map_structured`. Storing a page no longer starts an
-  extraction by itself.
-- A `complete_job` door. Today only `fail_job` ends a job.
-- **A quota pause spends no attempt.** The runner asks the gateway for quota before it claims. An
-  exhausted quota pauses the runner; it does not fail the job. **This amends T9a.**
-- The claim lease is longer than the worst case of one job, waits included.
-- An idempotency key — document, agent version, chunk hash — stops a requeued job from writing a
-  second set of proposals.
+## External sources are reached on demand
 
-### 6. A fetch answers at once, and an extraction is queued
+- A fetch answers at once and uses no model. It stores the bytes, extracts the text and returns
+  the text in the same turn, because the research needs the page now. An extraction is queued, and
+  the AI follows the job.
+- **A list of search results is a lead, and it is not stored.** An API answer that lists
+  candidates is a search result, also when the query is an identifier. Only the read of one record
+  by its identifier, or one page that is fetched, becomes a document.
+- The same bytes are stored once.
+- One fetch reads one address. No crawl and no schedule: a person or an AI asks for each fetch.
 
-- `fetch_document` is synchronous and uses no model. It stores the bytes, extracts the text and
-  returns the text and the document id in the same turn. The research loop needs the page now.
-- Extraction is asynchronous: `enqueue_extract`, then `job_status`.
-- **A search result list is a lead and is not stored.** Only a page that is fetched becomes a
-  document. Otherwise the corpus fills with result lists.
-- `sha256` decides identity before `put_fetched_document`.
-- One fetch, one URL. No crawl and no schedule (PRD §5).
+## The model transport
 
-### 7. Promotion by a source rule, in three bands
+- **Every model call goes to the free model gateway.** No paid router is a switch any more.
+- **A maintained library makes the calls.** The Vercel AI SDK, with its OpenAI-compatible
+  provider, replaces a custom client. Both are free and under the Apache 2.0 licence, and the
+  versions are pinned exactly. One small adapter holds the rules of the project: the token budget
+  of each job, the network retries with a wait that grows and the wait that the gateway asks for,
+  one retry with the fault for an answer of a bad shape, and the stops for credits and for a text
+  that is too long. **Cost:** a new dependency that changes often, and a library error that the
+  adapter does not know stops the job.
+- **The adapter takes only a model of the free gateway.** The library sends a bare model name to
+  a paid router of its vendor. So the adapter takes no name: it takes only a chat model that the
+  OpenAI-compatible provider made for the gateway, and it refuses a model of any other provider.
+- **A back-end agent pins one model.** A middleware reads the served model of each answer before
+  any tool runs. If it differs from the requested model, the answer is refused. Two models in one
+  job make the extraction inconsistent.
+- **Each model call is recorded** before the proposal that it leads to is written, so that a
+  disputed claim can be traced to a prompt and a model.
+- **A model of another family checks each extracted claim.** Before the extractor writes its
+  items, the checker reads each item with its passage: the checked excerpt and the words around
+  it. It answers supported, not supported or unclear: one question for each passage, one verdict
+  for each item. An answer that is not "supported", or a checker that fails, marks the item as
+  disputed when it is written, and the mark cannot change later. The item keeps the verdict and
+  the short reason of the checker with the mark, as a private note for the review card. A failure
+  of the checker never
+  drops an item. The two families are set in the configuration, and the worker does not start
+  when they are the same. This check replaces the blind second reading, which wrote rows that
+  nothing read. **Cost:** one more call for each passage, from the same token budget, and the
+  operator must keep two models of two families available on the gateway.
+- **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
+  has no lease and no count of attempts. At its start the worker puts back each job that a crash
+  left running. The operator queues a failed document again by hand. A job that runs again writes
+  no second set of proposals, because the propose door returns the act that waits.
 
-The operator decided this on 3 October 2026. **A rule score, computed by the database from the
-cited sources, puts each machine proposal in one of three bands:**
+## The lead agent
 
-| Band | Condition | Effect |
-|---|---|---|
-| Accept | score ≥ high threshold | Promoted by the rule |
-| Review | between the two thresholds | Review queue, in S3 order |
-| Drop | score < low threshold | Rejected by the rule |
+The operator, from the interface, or the research AI, through the MCP server, gives a lead: a
+short text such as "a company and its vessels". The lead is a job with its text and no document.
+A back-end agent runs it with real tool calls: web search, news search, graph search, a search of
+the stored documents, fetch, and queue an extraction. The extractor keeps its JSON answers, and
+code writes its proposals.
 
-**The score is the evidence, not the model's opinion of itself.** It counts the independent
-sources the proposal cites and the ADMIRALTY rating of each. The minimum count, the minimum
-rating and the two thresholds are operational parameters (spec §7). **Two sources on the same
-upstream feed count as one** (CARTO plan §4).
+- **It stores and queues, and it proposes nothing.** Code queues the extraction of each page that
+  the agent stores, so the claims reach the review queue through the extractor. The agent has no
+  propose tool, and its role holds no grant to start a lead, so it starts no lead of its own.
+- **It never stores a page twice.** Before each fetch, code looks for the address in the stored
+  documents, in the form that the fetch stores: no fragment, and with or without a slash at the
+  end of the path. A stored page is not fetched again, and the model reads its document id.
+- **It fetches only public addresses.** A search result and a page are untrusted text. The fetch
+  refuses an address of the machine or of a private network, so a page cannot send the agent to
+  an internal service.
+- **A lead setting never stops the extraction.** When a lead setting is absent, the worker starts,
+  and each lead fails at once with a reason that names the setting.
+- **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
+  it needs. The token budget of the job is its one stop, and the job fails with that reason. The
+  pages stored before the stop stay stored.
+- **The lead is private.** Its text can name a party before a source supports it. Only the
+  operator reads the leads and what each one stored. The worker reads the text of the one lead
+  that it claims, and the research AI gets only the job id of a lead that it starts.
+- **No schedule.** A person or the research AI starts each lead.
 
-**Locks.** `decide_by_rule(p_id)` is a SECURITY DEFINER door. It accepts only when all of these
-are true:
+**Cost:** the agent reads only the start of each page, so it can miss a page that a long document
+points to. A lead that loops spends its whole budget before it stops.
 
-1. The parameters exist. **With no parameter row, the door does nothing**, and every proposal
-   goes to the queue. The rule is therefore off until #9 sets the values on real data.
-2. A cited source counts only if its rating came from the operator or from the source-class table
-   (CARTO plan §4), never from a model alone. Otherwise a model rates a document A and then
-   promotes its own claim.
-3. `dissent = false`, with a verifier vote from a second model family.
-4. The operation is never `merge_entities`, never a deletion, and never an update that replaces a
-   value the operator promoted.
-5. The attribute key already exists for that entity type, so the rule does not create new keys
-   (M11).
+## The chat is local, and the conversations are private
 
-**Origin.** The door writes `decision_origin = 'rule:<version>'` in a typed column. The public
-views show it (S4, PU1). A rule decision is reversed by an inverse proposal built from
-`prior_value`. Removing the parameter row stops the rule at once.
+The chat runs on the operator's writer, not on the public deployment. The results are public. The
+conversations go in a part of the database that the public read path cannot see.
 
-### 8. The chat is local and never proposes
-
-The chat runs on the operator's writer, not on the public deployment, which has no write path and
-no authentication (C5). It reads through `gabriel_read`, so T4 is not amended. **It never
-proposes** (#18: a live answer never becomes a proposal directly), and it ships only with the
-#18 tables. It comes last, because MCP already gives Claude and Codex the same tools.
-
-### 9. Build order
-
-Each step names what it unblocks for the research.
-
-1. **Ingest command**: `sha256` deduplication, `put_document`, `jobs.kind = store_only`, and the
-   rating door of #19. *The existing reports and the 82 rated sources become documents that a
-   claim can cite.*
-2. **Research workspace and MCP server**: read, propose, `fetch_document`, the
-   `gabriel_research` role. *Claude and Codex work on #159 and cite stored documents.*
-3. **Batch promotion (#145).** *The review keeps up with the volume.*
-4. **Runner**: `complete_job`, `model_call`, endpoint setting, pinned model, quota pause. *Queued
-   extraction of the reports.*
-5. **Extractor and verifier agents**, then the mapper (#29). *Proposals at volume, and the data
-   that #9 needs.*
-6. **Lookup tools of #174**: SearXNG, Wayback, GLEIF, and the others in order. *Wider sources for
-   #159.*
-7. **#9 calibration**, then `decide_by_rule`. *The review load falls.*
-8. **Local chat** with the #18 tables. *W8 and W9 in the interface.*
-
-### 10. Entries this ADR changes
-
-| Entry | Change |
-|---|---|
-| P1 | The operator, **or the source rule of §7**, moves a proposal to the evidentiary layer. Spec §2 invariant 5, spec §5 (the OPEN branch), PRD §4.3 and W6 follow. |
-| #42 resolution | Superseded. "No proposal skips the queue" is true only below the high threshold. #139 and #145 keep it for the review band. |
-| S3 | Dissent and the rule score order the review band. This replaces the order of #42. The band edges are the parameters of §7. |
-| S4, PU1 | The decision origin is a typed column, published and labelled. |
-| ADR 0003 §7 | A fifth role, `gabriel_research`. New grants: `put_fetched_document`, `decide_by_rule`. |
-| P4, #16 | `model_call` lands with the first agent. |
-| #25 | freellmapi by default, OpenRouter as the switch, pinned models, a second family for dissent. |
-| T9a | Quota pause, `complete_job`, lease rule, `jobs.kind`. |
-| T5 | Two services are added: freellmapi and SearXNG. They hold no record of the project, run on the operator's VPS, and listen on its private network address only (`infra/vps/`). |
+**Not built.** The chat is not built. Its store of conversations had no caller, and it was removed
+on 6 October 2026. The chat feature builds its store again.
 
 ## Consequences
 
-- **A rule-promoted claim is a claim that no person read.** The dataset must say so for each
-  claim (PU1), and S3's warning stays true: the agents share their blind spots, and no accuracy
-  rate is defensible without an audit sample.
-- The rule is only as good as the ratings it counts. Lock 2 is the reason the rule can exist at
-  all; a change that lets a model's own rating count reopens this ADR.
-- freellmapi has no service-level agreement (SLA) and quality falls late in the UTC day. The quota pause and the pinned
-  model contain this; they do not remove it.
-- Two new services (freellmapi, SearXNG) run on the operator's VPS, on its private network address
-  only. The real database, the writer and the worker stay on the operator's machine. The VPS holds
-  a disposable test stack for the night build runs, and never the real data.
+- **A claim that the rule promotes is a claim that no person read.** The dataset must tell this for
+  each claim, and the agents share their blind spots. No accuracy rate is defensible without an
+  audit sample.
+- The rule is only as good as the checks and the audit of ADR 0011. A change that lets a model
+  write a rating, a state or an audit label reopens ADR 0011.
+- The free gateway has no service level. The pinned model and a failure that shows its reason
+  contain this risk. They do not remove it. A spent quota fails each job until the gateway has
+  quota again, and the operator queues the documents again.
+- Two support services are added: the model gateway and a metasearch engine. They hold no record of
+  the project and listen on a private address only.

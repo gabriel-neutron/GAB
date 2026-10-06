@@ -2,7 +2,7 @@ import type { GroundSource } from './basemap';
 
 // Every export here is one job: the closed set of imagery sources, and every reading of a date
 // inside it. A second file would carry the same bounds twice.
-export type ImageryKind = 'eox' | 'gibs-s30' | 'gibs-l30';
+type ImageryKind = 'eox' | 'gibs-s30' | 'gibs-l30';
 
 /** The two sources that take one day. The composite takes one year. */
 type DailyKind = Exclude<ImageryKind, 'eox'>;
@@ -119,11 +119,11 @@ export function imageryGround(imagery: Imagery): GroundSource {
 }
 
 /** What the panel offers: one year out of a closed list, or one day inside two bounds. */
-export type ImageryPick =
+type ImageryPick =
   | { readonly unit: 'year'; readonly year: number; readonly years: readonly number[] }
   | { readonly unit: 'day'; readonly day: string; readonly min: string; readonly max: string };
 
-export interface ImageryWords {
+interface ImageryWords {
   readonly source: string;
   readonly date: string;
   readonly resolution: '10 m' | '30 m';

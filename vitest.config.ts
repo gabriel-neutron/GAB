@@ -68,6 +68,10 @@ const nodeProject = (
 const SCHEMA_GROUP = 1;
 const WRITER_GROUP = 2;
 
+// Departure: the end-to-end test starts the runner in a child process on its own connection, so
+// its rows commit, and the runner takes any queued job. It runs alone, after every other project.
+const END_TO_END_GROUP = 3;
+
 // Departure: the dot in `.db-test.ts` holds the two halves apart, because `*.test.ts` does not
 // match it. The offline half takes each other test file, so no new test file falls outside it.
 const offlineProject = nodeProject('offline', [
@@ -81,11 +85,14 @@ const liveProjects = [
   nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
   nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET, WRITER_GROUP),
   nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('tools', ['packages/tools/src/**/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('mcp', ['packages/mcp/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP),
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
   nodeProject('corpus', ['tools/corpus/*.db-test.ts'], LIVE_TARGET),
   nodeProject('service', ['tools/service/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('e2e', ['packages/*/src/**/*.e2e-test.ts'], LIVE_TARGET, END_TO_END_GROUP),
 ];
 
 export default defineConfig({

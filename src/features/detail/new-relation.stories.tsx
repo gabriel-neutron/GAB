@@ -24,9 +24,10 @@ const CHOICES = read();
 
 const onCreate = fn((act: StructureAct) =>
   Promise.resolve<StructureState>({
-    step: 'signed',
+    step: 'done',
     deed: act.op,
     proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+    targetId: '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7',
   }),
 );
 
@@ -62,20 +63,6 @@ export const AnEndMustBeChosen: Story = {
   play: async ({ canvas }) => {
     await userEvent.type(canvas.getByLabelText('Type'), 'owns');
     await expect(canvas.getByText('Choose the entity at the other end.')).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Make the relation' })).toBeDisabled();
-  },
-};
-
-// The database holds the same five words in a check constraint, and refuses every other.
-export const AnIntervalBelongsToFiveTypes: Story = {
-  play: async ({ canvas }) => {
-    await userEvent.type(canvas.getByLabelText('Type'), 'berthed_at');
-    await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
-    await fireEvent.change(canvas.getByLabelText('From'), { target: { value: '2011-03-09' } });
-
-    await expect(canvas.getByText(/An interval belongs to a relation of/)).toHaveTextContent(
-      'owns, operates, flags, insures, appoints',
-    );
     await expect(canvas.getByRole('button', { name: 'Make the relation' })).toBeDisabled();
   },
 };

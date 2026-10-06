@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 import type { ScreenMatches } from '@/shared/screen-matches';
 
-export interface MatchListProps {
+interface MatchListProps {
   readonly id: string;
   readonly matches: ScreenMatches;
   readonly active: number | null;

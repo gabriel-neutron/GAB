@@ -46,3 +46,6 @@ npm-debug.log*
 # Tests
 
 .playwright-mcp/
+
+# The report that a run of pnpm worker ingest writes where it starts
+ingest-report.json

@@ -78,7 +78,7 @@ export function Sidebar({ dossier, onSelectRelation }: SidebarProps) {
           relations={dossier.relations}
           mark={mark}
           deleting={{ offered: false }}
-          onSelect={onSelectRelation}
+          {...(onSelectRelation === undefined ? {} : { onSelect: onSelectRelation })}
         />
       </Band>
       <Band name="Pending proposals" count={dossier.pending.length}>

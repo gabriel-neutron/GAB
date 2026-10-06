@@ -215,7 +215,7 @@ CREATE TABLE entities (
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
 
-  -- INVARIANTS 1 AND 4, in the exact tier docs/spec.md §2 names: a check on the shape of the
+  -- INVARIANTS 1 AND 4, in the exact tier docs/spec.md names: a check on the shape of the
   -- attribute object. No write path avoids it, because it sits on the column.
   CONSTRAINT entities_attrs_valid CHECK (attrs_valid(attrs)),
   CONSTRAINT entities_sources_shape

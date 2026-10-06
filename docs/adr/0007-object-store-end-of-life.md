@@ -1,45 +1,53 @@
-# ADR 0007 — The object store stays MinIO, and its successor is chosen
+# ADR 0007 — The object store is SeaweedFS
 
-**Status** Accepted · 7 September 2026
+**Status** Accepted · 7 September 2026 · Amended 5 October 2026
 
-ADR 0002 §1 runs the raw store as MinIO, and its Consequences record that the upstream is archived
-and that the tracker carries the risk. The risk is now answered, so it leaves the tracker and takes
-a decision. T3 puts the raw file in an S3 store; it names no product, so nothing here contradicts
-the locked register.
+## Decision
 
-### 1. The bucket stays on MinIO for the first build
+The raw store is an S3 server. SeaweedFS runs it in the local stack. The image is pinned, and one
+service holds one private bucket for the raw files. The service makes the bucket when it starts.
+The bucket is reachable on the loopback address only.
 
-It stays on the pinned release `RELEASE.2025-09-07T16-13-09Z`. The store works, ADR 0002 §4 binds
-it to `127.0.0.1`, and a move costs a migration of the bytes for a fault nobody has met.
+The code speaks S3 and nothing else. A deployment can use any S3 provider through configuration.
+This ADR chooses no provider for a deployment. `spec.md` T3 asks for an S3 store and names no
+product, so this ADR does not contradict the register.
 
-### 2. One trigger moves it, and it is written before it fires
+## Least privilege
 
-Any CVE published against the MinIO server that touches the pinned release. The upstream is
-archived — `repos/minio/minio` reports `archived=true`, last push 24 April 2026 — so "published"
-and "no patch" are the same day, and no waiting period exists to spend.
+One file in `infra/` holds the accounts and their policies. It holds no key: each key comes from the
+environment.
 
-A second trigger: the day the bucket leaves the loopback address, or a second person writes to it.
+- **The application** can put an object and list the bucket. It cannot read back, delete or change
+  a policy. A raw file is evidence, so the application never removes or replaces one.
+- **The research role** can only put an object.
+- **A test account** has full access to the bucket, for the tests only.
+- **No anonymous access** exists.
 
-### 3. The successor is tested, and not assumed
+A test against the real store proves these limits. It is the proof of this decision.
 
-**SeaweedFS** `chrislusf/seaweedfs:3.97`, Apache-2.0. Proven on 7 September 2026 under Docker
-Desktop on Windows 11: it held the private bucket `raw` with anonymous GET and anonymous list both
-refused with 403, and it answered the unmodified project client with the credentials already in
-`infra/.env` — `PUT OK`, `LIST OK 1`. No source file changed.
+## Reason
 
-**Garage** `dxflrs/garage:v2.1.0`, AGPL-3.0, also passed, and it refused the project key with
-`Invalid key format ... starts with GK`. It therefore costs new credentials, and it is the fallback.
+SeaweedFS is open source under a permissive licence, runs as one small service and supports managed
+policies. A managed policy lets the application write without the right to delete.
 
-AGPL-3.0 has no effect on PU1 either way. The image is unmodified, the port is bound to the
-loopback address, and the S3 protocol is the boundary. §13 of that licence binds a modifier who
-lets remote users interact, and there is no modification and no remote user.
+**Garage** is the fallback. It passed a smaller proof: a private bucket, put and list. It refused
+the format of the project keys, so a move to Garage costs new credentials. Its licence has no effect
+on the publication rules, because the image is unmodified and the S3 protocol is the boundary.
+
+## When to move
+
+The operator moves away from SeaweedFS when one of these occurs:
+
+- a security fault or an end of support touches the pinned release;
+- the bucket leaves the loopback address, or a second person writes to it.
 
 ## Consequences
 
-- **The move is a Compose-file edit and a copy of the bytes**, for as long as no caller uses a
-  MinIO-only surface: the admin API, bucket notification, or the console as a product surface. The
-  first such caller makes this decision more expensive, and it is the fact that proves it wrong.
-- **The trigger must be watched by a person.** No feed is subscribed, and no check runs. An
-  archived upstream publishes no advisory of its own.
-- **The candidate ages.** The proof above keeps its date. A move made long after it needs the same
-  two commands run again, and not a fresh comparison.
+- The stack does not start without the store keys in the environment.
+- The managed policies depend on the IAM engine of SeaweedFS. A new release must pass the store
+  test before the pin moves. A failure of that test proves this decision wrong.
+- The upstream image can disappear. Then the operator copies the pinned image to the project
+  registry, and the Compose file points to the copy.
+- A move to another S3 server is a change to the Compose file and a copy of the bytes, while no
+  caller uses a function that only SeaweedFS has. The first such caller makes a move more costly.
+- A person must watch the triggers. No feed and no check does it.

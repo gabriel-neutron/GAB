@@ -1,0 +1,34 @@
+{
+  "name": "@gab/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./catalogue": "./src/catalogue.ts",
+    "./document-text": "./src/document-text.ts",
+    "./enqueue-extract": "./src/enqueue-extract.ts",
+    "./fetch-document": "./src/fetch-document.ts",
+    "./fetch-fixture": "./src/fetch-fixture.ts",
+    "./fetch-guard": "./src/fetch-guard.ts",
+    "./find-document": "./src/find-document.ts",
+    "./news-search": "./src/news-search.ts",
+    "./propose": "./src/propose.ts",
+    "./search-graph": "./src/search-graph.ts",
+    "./tool": "./src/tool.ts",
+    "./web": "./src/web.ts",
+    "./web-search": "./src/web-search.ts",
+    "./web-stub": "./src/web-stub.ts"
+  },
+  "dependencies": {
+    "@gab/proposal": "workspace:*",
+    "@gab/store": "workspace:*",
+    "@gab/text": "workspace:*",
+    "exiftool-vendored": "^38.3.0",
+    "playwright": "^1.62.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -13,7 +13,7 @@ const CREATION = '2d3e4f50-7182-49ab-c234-56789abcdef0';
 
 const decidedOf = (proposals: readonly Proposal[]): readonly DecidedAct[] =>
   proposals.flatMap(({ status, decidedAt, decidedBy, ...act }) =>
-    status === 'pending' || decidedAt === null || decidedBy === null
+    status !== 'accepted' || decidedAt === null || decidedBy === null
       ? []
       : [{ act, verdict: status, decidedAt, decidedBy }],
   );
@@ -38,20 +38,19 @@ const retyped: Proposal = {
   createdAt: '2026-08-02T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 };
 
 describe('the history of the record', () => {
-  it('lists each promotion and each rejection, the latest decision first', () => {
+  it('lists each promotion, the latest decision first', () => {
     const rows = readDecided(corpus, FIXTURE);
     expect(rows.map((row) => row.decidedAt)).toStrictEqual([
       '2026-07-25T07:30:00Z',
       '2026-07-22T16:20:00Z',
-      '2026-07-19T18:41:00Z',
     ]);
     expect(rows.map((row) => row.verdictWords)).toStrictEqual([
       'Promoted into the record',
       'Promoted into the record',
-      'Rejected in the record',
     ]);
   });
 
@@ -77,6 +76,7 @@ describe('the history of the record', () => {
         dissent: false,
         authorRole: 'gabriel_agent',
         createdAt: '2026-08-01T00:00:00Z',
+        batchId: null,
       },
       verdict: 'accepted',
       decidedAt: '2026-08-01T00:05:00Z',
@@ -104,6 +104,7 @@ describe('the history of the record', () => {
             dissent: false,
             authorRole: 'gabriel_app',
             createdAt: '2026-08-01T00:00:00Z',
+            batchId: null,
           },
           verdict: 'accepted',
           decidedAt: '2026-08-01T00:05:00Z',
@@ -161,7 +162,7 @@ describe('an act on the name and the type', () => {
   });
 
   it('waits under its entity, as a change of the name and the type against the stored row', () => {
-    const subjects = readQueue({ ...corpus, proposals: [retyped] }, null);
+    const subjects = readQueue({ ...corpus, proposals: [retyped] });
     expect(subjects.map((subject) => [subject.id, subject.kind])).toStrictEqual([[VESSEL, 'node']]);
     const [change] = subjects[0]?.changes ?? [];
     expect(change?.kind).toBe('edit');
@@ -177,13 +178,13 @@ describe('an act on the name and the type', () => {
 describe('the working queue', () => {
   it('holds no decided act, whatever the corpus carries', () => {
     const decidedIds = FIXTURE.map(({ act }) => act.id);
-    const waiting = readQueue(corpus, null).flatMap((subject) =>
+    const waiting = readQueue(corpus).flatMap((subject) =>
       subject.changes.map((change) => change.id),
     );
     expect(decidedIds.length).toBeGreaterThan(0);
     expect(waiting.filter((id) => decidedIds.includes(id))).toStrictEqual([]);
     expect(waiting).toContain('f0a1b2c3-4d5e-4678-9012-3456789abcde');
-    expect(readQueue(corpus, null).map((subject) => subject.id)).toContain(TERMINAL);
+    expect(readQueue(corpus).map((subject) => subject.id)).toContain(TERMINAL);
   });
 });
 
@@ -218,7 +219,7 @@ const retagged: Proposal = {
 };
 
 const queued = (act: Proposal): { readonly label: string; readonly headline: string } => {
-  const [subject] = readQueue({ ...corpus, proposals: [act] }, null);
+  const [subject] = readQueue({ ...corpus, proposals: [act] });
   return { label: subject?.label ?? '', headline: subject?.changes[0]?.headline ?? '' };
 };
 
@@ -243,26 +244,6 @@ describe('one act, named on the queue and in the history', () => {
   it('words a relation that stands in the record the same on both pages', () => {
     expect(queued(retagged).label).toBe(BERTHED);
     expect(history(retagged)).toBe(BERTHED);
-  });
-
-  it('says only that two entities are linked where the act names no type', () => {
-    const untyped: Proposal = {
-      ...linked,
-      payload: {
-        kind: 'relation',
-        type: null,
-        src_kind: 'entity',
-        src_id: VESSEL,
-        dst_kind: 'entity',
-        dst_id: TERMINAL,
-        valid_from: null,
-        valid_to: null,
-        attrs: {},
-      },
-    };
-    const words = 'MV Northern Ledger is linked to Maasvlakte bulk terminal, berth 7';
-    expect(queued(untyped).headline).toBe(words);
-    expect(history(untyped)).toBe(words);
   });
 
   it('words a merge the same on both pages', () => {

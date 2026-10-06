@@ -78,6 +78,7 @@ const addressed = (uri: string): SourceCardModel => {
     admiralty: held.admiralty,
     admiralty_origin: held.admiraltyOrigin,
     created_at: null,
+    cost_eur: null,
   });
   const documents = corpus.documents.map((row) => (row.id === read.id ? read : row));
   return sourceIn(cardsOf({ ...corpus, documents }), read.id);
@@ -206,5 +207,22 @@ export const AClaimTheDocumentHoldsUpIsNamed: Story = {
       await expect(canvas.getByText(claim.label)).toBeInTheDocument();
       await expect(canvas.getByText(claim.text)).toBeInTheDocument();
     }
+  },
+};
+
+// The record holds the bytes of this document, so the operator can extract its claims here.
+export const AStoredDocumentOffersAnExtraction: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+// A hand entry holds no bytes, so nothing can be extracted from it.
+export const AHandEntryOffersNoExtraction: Story = {
+  args: { source: UNRATED },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.queryByRole('button', { name: 'Extract claims' })).toBeNull();
   },
 };

@@ -20,7 +20,7 @@ const CUT: SubjectRow = {
   contested: true,
 };
 
-const SUBJECTS = sortSubjects(readQueue(reviewSample, null), 'confidence');
+const SUBJECTS = sortSubjects(readQueue(reviewSample), 'confidence');
 
 const ROWS = railRows(SUBJECTS, {});
 
@@ -53,7 +53,7 @@ type Story = StoryObj<typeof meta>;
 /** The queue lists what is being changed, and never one act on its own. */
 export const TheQueueListsSubjectsAndCountsTheirActs: Story = {
   play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(3);
+    await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(4);
     const terminal = canvasElement.querySelector(`[data-subject="${SAMPLE.contestedRow}"]`);
     const counts = [...(terminal?.querySelectorAll('[data-count]') ?? [])].map((held) => [
       held.getAttribute('data-count'),

@@ -12,16 +12,49 @@ const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 const ABSORBED = '9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04';
 
-/** The two subjects a story names. Each one is the target of an act below. */
+const BATCH = 'bb000001-0000-4000-8000-000000000000';
+const NEW_OWNER = 'bb000001-0000-4000-8000-000000000001';
+const NEW_VESSEL = 'bb000001-0000-4000-8000-000000000002';
+
+/** The subjects a story names. Each one is the target of an act below. */
 export const SAMPLE = {
   /** Four acts, and two of them read one key. */
   contestedRow: TERMINAL,
   /** One act, and it destroys the row. */
   destroyedRow: VESSEL,
+  /** Three acts of a machine that name each other: a company, its vessel and the link. */
+  linkedBatch: BATCH,
 } as const;
 
-// NO ACT BELOW NAMES A LINK, so the queue draws no link subject, and the relations of the corpus
-// reach no screen a story reads. An act on a relation belongs here on the day one is drawn.
+// A machine act of the linked batch. Each one cites one page of one document.
+const batchAct = (
+  id: string,
+  op: 'create_entity' | 'create_relation',
+  payload: Proposal['payload'],
+  names: readonly string[],
+): Proposal => ({
+  id,
+  op,
+  targetKind: null,
+  targetId: null,
+  payload,
+  src: ['doc_8f2a41'],
+  names,
+  priorValue: null,
+  confidence: null,
+  dissent: false,
+  authorRole: 'gabriel_research',
+  status: 'pending',
+  createdAt: '2026-08-08T10:00:00Z',
+  decidedAt: null,
+  decidedBy: null,
+  batchId: BATCH,
+});
+
+const NO_GEOMETRY = { geom: null, attrs: {} } as const;
+
+// NO SINGLE ACT BELOW NAMES A LINK, so the queue draws no link subject, and the relations of the
+// corpus reach no screen a story reads. The link of the batch is filed under its batch.
 const proposals: readonly Proposal[] = [
   {
     // Dissent. S3 sends it to review whatever the confidence is.
@@ -43,6 +76,7 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-03T09:12:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
   {
     // The second reading of one key, from a second document. It contests the act above.
@@ -61,6 +95,7 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-05T07:20:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
   {
     // A third act on the same row, on a key that does not stand. It is not contested.
@@ -79,6 +114,7 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-06T11:02:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
   {
     // The fourth act of the node, and the only one that states no confidence. A card must say
@@ -98,6 +134,7 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-07T08:15:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
   {
     // A deletion, so a screen can draw what an act destroys key by key.
@@ -119,6 +156,7 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-02T05:44:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
   {
     // An act that cites a document the record does not hold. The screen states it, never hides it.
@@ -141,14 +179,43 @@ const proposals: readonly Proposal[] = [
     createdAt: '2026-08-01T09:00:00Z',
     decidedAt: null,
     decidedBy: null,
+    batchId: null,
   },
+  batchAct(
+    NEW_OWNER,
+    'create_entity',
+    { kind: 'entity', type: 'company', label: 'Ledger Shipping', ...NO_GEOMETRY },
+    [],
+  ),
+  batchAct(
+    NEW_VESSEL,
+    'create_entity',
+    { kind: 'entity', type: 'vessel', label: 'MV Test Ledger', ...NO_GEOMETRY },
+    [],
+  ),
+  batchAct(
+    'bb000001-0000-4000-8000-000000000003',
+    'create_relation',
+    {
+      kind: 'relation',
+      type: 'owns',
+      src_kind: 'entity',
+      src_id: NEW_OWNER,
+      dst_kind: 'entity',
+      dst_id: NEW_VESSEL,
+      valid_from: null,
+      valid_to: null,
+      attrs: {},
+    },
+    [NEW_OWNER, NEW_VESSEL],
+  ),
 ];
 
 export const reviewSample: Corpus = { ...corpus, proposals };
 
 /** A story reads the derivation the route reads, so it never draws a shape it cannot produce. */
 export function sampleSubject(id: string): Subject {
-  const held = readQueue(reviewSample, null).find((subject) => subject.id === id);
+  const held = readQueue(reviewSample).find((subject) => subject.id === id);
   if (held === undefined) throw new Error(`No subject ${id} waits in the review sample.`);
   return held;
 }

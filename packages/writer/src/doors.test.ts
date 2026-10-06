@@ -12,7 +12,12 @@ const replyShape = z.strictObject({
   refusal: z.string().optional(),
   doubt: z.string().optional(),
   proposalId: z.string().optional(),
+  targetId: z.string().optional(),
+  state: z.string().optional(),
 });
+
+// An act door never reaches the raw store, so this one refuses every object.
+const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
 
 const lostSocket = (): Error => Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
 
@@ -21,7 +26,7 @@ const postText = async (
   door: string,
   text: string,
 ): Promise<[number, z.infer<typeof replyShape>]> => {
-  const answer = await writeRoutes(pool).request(`/write/${door}`, {
+  const answer = await writeRoutes(pool, NO_STORE).request(`/write/${door}`, {
     method: 'POST',
     headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: text,
@@ -35,6 +40,21 @@ const post = (
   body: unknown,
 ): Promise<[number, z.infer<typeof replyShape>]> => postText(pool, door, JSON.stringify(body));
 
+const privateRead = async (
+  pool: Sessions,
+  door: string,
+  body: unknown,
+): Promise<[number, unknown]> => {
+  const answer = await writeRoutes(pool, NO_STORE).request(door, {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return [answer.status, await answer.json()];
+};
+
+const DOCUMENT = { documentId: 'doc_0123456789ab' };
+
 const ENTITY = { type: 'vessel', label: 'MV Northern Ledger' };
 
 // Departure: each failure is logged whole for the operator, and the log is not under test.
@@ -46,30 +66,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('a lost promotion of a signed act answers 409, the doubt and the name of the act', async () => {
-  const held = faultyPool([{ on: 'promote_proposal', cause: lostSocket() }]);
+// The act and its promotion run in one statement, so a lost answer names no act: the browser
+// reads the record again before the operator acts.
+test('a lost answer to a signed act is a doubt, and never a 422 refusal', async () => {
+  const held = faultyPool([{ on: 'sign_change', cause: lostSocket() }]);
 
-  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
-  ]);
+  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([502, { doubt: DOUBT }]);
+  expect(held.releases()).toBe(1);
 });
 
-test('a lost commit of the proposal answers a doubt, and never a 422 refusal', async () => {
-  const held = faultyPool([{ on: 'COMMIT', cause: lostSocket() }]);
-
-  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
-  ]);
-});
-
-test('a lost decision answers 409, the doubt and the name of the act', async () => {
+test('a lost decision is a doubt, and never a 422 refusal', async () => {
   const held = faultyPool([{ on: 'promote_proposal', cause: lostSocket() }]);
 
   expect(await post(held.pool, 'promote-proposal', { proposalId: held.proposalId })).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
+    502,
+    { doubt: DOUBT },
+  ]);
+});
+
+test('a signed act answers the proposal and the row it wrote', async () => {
+  const held = faultyPool([]);
+
+  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
+    200,
+    { proposalId: held.proposalId, targetId: held.targetId, state: 'signed' },
   ]);
 });
 
@@ -111,3 +131,28 @@ test.each(['[]', 'null', '"x"'])(
     ]);
   },
 );
+
+// A lost answer of a queue door may stand as a job, so it is a doubt on every door.
+test.each([
+  ['/write/queue-extraction', 'enqueue_job', DOCUMENT],
+  ['/write/document-jobs', 'document_jobs', DOCUMENT],
+  ['/write/start-lead', 'start_lead', { lead: 'a company and its vessels' }],
+  ['/private/leads', 'lead_jobs', {}],
+  ['/private/passages', 'citation', { proposalIds: [] }],
+])('a lost answer on %s is a doubt, and the client goes back', async (door, on, body) => {
+  const held = faultyPool([{ on, cause: lostSocket() }]);
+
+  expect(await privateRead(held.pool, door, body)).toStrictEqual([502, { doubt: DOUBT }]);
+  expect(held.releases()).toBe(1);
+});
+
+test.each([
+  ['/write/queue-extraction', DOCUMENT],
+  ['/write/start-lead', { lead: 'a company and its vessels' }],
+  ['/private/passages', { proposalIds: [] }],
+])('a pool that gives no client answers 503 on %s', async (door, body) => {
+  expect(await privateRead(unreachablePool(), door, body)).toStrictEqual([
+    503,
+    { refusal: UNREACHABLE },
+  ]);
+});

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { Button } from '@/shared/ui/button';
 
-export interface DeleteControlProps {
+interface DeleteControlProps {
   /** What is destroyed, in the words of the record. The question names it, so a mis-click on a
    * row cannot destroy evidence that the analyst never read. */
   readonly name: string;

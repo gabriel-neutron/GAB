@@ -33,7 +33,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
   const onSend = (): void => {
     if (!draft.ready || busy) return;
     void onCreate(draft.act).then((state) => {
-      if (state.step === 'signed') setForm(BLANK);
+      if (state.step === 'done') setForm(BLANK);
     });
   };
 
