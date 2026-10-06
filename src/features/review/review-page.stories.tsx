@@ -24,7 +24,7 @@ const meta = {
     queue: { subjects: SUBJECTS, verdicts: {} },
     examination: { subjectId: CONTESTED, sort: 'confidence' },
     decision: { step: 'idle' },
-    passages: { state: 'held', byAct: {} },
+    passages: { state: 'held', byAct: {}, disputes: {} },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -282,14 +282,23 @@ const PASSAGE = {
   text: 'The tanker left the quay on 12 March 2024, and Rosneft owns it.',
 };
 
+const WHY = 'the checker says unclear: the page names two owners';
+
 /** The operator decides on the proof itself: the card of a machine act shows the words of the
- * page that the act cites, with the document and the page. */
+ * page that the act cites, with the document and the page, and why a check disputes the act. */
 export const TheCardShowsThePassageThatTheActCites: Story = {
-  args: { passages: { state: 'held', byAct: { [FIRST_ACT]: [PASSAGE] } } },
+  args: {
+    passages: {
+      state: 'held',
+      byAct: { [FIRST_ACT]: [PASSAGE] },
+      disputes: { [FIRST_ACT]: WHY },
+    },
+  },
   play: async ({ canvas }) => {
     const cited = canvas.getByRole('region', { name: 'The cited passages' });
     await expect(cited).toHaveTextContent(PASSAGE.text);
     await expect(cited).toHaveTextContent('A port report of 12 March 2024, page 3');
+    await expect(canvas.getByText(WHY)).toBeInTheDocument();
   },
 };
 
@@ -304,6 +313,7 @@ export const ALinkedBatchIsOneCardWithEveryActAndItsPassages: Story = {
     passages: {
       state: 'held',
       byAct: Object.fromEntries(BATCH_ACTS.map((id) => [id, [PASSAGE]])),
+      disputes: {},
     },
   },
   play: async ({ canvas, canvasElement }) => {

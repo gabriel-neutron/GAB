@@ -4,7 +4,8 @@ import { fold } from './excerpt.ts';
 
 type Scalar = string | number | boolean;
 
-interface Named {
+/** One value of an act: the field that holds it, and the value. */
+interface ActValue {
   readonly name: string;
   readonly value: Scalar;
 }
@@ -152,7 +153,7 @@ const stated = (value: Scalar, passage: string): boolean => {
 
 const attributeValues = (
   attrs: Readonly<Record<string, { readonly v: unknown }>> | undefined,
-): Named[] =>
+): ActValue[] =>
   Object.entries(attrs ?? {}).flatMap(([key, held]) =>
     (Array.isArray(held.v) ? held.v : [held.v])
       .filter(
@@ -164,7 +165,7 @@ const attributeValues = (
 
 // The type of an entity or a relation is a word of the vocabulary, and a page never states it in
 // that form. The two ends of a relation are identifiers. So neither one is read in the text.
-const valuesOf = (act: WriteRequest): Named[] => {
+const valuesOf = (act: WriteRequest): ActValue[] => {
   switch (act.op) {
     case 'create_entity':
       return [{ name: 'label', value: act.label }, ...attributeValues(act.attrs)];
@@ -181,14 +182,8 @@ const valuesOf = (act: WriteRequest): Named[] => {
   }
 };
 
-/** The names of the values of an act that no cited passage states, in any form of that value. */
-export const unstatedValues = (act: WriteRequest, passages: readonly string[]): string[] => {
+/** The values of an act that no cited passage states, in any form of that value. */
+export const unstatedValues = (act: WriteRequest, passages: readonly string[]): ActValue[] => {
   const text = passages.join('\n');
-  return [
-    ...new Set(
-      valuesOf(act)
-        .filter((named) => !stated(named.value, text))
-        .map((n) => n.name),
-    ),
-  ];
+  return valuesOf(act).filter((named) => !stated(named.value, text));
 };
