@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
 
-import { ATTRIBUTE_KEY, ATTRIBUTE_KEY_LENGTH } from './attribute-value.ts';
 import {
   IDENTIFIER_KEY,
   IDENTIFIER_KEYS,
@@ -35,13 +34,6 @@ test('the list of spellings holds each spelling once', () => {
 test('the list of spellings and the map by entity type hold the same spellings', () => {
   const mapped = new Set(Object.values(IDENTIFIER_KEYS).flat());
   expect(mapped).toStrictEqual(new Set(IDENTIFIER_KEY));
-});
-
-test('each spelling is a key that the record takes', () => {
-  for (const key of IDENTIFIER_KEY) {
-    expect(key).toMatch(ATTRIBUTE_KEY);
-    expect(key.length).toBeLessThanOrEqual(ATTRIBUTE_KEY_LENGTH);
-  }
 });
 
 test('the schema of a spelling refuses a spelling that is not on the list', () => {

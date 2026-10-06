@@ -1,5 +1,4 @@
-/** Every relation type the seed writes, and the only place one is declared. The seed and the
- * door that checks an interval both read it, so the two cannot hold different words. */
+/** Every relation type the seed writes, and the only place one is declared. */
 
 /** One row of `relation_type`. `inverseLabel` reads a relation from its far end. */
 export interface SeededRelationType {
@@ -46,8 +45,3 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   // missing word never fails the promotion.
   relationType('unknown', 'is linked to', 'is linked to', false),
 ];
-
-/** The types that take an interval, in the order of the list. */
-export const DATED_RELATIONS: readonly string[] = SEEDED_RELATION_TYPES.filter(
-  (row) => row.takesInterval,
-).map((row) => row.key);

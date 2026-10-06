@@ -81,8 +81,7 @@ const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
 type WriterSays =
   | { readonly said: 'signed' }
   | { readonly said: 'refused'; readonly refusal: string }
-  | { readonly said: 'blocked'; readonly refusal: string }
-  | { readonly said: 'undecided'; readonly refusal: string };
+  | { readonly said: 'doubt' };
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -94,10 +93,8 @@ const answerOf = (says: WriterSays): Response => {
       return json(200, { state: 'signed', proposalId: PROPOSAL, targetId: VESSEL });
     case 'refused':
       return json(422, { refusal: says.refusal });
-    case 'blocked':
-      return json(409, { refusal: says.refusal });
-    case 'undecided':
-      return json(409, { refusal: says.refusal, proposalId: PROPOSAL });
+    case 'doubt':
+      return json(502, { doubt: 'the record gave no answer to read' });
   }
 };
 
@@ -422,19 +419,22 @@ export const ASignedMintClearsTheForm: Story = {
   },
 };
 
-// The proposal is committed and the promotion refused it. That name is the only way back to it.
-export const AnUndecidedActNamesItsProposal: Story = {
+// The writer reached the record and lost its answer. The act is one transaction, so it stands
+// whole or not at all, and the page claims neither end.
+export const ALostAnswerSaysTheChangeMayStand: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ said: 'undecided', refusal: 'the target no longer exists' });
+    const door = doorAnswering({ said: 'doubt' });
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
     door.open();
 
     await waitFor(async () => {
-      await expect(saveAlarmIn(canvasElement)).toHaveTextContent('it was not signed');
+      await expect(saveAlarmIn(canvasElement)).toHaveTextContent(
+        'It is not known whether the change was written',
+      );
     });
-    await expect(saveAlarmIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    await expect(saveAlarmIn(canvasElement)).not.toHaveTextContent('Nothing was written');
   },
 };
 
@@ -464,14 +464,16 @@ export const AListTakesACommaWithNoSpace: Story = {
   },
 };
 
-// The record refuses the deletion of an entity that a relation stands on, and it counts them.
-// The count and the next step of the analyst must both reach the screen.
+// The record refuses the deletion of an entity that a relation stands on. It counts them and it
+// names the next step, and the page shows its sentence whole.
 export const ARefusedDeletionNamesTheCount: Story = {
   play: async ({ canvas, canvasElement }) => {
     await toggleView(canvasElement);
     const door = doorAnswering({
-      said: 'blocked',
-      refusal: 'the entity is an endpoint of 3 relations, and it is not deleted',
+      said: 'refused',
+      refusal:
+        'targetId: the entity is an endpoint of 3 relations, and it is not deleted. Delete each' +
+        ' of those relations first, and then delete the entity again',
     });
     await userEvent.click(canvas.getByRole('button', { name: `Delete ${DOSSIER.label}` }));
     await userEvent.click(
@@ -486,47 +488,6 @@ export const ARefusedDeletionNamesTheCount: Story = {
     await expect(shapeSaidIn(canvasElement)).toHaveTextContent(
       'Delete each of those relations first',
     );
-  },
-};
-
-// Departure: the refusal below does not say 'endpoint'. The status tells the page that other
-// rows stand on the relation, so the next step does not depend on the words of the writer.
-export const ABlockedRelationDeletionNamesTheNextStep: Story = {
-  play: async ({ canvasElement }) => {
-    await toggleView(canvasElement);
-    const door = doorAnswering({
-      said: 'blocked',
-      refusal: 'the relation stands under 2 relations, and it is not deleted',
-    });
-    await askToDelete(canvasElement, RELATION);
-    await expect(knock).toHaveBeenCalledWith('/write/delete-relation', { targetId: RELATION_ID });
-    door.open();
-
-    await waitFor(async () => {
-      await expect(shapeSaidIn(canvasElement)).toHaveTextContent('under 2 relations');
-    });
-    await expect(shapeSaidIn(canvasElement)).toHaveTextContent(
-      'Delete each of those relations first, and then delete this relation again.',
-    );
-  },
-};
-
-// Departure: this refusal says 'endpoint', and no row stands on the entity. The next step then
-// sends the analyst to delete relations that are not there.
-export const ARefusalThatSaysEndpointGivesNoNextStep: Story = {
-  play: async ({ canvasElement }) => {
-    await toggleView(canvasElement);
-    const door = doorAnswering({
-      said: 'refused',
-      refusal: 'the endpoint kind of the entity is not one the record holds',
-    });
-    await askToDelete(canvasElement, DOSSIER.label);
-    door.open();
-
-    await waitFor(async () => {
-      await expect(shapeSaidIn(canvasElement)).toHaveTextContent('the endpoint kind');
-    });
-    await expect(shapeSaidIn(canvasElement)).not.toHaveTextContent('Delete each of those');
   },
 };
 
@@ -586,38 +547,22 @@ export const ASignedRelationClearsTheForm: Story = {
   },
 };
 
-// The writer signs in two transactions. The proposal committed, the promotion rolled back, and
-// the entity stands. A sentence that reads as "it is deleted" sends the analyst away from a row
-// that is still in the record, with an unsigned proposal to destroy it beside it.
-export const AnUndecidedDeletionSaysTheEntityStands: Story = {
+// The writer lost the answer of the record. The deletion may stand, so the page claims neither
+// end and it does not leave the page.
+export const ALostAnswerToADeletionSaysTheRelationMayStand: Story = {
   play: async ({ canvasElement }) => {
     await toggleView(canvasElement);
-    const door = doorAnswering({ said: 'undecided', refusal: 'the promotion did not run' });
-    await askToDelete(canvasElement, DOSSIER.label);
-    door.open();
-
-    await waitFor(async () => {
-      await expect(shapeAlarmIn(canvasElement)).toHaveTextContent('The entity is not deleted');
-    });
-    const said = shapeAlarmIn(canvasElement);
-    await expect(said).toHaveTextContent('unsigned proposal to delete it is in the record');
-    await expect(said).toHaveTextContent(PROPOSAL);
-    await expect(onDeleted).not.toHaveBeenCalled();
-  },
-};
-
-export const AnUndecidedRelationDeletionSaysTheRelationStands: Story = {
-  play: async ({ canvasElement }) => {
-    await toggleView(canvasElement);
-    const door = doorAnswering({ said: 'undecided', refusal: 'the promotion did not run' });
+    const door = doorAnswering({ said: 'doubt' });
     await askToDelete(canvasElement, RELATION);
     await expect(knock).toHaveBeenCalledWith('/write/delete-relation', { targetId: RELATION_ID });
     door.open();
 
     await waitFor(async () => {
-      await expect(shapeAlarmIn(canvasElement)).toHaveTextContent('The relation is not deleted');
+      await expect(shapeAlarmIn(canvasElement)).toHaveTextContent(
+        'It is not known whether the relation was deleted',
+      );
     });
-    await expect(shapeAlarmIn(canvasElement)).toHaveTextContent(PROPOSAL);
+    await expect(shapeAlarmIn(canvasElement)).not.toHaveTextContent('Nothing was written');
   },
 };
 

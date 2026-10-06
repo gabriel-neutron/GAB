@@ -34,7 +34,7 @@ test('a promotion goes to the promote door, and only there', async () => {
   said({ proposalId: ACT, targetId: TARGET, state: 'decided' });
 
   expect(await sendVerdict(ACT, 'promoted')).toStrictEqual({
-    step: 'decided',
+    step: 'done',
     changeId: ACT,
     verdict: 'promoted',
   });
@@ -45,7 +45,7 @@ test('a rejection goes to the reject door, and only there', async () => {
   said({ proposalId: ACT, targetId: null, state: 'decided' });
 
   expect(await sendVerdict(ACT, 'rejected')).toStrictEqual({
-    step: 'decided',
+    step: 'done',
     changeId: ACT,
     verdict: 'rejected',
   });
@@ -56,7 +56,7 @@ test('a hold reaches no door', async () => {
   said({ proposalId: ACT, targetId: null, state: 'decided' });
 
   expect(await sendVerdict(ACT, 'deferred')).toStrictEqual({
-    step: 'decided',
+    step: 'done',
     changeId: ACT,
     verdict: 'deferred',
   });
@@ -70,7 +70,7 @@ test('a decision whose result is unknown is a doubt, and never a refusal', async
     step: 'unknown',
     changeId: ACT,
     verdict: 'promoted',
-    doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+    doubt: 'The write service did not confirm the act, and the act may have run whole.',
   });
 });
 

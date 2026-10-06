@@ -72,6 +72,7 @@ test('the role matrix of the doors', async () => {
       "public.set_entity_layout": "agent",
       "public.set_operator_letter": "app",
       "public.set_party_false": "app",
+      "public.sign_change": "app",
     }
   `);
 });
@@ -97,19 +98,22 @@ test('no door is open to PUBLIC or to the public read role', async () => {
 });
 
 // Any door that decides a proposal has "promote" or "reject" in its name, so a new door of that
-// kind falls under the rule with no edit here.
+// kind falls under the rule with no edit here. The act of the operator promotes the proposal it
+// writes, and the step that writes the record runs inside both, so the two are named.
 const DECIDING_DOORS_HELD = `
   SELECT r.role, p.oid::regprocedure::text AS door
     FROM pg_catalog.pg_proc p
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
-     AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%')
+     AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%'
+          OR p.proname IN ('sign_change', 'apply_proposal'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
 
 const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
-     AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%')`;
+     AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%'
+          OR p.proname IN ('sign_change', 'apply_proposal'))`;
 
 test('a machine role holds no door that promotes or rejects', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
@@ -127,6 +131,17 @@ for (const identity of ['agent', 'research'] as const)
         ),
       ).rejects.toMatchObject({ code: '42501' });
     });
+
+for (const identity of ['agent', 'research'] as const)
+  test(`gabriel_${identity} is refused when it signs an act of the operator`, async () => {
+    await expect(
+      rolledBack(identity, (ask) =>
+        ask(`SELECT * FROM public.sign_change('a perimeter test', 'create_entity',
+               '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['manual'],
+               NULL, NULL, '{}')`),
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
 
 test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
