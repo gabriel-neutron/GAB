@@ -20,7 +20,7 @@ const pageRows = z.array(
 );
 
 /** The pages of the newest text set of one document. */
-export interface NewestPages {
+interface NewestPages {
   /** The extractor of the set. A reading names it with its page. */
   readonly textSet: string;
   readonly pages: readonly PageText[];

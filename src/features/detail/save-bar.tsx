@@ -2,7 +2,7 @@ import { SaidLine } from '@/shared/said-line';
 import type { Said } from '@/shared/said';
 import { Button } from '@/shared/ui/button';
 
-export interface SaveBarProps {
+interface SaveBarProps {
   /** What the act said, and whether it interrupts. Both are derived before they arrive, and
    * this file composes neither. */
   readonly said: Said;

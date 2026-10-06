@@ -38,14 +38,14 @@ export type ReviewAct =
 
 /** Everything that waits for a decision, and what this pass decided of it. A decided act leaves
  * the queue when the record is read again, so a verdict here outlives its act by one read. */
-export interface ReviewQueue {
+interface ReviewQueue {
   readonly subjects: readonly Subject[];
   readonly verdicts: Verdicts;
 }
 
 /** What is under examination. The address holds the subject and the workspace holds the order,
  * and this page reads both once. */
-export interface Examination {
+interface Examination {
   readonly subjectId: string | null;
   readonly sort: SortKey;
 }

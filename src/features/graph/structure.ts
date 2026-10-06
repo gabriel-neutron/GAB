@@ -1,9 +1,9 @@
-export interface Topology {
+interface Topology {
   forEachNode(cb: (node: string) => void): void;
   degree(node: string): number;
 }
 
-export interface TopologyLink {
+interface TopologyLink {
   readonly source: string;
   readonly target: string;
 }
@@ -31,7 +31,7 @@ export function topologyOf(nodes: Iterable<string>, links: Iterable<TopologyLink
   };
 }
 
-export interface Structure {
+interface Structure {
   readonly isolates: readonly string[];
   readonly largestDegree: number;
 }

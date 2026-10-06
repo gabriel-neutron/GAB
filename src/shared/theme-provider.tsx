@@ -14,7 +14,7 @@ interface ShellWorkspace {
   theme: Theme;
 }
 
-export const isTheme = (value: unknown): value is Theme =>
+const isTheme = (value: unknown): value is Theme =>
   value === 'dark' || value === 'light' || value === 'system';
 
 // The compiler holds this list closed: a key added to `ShellWorkspace` and forgotten here fails

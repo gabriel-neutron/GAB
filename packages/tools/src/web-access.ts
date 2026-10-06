@@ -7,8 +7,8 @@ import { ToolRefusal } from './tool.ts';
 
 // Assumptions of the first build, each one a constant. A search answers inside ten seconds or it
 // is a service to try later, and a list of results is a few tens of kilobytes.
-export const TIMEOUT_MS = 10_000;
-export const MAX_BYTES = 1024 * 1024;
+const TIMEOUT_MS = 10_000;
+const MAX_BYTES = 1024 * 1024;
 
 /** A fault of an upstream. Its message is a constant sentence and holds no address and no key. */
 export class UpstreamFault extends Error {}
@@ -19,7 +19,7 @@ export const webFromReach = (reach: Reach | undefined): Web => {
   return reach.web;
 };
 
-export interface Get {
+interface Get {
   readonly headers?: Readonly<Record<string, string>>;
   readonly timeoutMs?: number;
 }

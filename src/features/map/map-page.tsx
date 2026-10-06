@@ -13,7 +13,7 @@ import { GroundControl } from './ground-control';
 import { Rail } from './rail';
 import { patchMapWorkspace, readMapWorkspace } from './workspace';
 
-export interface MapPageProps {
+interface MapPageProps {
   // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
   // may hold nothing, and a later read of the record reaches the map as a new value.
   readonly corpus: Corpus;

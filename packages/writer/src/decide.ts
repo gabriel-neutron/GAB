@@ -7,7 +7,7 @@ import { failureFrom, refusalFrom } from './refusal.ts';
 
 /** What one decision became. `blocked` is the act the record refused, and nothing was written.
  * `undecided` is the act whose answer never came back: it may stand in the record. */
-export type DecidedAct =
+type DecidedAct =
   | {
       readonly outcome: 'decided';
       readonly reply: {

@@ -45,7 +45,7 @@ export const tokensOf = (body: unknown): number => {
 };
 
 // `error_type` is the stable word. The service gives the same word for every upstream provider.
-export const errorBody = z.object({
+const errorBody = z.object({
   error: z.object({
     message: z.string().nullish(),
     code: z.union([z.string(), z.number()]).nullish(),

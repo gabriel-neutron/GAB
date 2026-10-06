@@ -4,7 +4,7 @@ import { cn } from '@/shared/lib/utils';
 
 import type { Verdict } from './queue';
 
-export interface VerdictMarkProps {
+interface VerdictMarkProps {
   readonly verdict: Verdict;
   /** For a pointer. The caller draws the same words for a reader, seen or unseen, because only
    * the caller knows whether its line has room for them. */

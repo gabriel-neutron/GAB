@@ -95,7 +95,7 @@ const sessionOf = (db: Queryable): Session => ({
 
 const proposeTool = CATALOGUE.find((tool) => tool.name === 'propose_change');
 
-export interface StubAgentOptions {
+interface StubAgentOptions {
   readonly kind?: RunnerAgent['kind'];
   readonly chunks?: readonly string[];
   /** Throws after the proposals of the first run are written, as a worker that dies would. */
@@ -158,7 +158,7 @@ export const stubAgent = (options: StubAgentOptions = {}): RunnerAgent => {
   };
 };
 
-export interface Stubs {
+interface Stubs {
   readonly deps: RunnerDeps;
   readonly slept: number[];
 }

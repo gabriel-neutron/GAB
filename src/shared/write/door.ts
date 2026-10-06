@@ -5,7 +5,7 @@ import { type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
 /** The six acts the writer signs. The door of each one is derived here and named by no caller. */
-export type WriteOp = (typeof WRITE_OPS)[number];
+type WriteOp = (typeof WRITE_OPS)[number];
 
 /** What one request became. `blocked` is a refusal that other rows of the record cause, and the
  * analyst can remove them. `undecided` is the act that reached the record and was not signed.
@@ -34,7 +34,7 @@ const NO_VERDICT =
 
 /** What one decision became. It landed, the record refused it and nothing was written, or this
  * page cannot learn which of the two happened. */
-export type DecisionOutcome =
+type DecisionOutcome =
   | { readonly state: 'decided'; readonly proposalId: string; readonly targetId: string | null }
   | { readonly state: 'refused'; readonly refusal: string }
   | { readonly state: 'unknown'; readonly doubt: string };
@@ -168,7 +168,7 @@ export interface UploadBody {
 
 /** What one upload became. A known file is already a document, and its id is the one that
  * holds the bytes. `unknown` is the upload whose result this page cannot learn. */
-export type UploadOutcome =
+type UploadOutcome =
   | {
       readonly state: 'stored';
       readonly documentId: string;

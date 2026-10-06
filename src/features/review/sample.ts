@@ -148,7 +148,7 @@ export const reviewSample: Corpus = { ...corpus, proposals };
 
 /** A story reads the derivation the route reads, so it never draws a shape it cannot produce. */
 export function sampleSubject(id: string): Subject {
-  const held = readQueue(reviewSample, null).find((subject) => subject.id === id);
+  const held = readQueue(reviewSample).find((subject) => subject.id === id);
   if (held === undefined) throw new Error(`No subject ${id} waits in the review sample.`);
   return held;
 }

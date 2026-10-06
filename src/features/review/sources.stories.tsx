@@ -75,9 +75,9 @@ const citedIn = (subjects: readonly Subject[], id: DocId): CitedDocument => {
   return found;
 };
 
-const INCOMPLETE: CitedDocument = citedIn(readQueue(WITHOUT_RATING, null), INCOMPLETE_ID);
+const INCOMPLETE: CitedDocument = citedIn(readQueue(WITHOUT_RATING), INCOMPLETE_ID);
 
-const ABSENT: CitedDocument = citedIn(readQueue(reviewSample, null), 'doc_0000ff');
+const ABSENT: CitedDocument = citedIn(readQueue(reviewSample), 'doc_0000ff');
 
 const ORIGINAL_ID: DocId = 'doc_3c1104';
 const ORIGINAL_ADDRESS = 'https://registry.example/entry';
@@ -89,7 +89,7 @@ const WITHOUT_ARCHIVE: Corpus = {
   ),
 };
 
-const ORIGINAL_ONLY: CitedDocument = citedIn(readQueue(WITHOUT_ARCHIVE, null), ORIGINAL_ID);
+const ORIGINAL_ONLY: CitedDocument = citedIn(readQueue(WITHOUT_ARCHIVE), ORIGINAL_ID);
 
 const meta = {
   component: SourceBadge,

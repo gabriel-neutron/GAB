@@ -2,7 +2,7 @@ import { cn } from '@/shared/lib/utils';
 
 import type { Said } from './said';
 
-export interface SaidLineProps {
+interface SaidLineProps {
   /** Derived before it arrives. This file composes no sentence and takes no decision. */
   readonly said: Said;
   /** Several live regions stand on one page, and a reader needs to know which one spoke. */

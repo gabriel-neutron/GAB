@@ -6,7 +6,7 @@ import type { ChangeKind, SortKey, SubjectRow } from './queue';
 import { SORT_KEYS, SORT_WORDS } from './queue';
 
 /** What waits for a decision, in the order in force, and which subject is open. */
-export interface SubjectQueue {
+interface SubjectQueue {
   readonly rows: readonly SubjectRow[];
   readonly currentId: string | null;
   readonly sort: SortKey;
