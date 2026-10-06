@@ -350,11 +350,19 @@ const MACHINE_HOLDS = `
      AND g.table_schema = 'api'
    ORDER BY 1`;
 
-const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
+const MACHINE_VIEWS = [
+  'document',
+  'entity',
+  'entity_type',
+  'job',
+  'proposal',
+  'relation',
+  'relation_type',
+];
 
-// A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
+// A departure: the seven views are named, and ALL TABLES is not used, so a view added later opens
 // to no tool until a person writes it in.
-test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
+test('the three tool roles hold SELECT on seven api views and on nothing else of api', async () => {
   const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
     MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
   );

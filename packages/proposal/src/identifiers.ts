@@ -68,16 +68,16 @@ export const isValidImo = (text: string): boolean => {
   return sum % 10 === digits[6];
 };
 
-/** The two shapes that hold one identifier value in the attributes of a row: the value itself,
- * and the value as one element of a list. Either one reaches the GIN index on the attributes.
- * The value is text, so a value that the record holds as a number does not match. */
+/** The shapes that hold one identifier value in the attributes of a row: the value, and the value
+ * as one element of a list. A text that is a number in its plain form also matches that number,
+ * because a writer can store an IMO number as a number. Each shape reaches the GIN index on the
+ * attributes. */
 export const identifierContainment = (
   key: IdentifierKey,
   value: string,
-): {
-  readonly scalar: Record<string, { readonly v: string }>;
-  readonly element: Record<string, { readonly v: readonly string[] }>;
-} => ({
-  scalar: { [key]: { v: value } },
-  element: { [key]: { v: [value] } },
-});
+): readonly Readonly<Record<string, { readonly v: unknown }>>[] => {
+  const asNumber = Number(value);
+  const values: unknown[] =
+    value.trim() !== '' && String(asNumber) === value ? [value, asNumber] : [value];
+  return values.flatMap((held) => [{ [key]: { v: held } }, { [key]: { v: [held] } }]);
+};
