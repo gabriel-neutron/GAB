@@ -8,16 +8,25 @@ export interface Passage {
   readonly text: string;
 }
 
-/** The passages of each act that waits, or the sentence that says why this page holds none. The
- * text of a document is private: the writer reads it as the operator, and the public read API
- * never holds it. */
+/** The passages of each act that waits and why each disputed act is disputed, or the sentence
+ * that says why this page holds none. Both are private: the writer reads them as the operator,
+ * and the public read API never holds them. */
 export type CitedPassages =
-  | { readonly state: 'held'; readonly byAct: Readonly<Record<string, readonly Passage[]>> }
+  | {
+      readonly state: 'held';
+      readonly byAct: Readonly<Record<string, readonly Passage[]>>;
+      readonly disputes: Readonly<Record<string, string>>;
+    }
   | { readonly state: 'private'; readonly why: string };
 
-/** The passages of one act, as its card draws them. */
+/** The passages of one act, and why it is disputed when a check recorded a reason, as its card
+ * draws them. */
 export type ActPassages =
-  | { readonly state: 'held'; readonly passages: readonly Passage[] }
+  | {
+      readonly state: 'held';
+      readonly passages: readonly Passage[];
+      readonly dispute: string | null;
+    }
   | { readonly state: 'private'; readonly why: string };
 
 // The development server proxies this path to the writer, so the browser stays same-origin.
@@ -27,6 +36,7 @@ const NO_WRITER =
   'The cited passages are private, and the write service on this machine did not give them.';
 
 const answered = z.object({
+  disputes: z.array(z.object({ proposalId: z.string(), reason: z.string() })),
   passages: z.array(
     z.object({
       proposalId: z.string(),
@@ -52,7 +62,9 @@ export async function readPassages(proposalIds: readonly string[]): Promise<Cite
     const byAct: Record<string, Passage[]> = {};
     for (const { proposalId, ...passage } of held.data.passages)
       (byAct[proposalId] ??= []).push(passage);
-    return { state: 'held', byAct };
+    const disputes: Record<string, string> = {};
+    for (const { proposalId, reason } of held.data.disputes) disputes[proposalId] = reason;
+    return { state: 'held', byAct, disputes };
   } catch {
     return { state: 'private', why: NO_WRITER };
   }
@@ -63,4 +75,10 @@ const NONE: readonly Passage[] = [];
 /** The passages of one act, from the answer of the read above: one job, the read and its key.
  * An act of the operator cites no passage, and gets an empty list. */
 export const passagesOf = (cited: CitedPassages, actId: string): ActPassages =>
-  cited.state === 'private' ? cited : { state: 'held', passages: cited.byAct[actId] ?? NONE };
+  cited.state === 'private'
+    ? cited
+    : {
+        state: 'held',
+        passages: cited.byAct[actId] ?? NONE,
+        dispute: cited.disputes[actId] ?? null,
+      };

@@ -70,6 +70,13 @@ export function ChangeCard({ change, current, passages }: ChangeCardProps) {
         )}
       </div>
 
+      {passages.state === 'held' && passages.dispute !== null ? (
+        <p data-dispute className="text-small/4 text-dissent">
+          <span className="sr-only">Why it is disputed: </span>
+          {passages.dispute}
+        </p>
+      ) : null}
+
       {change.headline === '' ? null : <p className="text-xs">{change.headline}</p>}
 
       {actSources ? (

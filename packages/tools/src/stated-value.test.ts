@@ -38,7 +38,9 @@ test.each([
   ['On 112 March 2024 the tanker left.', '2024-03-12'],
   ['Listed on 2024-03-12.', '2024-12-03'],
 ])('the passage %j does not state the day %s', (passage, day) => {
-  expect(unstatedValues(relationFrom(day), [passage])).toStrictEqual(['validFrom']);
+  expect(unstatedValues(relationFrom(day), [passage])).toStrictEqual([
+    { name: 'validFrom', value: day },
+  ]);
 });
 
 test.each([
@@ -65,7 +67,9 @@ test.each([
   ['A tanker of 41 200 dwt.', 41],
   ['In 2024 41 tanker trips.', 202_441],
 ])('the passage %j does not state the number %s', (passage, value) => {
-  expect(unstatedValues(entityWith('tanker', value), [passage])).toStrictEqual(['attrs.dwt']);
+  expect(unstatedValues(entityWith('tanker', value), [passage])).toStrictEqual([
+    { name: 'attrs.dwt', value },
+  ]);
 });
 
 test.each([
@@ -82,5 +86,7 @@ test.each([
   ['Rosneft owns it.', 'Ros'],
   ['Lukoil owns it.', 'Rosneft'],
 ])('the passage %j does not state the name %s', (passage, label) => {
-  expect(unstatedValues(entityWith(label, 1), [`${passage} 1`])).toStrictEqual(['label']);
+  expect(unstatedValues(entityWith(label, 1), [`${passage} 1`])).toStrictEqual([
+    { name: 'label', value: label },
+  ]);
 });

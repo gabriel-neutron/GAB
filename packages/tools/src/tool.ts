@@ -48,6 +48,12 @@ export interface ItemToCheck {
   readonly passages: readonly CheckedPassage[];
 }
 
+/** The answer of the checker on one item. A verdict that is not `supported` carries the short
+ * reason of the checker, which is blank when it gave none. */
+export type CheckVerdict =
+  | { readonly verdict: 'supported' }
+  | { readonly verdict: 'not_supported' | 'unclear'; readonly reason: string };
+
 /** What a tool needs beyond the database: the object store, the web, the clock and the resolver. */
 export interface Reach {
   readonly store?: { put(object: RawObject): Promise<string> };
@@ -57,9 +63,10 @@ export interface Reach {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */
   readonly refuses?: (address: string) => boolean;
-  /** A check of each item by a model of another family, before the write. It gives the refs of
-   * the items that their passages support. Each other item is written as disputed. */
-  readonly check?: (items: readonly ItemToCheck[]) => Promise<ReadonlySet<string>>;
+  /** A check of each item by a model of another family, before the write. It gives the verdict
+   * on each item that the checker answered. Each item with no `supported` verdict is written as
+   * disputed. */
+  readonly check?: (items: readonly ItemToCheck[]) => Promise<ReadonlyMap<string, CheckVerdict>>;
 }
 
 /** A request that a tool declines, with the one sentence that says why. */

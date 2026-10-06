@@ -914,6 +914,7 @@ test('an act on the name and the type that names neither is refused in the words
 });
 
 const passageShape = z.object({
+  disputes: z.array(z.object({ proposalId: z.string(), reason: z.string() })),
   passages: z.array(
     z.object({
       proposalId: z.string(),
@@ -976,6 +977,8 @@ interface Item {
   readonly op: 'create_entity' | 'create_relation';
   readonly payload: Readonly<Record<string, unknown>>;
   readonly names?: readonly string[];
+  readonly dissent?: boolean;
+  readonly dissent_reason?: string;
 }
 
 // The fixture gives each cited document one page of text, so each item cites its first letter.
@@ -1027,6 +1030,30 @@ const statusesOf = async (ids: readonly string[]): Promise<readonly string[]> =>
       [[...ids]],
     )
   ).rows.map((row) => row.status);
+
+test('the private read gives the reason why a machine act is disputed', async () => {
+  const [disputed, plain] = [randomUUID(), randomUUID()];
+  const reason = 'the checker says unclear: the page names two tankers';
+  await proposedBatch([
+    {
+      id: disputed,
+      op: 'create_entity',
+      payload: { type: 'vessel', label: 'Reason test disputed' },
+      dissent: true,
+      dissent_reason: reason,
+    },
+    { id: plain, op: 'create_entity', payload: { type: 'vessel', label: 'Reason test plain' } },
+  ]);
+  try {
+    const answer = await askPassages({ proposalIds: [disputed, plain] });
+    expect(answer.status).toBe(200);
+    const { disputes } = passageShape.parse(await answer.json());
+    expect(disputes).toStrictEqual([{ proposalId: disputed, reason }]);
+  } finally {
+    await post('reject-proposal', { proposalId: disputed });
+    await post('reject-proposal', { proposalId: plain });
+  }
+});
 
 // A company that owns a vessel, both new. The relation stands first, so the door orders the
 // promotion. The name of the test makes each act its own, so no act of an earlier test waits.
