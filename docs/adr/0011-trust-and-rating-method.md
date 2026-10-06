@@ -145,6 +145,9 @@ still make correlated errors. Because of this, the second reading uses a differe
 or reader where it can:
 
 - Structured issuer files (OFAC `SDN.CSV`, EU OJ XML, annex XLII): reader 2 is a non-LLM parser.
+- Structured files under a promoted mapping (P6), amended 6 October 2026: reader 1 is the load, of
+  kind `mapped`. Code reads each row under the mapping, and no model reads the row. A `mapped`
+  reading and a `parser` reading are two readers of different kind for gate path (a).
 - Images: reader 2 is the OCR text. A vision model can only propose a value that the OCR text
   contains. Names match with a fuzzy match. Identifiers (v/ch number, IMO, OGRN, MMSI, CIN, LEI)
   must match exactly, never fuzzy. No match: the citation counts 0.
