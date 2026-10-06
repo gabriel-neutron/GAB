@@ -408,6 +408,9 @@ export const openModel = (
         messages: messages.map(wireOf),
         allowSystemInMessages: true,
         maxRetries: 0,
+        // The library sends no event to a telemetry hook. A prompt can quote an untrusted
+        // document, and no reader outside this adapter gets it.
+        telemetry: { isEnabled: false },
         maxOutputTokens: settings.maxAnswerTokens,
         abortSignal: AbortSignal.timeout(settings.timeoutMs),
         ...(tools.length > 0 ? { tools: toolSetOf(tools) } : {}),
