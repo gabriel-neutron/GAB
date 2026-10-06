@@ -158,8 +158,8 @@ export type ProposedGeometry =
 export type ProposalPayload =
   | {
       readonly kind: 'entity';
-      readonly type: string | null;
-      readonly label: string | null;
+      readonly type: string;
+      readonly label: string;
       readonly geom: ProposedGeometry | null;
       readonly attrs: Attributes;
     }
@@ -167,11 +167,11 @@ export type ProposalPayload =
   | { readonly kind: 'columns'; readonly label: string | null; readonly type: string | null }
   | {
       readonly kind: 'relation';
-      readonly type: string | null;
+      readonly type: string;
       readonly src_kind: EndpointKind;
-      readonly src_id: string | null;
+      readonly src_id: string;
       readonly dst_kind: EndpointKind;
-      readonly dst_id: string | null;
+      readonly dst_id: string;
       readonly valid_from: string | null;
       readonly valid_to: string | null;
       readonly attrs: Attributes;

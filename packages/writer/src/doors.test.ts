@@ -12,6 +12,8 @@ const replyShape = z.strictObject({
   refusal: z.string().optional(),
   doubt: z.string().optional(),
   proposalId: z.string().optional(),
+  targetId: z.string().optional(),
+  state: z.string().optional(),
 });
 
 // An act door never reaches the raw store, so this one refuses every object.
@@ -49,30 +51,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('a lost promotion of a signed act answers 409, the doubt and the name of the act', async () => {
-  const held = faultyPool([{ on: 'promote_proposal', cause: lostSocket() }]);
+// The act and its promotion run in one statement, so a lost answer names no act: the browser
+// reads the record again before the operator acts.
+test('a lost answer to a signed act is a doubt, and never a 422 refusal', async () => {
+  const held = faultyPool([{ on: 'sign_change', cause: lostSocket() }]);
 
-  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
-  ]);
+  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([502, { doubt: DOUBT }]);
+  expect(held.releases()).toBe(1);
 });
 
-test('a lost commit of the proposal answers a doubt, and never a 422 refusal', async () => {
-  const held = faultyPool([{ on: 'COMMIT', cause: lostSocket() }]);
-
-  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
-  ]);
-});
-
-test('a lost decision answers 409, the doubt and the name of the act', async () => {
+test('a lost decision is a doubt, and never a 422 refusal', async () => {
   const held = faultyPool([{ on: 'promote_proposal', cause: lostSocket() }]);
 
   expect(await post(held.pool, 'promote-proposal', { proposalId: held.proposalId })).toStrictEqual([
-    409,
-    { doubt: DOUBT, proposalId: held.proposalId },
+    502,
+    { doubt: DOUBT },
+  ]);
+});
+
+test('a signed act answers the proposal and the row it wrote', async () => {
+  const held = faultyPool([]);
+
+  expect(await post(held.pool, 'create-entity', ENTITY)).toStrictEqual([
+    200,
+    { proposalId: held.proposalId, targetId: held.targetId, state: 'signed' },
   ]);
 });
 

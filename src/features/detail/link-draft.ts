@@ -1,7 +1,5 @@
-/** The boxes of a new relation, read into one act or into one sentence. The database is the
- * second tier and refuses what this misses; this tier gives a sentence before a round trip. */
-
-import { DATED_RELATIONS, interval } from '@gab/proposal/request';
+/** The boxes of a new relation, read into one act or into one sentence. The form asks only for
+ * what the button needs; the record holds each rule on the interval, and words its refusal. */
 
 import type { ElementAct } from '@/shared/write/elements';
 
@@ -20,15 +18,8 @@ export type LinkDraft =
 
 const NO_TYPE = 'Write the type of the relation.';
 const NO_TARGET = 'Choose the entity at the other end.';
-const NOT_A_DAY = 'Write each end of the interval as a year, a month and a day.';
-const BACKWARDS = 'The interval starts after it ends. Correct one of the two days.';
-
-const INTERVAL_BELONGS = `An interval belongs to a relation of ${DATED_RELATIONS.join(', ')}. Clear the two days, or write one of those types.`;
 
 const blank = (given: string): string | null => (given.trim() === '' ? null : given.trim());
-
-const namesAnEnd = (issue: { readonly path: readonly PropertyKey[] }): boolean =>
-  issue.path.length > 0;
 
 /** One typed form, read into the act it carries. `srcId` is the entity the address names. */
 export function readLinkDraft(srcId: string, form: LinkForm): LinkDraft {
@@ -39,17 +30,6 @@ export function readLinkDraft(srcId: string, form: LinkForm): LinkDraft {
 
   if (type === '') return { ready: false, reason: NO_TYPE };
   if (dstId === '') return { ready: false, reason: NO_TARGET };
-
-  const dated = validFrom !== null || validTo !== null;
-  if (dated && !DATED_RELATIONS.some((word) => word === type))
-    return { ready: false, reason: INTERVAL_BELONGS };
-  const ends = interval.safeParse({
-    validFrom: validFrom ?? undefined,
-    validTo: validTo ?? undefined,
-  });
-  if (!ends.success)
-    return { ready: false, reason: ends.error.issues.some(namesAnEnd) ? NOT_A_DAY : BACKWARDS };
-
   return { ready: true, act: { op: 'create_relation', type, srcId, dstId, validFrom, validTo } };
 }
 

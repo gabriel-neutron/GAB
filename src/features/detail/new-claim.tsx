@@ -29,7 +29,7 @@ export function NewClaim({ rows, busy, onMint }: NewClaimProps) {
   const onSend = (): void => {
     if (!draft.ready || busy) return;
     void onMint(draft.attrs).then((state) => {
-      if (state.step === 'signed') setForm(BLANK);
+      if (state.step === 'done') setForm(BLANK);
     });
   };
 

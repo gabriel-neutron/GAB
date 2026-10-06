@@ -49,7 +49,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
 
   const draft = readUploadDraft(form);
   const working = state.step === 'working';
-  const done = state.step === 'stored' || state.step === 'known';
+  const done = state.step === 'done';
 
   // Each opening starts at a blank form, so a file chosen days ago is never sent by mistake.
   const onOpenChange = (next: boolean): void => {
@@ -71,7 +71,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
     setState({ step: 'working' });
     void sendUpload(draft.file, draft.fields).then(async (answer) => {
       setState(answer);
-      if (answer.step === 'stored') await onStored(answer.documentId);
+      if (answer.step === 'done' && answer.document === 'stored') await onStored(answer.documentId);
     });
   };
 

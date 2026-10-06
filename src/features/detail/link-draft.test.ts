@@ -5,9 +5,6 @@ import { linkWords, readLinkDraft, type LinkForm } from './link-draft';
 const SRC_ID = '0ea482d0-cd00-4c77-911e-419dd2d1779f';
 const DST_ID = 'e0a8a817-0dac-49db-8627-a342609a3092';
 
-const NOT_A_DAY = 'Write each end of the interval as a year, a month and a day.';
-const BACKWARDS = 'The interval starts after it ends. Correct one of the two days.';
-
 const form = (given: Partial<LinkForm>): LinkForm => ({
   type: 'owns',
   dstId: DST_ID,
@@ -18,14 +15,11 @@ const form = (given: Partial<LinkForm>): LinkForm => ({
 
 const wordsOf = (given: Partial<LinkForm>): string => linkWords(readLinkDraft(SRC_ID, form(given)));
 
-test('a day that the calendar does not hold is refused at either end', () => {
-  expect(wordsOf({ validFrom: '2019-02-30' })).toBe(NOT_A_DAY);
-  expect(wordsOf({ validTo: '2019-02-30' })).toBe(NOT_A_DAY);
-  expect(wordsOf({ validFrom: '1 January 2019' })).toBe(NOT_A_DAY);
-});
-
-test('an interval that starts after it ends is refused', () => {
-  expect(wordsOf({ validFrom: '2020-01-01', validTo: '2010-01-01' })).toBe(BACKWARDS);
+// The record holds each rule on the interval and words its refusal, so the form asks only for
+// what the button needs.
+test('a form with a type and an end is ready, and a form with no type is not', () => {
+  expect(wordsOf({})).toBe('Ready to make one relation from this entity.');
+  expect(wordsOf({ type: ' ' })).toBe('Write the type of the relation.');
 });
 
 test('an interval of one day is ready', () => {

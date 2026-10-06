@@ -22,21 +22,9 @@ const PROPOSE = `SELECT public.propose_change($1::text, $2::jsonb, $3::text[], $
 
 const identified = z.strictObject({ id: z.uuid() });
 
-const held = z.strictObject({ attrs: z.unknown() });
-
 const TABLE = { entity: 'api.entity', relation: 'api.relation' } as const;
 
 type Endpoint = keyof typeof TABLE;
-
-const attributesOf = async (session: Session, kind: Endpoint, id: string): Promise<unknown> => {
-  const found = await rowsOf(
-    session,
-    held,
-    `SELECT attrs FROM ${TABLE[kind]} WHERE id = $1::uuid`,
-    [id],
-  );
-  return found[0]?.attrs;
-};
 
 const present = async (session: Session, kind: Endpoint, id: string): Promise<boolean> =>
   (
@@ -48,12 +36,16 @@ const present = async (session: Session, kind: Endpoint, id: string): Promise<bo
     )
   ).length === 1;
 
-// The promotion fails on an end that does not exist, after the proposal is stored. The read here
-// removes a failure that nobody chose.
-const missingEnd = async (
+// The promotion fails on an element that does not exist, long after the proposal is stored. The
+// read here removes a failure that nobody chose.
+const missingElement = async (
   session: Session,
   request: z.output<typeof writeRequest>,
 ): Promise<string | null> => {
+  if (request.op === 'update_attrs')
+    return (await present(session, request.targetKind, request.targetId))
+      ? null
+      : `the target ${request.targetId} does not exist`;
   if (request.op !== 'create_relation') return null;
   if (!(await present(session, request.srcKind, request.srcId)))
     return `the source ${request.srcId} does not exist`;
@@ -82,24 +74,12 @@ export const proposeChange = defineTool({
   }),
   output: z.strictObject({ proposalId: z.uuid(), op: z.string() }),
   async run(session, input) {
-    // The check runs before any SQL. An attribute update reads the target next, and this pass
-    // reads an empty target, so every refusal that does not depend on the target is raised here.
-    const checked = machineAct(input.act, input.documents, {});
-    if (!checked.ready) throw new ToolRefusal(checked.refusal);
-
-    const gap = await missingEnd(session, input.act);
-    if (gap !== null) throw new ToolRefusal(gap);
-
-    let prior: unknown = null;
-    if (input.act.op === 'update_attrs') {
-      prior = await attributesOf(session, input.act.targetKind, input.act.targetId);
-      if (prior === undefined)
-        throw new ToolRefusal(`the target ${input.act.targetId} does not exist`);
-    }
-
-    const draft = machineAct(input.act, input.documents, prior);
+    const draft = machineAct(input.act, input.documents);
     if (!draft.ready) throw new ToolRefusal(draft.refusal);
     const { act } = draft;
+
+    const gap = await missingElement(session, input.act);
+    if (gap !== null) throw new ToolRefusal(gap);
 
     const [made] = await rowsOf(session, identified, PROPOSE, [
       act.op,
