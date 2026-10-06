@@ -8,7 +8,7 @@ import { Input } from '@/shared/ui/input';
 import { createEntity, creationSaid, type CreateState } from './creation';
 import { readEntityDraft, type EntityForm } from './entity-draft';
 
-export interface CreateEntityDialogProps {
+interface CreateEntityDialogProps {
   /** Read the record again, so every surface draws what landed. The route holds the router. */
   readonly onCreated: (entityId: string) => Promise<void>;
   /** Open the entity that was made. The route holds the router, and this file holds no address. */

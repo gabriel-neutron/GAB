@@ -1,28 +1,28 @@
 import type { IngestOutcome } from './ingest.ts';
 
-export interface NoTextEntry {
+interface NoTextEntry {
   readonly path: string;
   readonly id: string;
   readonly pageCount: number;
 }
 
-export interface PartialTextEntry extends NoTextEntry {
+interface PartialTextEntry extends NoTextEntry {
   readonly emptyPages: readonly number[];
 }
 
-export interface PairFile {
+interface PairFile {
   readonly path: string;
   readonly id: string;
   readonly sha256: string;
 }
 
-export interface NearCopies {
+interface NearCopies {
   readonly stem: string;
   readonly files: readonly PairFile[];
 }
 
 /** What a run found in the files it took. A dry run carries the same fields. */
-export interface IngestReport {
+interface IngestReport {
   readonly dryRun: boolean;
   readonly counts: { readonly stored: number; readonly known: number; readonly refused: number };
   readonly noTextLayer: readonly NoTextEntry[];

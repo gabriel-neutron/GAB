@@ -5,7 +5,7 @@ import { readQueue } from './queue';
 import { ReviewPage } from './review-page';
 import { SAMPLE, reviewSample, sampleChange, sampleSubject } from './sample';
 
-const SUBJECTS = readQueue(reviewSample, null);
+const SUBJECTS = readQueue(reviewSample);
 
 const CONTESTED = SAMPLE.contestedRow;
 

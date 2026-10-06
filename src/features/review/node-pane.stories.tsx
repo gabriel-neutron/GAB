@@ -113,7 +113,7 @@ const STANDS_ON_AN_UNHELD_DOCUMENT: Corpus = {
 };
 
 function unheldSubject(): Subject {
-  const held = readQueue(STANDS_ON_AN_UNHELD_DOCUMENT, null).find(
+  const held = readQueue(STANDS_ON_AN_UNHELD_DOCUMENT).find(
     (subject) => subject.id === SAMPLE.contestedRow,
   );
   if (held === undefined) throw new Error('The terminal waits in no subject of the queue.');

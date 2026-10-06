@@ -27,10 +27,6 @@ const listed = (body: unknown): Response =>
 const stub = vi.fn((input: URL): Promise<Response> => {
   const status = input.searchParams.get('status');
   if (status === 'eq.accepted') return Promise.resolve(listed(acceptedRows));
-  if (status === 'eq.rejected')
-    return Promise.resolve(
-      listed([{ ...DECIDED_ROW, id: '5b2c7d10-3e4f-4a61-8b92-0c1d2e3f4a5b', status: 'rejected' }]),
-    );
   return Promise.resolve(listed([]));
 });
 
@@ -48,15 +44,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the history reads the promoted acts and the rejected acts, and no pending act', async () => {
+test('the history reads the promoted acts, and no pending act and no rejected act', async () => {
   const { loadDecidedActs } = await import('./decided-acts');
 
   const read = await loadDecidedActs();
 
-  expect(asked()).toStrictEqual(['/proposal?status=eq.accepted', '/proposal?status=eq.rejected']);
+  expect(asked()).toStrictEqual(['/proposal?status=eq.accepted']);
   expect(read.map((held) => [held.act.id, held.verdict, held.decidedBy])).toStrictEqual([
     ['07e80431-1df2-4b32-ab9c-16f3cab6d2c7', 'accepted', 'the writer door'],
-    ['5b2c7d10-3e4f-4a61-8b92-0c1d2e3f4a5b', 'rejected', 'the writer door'],
   ]);
 });
 
@@ -73,10 +68,10 @@ test('a refresh of the corpus forgets the history, so a later decision reaches i
 
   await loadDecidedActs();
   await loadDecidedActs();
-  expect(asked()).toHaveLength(2);
+  expect(asked()).toHaveLength(1);
 
   await refreshCorpus(async () => {
     await loadDecidedActs();
   });
-  expect(asked()).toHaveLength(4);
+  expect(asked()).toHaveLength(2);
 });

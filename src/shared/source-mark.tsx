@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 
-export interface SourceMarkProps {
+interface SourceMarkProps {
   /** What the badge shows: a position on one surface, a rating on the other. */
   readonly label: ReactNode;
   /** The accessible name. The badge is small, so the whole line reaches a reader here. */

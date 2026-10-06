@@ -8,7 +8,7 @@ import type { RelationLine, SourceRef } from './dossier';
 
 /** Whether this list offers the deletion of a line. A panel beside a canvas offers none, and
  * `busy` then names nothing: the two states cannot be held at once. */
-export type RelationDeletion =
+type RelationDeletion =
   | { readonly offered: false }
   | {
       readonly offered: true;
