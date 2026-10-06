@@ -49,7 +49,7 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
--- The eighteen doors, and nothing else.
+-- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
@@ -59,11 +59,10 @@ REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
-REVOKE ALL ON FUNCTION release_expired_claims()    FROM PUBLIC;
+REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
-REVOKE ALL ON FUNCTION release_job_for_quota(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
@@ -170,12 +169,11 @@ GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uu
   TO gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION release_expired_claims() TO gabriel_app;
+GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION release_job_for_quota(uuid) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 
 -- THE READING DOOR IS gabriel_agent ALONE. Only the worker that ran the reader knows what it read,
@@ -190,7 +188,7 @@ GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
--- ENQUEUE IS gabriel_app AND gabriel_agent, THROUGH enqueue_job. put_document writes a
+-- ENQUEUE IS gabriel_app, gabriel_agent AND gabriel_research, THROUGH enqueue_job. put_document writes a
 -- `store_only` row that is born done and queues nothing, so asking for work is its own grant. The
 -- operator asks for the one document that needs work, and a worker that finds a second step of
 -- work for a document asks for it too. No role holds INSERT on jobs, so nothing queues work for
@@ -203,13 +201,9 @@ GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent
 -- text. So the claim goes to the narrower secret, which is the one that cannot sign as the
 -- operator. The claim door itself signs nothing; a trigger stamps the taker from session_user.
 --
--- THE RELEASE IS gabriel_app, AND IT IS THE ONE THAT MAKES THE CLAIM SAFE TO GRANT. A claim now
--- has a way back: a row whose lease expired returns to `queued`, and no superuser session is
--- needed to free it. The release is an act of the operator over the queue and not of the worker
--- that lost the row, so it is held by the role that owns the door of the queue.
---
--- A RELEASE SPENDS THE ATTEMPT, and the release door is the only way back: no role holds UPDATE
--- on jobs, and nothing moves a row into a state a door did not produce.
+-- THE REQUEUE IS gabriel_agent, BESIDE THE CLAIM. A claim has a way back: at its start the runner
+-- returns each row that its role left `running`, and no superuser session is needed to free it.
+-- No role holds UPDATE on jobs, so nothing moves a row into a state a door did not produce.
 --
 -- THE FAILURE IS gabriel_agent, BESIDE THE CLAIM. Only the worker that ran the job knows why it
 -- failed, and the door ends a running row alone, so it opens nothing of the operator surface.
@@ -217,10 +211,8 @@ GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent
 -- THE COMPLETION IS gabriel_agent FOR THE SAME REASON. Only the worker that ran the job knows that
 -- it succeeded, and the door ends a running row alone.
 
--- THE RUNNER DOORS ARE gabriel_agent ALONE, FOR THE SAME REASON AS THE CLAIM. The release for a
--- spent quota gives back a row that the worker holds, and it ends nothing. The settings read
--- returns the three numbers of the runner and no other row of the parameter table, which no role
--- can read.
+-- THE SETTINGS READ IS gabriel_agent ALONE, FOR THE SAME REASON AS THE CLAIM. It returns the wait
+-- of the runner and no other row of the parameter table, which no role can read.
 
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
