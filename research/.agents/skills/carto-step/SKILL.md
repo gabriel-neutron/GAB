@@ -10,13 +10,15 @@ the comment reports the data, and not a narrative.
 
 ## Tools
 
-- `propose`: the tool whose proposal ids this comment reports. This skill calls no tool.
-  It collects the ids that the other skills gave.
+- `job_status`: read the state of the jobs of each document that the step stored.
+- `list_proposals`: read the proposals of each document that the step stored, from the extractor
+  and from you.
 
 ## Steps
 
-1. Collect the document ids that the step stored, and the job status of each one.
-2. Collect the proposal ids that the step made, with the fact that each one proposes.
+1. Collect the document ids that the step stored, and call `job_status` for each one.
+2. Call `list_proposals` with each document id. Collect the proposal ids, with the fact that each
+   one proposes.
 3. Write the open items: each gap that the step did not close, the source to fetch next, and each
    fetch or job that failed.
 4. Write the comment text in ASD-STE100 Simplified Technical English, in three parts:

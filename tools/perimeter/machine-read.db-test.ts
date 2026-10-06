@@ -9,7 +9,15 @@ import { rolledBack } from '../probe.ts';
 
 const ROLES = ['app', 'agent', 'research'] as const;
 
-const OPEN_VIEWS = ['entity', 'relation', 'proposal', 'document', 'job'] as const;
+const OPEN_VIEWS = [
+  'entity',
+  'relation',
+  'proposal',
+  'document',
+  'job',
+  'entity_type',
+  'relation_type',
+] as const;
 
 const counted = z.array(z.object({ n: z.number() }));
 

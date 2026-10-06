@@ -1,5 +1,5 @@
 import type { RawObject } from '@gab/store';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 import type { Resolved } from './fetch-guard.ts';
 
@@ -86,12 +86,70 @@ export type ToolOutcome =
   | { readonly ok: true; readonly output: unknown }
   | { readonly ok: false; readonly refusal: string };
 
-const sentence = (error: z.ZodError): string =>
-  error.issues
-    .map((issue) =>
-      issue.path.length === 0 ? issue.message : `${issue.path.join('.')}: ${issue.message}`,
-    )
+/** The JSON Schema of the input of a tool, as a client reads it. */
+export const inputSchemaOf = (tool: Tool): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(z.toJSONSchema(tool.input, { io: 'input' })).filter(
+      ([key]) => key !== '$schema',
+    ),
+  );
+
+type Node = Readonly<Record<string, unknown>>;
+
+const isNode = (value: unknown): value is Node =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const branchesOf = (node: Node): Node[] => [
+  node,
+  ...['anyOf', 'oneOf', 'allOf'].flatMap((key) => {
+    const held = node[key];
+    return Array.isArray(held) ? held.filter(isNode) : [];
+  }),
+];
+
+// One step down the schema: the item of a list, the property of an object, or the value of a
+// record. A union gives the first branch that holds the step.
+const childOf = (node: Node, step: PropertyKey): Node | undefined => {
+  for (const branch of branchesOf(node)) {
+    const { items, properties, additionalProperties } = branch;
+    if (typeof step === 'number' && isNode(items)) return items;
+    if (typeof step !== 'string') continue;
+    if (isNode(properties) && isNode(properties[step])) return properties[step];
+    if (isNode(additionalProperties)) return additionalProperties;
+  }
+  return undefined;
+};
+
+const descriptionOf = (node: Node): string | undefined =>
+  branchesOf(node)
+    .map((branch) => branch['description'])
+    .find((held): held is string => typeof held === 'string');
+
+// The description nearest to the field that failed. It tells the caller how to write the value,
+// so one retry is enough.
+const hintAt = (schema: Node, path: readonly PropertyKey[]): string | undefined => {
+  let node = schema;
+  let hint: string | undefined;
+  for (const step of path) {
+    const next = childOf(node, step);
+    if (next === undefined) break;
+    node = next;
+    hint = descriptionOf(node) ?? hint;
+  }
+  return hint;
+};
+
+const sentence = (tool: Tool, error: z.ZodError): string => {
+  const schema = inputSchemaOf(tool);
+  return error.issues
+    .map((issue) => {
+      const said =
+        issue.path.length === 0 ? issue.message : `${issue.path.join('.')}: ${issue.message}`;
+      const hint = hintAt(schema, issue.path);
+      return hint === undefined ? said : `${said} (${hint})`;
+    })
     .join('; ');
+};
 
 /** Runs a tool on a raw input. A refusal is an outcome, and a fault of the database is thrown. */
 export const callTool = async (
@@ -101,7 +159,7 @@ export const callTool = async (
   reach?: Reach,
 ): Promise<ToolOutcome> => {
   const given = tool.input.safeParse(raw);
-  if (!given.success) return { ok: false, refusal: sentence(given.error) };
+  if (!given.success) return { ok: false, refusal: sentence(tool, given.error) };
   try {
     return { ok: true, output: tool.output.parse(await tool.run(session, given.data, reach)) };
   } catch (cause) {
