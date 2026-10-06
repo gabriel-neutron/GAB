@@ -1,23 +1,13 @@
 import { z } from 'zod';
 
-import { documentId, rowsOf } from './fields.ts';
+import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 
 // The door refuses a document that does not exist, a document with no bytes and a second open
 // job of one kind for one document.
 const ENQUEUE = `SELECT public.enqueue_job($1::text, 'extract_text')::text AS id`;
 
-// External constraint: the unique index of the table refuses a second open job of one kind for
-// one document, and its name is the one witness of that rule.
-const ONE_OPEN = 'jobs_one_open_per_kind';
-
 const row = z.strictObject({ id: z.uuid() });
-
-const isOneOpen = (cause: unknown): boolean =>
-  typeof cause === 'object' &&
-  cause !== null &&
-  'constraint' in cause &&
-  cause.constraint === ONE_OPEN;
 
 export const enqueueExtract = defineTool({
   name: 'enqueue_extract',
@@ -33,10 +23,7 @@ export const enqueueExtract = defineTool({
     try {
       [queued] = await rowsOf(session, row, ENQUEUE, [input.document]);
     } catch (cause) {
-      if (isOneOpen(cause))
-        throw new ToolRefusal(
-          `an extraction of ${input.document} is queued or runs already; job_status follows it`,
-        );
+      if (isDoorRefusal(cause)) throw new ToolRefusal(cause.message);
       throw cause;
     }
     if (queued === undefined) throw new Error('the door queued a job and returned no identifier');

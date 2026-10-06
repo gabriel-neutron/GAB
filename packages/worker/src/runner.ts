@@ -24,13 +24,15 @@ const REQUEUE = 'SELECT public.requeue_running_jobs()';
 const RECORD = `SELECT public.record_model_call($1::text, $2::text, $3::text, $4::text, $5::text,
   $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int)::text AS id`;
 const FAIL = 'SELECT public.fail_job($1::uuid, $2::text)';
-const COMPLETE = 'SELECT public.complete_job($1::uuid)';
+const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::text) AS status`;
 
 const MS = 1000;
 
 const settingsRow = z.object({ empty_wait_seconds: z.number().positive() });
 
 const recorded = z.object({ id: z.uuid() });
+
+const ended = z.object({ status: z.enum(['done', 'failed']) });
 
 /** The seams of the runner. */
 export interface RunnerDeps {
@@ -132,23 +134,28 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   };
 
   const work = async (agent: RunnerAgent, job: ClaimedJob): Promise<Step> => {
+    let result;
     try {
-      const result = await agent.run(contextOf(agent, job));
-      // No table holds a refusal yet, so the log is its record. A refusal ends no job.
-      if (result.refusals.length > 0)
-        console.error('the agent refused tool calls', {
-          agent: agent.name,
-          job: job.id,
-          refusals: result.refusals,
-        });
+      result = await agent.run(contextOf(agent, job));
     } catch (cause) {
       if (cause instanceof JobStop) return fail(job, cause.reason);
       if (cause instanceof ModelFailure) return fail(job, cause.failure.reason);
       console.error('the agent stopped with an error', { agent: agent.name, cause });
       return fail(job, UNKNOWN_FAULT);
     }
-    await deps.db.query(COMPLETE, [job.id]);
-    return { did: 'done', job: job.id };
+    // The job keeps the count of the refused parts. The log keeps each refused call.
+    if (result.refusals.length > 0)
+      console.error('the agent refused tool calls', {
+        agent: agent.name,
+        job: job.id,
+        refusals: result.refusals,
+      });
+    const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
+    const { status } = ended.parse(
+      (await deps.db.query(COMPLETE, [job.id, parts.parts, parts.refused, parts.firstRefusal]))
+        .rows[0],
+    );
+    return { did: status, job: job.id };
   };
 
   const once = async (): Promise<Step> => {

@@ -1250,7 +1250,8 @@ END $$;
 -- appears. It takes a work kind alone, because `store_only` is written by put_document and is
 -- never queued. A document with no bytes has nothing to read, so it is refused. The unique index
 -- of the table refuses a second open job of one kind for one document, and it answers for two
--- callers at one instant, which a check made here could not.
+-- callers at one instant, which a check made here could not. The door words that refusal itself,
+-- so no caller reads the name of the index.
 CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -1276,8 +1277,14 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
-  RETURNING id INTO v_id;
+  BEGIN
+    INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'document % has a job of kind % that is queued or runs already',
+      p_document, p_kind
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
+  END;
   RETURN v_id;
 END $$;
 
@@ -1336,16 +1343,28 @@ SET search_path = pg_catalog, public, pg_temp AS $$
    ORDER BY j.created_at DESC, j.id
 $$;
 
+-- THE WORDS OF THE PARTS THAT A JOB COULD NOT PROPOSE. The status of a done job and the reason of
+-- a failed one read the same words, so they are made here alone.
+CREATE OR REPLACE FUNCTION refused_parts_said(p_parts int, p_refusal text)
+RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE WHEN p_parts > 0
+              THEN p_parts || CASE WHEN p_parts = 1 THEN ' part' ELSE ' parts' END
+                   || ' refused: ' || p_refusal END
+$$;
+
 -- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
 -- through the model calls it recorded, and the operator role holds no read of those calls. So
 -- this door counts them, and returns the count and no row of a call. The `store_only` row of
 -- the ingestion is no work, so it is left out. The newest job comes first.
+DROP FUNCTION IF EXISTS document_jobs(text);
 CREATE OR REPLACE FUNCTION document_jobs(p_document text)
-RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text,
+RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text, job_refused text,
                proposal_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT j.id, j.kind, j.status, j.failure_reason,
+         public.refused_parts_said(j.refused_parts, j.refusal),
          (SELECT count(*) FROM public.model_call m
             JOIN public.proposals p ON p.model_call_id = m.id
            WHERE m.job_id = j.id)
@@ -1454,19 +1473,38 @@ BEGIN
                              p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
 END $$;
 
--- THE END OF A JOB THAT SUCCEEDED. Only a running row ends, so a row that nobody claimed cannot
--- be marked done by hand.
-CREATE OR REPLACE FUNCTION complete_job(p_id uuid)
-RETURNS void
+-- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
+-- cannot be marked done by hand.
+--
+-- A JOB THAT READS IN PARTS GIVES ITS COUNT OF PARTS, the count that the propose door refused,
+-- and the first refusal. The job keeps the count and the reason, so no lost claim is silent. A job
+-- whose every part was refused proposed nothing, so it fails with the same words as its reason.
+-- The door returns the status that it wrote. The earlier signature is dropped first.
+DROP FUNCTION IF EXISTS complete_job(uuid);
+CREATE OR REPLACE FUNCTION complete_job(p_id uuid, p_parts int DEFAULT 0, p_refused int DEFAULT 0,
+                                        p_refusal text DEFAULT NULL)
+RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_status text;
 BEGIN
+  IF p_refused < 0 OR p_refused > p_parts THEN
+    RAISE EXCEPTION 'a job refuses from none to all of its % parts, and not %', p_parts, p_refused
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_status := CASE WHEN p_refused > 0 AND p_refused = p_parts THEN 'failed' ELSE 'done' END;
   UPDATE public.jobs
-     SET status = 'done', finished_at = now(), updated_at = now()
+     SET status = v_status,
+         refused_parts = p_refused,
+         refusal = p_refusal,
+         failure_reason = CASE WHEN v_status = 'failed'
+                               THEN public.refused_parts_said(p_refused, p_refusal) END,
+         finished_at = now(), updated_at = now()
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
+  RETURN v_status;
 END $$;
 
 

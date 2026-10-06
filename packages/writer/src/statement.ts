@@ -7,10 +7,13 @@ export type Unwritten =
   | { readonly outcome: 'refused' | 'unavailable'; readonly reply: { readonly refusal: string } }
   | { readonly outcome: 'doubt'; readonly reply: { readonly doubt: string } };
 
-/** The first row of one statement, or the reason it gave none. */
-export type Answered =
-  | { readonly outcome: 'answered'; readonly row: Readonly<Record<string, unknown>> | undefined }
-  | Unwritten;
+/** What one request of a door became. The route maps the outcome, and takes no decision. */
+export type DoorAct<Reply> = { readonly outcome: 'done'; readonly reply: Reply } | Unwritten;
+
+type Row = Readonly<Record<string, unknown>>;
+
+/** The rows of one statement, or the reason it gave none. */
+type Answered = { readonly outcome: 'answered'; readonly rows: readonly Row[] } | Unwritten;
 
 export const refused = (refusal: string): Unwritten => ({ outcome: 'refused', reply: { refusal } });
 
@@ -30,7 +33,7 @@ export const runStatement = async (
 
   try {
     const found = await client.query(text, [...values]);
-    return { outcome: 'answered', row: found.rows[0] };
+    return { outcome: 'answered', rows: found.rows };
   } catch (cause) {
     const failure = failureFrom(cause);
     if (failure.raised) return refused(failure.refusal);

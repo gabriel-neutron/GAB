@@ -192,8 +192,9 @@ export const makeExtractor = (
     };
 
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
-    // model once, with the sentence of the tool, and the model gives the whole batch again.
-    const readChunk = async (chunk: Chunk): Promise<void> => {
+    // model once, with the sentence of the tool, and the model gives the whole batch again. The
+    // answer is the second refusal, or null.
+    const readChunk = async (chunk: Chunk): Promise<string | null> => {
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
@@ -212,7 +213,7 @@ export const makeExtractor = (
           messages.push(...(await answerCall(asked.call)));
           continue;
         }
-        if (asked.value.items.length === 0) return;
+        if (asked.value.items.length === 0) return null;
         const proposer = tools.propose(asked.callId);
         const made = await callTool(
           proposer,
@@ -220,10 +221,10 @@ export const makeExtractor = (
           { items: asked.value.items },
           { now: () => new Date(), check },
         );
-        if (made.ok) return;
+        if (made.ok) return null;
         if (retries === 0) {
           refusals.push({ tool: proposer.name, reason: made.refusal });
-          return;
+          return made.refusal;
         }
         retries -= 1;
         messages.push(
@@ -241,8 +242,16 @@ export const makeExtractor = (
     const newest = await readNewestPages(context.db, job.documentId);
     if (newest === null) throw new JobStop('no_text');
 
-    for (const chunk of chunkPages(newest, config.chunkCap)) await readChunk(chunk);
-    return { refusals };
+    const chunks = chunkPages(newest, config.chunkCap);
+    const refused: string[] = [];
+    for (const chunk of chunks) {
+      const refusal = await readChunk(chunk);
+      if (refusal !== null) refused.push(refusal);
+    }
+    return {
+      refusals,
+      parts: { parts: chunks.length, refused: refused.length, firstRefusal: refused[0] ?? null },
+    };
   };
 
   return {
