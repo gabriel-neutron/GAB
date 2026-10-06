@@ -32,12 +32,12 @@
     // The one place a type or an attribute key is declared. A command under `tools/` writes the
     // seed file from it, and a test reads both.
     "src/shared/vocabulary/*.ts",
-    // The one place a relation type is declared. It sits in a package because the door of the
-    // writer reads it too, and the seed and the fixture read it from here.
+    // The one place a relation type is declared. The seed and the fixture read it from here.
     "packages/proposal/src/relation-types.ts",
     "src/shared/read/model.ts",
-    // The closed sets of the base tables. A test under `tools/` compares them with the CHECKs.
-    "src/shared/read/closed-set.ts",
+    // The rows of the read API, with the closed sets of the base tables. A test under `tools/`
+    // compares those sets with the CHECKs.
+    "src/shared/read/rows.ts",
     // The load command computes the picture through the layout door of the worker. A project
     // reference cannot carry it: a referenced project may not disable emit, and none emits.
     "packages/worker/src/layout-job.ts",

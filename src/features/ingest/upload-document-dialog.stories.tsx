@@ -145,7 +145,7 @@ export const ARefusalOfTheWriterIsShown: Story = {
 
     await waitFor(async () => {
       await expect(panel().getByRole('status')).toHaveTextContent(
-        'No document was stored: providerId: the record holds no provider of that name.',
+        'Nothing was written. providerId: the record holds no provider of that name.',
       );
     });
   },

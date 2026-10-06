@@ -148,7 +148,7 @@ export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
       step: 'unknown',
       changeId: FIRST_ACT,
       verdict: 'promoted',
-      doubt: 'The write service did not confirm the decision, and the act may have run whole.',
+      doubt: 'The write service did not confirm the act, and the act may have run whole.',
     },
   },
   play: async ({ canvas }) => {
@@ -164,7 +164,7 @@ export const ADoubtfulDecisionInterruptsAndReadsAsNeitherOutcome: Story = {
 /** A promotion that landed says one thing that is true of every act. A promoted deletion makes
  * no row, so the sentence names none. */
 export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'promoted' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'promoted' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -177,7 +177,7 @@ export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
 /** A hold reaches no door and no column. The one place that ruling is told to the analyst is
  * this sentence, so the sentence is read here and it is read in no other story. */
 export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'deferred' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'deferred' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -191,7 +191,7 @@ export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
 /** A rejection freezes the act, and it deletes nothing. The sentence says what stands, because
  * an analyst who reads "rejected" as "gone" looks for the act in the wrong place. */
 export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
-  args: { decision: { step: 'decided', changeId: FIRST_ACT, verdict: 'rejected' } },
+  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'rejected' } },
   play: async ({ canvas }) => {
     const said = canvas.getByRole('status', { name: 'The record' });
     await expect(said).toHaveTextContent(
@@ -204,7 +204,7 @@ export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
 /** While one verdict is going to the record, no second verdict is taken: the second would decide
  * an act on a record the first one has already moved. */
 export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {
-  args: { decision: { step: 'deciding', changeId: FIRST_ACT, verdict: 'promoted' } },
+  args: { decision: { step: 'working', changeId: FIRST_ACT, verdict: 'promoted' } },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('status', { name: 'The record' })).toHaveTextContent(
       'The promotion is going to the record.',

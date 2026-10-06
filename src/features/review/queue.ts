@@ -377,7 +377,7 @@ function relationCreation(
   const stated = (key: string, value: string | null): readonly DifferenceRow[] =>
     value === null ? [] : [createdColumn(key, value, cited)];
   return [
-    ...stated('Type', payload.type === null ? null : index.typeWordsOf(payload.type)),
+    ...stated('Type', index.typeWordsOf(payload.type)),
     ...stated('Valid from', payload.valid_from),
     ...stated('Valid to', payload.valid_to),
     ...differenceOf(index, null, payload.attrs),
@@ -530,7 +530,7 @@ function changeOf(index: Index, proposal: Proposal): Change {
       break;
     }
     case 'entity':
-      headline = `A new ${payload.type ?? 'entity, of a type the act does not name'}`;
+      headline = `A new ${payload.type}`;
       rows = entityCreation(index, payload, proposal.src);
       holes.push(HOLE.duplicate);
       break;
