@@ -5,8 +5,8 @@
 ## SQL is the source of truth
 
 The SQL files in `db/` are the schema. TypeScript types are generated from the live database. Nobody
-writes a column name twice or writes a database type by hand. The drift check of ADR 0001 fails the
-build when the generated types differ from the committed types.
+writes a column name twice or writes a database type by hand. The drift check of ADR 0001 fails CI
+when the generated types differ from the committed types.
 
 We refuse a TypeScript-first schema tool. SQL can express each object of this project: triggers,
 functions, PostGIS and pgvector types. A TypeScript schema language expresses only a part of them,
@@ -60,10 +60,9 @@ A grant, not a prompt, controls each write. The rule is by layer, not by table:
 
 ## Generated types and the read layer
 
-Kanel generates the types. One generated folder comes from `api`, and the user interface imports it.
-A second generated folder comes from `public`, and no code under `src/` imports it. We chose Kanel
-by a test with geometry, vector and JSON columns: it gave useful types where the other tool gave
-`any`.
+Kanel generates the types of `api` into one folder, and the user interface imports it. No type is
+generated from `public`, because no code used those types. We chose Kanel by a test with geometry,
+vector and JSON columns: it gave useful types where the other tool gave `any`.
 
 PostgREST serves the `api` schema over HTTP as the read role. This generated layer cannot widen what
 a reader sees, because the grants of the read role hold that limit. To add a read, write a view. ADR
@@ -73,7 +72,7 @@ a reader sees, because the grants of the read role hold that limit. To add a rea
 
 - PostgREST is not TypeScript, but `spec.md` T1 asks for TypeScript end to end. We treat
   PostgREST as a service, like PostgreSQL and the object store.
-- The drift check applies the re-runnable files to the record database, unless a variable names
-  another database. Thus a plain `pnpm check` deploys them to the record.
+- The drift check applies the re-runnable files to the test database before it compares, so it
+  needs a test database that is built from the current migrations.
 - Nothing tells a test run that the test database is older than the record. Build it again after
   each new migration.
