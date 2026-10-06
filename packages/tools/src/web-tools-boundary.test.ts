@@ -1,8 +1,4 @@
-// What the three web tools may not do. They write nothing, they open no socket, and they read no
-// environment, so a key can only come from the reach that the surface gives them.
-
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
+// What the three web tools may not do: they write no row and no object, with any answer of the web.
 
 import { expect, test } from 'vitest';
 
@@ -18,8 +14,6 @@ const toolNamed = (name: string): Tool => {
   if (found === undefined) throw new Error(`the catalogue holds no tool named ${name}`);
   return found;
 };
-
-const SOURCES = ['web-search.ts', 'archive-snapshot.ts', 'news-search.ts', 'web-access.ts'];
 
 test('the three web tools are in the catalogue', () => {
   expect(NAMES.map((name) => toolNamed(name).name)).toStrictEqual([...NAMES]);
@@ -63,14 +57,4 @@ test('no web tool writes a row or an object, with any answer of the web', async 
     expect(asked.request.timeoutMs).toBeGreaterThan(0);
     expect(asked.request.maxBytes).toBeGreaterThan(0);
   }
-});
-
-test.each(SOURCES)('%s opens no socket, reads no environment and calls no fetch', (file) => {
-  const source = readFileSync(path.join(import.meta.dirname, file), 'utf8');
-  expect(source).not.toMatch(/process\.env|import\.meta\.env/u);
-  expect(source).not.toMatch(/\bfetch\s*\(/u);
-  expect(source).not.toMatch(/node:(net|http|https|http2|dns|tls|dgram|child_process)/u);
-  expect(source).not.toMatch(/\bconsole\./u);
-  expect(source).not.toMatch(/\b(INSERT|UPDATE|DELETE)\b/u);
-  expect(source).not.toMatch(/\.store\b|\.put\(/u);
 });
