@@ -699,7 +699,7 @@ const waiting = async (label: string): Promise<string> => {
 const decisionOf = async (proposalId: string): Promise<Record<string, unknown>> =>
   one('SELECT status, decided_by FROM public.proposals WHERE id = $1::uuid', [proposalId]);
 
-test('the promotion door writes the row, and the record names the act that made it', async () => {
+test('the promotion door writes the row under the identifier of the act that made it', async () => {
   const proposalId = await waiting('Writer test promotion door');
   let targetId: string | null | undefined;
   try {
@@ -707,6 +707,8 @@ test('the promotion door writes the row, and the record names the act that made 
     targetId = reply.targetId;
     expect([status, reply.state]).toStrictEqual([200, 'decided']);
     expect(reply.proposalId).toBe(proposalId);
+    // A relation of a batch names an entity before its promotion, by the identifier of its act.
+    expect(targetId).toBe(proposalId);
 
     const made = await one('SELECT promoted_from FROM public.entities WHERE id = $1::uuid', [
       targetId,
@@ -794,4 +796,46 @@ test('a promotion whose target is gone is refused, and the answer names no act',
     await post('reject-proposal', { proposalId });
     await removed(target);
   }
+});
+
+const passageShape = z.object({
+  passages: z.array(
+    z.object({
+      proposalId: z.string(),
+      document: z.string(),
+      title: z.string(),
+      page: z.number(),
+      text: z.string(),
+    }),
+  ),
+});
+
+const askPassages = (body: unknown, origin?: string) =>
+  app.request('/private/passages', {
+    method: 'POST',
+    headers: {
+      host: '127.0.0.1:5177',
+      'content-type': 'application/json',
+      ...(origin === undefined ? {} : { origin }),
+    },
+    body: JSON.stringify(body),
+  });
+
+// The fixture gives each machine act a citation of the whole first page, which holds the title.
+test('the private read gives the passage that a pending act cites, as the page states it', async () => {
+  const cited = await one(
+    `SELECT c.claim_id::text AS id, d.title FROM public.citation c
+       JOIN public.documents d ON d.id = c.doc_id ORDER BY c.claim_id LIMIT 1`,
+    [],
+  );
+  const answer = await askPassages({ proposalIds: [cited['id']] });
+  expect(answer.status).toBe(200);
+  const { passages } = passageShape.parse(await answer.json());
+  expect(passages).toHaveLength(1);
+  expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
+});
+
+test('the private read refuses a request from another site', async () => {
+  const answer = await askPassages({ proposalIds: [] }, 'https://elsewhere.example');
+  expect(answer.status).toBe(403);
 });

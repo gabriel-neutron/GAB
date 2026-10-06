@@ -19,7 +19,7 @@ const ADDITION = CONTESTED.changes.find((change) => change.kind === 'add') ?? CH
 
 const meta = {
   component: ChangeCard,
-  args: { change: CHANGE, current: true },
+  args: { change: CHANGE, current: true, passages: { state: 'held', passages: [] } },
   parameters: { layout: 'fullscreen' },
   // The width of one card when two stand side by side. Every mark must survive it.
   render: (args) => (
@@ -47,7 +47,7 @@ export const OnlyWhatThisActLacksIsDrawn: Story = {
 /** An act that only names keys the record does not hold is an addition. The name of the
  * operation says `update`, and what the act does is what the card draws. */
 export const AnActThatOnlyAddsKeysReadsAsAnAddition: Story = {
-  args: { change: ADDITION, current: true },
+  args: { change: ADDITION, current: true, passages: { state: 'held', passages: [] } },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText('Addition')).toBeInTheDocument();
     await expect(canvas.queryByText('Modification')).toBeNull();

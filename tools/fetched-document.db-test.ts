@@ -1,6 +1,8 @@
 // The research role stores a fetched document through one narrow door, and its proposals are
 // stamped with its own name. Each gesture below runs inside a transaction that rolls back.
 
+import { randomUUID } from 'node:crypto';
+
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -118,8 +120,23 @@ test('a second hash is a second document', async () => {
   expect(second).toBe(`doc_${OTHER_SHA.slice(0, 12)}`);
 });
 
-const PROPOSE = `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A research test"}'::jsonb, ARRAY[$1]::text[]) AS id`;
+// A machine proposes a batch, and each act cites a page of the stored text.
+const PROPOSE = 'SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)';
+const TEXT = `SELECT public.put_document_text($1, '["A research test"]'::jsonb, 'text-1')`;
+
+const batchOf = (src: readonly string[]): string =>
+  JSON.stringify([
+    {
+      id: randomUUID(),
+      op: 'create_entity',
+      payload: { type: 'vessel', label: 'A research test' },
+      src,
+      names: [],
+      originator: 'A research test',
+      modality: 'asserts',
+      citations: [{ document: src[0], text_extractor: 'text-1', page: 1, start: 0, end: 4 }],
+    },
+  ]);
 
 const proposed = z.array(
   z.object({ author_role: z.string(), model_call_id: z.string().nullable() }),
@@ -128,7 +145,8 @@ const proposed = z.array(
 test('a proposal of gabriel_research is stamped with its own name and no model call', async () => {
   const stored = await rolledBack('research', async (ask) => {
     const id = await fetchedBy(ask);
-    const [made] = ids.parse(await ask(PROPOSE, [id]));
+    await ask(TEXT, [id]);
+    const [made] = ids.parse(await ask(PROPOSE, [batchOf([id])]));
     return proposed.parse(
       await ask('SELECT author_role, model_call_id FROM public.proposals WHERE id = $1', [
         made?.id,
@@ -143,13 +161,12 @@ for (const document of ['manual', 'inherited'])
     await expect(
       rolledBack('research', async (ask) => {
         const id = await fetchedBy(ask);
-        return ask(
-          `SELECT public.propose_change('create_entity',
-             '{"type":"vessel","label":"A research test"}'::jsonb, ARRAY[$1, $2]::text[]) AS id`,
-          [id, document],
-        );
+        await ask(TEXT, [id]);
+        return ask(PROPOSE, [batchOf([id, document])]);
       }),
-    ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_machine_not_reserved' });
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('proposals_machine_not_reserved') as string,
+    });
   });
 
 test('gabriel_research enqueues work for a fetched document and stores its text', async () => {

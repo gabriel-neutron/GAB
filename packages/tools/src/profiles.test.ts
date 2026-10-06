@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { CATALOGUE } from './catalogue.ts';
 import { checkProfiles, PROFILE_LIMIT, PROFILES } from './profiles.ts';
 
-test('the catalogue holds the thirteen tools that are built, once each', () => {
+test('the catalogue holds the twelve tools that are built, once each', () => {
   expect(CATALOGUE.map((tool) => tool.name).sort()).toStrictEqual([
     'archive_snapshot',
     'document_text',
@@ -14,8 +14,7 @@ test('the catalogue holds the thirteen tools that are built, once each', () => {
     'neighbourhood',
     'news_search',
     'proposal_read',
-    'propose_change',
-    'put_claim_reading',
+    'propose',
     'search_graph',
     'web_search',
   ]);
@@ -48,9 +47,9 @@ test('the research profile and the chat profile hold web_search', () => {
   expect(PROFILES.chat).toHaveLength(5);
 });
 
-test('the extractor keeps the entity lookup and the claim reading write', () => {
-  expect(PROFILES.extractor).toContain('lookup_entity');
-  expect(PROFILES.extractor).toContain('put_claim_reading');
+test('the extractor and the research surface propose through the one same tool', () => {
+  expect(PROFILES.extractor).toContain('propose');
+  expect(PROFILES.research).toContain('propose');
 });
 
 test('the extractor and the verifier, which read stored text alone, hold no web tool', () => {
@@ -68,7 +67,7 @@ test('a profile holds no more than eight tools', () => {
 test('a profile of nine tools fails the check', () => {
   const nine = ['document_text', 'enqueue_extract', 'job_status', 'lookup_entity', 'neighbourhood'];
   const crowded = {
-    crowded: [...nine, 'propose_change', 'proposal_read', 'search_graph', 'job_status'],
+    crowded: [...nine, 'propose', 'proposal_read', 'search_graph', 'job_status'],
   };
   expect(crowded.crowded).toHaveLength(9);
   expect(() => {
@@ -82,18 +81,10 @@ test('a profile that names a tool outside the catalogue fails the check', () => 
   }).toThrow(/lost.*fetch_pigeon/);
 });
 
-test('the extractor profile holds the two reads of its model and the two writes of its code', () => {
-  expect(PROFILES.extractor).toStrictEqual([
-    'document_text',
-    'lookup_entity',
-    'propose_change',
-    'put_claim_reading',
-  ]);
+test('the extractor profile holds the two reads of its model and the write of its code', () => {
+  expect(PROFILES.extractor).toStrictEqual(['document_text', 'lookup_entity', 'propose']);
 });
 
-test('the second reader holds the read of its chunk and the write of its code, and nothing more', () => {
-  expect(PROFILES.reader2).toStrictEqual(['document_text', 'put_claim_reading']);
-  expect(PROFILES.reader2).not.toContain('proposal_read');
-  expect(PROFILES.reader2).not.toContain('propose_change');
-  expect(PROFILES.reader2).not.toContain('lookup_entity');
+test('the second reader holds the read of its chunk, and nothing more', () => {
+  expect(PROFILES.reader2).toStrictEqual(['document_text']);
 });

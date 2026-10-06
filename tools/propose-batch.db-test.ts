@@ -1,0 +1,160 @@
+// The rules of the batch door that a caller other than the propose tool could break: the door
+// holds them, and the tool only finds the excerpt. Each gesture runs inside a transaction that
+// rolls back, so the census tests count the same rows before and after.
+
+import { randomUUID } from 'node:crypto';
+
+import { expect, test } from 'vitest';
+import { z } from 'zod';
+
+import { rolledBack, type Ask } from './probe.ts';
+
+const DOC = 'doc_propose_batch';
+const OTHER = 'doc_propose_batch_other';
+const EXTRACTOR = 'propose-batch-test@1';
+const PAGE = 'The tanker Nayara left Sikka on 3 May 2026.';
+
+const PUT = `SELECT public.put_document($1, 'file', 'A test of the batch door', $2, NULL, NULL,
+  NULL, 'application/pdf', '2026-10-06'::date)`;
+const TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
+const CALL = `SELECT public.record_model_call('extractor', 'v2', 'freellmapi', 'a-model', $1, 120,
+  'ok', NULL, 'a-model', 10, 5) AS id`;
+const BATCH =
+  'SELECT item, proposal_id, written FROM public.propose_batch($1::jsonb) ORDER BY item';
+
+const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T> => {
+  await ask(`SET LOCAL SESSION AUTHORIZATION ${role}`);
+  const done = await work();
+  await ask('RESET SESSION AUTHORIZATION');
+  return done;
+};
+
+const seed = async (ask: Ask): Promise<string> => {
+  await ask(PUT, [DOC, 'raw/propose-batch.pdf']);
+  await ask(PUT, [OTHER, 'raw/propose-batch-other.pdf']);
+  await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
+  const [call] = z
+    .array(z.object({ id: z.uuid() }))
+    .parse(await as(ask, 'gabriel_agent', () => ask(CALL, ['d'.repeat(64)])));
+  if (call === undefined) throw new Error('the door recorded no call');
+  return call.id;
+};
+
+type Item = Record<string, unknown>;
+
+const itemOf = (call: string | null, change: Item = {}): Item => ({
+  id: randomUUID(),
+  op: 'create_entity',
+  payload: { type: 'vessel', label: 'Nayara', sources: [DOC] },
+  src: [DOC],
+  names: [],
+  model_call_id: call,
+  originator: 'The port authority',
+  modality: 'asserts',
+  citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, start: 11, end: 17 }],
+  ...change,
+});
+
+const batchAs = (ask: Ask, role: string, items: readonly Item[]) =>
+  as(ask, role, () => ask(BATCH, [JSON.stringify(items)]));
+
+const refusalOf = async (role: string, change: (call: string) => readonly Item[]) =>
+  rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    return batchAs(ask, role, change(call));
+  }).then(
+    () => null,
+    (cause: unknown) => cause,
+  );
+
+const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] = [
+  ['no citation', (call) => itemOf(call, { citations: [] }), /^item 1: .*cites at least one page/u],
+  [
+    'a page that does not exist',
+    (call) =>
+      itemOf(call, {
+        citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 2, start: 0, end: 4 }],
+      }),
+    /^item 1: page 2 .* does not exist/u,
+  ],
+  [
+    'a span past the end of the page',
+    (call) =>
+      itemOf(call, {
+        citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, start: 40, end: 400 }],
+      }),
+    /^item 1: the span 40 to 400 lies outside page 1/u,
+  ],
+  [
+    'a document that is not a source of the act',
+    (call) =>
+      itemOf(call, {
+        citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, start: 0, end: 4 }],
+      }),
+    /^item 1: .*not a source of the act/u,
+  ],
+  ['no originator', (call) => itemOf(call, { originator: ' ' }), /^item 1: .*first stated it/u],
+  ['no model call', () => itemOf(null), /^item 1: .*names the model call/u],
+  ['a modality outside the list', (call) => itemOf(call, { modality: 'hints' }), /^item 1: /u],
+];
+
+test.each(REFUSALS)(
+  'the door refuses an act with %s, and names the item',
+  async (_, given, said) => {
+    const cause = await refusalOf('gabriel_agent', (call) => [given(call)]);
+    expect(cause).toMatchObject({ code: '22023', message: expect.stringMatching(said) as string });
+  },
+);
+
+test('the operator holds no grant on the batch door', async () => {
+  const cause = await refusalOf('gabriel_app', (call) => [itemOf(call)]);
+  expect(cause).toMatchObject({ code: '42501' });
+});
+
+test('a machine role holds no grant on the door of the operator', async () => {
+  for (const role of ['gabriel_agent', 'gabriel_research'])
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        await seed(ask);
+        return as(ask, role, () =>
+          ask(
+            `SELECT public.propose_change('create_entity', '{"type":"vessel","label":"X"}',
+            ARRAY[$1]::text[])`,
+            [DOC],
+          ),
+        );
+      }),
+    ).rejects.toMatchObject({ code: '42501' });
+});
+
+test('a citation is written once, and never changed or deleted', async () => {
+  for (const change of ['UPDATE public.citation SET page = 1', 'DELETE FROM public.citation'])
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        const call = await seed(ask);
+        await batchAs(ask, 'gabriel_agent', [itemOf(call)]);
+        return ask(change);
+      }),
+    ).rejects.toThrow(/a citation is never/u);
+});
+
+test('the read role and the research role cannot read a citation', async () => {
+  for (const identity of ['read', 'research'] as const)
+    await expect(
+      rolledBack(identity, (ask) => ask('SELECT count(*) FROM public.citation')),
+    ).rejects.toMatchObject({ code: '42501' });
+});
+
+test('no view of the api schema reads a citation', async () => {
+  const views = await rolledBack('superuser', (ask) =>
+    ask(
+      `SELECT DISTINCT v.relname AS name
+         FROM pg_catalog.pg_depend d
+         JOIN pg_catalog.pg_rewrite r ON r.oid = d.objid
+         JOIN pg_catalog.pg_class v ON v.oid = r.ev_class
+         JOIN pg_catalog.pg_namespace n ON n.oid = v.relnamespace
+        WHERE n.nspname = 'api' AND d.refobjid = 'public.citation'::regclass`,
+    ),
+  );
+  expect(views).toStrictEqual([]);
+});

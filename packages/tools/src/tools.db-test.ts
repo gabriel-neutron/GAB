@@ -66,7 +66,20 @@ const hits = z.object({
   entities: z.array(z.object({ id: z.uuid(), label: z.string(), type: z.string() })),
 });
 
-const proposed = z.object({ proposalId: z.uuid(), op: z.string() });
+const proposed = z.object({ proposals: z.array(z.object({ proposalId: z.uuid() })).length(1) });
+
+// One item that cites the first page of the test document, as the research role gives it.
+const citedOnPageOne = (act: Readonly<Record<string, unknown>>) => ({
+  items: [
+    {
+      ref: 'one',
+      act,
+      originator: 'The tool test',
+      modality: 'asserts',
+      evidence: [{ document: DOC, page: 1, excerpt: 'page one' }],
+    },
+  ],
+});
 
 // ---------------------------------------------------------- search_graph ---
 
@@ -132,20 +145,21 @@ test('search_graph finds a hull by its imo, and the next proposal on it is updat
     const [hull] = result.entities;
     if (hull === undefined) throw new Error('search_graph found no entity for the imo');
     const made = proposed.parse(
-      await output(ask, 'propose_change', {
-        act: {
+      await output(
+        ask,
+        'propose',
+        citedOnPageOne({
           op: 'update_attrs',
           targetKind: 'entity',
           targetId: hull.id,
           attrs: { imo: { v: held.value } },
-        },
-        documents: [DOC],
-      }),
+        }),
+      ),
     );
     return { held, result, made };
   });
   expect(found.result.entities.map((entity) => entity.id)).toStrictEqual([found.held.id]);
-  expect(found.made.op).toBe('update_attrs');
+  expect(found.made.proposals).toHaveLength(1);
 });
 
 test('search_graph finds nothing for an imo that no entity holds', async () => {
@@ -277,121 +291,289 @@ test('lookup_entity finds nothing for a value that no entity holds', async () =>
   expect(found.entities).toStrictEqual([]);
 });
 
-// -------------------------------------------------------- propose_change ---
+// --------------------------------------------------------------- propose ---
 
-const CREATE = {
-  op: 'create_entity',
-  type: 'vessel',
-  label: 'Nayara',
-  attrs: { imo: { v: '9123456' } },
+const PAGE_ONE =
+  'On 12 March 2024 the tanker NAYARA, of 41 200 dwt, left Sikka. Rosneft owns the ves-\n' +
+  'sel through Sea­trade Ltd.';
+
+const item = (
+  ref: string,
+  act: Readonly<Record<string, unknown>>,
+  excerpt: string,
+): Readonly<Record<string, unknown>> => ({
+  ref,
+  act,
+  originator: 'The port authority',
+  modality: 'asserts',
+  evidence: [{ document: DOC, page: 1, excerpt }],
+});
+
+const NAYARA = item(
+  'nayara',
+  {
+    op: 'create_entity',
+    type: 'vessel',
+    label: 'Nayara',
+    attrs: { departed_on: { v: '2024-03-12' }, capacity_dwt: { v: 41200 } },
+  },
+  'On 12 March 2024 the tanker NAYARA, of 41 200 dwt',
+);
+
+const proposedBatch = z.object({
+  proposals: z.array(
+    z.object({
+      ref: z.string(),
+      proposalId: z.uuid(),
+      written: z.boolean(),
+      disputed: z.boolean(),
+      unstated: z.array(z.string()),
+    }),
+  ),
+});
+
+// The research role cannot read a citation, so the owner opens the transaction, the research
+// role makes each call, and the owner reads the rows that the call wrote.
+const asResearch = async <T>(ask: Ask, work: () => Promise<T>): Promise<T> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+  const done = await work();
+  await ask('RESET SESSION AUTHORIZATION');
+  return done;
 };
 
-const STORED = `SELECT author_role, status, src::text[] AS src, payload
-  FROM public.proposals WHERE id = $1`;
+const proposeAgain = (ask: Ask, items: readonly unknown[]) =>
+  asResearch(ask, () => call(ask, 'propose', { items }));
 
-const stored = z.array(
+const proposeOnPage = async (ask: Ask, items: readonly unknown[]) => {
+  await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+  return proposeAgain(ask, items);
+};
+
+const batchOf = (outcome: Awaited<ReturnType<typeof call>>) => {
+  if (!outcome.ok) throw new Error(`propose refused: ${outcome.refusal}`);
+  return proposedBatch.parse(outcome.output);
+};
+
+const ROWS = `SELECT p.id::text AS id, p.author_role, p.status, p.src::text[] AS src, p.payload,
+    p.dissent, p.originator, c.page, c.start, c."end", c.modality, c.text_extractor
+  FROM public.proposals p LEFT JOIN public.citation c ON c.claim_id = p.id
+  WHERE p.src::text[] @> ARRAY[$1::text] ORDER BY p.created_at, p.id`;
+
+const documentRows = z.array(
   z.object({
+    id: z.uuid(),
     author_role: z.string(),
     status: z.string(),
     src: z.array(z.string()),
     payload: z.record(z.string(), z.unknown()),
+    dissent: z.boolean(),
+    originator: z.string().nullable(),
+    page: z.number().nullable(),
+    start: z.number().nullable(),
+    end: z.number().nullable(),
+    modality: z.string().nullable(),
+    text_extractor: z.string().nullable(),
   }),
 );
 
-test('propose_change stores a proposal under the name of the role and the cited document', async () => {
-  const found = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
-    const made = proposed.parse(
-      await output(ask, 'propose_change', { act: CREATE, documents: [DOC] }),
-    );
-    return { made, rows: stored.parse(await ask(STORED, [made.proposalId])) };
+const rowsOfDocument = async (ask: Ask) => documentRows.parse(await ask(ROWS, [DOC]));
+
+const spanOf = (start: number | null | undefined, end: number | null | undefined): string =>
+  Array.from(PAGE_ONE)
+    .slice(start ?? 0, end ?? 0)
+    .join('');
+
+test('propose stores the act of the role, its originator and the citation of its excerpt', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(ask, [NAYARA]);
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
   });
-  expect(found.made.op).toBe('create_entity');
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'nayara', written: true, disputed: false, unstated: [] },
+  ]);
   expect(found.rows).toHaveLength(1);
-  expect(found.rows[0]).toMatchObject({
+  const [row] = found.rows;
+  expect(row).toMatchObject({
+    id: found.batch.proposals[0]?.proposalId,
     author_role: 'gabriel_research',
     status: 'pending',
     src: [DOC],
+    dissent: false,
+    originator: 'The port authority',
+    page: 1,
+    modality: 'asserts',
+    text_extractor: 'tool-test-1',
   });
-  expect(found.rows[0]?.payload['attrs']).toStrictEqual({ imo: { v: '9123456', src: [DOC] } });
+  expect(spanOf(row?.start, row?.end)).toBe('On 12 March 2024 the tanker NAYARA, of 41 200 dwt');
+  expect(row?.payload['attrs']).toStrictEqual({
+    departed_on: { v: '2024-03-12', src: [DOC] },
+    capacity_dwt: { v: 41200, src: [DOC] },
+  });
 });
 
-test('propose_change proposes a relation between two entities that exist', async () => {
-  const made = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
+test('an excerpt with other white space, a soft hyphen and a hyphen at a line end is found', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(ask, [
+      item(
+        'owner',
+        { op: 'create_entity', type: 'company', label: 'Seatrade Ltd' },
+        'Rosneft  owns the vessel through Seatrade Ltd.',
+      ),
+    ]);
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const [row] = found.rows;
+  expect(spanOf(row?.start, row?.end)).toBe('Rosneft owns the ves-\nsel through Sea­trade Ltd.');
+  expect(found.batch.proposals[0]?.disputed).toBe(false);
+});
+
+test('an excerpt that the page does not hold refuses the whole batch and names the item', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(ask, [
+      NAYARA,
+      item(
+        'ghost',
+        { op: 'create_entity', type: 'vessel', label: 'Ghost' },
+        'the tanker Ghost left Vadinar',
+      ),
+    ]);
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item ghost: .*does not hold the excerpt/u) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+test('a value that its excerpt does not state marks the item as disputed', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(ask, [
+      item(
+        'nayara',
+        { op: 'create_entity', type: 'vessel', label: 'Nayara', attrs: { flag: { v: 'Panama' } } },
+        'the tanker NAYARA',
+      ),
+    ]);
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { disputed: true, unstated: ['attrs.flag'], written: true },
+  ]);
+  expect(found.rows[0]?.dissent).toBe(true);
+});
+
+test('a relation of a batch names an entity that the same batch creates', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
     const held = await connected(ask);
-    const [other] = z
-      .array(z.object({ id: z.uuid() }))
-      .parse(await ask('SELECT id::text AS id FROM api.entity WHERE id <> $1 LIMIT 1', [held.id]));
-    return proposed.parse(
-      await output(ask, 'propose_change', {
-        act: { op: 'create_relation', type: 'owns', srcId: held.id, dstId: other?.id },
-        documents: [DOC],
-      }),
-    );
+    const outcome = await proposeOnPage(ask, [
+      NAYARA,
+      item(
+        'owner',
+        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: 'nayara' },
+        'Rosneft owns the vessel',
+      ),
+    ]);
+    return { held, batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
   });
-  expect(made.op).toBe('create_relation');
+  const [vessel, link] = found.batch.proposals;
+  const relation = found.rows.find((row) => row.id === link?.proposalId);
+  expect(relation?.payload).toMatchObject({ src_id: found.held.id, dst_id: vessel?.proposalId });
 });
 
-test('propose_change refuses a relation whose end does not exist', async () => {
-  const outcome = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
+test('a relation that names a later item or an absent entity refuses the batch', async () => {
+  const outcomes = await rolledBack('superuser', async (ask) => {
     const held = await connected(ask);
-    return call(ask, 'propose_change', {
-      act: { op: 'create_relation', type: 'owns', srcId: held.id, dstId: ABSENT },
-      documents: [DOC],
-    });
+    const later = await proposeOnPage(ask, [
+      item(
+        'owner',
+        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: 'nayara' },
+        'Rosneft owns the vessel',
+      ),
+      NAYARA,
+    ]);
+    const absent = await proposeAgain(ask, [
+      item(
+        'owner',
+        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: ABSENT },
+        'Rosneft owns the vessel',
+      ),
+    ]);
+    return { later, absent };
   });
-  expect(outcome).toMatchObject({ ok: false, refusal: expect.stringContaining(ABSENT) as string });
+  expect(outcomes.later).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('item owner: it names nayara') as string,
+  });
+  expect(outcomes.absent).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(ABSENT) as string,
+  });
 });
 
-test('propose_change updates attributes and keeps the documents the value already held', async () => {
-  const found = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
+test('a retry of the same batch writes no second proposal and no second citation', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const batch = [
+      NAYARA,
+      item(
+        'owner',
+        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: 'nayara' },
+        'Rosneft owns the vessel',
+      ),
+    ];
+    const first = batchOf(await proposeOnPage(ask, batch));
+    const again = batchOf(await proposeAgain(ask, batch));
+    return { first, again, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.again.proposals.map((one) => one.proposalId)).toStrictEqual(
+    found.first.proposals.map((one) => one.proposalId),
+  );
+  expect(found.again.proposals.map((one) => one.written)).toStrictEqual([false, false]);
+  expect(found.rows).toHaveLength(2);
+});
+
+test('propose updates attributes and keeps the documents the value already held', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
     const [held] = keyed.parse(await ask(KEYED));
     if (held === undefined) throw new Error('the fixture holds no string attribute');
-    const made = proposed.parse(
-      await output(ask, 'propose_change', {
-        act: {
+    const outcome = await proposeOnPage(ask, [
+      item(
+        'update',
+        {
           op: 'update_attrs',
           targetKind: 'entity',
           targetId: held.id,
           attrs: { [held.key]: { v: held.value } },
         },
-        documents: [DOC],
-      }),
-    );
-    return stored.parse(await ask(STORED, [made.proposalId]));
+        'the tanker NAYARA',
+      ),
+    ]);
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
   });
-  expect(found[0]?.src).toContain(DOC);
-  expect(found[0]?.src).not.toContain('manual');
+  expect(found.rows[0]?.src).toContain(DOC);
+  expect(found.rows[0]?.src).not.toContain('manual');
+  expect(found.batch.proposals[0]?.disputed).toBe(true);
 });
 
-test('propose_change refuses an update of a target that does not exist', async () => {
-  const outcome = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
-    return call(ask, 'propose_change', {
-      act: { op: 'update_attrs', targetKind: 'entity', targetId: ABSENT, attrs: { a: { v: 'b' } } },
-      documents: [DOC],
-    });
-  });
-  expect(outcome.ok).toBe(false);
-});
-
-test('propose_change refuses a payload that the proposal package refuses', async () => {
-  const outcome = await rolledBack('research', (ask) =>
-    call(ask, 'propose_change', {
-      act: { op: 'create_entity', type: '', label: 'Nayara' },
-      documents: [DOC],
-    }),
+test('propose refuses an act that the write contract refuses, and names the item', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item('blank', { op: 'create_entity', type: '', label: 'Nayara' }, 'the tanker NAYARA'),
+    ]),
   );
-  expect(outcome.ok).toBe(false);
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item blank: /u) as string,
+  });
 });
 
-test('propose_change of a document that is not stored is a fault of the database', async () => {
-  await expect(
-    rolledBack('research', (ask) => call(ask, 'propose_change', { act: CREATE, documents: [DOC] })),
-  ).rejects.toMatchObject({ code: expect.any(String) as string });
+test('propose refuses a page of a document that holds no stored text', async () => {
+  const outcome = await rolledBack('research', (ask) => call(ask, 'propose', { items: [NAYARA] }));
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(`item nayara: document ${DOC} has no page 1`) as string,
+  });
 });
 
 // --------------------------------------------------------- proposal_read ---
@@ -409,15 +591,20 @@ test('proposal_read returns the proposal with its payload and its sources', asyn
   const found = await rolledBack('research', async (ask) => {
     await withDocument(ask, ['page one']);
     const made = proposed.parse(
-      await output(ask, 'propose_change', { act: CREATE, documents: [DOC] }),
+      await output(
+        ask,
+        'propose',
+        citedOnPageOne({ op: 'create_entity', type: 'vessel', label: 'Nayara' }),
+      ),
     );
+    const proposalId = made.proposals[0]?.proposalId;
     return {
-      made,
-      read: read.parse(await output(ask, 'proposal_read', { proposal: made.proposalId })),
+      proposalId,
+      read: read.parse(await output(ask, 'proposal_read', { proposal: proposalId })),
     };
   });
   expect(found.read).toMatchObject({
-    id: found.made.proposalId,
+    id: found.proposalId,
     op: 'create_entity',
     status: 'pending',
     src: [DOC],

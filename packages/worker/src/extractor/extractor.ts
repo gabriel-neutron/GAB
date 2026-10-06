@@ -1,12 +1,9 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { REASON, type Message, type Tool as ModelTool } from '@gab/model';
 import { documentText } from '@gab/tools/document-text';
 import { lookupEntity } from '@gab/tools/lookup-entity';
-import { proposeChange } from '@gab/tools/propose-change';
-import { putClaimReading } from '@gab/tools/put-claim-reading';
-import { chunkAnswer, claimEntry, type ClaimEntry } from '@gab/tools/reading';
+import { propose, proposeItem } from '@gab/tools/propose';
 import { callTool, type Session, type Tool } from '@gab/tools/tool';
 import { z } from 'zod';
 
@@ -19,21 +16,19 @@ import {
   type Refusal,
   type RunnerAgent,
 } from '../agents.ts';
-import { chunkPages, codePoints, type Chunk } from '../chunk.ts';
+import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 
-/** The reader id of the first reader. The key of each of its acts holds it. */
+/** The name of the extractor in the record of each of its model calls. */
 export const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v1';
-const INPUT_FORM = 'text';
+const VERSION = 'v2';
 
-/** The four tools of the profile. A test gives a stub for each one. */
+/** The three tools of the profile. A test gives a stub for each one. */
 export interface ExtractorTools {
   readonly documentText: Tool;
   readonly lookupEntity: Tool;
-  readonly proposeChange: Tool;
-  readonly putClaimReading: Tool;
+  readonly propose: Tool;
 }
 
 export interface ExtractorOptions {
@@ -42,73 +37,26 @@ export interface ExtractorOptions {
   readonly prompt?: string;
 }
 
-const DEFAULT_TOOLS: ExtractorTools = {
-  documentText,
-  lookupEntity,
-  proposeChange,
-  putClaimReading,
-};
+const DEFAULT_TOOLS: ExtractorTools = { documentText, lookupEntity, propose };
 
-const proposed = z.object({ proposalId: z.uuid() });
+// The answer of the model is the batch that the propose tool takes, so the research AI and the
+// extractor give one shape. An empty list is a chunk that states no claim.
+const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
 
-// One claim that the boundary refused goes back alone, so the model answers for that claim.
-const retryAnswer = z.strictObject({ claim: claimEntry });
+const promptOf = (given: string | undefined): string =>
+  given ?? readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
 
-const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
-
-// The order of the keys of an object is not part of a claim, so the key of a claim sorts them.
-const canonical = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value === null || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([name, held]) => [name, canonical(held)]),
-  );
-};
-
-export interface ClaimKeyParts {
-  readonly keyOf: AgentContext['keyOf'];
-  readonly chunkHash: string;
-  readonly servedModel: string;
-  readonly inputForm: string;
-  readonly promptHash: string;
-  readonly entry: unknown;
-}
-
-/** The key of one claim: the key of its chunk with the claim itself. A chunk gives more than one
- * claim, and the key of the chunk alone would join every claim of it to the first proposal. */
-export const claimKeyOf = (parts: ClaimKeyParts): string =>
-  sha256(
-    JSON.stringify([
-      parts.keyOf({
-        chunkHash: parts.chunkHash,
-        servedModel: parts.servedModel,
-        inputForm: parts.inputForm,
-        promptHash: parts.promptHash,
-      }),
-      canonical(parts.entry),
-    ]),
-  );
-
-const promptBytes = (given: string | undefined): Buffer =>
-  given === undefined
-    ? readFileSync(new URL('./prompt.md', import.meta.url))
-    : Buffer.from(given, 'utf8');
-
-/** The first reader. It reads each chunk of the newest text of a document, and code proposes each
- * claim that the model gives and stores where the page states it. The model writes nothing. */
+/** The extractor. It reads each chunk of the newest text of a document, and code proposes the
+ * batch that the model gives through the same tool as the research AI. The model writes nothing. */
 export const makeExtractor = (
   config: ReaderConfig,
   options: ExtractorOptions = {},
 ): RunnerAgent => {
   const tools = options.tools ?? DEFAULT_TOOLS;
-  const bytes = promptBytes(options.prompt);
-  const prompt = bytes.toString('utf8');
-  const promptHash = sha256(bytes);
+  const prompt = promptOf(options.prompt);
 
-  // The model reads and looks up. A call to any other tool is refused, and the two writes are
-  // made by code alone.
+  // The model reads and looks up. A call to any other tool is refused, and the write is made by
+  // code alone.
   const offered = new Map(
     [tools.documentText, tools.lookupEntity].map((tool) => [tool.name, tool]),
   );
@@ -123,15 +71,18 @@ export const makeExtractor = (
     const refusals: Refusal[] = [];
     let turns = 0;
 
-    const ask = async <T>(
+    const ask = async (
       messages: readonly Message[],
-      shape: z.ZodType<T>,
-      withTools: boolean,
-    ): Promise<Asked<T>> => {
+    ): Promise<Asked<z.output<typeof chunkAnswer>>> => {
       if (turns >= config.turnCap) throw new JobStop('turn_cap');
       turns += 1;
       try {
-        return await context.ask({ messages, shape, ...(withTools ? { tools: modelTools } : {}) });
+        // A copy, so the question that was asked keeps the messages it held at that time.
+        return await context.ask({
+          messages: [...messages],
+          shape: chunkAnswer,
+          tools: modelTools,
+        });
       } catch (cause) {
         if (cause instanceof ModelFailure && cause.failure.kind === REASON.overCap)
           throw new JobStop('usage_cap');
@@ -147,7 +98,7 @@ export const makeExtractor = (
       const tool = offered.get(call.name);
       let content: string;
       if (tool === undefined) {
-        const reason = `the tool ${call.name} is not offered to this model, and code runs the writes`;
+        const reason = `the tool ${call.name} is not offered to this model, and code runs the write`;
         refusals.push({ tool: call.name, reason });
         content = reason;
       } else {
@@ -172,98 +123,9 @@ export const makeExtractor = (
       ];
     };
 
-    const spanFault = (chunk: Chunk, entry: ClaimEntry): string | null => {
-      const length = codePoints(chunk.text);
-      if (entry.page === chunk.page && entry.end <= length) return null;
-      return (
-        `the span ${String(entry.start)} to ${String(entry.end)} on page ${String(entry.page)} ` +
-        `lies outside the chunk, which is page ${String(chunk.page)} and holds ` +
-        `${String(length)} code points`
-      );
-    };
-
-    // The span check and a refusal of the proposal go back to the model, once. A refusal of the
-    // reading comes after a stored proposal, so it is a fault of code: it throws, and the next
-    // claim of the job finds the same proposal by its key and writes the reading then.
-    const settle = async (
-      chunk: Chunk,
-      textSet: string,
-      entry: ClaimEntry,
-      asked: { readonly callId: string; readonly served: string },
-      conversation: readonly Message[],
-      retries: number,
-    ): Promise<void> => {
-      let fault = spanFault(chunk, entry);
-      if (fault === null) {
-        const key = claimKeyOf({
-          keyOf: context.keyOf,
-          chunkHash: chunk.hash,
-          servedModel: asked.served,
-          inputForm: INPUT_FORM,
-          promptHash,
-          entry,
-        });
-        const made = await callTool(tools.proposeChange, session, {
-          act: entry.act,
-          documents: [context.job.documentId],
-          modelCallId: asked.callId,
-          idempotencyKey: key,
-        });
-        if (made.ok) {
-          const { proposalId } = proposed.parse(made.output);
-          const read = await callTool(tools.putClaimReading, session, {
-            job: context.job.id,
-            claim: proposalId,
-            textExtractor: textSet,
-            page: chunk.page,
-            start: chunk.start + entry.start,
-            end: chunk.start + entry.end,
-            modality: entry.modality,
-            ...(entry.adverse === true ? { adverse: true } : {}),
-            modelCallId: asked.callId,
-            inputForm: INPUT_FORM,
-            readerFingerprint: `${asked.served} ${promptHash}`,
-            chunkHash: chunk.hash,
-            idempotencyKey: key,
-          });
-          if (!read.ok)
-            throw new Error(
-              `the door refused the reading of proposal ${proposalId}: ${read.refusal}`,
-            );
-          return;
-        }
-        fault = made.refusal;
-      }
-
-      if (retries === 0) {
-        refusals.push({ tool: tools.proposeChange.name, reason: fault });
-        return;
-      }
-      const again = await ask(
-        [
-          ...conversation,
-          {
-            role: 'user',
-            content:
-              `The boundary refuses this claim: ${JSON.stringify(entry)}. The fault: ${fault}. ` +
-              'Give this one claim again, corrected, as {"claim": {...}}.',
-          },
-        ],
-        retryAnswer,
-        false,
-      );
-      if (again.kind === 'call') {
-        refusals.push({
-          tool: again.call.name,
-          reason: 'a tool call came back where a claim was asked',
-        });
-        return;
-      }
-      await settle(chunk, textSet, again.value.claim, again, conversation, retries - 1);
-    };
-
-    // The text of the document goes to the model as it is stored.
-    const readChunk = async (chunk: Chunk, textSet: string): Promise<void> => {
+    // The model answers with the batch of one chunk. A refusal of the batch goes back to the
+    // model once, with the sentence of the tool, and the model gives the whole batch again.
+    const readChunk = async (chunk: Chunk): Promise<void> => {
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
@@ -275,28 +137,40 @@ export const makeExtractor = (
           }),
         },
       ];
+      let retries = 1;
       for (;;) {
-        // A copy, so the question that was asked keeps the messages it held at that time.
-        const asked = await ask([...messages], chunkAnswer, true);
+        const asked = await ask(messages);
         if (asked.kind === 'call') {
           messages.push(...(await answerCall(asked.call)));
           continue;
         }
-        const conversation: Message[] = [
-          ...messages,
+        if (asked.value.items.length === 0) return;
+        const made = await callTool(tools.propose, session, {
+          items: asked.value.items,
+          modelCallId: asked.callId,
+        });
+        if (made.ok) return;
+        if (retries === 0) {
+          refusals.push({ tool: tools.propose.name, reason: made.refusal });
+          return;
+        }
+        retries -= 1;
+        messages.push(
           { role: 'assistant', content: JSON.stringify(asked.value) },
-        ];
-        for (const entry of asked.value.claims)
-          await settle(chunk, textSet, entry, asked, conversation, 1);
-        return;
+          {
+            role: 'user',
+            content:
+              `The tool refused the batch: ${made.refusal}. Give the whole answer again, ` +
+              'corrected, in the same shape.',
+          },
+        );
       }
     };
 
     const newest = await readNewestPages(context.db, context.job.documentId);
     if (newest === null) throw new JobStop('no_text');
 
-    for (const chunk of chunkPages(newest.pages, config.chunkCap))
-      await readChunk(chunk, newest.textSet);
+    for (const chunk of chunkPages(newest, config.chunkCap)) await readChunk(chunk);
     return { refusals };
   };
 

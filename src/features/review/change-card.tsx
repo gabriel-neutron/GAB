@@ -3,9 +3,11 @@ import { Split, TrendingDown, TriangleAlert } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 import { ChangeMark } from './change-mark';
+import { CitedPassages } from './cited-passages';
 import { Confidence } from './confidence';
 import { Difference } from './difference';
 import { Holes } from './holes';
+import type { ActPassages } from './passages';
 import type { Change, Routing } from './queue';
 import { SourceBadge } from './sources';
 
@@ -13,6 +15,7 @@ export interface ChangeCardProps {
   readonly change: Change;
   /** The act the controls at the foot act on. Two cards stand open when a key is contested. */
   readonly current: boolean;
+  readonly passages: ActPassages;
 }
 
 /** A mark and never a sentence. `unstated` draws no mark: while no threshold reaches this screen
@@ -33,7 +36,7 @@ const ROUTING_PAINT: Readonly<Record<Routing, string>> = {
   unstated: 'text-label',
 };
 
-export function ChangeCard({ change, current }: ChangeCardProps) {
+export function ChangeCard({ change, current, passages }: ChangeCardProps) {
   const Routed = ROUTING_GLYPH[change.routing];
   const low = change.routing === 'low-confidence' || change.routing === 'both';
   // A row of an update carries the documents of the act. A row of a deletion carries the documents
@@ -97,6 +100,8 @@ export function ChangeCard({ change, current }: ChangeCardProps) {
           ))}
         </div>
       ) : null}
+
+      <CitedPassages cited={passages} />
 
       {change.rows.length === 0 ? null : (
         <Difference rows={change.rows} rowSources={change.rowSources} />

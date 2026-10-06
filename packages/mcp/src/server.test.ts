@@ -100,7 +100,7 @@ test('an action that the group does not hold comes back as a tool error', async 
   const client = await connected(pool);
   const result = await client.callTool({
     name: 'graph',
-    arguments: { action: 'propose_change', input: {} },
+    arguments: { action: 'propose', input: {} },
   });
   expect(isErrorOf(result)).toBe(true);
   expect(textOf(result)).toContain('action');

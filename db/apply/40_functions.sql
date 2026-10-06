@@ -27,6 +27,15 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- current_user inside a SECURITY DEFINER function is the OWNER, never the caller. session_user
 -- is the caller. It separates gabriel_agent from gabriel_app, and it CANNOT separate the
 -- operator from the backend, because both hold the name gabriel_app.
+-- What makes two machine acts the same act: the operation, the target, the payload and the
+-- sources. The stamp below and the batch door read it, so both compute one digest.
+CREATE OR REPLACE FUNCTION act_digest_of(
+  p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[])
+RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
+  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src)::text)
+$$;
+
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
@@ -47,6 +56,11 @@ BEGIN
     RAISE EXCEPTION 'a proposal of gabriel_agent names the model call that made it'
       USING ERRCODE = 'check_violation';
   END IF;
+  -- THE DIGEST OF A MACHINE ACT. A pending act with the same digest is the same act, and the
+  -- unique index returns it to a retry. The operator gets none, so an act of the operator is
+  -- never joined to an act of a machine.
+  NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
+    ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[]) END;
   RETURN NEW;
 END $$;
 
@@ -97,11 +111,11 @@ BEGIN
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id, NEW.idempotency_key)
+      NEW.model_call_id, NEW.act_digest, NEW.originator)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id, OLD.idempotency_key) THEN
+      OLD.model_call_id, OLD.act_digest, OLD.originator) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -118,15 +132,16 @@ BEGIN
   RAISE EXCEPTION 'a model call is never updated. It is the record of what the model was asked';
 END $$;
 
--- A READING IS A FACT AND NOT A STATE: what one reader saw in one page is written once. The
--- comparison reads it, and a reading that changed after the comparison would change a claim in
--- silence. The owner and the superuser ignore a grant, so a trigger holds it. The citation is
--- held the same way until its write-once columns arrive.
-CREATE OR REPLACE FUNCTION claim_reading_append_only_fn() RETURNS trigger
+-- A CITATION IS A FACT AND NOT A STATE: where a page states a claim is written once, with the
+-- claim. A citation that changed after the decision would change the proof in silence. The owner
+-- and the superuser ignore a grant, so a trigger holds it. The reading table went in 0041, and
+-- the drop below removes its function, and the trigger that used it, from an older database.
+DROP FUNCTION IF EXISTS claim_reading_append_only_fn() CASCADE;
+CREATE OR REPLACE FUNCTION citation_append_only_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  RAISE EXCEPTION 'a row of % is never %. It is the record of what a reader saw',
-    TG_TABLE_NAME, CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+  RAISE EXCEPTION 'a citation is never %. It is the record of where a page states a claim',
+    CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
 -- A MESSAGE ROW IS A FACT AND NOT A STATE: it is written once. The owner and the superuser
@@ -305,19 +320,14 @@ BEGIN
   -- a rate_document act, and it is built with the first caller that scores a document.
 END $$;
 
--- The candidate layer. gabriel_agent and gabriel_app may call it. The author role is stamped by
--- a trigger and is never a parameter. The call id is the last parameter and it is optional: a
--- proposal of gabriel_agent must carry one and a proposal of gabriel_app must carry none, and
--- the database holds both rules, so this door states neither.
+-- THE DOOR OF THE OPERATOR. gabriel_app alone calls it, through the writer. A machine proposes
+-- through propose_batch, which writes the citations with the act. The author role is stamped by
+-- a trigger and is never a parameter.
 --
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
---
--- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after a crash
--- writes the same act with the same key, and the door then returns the proposal that stands and
--- writes nothing.
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
-DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
 CREATE OR REPLACE FUNCTION propose_change(
   p_op              text,
@@ -328,8 +338,7 @@ CREATE OR REPLACE FUNCTION propose_change(
   p_names           uuid[]  DEFAULT '{}',
   p_confidence      numeric DEFAULT NULL,
   p_dissent         boolean DEFAULT false,
-  p_model_call_id   uuid    DEFAULT NULL,
-  p_idempotency_key text    DEFAULT NULL)
+  p_model_call_id   uuid    DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -337,20 +346,152 @@ DECLARE v_id uuid;
 BEGIN
   INSERT INTO public.proposals
     (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-     model_call_id, idempotency_key)
+     model_call_id)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
      coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
      session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
-     p_model_call_id, p_idempotency_key)
-  ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+     p_model_call_id)
   RETURNING id INTO v_id;
-
-  -- The conflict is the only way to get no row, so the key is set here.
-  IF v_id IS NULL THEN
-    SELECT p.id INTO STRICT v_id FROM public.proposals p WHERE p.idempotency_key = p_idempotency_key;
-  END IF;
   RETURN v_id;
+END $$;
+
+-- THE ONE DOOR OF A MACHINE. gabriel_agent and gabriel_research call it with a batch of items.
+-- Each item is one act, the party that first stated it, and its citations: the page and the span
+-- that code found for each excerpt. The door writes every act and every citation in one
+-- transaction, so a fault in one item refuses the whole batch.
+--
+-- CODE MINTS THE IDENTIFIER OF EACH ITEM, so an item can name an entity that an earlier item of
+-- the batch creates. The promotion gives the new row that identifier.
+--
+-- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
+-- digest of a pending act makes a retry return the act that waits. That act keeps its own
+-- identifier, so each later item that named the minted one names the act that waits instead.
+-- Its citations are already written, and the door writes none again.
+--
+-- THE RULES OF THE DATA ARE HERE, and the tool only finds the excerpt. A machine act cites at
+-- least one page. The page exists in the text of the document, the span lies in that page, and
+-- the document is a source of the act. Each refusal names the item.
+CREATE OR REPLACE FUNCTION propose_batch(p_items jsonb)
+RETURNS TABLE (item int, proposal_id uuid, written boolean)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_item     jsonb;
+  v_no       int;
+  v_minted   uuid;
+  v_id       uuid;
+  v_payload  text;
+  v_names    uuid[];
+  v_target   uuid;
+  v_src      text[];
+  v_cite     jsonb;
+  v_length   int;
+  v_moved    jsonb := '{}'::jsonb;
+  v_from     text;
+  v_to       text;
+BEGIN
+  IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'a batch holds at least one item'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  FOR v_item, v_no IN SELECT e.value, e.ordinality::int FROM jsonb_array_elements(p_items)
+                         WITH ORDINALITY AS e(value, ordinality) LOOP
+    v_minted  := (v_item->>'id')::uuid;
+    v_payload := coalesce(v_item->'payload', 'null'::jsonb)::text;
+    v_names   := ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item->'names', '[]'))::uuid);
+    v_target  := (v_item->>'target_id')::uuid;
+    v_src     := ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item->'src', '[]')));
+
+    -- An earlier item that waited already gave its own identifier. A minted identifier is a
+    -- random uuid, so a text replace finds it alone.
+    FOR v_from, v_to IN SELECT key, value #>> '{}' FROM jsonb_each(v_moved) LOOP
+      v_payload := replace(v_payload, v_from, v_to);
+      v_names   := array_replace(v_names, v_from::uuid, v_to::uuid);
+      IF v_target = v_from::uuid THEN v_target := v_to::uuid; END IF;
+    END LOOP;
+
+    IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
+      RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
+                                                 'denies') THEN
+      RAISE EXCEPTION 'item %: the modality is one of enacts, asserts, attributes, alleges, '
+                      'denies', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF coalesce(jsonb_typeof(v_item->'citations'), 'absent') <> 'array'
+       OR jsonb_array_length(v_item->'citations') = 0 THEN
+      RAISE EXCEPTION 'item %: a machine act cites at least one page', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    FOR v_cite IN SELECT value FROM jsonb_array_elements(v_item->'citations') LOOP
+      IF NOT (v_cite->>'document') = ANY (v_src) THEN
+        RAISE EXCEPTION 'item %: the act cites page % of %, and that document is not a source '
+                        'of the act', v_no, v_cite->>'page', v_cite->>'document'
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+      SELECT char_length(t.text) INTO v_length
+        FROM public.document_text t
+       WHERE t.document_id = v_cite->>'document'
+         AND t.extractor = v_cite->>'text_extractor'
+         AND t.page = (v_cite->>'page')::int;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'item %: page % of the text % of document % does not exist', v_no,
+          v_cite->>'page', v_cite->>'text_extractor', v_cite->>'document'
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+      -- char_length counts the characters of the database encoding, which is UTF-8: code points.
+      IF (v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
+         OR (v_cite->>'end')::int > v_length THEN
+        RAISE EXCEPTION 'item %: the span % to % lies outside page %, which holds % code points',
+          v_no, v_cite->>'start', v_cite->>'end', v_cite->>'page', v_length
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+    END LOOP;
+
+    v_id := NULL;
+    -- A rule of the table refuses the act with its own sentence, and the caller must know which
+    -- item it refused, so the sentence goes on with the number of the item.
+    BEGIN
+      INSERT INTO public.proposals
+        (id, op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
+         model_call_id, originator)
+      VALUES
+        (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
+         v_src::doc_id[], v_names, (v_item->>'confidence')::numeric,
+         coalesce((v_item->>'dissent')::boolean, false),
+         session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
+         (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'))
+      ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
+      RETURNING id INTO v_id;
+    EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
+      RAISE EXCEPTION 'item %: %', v_no, SQLERRM USING ERRCODE = 'invalid_parameter_value';
+    END;
+
+    IF v_id IS NULL THEN
+      -- The conflict is the only way to get no row, so the act waits under its digest.
+      SELECT p.id INTO STRICT v_id FROM public.proposals p
+       WHERE p.status = 'pending'
+         AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                          v_payload::jsonb, v_src);
+      v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
+      item := v_no; proposal_id := v_id; written := false;
+      RETURN NEXT;
+      CONTINUE;
+    END IF;
+
+    INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+    SELECT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int, (c->>'start')::int,
+           (c->>'end')::int, v_item->>'modality'
+      FROM jsonb_array_elements(v_item->'citations') AS c;
+
+    item := v_no; proposal_id := v_id; written := true;
+    RETURN NEXT;
+  END LOOP;
 END $$;
 
 -- THE ONE DOOR INTO THE RECORD OF A MODEL CALL. gabriel_agent holds it, and the role writes no
@@ -382,160 +523,6 @@ BEGIN
      p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
   RETURNING id INTO v_id;
   RETURN v_id;
-END $$;
-
--- THE ONE DOOR INTO THE READINGS. A reader gives a page, two offsets in code points of that page
--- and two enums, and never a quote: code reads the span again from the stored text. The door
--- takes no reader number and no reader kind. It sets both from the job that the caller holds:
--- extract_text is the first reader and second_read is the second, and both are model readers.
--- The document is the document of the job, so a caller cannot name another one.
---
--- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A role that does not hold the job must not add a
--- reading to it.
---
--- THE FIRST READER NAMES THE PROPOSAL THAT IT MADE, and that proposal cites the document of the
--- job. The second reader ran no proposal, so it names none. The call is a call of this job.
---
--- THE KEY MAKES A SECOND WRITE OF ONE READING RETURN THE FIRST, as it does for a proposal.
-CREATE OR REPLACE FUNCTION put_claim_reading(
-  p_job                uuid,
-  p_claim              uuid,
-  p_text_extractor     text,
-  p_page               int,
-  p_start              int,
-  p_end                int,
-  p_modality           text,
-  p_adverse            boolean,
-  p_model_call         uuid,
-  p_input_form         text,
-  p_reader_fingerprint text,
-  p_chunk_hash         text,
-  p_idempotency_key    text)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_kind      text;
-  v_doc       text;
-  v_reader_no smallint;
-  v_text      text;
-  v_id        uuid;
-BEGIN
-  SELECT j.kind, j.document_id INTO v_kind, v_doc
-    FROM public.jobs j
-   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
-     FOR SHARE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not running under this role, so it takes no reading', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF v_kind NOT IN ('extract_text','second_read') THEN
-    RAISE EXCEPTION 'a reading belongs to a job of extract_text or second_read, and this job is %',
-      v_kind
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  v_reader_no := CASE v_kind WHEN 'extract_text' THEN 1 ELSE 2 END;
-
-  SELECT t.text INTO v_text
-    FROM public.document_text t
-   WHERE t.document_id = v_doc AND t.extractor = p_text_extractor AND t.page = p_page;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'page % of the text set % of document % does not exist',
-      p_page, p_text_extractor, v_doc
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  -- char_length counts the characters of the database encoding, which is UTF-8: code points.
-  IF p_start IS NULL OR p_end IS NULL OR p_start < 0 OR p_start >= p_end
-     OR p_end > char_length(v_text) THEN
-    RAISE EXCEPTION 'the span % to % lies outside page %, which holds % code points',
-      p_start, p_end, p_page, char_length(v_text)
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  IF p_modality IS NULL
-     OR p_modality NOT IN ('enacts','asserts','attributes','alleges','denies') THEN
-    RAISE EXCEPTION 'the modality % is not one of enacts, asserts, attributes, alleges, denies',
-      coalesce(p_modality, 'nothing')
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  IF v_reader_no = 1 THEN
-    IF p_claim IS NULL THEN
-      RAISE EXCEPTION 'a first reading names the proposal that it made'
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM public.proposals p
-                    WHERE p.id = p_claim AND v_doc::doc_id = ANY (p.src)) THEN
-      RAISE EXCEPTION 'proposal % does not exist or does not cite document %', p_claim, v_doc
-        USING ERRCODE = 'invalid_parameter_value';
-    END IF;
-  ELSIF p_claim IS NOT NULL THEN
-    RAISE EXCEPTION 'the second reader names no claim, because it proposes nothing'
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  IF p_model_call IS NULL
-     OR NOT EXISTS (SELECT 1 FROM public.model_call m
-                     WHERE m.id = p_model_call AND m.job_id = p_job) THEN
-    RAISE EXCEPTION 'a model reading names a call of job %', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  INSERT INTO public.claim_reading
-    (claim_id, doc_id, text_extractor, page, start, "end", modality, adverse, reader_no,
-     reader_kind, model_call_id, input_form, reader_fingerprint, job_id, chunk_hash,
-     idempotency_key)
-  VALUES
-    (p_claim, v_doc, p_text_extractor, p_page, p_start, p_end, p_modality,
-     coalesce(p_adverse, false), v_reader_no, 'llm', p_model_call, p_input_form,
-     p_reader_fingerprint, p_job, p_chunk_hash, p_idempotency_key)
-  ON CONFLICT (idempotency_key) DO NOTHING
-  RETURNING id INTO v_id;
-
-  -- The conflict is the only way to get no row, so the key is set here.
-  IF v_id IS NULL THEN
-    SELECT r.id INTO STRICT v_id FROM public.claim_reading r
-     WHERE r.idempotency_key = p_idempotency_key;
-  END IF;
-  RETURN v_id;
-END $$;
-
--- THE SECOND READER ASKS THIS BEFORE IT ASKS A MODEL. A requeued job must not pay the model again
--- for a chunk whose readings are already stored, and the key of each reading holds the reading
--- itself, so no key is known before the call. The check matches what is known before the call:
--- the second reader, the document of the job, the chunk, the fingerprint and the input form.
---
--- IT READS AND WRITES NOTHING ELSE, AND IT RETURNS A BOOLEAN ALONE. No role reads the readings,
--- so the answer gives no reading back.
---
--- THE JOB IS RUNNING, THE CALLER HOLDS IT, AND IT IS A JOB OF THE SECOND READER. A caller that
--- does not hold the job learns nothing about the readings of its document.
-CREATE OR REPLACE FUNCTION second_read_done(
-  p_job                uuid,
-  p_chunk_hash         text,
-  p_reader_fingerprint text,
-  p_input_form         text)
-RETURNS boolean
-LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_doc text;
-BEGIN
-  SELECT j.document_id INTO v_doc
-    FROM public.jobs j
-   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user
-     AND j.kind = 'second_read';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not a running second_read job under this role', p_job
-      USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-
-  RETURN EXISTS (
-    SELECT 1 FROM public.claim_reading r
-     WHERE r.reader_no = 2
-       AND r.doc_id = v_doc::doc_id
-       AND r.chunk_hash = p_chunk_hash
-       AND r.reader_fingerprint = p_reader_fingerprint
-       AND r.input_form = p_input_form);
 END $$;
 
 -- THE TWO DOORS INTO THE CONVERSATION STORE. gabriel_app alone holds them, and no role writes
@@ -671,9 +658,12 @@ BEGIN
     -- S2: the row-level list backs label, type and geom, and never whatever an attribute's own
     -- src cites. payload.sources is the act's own citation for those columns; a candidate that
     -- gives none (no agent proposes a create today, #25) keeps the wider p.src, as before.
+    -- The new row takes the identifier of its act, so an act of the same batch that names it
+    -- before the promotion names the row that the promotion makes.
     INSERT INTO public.entities
-      (type, proposed_type, label, geom, attrs, sources, promoted_from)
+      (id, type, proposed_type, label, geom, attrs, sources, promoted_from)
     VALUES (
+      p.id,
       coalesce(v_type, 'unknown'),
       CASE WHEN v_type IS NULL THEN p.payload->>'type' END,
       p.payload->>'label',
@@ -692,9 +682,10 @@ BEGIN
     SELECT t.key INTO v_type FROM public.relation_type t
       WHERE t.key = p.payload->>'type' AND NOT t.retired;
     INSERT INTO public.relations
-      (type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs,
+      (id, type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to, attrs,
        sources, promoted_from)
     VALUES (
+      p.id,
       coalesce(v_type, 'unknown'),
       CASE WHEN v_type IS NULL THEN p.payload->>'type' END,
       coalesce(p.payload->>'src_kind','entity'), (p.payload->>'src_id')::uuid,

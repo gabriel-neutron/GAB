@@ -8,7 +8,7 @@ export const RESEARCH_GROUPS = {
   graph: ['search_graph', 'neighbourhood', 'lookup_entity'],
   document: ['document_text', 'fetch_document'],
   web: ['web_search', 'archive_snapshot', 'news_search'],
-  propose: ['propose_change', 'proposal_read'],
+  propose: ['propose', 'proposal_read'],
   job: ['enqueue_extract', 'job_status'],
 } as const satisfies Record<string, readonly ToolName[]>;
 

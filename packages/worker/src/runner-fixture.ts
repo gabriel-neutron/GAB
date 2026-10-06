@@ -35,13 +35,13 @@ export interface StubGateway {
   readonly chats: () => number;
 }
 
-/** A gateway that answers each chat call from `chat`. */
-export const gatewayOf = (chat: (call: number) => Response): StubGateway => {
+/** A gateway that answers each chat call from `chat`, which reads the body that was sent. */
+export const gatewayOf = (chat: (call: number, body: string) => Response): StubGateway => {
   let chats = 0;
   return {
-    send: () => {
+    send: (_url, init) => {
       chats += 1;
-      return Promise.resolve(chat(chats));
+      return Promise.resolve(chat(chats, typeof init.body === 'string' ? init.body : ''));
     },
     chats: () => chats,
   };
