@@ -940,7 +940,10 @@ const askPassages = (body: unknown, origin?: string) =>
 test('the private read gives the passage that a pending act cites, as the page states it', async () => {
   const cited = await one(
     `SELECT c.claim_id::text AS id, d.title FROM public.citation c
-       JOIN public.documents d ON d.id = c.doc_id ORDER BY c.claim_id LIMIT 1`,
+       JOIN public.documents d ON d.id = c.doc_id
+      WHERE c.text_extractor = 'fixture@1' AND c.start = 0
+        AND c."end" = char_length(d.title)
+      ORDER BY c.claim_id LIMIT 1`,
     [],
   );
   const answer = await askPassages({ proposalIds: [cited['id']] });
