@@ -18,6 +18,14 @@ const PASSAGES = `SELECT c.claim_id::text AS "proposalId", c.doc_id::text AS doc
   WHERE c.claim_id = ANY ($1::uuid[])
   ORDER BY c.claim_id, c.doc_id, c.page, c.start`;
 
+// The reason is private for the same reason as the passage it judges.
+const DISPUTES = `SELECT p.id::text AS "proposalId", p.dissent_reason AS reason
+  FROM public.proposals p
+  WHERE p.id = ANY ($1::uuid[]) AND p.dissent_reason IS NOT NULL
+  ORDER BY p.id`;
+
+const dispute = z.object({ proposalId: z.string(), reason: z.string() });
+
 const passage = z.object({
   proposalId: z.string(),
   document: z.string(),
@@ -28,13 +36,20 @@ const passage = z.object({
 
 /** What one read of the passages became. */
 export type PassagesRead =
-  | { readonly status: 200; readonly reply: { readonly passages: readonly unknown[] } }
+  | {
+      readonly status: 200;
+      readonly reply: {
+        readonly passages: readonly unknown[];
+        readonly disputes: readonly unknown[];
+      };
+    }
   | { readonly status: 422 | 503; readonly reply: { readonly refusal: string } };
 
 const UNAVAILABLE = 'the record did not answer, and the passages are not read';
 
-/** The passages that the citations of the named acts point at, read as the operator. The text of
- * a document is private, so this read never goes through the public read API. */
+/** The passages that the citations of the named acts point at, and why each disputed act is
+ * disputed, read as the operator. Both are private, so this read never goes through the public
+ * read API. */
 export const readPassages = async (pool: Sessions, raw: string): Promise<PassagesRead> => {
   let given: unknown;
   try {
@@ -54,7 +69,14 @@ export const readPassages = async (pool: Sessions, raw: string): Promise<Passage
   }
   try {
     const { rows } = await client.query(PASSAGES, [request.data.proposalIds]);
-    return { status: 200, reply: { passages: rows.map((row) => passage.parse(row)) } };
+    const disputed = await client.query(DISPUTES, [request.data.proposalIds]);
+    return {
+      status: 200,
+      reply: {
+        passages: rows.map((row) => passage.parse(row)),
+        disputes: disputed.rows.map((row) => dispute.parse(row)),
+      },
+    };
   } catch {
     return { status: 503, reply: { refusal: UNAVAILABLE } };
   } finally {

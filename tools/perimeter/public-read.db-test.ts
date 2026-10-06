@@ -79,3 +79,14 @@ for (const view of ['job', 'model_call'] as const)
       rolledBack('read', (ask) => ask(`SELECT 1 FROM api.${view}`)),
     ).rejects.toHaveProperty('code', expect.stringMatching(/^(42501|42P01)$/u));
   });
+
+// The reason of a dispute quotes the checker beside a private passage. No view of the read API
+// holds it, and the table itself is closed to the public read role.
+test('the public read role cannot read why an act is disputed', async () => {
+  await expect(
+    rolledBack('read', (ask) => ask('SELECT dissent_reason FROM api.proposal')),
+  ).rejects.toHaveProperty('code', '42703');
+  await expect(
+    rolledBack('read', (ask) => ask('SELECT dissent_reason FROM public.proposals')),
+  ).rejects.toHaveProperty('code', '42501');
+});
