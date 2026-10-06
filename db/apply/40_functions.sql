@@ -26,13 +26,18 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- current_user inside a SECURITY DEFINER function is the OWNER, never the caller. session_user
 -- is the caller. It separates gabriel_agent from gabriel_app, and it CANNOT separate the
 -- operator from the backend, because both hold the name gabriel_app.
--- What makes two machine acts the same act: the operation, the target, the payload and the
--- sources. The stamp below and the batch door read it, so both compute one digest.
+-- What makes two machine acts the same act: the operation, the target, the payload, the
+-- sources, the role that wrote it and the party that first stated it. The stamp below and the
+-- batch door read it, so both compute one digest. Two roles, or two originators, are two
+-- witnesses, and the digest keeps them apart: a merge would lose the second witness.
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
 CREATE OR REPLACE FUNCTION act_digest_of(
-  p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[])
+  p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
+  p_author_role text, p_originator text)
 RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
-  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src)::text)
+  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                               p_author_role, p_originator)::text)
 $$;
 
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
@@ -59,7 +64,8 @@ BEGIN
   -- unique index returns it to a retry. The operator gets none, so an act of the operator is
   -- never joined to an act of a machine.
   NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
-    ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[]) END;
+    ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
+                       NEW.author_role, NEW.originator) END;
   RETURN NEW;
 END $$;
 
@@ -455,7 +461,8 @@ END $$;
 -- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
 -- digest of a pending act makes a retry return the act that waits. That act keeps its own
 -- identifier, so each later item that named the minted one names the act that waits instead.
--- Its citations are already written, and the door writes none again.
+-- The door adds to that act each citation of the item that it does not hold yet, so a second
+-- passage of the same witness is kept, and a retry writes no citation twice.
 --
 -- THE RULES OF THE DATA ARE HERE, and the tool only finds the excerpt. A machine act cites at
 -- least one page. The page exists in the text of the document, the span lies in that page, and
@@ -491,6 +498,14 @@ BEGIN
   FOR v_item, v_no IN SELECT e.value, e.ordinality::int FROM jsonb_array_elements(p_items)
                          WITH ORDINALITY AS e(value, ordinality) LOOP
     v_minted  := (v_item->>'id')::uuid;
+    -- The promotion gives the new row this identifier, so it must not be the identifier of a
+    -- row that the record already holds.
+    IF EXISTS (SELECT 1 FROM public.entities e WHERE e.id = v_minted)
+       OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id = v_minted) THEN
+      RAISE EXCEPTION 'item %: the identifier % is already the identifier of a row of the record',
+        v_no, v_minted
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
     v_payload := coalesce(v_item->'payload', 'null'::jsonb)::text;
     v_names   := ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item->'names', '[]'))::uuid);
     v_target  := (v_item->>'target_id')::uuid;
@@ -537,8 +552,8 @@ BEGIN
           USING ERRCODE = 'invalid_parameter_value';
       END IF;
       -- char_length counts the characters of the database encoding, which is UTF-8: code points.
-      IF (v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
-         OR (v_cite->>'end')::int > v_length THEN
+      IF coalesce((v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
+                  OR (v_cite->>'end')::int > v_length, true) THEN
         RAISE EXCEPTION 'item %: the span % to % lies outside page %, which holds % code points',
           v_no, v_cite->>'start', v_cite->>'end', v_cite->>'page', v_length
           USING ERRCODE = 'invalid_parameter_value';
@@ -599,24 +614,29 @@ BEGIN
       PERFORM public.raise_item_rule(v_no, v_rule, v_code, v_said);
     END;
 
+    written := v_id IS NOT NULL;
     IF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
       SELECT p.id INTO STRICT v_id FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src);
+                                          v_payload::jsonb, v_src, session_user::text,
+                                          btrim(v_item->>'originator', E' \t\n\r\f\v'));
       v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
-      item := v_no; proposal_id := v_id; written := false;
-      RETURN NEXT;
-      CONTINUE;
     END IF;
 
     INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
-    SELECT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int, (c->>'start')::int,
-           (c->>'end')::int, v_item->>'modality'
-      FROM jsonb_array_elements(v_item->'citations') AS c;
+    SELECT DISTINCT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int,
+           (c->>'start')::int, (c->>'end')::int, v_item->>'modality'
+      FROM jsonb_array_elements(v_item->'citations') AS c
+     WHERE NOT EXISTS (
+             SELECT 1 FROM public.citation h
+              WHERE h.claim_id = v_id AND h.doc_id = c->>'document'
+                AND h.text_extractor = c->>'text_extractor' AND h.page = (c->>'page')::int
+                AND h.start = (c->>'start')::int AND h."end" = (c->>'end')::int
+                AND h.modality = v_item->>'modality');
 
-    item := v_no; proposal_id := v_id; written := true;
+    item := v_no; proposal_id := v_id;
     RETURN NEXT;
   END LOOP;
 END $$;

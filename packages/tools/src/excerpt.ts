@@ -110,7 +110,10 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
   const folded = fold(page);
   const wanted = fold(excerpt).text;
   if (wanted === '') return null;
-  const found = folded.text.indexOf(wanted);
+  // A match that stops before an accent of the page stops inside a letter: "cafe" is not "café".
+  let found = folded.text.indexOf(wanted);
+  while (found !== -1 && /^\p{M}/u.test(folded.text.slice(found + wanted.length)))
+    found = folded.text.indexOf(wanted, found + 1);
   if (found === -1) return null;
   const first = pointIndex(folded.text, found);
   const last = first + codePoints(wanted) - 1;
