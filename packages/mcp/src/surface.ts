@@ -16,6 +16,7 @@ export const RESEARCH_TOOLS = {
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
+  file_schema_sample: READ_RECORD,
   job_status: READ_RECORD,
   web_search: READ_WEB,
   news_search: READ_WEB,

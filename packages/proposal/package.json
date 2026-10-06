@@ -7,6 +7,7 @@
     "./attribute-value": "./src/attribute-value.ts",
     "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",
+    "./mapping": "./src/mapping.ts",
     "./payload": "./src/payload.ts",
     "./relation-types": "./src/relation-types.ts",
     "./request": "./src/request.ts",

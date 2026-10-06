@@ -103,6 +103,7 @@ export const row = {
         'update_relation',
         'delete_relation',
         'merge_entities',
+        'map_document',
       ],
       stated('proposal.op'),
     ),

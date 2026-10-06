@@ -31,6 +31,7 @@ const RULE: Readonly<Record<ChangeKind, string>> = {
   edit: 'border-l-candidate',
   delete: 'border-l-dissent',
   merge: 'border-l-dissent',
+  map: 'border-l-candidate',
 };
 
 /** The one round shape in a repository whose radius is 0. The ring carries the shape and no fill

@@ -98,6 +98,20 @@ the operator secret. Its rules override the build rules of the repository, so a 
 never changes code and never commits. It reaches the object store by its address, so the store
 can run on another machine.
 
+## A structured file is mapped by one proposal, and code loads it
+
+A model reads the header and the first rows of a table, and proposes one mapping of its columns.
+The operator promotes it. The promotion writes nothing to the graph: it queues the load. Code
+then reads every row with no model. Each row is a proposal cited by the span of the row, and a
+row and its links are one linked batch. A row that does not fit is left out, and one report
+document keeps the reason for each. The rows carry the model call of the mapping, because that
+call is the origin of the way the row is read. A new file from the same host with the same header
+takes the accepted mapping, and no model reads it.
+
+**Cost:** only a CSV table is mapped. A link to an entity that the record does not hold is not
+loaded, and the report says so. A mapping that reads a column wrongly shows only in the
+proposals of the rows, which the operator reviews.
+
 ## External sources are reached on demand
 
 - A fetch answers at once and uses no model. It stores the bytes, extracts the text and returns
