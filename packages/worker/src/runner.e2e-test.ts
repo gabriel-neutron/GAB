@@ -48,18 +48,21 @@ const bodyOf = async (request: IncomingMessage): Promise<string> => {
   return body;
 };
 
-const claimOf = (): string =>
-  JSON.stringify({
-    claims: [
+// The model cites the document that the question names, so each document gets its own claim.
+const claimOf = (body: string): string => {
+  const document = [RECOVERED, FLAKY].find((one) => body.includes(one)) ?? RECOVERED;
+  return JSON.stringify({
+    items: [
       {
+        ref: 'vessel',
         act: { op: 'create_entity', type: 'vessel', label: LABEL },
-        page: 1,
-        start: PAGE.indexOf(LABEL),
-        end: PAGE.indexOf(LABEL) + LABEL.length,
+        originator: 'The port authority',
         modality: 'asserts',
+        evidence: [{ document, page: 1, excerpt: `tanker ${LABEL}` }],
       },
     ],
   });
+};
 
 const gateway: Server = createServer((request, response) => {
   void bodyOf(request).then((body) => {
@@ -73,7 +76,9 @@ const gateway: Server = createServer((request, response) => {
     response.end(
       JSON.stringify({
         model: MODEL,
-        choices: [{ message: { role: 'assistant', content: claimOf() }, finish_reason: 'stop' }],
+        choices: [
+          { message: { role: 'assistant', content: claimOf(body) }, finish_reason: 'stop' },
+        ],
         usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
       }),
     );
@@ -174,6 +179,17 @@ const pendingOf = async (document: string): Promise<string[]> =>
     )
     .map((row) => row.label);
 
+const citationsOf = async (document: string): Promise<number> =>
+  z
+    .array(z.object({ n: z.number() }))
+    .parse(
+      (
+        await db.query('SELECT count(*)::int AS n FROM public.citation WHERE doc_id = $1', [
+          document,
+        ])
+      ).rows,
+    )[0]?.n ?? 0;
+
 // The runner waits between two empty reads of the queue, so a test looks again until each job
 // of the document has ended.
 const ended = async (document: string, count: number): Promise<z.infer<typeof jobs>> => {
@@ -195,7 +211,6 @@ beforeAll(async () => {
 // The ledger tables refuse a delete with a trigger. The test turns each trigger off and on again
 // inside one transaction, so no other session sees the table without its trigger.
 const LEDGER_TRIGGERS = [
-  ['public.claim_reading', 'claim_reading_append_only'],
   ['public.citation', 'citation_append_only'],
   ['public.proposals', 'proposals_append_only'],
   ['public.model_call', 'model_call_append_only'],
@@ -207,7 +222,6 @@ const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
     for (const [table, trigger] of LEDGER_TRIGGERS)
       await db.query(`ALTER TABLE ${table} DISABLE TRIGGER ${trigger}`);
     const jobIds = `SELECT id FROM public.jobs WHERE document_id = ANY($1::text[])`;
-    await db.query('DELETE FROM public.claim_reading WHERE doc_id = ANY($1::text[])', [documents]);
     await db.query('DELETE FROM public.citation WHERE doc_id = ANY($1::text[])', [documents]);
     await db.query('DELETE FROM public.proposals WHERE src::text[] && $1::text[]', [documents]);
     await db.query(`DELETE FROM public.model_call WHERE job_id IN (${jobIds})`, [documents]);
@@ -286,6 +300,7 @@ test('a queued document gives pending proposals, and a crash or a failure blocks
     const recoveredJobs = await ended(RECOVERED, 3);
     expect(recoveredJobs.map((job) => job.status)).toStrictEqual(['done', 'failed', 'done']);
     expect(await pendingOf(RECOVERED)).toStrictEqual([LABEL]);
+    expect(await citationsOf(RECOVERED)).toBe(1);
   } finally {
     await stopRunner(second);
   }

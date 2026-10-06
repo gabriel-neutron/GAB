@@ -1,4 +1,13 @@
-import { openBudget, openModel, type AgentModel, type Model, type Question } from '@gab/model';
+import { createHash } from 'node:crypto';
+
+import {
+  openBudget,
+  openModel,
+  type AgentModel,
+  type Message,
+  type Model,
+  type Question,
+} from '@gab/model';
 import { z } from 'zod';
 
 import {
@@ -9,7 +18,6 @@ import {
   type RunnerAgent,
 } from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
-import { idempotencyKey, promptDigest } from './idempotency.ts';
 import type { Queryable } from './queryable.ts';
 
 const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
@@ -54,6 +62,11 @@ export interface Runner {
 // The cause of an error that is not a failure of the model goes to the log. The record of the job
 // holds this sentence, because the cause can quote a path, an address or a document.
 const UNKNOWN_FAULT = 'the agent stopped with an error, and nothing more is known';
+
+// The record of a call holds the digest of what the model was asked and never the prompt, which
+// can quote an untrusted document.
+const promptDigest = (messages: readonly Message[]): string =>
+  createHash('sha256').update(JSON.stringify(messages)).digest('hex');
 
 /** Reads the settings and puts back each job that a crash left running. It throws, and starts
  * nothing, when an agent or a setting is absent. */
@@ -119,17 +132,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
       return { kind: 'value', value: answer.value, ...common };
     };
 
-    return {
-      job,
-      db: deps.db,
-      ask,
-      keyOf: (parts) =>
-        idempotencyKey({
-          ...parts,
-          documentId: job.documentId,
-          readerId: `${agent.name}@${agent.version}`,
-        }),
-    };
+    return { job, db: deps.db, ask };
   };
 
   const fail = async (job: ClaimedJob, reason: string): Promise<Step> => {

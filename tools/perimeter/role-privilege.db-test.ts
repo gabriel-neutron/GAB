@@ -1,6 +1,8 @@
 // The write-authorisation model, stated as privileges. Every sentence here was a hand check
 // before it was a test.
 
+import { randomUUID } from 'node:crypto';
+
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -8,8 +10,8 @@ import { probe, rolledBack, type Ask } from '../probe.ts';
 
 const DOORS = {
   put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text,numeric)',
-  propose_change:
-    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
+  propose_change: 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)',
+  propose_batch: 'public.propose_batch(jsonb)',
   record_model_call:
     'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
@@ -25,9 +27,6 @@ const DOORS = {
   append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
   put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
-  put_claim_reading:
-    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
-  second_read_done: 'public.second_read_done(uuid,text,text,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -54,10 +53,11 @@ const doorsHeldBy = async (
 
 // The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
 // this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout door, the claim and the failure', async () => {
+test('gabriel_agent holds EXECUTE on the batch door, the call record, the layout door, the claim and the failure', async () => {
   expect(await doorsHeldBy('agent')).toStrictEqual({
     put_document: false,
-    propose_change: true,
+    propose_change: false,
+    propose_batch: true,
     promote_proposal: false,
     reject_proposal: false,
     record_model_call: true,
@@ -72,8 +72,6 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
-    put_claim_reading: true,
-    second_read_done: true,
   });
 });
 
@@ -82,7 +80,8 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
 test('gabriel_research holds EXECUTE on five doors and no other', async () => {
   expect(await doorsHeldBy('research')).toStrictEqual({
     put_document: false,
-    propose_change: true,
+    propose_change: false,
+    propose_batch: true,
     promote_proposal: false,
     reject_proposal: false,
     record_model_call: false,
@@ -97,8 +96,6 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     append_chat_message: false,
     put_document_text: true,
     put_fetched_document: true,
-    put_claim_reading: false,
-    second_read_done: false,
   });
 });
 
@@ -121,6 +118,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator', async () => {
   expect(await doorsHeldBy('app')).toStrictEqual({
     put_document: true,
     propose_change: true,
+    propose_batch: false,
     promote_proposal: true,
     reject_proposal: true,
     record_model_call: false,
@@ -135,8 +133,6 @@ test('gabriel_app holds EXECUTE on the four acts of the operator', async () => {
     append_chat_message: true,
     put_document_text: true,
     put_fetched_document: false,
-    put_claim_reading: false,
-    second_read_done: false,
   });
 });
 
@@ -312,15 +308,40 @@ test('gabriel_read carries a five second statement timeout', async () => {
 // with. `inherited` says no document supports the value, and that is a claim only a person makes.
 const RESERVED = ['manual', 'inherited'] as const;
 
+// The operator proposes through its own door, and a machine through the batch door, which also
+// writes a citation of a page of text. So the document that the machine cites holds one page.
 const cites = (document: string): string => `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[],
-  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-// A machine act names its call, and the agent holds the one door that records it. The operator
-// names none.
-const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise<string | null> => {
+// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
+// document the act cites and its page, and removes both after. No act that cites it survives the
+// rollback.
+const ORDINARY = 'doc_perimeter_value_source';
+const TEXT_SET = 'perimeter@1';
+
+const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
+  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
+const PUT_PAGE = `INSERT INTO public.document_text (document_id, extractor, page, text)
+  VALUES ($1, $2, 1, 'A perimeter test') ON CONFLICT DO NOTHING`;
+
+beforeAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask(PUT_ORDINARY, [ORDINARY]);
+    await ask(PUT_PAGE, [ORDINARY, TEXT_SET]);
+  });
+});
+
+afterAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask('DELETE FROM public.document_text WHERE document_id = $1', [ORDINARY]);
+    await ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]);
+  });
+});
+
+// A machine act names its call, and the agent holds the one door that records it.
+const callOf = async (identity: 'agent' | 'research', ask: Ask): Promise<string | null> => {
   if (identity !== 'agent') return null;
   const [row] = made.parse(
     await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
@@ -329,75 +350,66 @@ const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise
   return row?.id ?? null;
 };
 
-const proposeCiting = (
-  identity: 'app' | 'agent' | 'research',
-  document: string,
+const machineProposes = (
+  identity: 'agent' | 'research',
+  src: readonly string[],
+  attrs: Readonly<Record<string, unknown>> = {},
 ): Promise<readonly unknown[]> =>
-  rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
+  rolledBack(identity, async (ask) =>
+    ask('SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)', [
+      JSON.stringify([
+        {
+          id: randomUUID(),
+          op: 'create_entity',
+          payload: { type: 'vessel', label: 'A perimeter test', attrs },
+          src,
+          names: [],
+          model_call_id: await callOf(identity, ask),
+          originator: 'A perimeter test',
+          modality: 'asserts',
+          citations: [{ document: ORDINARY, text_extractor: TEXT_SET, page: 1, start: 0, end: 4 }],
+        },
+      ]),
+    ]),
+  );
+
+const violates = (constraint: string) => ({
+  message: expect.stringContaining(`violates check constraint "${constraint}"`) as string,
+});
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('agent', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-      message:
-        'new row for relation "proposals" violates check constraint ' +
-        '"proposals_machine_not_reserved"',
-    });
+    await expect(machineProposes('agent', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`a research proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('research', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-    });
+    await expect(machineProposes('research', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`an operator proposal that cites ${document} is accepted`, async () => {
-    expect(made.parse(await proposeCiting('app', document))).toHaveLength(1);
+    expect(made.parse(await rolledBack('app', (ask) => ask(cites(document))))).toHaveLength(1);
   });
 }
 
-// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
-// document the act cites, and removes it after. No act that cites it survives the rollback.
-const ORDINARY = 'doc_perimeter_value_source';
-
-const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
-  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
-
-beforeAll(async () => {
-  await probe('superuser', (ask) => ask(PUT_ORDINARY, [ORDINARY]));
-});
-
-afterAll(async () => {
-  await probe('superuser', (ask) => ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]));
-});
-
 const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
-  rolledBack('agent', async (ask) =>
-    ask(
-      `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
-         'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
-         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[],
-         NULL, NULL, '{}', NULL, false, $3::uuid) AS id`,
-      [value, act, await callOf('agent', ask)],
-    ),
-  );
+  machineProposes('agent', act, { flag: { v: 'PA', src: [value] } });
 
 // Departure: no rule reads a reserved word inside a value. A value source stays inside the act
 // sources, so a reserved word in a value is either missing from them or cited by the act.
 test('a machine value that cites manual where the act does not is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_src_within',
-  });
+  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject(
+    violates('proposals_src_within'),
+  );
 });
 
 test('a machine value that cites manual where the act does is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_machine_not_reserved',
-  });
+  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject(
+    violates('proposals_machine_not_reserved'),
+  );
 });
 
 test('a machine value that cites the document of its act is accepted', async () => {

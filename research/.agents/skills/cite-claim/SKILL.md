@@ -1,19 +1,19 @@
 ---
 name: cite-claim
-description: Turn one fact into one proposal that cites a stored document. Fetch the page, check that the excerpt is in the stored text, then propose the change with the document id. Use it each time you add a fact to Gabriel.
+description: Turn facts into proposals that cite a stored document. Fetch the page, find the excerpt in the stored text, then propose the change with the page and the excerpt. Use it each time you add a fact to Gabriel.
 ---
 
 # Cite a claim
 
-Use this skill for one fact at a time. One fact gives one proposal. The proposal cites the
-document that holds the fact, and no other document.
+One fact gives one item of a batch. A batch can hold linked facts, for example a company, its
+vessels and the relations between them. Each item cites the page and the excerpt that state it.
 
 ## Tools
 
 - `fetch_document`: store the page and get its document id and its text.
 - `document_text`: read the stored text of a document again, page by page.
 - `lookup_entity`: find the entity that already holds an identifier.
-- `propose_change`: propose the new entity, the new relation or the new attributes.
+- `propose`: propose a batch of new entities, new relations and new attributes.
 
 ## Steps
 
@@ -24,12 +24,14 @@ document that holds the fact, and no other document.
    The fact has no source in Gabriel.
 3. Before you propose a new entity, call `lookup_entity` with each identifier of that entity. If
    an entity matches, propose attributes or a relation on it. Do not propose a second entity.
-4. Call `propose_change` with the act and with the document id in `documents`. The tool writes
-   that id into `src` and into the `src` of each attribute (`attrs.<key>.src`). Make sure that
-   each of these lists names the document id.
-5. Put the excerpt in the attribute `attrs.evidence_note`, with the same document id as its
-   source. Copy the excerpt as the document gives it. Do not rewrite it.
-6. Keep the proposal id that the tool gives. The skill `carto-step` reports it.
+4. Call `propose` with one item for each fact. Each item gives a `ref`, the act, the
+   `originator` (the party that first stated the fact), the `modality`, and in `evidence` the
+   document id, the page and the excerpt. Copy the excerpt word for word. A relation names an
+   entity of an earlier item by its `ref`.
+5. If the tool refuses the batch, read the item and the reason that it names, correct that item,
+   and call `propose` again. A retry writes nothing twice.
+6. If the answer marks an item as disputed, a value of the act is not in its excerpt. Check the
+   value. Keep the proposal ids that the tool gives. The skill `carto-step` reports them.
 
 ## A sanctions status
 
@@ -46,5 +48,5 @@ document that holds the fact, and no other document.
 - Never cite a bare URL. Cite the document id that `fetch_document` gave.
 - Never cite `manual` or `inherited`. Only the operator cites these.
 - Never cite a search result list or a match list. Fetch the page that the result points to.
-- Never put two facts in one proposal, and never cite a document that does not hold the fact.
+- Never put two facts in one item, and never cite a document that does not hold the fact.
 - Never propose an entity before you look up each identifier that you have.

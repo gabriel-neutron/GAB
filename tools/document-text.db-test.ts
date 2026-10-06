@@ -149,7 +149,11 @@ test.each(['gabriel_app', 'gabriel_agent'])('%s reads the table', async (role) =
     await stored(ask);
     await put(ask, 'gabriel_app', WITH_BYTES, ['one']);
     await ask(`SET LOCAL SESSION AUTHORIZATION ${role}`);
-    return counts.parse(await ask('SELECT count(*)::int AS n FROM public.document_text'))[0]?.n;
+    return counts.parse(
+      await ask('SELECT count(*)::int AS n FROM public.document_text WHERE document_id = $1', [
+        WITH_BYTES,
+      ]),
+    )[0]?.n;
   });
   expect(n).toBe(1);
 });

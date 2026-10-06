@@ -33,11 +33,11 @@ afterAll(async () => {
 const DOCUMENT = 'doc_extractor_suite';
 const TEXT_SET = 'pdf-fixture@1';
 
-// The first page is longer than the cap, so it gives two chunks, and the second starts at CAP.
+// The first page is longer than the cap, so it gives two chunks.
 const FIRST_CHUNK = 'The tanker Nayara left Sikka. ';
 const SECOND_CHUNK = 'Rosneft owns it.';
 const CAP = Array.from(FIRST_CHUNK).length;
-const PAGES = [FIRST_CHUNK + SECOND_CHUNK];
+const PAGE = FIRST_CHUNK + SECOND_CHUNK;
 
 const CONFIG: ReaderConfig = {
   model: STUB_MODEL,
@@ -47,28 +47,19 @@ const CONFIG: ReaderConfig = {
   chunkCap: CAP,
 };
 
-const NAYARA = {
-  act: { op: 'create_entity', type: 'vessel', label: 'Nayara' },
-  page: 1,
-  start: FIRST_CHUNK.indexOf('Nayara'),
-  end: FIRST_CHUNK.indexOf('Nayara') + 'Nayara'.length,
+const itemOf = (ref: string, label: string, type: string, excerpt: string) => ({
+  ref,
+  act: { op: 'create_entity', type, label },
+  originator: 'The port authority',
   modality: 'asserts',
-};
+  evidence: [{ document: DOCUMENT, page: 1, excerpt }],
+});
 
-const ROSNEFT = {
-  act: { op: 'create_entity', type: 'company', label: 'Rosneft' },
-  page: 1,
-  start: 0,
-  end: 'Rosneft'.length,
-  modality: 'attributes',
-  adverse: true,
-};
+const NAYARA = itemOf('nayara', 'Nayara', 'vessel', 'The tanker Nayara');
+const ROSNEFT = itemOf('rosneft', 'Rosneft', 'company', 'Rosneft owns it');
+const INVENTED = itemOf('ghost', 'Ghost', 'vessel', 'The tanker Ghost');
 
-// The model answers the first chunk, then the second, and the same again on a requeue.
-const answers = (): StubGateway =>
-  gatewayOf((call) =>
-    completionOf(JSON.stringify({ claims: [call % 2 === 1 ? NAYARA : ROSNEFT] })),
-  );
+const answerOf = (items: readonly unknown[]): Response => completionOf(JSON.stringify({ items }));
 
 const PUT = `SELECT public.put_document($1, 'file', 'A test of the extractor',
   'raw/extractor-suite.pdf', NULL, NULL, NULL, 'application/pdf', '2026-10-01'::date)`;
@@ -94,7 +85,7 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
     await client.query(PUT, [DOCUMENT]);
     await client.query('SELECT public.put_document_text($1, $2::jsonb, $3)', [
       DOCUMENT,
-      JSON.stringify(PAGES),
+      JSON.stringify([PAGE]),
       TEXT_SET,
     ]);
     const made = z
@@ -133,105 +124,104 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
   }
 };
 
-const proposals = z.array(
+const cited = z.array(
   z.object({
-    id: z.uuid(),
+    label: z.string(),
     src: z.array(z.string()),
-    payload: z.object({ label: z.string() }).loose(),
-    confidence: z.unknown(),
-    model_call_id: z.uuid(),
-    idempotency_key: z.string().regex(/^[0-9a-f]{64}$/u),
-  }),
-);
-
-const proposalsOf = async (held: Held) =>
-  proposals.parse(
-    (
-      await held.client.query(
-        `SELECT p.id, p.src::text[] AS src, p.payload, p.confidence, p.model_call_id,
-                p.idempotency_key
-           FROM public.proposals p JOIN public.model_call m ON m.id = p.model_call_id
-          WHERE m.job_id = $1 ORDER BY p.payload ->> 'label'`,
-        [held.job],
-      )
-    ).rows,
-  );
-
-const readings = z.array(
-  z.object({
-    claim_id: z.uuid(),
-    doc_id: z.string(),
-    text_extractor: z.string(),
+    originator: z.string(),
+    dissent: z.boolean(),
+    called: z.boolean(),
     page: z.number(),
-    start: z.number(),
-    end: z.number(),
+    passage: z.string(),
     modality: z.string(),
-    adverse: z.boolean(),
-    reader_no: z.number(),
-    reader_kind: z.string(),
-    model_call_id: z.uuid(),
-    input_form: z.string(),
-    idempotency_key: z.string(),
   }),
 );
 
-const readingsOf = async (held: Held) =>
-  readings.parse(
+// Each proposal of the job, with the passage that its citation names in the stored page.
+const citedOf = async (held: Held) =>
+  cited.parse(
     (
       await held.client.query(
-        `SELECT claim_id, doc_id, text_extractor, page, start, "end", modality, adverse,
-                reader_no, reader_kind, model_call_id, input_form, idempotency_key
-           FROM public.claim_reading WHERE job_id = $1 ORDER BY start`,
-        [held.job],
+        `SELECT p.payload ->> 'label' AS label, p.src::text[] AS src, p.originator, p.dissent,
+                m.job_id = $1 AS called, c.page, c.modality,
+                substr(t.text, c.start + 1, c."end" - c.start) AS passage
+           FROM public.proposals p
+           JOIN public.model_call m ON m.id = p.model_call_id
+           JOIN public.citation c ON c.claim_id = p.id
+           JOIN public.document_text t
+             ON (t.document_id, t.extractor, t.page) = (c.doc_id, c.text_extractor, c.page)
+          WHERE $2 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`,
+        [held.job, DOCUMENT],
       )
     ).rows,
   );
 
-test('a two-chunk document gives one proposal and one first reading for each claim', async () => {
+test('the text goes to the model as it is, and each item becomes a proposal with its passage', async () => {
   await inTransaction(async (held) => {
-    const step = await held.step(makeExtractor(CONFIG), answers());
+    const bodies: string[] = [];
+    const gateway = gatewayOf((call, body) => {
+      bodies.push(body);
+      return answerOf([call === 1 ? NAYARA : ROSNEFT]);
+    });
 
-    expect(step).toStrictEqual({ did: 'done', job: held.job });
-    const made = await proposalsOf(held);
-    expect(made.map((row) => row.payload.label)).toStrictEqual(['Nayara', 'Rosneft']);
-    for (const row of made) {
-      expect(row.src).toStrictEqual([DOCUMENT]);
-      expect(row.confidence).toBeNull();
-    }
-
-    const [nayara, rosneft] = made;
-    expect(await readingsOf(held)).toStrictEqual([
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(bodies[0]).toContain(JSON.stringify(FIRST_CHUNK).slice(1, -1));
+    expect(await citedOf(held)).toStrictEqual([
       {
-        claim_id: nayara?.id,
-        doc_id: DOCUMENT,
-        text_extractor: TEXT_SET,
+        label: 'Nayara',
+        src: [DOCUMENT],
+        originator: 'The port authority',
+        dissent: false,
+        called: true,
         page: 1,
-        start: NAYARA.start,
-        end: NAYARA.end,
+        passage: 'The tanker Nayara',
         modality: 'asserts',
-        adverse: false,
-        reader_no: 1,
-        reader_kind: 'llm',
-        model_call_id: nayara?.model_call_id,
-        input_form: 'text',
-        idempotency_key: nayara?.idempotency_key,
       },
       {
-        claim_id: rosneft?.id,
-        doc_id: DOCUMENT,
-        text_extractor: TEXT_SET,
+        label: 'Rosneft',
+        src: [DOCUMENT],
+        originator: 'The port authority',
+        dissent: false,
+        called: true,
         page: 1,
-        start: CAP,
-        end: CAP + ROSNEFT.end,
-        modality: 'attributes',
-        adverse: true,
-        reader_no: 1,
-        reader_kind: 'llm',
-        model_call_id: rosneft?.model_call_id,
-        input_form: 'text',
-        idempotency_key: rosneft?.idempotency_key,
+        passage: 'Rosneft owns it',
+        modality: 'asserts',
       },
     ]);
+  });
+});
+
+test('a refused batch goes back to the model once with its fault, and the corrected one is kept', async () => {
+  await inTransaction(async (held) => {
+    const bodies: string[] = [];
+    const answers = [[INVENTED], [NAYARA], [ROSNEFT]];
+    const gateway = gatewayOf((call, body) => {
+      bodies.push(body);
+      return answerOf(answers[call - 1] ?? []);
+    });
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(bodies[1]).toContain('item ghost');
+    expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Nayara', 'Rosneft']);
+  });
+});
+
+test('a batch that is refused twice proposes nothing, and the job goes on', async () => {
+  await inTransaction(async (held) => {
+    const answers = [[INVENTED], [INVENTED], [ROSNEFT]];
+    const gateway = gatewayOf((call) => answerOf(answers[call - 1] ?? []));
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Rosneft']);
   });
 });
 
@@ -276,7 +266,10 @@ test('a model that never stops calling a tool fails the job with turn_cap', asyn
 
 test('a spent token cap fails the job with usage_cap', async () => {
   await inTransaction(async (held) => {
-    const step = await held.step(makeExtractor({ ...CONFIG, tokenCap: 1 }), answers());
+    const step = await held.step(
+      makeExtractor({ ...CONFIG, tokenCap: 1 }),
+      gatewayOf(() => answerOf([NAYARA])),
+    );
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
     expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'usage_cap' });

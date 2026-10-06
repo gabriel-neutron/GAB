@@ -42,6 +42,10 @@ const section = (body: string, heading: string): string | undefined => {
   return found?.slice(heading.length);
 };
 
+// Each line of the Tools section starts with the name of one tool, and a name can be one word.
+const listedTools = (text: string): string[] =>
+  [...text.matchAll(/^- `([a-z][a-z0-9_]*)`/gmu)].map((match) => match[1] ?? '');
+
 const codeNames = (text: string): string[] =>
   [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)].map((match) => match[1] ?? '');
 
@@ -89,7 +93,7 @@ test.each(SKILLS)('the skill %s has the sections Tools, Steps and Never', (skill
 
 test.each(SKILLS)('each tool under the Tools section of %s is in the research profile', (skill) => {
   const { body } = split(read(sourceOf(skill)));
-  const tools = codeNames(section(body, 'Tools') ?? '');
+  const tools = listedTools(section(body, 'Tools') ?? '');
 
   expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
   for (const tool of tools)
