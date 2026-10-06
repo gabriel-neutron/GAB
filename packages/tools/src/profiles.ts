@@ -7,13 +7,14 @@ export const PROFILE_LIMIT = 8;
 // tool calls it. The mapper holds no tool until its first tool is built. The fetch tool stores a
 // document, and the chat reads as a role that stores nothing, so the chat profile does not hold it.
 export const PROFILES = {
+  // A profile holds at most eight tools. The entity lookup left this profile for that reason, and
+  // the archive tool and the news tool are in no profile. The research MCP server still offers all
+  // three, in its graph group and its web group, so the research model keeps them there.
   research: [
     'search_graph',
     'neighbourhood',
-    // The research AI looks up an identifier before it proposes an entity, so it does not make a
-    // second entity for one real object.
-    'lookup_entity',
     'document_text',
+    'web_search',
     'fetch_document',
     'propose_change',
     'enqueue_extract',
@@ -28,7 +29,7 @@ export const PROFILES = {
   reader2: ['document_text', 'put_claim_reading'],
   mapper: [],
   verifier: ['document_text', 'proposal_read'],
-  chat: ['search_graph', 'neighbourhood', 'document_text', 'enqueue_extract'],
+  chat: ['search_graph', 'neighbourhood', 'document_text', 'web_search', 'enqueue_extract'],
 } as const satisfies Record<string, readonly ToolName[]>;
 
 export type ProfileName = keyof typeof PROFILES;

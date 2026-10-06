@@ -15,6 +15,8 @@ what Gabriel holds, which documents it cites, what is missing, and which pages t
 - `search_graph`: find an entity by its name when you have no identifier.
 - `neighbourhood`: read the relations of the entity and the entities at the other end.
 - `document_text`: read the text of a document that the entity or a relation cites.
+- `web_search`: ask a search engine for pages that can hold a fact that Gabriel lacks. A result
+  is a lead only. Fetch the page before you cite it.
 
 ## Steps
 
@@ -31,7 +33,7 @@ what Gabriel holds, which documents it cites, what is missing, and which pages t
 6. Write the gaps: each fact that the ticket asks for and that no document in Gabriel holds. For
    example: no owner, no flag after a given date, no manager.
 7. For each gap, write the next source to fetch: the registry, the official list or the page that
-   can hold the fact. A search engine result is a lead only (web search is not yet a GAB tool).
+   can hold the fact. Use `web_search` to find it. A search engine result is a lead only.
 8. Give the result as four lists: held, cited documents, gaps, next sources.
 
 ## Never

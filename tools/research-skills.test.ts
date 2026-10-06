@@ -58,7 +58,15 @@ const { PROFILES } = profilesModule.parse(
   await import(pathToFileURL(path.join(ROOT, 'packages', 'tools', 'src', 'profiles.ts')).href),
 );
 
-const RESEARCH = new Set(PROFILES.research);
+// The research MCP server offers each tool of its groups, so a skill may name a tool that a group
+// offers and the profile does not hold, such as the entity lookup that the profile left out.
+const groupsModule = z.object({ RESEARCH_GROUPS: z.record(z.string(), z.array(z.string())) });
+
+const { RESEARCH_GROUPS } = groupsModule.parse(
+  await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'groups.ts')).href),
+);
+
+const RESEARCH = new Set([...PROFILES.research, ...Object.values(RESEARCH_GROUPS).flat()]);
 const EVERY_PROFILE_TOOL = new Set(Object.values(PROFILES).flat());
 
 test.each(SKILLS)('the skill %s has a source file', (skill) => {
@@ -87,7 +95,7 @@ test.each(SKILLS)('each tool under the Tools section of %s is in the research pr
   for (const tool of tools)
     expect(
       RESEARCH.has(tool),
-      `${skill} lists ${tool}, which the research profile does not hold`,
+      `${skill} lists ${tool}, which the research surface does not offer`,
     ).toBe(true);
 });
 
@@ -99,7 +107,7 @@ test.each(SKILLS)(
     for (const tool of codeNames(body).filter((name) => EVERY_PROFILE_TOOL.has(name)))
       expect(
         RESEARCH.has(tool),
-        `${skill} names ${tool}, which the research profile does not hold`,
+        `${skill} names ${tool}, which the research surface does not offer`,
       ).toBe(true);
   },
 );
