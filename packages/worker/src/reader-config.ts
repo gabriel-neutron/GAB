@@ -32,6 +32,14 @@ export interface LeadConfig {
   readonly tokenCap: number;
 }
 
+/** What the operator sets for the mapper. */
+export interface MapperConfig {
+  /** The pinned model that maps the columns of a table. */
+  readonly model: ModelConfig;
+  /** The tokens that one mapping may spend. */
+  readonly tokenCap: number;
+}
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 const textOf = (env: Env, name: string): string => {
@@ -124,3 +132,10 @@ export const readLeadConfig = (env: Env): LeadConfig => {
     );
   return { model: readModelConfig('EXTRACTOR', env), tokenCap };
 };
+
+/** Reads the configuration of the mapper. It throws a sentence that names the variable when a
+ * value is absent, blank or wrong. */
+export const readMapperConfig = (env: Env): MapperConfig => ({
+  model: readModelConfig('MAPPER', env),
+  tokenCap: checked('MAPPER_TOKEN_CAP', () => checkTokenCap(numberOf(env, 'MAPPER_TOKEN_CAP'))),
+});

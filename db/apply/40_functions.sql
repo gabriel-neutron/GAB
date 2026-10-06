@@ -377,6 +377,10 @@ BEGIN
     ('proposals_op_target_kind', 'targetKind', 'the act names a target of the wrong kind'),
     ('proposals_target_pairs', 'targetId', 'the act names its target with a kind and an id'),
     ('proposals_target_required', 'targetId', 'the act names its target'),
+    ('proposals_map_document_shape', 'mapping',
+     'a mapping names one document and the call of its model, a table name, a header signature '
+     'of 64 hexadecimal characters, a modality of enacts, asserts, attributes, alleges or '
+     'denies, its rows as an object and its relations as a list, and no other key'),
     ('proposals_src_shape', 'documents', 'the act cites at least one document'),
     ('proposals_machine_not_reserved', 'documents',
      'a machine cannot cite the reserved documents manual and inherited'),
@@ -703,6 +707,41 @@ BEGIN
   END LOOP;
 END $$;
 
+-- THE DOOR OF A MAPPING. gabriel_agent alone calls it: the mapper is the one agent that proposes
+-- how the columns of a table map, and it names the call of the model that gave the mapping. The
+-- table holds the rules of the payload. A pending mapping that is written already is returned,
+-- as the batch door returns a pending act, so a retry writes nothing twice.
+CREATE OR REPLACE FUNCTION propose_mapping(p_document text, p_mapping jsonb, p_model_call uuid)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id    uuid;
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  INSERT INTO public.proposals
+    (op, payload, src, author_role, model_call_id)
+  VALUES
+    ('map_document', p_mapping, ARRAY[p_document]::doc_id[],
+     session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
+     p_model_call)
+  ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
+  RETURNING id INTO v_id;
+  IF v_id IS NULL THEN
+    SELECT p.id INTO v_id FROM public.proposals p
+     WHERE p.status = 'pending'
+       AND p.act_digest = act_digest_of('map_document', NULL, NULL, p_mapping,
+                                        ARRAY[p_document], session_user::text);
+  END IF;
+  RETURN v_id;
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
 -- THE ONE DOOR INTO THE RECORD OF A MODEL CALL. gabriel_agent holds it, and the role writes no
 -- table by hand. It takes the digest of the prompt and never the prompt, and the table refuses a
 -- digest that is not 64 hexadecimal characters. The outcome list is a CHECK of the table, so a
@@ -940,6 +979,21 @@ BEGIN
     END IF;
     v_id := p.target_id;
 
+  -- ---------------------------------------------------------------------------- a mapping --
+  -- A MAPPING WRITES NOTHING TO THE GRAPH. It queues the load of its document in the same
+  -- transaction, and the load proposes each row. The unique index holds one open job of a kind
+  -- for a document, and the sentence below says it in place of the name of the index.
+  ELSIF p.op = 'map_document' THEN
+    BEGIN
+      INSERT INTO public.jobs (document_id, kind, mapping)
+      VALUES (p.src[1], 'load_mapped', p.id)
+      RETURNING id INTO v_id;
+    EXCEPTION WHEN unique_violation THEN
+      RAISE EXCEPTION 'document % has a load that is queued or runs already. Promote this '
+                      'mapping when that load ends', p.src[1]
+        USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
+    END;
+
   ELSE
     -- M12 makes a merge reversible through an alias table and a full snapshot. Neither table
     -- exists, so a merge cannot land, and it must not half-land.
@@ -1167,14 +1221,14 @@ END $$;
 DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text)
+RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text, job_mapping uuid)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','research_lead')
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','load_mapped','research_lead')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -1189,8 +1243,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.kind, j.lead
-       INTO job_id, job_document, job_kind, job_lead;
+  RETURNING j.id, j.document_id, j.kind, j.lead, j.mapping
+       INTO job_id, job_document, job_kind, job_lead, job_mapping;
 
   RETURN NEXT;
 END $$;
@@ -1364,6 +1418,106 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
               THEN p_parts || CASE WHEN p_parts = 1 THEN ' part' ELSE ' parts' END
                    || ' refused: ' || p_refusal END
 $$;
+
+-- THE HOST OF AN ADDRESS, in lower case and with no `www.`. A file with no address has none.
+CREATE OR REPLACE FUNCTION uri_host(p_uri text) RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, pg_temp AS $$
+  SELECT lower(regexp_replace(
+           substring(p_uri FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)'),
+           '^www\.', ''))
+$$;
+
+-- THE REUSE OF A MAPPING. A new file from the same host with the same header is loaded under the
+-- mapping that the operator already promoted, and no model reads it. The door finds the newest
+-- accepted mapping of the same host and the same header, and queues the load. It returns no
+-- identifier when there is none, and the caller asks the model. A file with no address has no
+-- host, so it always gets a mapping of its own. The loader reads the header of the file again
+-- and stops on a header that differs, so a caller that states a false header loads nothing.
+-- A load that is open already for the document is returned, so a job that runs again queues no
+-- second one.
+CREATE OR REPLACE FUNCTION enqueue_mapped_load(p_document text, p_header_sig text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_host    text;
+  v_mapping uuid;
+  v_id      uuid;
+BEGIN
+  SELECT public.uri_host(d.uri) INTO v_host
+    FROM public.documents d WHERE d.id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+
+  SELECT j.id INTO v_id FROM public.jobs j
+   WHERE j.document_id = p_document::doc_id AND j.kind = 'load_mapped'
+     AND j.status IN ('queued','running');
+  IF FOUND THEN
+    RETURN v_id;
+  END IF;
+
+  SELECT p.id INTO v_mapping
+    FROM public.proposals p
+    JOIN public.documents d ON d.id = p.src[1]
+   WHERE p.op = 'map_document' AND p.status = 'accepted'
+     AND p.payload->>'header_sig' = p_header_sig
+     AND v_host IS NOT NULL AND public.uri_host(d.uri) = v_host
+   ORDER BY p.decided_at DESC, p.id
+   LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  INSERT INTO public.jobs (document_id, kind, mapping)
+  VALUES (p_document::doc_id, 'load_mapped', v_mapping)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE REPORT OF A LOAD. Each load stores the rows it excluded, with the reason of each, as one
+-- `report` document. The worker holds no other door that writes a report, and this one is as
+-- narrow as the act: the caller holds a running load, the bytes are in the store and the day is
+-- today. The bytes name the load, so two loads never share a report, and the same bytes return
+-- the report that holds them, so a load that runs again stores one report. Bytes that another
+-- kind of document holds are refused.
+CREATE OR REPLACE FUNCTION put_load_report(p_job uuid, p_title text, p_s3_key text,
+                                           p_sha256 text, p_mime text)
+RETURNS doc_id
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind     text;
+  v_known    text;
+  v_doc_kind text;
+BEGIN
+  SELECT j.kind INTO v_kind
+    FROM public.jobs j
+   WHERE j.id = p_job AND j.status = 'running' AND j.claimed_by = session_user;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not running under this role, so it stores no report', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_kind <> 'load_mapped' THEN
+    RAISE EXCEPTION 'a load report belongs to a job of load_mapped, and this job is %', v_kind
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT d.id, d.kind INTO v_known, v_doc_kind FROM public.documents d WHERE d.sha256 = p_sha256;
+  IF FOUND AND v_doc_kind = 'report' THEN
+    RETURN v_known;
+  END IF;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the bytes with the hash % are document % of kind %, and not a report',
+      p_sha256, v_known, v_doc_kind
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  RETURN public.put_document('doc_' || left(p_sha256, 12), 'report', p_title, p_s3_key, NULL,
+                             NULL, p_sha256, p_mime, current_date);
+END $$;
 
 -- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
 -- through the model calls it recorded, and the operator role holds no read of those calls. So

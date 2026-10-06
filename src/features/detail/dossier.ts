@@ -143,6 +143,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   update_relation: 'Changes a relation',
   delete_relation: 'Deletes a relation',
   merge_entities: 'Merges entities',
+  map_document: 'Maps the columns of a table',
 };
 
 const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
@@ -362,6 +363,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
       case 'create_entity':
       case 'update_entity':
       case 'delete_entity':
+      case 'map_document':
         return false;
     }
   };

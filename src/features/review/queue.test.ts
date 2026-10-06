@@ -366,6 +366,19 @@ const FILED: readonly Filed[] = [
     holes: ['merge-result'],
   },
   {
+    name: 'map_document',
+    act: {
+      ...actOf('dd000001-0000-4000-8000-000000000009', null, false),
+      op: 'map_document',
+      targetKind: null,
+      targetId: null,
+      payload: { kind: 'mapping', table: 'list.csv' },
+    },
+    subject: 'mapping',
+    label: 'The mapping of list.csv',
+    holes: [],
+  },
+  {
     name: 'update_attrs on an absent entity',
     act: { ...actOf('dd000001-0000-4000-8000-000000000007', 0.9, false), targetId: ABSENT },
     subject: 'node',

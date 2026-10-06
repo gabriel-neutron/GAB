@@ -13,7 +13,8 @@ the operator.
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
   `list_proposals`.
-- Read the documents: `find_document`, `document_text`, `job_status`.
+- Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
+  first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
 <<<<<<< HEAD
 - Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`, `start_lead`, `propose`.

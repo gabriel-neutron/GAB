@@ -41,6 +41,11 @@ page that a lead fetches, so it also needs the raw store values. When one of the
 absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
 names the value.
 
+The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
+that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
+extractions, and each mapping fails at once with a reason that names the value. The load of a
+promoted mapping runs with no model and needs the raw store values.
+
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
 gives no result. A lead runs only when the operator or the research AI starts it: no schedule

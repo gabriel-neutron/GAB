@@ -40,6 +40,7 @@ const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {
   delete_entity: 'Deletion',
   delete_relation: 'Deletion of a relation',
   merge_entities: 'Merge',
+  map_document: 'Mapping of a table',
 };
 
 interface Names {
@@ -107,6 +108,8 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
     case 'relation':
     case 'merge':
       return payloadHeadline(labelIn(names), names.typeWordsOf, payload);
+    case 'mapping':
+      return `The mapping of ${payload.table ?? 'a table the act does not name'}`;
     case 'attrs':
     case 'columns':
     case 'delete': {
@@ -145,6 +148,7 @@ function keysOf(act: DecidedAct['act']): string {
       ]);
     case 'merge':
     case 'delete':
+    case 'mapping':
       return '';
   }
 }

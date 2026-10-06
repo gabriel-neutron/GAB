@@ -3,6 +3,7 @@ import { companiesHouse } from './companies-house.ts';
 import { documentText } from './document-text.ts';
 import { enqueueExtract } from './enqueue-extract.ts';
 import { fetchDocument } from './fetch-document.ts';
+import { fileSchemaSample } from './file-schema-sample.ts';
 import { findDocument } from './find-document.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
@@ -27,6 +28,7 @@ export const CATALOGUE = [
   listProposals,
   findDocument,
   documentText,
+  fileSchemaSample,
   jobStatus,
   webSearch,
   newsSearch,
