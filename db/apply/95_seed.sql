@@ -16,8 +16,7 @@
 -- a row dies by ordinary work.
 --
 -- THERE IS NO ATTRIBUTE VOCABULARY, AND THAT IS M11. Migration 0010 dropped the table. An
--- attribute key is whatever a person or an agent writes, and `api.key_usage` is the only place
--- the keys in use can be read.
+-- attribute key is whatever a person or an agent writes.
 --
 -- IT ADDS AND IT UPDATES. IT NEVER DELETES. A word leaves service through `retired`, so its
 -- history stays readable. The statement writes no such column, so a seeded word takes the
@@ -53,7 +52,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ======================================================================= document_provider ===
 -- HAND-WRITTEN, AND THIS FILE IS THE AUTHORITY FOR A LICENCE. One edited line moves every
 -- document of that provider, so the statement updates the name and the licence of a row that
--- exists. No row gets an originator here.
+-- exists.
 --
 -- WHERE NO TEXT STATES A LICENCE, THE ROW TAKES AN INTERNAL ONE. CREA and EGRUL are `restricted`
 -- until their terms are read. IMO GISIS and Equasis need a login, so they are
@@ -177,34 +176,5 @@ INSERT INTO parameter (key, value) VALUES
   ('runner_quota_wait_seconds', 600),
   ('runner_empty_wait_seconds', 30)
 ON CONFLICT (key) DO NOTHING;
-
-
--- ================================================================================= the letter ===
--- THE SCHEMES OF AN ORIGINATOR ID. The list is closed: a new scheme is one line here. A carrier
--- (substack.com, t.me) is never an originator, and the scheme `substack` names an author on it.
-INSERT INTO originator_scheme (scheme) VALUES
-  ('host'), ('telegram'), ('x'), ('vk'), ('substack'), ('livejournal'), ('gab')
-ON CONFLICT (scheme) DO NOTHING;
-
--- THE BANDS OF THE LETTER, AND THE ROWS THAT SWITCH A RULE ON. A missing row turns its rule off,
--- and the letter then falls to the next lower result. They are a choice of the method and not a
--- measurement. `letter_first_cap_c` is a switch: its value is 1, and a measured letter reached
--- for the first time stops at C, also for 22 clean clusters or 75. `sanction_control_share` is the
--- percentage of control that a listed controller needs for the sanctioned-controlled flag.
-INSERT INTO parameter (key, value) VALUES
-  ('letter_wilson_z', 1.96),
-  ('letter_a_min_resolved', 75),
-  ('letter_b_wilson_lower', 0.85),
-  ('letter_c_wilson_lower', 0.65),
-  ('letter_d_wilson_lower', 0.40),
-  ('letter_d_min_resolved', 5),
-  ('letter_e_wilson_upper', 0.40),
-  ('letter_e_min_resolved', 5),
-  ('letter_step_days', 90),
-  ('letter_first_cap_c', 1),
-  ('staff_author_min_resolved', 10),
-  ('sanction_control_share', 50)
-ON CONFLICT (key) DO NOTHING;
-
 
 RESET ROLE;

@@ -39,11 +39,6 @@ CREATE OR REPLACE TRIGGER model_call_append_only
   BEFORE UPDATE OR DELETE ON model_call
   FOR EACH ROW EXECUTE FUNCTION model_call_append_only_fn();
 
--- A message is written once.
-CREATE OR REPLACE TRIGGER chat_message_append_only
-  BEFORE UPDATE OR DELETE ON chat_message
-  FOR EACH ROW EXECUTE FUNCTION chat_message_append_only_fn();
-
 -- A reading is written once, and so is a citation.
 CREATE OR REPLACE TRIGGER claim_reading_append_only
   BEFORE UPDATE OR DELETE ON claim_reading
@@ -76,16 +71,10 @@ CREATE OR REPLACE TRIGGER relation_type_interval
   BEFORE UPDATE OF takes_interval ON relation_type
   FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
 
--- The letter history is written once, and the day the gate re-ran is set once.
-CREATE OR REPLACE TRIGGER originator_letter_history_guard
-  BEFORE UPDATE OR DELETE ON originator_letter_history
-  FOR EACH ROW EXECUTE FUNCTION originator_letter_history_guard_fn();
-
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
-ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
 ALTER TABLE claim_reading ENABLE ALWAYS TRIGGER claim_reading_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
@@ -93,6 +82,5 @@ ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
 ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
-ALTER TABLE originator_letter_history ENABLE ALWAYS TRIGGER originator_letter_history_guard;
 
 RESET ROLE;

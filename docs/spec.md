@@ -76,6 +76,9 @@ The interface reads through the read API, with a read-only role and a fixed list
 reads, such as a graph traversal, run as SQL functions in the database. A timeout, a default limit
 and a cache protect the public read.
 
+The public read shows the record and the candidate layer, and nothing else (PU1). It shows no
+rejected proposal, no job and no model call. The machine roles read through their own grants.
+
 ## The write path
 
 ```
