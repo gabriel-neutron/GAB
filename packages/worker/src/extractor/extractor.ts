@@ -58,7 +58,8 @@ const checkAnswer = z.strictObject({
     z.strictObject({
       ref: z.string(),
       verdict: z.enum(['supported', 'not_supported', 'unclear']),
-      reason: z.string().optional(),
+      // A model can give `null` for no reason, and that is not a fault of the answer.
+      reason: z.string().nullish(),
     }),
   ),
 });

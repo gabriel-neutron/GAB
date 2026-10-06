@@ -318,7 +318,14 @@ const disputeReason = (
         ? `the checker says ${verdict.verdict}`
         : `the checker says ${verdict.verdict}: ${verdict.reason.trim()}`,
     );
-  return parts.length === 0 ? null : Array.from(parts.join('; ')).slice(0, MAX_REASON).join('');
+  if (parts.length === 0) return null;
+  // The reason of the checker can echo the text of the page. A control character (a NUL refuses
+  // the whole batch at the door) becomes a space, so the record keeps one line of plain text.
+  const plain = parts
+    .join('; ')
+    .replace(/\p{Cc}+/gu, ' ')
+    .replace(/ {2,}/gu, ' ');
+  return Array.from(plain).slice(0, MAX_REASON).join('');
 };
 
 const outcome = z.strictObject({
