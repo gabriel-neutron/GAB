@@ -28,7 +28,7 @@ export const EXTRACTOR_NAME = 'extractor';
 const VERSION = 'v1';
 const INPUT_FORM = 'text';
 
-/** The four tools of the profile. A test gives a stub for each one. */
+/** The four tools of the extractor. A test gives a stub for each one. */
 export interface ExtractorTools {
   readonly documentText: Tool;
   readonly lookupEntity: Tool;

@@ -20,7 +20,7 @@ const CUT: SubjectRow = {
   contested: true,
 };
 
-const SUBJECTS = sortSubjects(readQueue(reviewSample, null), 'confidence');
+const SUBJECTS = sortSubjects(readQueue(reviewSample), 'confidence');
 
 const ROWS = railRows(SUBJECTS, {});
 

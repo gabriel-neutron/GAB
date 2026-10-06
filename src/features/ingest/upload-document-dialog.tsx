@@ -10,7 +10,7 @@ import { Input } from '@/shared/ui/input';
 import { sendUpload, uploadSaid, type UploadState } from './upload';
 import { BLANK_UPLOAD, readUploadDraft, titleOf, type UploadForm } from './upload-draft';
 
-export interface UploadDocumentDialogProps {
+interface UploadDocumentDialogProps {
   /** The providers a document may name. The route reads them, and this file reads nothing. */
   readonly providers: readonly DocumentProvider[];
   /** Read the record again, so every surface draws the new document. The route holds the router. */

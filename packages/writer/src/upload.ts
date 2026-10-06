@@ -14,7 +14,7 @@ export interface ObjectDoor {
 }
 
 /** One upload, read and checked. Nothing of it was sent anywhere yet. */
-export interface Upload {
+interface Upload {
   readonly bytes: Uint8Array;
   readonly fileName: string;
   readonly title: string;
@@ -30,7 +30,7 @@ const TOO_LARGE = 413;
 const UNAVAILABLE = 503;
 const DONE = 200;
 
-export type ParsedUpload =
+type ParsedUpload =
   | { readonly ok: true; readonly upload: Upload }
   | {
       readonly ok: false;
@@ -125,7 +125,7 @@ export const parseUpload = (raw: string): ParsedUpload => {
   };
 };
 
-export type UploadReply =
+type UploadReply =
   | {
       readonly state: 'stored' | 'known';
       readonly documentId: string;
@@ -134,7 +134,7 @@ export type UploadReply =
   | { readonly refusal: string };
 
 /** What one request became: the status and the body the door answers. */
-export interface UploadAct {
+interface UploadAct {
   readonly status: typeof DONE | typeof REFUSED | typeof TOO_LARGE | typeof UNAVAILABLE;
   readonly reply: UploadReply;
 }

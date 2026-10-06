@@ -7,7 +7,7 @@ import type { Sessions } from './pool.ts';
 import { refused, runStatement, type Unwritten } from './statement.ts';
 
 /** What one request became. The caller maps the outcome, and takes no decision of its own. */
-export type SignedAct =
+type SignedAct =
   | {
       readonly outcome: 'signed';
       readonly reply: {

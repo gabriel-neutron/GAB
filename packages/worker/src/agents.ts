@@ -55,7 +55,7 @@ export interface AgentResult {
 /** What the runner gives to the agent of one job. */
 export interface AgentContext {
   readonly job: ClaimedJob;
-  /** The connection of the worker. An agent writes proposals through the tools of its profile
+  /** The connection of the worker. An agent writes proposals through its tools
    * on this connection and writes nothing else. */
   readonly db: Queryable;
   /** One question. The call is recorded before this returns, so a proposal that follows can name

@@ -1,6 +1,6 @@
 import { SYMBOL_BOX, type NatoSymbol } from './nato-symbol';
 
-export interface UnitSymbolProps {
+interface UnitSymbolProps {
   /** The marks the derivation read. Null for an entity that is not a unit, and it draws none. */
   readonly symbol: NatoSymbol | null;
 }

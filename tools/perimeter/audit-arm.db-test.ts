@@ -314,20 +314,14 @@ const READ_VIEWS = [
   'api.document_provider SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
-  'api.full_graph SELECT',
   'api.full_map SELECT',
-  'api.job SELECT',
-  'api.key_usage SELECT',
   'api.layout SELECT',
-  'api.model_call SELECT',
-  'api.originator_card SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.relation_type SELECT',
-  'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the fifteen api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the nine public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -359,7 +353,7 @@ const MACHINE_HOLDS = `
 const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
 
 // A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
-// to no tool until a person writes it in. api.model_call is the one that must stay closed.
+// to no tool until a person writes it in.
 test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
   const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
     MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),

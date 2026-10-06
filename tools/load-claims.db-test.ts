@@ -84,7 +84,7 @@ const count = async (ask: Ask, table: string): Promise<number> =>
 // The tables that the load must never write, counted when they exist.
 const untouched = async (ask: Ask): Promise<Record<string, number>> => {
   const counts: Record<string, number> = {};
-  for (const table of ['originator', 'citation', 'proposals', 'claim_eval']) {
+  for (const table of ['citation', 'proposals', 'claim_eval']) {
     const [present] = z
       .array(z.object({ here: z.boolean() }))
       .parse(await ask('SELECT to_regclass($1) IS NOT NULL AS here', [`public.${table}`]));

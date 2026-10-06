@@ -41,10 +41,6 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, propos
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
   relations TO gabriel_research;
 
--- THE CONVERSATIONS ARE PRIVATE. gabriel_app reads the three tables, and no other role holds a
--- grant on them: gabriel_read has no USAGE on public, and gabriel_agent has no use for them.
-GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
-
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
@@ -67,8 +63,6 @@ REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
-REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text) FROM PUBLIC;
@@ -87,70 +81,6 @@ GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
 -- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
 GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   TO gabriel_agent, gabriel_research;
--- ------------------------------------------------------------------------- the originator ---
--- NO ROLE HOLDS A GRANT ON A TABLE OF THE ORIGINATOR, and the REVOKE above already took every one.
--- The doors below are the whole of the write path, and none of them writes through a model role
--- except the two of gabriel_agent: ensure_originator_candidate and propose_originator_fact.
--- ensure_originator_candidate creates an originator at letter F with no jurisdiction, no kind
--- state_body and no flag. propose_originator_fact stores a fact as a proposal with a stored span.
--- ensure_originator and decide_originator_fact belong to gabriel_app alone: an agent that could set
--- a jurisdiction, a kind state_body or a decision could make a flag. No door of gabriel_agent
--- writes a letter, a flag, a merge, an imprint or a resolution (L1).
---
--- THREE DOORS HAVE NO GRANT AT ALL. record_resolution, set_gold_set_letter and ack_letter_change
--- are called by the definer doors of other tickets, and the owner needs no grant to run them.
--- A grant here would let the operator backend write a track record by hand.
---
--- THE TWO READS BELONG TO gabriel_app ALONE. issuer_card_for and originator_letter_for answer the
--- gate, which runs under the operator backend. The worker holds neither, so a letter never enters
--- a prompt through a tool of the worker.
-REVOKE ALL ON FUNCTION ensure_originator(text,text,text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
-  FROM PUBLIC;
-REVOKE ALL ON FUNCTION decide_originator_fact(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION ensure_originator_candidate(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION set_operator_letter(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION remove_operator_letter(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION contest_letter(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION confirm_fabrication(uuid,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION merge_originator(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION link_imprint(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION set_party_false(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION review_originator_card(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION load_trust_list(text,text,date,text,jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION originator_exceptions() FROM PUBLIC;
-REVOKE ALL ON FUNCTION refresh_originator(text,timestamptz) FROM PUBLIC;
-REVOKE ALL ON FUNCTION issuer_card_for(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION originator_letter_for(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION record_resolution(text,uuid,text,text,text,text,text,text,timestamptz,date)
-  FROM PUBLIC;
-REVOKE ALL ON FUNCTION set_gold_set_letter(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION ack_letter_change(uuid) FROM PUBLIC;
-
-GRANT EXECUTE ON FUNCTION ensure_originator(text,text,text,text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION ensure_originator_candidate(text,text,text)
-  TO gabriel_agent, gabriel_app;
-GRANT EXECUTE ON FUNCTION propose_originator_fact(text,text,jsonb,text,integer,integer,integer)
-  TO gabriel_agent, gabriel_app;
-GRANT EXECUTE ON FUNCTION decide_originator_fact(uuid) TO gabriel_app;
-
-GRANT EXECUTE ON FUNCTION set_operator_letter(text,text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION remove_operator_letter(text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION contest_letter(text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION confirm_fabrication(uuid,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION merge_originator(text,text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION link_imprint(text,text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION set_party_false(text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION review_originator_card(text,text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION load_trust_list(text,text,date,text,jsonb) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION originator_exceptions() TO gabriel_app;
-GRANT EXECUTE ON FUNCTION refresh_originator(text,timestamptz) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION issuer_card_for(text) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION originator_letter_for(text,text) TO gabriel_app;
-
-GRANT EXECUTE ON FUNCTION open_conversation(text,text,uuid) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) TO gabriel_app;
-
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
@@ -233,14 +163,20 @@ GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent
 
 -- ------------------------------------------------------------------------------ the read ---
 -- gabriel_read holds nothing on public, not even USAGE.
+--
+-- THE PUBLIC READ IS A LIST OF VIEWS, AND NOT ALL TABLES (PU1). The queue of jobs is the work of
+-- the operator and not part of the record, so api.job is not in the list. A view added later
+-- opens to nobody until a person writes it here.
 GRANT USAGE   ON SCHEMA api TO gabriel_read;
-GRANT SELECT  ON ALL TABLES IN SCHEMA api TO gabriel_read;
+REVOKE ALL    ON ALL TABLES IN SCHEMA api FROM gabriel_read;
+GRANT SELECT  ON api.document, api.document_provider, api.entity, api.entity_type, api.full_map,
+  api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
 -- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH FIVE VIEWS ONLY. A tool asks for
 -- an entity, a relation, a proposal, a document or a job, and for the neighbourhood of one entity.
--- The list is written by name and never as ALL TABLES, so api.model_call, which holds the digests
--- of the worker's prompts, stays closed to them. A view added later opens to nobody by default.
+-- The list is written by name and never as ALL TABLES. A view added later opens to nobody by
+-- default.
 GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job
   TO gabriel_app, gabriel_agent, gabriel_research;

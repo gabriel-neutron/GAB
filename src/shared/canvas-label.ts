@@ -39,7 +39,7 @@ export const entityLines = (
 
 // The label is placed by its bottom centre, so it stands clear of the dot and of the pointer.
 // A label centred on the point would cover the thing the analyst is pointing at.
-export const CANVAS_LABEL_OFFSET = 12;
+const CANVAS_LABEL_OFFSET = 12;
 
 // One rule for both surfaces: bottom centre, one offset above the point. A surface with its
 // own transform would drift from the other the first time either was tuned.

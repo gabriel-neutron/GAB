@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { WriteResult } from './write-state';
 
 /** The six acts the writer signs. The door of each one is derived here and named by no caller. */
-export type WriteOp = (typeof WRITE_OPS)[number];
+type WriteOp = (typeof WRITE_OPS)[number];
 
 /** What a signed act wrote: one proposal, and the row it promoted. */
 export interface Signed {

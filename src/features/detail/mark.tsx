@@ -10,13 +10,13 @@ import { entityHref } from './address';
 import type { SourceCardModel, SourceRef } from './dossier';
 import { SourceCard } from './source-card';
 
-export interface SourceMarkProps {
+interface SourceMarkProps {
   readonly sources: readonly SourceRef[];
   readonly activeSource: DocId | null;
   readonly onSelectSource: (docId: DocId) => void;
 }
 
-export interface SourceCountProps {
+interface SourceCountProps {
   readonly sources: readonly SourceRef[];
   /** `SourceRef.number` is the 1-based position in this array, so a mark reaches its card by
    * index and no `.find` runs in a component. */
