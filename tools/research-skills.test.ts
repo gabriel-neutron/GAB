@@ -117,10 +117,11 @@ test('the rules of the workspace name each tool of the server', () => {
     if (tool.includes('_')) expect(named.has(tool), `AGENTS.md does not name ${tool}`).toBe(true);
 });
 
-// Claude Code runs a read with no question, and asks the operator before each other tool.
-test('the Claude Code settings allow the reads of the server, and no write', () => {
+// Claude Code runs a read with no question, and asks the operator before each other tool. The
+// schema is strict, so a second key (a permission mode, a hook, an extra directory) fails here.
+test('the Claude Code settings allow the reads of the server, and nothing else', () => {
   const settings = z
-    .object({ permissions: z.object({ allow: z.array(z.string()) }) })
+    .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
   const reads = Object.entries(RESEARCH_TOOLS)
     .filter(([, hints]) => hints.readOnlyHint)
