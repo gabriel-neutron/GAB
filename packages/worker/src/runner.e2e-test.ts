@@ -1,6 +1,6 @@
 // The runner as the operator starts it: the real entry point in a child process, the test
-// database, and a local server in place of the model gateway. The rows commit, because the runner
-// signs on its own connection, so this project runs after each project that counts rows.
+// database, and a local server in place of the model gateway. The rows commit, so this project
+// runs after each project that counts rows, and at its end it deletes the rows that it wrote.
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -192,9 +192,46 @@ beforeAll(async () => {
   await db.connect();
 });
 
+// The ledger tables refuse a delete with a trigger. The test turns each trigger off and on again
+// inside one transaction, so no other session sees the table without its trigger.
+const LEDGER_TRIGGERS = [
+  ['public.claim_reading', 'claim_reading_append_only'],
+  ['public.citation', 'citation_append_only'],
+  ['public.proposals', 'proposals_append_only'],
+  ['public.model_call', 'model_call_append_only'],
+] as const;
+
+const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
+  await db.query('BEGIN');
+  try {
+    for (const [table, trigger] of LEDGER_TRIGGERS)
+      await db.query(`ALTER TABLE ${table} DISABLE TRIGGER ${trigger}`);
+    const jobIds = `SELECT id FROM public.jobs WHERE document_id = ANY($1::text[])`;
+    await db.query('DELETE FROM public.claim_reading WHERE doc_id = ANY($1::text[])', [documents]);
+    await db.query('DELETE FROM public.citation WHERE doc_id = ANY($1::text[])', [documents]);
+    await db.query('DELETE FROM public.proposals WHERE src::text[] && $1::text[]', [documents]);
+    await db.query(`DELETE FROM public.model_call WHERE job_id IN (${jobIds})`, [documents]);
+    await db.query('DELETE FROM public.document_text WHERE document_id = ANY($1::text[])', [
+      documents,
+    ]);
+    await db.query('DELETE FROM public.jobs WHERE document_id = ANY($1::text[])', [documents]);
+    await db.query('DELETE FROM public.documents WHERE id = ANY($1::text[])', [documents]);
+    for (const [table, trigger] of LEDGER_TRIGGERS)
+      await db.query(`ALTER TABLE ${table} ENABLE ALWAYS TRIGGER ${trigger}`);
+    await db.query('COMMIT');
+  } catch (cause) {
+    await db.query('ROLLBACK');
+    throw cause;
+  }
+};
+
 afterAll(async () => {
-  await db.end();
-  gateway.close();
+  try {
+    await deleteRowsOf([RECOVERED, FLAKY]);
+  } finally {
+    await db.end();
+    gateway.close();
+  }
 });
 
 test('a queued document gives pending proposals, and a crash or a failure blocks no document', async () => {
@@ -209,17 +246,24 @@ test('a queued document gives pending proposals, and a crash or a failure blocks
   await db.query('RESET SESSION AUTHORIZATION');
   expect(claimed).toStrictEqual([{ job_id: recovered }]);
 
+  // A database that ran 0036 can hold a queued second reading, and no agent runs that kind now.
+  await db.query("INSERT INTO public.jobs (document_id, kind) VALUES ($1, 'second_read')", [
+    RECOVERED,
+  ]);
+
   await store(FLAKY);
   await queue(FLAKY);
 
   const first = startRunner();
   try {
-    const recoveredJobs = await ended(RECOVERED, 1);
+    const recoveredJobs = await ended(RECOVERED, 2);
     const flakyJobs = await ended(FLAKY, 1);
 
     expect(recoveredJobs.map(({ kind, status }) => ({ kind, status }))).toStrictEqual([
       { kind: 'extract_text', status: 'done' },
+      { kind: 'second_read', status: 'failed' },
     ]);
+    expect(recoveredJobs[1]?.failure_reason).toMatch(/second_read/u);
     expect(await pendingOf(RECOVERED)).toStrictEqual([LABEL]);
 
     expect(flakyJobs[0]?.status).toBe('failed');
@@ -230,12 +274,18 @@ test('a queued document gives pending proposals, and a crash or a failure blocks
   }
 
   // The operator queues the failed document again, and the next start of the runner reads it.
+  // A second extraction of a document that gave its proposals writes no second proposal.
   await queue(FLAKY);
+  await queue(RECOVERED);
   const second = startRunner();
   try {
     const flakyJobs = await ended(FLAKY, 2);
     expect(flakyJobs.map((job) => job.status)).toStrictEqual(['failed', 'done']);
     expect(await pendingOf(FLAKY)).toStrictEqual([LABEL]);
+
+    const recoveredJobs = await ended(RECOVERED, 3);
+    expect(recoveredJobs.map((job) => job.status)).toStrictEqual(['done', 'failed', 'done']);
+    expect(await pendingOf(RECOVERED)).toStrictEqual([LABEL]);
   } finally {
     await stopRunner(second);
   }
