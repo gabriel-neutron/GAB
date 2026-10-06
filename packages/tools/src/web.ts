@@ -1,8 +1,8 @@
-// The only place where the research server opens a socket to the web. A redirect is handed back
+// The only place where a surface opens a socket to the web for a search. A redirect is handed back
 // and never followed, because a public host that redirects to a private address turns a fetch
 // against the machine. The hosts asked are constants of the tools.
 
-import type { Web } from '@gab/tools/tool';
+import type { Web } from './tool.ts';
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
@@ -40,7 +40,7 @@ const bodyOf = async (response: Response, maxBytes: number): Promise<string> => 
   return Buffer.concat(chunks).toString('utf8');
 };
 
-/** The web of the research server, from the environment that the caller gives it. */
+/** The web of a surface, from the environment that the caller gives it. */
 export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
   const searxngUrl = given(env['SEARXNG_URL']);
   const braveKey = given(env['BRAVE_SEARCH_API_KEY']);

@@ -1,10 +1,14 @@
 import { setTimeout as sleepFor } from 'node:timers/promises';
 
+import { openStore, putObject, type RawStore } from '@gab/store';
+import { endMetadata } from '@gab/tools/fetch-document';
+import { webOf } from '@gab/tools/web';
 import { Pool } from 'pg';
 
 import { agentAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
 import { makeExtractor } from './extractor/extractor.ts';
+import { leadAgentOf } from './lead/lead.ts';
 import { readExtractorConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
@@ -16,9 +20,22 @@ export const runCommand: SubCommand = async () => {
   const stop = new AbortController();
   for (const name of ['SIGINT', 'SIGTERM'] as const) process.once(name, () => stop.abort());
 
-  // The configuration is read at the start, so a value that is absent stops the start with its
-  // name and claims nothing.
-  const agents = [makeExtractor(readExtractorConfig(process.env))];
+  // The configuration is read at the start, so a value of the extractor that is absent stops the
+  // start with its name and claims nothing. A lead setting that is absent fails each lead and
+  // stops no extraction.
+  const stores: RawStore[] = [];
+  const agents = [
+    makeExtractor(readExtractorConfig(process.env)),
+    leadAgentOf(process.env, () => {
+      const store = openStore();
+      stores.push(store);
+      return {
+        store: { put: (object) => putObject(store, object) },
+        web: webOf(process.env),
+        now: () => new Date(),
+      };
+    }),
+  ];
 
   const pool = new Pool({ connectionString: agentAddress() });
   try {
@@ -30,7 +47,9 @@ export const runCommand: SubCommand = async () => {
     });
     await runner.run(stop.signal);
   } finally {
-    await pool.end();
+    // The fetch tool keeps an exiftool process, and it holds the event loop open until it ends.
+    await Promise.all([pool.end(), endMetadata()]);
+    for (const store of stores) store.client.destroy();
   }
   return 0;
 };

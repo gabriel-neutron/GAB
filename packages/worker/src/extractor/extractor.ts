@@ -98,6 +98,8 @@ export const makeExtractor = (
   }));
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
+    const { job } = context;
+    if (job.kind !== 'extract_text') throw new JobStop(`the extractor runs no job of ${job.kind}`);
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
     let turns = 0;
@@ -197,7 +199,7 @@ export const makeExtractor = (
         {
           role: 'user',
           content: JSON.stringify({
-            document: context.job.documentId,
+            document: job.documentId,
             page: chunk.page,
             text: chunk.text,
           }),
@@ -236,7 +238,7 @@ export const makeExtractor = (
       }
     };
 
-    const newest = await readNewestPages(context.db, context.job.documentId);
+    const newest = await readNewestPages(context.db, job.documentId);
     if (newest === null) throw new JobStop('no_text');
 
     for (const chunk of chunkPages(newest, config.chunkCap)) await readChunk(chunk);

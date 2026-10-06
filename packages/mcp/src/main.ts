@@ -14,7 +14,7 @@ import {
   StartRefusal,
 } from './role.ts';
 import { createServer } from './server.ts';
-import { webOf } from './web.ts';
+import { webOf } from '@gab/tools/web';
 
 const stop = (cause: unknown): never => {
   // A refusal is the sentence the operator needs. Any other fault can hold the URL, so only its

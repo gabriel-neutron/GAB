@@ -3,7 +3,7 @@
 **Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
 table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
 2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
-check by a second model family.
+check by a second model family. · The lead agent added 6 October 2026.
 
 ## Context
 
@@ -57,7 +57,7 @@ Each consumer has its own database role.
 - **The operator AI**, through the MCP server, has its own research role. It can store a fetched
   document and propose. It cannot promote.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
-  outputs and propose. They cannot promote.
+  outputs and propose. They cannot promote, and they cannot start a lead.
 - **The promotion rule** runs as the agent role and does only the rule decision. ADR 0011 now holds
   that rule.
 - **The chat** reads through the read role and can queue an extraction. It never proposes, because
@@ -138,6 +138,36 @@ can run on another machine.
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
   left running. The operator queues a failed document again by hand. A job that runs again writes
   no second set of proposals, because the propose door returns the act that waits.
+
+## The lead agent
+
+The operator, from the interface, or the research AI, through the MCP server, gives a lead: a
+short text such as "a company and its vessels". The lead is a job with its text and no document.
+A back-end agent runs it with real tool calls: web search, news search, graph search, a search of
+the stored documents, fetch, and queue an extraction. The extractor keeps its JSON answers, and
+code writes its proposals.
+
+- **It stores and queues, and it proposes nothing.** Code queues the extraction of each page that
+  the agent stores, so the claims reach the review queue through the extractor. The agent has no
+  propose tool, and its role holds no grant to start a lead, so it starts no lead of its own.
+- **It never stores a page twice.** Before each fetch, code looks for the address in the stored
+  documents, in the form that the fetch stores: no fragment, and with or without a slash at the
+  end of the path. A stored page is not fetched again, and the model reads its document id.
+- **It fetches only public addresses.** A search result and a page are untrusted text. The fetch
+  refuses an address of the machine or of a private network, so a page cannot send the agent to
+  an internal service.
+- **A lead setting never stops the extraction.** When a lead setting is absent, the worker starts,
+  and each lead fails at once with a reason that names the setting.
+- **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
+  it needs. The token budget of the job is its one stop, and the job fails with that reason. The
+  pages stored before the stop stay stored.
+- **The lead is private.** Its text can name a party before a source supports it. Only the
+  operator reads the leads and what each one stored. The worker reads the text of the one lead
+  that it claims, and the research AI gets only the job id of a lead that it starts.
+- **No schedule.** A person or the research AI starts each lead.
+
+**Cost:** the agent reads only the start of each page, so it can miss a page that a long document
+points to. A lead that loops spends its whole budget before it stops.
 
 ## The chat is local, and the conversations are private
 

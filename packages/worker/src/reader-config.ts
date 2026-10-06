@@ -22,6 +22,14 @@ export interface ReaderConfig {
   readonly chunkCap: number;
 }
 
+/** What the operator sets for the lead agent. */
+export interface LeadConfig {
+  /** The pinned model that chooses the searches and the pages. */
+  readonly model: ModelConfig;
+  /** The tokens that one lead may spend. A lead has no page limit, so this is its one stop. */
+  readonly tokenCap: number;
+}
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 const textOf = (env: Env, name: string): string => {
@@ -82,4 +90,20 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
         'than the extractor.',
     );
   return config;
+};
+
+/** Reads the configuration of the lead agent. It asks the model of the extractor, which is
+ * pinned and calls tools, and it has a token budget of its own. A lead with no search engine
+ * finds no page, so a search setting is required too. */
+export const readLeadConfig = (env: Env): LeadConfig => {
+  const tokenCap = numberOf(env, 'LEAD_TOKEN_CAP', true);
+  const searches = ['SEARXNG_URL', 'BRAVE_SEARCH_API_KEY'].some(
+    (name) => (env[name]?.trim() ?? '') !== '',
+  );
+  if (!searches)
+    throw new Error(
+      'SEARXNG_URL is empty or absent, and no BRAVE_SEARCH_API_KEY is set. A lead needs a ' +
+        'search engine.',
+    );
+  return { model: readModelConfig('EXTRACTOR', env), tokenCap };
 };
