@@ -191,7 +191,7 @@ test('a quota failure returns the job to the queue with the same attempt count',
     const { step, slept } = await stepOf(held, [stubAgent()], gateway);
     const after = await held.read();
 
-    expect(step).toStrictEqual({ did: 'released', job: held.job });
+    expect(step).toStrictEqual({ did: 'released', job: held.job, reason: 'quota' });
     expect(after).toMatchObject({ status: 'queued', attempts: 0, claimed_at: null });
     expect(slept).toStrictEqual([600_000]);
     expect((await callsOf(held)).map((call) => call.outcome)).toStrictEqual(['quota']);

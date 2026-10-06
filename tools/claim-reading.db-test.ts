@@ -348,3 +348,149 @@ for (const [write, message] of [
       }),
     ).rejects.toThrow(message);
   });
+
+// ------------------------------------------------------- second_read_done ---
+
+const DONE = 'SELECT public.second_read_done($1::uuid, $2, $3, $4) AS done';
+
+const doneShape = z.array(z.object({ done: z.boolean() })).length(1);
+
+interface DoneParts {
+  readonly chunk?: string;
+  readonly fingerprint?: string;
+  readonly form?: string;
+}
+
+const doneOf = (ask: Ask, job: string, parts: DoneParts = {}): Promise<boolean> =>
+  asRole(ask, 'gabriel_agent', async () => {
+    const [row] = doneShape.parse(
+      await ask(DONE, [
+        job,
+        parts.chunk ?? SHA,
+        parts.fingerprint ?? 'a-model abc',
+        parts.form ?? 'text',
+      ]),
+    );
+    return row?.done ?? false;
+  });
+
+test('second_read_done is false before the second reader stored a reading of the chunk, and true after', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const seeded = await seed(ask, 'second_read');
+    const before = await doneOf(ask, seeded.job);
+    await putReading(ask, seeded, { claim: null });
+    return { before, after: await doneOf(ask, seeded.job) };
+  });
+  expect(seen).toStrictEqual({ before: false, after: true });
+});
+
+const OTHER_PARTS: readonly (readonly [string, DoneParts])[] = [
+  ['another chunk', { chunk: 'e'.repeat(64) }],
+  ['another fingerprint', { fingerprint: 'a-model another-prompt' }],
+  ['another input form', { form: 'html' }],
+];
+
+for (const [name, parts] of OTHER_PARTS)
+  test(`second_read_done is false for ${name}`, async () => {
+    const done = await rolledBack('superuser', async (ask) => {
+      const seeded = await seed(ask, 'second_read');
+      await putReading(ask, seeded, { claim: null });
+      return doneOf(ask, seeded.job, parts);
+    });
+    expect(done).toBe(false);
+  });
+
+test('second_read_done does not count a reading of the first reader', async () => {
+  const done = await rolledBack('superuser', async (ask) => {
+    const first = await seed(ask, 'extract_text');
+    await putReading(ask, first);
+    await ask("UPDATE public.jobs SET status = 'done', finished_at = now() WHERE id = $1", [
+      first.job,
+    ]);
+    const second = await idOf(
+      ask,
+      "INSERT INTO public.jobs (document_id, kind) VALUES ($1, 'second_read') RETURNING id",
+      [DOC],
+    );
+    await ask("UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1", [second]);
+    await asRole(ask, 'gabriel_agent', () => ask('SELECT * FROM public.claim_job()'));
+    return doneOf(ask, second);
+  });
+  expect(done).toBe(false);
+});
+
+const REFUSED_JOBS = [
+  ['a job that is not claimed', 'second_read', false, false],
+  ['a job that another role holds', 'second_read', true, true],
+  ['a job of the first reader', 'extract_text', true, false],
+] as const;
+
+for (const [name, kind, claims, other] of REFUSED_JOBS)
+  test(`second_read_done refuses ${name}`, async () => {
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        const seeded = await seed(ask, kind, claims);
+        if (other)
+          await ask("UPDATE public.jobs SET claimed_by = 'gabriel_app' WHERE id = $1", [
+            seeded.job,
+          ]);
+        return doneOf(ask, seeded.job);
+      }),
+    ).rejects.toMatchObject({ code: '22023' });
+  });
+
+// ------------------------------------------------------- the reach of a reading ---
+
+const COUNTS = `SELECT t.table_name::text AS name,
+    (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM public.%I',
+      t.table_name), false, true, '')))[1]::text AS rows
+  FROM information_schema.tables t
+ WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+ ORDER BY t.table_name`;
+
+const JOB_ROW = 'SELECT to_jsonb(j) AS row FROM public.jobs j WHERE j.id = $1';
+
+const countsOf = (rows: unknown): Record<string, string> =>
+  Object.fromEntries(
+    z
+      .array(z.object({ name: z.string(), rows: z.string() }))
+      .parse(rows)
+      .map((row) => [row.name, row.rows]),
+  );
+
+test('a call of the door adds one reading and changes no other table', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const seeded = await seed(ask, 'second_read');
+    const before = { counts: countsOf(await ask(COUNTS)), job: await ask(JOB_ROW, [seeded.job]) };
+    await putReading(ask, seeded, { claim: null });
+    const after = { counts: countsOf(await ask(COUNTS)), job: await ask(JOB_ROW, [seeded.job]) };
+    return { before, after };
+  });
+  const { before, after } = seen;
+  expect(Number(after.counts['claim_reading'])).toBe(Number(before.counts['claim_reading']) + 1);
+  expect({ ...after.counts, claim_reading: '' }).toStrictEqual({
+    ...before.counts,
+    claim_reading: '',
+  });
+  expect(after.job).toStrictEqual(before.job);
+});
+
+test('the read role cannot read the readings', async () => {
+  await expect(
+    rolledBack('read', (ask) => ask('SELECT count(*) FROM public.claim_reading')),
+  ).rejects.toMatchObject({ code: '42501' });
+});
+
+test('no view of the api schema reads the readings', async () => {
+  const views = await rolledBack('superuser', (ask) =>
+    ask(
+      `SELECT DISTINCT v.relname AS name
+         FROM pg_catalog.pg_depend d
+         JOIN pg_catalog.pg_rewrite r ON r.oid = d.objid
+         JOIN pg_catalog.pg_class v ON v.oid = r.ev_class
+         JOIN pg_catalog.pg_namespace n ON n.oid = v.relnamespace
+        WHERE n.nspname = 'api' AND d.refobjid = 'public.claim_reading'::regclass`,
+    ),
+  );
+  expect(views).toStrictEqual([]);
+});

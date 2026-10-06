@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { chunkAnswer, claimEntry, readerTwoEntry } from './reading.ts';
+import { putClaimReading } from './put-claim-reading.ts';
+import {
+  chunkAnswer,
+  claimEntry,
+  MAX_CLAIMS_PER_CHUNK,
+  readerTwoAnswer,
+  readerTwoEntry,
+} from './reading.ts';
 
 const ACT = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
 
@@ -60,6 +67,63 @@ describe('the entry of the second reader', () => {
 
   it('refuses an act', () => {
     expect(readerTwoEntry.safeParse(ENTRY).success).toBe(false);
+  });
+
+  const { act: _act, ...BARE } = ENTRY;
+  void _act;
+
+  for (const key of ['confidence', 'evidence_note', 'epistemic', 'reader_no', 'act'])
+    it(`refuses the key ${key}`, () => {
+      expect(readerTwoEntry.safeParse({ ...BARE, [key]: 1 }).success).toBe(false);
+    });
+
+  it('refuses an offset that is not a whole number', () => {
+    expect(readerTwoEntry.safeParse({ ...BARE, start: 4.5 }).success).toBe(false);
+  });
+
+  it('refuses a span that does not start before it ends', () => {
+    expect(readerTwoEntry.safeParse({ ...BARE, start: 10, end: 4 }).success).toBe(false);
+  });
+
+  it('refuses a modality outside the five words', () => {
+    expect(readerTwoEntry.safeParse({ ...BARE, modality: 'suggests' }).success).toBe(false);
+  });
+
+  it('refuses more readings than the cap of one chunk', () => {
+    const many = Array.from({ length: MAX_CLAIMS_PER_CHUNK + 1 }, () => BARE);
+    expect(readerTwoAnswer.safeParse({ claims: many }).success).toBe(false);
+    expect(readerTwoAnswer.safeParse({ claims: many.slice(1) }).success).toBe(true);
+  });
+});
+
+describe('the input of the door put_claim_reading', () => {
+  const SHA = 'a'.repeat(64);
+  const ID = '4a3b2c1d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
+  const INPUT = {
+    job: ID,
+    textExtractor: 'pdf@1',
+    page: 1,
+    start: 0,
+    end: 6,
+    modality: 'asserts',
+    modelCallId: ID,
+    inputForm: 'text',
+    readerFingerprint: 'b-model abc',
+    chunkHash: SHA,
+    idempotencyKey: SHA,
+  };
+
+  it('takes a second reading with no claim', () => {
+    expect(putClaimReading.input.safeParse(INPUT).success).toBe(true);
+  });
+
+  for (const key of ['confidence', 'evidence_note', 'epistemic', 'reader_no', 'readerNo'])
+    it(`refuses the key ${key}`, () => {
+      expect(putClaimReading.input.safeParse({ ...INPUT, [key]: 1 }).success).toBe(false);
+    });
+
+  it('refuses an offset that is not a whole number', () => {
+    expect(putClaimReading.input.safeParse({ ...INPUT, end: 6.5 }).success).toBe(false);
   });
 });
 
