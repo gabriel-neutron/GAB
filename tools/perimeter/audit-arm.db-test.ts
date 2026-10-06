@@ -327,6 +327,7 @@ const THE_DOOR_SET = [
   'public.set_entity_layout to gabriel_agent',
   'public.set_operator_letter to gabriel_app',
   'public.set_party_false to gabriel_app',
+  'public.sign_change to gabriel_app',
 ];
 
 // A departure: a door writes as gabriel_owner and holds no table grant, so EXECUTE on one is a

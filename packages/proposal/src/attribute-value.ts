@@ -2,42 +2,12 @@ import { z } from 'zod';
 
 const scalar = z.union([z.string(), z.number(), z.boolean()]);
 
-const NON_BLANK = 'a bare string value is never blank; write no key instead of an unknown one';
-
-// M9 speaks of null, not blank. A list keeps no minimum: an empty list can state a known "none",
-// a real fact. Only the bare string case is a value nobody could have meant.
-const nonBlankString = z.string().refine((v) => v.trim().length > 0, { error: NON_BLANK });
-const bareValue = z.union([nonBlankString, z.number(), z.boolean()]);
-
 // `v` alone, and the object is strict. The writer attaches the sources of an edit, so a caller
 // that sends `src` is refused and never obeyed.
-const edited = z.strictObject({ v: z.union([bareValue, z.array(scalar)]) });
+const edited = z.strictObject({ v: z.union([scalar, z.array(scalar)]) });
 
 export type AttributeEdit = Record<string, z.infer<typeof edited>>;
 
-/** The shape of a key, and nothing about what the key means. `attrs_valid` holds the same two
- * rules in the record, so a key the database refuses never leaves the browser. A screen that
- * mints a key reads them, and it refuses one in words before it spends a round trip. */
-export const ATTRIBUTE_KEY = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
-
-/** The longest identifier the record takes. */
-export const ATTRIBUTE_KEY_LENGTH = 63;
-
-const KEY_SHAPE =
-  'a key is lower case words of letters and digits, joined by one underscore.' +
-  ' It starts with a letter, and it ends with a letter or a digit.' +
-  ` It is ${String(ATTRIBUTE_KEY_LENGTH)} characters at most`;
-
-/** The attributes of one edit. THE SHAPE IS THE WHOLE RULE: a key, and a value that is a scalar
- * or a flat list of them. No kind, no format and no list of permitted keys, because M11 says the
- * free half of the model carries none, and the database holds exactly the same line. */
-export const attributeEdit = z.record(
-  z.string().regex(ATTRIBUTE_KEY).max(ATTRIBUTE_KEY_LENGTH),
-  edited,
-  {
-    // External constraint: the record states `Invalid key in record`, and the sentence of the key
-    // schema sits nested under it, where the writer's composer never reads it. Only the key fault
-    // is renamed, because a sentence on the record would answer a body that is no record at all.
-    error: (issue) => (issue.code === 'invalid_key' ? KEY_SHAPE : undefined),
-  },
-);
+/** The attributes of one edit: a key, and a value that is a scalar or a flat list of them. The
+ * database holds the shape of a key and refuses a blank text, and it words the refusal. */
+export const attributeEdit = z.record(z.string(), edited);

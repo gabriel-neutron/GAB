@@ -4,8 +4,9 @@
 
 import type { DecisionOp } from '@gab/proposal/request';
 
-import { calm, interrupt, type Said } from '@/shared/said';
+import { interrupt, type Said } from '@/shared/said';
 import { sendDecision } from '@/shared/write/door';
+import { writeSaid, type WriteState, type WriteWords } from '@/shared/write/write-state';
 
 import type { Verdict } from './queue';
 
@@ -14,22 +15,12 @@ export type DoorVerdict = Exclude<Verdict, 'deferred'>;
 
 /** Every state that is not idle names the act it is about. A sentence that names no act reads
  * as the sentence of whatever act stands under the controls, and the two are not the same. */
-export type DecisionState =
-  | { readonly step: 'idle' }
-  | { readonly step: 'deciding'; readonly changeId: string; readonly verdict: Verdict }
-  | { readonly step: 'decided'; readonly changeId: string; readonly verdict: Verdict }
-  | {
-      readonly step: 'refused';
-      readonly changeId: string;
-      readonly verdict: DoorVerdict;
-      readonly refusal: string;
-    }
-  | {
-      readonly step: 'unknown';
-      readonly changeId: string;
-      readonly verdict: DoorVerdict;
-      readonly doubt: string;
-    };
+interface DecisionAbout {
+  readonly changeId: string;
+  readonly verdict: Verdict;
+}
+
+export type DecisionState = WriteState<object, DecisionAbout>;
 
 /** What the surface reads: the sentence and its urgency, and whether a second verdict must
  * wait. One state answers the three, so they travel as one. */
@@ -56,9 +47,19 @@ const DONE: Readonly<Record<Verdict, string>> = {
 // finishes: an urgent sentence never waits behind a network read.
 const READ_AGAIN = 'The queue is read again.';
 
-const UNSURE: Readonly<Record<DoorVerdict, string>> = {
+// Departure: a hold reaches no door, so it is never unknown. The one state of a write holds
+// every verdict, so the hold has words here too.
+const UNSURE: Readonly<Record<Verdict, string>> = {
   promoted: 'It is not known whether the act was promoted.',
   rejected: 'It is not known whether the act was rejected.',
+  deferred: 'It is not known whether the act was held.',
+};
+
+const WORDS: WriteWords<object, DecisionAbout> = {
+  idle: '',
+  working: ({ verdict }) => GOING[verdict],
+  done: ({ verdict }) => DONE[verdict],
+  unknown: ({ verdict }) => UNSURE[verdict],
 };
 
 /** The door of each verdict. The lookup is total, so a verdict that the record can take reaches
@@ -78,36 +79,22 @@ const about = (elsewhere: boolean, sentence: string): string =>
 /** The one sentence the surface reads. It is derived here, and never composed in the view. The
  * act under the controls is read, because a verdict of one act never reads as the next one. */
 export function decisionSaid(state: DecisionState, currentId: string | null): DecisionSaid {
-  if (state.step === 'idle') return { ...calm(''), busy: false };
+  const said = writeSaid<object, DecisionAbout>(state, WORDS);
+  if (state.step === 'idle') return { ...said, busy: false };
 
   const elsewhere = currentId !== null && state.changeId !== currentId;
-  switch (state.step) {
-    case 'deciding':
-      return { ...calm(about(elsewhere, GOING[state.verdict])), busy: true };
-    case 'decided':
-      return { ...calm(about(elsewhere, DONE[state.verdict])), busy: false };
-    case 'refused':
-      return {
-        ...interrupt(about(elsewhere, `Nothing was written. ${state.refusal}. ${READ_AGAIN}`)),
-        busy: false,
-      };
-    case 'unknown':
-      return {
-        ...interrupt(about(elsewhere, `${UNSURE[state.verdict]} ${state.doubt} ${READ_AGAIN}`)),
-        busy: false,
-      };
-  }
+  const sentence = about(elsewhere, said.sentence);
+  // The record moved under the analyst, or the answer never came. Both interrupt, and both end
+  // at one read of the record.
+  if (state.step === 'refused' || state.step === 'unknown')
+    return { ...interrupt(`${sentence} ${READ_AGAIN}`), busy: false };
+  return { ...said, sentence, busy: state.step === 'working' };
 }
 
 /** Take one verdict, and answer with the state the surface stands in. It raises nothing. A hold
  * reaches no door: nothing in the record holds a reason, and this file writes none. */
 export async function sendVerdict(changeId: string, verdict: Verdict): Promise<DecisionState> {
-  if (verdict === 'deferred') return { step: 'decided', changeId, verdict };
+  if (verdict === 'deferred') return { step: 'done', changeId, verdict };
 
-  const outcome = await sendDecision(DOOR[verdict], changeId);
-  if (outcome.state === 'decided') return { step: 'decided', changeId, verdict };
-  // The act may have run whole, so this state is never drawn as a refusal and never as a hold.
-  if (outcome.state === 'unknown')
-    return { step: 'unknown', changeId, verdict, doubt: outcome.doubt };
-  return { step: 'refused', changeId, verdict, refusal: outcome.refusal };
+  return { ...(await sendDecision(DOOR[verdict], changeId)), changeId, verdict };
 }

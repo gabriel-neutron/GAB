@@ -39,7 +39,7 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
 
   const draft = readEntityDraft(form);
   const working = state.step === 'working';
-  const made = state.step === 'signed' ? state.entityId : null;
+  const made = state.step === 'done' ? state.targetId : null;
 
   // Each opening starts at a blank form. A name typed three days ago and left in a closed
   // dialog is worse than one that was lost, because nothing on the screen says how old it is.
@@ -57,8 +57,8 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
     setState({ step: 'working' });
     void createEntity(act).then(async (answer) => {
       setState(answer);
-      if (answer.step !== 'signed') return;
-      await onCreated(answer.entityId);
+      if (answer.step !== 'done') return;
+      await onCreated(answer.targetId);
     });
   };
 

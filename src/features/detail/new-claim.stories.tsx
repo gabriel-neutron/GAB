@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor } from 'storybook/test';
 
-import { ATTRIBUTE_KEY_LENGTH } from '@gab/proposal/attribute-value';
-
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
@@ -24,7 +22,11 @@ const ROWS = read();
 /** A key the entity already holds, which the record corrects and this control refuses. */
 const STANDING = ROWS[0]?.claim.key ?? '';
 
-const SIGNED: SaveState = { step: 'signed', proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12' };
+const SIGNED: SaveState = {
+  step: 'done',
+  proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+  targetId: '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7',
+};
 
 const onMint = fn<NewClaimProps['onMint']>(() => Promise.resolve(SIGNED));
 
@@ -50,15 +52,6 @@ export const ABlankFormMintsNothing: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('button', { name: ADD })).toBeDisabled();
     await expect(canvas.getByText('Write a key and a value.')).toBeVisible();
-  },
-};
-
-// `attrs_valid` holds the same rule in the record, so the screen says it first and in words.
-export const AKeyIsLowerSnakeCase: Story = {
-  play: async ({ canvas }) => {
-    await userEvent.type(canvas.getByLabelText('Key'), 'Coal Stock');
-    await expect(canvas.getByText(/A key is lower case words/)).toBeVisible();
-    await expect(canvas.getByRole('button', { name: ADD })).toBeDisabled();
   },
 };
 
@@ -116,15 +109,6 @@ export const ACommaMakesNoList: Story = {
     await userEvent.type(canvas.getByLabelText('Key'), 'port_calls');
     await userEvent.type(canvas.getByLabelText('Value'), 'Rotterdam, Hamburg');
     await expect(canvas.getByText(/A comma makes no list here/)).toBeVisible();
-  },
-};
-
-// `attrs_valid` holds the same limit in the record, so the screen states it in words first.
-export const AKeyLongerThanTheRecordTakesIsRefused: Story = {
-  play: async ({ canvas }) => {
-    await userEvent.type(canvas.getByLabelText('Key'), `a${'b'.repeat(ATTRIBUTE_KEY_LENGTH)}`);
-    await expect(canvas.getByText('A key is 63 characters at most.')).toBeVisible();
-    await expect(canvas.getByRole('button', { name: ADD })).toBeDisabled();
   },
 };
 
