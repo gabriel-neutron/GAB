@@ -15,11 +15,10 @@ const DOORS = {
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
-  release_expired_claims: 'public.release_expired_claims()',
+  requeue_running_jobs: 'public.requeue_running_jobs()',
   fail_job: 'public.fail_job(uuid,text)',
   enqueue_job: 'public.enqueue_job(text,text)',
   complete_job: 'public.complete_job(uuid)',
-  release_job_for_quota: 'public.release_job_for_quota(uuid)',
   runner_settings: 'public.runner_settings()',
   set_entity_layout: 'public.set_entity_layout(jsonb)',
   put_document_text: 'public.put_document_text(text,jsonb,text)',
@@ -48,9 +47,8 @@ const doorsHeldBy = async (
   return Object.fromEntries(rows.map((row) => [row.door, row.held]));
 };
 
-// THE TWO ENDS OF THE QUEUE ARE HELD BY DIFFERENT ROLES. The worker takes a row with the
-// narrower secret, and the role that owns the doors of the operator is the one that gives a
-// lost row back, so neither one holds both halves.
+// THE QUEUE IS HELD BY THE NARROWER SECRET. The worker takes a row, ends it and gives back what a
+// crash left running, and the role that owns the doors of the operator holds none of these.
 
 // The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
 // this role: the one that cannot sign as the operator.
@@ -62,11 +60,10 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     reject_proposal: false,
     record_model_call: true,
     claim_job: true,
-    release_expired_claims: false,
+    requeue_running_jobs: true,
     fail_job: true,
     enqueue_job: true,
     complete_job: true,
-    release_job_for_quota: true,
     runner_settings: true,
     set_entity_layout: true,
     put_document_text: true,
@@ -86,11 +83,10 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     reject_proposal: false,
     record_model_call: false,
     claim_job: false,
-    release_expired_claims: false,
+    requeue_running_jobs: false,
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
-    release_job_for_quota: false,
     runner_settings: false,
     set_entity_layout: false,
     put_document_text: true,
@@ -102,10 +98,9 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
 
 const REFUSED = [
   { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
-  { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
+  { identity: 'app', call: 'SELECT public.requeue_running_jobs()' },
   { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
   { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
-  { identity: 'app', call: 'SELECT public.release_job_for_quota(gen_random_uuid())' },
   { identity: 'research', call: 'SELECT * FROM public.runner_settings()' },
 ] as const;
 
@@ -116,7 +111,7 @@ for (const refused of REFUSED)
     });
   });
 
-test('gabriel_app holds EXECUTE on the four acts of the operator and on the release', async () => {
+test('gabriel_app holds EXECUTE on the four acts of the operator', async () => {
   expect(await doorsHeldBy('app')).toStrictEqual({
     put_document: true,
     propose_change: true,
@@ -124,11 +119,10 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     reject_proposal: true,
     record_model_call: false,
     claim_job: false,
-    release_expired_claims: true,
+    requeue_running_jobs: false,
     fail_job: false,
     enqueue_job: true,
     complete_job: false,
-    release_job_for_quota: false,
     runner_settings: false,
     set_entity_layout: false,
     put_document_text: true,
@@ -207,7 +201,7 @@ test('a column grant of UPDATE on an evidentiary table shows as a write', async 
 });
 
 // Departure: the claim is a door and not a table write. A worker that could mark a row by hand
-// could put it in a state no claim produced, and the count of the attempts would prove nothing.
+// could put it in a state no claim produced.
 test('gabriel_agent cannot mark a job by hand', async () => {
   await expect(
     rolledBack('agent', (ask) => ask("UPDATE public.jobs SET status = 'running'")),
@@ -234,7 +228,7 @@ test('gabriel_app cannot queue work without a document', async () => {
 });
 
 const QUEUED = `SELECT count(*)::int AS n FROM public.jobs
-   WHERE document_id = $1 AND status = 'queued' AND attempts = 0`;
+   WHERE document_id = $1 AND status = 'queued' AND claimed_at IS NULL`;
 
 const counted = z.array(z.object({ n: z.number().int() }));
 

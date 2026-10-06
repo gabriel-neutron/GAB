@@ -13,7 +13,7 @@ free tokens. Each tool must be available to the web interface and to each AI. Th
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping, a second blind read | Free, through a model gateway |
+| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Free, through a model gateway |
 | Front-end AI | A chat route on the local writer | A question in the interface | Free, through a model gateway |
 
 **The cost rule.** Deterministic work is plain code with no model: hash, store, load, text
@@ -78,8 +78,10 @@ the operator secret.
 - **Dissent needs a second model family.** The second reader uses a family that differs from the
   first.
 - **Each model call is recorded**, so that a disputed claim can be traced to a prompt and a model.
-- **An exhausted quota pauses the worker.** It does not fail the job and does not spend an attempt.
-  A requeued job writes no second set of proposals.
+- **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
+  has no lease and no count of attempts. At its start the worker puts back each job that a crash
+  left running. The operator queues a failed document again by hand. A job that runs again writes
+  no second set of proposals.
 
 ## The chat is local, and the conversations are private
 
@@ -96,7 +98,8 @@ on 6 October 2026. The chat feature builds its store again.
   audit sample.
 - The rule is only as good as the checks and the audit of ADR 0011. A change that lets a model
   write a rating, a state or an audit label reopens ADR 0011.
-- The free gateway has no service level. The pinned model
-  and the quota pause contain this risk. They do not remove it.
+- The free gateway has no service level. The pinned model and a failure that shows its reason
+  contain this risk. They do not remove it. A spent quota fails each job until the gateway has
+  quota again, and the operator queues the documents again.
 - Two support services are added: the model gateway and a metasearch engine. They hold no record of
   the project and listen on a private address only.

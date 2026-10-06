@@ -37,9 +37,6 @@ export interface ExtractorTools {
 }
 
 export interface ExtractorOptions {
-  /** Replaces personal data with placeholders of the same length. With none, no model reads a
-   * stored document, and each job stops. */
-  readonly minimise?: (text: string) => string;
   readonly tools?: ExtractorTools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -122,10 +119,6 @@ export const makeExtractor = (
   }));
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
-    // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise;
-    if (minimise === undefined) throw new JobStop('no_minimiser');
-
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
     let turns = 0;
@@ -146,8 +139,6 @@ export const makeExtractor = (
       }
     };
 
-    // Every text from the store, from a tool or from the model goes through the minimiser before
-    // a model reads it. The fixed prompt and the framing that code writes do not.
     const answerCall = async (call: {
       readonly id: string;
       readonly name: string;
@@ -173,11 +164,11 @@ export const makeExtractor = (
             {
               id: call.id,
               type: 'function',
-              function: { name: call.name, arguments: minimise(JSON.stringify(call.input ?? {})) },
+              function: { name: call.name, arguments: JSON.stringify(call.input ?? {}) },
             },
           ],
         },
-        { role: 'tool', tool_call_id: call.id, content: minimise(content) },
+        { role: 'tool', tool_call_id: call.id, content },
       ];
     };
 
@@ -253,10 +244,9 @@ export const makeExtractor = (
           ...conversation,
           {
             role: 'user',
-            content: minimise(
+            content:
               `The boundary refuses this claim: ${JSON.stringify(entry)}. The fault: ${fault}. ` +
-                'Give this one claim again, corrected, as {"claim": {...}}.',
-            ),
+              'Give this one claim again, corrected, as {"claim": {...}}.',
           },
         ],
         retryAnswer,
@@ -272,15 +262,17 @@ export const makeExtractor = (
       await settle(chunk, textSet, again.value.claim, again, conversation, retries - 1);
     };
 
+    // The text of the document goes to the model as it is stored.
     const readChunk = async (chunk: Chunk, textSet: string): Promise<void> => {
-      const text = minimise(chunk.text);
-      if (codePoints(text) !== codePoints(chunk.text)) throw new JobStop('minimiser_length');
-
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
           role: 'user',
-          content: JSON.stringify({ document: context.job.documentId, page: chunk.page, text }),
+          content: JSON.stringify({
+            document: context.job.documentId,
+            page: chunk.page,
+            text: chunk.text,
+          }),
         },
       ];
       for (;;) {
@@ -292,7 +284,7 @@ export const makeExtractor = (
         }
         const conversation: Message[] = [
           ...messages,
-          { role: 'assistant', content: minimise(JSON.stringify(asked.value)) },
+          { role: 'assistant', content: JSON.stringify(asked.value) },
         ];
         for (const entry of asked.value.claims)
           await settle(chunk, textSet, entry, asked, conversation, 1);
@@ -313,8 +305,6 @@ export const makeExtractor = (
     version: VERSION,
     kind: 'extract_text',
     settings: config.model,
-    // Each question of the job counts one turn, so the cap is the most questions of one job.
-    questionsPerJob: config.turnCap,
     tokenCap: config.tokenCap,
     run,
   };

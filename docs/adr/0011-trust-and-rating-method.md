@@ -73,7 +73,8 @@ database grants.
 - **Origins, not copies, count.** Code joins copies of one origin into one group. Two groups are
   independent only when each has its own structural mark and code finds no join. Bodies with one
   owner or controller are one group. By default, sources are dependent.
-- Before each model call, code removes the personal data that the task does not need.
+- The text of a stored document goes to the model as it is stored (operator decision of
+  6 October 2026).
 
 ## The decision table in principle
 

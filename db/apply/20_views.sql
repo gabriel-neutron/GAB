@@ -132,18 +132,18 @@ COMMENT ON VIEW api.layout IS
 
 
 -- Departure: the queue is readable by the tool roles, or a row stuck in `running` is a state
--- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a job carries an identifier, a state, the history of its claims,
--- and the reason and the hour it ended.
+-- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a
+-- job carries an identifier, a state, its claim, and the reason and the hour it ended.
 CREATE VIEW api.job AS
-  SELECT id, document_id, status, attempts, claimed_by, claimed_at, failure_reason, finished_at
+  SELECT id, document_id, status, claimed_by, claimed_at, failure_reason, finished_at
     FROM public.jobs;
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '
   'door. claimed_by is the CONNECTION ROLE that took the row and never a person or a process. '
-  '`attempts` counts every claim, including the ones a lease released, so it counts what was '
-  'taken and never what was tried. A failed job always states its reason in '
-  'failure_reason. finished_at is the hour a job ended, and NULL while it can still run.';
+  'A job fails at once, and a failed job always states its reason in failure_reason. The '
+  'operator queues the document again for a new job. finished_at is the hour a job ended, and '
+  'NULL while it can still run.';
 
 -- THE FILTER IS GONE, AND THE ROW COUNT IS NOW EVERY ENTITY. An entity that states
 -- `position_precision` = `inherited` carries no geometry of its own. A filter on the geometry
