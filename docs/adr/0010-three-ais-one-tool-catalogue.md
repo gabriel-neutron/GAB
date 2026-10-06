@@ -34,7 +34,8 @@ badly among many tools:
 | Profile | Tools |
 |---|---|
 | research (MCP) | see "The MCP server" below |
-| extractor | `document_text`, `lookup_entity`, `propose_change` |
+| extractor | `document_text`, `lookup_entity`, `propose_change`, `put_claim_reading` |
+| reader2 (ADR 0011 §3.1) | `document_text`, `put_claim_reading` |
 | mapper (P6) | `file_schema_sample`, `propose_mapping` |
 | verifier | `document_text`, `proposal_read`, `vote` |
 | chat | `search_graph`, `neighbourhood`, `document_text`, `web_search`, `enqueue_extract` |
@@ -45,8 +46,12 @@ do every action that the research needs. It reads the graph and the documents, f
 a document, queries the external sources of #174, proposes a change, and starts and follows a
 job. The tools follow the deep-module rule: few tools, each with a small interface and more
 parameters. Tools are grouped by purpose, for example `graph`, `document`, `lookup`, `propose`
-and `job`. A new external source is a new value of the `source` parameter of `lookup`, with its
-own Zod schema, not a new tool. This ADR fixes no tool list. The list changes when the research
+and `job`. Each group is one MCP tool, and its `action` field names a tool of the catalogue.
+Amended 6 October 2026: a new external source is a new catalogue tool, with its own Zod input,
+its own Zod output and its own function. On the MCP server it is a new action of the `lookup`
+group, or of the `document` group when it reads and stores a post or a page (`telegram_channel`).
+The client still sees one `lookup` tool. The profile limit of eight tools does not apply to the
+MCP server. This ADR fixes no tool list. The list changes when the research
 needs change. When the AI selects tools badly, a skill or a document in `research/` tells it how
 to use them. The tool count does not decrease.
 
@@ -57,10 +62,17 @@ The back-end profiles stay small, because the back-end AI is a small model on fr
 | Consumer | Surface | Role | Propose | Store | Promote |
 |---|---|---|---|---|---|
 | Operator | Interface → writer | `gabriel_app` | yes | `put_document` | yes |
-| Claude, Codex | MCP (stdio) | `gabriel_research` (new) | yes | `put_fetched_document` | no |
-| Back-end agents | Runner | `gabriel_agent` | yes | `put_fetched_document` | no |
+| Claude, Codex | MCP (stdio) | `gabriel_research` (new) | yes | `put_fetched_document`, and narrow doors (below) | no |
+| Back-end agents | Runner | `gabriel_agent` | yes | `put_fetched_document`, and narrow doors (below) | no |
 | Promotion rule | Runner | `gabriel_agent` | — | — | `decide_by_rule` only |
 | Chat | Writer route | `gabriel_read`, and enqueue through the writer | **no** | no | no |
+
+**A machine role writes only through narrow doors.** Amended 6 October 2026. Next to
+`put_fetched_document`, `gabriel_research` and `gabriel_agent` can hold other SECURITY DEFINER
+doors. Each door writes one kind of row, for example `put_telegram_post`, `put_claim_reading` or
+`put_load_report`. No machine role holds a grant to write a table directly.
+`db/apply/90_grants.sql` holds the full list of doors for each role, and the perimeter tests
+check it. A new door needs no change to this table.
 
 **The MCP server never calls `/write/*`.** A writer door signs as the operator
 (`packages/writer/src/sign.ts`), so a call from Claude through it would enter the evidentiary
@@ -93,8 +105,16 @@ workspace; this ADR only requires them.
 
 ### 5. The job table grows a kind, an end and a pause
 
-- `jobs.kind`: `store_only`, `extract_text`, `map_structured`. Storing a page no longer starts an
-  extraction by itself.
+- `jobs.kind` (amended 6 October 2026). Storing a page no longer starts an extraction by itself.
+  Each kind is one step of the pipeline:
+  - `store_only`: the document is stored, and no work follows.
+  - `extract_text`: the extractor (reader 1) reads the text of one document and proposes claims.
+  - `map_structured`: the mapper proposes one mapping for each table of a structured file (P6).
+  - `second_read`: reader 2, of another model family, reads the same chunks blind (ADR 0011
+    §3.1).
+  - `load_mapped`: code loads the rows of a file under a promoted mapping, with no model (P6).
+  - `evidence_check`: code runs the span, identity and date checks of each citation, with no
+    model (ADR 0011 §3.1, §5).
 - A `complete_job` door. Today only `fail_job` ends a job.
 - **A quota pause spends no attempt.** The runner asks the gateway for quota before it claims. An
   exhausted quota pauses the runner; it does not fail the job. **This amends T9a.**
@@ -108,7 +128,11 @@ workspace; this ADR only requires them.
   returns the text and the document id in the same turn. The research loop needs the page now.
 - Extraction is asynchronous: `enqueue_extract`, then `job_status`.
 - **A search result list is a lead and is not stored.** Only a page that is fetched becomes a
-  document. Otherwise the corpus fills with result lists.
+  document. Otherwise the corpus fills with result lists. Amended 6 October 2026: an API answer
+  that lists candidates is a search result, also when the query is an identifier. Examples: a
+  GLEIF or Companies House name search, and the OpenSanctions `/match` answer for a name or for
+  an IMO number. Only the read of one record by its identifier is stored (a LEI record, a company
+  number, an OpenSanctions entity).
 - `sha256` decides identity before `put_fetched_document`.
 - One fetch, one URL. No crawl and no schedule (PRD §5).
 
