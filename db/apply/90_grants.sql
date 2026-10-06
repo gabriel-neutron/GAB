@@ -49,6 +49,8 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, propos
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
+REVOKE ALL ON FUNCTION newest_text_extractor(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION newest_text_extractor(text) TO gabriel_agent, gabriel_research;
 
 -- THE CITED PASSAGE IS PRIVATE FOR THE SAME REASON. The writer reads it for the review card as
 -- gabriel_app. No view of the read API shows it.

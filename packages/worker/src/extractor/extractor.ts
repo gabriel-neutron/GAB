@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab/model';
 import { documentText } from '@gab/tools/document-text';
-import { proposeItem, proposeOfCall } from '@gab/tools/propose';
+import { proposeItem, proposeOf } from '@gab/tools/propose';
 import { searchGraph } from '@gab/tools/search-graph';
 import {
   callTool,
@@ -46,7 +46,7 @@ export interface ExtractorOptions {
   readonly checkPrompt?: string;
 }
 
-const DEFAULT_TOOLS: ExtractorTools = { documentText, searchGraph, propose: proposeOfCall };
+const DEFAULT_TOOLS: ExtractorTools = { documentText, searchGraph, propose: proposeOf };
 
 // The answer of the model is the batch that the propose tool takes, so the research AI and the
 // extractor give one shape. An empty list is a chunk that states no claim.

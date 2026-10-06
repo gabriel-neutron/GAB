@@ -96,6 +96,15 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
   ['no originator', (call) => itemOf(call, { originator: ' ' }), /^item 1: .*first stated it/u],
   ['no model call', () => itemOf(null), /^item 1: .*names the model call/u],
   ['a modality outside the list', (call) => itemOf(call, { modality: 'hints' }), /^item 1: /u],
+  ...(['update_entity', 'delete_entity', 'delete_relation'] as const).map(
+    (op) =>
+      [
+        `the operation ${op}`,
+        (call: string) =>
+          itemOf(call, { op, target_kind: op === 'delete_relation' ? 'relation' : 'entity' }),
+        /^item 1: a machine proposes a new entity, a new relation or new attributes/u,
+      ] as const,
+  ),
 ];
 
 test.each(REFUSALS)(
@@ -105,6 +114,13 @@ test.each(REFUSALS)(
     expect(cause).toMatchObject({ code: '22023', message: expect.stringMatching(said) as string });
   },
 );
+
+test('a refused operation names the field to correct', async () => {
+  const cause = await refusalOf('gabriel_research', () => [
+    itemOf(null, { op: 'delete_entity', target_kind: 'entity', target_id: randomUUID() }),
+  ]);
+  expect(cause).toMatchObject({ code: '22023', hint: 'op' });
+});
 
 test('the operator holds no grant on the batch door', async () => {
   const cause = await refusalOf('gabriel_app', (call) => [itemOf(call)]);
@@ -170,23 +186,51 @@ const citedCount = async (ask: Ask, id: string | undefined): Promise<number> =>
       await ask('SELECT count(*)::int AS n FROM public.citation WHERE claim_id = $1::uuid', [id]),
     )[0]?.n ?? -1;
 
-// Two roles, or two originators, are two witnesses of one fact. A merge into the act that waits
-// would lose the second witness and its citation.
-test('the same act of another role or another originator is a second act', async () => {
+// Two roles are two witnesses of one fact. A merge into the act that waits would lose the second
+// witness and its citation.
+test('the same act of another role is a second act', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const call = await seed(ask);
     const [agent] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
     const [research] = outcomes.parse(await batchAs(ask, 'gabriel_research', [itemOf(null)]));
-    const [other] = outcomes.parse(
-      await batchAs(ask, 'gabriel_agent', [itemOf(call, { originator: 'The ship owner' })]),
-    );
-    return { agent, research, other, cited: await citedCount(ask, research?.proposal_id) };
+    return { agent, research, cited: await citedCount(ask, research?.proposal_id) };
   });
   expect(found.research?.written).toBe(true);
-  expect(found.other?.written).toBe(true);
-  const ids = [found.agent, found.research, found.other].map((one) => one?.proposal_id);
-  expect(new Set(ids).size).toBe(3);
+  expect(found.research?.proposal_id).not.toBe(found.agent?.proposal_id);
   expect(found.cited).toBe(1);
+});
+
+// A model words the originator in its own way, so the same claim of one role is one act. The act
+// that waits keeps the originator that it was written with, and takes the new passage.
+test('the same act with another wording of its originator is one act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const [first] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [itemOf(call, { originator: 'Port authority' })]),
+    );
+    const [again] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [
+        itemOf(call, {
+          originator: 'The port authority',
+          citations: [
+            { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 11, end: 17 },
+            { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 0, end: 17 },
+          ],
+        }),
+      ]),
+    );
+    const held = z
+      .array(z.object({ originator: z.string() }))
+      .parse(
+        await ask('SELECT originator FROM public.proposals WHERE id = $1::uuid', [
+          first?.proposal_id,
+        ]),
+      );
+    return { first, again, held, cited: await citedCount(ask, first?.proposal_id) };
+  });
+  expect(found.again).toMatchObject({ proposal_id: found.first?.proposal_id, written: false });
+  expect(found.held).toStrictEqual([{ originator: 'Port authority' }]);
+  expect(found.cited).toBe(2);
 });
 
 test('a retry with a second passage adds its citation to the act that waits, once', async () => {

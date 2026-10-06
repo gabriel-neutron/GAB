@@ -19,11 +19,6 @@ import {
 /** How a page states a claim. A caller picks one word, and code decides what follows from it. */
 export const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
 
-// A machine proposes a new fact or a new attribute with the page that states it. A change of a
-// name or a type and a deletion rewrite what the operator already decided, and no machine
-// proposes one.
-const PROPOSED_OPS: readonly string[] = ['create_entity', 'create_relation', 'update_attrs'];
-
 // Origin: decided, not calibrated. One page states few claims, and a longer list is a model that
 // repeats itself. A short excerpt is a quote of the claim and not a copy of the page.
 const MAX_ITEMS = 50;
@@ -130,9 +125,7 @@ const doorRow = z.strictObject({
 // The newest set of text of the document, as the read tool chooses it.
 const PAGE = `SELECT t.extractor, t.text FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
-    AND t.extractor = (SELECT n.extractor FROM public.document_text n
-                        WHERE n.document_id = $1::text
-                        ORDER BY n.created_at DESC, n.extractor DESC LIMIT 1)`;
+    AND t.extractor = public.newest_text_extractor($1::text)`;
 
 const pageRow = z.strictObject({ extractor: z.string(), text: z.string() });
 
@@ -277,8 +270,6 @@ const resolvedAct = async (
   const parsed = writeRequest.safeParse(raw);
   if (!parsed.success)
     refuse(given.ref, parsed.error.issues.map((issue) => issue.message).join('; '));
-  if (!PROPOSED_OPS.includes(parsed.data.op))
-    refuse(given.ref, `a machine proposes one of ${PROPOSED_OPS.join(', ')}`);
   return parsed.data;
 };
 
@@ -332,9 +323,9 @@ const outcome = z.strictObject({
   unstated: z.array(z.string()),
 });
 
-// The model call of a back-end agent is known to its runner alone, so it is no input that a
-// caller gives.
-const proposeOf = (modelCallId: string | null) =>
+/** The propose tool. A back-end agent gives the model call of each batch, which is known to its
+ * runner alone, so it is no input that a caller gives. The research AI gives null. */
+export const proposeOf = (modelCallId: string | null) =>
   defineTool({
     name: 'propose',
     description:
@@ -363,13 +354,12 @@ const proposeOf = (modelCallId: string | null) =>
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         const documents = [...new Set(cited.map((one) => one.document))];
         await checkTarget(session, given.ref, request);
-        const draft = machineAct(request, documents);
-        if (!draft.ready) refuse(given.ref, draft.refusal);
+        const act = machineAct(request, documents);
         const unstated = unstatedValues(
           request,
           cited.map((one) => one.passage),
         );
-        prepared.push({ given, act: draft.act, cited, unstated, id: minted.get(given.ref)?.id });
+        prepared.push({ given, act, cited, unstated, id: minted.get(given.ref)?.id });
       }
 
       // The check runs before the insert, because the door freezes the dispute flag at insert.
@@ -444,6 +434,3 @@ const proposeOf = (modelCallId: string | null) =>
 
 /** The propose tool of the research AI. */
 export const propose = proposeOf(null);
-
-/** The propose tool of a back-end agent. Each proposal names the model call that gave it. */
-export const proposeOfCall = (modelCallId: string) => proposeOf(modelCallId);
