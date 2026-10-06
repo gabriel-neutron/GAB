@@ -10,6 +10,7 @@ import {
   insideFolder,
   planRows,
   proposeMap,
+  sourcesMapRows,
 } from './load-originators.ts';
 
 const source = (id: string, fields: Record<string, string> = {}): Record<string, string> => ({
@@ -177,4 +178,59 @@ test('two rows with one canonical id and one letter are accepted together', () =
     [entry('S1', 'host:same.example'), entry('S2', 'host:same.example')],
   );
   expect(plan.accepted.map((row) => row.id)).toStrictEqual(['S1', 'S2']);
+});
+
+test('the source map has one row for each S-id of the report, a refused row too, with its claim ids', () => {
+  const sources = [
+    source('S1', { claims_ids: 'C-A-1, C-A-2' }),
+    source('S2', { claims_ids: 'C-B-1' }),
+    source('S3', { claims_ids: 'C-C-1' }),
+    source('', { claims_ids: 'C-D-1' }),
+  ];
+  const rows = sourcesMapRows(
+    {
+      licence: '',
+      rows: [
+        {
+          id: 'S1',
+          canonicalId: 'host:one.example',
+          status: 'loaded',
+          detail: '',
+          documentId: 'doc_aaaaaaaaaaaa',
+        },
+        { id: 'S2', status: 'refused', detail: 'the checked map holds no canonical id' },
+        { id: 'S3', canonicalId: 'host:three.example', status: 'partial', detail: '' },
+        { id: 'row 5', status: 'refused', detail: 'the id of the row is blank' },
+      ],
+    },
+    sources,
+  );
+  expect(rows).toStrictEqual([
+    ['S1', 'host:one.example', 'doc_aaaaaaaaaaaa', 'C-A-1, C-A-2'],
+    ['S2', '', '', 'C-B-1'],
+    ['S3', 'host:three.example', '', 'C-C-1'],
+  ]);
+});
+
+test('an S-id on two rows gives one map row, with the claim ids of both rows', () => {
+  const sources = [
+    source('S1', { claims_ids: 'C-A-1' }),
+    source('S1', { claims_ids: 'C-A-2' }),
+    source('S2'),
+  ];
+  const rows = sourcesMapRows(
+    {
+      licence: '',
+      rows: [
+        { id: 'S1', status: 'refused', detail: 'the id appears on more than one row' },
+        { id: 'S1', status: 'refused', detail: 'the id appears on more than one row' },
+        { id: 'S2', status: 'refused', detail: 'the checked map has no row for this id' },
+      ],
+    },
+    sources,
+  );
+  expect(rows).toStrictEqual([
+    ['S1', '', '', 'C-A-1, C-A-2'],
+    ['S2', '', '', ''],
+  ]);
 });
