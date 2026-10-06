@@ -20,6 +20,7 @@ import {
   type RunnerAgent,
 } from '../agents.ts';
 import { chunkPages, codePoints, type Chunk } from '../chunk.ts';
+import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 
 /** The reader id of the first reader. The key of each of its acts holds it. */
@@ -50,21 +51,6 @@ const DEFAULT_TOOLS: ExtractorTools = {
   proposeChange,
   putClaimReading,
 };
-
-// The newest set of text, as the read tool chooses it, because an older set is a reading that a
-// newer one replaced.
-const PAGES = `WITH chosen AS (
-    SELECT t.extractor FROM public.document_text t
-     WHERE t.document_id = $1::text
-     ORDER BY t.created_at DESC, t.extractor DESC LIMIT 1)
-  SELECT t.extractor, t.page::int AS page, t.text
-    FROM chosen c
-    JOIN public.document_text t ON t.document_id = $1::text AND t.extractor = c.extractor
-   ORDER BY t.page`;
-
-const pageRows = z.array(
-  z.object({ extractor: z.string(), page: z.number().int(), text: z.string() }),
-);
 
 const proposed = z.object({ proposalId: z.uuid() });
 
@@ -314,11 +300,11 @@ export const makeExtractor = (
       }
     };
 
-    const pages = pageRows.parse((await context.db.query(PAGES, [context.job.documentId])).rows);
-    const textSet = pages[0]?.extractor;
-    if (textSet === undefined) throw new JobStop('no_text');
+    const newest = await readNewestPages(context.db, context.job.documentId);
+    if (newest === null) throw new JobStop('no_text');
 
-    for (const chunk of chunkPages(pages, config.chunkCap)) await readChunk(chunk, textSet);
+    for (const chunk of chunkPages(newest.pages, config.chunkCap))
+      await readChunk(chunk, newest.textSet);
     return { refusals };
   };
 

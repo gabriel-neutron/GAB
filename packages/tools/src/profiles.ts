@@ -23,6 +23,10 @@ export const PROFILES = {
   // The model of the extractor reads with the first two. Code runs the two writes, so a model
   // never names the proposal or the span that it stores.
   extractor: ['document_text', 'lookup_entity', 'propose_change', 'put_claim_reading'],
+  // The second reader reads its own chunk and stores where a claim stands. It proposes nothing,
+  // and no tool of it reads a proposal or the reading of another reader, so its reading stays
+  // blind. Its model gets no tool: code reads the chunk and runs the write.
+  reader2: ['document_text', 'put_claim_reading'],
   mapper: [],
   verifier: ['document_text', 'proposal_read'],
   chat: ['search_graph', 'neighbourhood', 'document_text', 'web_search', 'enqueue_extract'],
