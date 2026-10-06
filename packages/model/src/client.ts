@@ -20,22 +20,12 @@ const GATEWAYS = {
 } as const;
 
 const CHAT_PATH = '/chat/completions';
-// The only quota read this client knows. The freellmapi source serves it under the same base
-// address as the chat path, and it takes the unified key. OpenRouter has no such read here.
-const QUOTA_PATH = '/quota-forecast';
 
 // Origin of the numbers: decided, not calibrated. The transport gets one attempt and three retries,
-// and a refusal of the boundary gets one retry with the fault. They bound one question only: a job
-// has its own limit of three claims, and the third failure ends it as failed, outside this client.
+// and a refusal of the boundary gets one retry with the fault. They bound one question only: when
+// the chain ends, the job fails at once, outside this client.
 const NETWORK_RETRIES = 3;
 const VALIDATION_RETRIES = 1;
-
-/** The longest one question can take, in milliseconds: a refused answer is asked again, and each
- * round trip can fail on every call and wait the longest wait between two calls. A lease shorter
- * than this over the questions of a job releases a claim under a worker that still works. */
-export const worstQuestionMs = (agent: Pick<AgentModel, 'timeoutMs' | 'maxWaitMs'>): number =>
-  (VALIDATION_RETRIES + 1) *
-  ((NETWORK_RETRIES + 1) * agent.timeoutMs + NETWORK_RETRIES * agent.maxWaitMs);
 
 const NO_CREDITS = 402;
 const BAD_REQUEST = 400;
@@ -56,7 +46,7 @@ const SECOND_MS = 1000;
 const filled = z.string().trim().min(1);
 
 // Every value here is calibrated on real traffic, so no code constant gives one. The bound on
-// the wait is required: the service can name a wait longer than the claim lease of the job.
+// the wait is required: the service can name a wait longer than the job can hold.
 const settings = z.object({
   endpoint: z.enum(['freellmapi', 'openrouter']),
   // `auto` lets the gateway pick the model for each call, so one job could hold the work of two
@@ -139,26 +129,8 @@ export type Answer<T> =
 
 export type Send = (url: string, init: RequestInit) => Promise<Response>;
 
-// One pool of the free tier, as the gateway reports it. A figure the gateway never observed is
-// `null`, and `low` is the gateway's own warning that a call may soon end as `quota`.
-export interface QuotaPool {
-  readonly platform: string;
-  readonly pool: string;
-  readonly remaining: number | null;
-  readonly limit: number | null;
-  readonly resetAt: string | null;
-  readonly low: boolean;
-}
-
-export type QuotaRead =
-  | { readonly ok: true; readonly pools: readonly QuotaPool[] }
-  | { readonly ok: false; readonly failure: Failure };
-
-// `quota` is absent when the gateway has no read of the quota that is left. It makes one call and
-// never retries: a caller that reads before a job decides what a failed read means.
 export interface Model {
   readonly ask: <T>(question: Question<T>) => Promise<Answer<T>>;
-  readonly quota: (() => Promise<QuotaRead>) | undefined;
 }
 
 // The send function, the key and the agent settings do not change inside one question.
@@ -166,7 +138,6 @@ interface Line {
   readonly send: Send;
   readonly key: string;
   readonly url: string;
-  readonly quotaUrl: string | undefined;
   readonly agent: AgentModel;
 }
 
@@ -518,65 +489,14 @@ const attempt = async <T>(
   return attempt(line, question, run, [...messages, ...retryAfter(raw.value, issues)], left - 1);
 };
 
-const forecast = z.object({
-  pools: z.array(
-    z.object({
-      platform: z.string(),
-      pool: z.string(),
-      remaining: z.number().nullable(),
-      limit: z.number().nullable(),
-      reset_at: z.string().nullable(),
-      low_balance: z.boolean(),
-    }),
-  ),
-});
-
-const readQuota = async (line: Line, quotaUrl: string): Promise<QuotaRead> => {
-  let response: Response;
-  let text: string;
-  try {
-    response = await line.send(quotaUrl, {
-      method: 'GET',
-      headers: { authorization: `Bearer ${line.key}` },
-      signal: AbortSignal.timeout(line.agent.timeoutMs),
-    });
-    text = await response.text();
-  } catch (cause) {
-    return { ok: false, failure: failureOf(REASON.network, 1, sentenceOf(cause)) };
-  }
-
-  if (!response.ok) {
-    const kind = RETRY_STATUS.has(response.status) ? REASON.network : REASON.configuration;
-    return { ok: false, failure: failureOf(kind, 1, text) };
-  }
-
-  const read = asJson(text);
-  const held = forecast.safeParse(read.ok ? read.value : null);
-  if (!held.success) return { ok: false, failure: failureOf(REASON.unreadable, 1, text) };
-
-  return {
-    ok: true,
-    pools: held.data.pools.map((pool) => ({
-      platform: pool.platform,
-      pool: pool.pool,
-      remaining: pool.remaining,
-      limit: pool.limit,
-      resetAt: pool.reset_at,
-      low: pool.low_balance,
-    })),
-  };
-};
-
 /** The one way to reach the model. It throws when the key or a setting is bad or absent. */
 export const openModel = (given: unknown, send: Send = fetch, env: Env = process.env): Model => {
   const agent = settings.parse(given);
   const key = keyOf(env, GATEWAYS[agent.endpoint].keyVar);
   const base = baseOf(agent.endpoint, env);
-  const quotaUrl = agent.endpoint === 'freellmapi' ? base + QUOTA_PATH : undefined;
-  const line: Line = { send, key, url: base + CHAT_PATH, quotaUrl, agent };
+  const line: Line = { send, key, url: base + CHAT_PATH, agent };
 
   return {
-    quota: quotaUrl === undefined ? undefined : () => readQuota(line, quotaUrl),
     ask: async <T>(question: Question<T>): Promise<Answer<T>> => {
       const run: Run = { budget: question.budget, calls: 0, tokens: 0, served: undefined };
       const got = await attempt(line, question, run, question.messages, VALIDATION_RETRIES);

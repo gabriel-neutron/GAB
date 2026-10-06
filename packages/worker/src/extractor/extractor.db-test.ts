@@ -77,7 +77,6 @@ const OLDEST = "UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1";
 
 const jobRow = z.object({
   status: z.string(),
-  attempts: z.number().int(),
   failure_reason: z.string().nullable(),
 });
 
@@ -110,12 +109,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
 
     const read = async () =>
       jobRow.parse(
-        (
-          await client.query(
-            'SELECT status, attempts, failure_reason FROM public.jobs WHERE id = $1',
-            [job],
-          )
-        ).rows[0],
+        (await client.query('SELECT status, failure_reason FROM public.jobs WHERE id = $1', [job]))
+          .rows[0],
       );
 
     const step = async (agent: RunnerAgent, gateway: StubGateway): Promise<Step> => {
@@ -192,11 +187,9 @@ const readingsOf = async (held: Held) =>
     ).rows,
   );
 
-const identity = (text: string): string => text;
-
 test('a two-chunk document gives one proposal and one first reading for each claim', async () => {
   await inTransaction(async (held) => {
-    const step = await held.step(makeExtractor(CONFIG, { minimise: identity }), answers());
+    const step = await held.step(makeExtractor(CONFIG), answers());
 
     expect(step).toStrictEqual({ did: 'done', job: held.job });
     const made = await proposalsOf(held);
@@ -242,65 +235,8 @@ test('a two-chunk document gives one proposal and one first reading for each cla
   });
 });
 
-test('a requeued job with the same inputs writes no new proposal and no new reading', async () => {
+test('a model that never stops calling a tool fails the job with turn_cap', async () => {
   await inTransaction(async (held) => {
-    const extractor = makeExtractor(CONFIG, { minimise: identity });
-    let runs = 0;
-    const dies: RunnerAgent = {
-      ...extractor,
-      run: async (context) => {
-        runs += 1;
-        const result = await extractor.run(context);
-        if (runs === 1) throw new Error('the worker stopped after it wrote');
-        return result;
-      },
-    };
-    const gateway = answers();
-
-    expect(await held.step(dies, gateway)).toStrictEqual({ did: 'left', job: held.job });
-    const proposed = await proposalsOf(held);
-    const read = await readingsOf(held);
-    expect(proposed).toHaveLength(2);
-    expect(read).toHaveLength(2);
-
-    await held.client.query(
-      "UPDATE public.jobs SET claimed_at = now() - interval '2 hours' WHERE id = $1",
-      [held.job],
-    );
-    await held.client.query('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-    await held.client.query('SELECT public.release_expired_claims()');
-    await held.client.query('RESET SESSION AUTHORIZATION');
-
-    expect(await held.step(dies, gateway)).toStrictEqual({ did: 'done', job: held.job });
-    expect((await proposalsOf(held)).map((row) => row.id).sort()).toStrictEqual(
-      proposed.map((row) => row.id).sort(),
-    );
-    expect((await readingsOf(held)).map((row) => row.idempotency_key).sort()).toStrictEqual(
-      read.map((row) => row.idempotency_key).sort(),
-    );
-  });
-});
-
-test('with no minimiser, a job on its third claim fails with no_minimiser and asks no model', async () => {
-  await inTransaction(async (held) => {
-    await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
-    const gateway = answers();
-
-    const step = await held.step(makeExtractor(CONFIG, {}), gateway);
-
-    expect(step).toStrictEqual({ did: 'failed', job: held.job });
-    expect(await held.read()).toMatchObject({
-      status: 'failed',
-      attempts: 3,
-      failure_reason: 'no_minimiser',
-    });
-    expect(gateway.chats()).toBe(0);
-  });
-});
-
-test('a model that never stops calling a tool fails the job with turn_cap on its third claim', async () => {
-  await inTransaction(async (held) => {
-    await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
     const lookups = gatewayOf(
       () =>
         new Response(
@@ -330,7 +266,7 @@ test('a model that never stops calling a tool fails the job with turn_cap on its
         ),
     );
 
-    const step = await held.step(makeExtractor(CONFIG, { minimise: identity }), lookups);
+    const step = await held.step(makeExtractor(CONFIG), lookups);
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
     expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'turn_cap' });
@@ -338,14 +274,9 @@ test('a model that never stops calling a tool fails the job with turn_cap on its
   });
 });
 
-test('a spent token cap fails the job with usage_cap on its third claim', async () => {
+test('a spent token cap fails the job with usage_cap', async () => {
   await inTransaction(async (held) => {
-    await held.client.query('UPDATE public.jobs SET attempts = 2 WHERE id = $1', [held.job]);
-
-    const step = await held.step(
-      makeExtractor({ ...CONFIG, tokenCap: 1 }, { minimise: identity }),
-      answers(),
-    );
+    const step = await held.step(makeExtractor({ ...CONFIG, tokenCap: 1 }), answers());
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
     expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'usage_cap' });
