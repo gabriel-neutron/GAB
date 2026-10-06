@@ -18,7 +18,9 @@ describe('an answer that is a challenge or a missing page is no record of the so
   test('admits a short page that is a record', () => {
     expect(unreadablePage('text/html', ['Text'])).toBeNull();
     expect(
-      unreadablePage('text/html', ['Example Port Authority\n\nBerth 4 holds the vessel Example Star.']),
+      unreadablePage('text/html', [
+        'Example Port Authority\n\nBerth 4 holds the vessel Example Star.',
+      ]),
     ).toBeNull();
   });
 
