@@ -199,7 +199,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
           <SaidLine said={uploadSaid(state, draft)} label={SAYS} />
 
           {state.step === 'stored' || state.step === 'known' ? (
-            <ExtractionControl documentId={state.documentId} />
+            <ExtractionControl key={state.documentId} documentId={state.documentId} />
           ) : null}
 
           <div className="flex items-center gap-2">
