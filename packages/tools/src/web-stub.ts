@@ -27,14 +27,7 @@ export const text = (
   headers: Record<string, string> = {},
 ): WebAnswer => ({ status, headers, body });
 
-export const stubWeb = (
-  answer: Answerer,
-  settings: {
-    readonly searxngUrl?: string;
-    readonly braveKey?: string;
-    readonly companiesHouseKey?: string;
-  } = {},
-): StubWeb => {
+export const stubWeb = (answer: Answerer, settings: Omit<Web, 'get'> = {}): StubWeb => {
   const asked: Asked[] = [];
   return {
     ...settings,
@@ -70,6 +63,31 @@ export const recordingSession = (
     query: (statement) => {
       statements.push(statement);
       return Promise.resolve({ rows });
+    },
+  };
+};
+
+/** A session that knows a stored answer by the hash of its bytes, as the real database does. It
+ * keeps the values of each write. */
+export const hashDatabase = (): Session & { readonly stored: unknown[][] } => {
+  const known = new Map<string, string>();
+  const stored: unknown[][] = [];
+  return {
+    stored,
+    query: (statement, values) => {
+      if (statement.includes('WHERE d.sha256')) {
+        const id = known.get(String(values[0]));
+        return Promise.resolve({
+          rows:
+            id === undefined
+              ? []
+              : [{ id, title: 'held', mime: 'application/json', retrieved_at: '2026-10-05' }],
+        });
+      }
+      stored.push(values);
+      const id = `doc_${String(values[3]).slice(0, 12)}`;
+      known.set(String(values[3]), id);
+      return Promise.resolve({ rows: [{ id, pages: 1 }] });
     },
   };
 };

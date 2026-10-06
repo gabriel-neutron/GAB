@@ -7,8 +7,8 @@ import { expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
 import { memoryStore } from './fetch-fixture.ts';
-import { callTool, type Session, type Tool, type ToolOutcome } from './tool.ts';
-import { json, noSql, stubWeb, text, type Asked } from './web-stub.ts';
+import { callTool, type Tool, type ToolOutcome } from './tool.ts';
+import { hashDatabase, json, noSql, stubWeb, text, type Asked } from './web-stub.ts';
 
 const refusalOf = (outcome: ToolOutcome): string => (outcome.ok ? '' : outcome.refusal);
 
@@ -16,30 +16,6 @@ const toolNamed = (name: string): Tool => {
   const found = CATALOGUE.find((tool) => tool.name === name);
   if (found === undefined) throw new Error(`the catalogue holds no tool named ${name}`);
   return found;
-};
-
-// A database that knows a document by the hash of its bytes, as the real one does.
-const database = (): Session & { readonly stored: unknown[][] } => {
-  const known = new Map<string, string>();
-  const stored: unknown[][] = [];
-  return {
-    stored,
-    query: (statement, values) => {
-      if (statement.includes('WHERE d.sha256')) {
-        const id = known.get(String(values[0]));
-        return Promise.resolve({
-          rows:
-            id === undefined
-              ? []
-              : [{ id, title: 'held', mime: 'application/json', retrieved_at: '2026-10-05' }],
-        });
-      }
-      stored.push(values);
-      const id = `doc_${String(values[3]).slice(0, 12)}`;
-      known.set(String(values[3]), id);
-      return Promise.resolve({ rows: [{ id, pages: 1 }] });
-    },
-  };
 };
 
 const LEI = '5493001KJTIIGC8Y1R12';
@@ -88,7 +64,7 @@ const setup = (web: ReturnType<typeof stubWeb>) => {
   const store = memoryStore();
   return {
     store,
-    session: database(),
+    session: hashDatabase(),
     reach: { store, web, now: () => new Date('2026-10-05T10:00:00Z') },
   };
 };
