@@ -4,65 +4,38 @@
 import { type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import type { WriteResult } from './write-state';
+
 /** The six acts the writer signs. The door of each one is derived here and named by no caller. */
 export type WriteOp = (typeof WRITE_OPS)[number];
 
-/** What one request became. `blocked` is a refusal that other rows of the record cause, and the
- * analyst can remove them. `undecided` is the act that reached the record and was not signed.
- * `unknown` is the request whose result this page cannot learn: the act may have run whole. */
-export type WriteOutcome =
-  | { readonly state: 'signed'; readonly proposalId: string; readonly targetId: string }
-  | { readonly state: 'refused'; readonly refusal: string }
-  | { readonly state: 'blocked'; readonly refusal: string }
-  | { readonly state: 'undecided'; readonly refusal: string; readonly proposalId: string }
-  | { readonly state: 'unknown'; readonly doubt: string };
+/** What a signed act wrote: one proposal, and the row it promoted. */
+export interface Signed {
+  readonly proposalId: string;
+  readonly targetId: string;
+}
 
 // The development server proxies this path to the writer, so the browser stays same-origin.
 const PREFIX = '/write';
 
-// A dropped connection carries the request bytes with it. The writer may have signed the act
-// and committed both transactions, and the browser has no witness either way.
+// A dropped connection carries the request bytes with it. The writer may have written the act,
+// and the browser has no witness either way.
 const NO_ANSWER = 'The write service did not answer, and the act may have reached it.';
 
 const unreadable = (status: number): string =>
   `The write service answered ${String(status)}, and this page cannot read the answer.`;
 
-// The writer reached the record and cannot say what landed. The act may stand, so this page
-// states the doubt, and it never states that nothing was written.
-const NO_VERDICT =
-  'The write service did not confirm the decision, and the act may have run whole.';
-
-/** What one decision became. It landed, the record refused it and nothing was written, or this
- * page cannot learn which of the two happened. */
-export type DecisionOutcome =
-  | { readonly state: 'decided'; readonly proposalId: string; readonly targetId: string | null }
-  | { readonly state: 'refused'; readonly refusal: string }
-  | { readonly state: 'unknown'; readonly doubt: string };
-
-const signed = z.object({
-  proposalId: z.string(),
-  targetId: z.string(),
-  state: z.literal('signed'),
-});
-
-const decided = z.object({
-  proposalId: z.string(),
-  targetId: z.string().nullable(),
-  state: z.literal('decided'),
-});
-
-const refused = z.object({ refusal: z.string(), proposalId: z.string().optional() });
-
-const doubted = z.object({ doubt: z.string(), proposalId: z.string().optional() });
-
-// Departure: the writer reached the record and lost its answer. The act may stand, so this page
-// states the doubt and the name the act may stand under, and never a refusal.
+// The writer reached the record and lost its answer. The act may stand, so this page states the
+// doubt, and it never states that nothing was written.
 const UNCONFIRMED = 'The write service did not confirm the act, and the act may have run whole.';
 
-const unconfirmed = (proposalId: string | undefined): string =>
-  proposalId === undefined
-    ? UNCONFIRMED
-    : `${UNCONFIRMED} It may stand in the record as the proposal ${proposalId}.`;
+const signed = z.object({ proposalId: z.string(), targetId: z.string() });
+
+const decided = z.object({ state: z.literal('decided') });
+
+const refused = z.object({ refusal: z.string() });
+
+const doubted = z.object({ doubt: z.string() });
 
 const readBody = async (answer: Response): Promise<unknown> => {
   try {
@@ -72,37 +45,16 @@ const readBody = async (answer: Response): Promise<unknown> => {
   }
 };
 
-/** Every answer that is not the row the caller asked for. Both doors read it the same way. */
-type Doubtful = Exclude<WriteOutcome, { readonly state: 'signed' | 'blocked' }>;
-
-// External constraint: on an act door the writer answers 409 to a refusal that names no act only
-// when other relations stand on the element. A 409 that names an act is an undecided act.
-const BLOCKED = 409;
+/** Every answer that is not the row the caller asked for. Each door reads it the same way. */
+type Unwritten = Exclude<WriteResult, { readonly step: 'done' }>;
 
 // External constraint: the status is the second witness. A body the writer did not write is a
 // proxy or a gateway speaking, and a gateway times out where the writer most probably finished.
-const doubtfulOf = (status: number, body: unknown): Doubtful => {
-  const doubt = doubted.safeParse(body);
-  if (doubt.success) return { state: 'unknown', doubt: unconfirmed(doubt.data.proposalId) };
-
+const unwrittenOf = (status: number, body: unknown): Unwritten => {
+  if (doubted.safeParse(body).success) return { step: 'unknown', doubt: UNCONFIRMED };
   const sentence = refused.safeParse(body);
-  if (!sentence.success) return { state: 'unknown', doubt: unreadable(status) };
-
-  // Departure: a refusal that names an act says the act is written and was not signed. That name
-  // is the only way the operator finds the act, and a refusal of the whole act carries none.
-  const proposalId = sentence.data.proposalId;
-  if (proposalId === undefined) return { state: 'refused', refusal: sentence.data.refusal };
-  return { state: 'undecided', refusal: sentence.data.refusal, proposalId };
-};
-
-const outcomeOf = (status: number, body: unknown): WriteOutcome => {
-  const held = signed.safeParse(body);
-  if (held.success)
-    return { state: 'signed', proposalId: held.data.proposalId, targetId: held.data.targetId };
-  const sentence = doubtfulOf(status, body);
-  if (sentence.state === 'refused' && status === BLOCKED)
-    return { state: 'blocked', refusal: sentence.refusal };
-  return sentence;
+  if (!sentence.success) return { step: 'unknown', doubt: unreadable(status) };
+  return { step: 'refused', refusal: sentence.data.refusal };
 };
 
 interface Answer {
@@ -111,11 +63,11 @@ interface Answer {
 }
 
 const knock = async (
-  op: WriteOp | DecisionOp,
+  door: string,
   body: Readonly<Record<string, unknown>>,
 ): Promise<Answer | null> => {
   try {
-    const answer = await fetch(`${PREFIX}/${op.replaceAll('_', '-')}`, {
+    const answer = await fetch(`${PREFIX}/${door}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -126,33 +78,29 @@ const knock = async (
   }
 };
 
+const doorOf = (op: WriteOp | DecisionOp): string => op.replaceAll('_', '-');
+
 /** Send one act to the writer. Every failure arrives as a sentence, and never as a raised error:
  * a screen that must report a refusal cannot report it from a catch. */
 export async function sendAct(
   op: WriteOp,
   body: Readonly<Record<string, unknown>>,
-): Promise<WriteOutcome> {
-  const answer = await knock(op, body);
-  if (answer === null) return { state: 'unknown', doubt: NO_ANSWER };
-  return outcomeOf(answer.status, answer.body);
+): Promise<WriteResult<Signed>> {
+  const answer = await knock(doorOf(op), body);
+  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
+  const held = signed.safeParse(answer.body);
+  if (held.success)
+    return { step: 'done', proposalId: held.data.proposalId, targetId: held.data.targetId };
+  return unwrittenOf(answer.status, answer.body);
 }
 
-/** Decide one act that already waits in the record. It writes no proposal: it names one, so the
- * row it may answer with is not its own, and a doubt about it is a doubt about a verdict. */
-export async function sendDecision(op: DecisionOp, proposalId: string): Promise<DecisionOutcome> {
-  const answer = await knock(op, { proposalId });
-  if (answer === null) return { state: 'unknown', doubt: NO_ANSWER };
-
-  const held = decided.safeParse(answer.body);
-  if (held.success)
-    return { state: 'decided', proposalId: held.data.proposalId, targetId: held.data.targetId };
-
-  // Departure: the act waits under a name that this page already holds, so the doubt of a
-  // decision needs no name of its own. It stays a doubt, and it never becomes a refusal.
-  if (doubted.safeParse(answer.body).success) return { state: 'unknown', doubt: NO_VERDICT };
-  const sentence = doubtfulOf(answer.status, answer.body);
-  if (sentence.state === 'undecided') return { state: 'unknown', doubt: NO_VERDICT };
-  return sentence;
+/** Decide one act that already waits in the record. It writes no proposal: it names one, so a
+ * doubt about it is a doubt about a verdict. */
+export async function sendDecision(op: DecisionOp, proposalId: string): Promise<WriteResult> {
+  const answer = await knock(doorOf(op), { proposalId });
+  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
+  if (decided.safeParse(answer.body).success) return { step: 'done' };
+  return unwrittenOf(answer.status, answer.body);
 }
 
 /** One file and the fields its document row records. The content is the file in base64. */
@@ -166,17 +114,15 @@ export interface UploadBody {
   readonly costEur?: number;
 }
 
-/** What one upload became. A known file is already a document, and its id is the one that
- * holds the bytes. `unknown` is the upload whose result this page cannot learn. */
-export type UploadOutcome =
+/** What one upload stored. A known file is already a document, and its id is the one that holds
+ * the bytes. */
+export type Uploaded =
   | {
-      readonly state: 'stored';
+      readonly document: 'stored';
       readonly documentId: string;
       readonly emptyPages: readonly number[];
     }
-  | { readonly state: 'known'; readonly documentId: string }
-  | { readonly state: 'refused'; readonly refusal: string }
-  | { readonly state: 'unknown'; readonly doubt: string };
+  | { readonly document: 'known'; readonly documentId: string };
 
 const uploaded = z.object({
   state: z.enum(['stored', 'known']),
@@ -184,34 +130,28 @@ const uploaded = z.object({
   emptyPages: z.array(z.number()),
 });
 
-const UPLOAD_DOOR = `${PREFIX}/upload-document`;
-
 // External constraint: the writer answers 503 when the store or the record did not answer, and
 // the file may stand in the record. The same bytes are never stored twice, so a resend is safe.
 const UNAVAILABLE = 503;
 
 /** Send one file to the writer. Every failure arrives as a sentence, and never as an error. */
-export async function uploadDocument(body: UploadBody): Promise<UploadOutcome> {
-  let answer: Answer;
-  try {
-    const sent = await fetch(UPLOAD_DOOR, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    answer = { status: sent.status, body: await readBody(sent) };
-  } catch {
-    return { state: 'unknown', doubt: NO_ANSWER };
-  }
+export async function uploadDocument(body: UploadBody): Promise<WriteResult<Uploaded>> {
+  const answer = await knock('upload-document', { ...body });
+  if (answer === null) return { step: 'unknown', doubt: NO_ANSWER };
 
   const held = uploaded.safeParse(answer.body);
   if (held.success)
     return held.data.state === 'stored'
-      ? { state: 'stored', documentId: held.data.documentId, emptyPages: held.data.emptyPages }
-      : { state: 'known', documentId: held.data.documentId };
+      ? {
+          step: 'done',
+          document: 'stored',
+          documentId: held.data.documentId,
+          emptyPages: held.data.emptyPages,
+        }
+      : { step: 'done', document: 'known', documentId: held.data.documentId };
 
   const sentence = refused.safeParse(answer.body);
-  if (!sentence.success) return { state: 'unknown', doubt: unreadable(answer.status) };
-  if (answer.status === UNAVAILABLE) return { state: 'unknown', doubt: sentence.data.refusal };
-  return { state: 'refused', refusal: sentence.data.refusal };
+  if (!sentence.success) return { step: 'unknown', doubt: unreadable(answer.status) };
+  if (answer.status === UNAVAILABLE) return { step: 'unknown', doubt: sentence.data.refusal };
+  return { step: 'refused', refusal: sentence.data.refusal };
 }

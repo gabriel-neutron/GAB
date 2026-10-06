@@ -13,6 +13,7 @@ const DOORS = {
   record_model_call:
     'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
   promote_proposal: 'public.promote_proposal(uuid,text)',
+  sign_change: 'public.sign_change(text,text,jsonb,text[],text,uuid,uuid[])',
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
   release_expired_claims: 'public.release_expired_claims()',
@@ -61,6 +62,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     put_document: false,
     propose_change: true,
     promote_proposal: false,
+    sign_change: false,
     reject_proposal: false,
     record_model_call: true,
     claim_job: true,
@@ -87,6 +89,7 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     put_document: false,
     propose_change: true,
     promote_proposal: false,
+    sign_change: false,
     reject_proposal: false,
     record_model_call: false,
     claim_job: false,
@@ -127,6 +130,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     put_document: true,
     propose_change: true,
     promote_proposal: true,
+    sign_change: true,
     reject_proposal: true,
     record_model_call: false,
     claim_job: false,
@@ -346,9 +350,7 @@ for (const document of RESERVED) {
     await expect(proposeCiting('agent', document)).rejects.toMatchObject({
       code: '23514',
       constraint: 'proposals_machine_not_reserved',
-      message:
-        'new row for relation "proposals" violates check constraint ' +
-        '"proposals_machine_not_reserved"',
+      message: 'a machine cannot cite the reserved documents manual and inherited',
     });
   });
 

@@ -67,7 +67,8 @@ test.each([
 ] as const)('a relation whose %s names no %s is refused', async (end, kind, live) => {
   await expect(inserted(live, kind)).rejects.toMatchObject({
     code: '23503',
-    message: `${end} ${ABSENT} (${kind}) does not exist`,
+    constraint: 'relation_ends_exist',
+    message: `the ${end === 'src' ? 'source' : 'target'} ${ABSENT} does not exist`,
   });
 });
 
@@ -145,7 +146,7 @@ test('the deletion of an entity that is an end of a relation is refused, and the
   }));
   expect(outcome.outcome).toMatchObject({
     refusal: {
-      message: `entity ${outcome.graph.entity} is an endpoint of a relation, and it is not deleted`,
+      constraint: 'endpoint_free',
     },
     kept: true,
   });
@@ -158,7 +159,7 @@ test('the deletion of a relation that is an end of a relation is refused, and it
   }));
   expect(outcome.outcome).toMatchObject({
     refusal: {
-      message: `relation ${outcome.graph.relation} is an endpoint of a relation, and it is not deleted`,
+      constraint: 'endpoint_free',
     },
     kept: true,
   });
