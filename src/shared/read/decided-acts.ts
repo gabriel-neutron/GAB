@@ -1,6 +1,6 @@
 // The acts the record has promoted, read once and held as the corpus is held. The corpus reads
 // the pending acts only, so this is the one read of the history. A corpus refresh forgets it. The
-// public read shows no rejected act (PU1), so the history holds the promoted acts only.
+// public read shows no rejected act, so the history holds the promoted acts only.
 
 import { readRows } from './http';
 import { toDomain } from './map';
