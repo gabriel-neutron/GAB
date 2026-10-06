@@ -14,10 +14,19 @@ import { z } from 'zod';
 
 import { rowsOfCsv } from './csv.ts';
 import { loadClaims, planClaims, type ClaimDoor } from './load-claims.ts';
-import { rolledBack, type Ask } from './probe.ts';
+import { rolledBack as rolledBackOnce, type Ask } from './probe.ts';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures/claims');
 const DAY = '2026-10-05';
+
+// Other test files commit rows into the shared tables while this file runs, so a count read twice
+// in one transaction can differ without a write of the load. One snapshot gives each count the
+// same view, and the rows that the load itself writes stay visible to it.
+const rolledBack = <T>(identity: 'superuser', work: (ask: Ask) => Promise<T>): Promise<T> =>
+  rolledBackOnce(identity, async (ask) => {
+    await ask('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+    return work(ask);
+  });
 
 const asOperator =
   (ask: Ask): Ask =>
