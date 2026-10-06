@@ -62,6 +62,12 @@ const MISSING =
   "The inspection record names each ship, the port, the day and the result. '.repeat(3);" +
   "fetch('/missing.json').catch(() => undefined);</script></body></html>";
 
+// The bytes hold a shell with no text, and the script draws a bot challenge.
+const DRAWN_CHALLENGE =
+  '<html><head><title>Example Port register</title></head><body><div id="out"></div><script>' +
+  "document.getElementById('out').textContent = 'Checking your browser. Run " +
+  "${RUN}.';</script></body></html>";
+
 let fixture: Fixture;
 let base: string;
 
@@ -72,6 +78,7 @@ beforeAll(async () => {
     '/static': { headers: html, body: STATIC },
     '/private': { headers: html, body: PRIVATE },
     '/missing-file': { headers: html, body: MISSING },
+    '/drawn-challenge': { headers: html, body: DRAWN_CHALLENGE },
     '/secret': { headers: { 'content-type': 'text/plain' }, body: SECRET },
   });
   base = `http://${FIXTURE_HOST}:${fixture.port}`;
@@ -231,5 +238,17 @@ test('a file of the page that is absent is not counted as a private address', as
     expect(fixture.requests.slice(before)).toStrictEqual(['/missing-file', '/missing.json']);
     expect(got.rendered?.status).toBe('stored');
     expect(got.notice ?? '').not.toMatch(/private/u);
+  });
+});
+
+test('a render that draws a bot challenge is not stored, and the plain page comes back', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, { url: `${base}/drawn-challenge` }, fixtureReach(store));
+    expect(got.rendered).toBeNull();
+    expect(got.notice).toMatch(/the render was not stored: the page is a challenge/);
+    expect(got.pages.map((page) => page.text).join('')).not.toContain('Checking your browser');
+    expect(store.puts).toHaveLength(1);
+    expect(await rowOf(ask, shaOf(DRAWN_CHALLENGE))).toHaveLength(1);
   });
 });

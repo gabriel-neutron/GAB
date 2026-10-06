@@ -7,15 +7,15 @@ never holds the real data.
 | File | Use |
 |---|---|
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
-| `.env.example` | Copy to `/home/claude/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
+| `.env.example` | Copy to `~/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
 | `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
 | `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
 
-Conventions: the user `claude`, checkouts under `/home/claude/projects/`. GAB is at
-`/home/claude/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
-**root** need `sudo` (install, systemd, sysctl). All other commands run as `claude` on the VPS.
-The user `claude` must be in the `docker` group (`sudo usermod -aG docker claude`, then log in again). After each step, do the **Check**. If a check fails, stop.
+Conventions: a non-root user that runs the agents, with checkouts under `~/projects/`. GAB is at
+`~/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
+**root** need `sudo` (install, systemd, sysctl). All other commands run as that user on the VPS.
+That user must be in the `docker` group (`sudo usermod -aG docker "$USER"`, then log in again). After each step, do the **Check**. If a check fails, stop.
 
 ## 0. Prerequisites, and what only the operator can do
 
@@ -62,7 +62,7 @@ manager is used: the system Node must be 24.
 sudo apt-get update && sudo apt-get install -y git jq python-is-python3 unzip   # root
 node -v                       # must print v24.*; else install Node 24 from NodeSource (root)
 sudo corepack enable          # root
-mkdir -p /home/claude/projects && cd /home/claude/projects
+mkdir -p ~/projects && cd ~/projects
 git clone --branch staging https://github.com/gabriel-neutron/GAB.git
 cd GAB && pnpm install --frozen-lockfile
 ```
@@ -75,9 +75,9 @@ prints `staging`.
 ## 3. The disposable test stack
 
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 command -v docker || curl -fsSL https://get.docker.com | sudo sh   # root
-sudo usermod -aG docker claude   # root; then log out, log in again, and check that `docker ps` works
+sudo usermod -aG docker "$USER"   # root; then log out, log in again, and check that `docker ps` works
 cp infra/vps/test-stack.env.example infra/.env
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d --wait db
@@ -100,7 +100,7 @@ accounts take the six `RAW_STORE_*_KEY` test values of `infra/.env`.
 the VPS can be the MerchantOS account. The token is pinned in the GAB checkout only.
 
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 command -v gh || sudo apt-get install -y gh   # root
 cp infra/vps/claude-settings.local.example.json .claude/settings.local.json
 chmod 600 .claude/settings.local.json
@@ -125,22 +125,22 @@ unset GH_TOKEN
 
 ## 5. freellmapi and SearXNG on the Tailscale address
 
-The env file stays outside the checkout, in `/home/claude/gab-services/`. An agent works in the checkout, and a deny rule does not stop a shell command that reads a file.
+The env file stays outside the checkout, in `~/gab-services/`. An agent works in the checkout, and a deny rule does not stop a shell command that reads a file.
 
 ```bash
-mkdir -p /home/claude/gab-services && chmod 700 /home/claude/gab-services
-ENVF=/home/claude/gab-services/.env
-cp /home/claude/projects/GAB/infra/vps/.env.example "$ENVF" && chmod 600 "$ENVF"
+mkdir -p ~/gab-services && chmod 700 ~/gab-services
+ENVF=~/gab-services/.env
+cp ~/projects/GAB/infra/vps/.env.example "$ENVF" && chmod 600 "$ENVF"
 sed -i "s/^BIND_IP=.*/BIND_IP=$(tailscale ip -4)/" "$ENVF"
 sed -i "s/^FREELLMAPI_ENCRYPTION_KEY=.*/FREELLMAPI_ENCRYPTION_KEY=$(openssl rand -hex 32)/" "$ENVF"
 sed -i "s/^SEARXNG_SECRET=.*/SEARXNG_SECRET=$(openssl rand -hex 32)/" "$ENVF"
 docker manifest inspect ghcr.io/tashfeenahmed/freellmapi:v0.13.3 >/dev/null && echo tag-ok
-cd /home/claude/projects/GAB/infra/vps
+cd ~/projects/GAB/infra/vps
 docker compose --env-file "$ENVF" -f services.compose.yml up -d --wait
 ```
 
 If `tag-ok` does not show, find the tag on the package page of the freellmapi repository, and
-set `FREELLMAPI_TAG` in `/home/claude/gab-services/.env`. For SearXNG, choose a tag from Docker Hub
+set `FREELLMAPI_TAG` in `~/gab-services/.env`. For SearXNG, choose a tag from Docker Hub
 (`searxng/searxng`, format `YYYY.M.D-<commit>`). Never `latest`.
 
 Docker binds a port only when the address exists. After a reboot, `tailscaled` can start before
@@ -148,7 +148,7 @@ it has the address. Let the kernel bind an address that does not exist yet, and 
 after Tailscale, so that a reboot does not lose the two services:
 
 ```bash
-# root: every line of this block uses sudo. A plain `>` would run as claude and fail.
+# root: every line of this block uses sudo. A plain `>` would run as the non-root user and fail.
 echo 'net.ipv4.ip_nonlocal_bind=1' | sudo tee /etc/sysctl.d/99-gab.conf
 sudo sysctl --system
 sudo mkdir -p /etc/systemd/system/docker.service.d
@@ -160,12 +160,12 @@ sudo systemctl daemon-reload
 Then, **PC:** open `http://<VPS_TS_IP>:4001` in a browser. Enter the provider keys on the
 **Keys** page. Copy the unified key (`freellmapi-...`) into the `infra/.env` of the PC (step 7).
 
-**Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `/home/claude/gab-services/.env`, run the
+**Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `~/gab-services/.env`, run the
 `up -d` command again, and on the PC run
-`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 claude@<VPS public IP>`.
+`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 <user>@<VPS public IP>`.
 
 **Check (VPS):** `ss -ltnp | grep -E ':4001|:8888'` shows only the Tailscale address, never
-`0.0.0.0`. `docker compose --env-file /home/claude/gab-services/.env -f services.compose.yml ps` shows
+`0.0.0.0`. `docker compose --env-file ~/gab-services/.env -f services.compose.yml ps` shows
 both services healthy. `sysctl net.ipv4.ip_nonlocal_bind` prints `= 1`.
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
 results, and `Invoke-RestMethod http://<VPS_TS_IP>:4001/api/ping` answers.
@@ -184,14 +184,15 @@ step 0 are the only lock on `main`. Keep the PAT on `gabriel-neutron/GAB` alone,
 permissions of step 0 alone.
 
 The docker compose rules of the allow list name one literal file,
-`/home/claude/projects/GAB/infra/docker-compose.yml`. A general `docker compose` rule gives root on the
+`~/projects/GAB/infra/docker-compose.yml`. A rule compares the text of the command, so the
+command must use this `~` form, not the full path. A general `docker compose` rule gives root on the
 host: a volume mount can read every file, and `down -v` of another project deletes its data.
 
 The work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No cron job
 starts an agent.
 
 ```bash
-cd /home/claude/projects/GAB
+cd ~/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
 ```
 
@@ -215,9 +216,9 @@ lists the models. Do not paste the key into a chat or a ticket.
 
 ## 8. Rollback, and stop everything
 
-| To stop | Command (VPS, in `/home/claude/projects/GAB`) |
+| To stop | Command (VPS, in `~/projects/GAB`) |
 |---|---|
-| freellmapi and SearXNG | `docker compose --env-file /home/claude/gab-services/.env -f infra/vps/services.compose.yml down` |
+| freellmapi and SearXNG | `docker compose --env-file ~/gab-services/.env -f infra/vps/services.compose.yml down` |
 | The test stack, keep data | `docker compose -f infra/docker-compose.yml down` |
 | The test stack, delete data | `docker compose -f infra/docker-compose.yml down -v` (test data only) |
 | GitHub access of the VPS | Revoke the VPS PAT on GitHub. The PC PAT stays valid. |

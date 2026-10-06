@@ -47,6 +47,14 @@ beforeAll(async () => {
     '/loop': { status: 302, headers: { location: '/loop' } },
     '/image': { headers: { 'content-type': 'image/png' }, body: 'not a picture' },
     '/gone': { status: 410, headers: { 'content-type': 'text/plain' }, body: 'gone' },
+    '/challenge': {
+      headers: { 'content-type': 'text/html' },
+      body: '<html><head><title>Just a moment...</title></head><body><h1>Checking your browser before accessing the register of Example Port.</h1><p>Enable JavaScript and cookies to continue.</p></body></html>',
+    },
+    '/soft-404': {
+      headers: { 'content-type': 'text/html' },
+      body: '<html><head><title>Example Port</title></head><body><h1>Page not found</h1><p>The register entry does not exist.</p></body></html>',
+    },
   });
   base = `http://${FIXTURE_HOST}:${fixture.port}`;
 });
@@ -150,6 +158,15 @@ describe('the other refusals store nothing', () => {
   test('a status that is not a success', async () => {
     expect(await refusalOf(`${base}/gone`, fixtureReach(memoryStore()))).toMatch(/410/);
   });
+
+  test.each(['/challenge', '/soft-404'])(
+    'a page with a success status that is a bot challenge or a missing page: %s',
+    async (path) => {
+      const store = memoryStore();
+      expect(await refusalOf(`${base}${path}`, fixtureReach(store))).toMatch(/not the page/);
+      expect(store.puts).toStrictEqual([]);
+    },
+  );
 
   test('a type from which no text is read', async () => {
     const store = memoryStore();

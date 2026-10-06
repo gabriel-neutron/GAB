@@ -3,7 +3,9 @@
 
 import { z } from 'zod';
 
+import { interiorPointOf } from './interior-point';
 import type {
+  Area,
   Attributes,
   DocumentRow,
   Entity,
@@ -18,6 +20,7 @@ import type {
   ProposalPayload,
   ProposedGeometry,
   Relation,
+  Ring,
 } from './model';
 import { row as rowOf } from './rows';
 
@@ -32,17 +35,36 @@ const attributeObject = z.record(z.string(), attribute);
 const attributesOf = (value: unknown): Attributes =>
   value === undefined || value === null ? {} : attributeObject.parse(value);
 
-// A geometry column holds a point, a line or a polygon. A surface draws a dot, so it takes the
-// point and reads everything else as no position at all.
+// A geometry column holds a point, a line or a polygon. The map draws a point and an area, so it
+// keeps those two and reads a line as no position at all.
 const geoPoint = z.object({
   type: z.literal('Point'),
   coordinates: z.tuple([z.number(), z.number()], z.number()),
 });
 
+// A position may carry an altitude, and the map draws none of it.
+const pairs = (positions: readonly (readonly number[])[]): Ring =>
+  positions.map(([lon, lat]) => [lon ?? 0, lat ?? 0]);
+
 function pointOf(value: unknown): Point | null {
   const held = geoPoint.safeParse(value);
   if (!held.success) return null;
   return { lon: held.data.coordinates[0], lat: held.data.coordinates[1] };
+}
+
+const position = z.tuple([z.number(), z.number()], z.number());
+const ring = z.array(position).min(4);
+const geoPolygon = z.object({ type: z.literal('Polygon'), coordinates: z.array(ring).min(1) });
+const geoMultiPolygon = z.object({
+  type: z.literal('MultiPolygon'),
+  coordinates: z.array(z.array(ring).min(1)).min(1),
+});
+
+function areaOf(value: unknown): Area | null {
+  const polygon = geoPolygon.safeParse(value);
+  if (polygon.success) return [polygon.data.coordinates.map(pairs)];
+  const many = geoMultiPolygon.safeParse(value);
+  return many.success ? many.data.coordinates.map((rings) => rings.map(pairs)) : null;
 }
 
 // The act carries no kind of its own, so the operation states which payload it wrote.
@@ -286,9 +308,13 @@ function placement(row: unknown): EntityPlacement {
 // nothing about, so `precision` passes through and it is never coalesced.
 function mapPosition(row: unknown): MapPosition {
   const read = rowOf.fullMap.parse(row);
+  const area = areaOf(read.geom);
   return {
     entityId: read.id,
-    point: pointOf(read.geom),
+    // An area has one mark, and it stands inside the area, so the rail, the selection and the
+    // relations read a point as they do for every other entity.
+    point: area === null ? pointOf(read.geom) : interiorPointOf(area),
+    area,
     precision: read.position_precision,
     parentId: read.parent_id,
   };
