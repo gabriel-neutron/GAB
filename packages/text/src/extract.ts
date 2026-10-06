@@ -48,6 +48,9 @@ const COMMENTS = [
 
 const oneLine = (text: string): string => text.replaceAll(/\s*\n+\s*/gu, ' ').trim();
 
+// A bar in the text of a cell would read as the edge of one more cell, so it is escaped.
+const cellText = (text: string): string => oneLine(text).replaceAll('|', String.raw`\|`);
+
 // Departure: Turndown writes a table cell as a paragraph of its own, so an empty cell vanishes
 // and the row that a cell belongs to is lost. A row is one line here, and a cell is kept even
 // when it is empty, so the second row cannot slide into the place of the first.
@@ -66,7 +69,7 @@ const readable = (): TurndownService => {
   const turndown = new TurndownService({ headingStyle: 'atx' });
   turndown.addRule('cell', {
     filter: ['th', 'td'],
-    replacement: (content, node) => `| ${oneLine(content)} ${'|  '.repeat(columnsOf(node) - 1)}`,
+    replacement: (content, node) => `| ${cellText(content)} ${'|  '.repeat(columnsOf(node) - 1)}`,
   });
   turndown.addRule('row', { filter: 'tr', replacement: (content) => `${content}|\n` });
   turndown.addRule('table', {
