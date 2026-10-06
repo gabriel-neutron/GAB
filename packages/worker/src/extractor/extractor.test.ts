@@ -16,7 +16,7 @@ const PROPOSAL = '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b';
 const READING = '4a3b2c1d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 const CALL = '5b4c3d2e-1f0a-4b9c-8d7e-6f5a4b3c2d1e';
 const MODEL = 'a-family/a-model';
-const PAGE = 'Nayara sailed from Sikka. MARKER owns it.';
+const PAGE = 'Nayara sailed from Sikka. Rosneft owns it.';
 
 const CONFIG: ReaderConfig = {
   model: {
@@ -36,9 +36,6 @@ const CONFIG: ReaderConfig = {
 
 const ACT = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
 const ENTRY = { act: ACT, page: 1, start: 0, end: 6, modality: 'asserts' };
-
-// A minimiser that keeps the length and replaces the marker, so the test can see where it ran.
-const hide = (text: string): string => text.replaceAll('MARKER', '######');
 
 type Reply = { kind: 'value'; value: unknown } | { kind: 'call'; name: string; input: unknown };
 
@@ -73,7 +70,7 @@ const contextOf = (
     asked,
     queries,
     context: {
-      job: { id: CALL, documentId: DOC, attempt: 3, kind: 'extract_text' },
+      job: { id: CALL, documentId: DOC, kind: 'extract_text' },
       db: {
         query: (text: string) => {
           queries.push(text);
@@ -142,59 +139,19 @@ const lastMessage = (question: Question<unknown> | undefined): Message | undefin
 const textsOf = (question: Question<unknown> | undefined): string =>
   (question?.messages ?? []).map((message) => message.content).join('\n');
 
-describe('the gate of the minimiser', () => {
-  it('reads nothing and asks nothing with no minimiser, and the job stops with no_minimiser', async () => {
+describe('the text of the document', () => {
+  it('goes to the model as it is stored', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    const agent = makeExtractor(CONFIG, { tools: toolsOf().tools });
+    await makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context);
 
-    await expect(agent.run(scripted.context)).rejects.toStrictEqual(new JobStop('no_minimiser'));
-    expect(scripted.asked).toHaveLength(0);
-    expect(scripted.queries).toHaveLength(0);
-  });
-
-  it('stops with minimiser_length when the minimiser changes the length', async () => {
-    const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    const agent = makeExtractor(CONFIG, {
-      minimise: (text) => `${text}x`,
-      tools: toolsOf().tools,
-    });
-
-    await expect(agent.run(scripted.context)).rejects.toStrictEqual(
-      new JobStop('minimiser_length'),
-    );
-    expect(scripted.asked).toHaveLength(0);
-  });
-
-  it('passes the chunk through the minimiser before the model reads it', async () => {
-    const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    await makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(scripted.context);
-
-    expect(textsOf(scripted.asked[0])).toContain('######');
-    expect(textsOf(scripted.asked[0])).not.toContain('MARKER');
-  });
-
-  it('passes the result of document_text through the minimiser before the model reads it', async () => {
-    const scripted = contextOf(
-      [
-        { kind: 'call', name: 'document_text', input: { document: DOC } },
-        { kind: 'value', value: { claims: [] } },
-      ],
-      [{ page: 1, text: 'A page with nothing personal.' }],
-    );
-    const { tools } = toolsOf({ documentPages: 'The owner is MARKER.' });
-    await makeExtractor(CONFIG, { minimise: hide, tools }).run(scripted.context);
-
-    const reply = lastMessage(scripted.asked[1]);
-    expect(reply?.role).toBe('tool');
-    expect(reply?.content).toContain('######');
-    expect(reply?.content).not.toContain('MARKER');
+    expect(textsOf(scripted.asked[0])).toContain(JSON.stringify(PAGE));
   });
 });
 
 describe('the tools of the model', () => {
   it('offers the model document_text and lookup_entity alone', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    await makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(scripted.context);
+    await makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context);
 
     expect(scripted.asked[0]?.tools?.map((tool) => tool.name)).toStrictEqual([
       'document_text',
@@ -208,9 +165,7 @@ describe('the tools of the model', () => {
       { kind: 'value', value: { claims: [] } },
     ]);
     const recorded = toolsOf();
-    const result = await makeExtractor(CONFIG, { minimise: hide, tools: recorded.tools }).run(
-      scripted.context,
-    );
+    const result = await makeExtractor(CONFIG, { tools: recorded.tools }).run(scripted.context);
 
     expect(result.refusals).toStrictEqual([
       { tool: 'propose_change', reason: expect.stringMatching(/not offered/u) as unknown },
@@ -230,7 +185,7 @@ describe('a claim of the model', () => {
       [{ page: 1, text: 'abcdefghij' }],
     );
     const recorded = toolsOf();
-    await makeExtractor({ ...CONFIG, chunkCap: 6 }, { minimise: hide, tools: recorded.tools }).run(
+    await makeExtractor({ ...CONFIG, chunkCap: 6 }, { tools: recorded.tools }).run(
       scripted.context,
     );
 
@@ -262,9 +217,7 @@ describe('a claim of the model', () => {
       { kind: 'value', value: { claim: ENTRY } },
     ]);
     const recorded = toolsOf({ refuses: fault });
-    const result = await makeExtractor(CONFIG, { minimise: hide, tools: recorded.tools }).run(
-      scripted.context,
-    );
+    const result = await makeExtractor(CONFIG, { tools: recorded.tools }).run(scripted.context);
 
     expect(scripted.asked).toHaveLength(2);
     expect(recorded.proposed).toHaveLength(2);
@@ -280,9 +233,7 @@ describe('a claim of the model', () => {
       { kind: 'value', value: { claim: ENTRY } },
     ]);
     const recorded = toolsOf();
-    const result = await makeExtractor(CONFIG, { minimise: hide, tools: recorded.tools }).run(
-      scripted.context,
-    );
+    const result = await makeExtractor(CONFIG, { tools: recorded.tools }).run(scripted.context);
 
     expect(lastMessage(scripted.asked[1])?.content).toMatch(/outside the chunk/u);
     expect(recorded.proposed).toHaveLength(1);
@@ -293,9 +244,7 @@ describe('a claim of the model', () => {
   it('throws when the door refuses the reading of a stored proposal, and asks nothing more', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [ENTRY] } }]);
     const recorded = toolsOf({ readingRefuses: 'the page does not exist' });
-    const run = makeExtractor(CONFIG, { minimise: hide, tools: recorded.tools }).run(
-      scripted.context,
-    );
+    const run = makeExtractor(CONFIG, { tools: recorded.tools }).run(scripted.context);
 
     await expect(run).rejects.toThrow(/the page does not exist/u);
     await expect(run).rejects.not.toBeInstanceOf(JobStop);
@@ -311,9 +260,7 @@ describe('the stops of a job', () => {
       input: { key: 'imo', value: '9876543' },
     }));
     const scripted = contextOf(lookups);
-    const run = makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(
-      scripted.context,
-    );
+    const run = makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context);
 
     await expect(run).rejects.toStrictEqual(new JobStop('turn_cap'));
     expect(scripted.asked).toHaveLength(CONFIG.turnCap);
@@ -323,7 +270,7 @@ describe('the stops of a job', () => {
     const spent = new ModelFailure({ kind: REASON.overCap, reason: 'spent', attempts: 1 });
     const scripted = contextOf([spent]);
     await expect(
-      makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(scripted.context),
+      makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context),
     ).rejects.toStrictEqual(new JobStop('usage_cap'));
   });
 
@@ -331,14 +278,14 @@ describe('the stops of a job', () => {
     const down = new ModelFailure({ kind: REASON.network, reason: 'down', attempts: 4 });
     const scripted = contextOf([down]);
     await expect(
-      makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(scripted.context),
+      makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context),
     ).rejects.toBe(down);
   });
 
   it('stops with no_text when the document holds no text', async () => {
     const scripted = contextOf([], []);
     await expect(
-      makeExtractor(CONFIG, { minimise: hide, tools: toolsOf().tools }).run(scripted.context),
+      makeExtractor(CONFIG, { tools: toolsOf().tools }).run(scripted.context),
     ).rejects.toStrictEqual(new JobStop('no_text'));
   });
 });
@@ -370,9 +317,7 @@ describe('the key of a claim', () => {
     for (const prompt of ['Read the chunk.', 'Read the chunk!']) {
       const scripted = contextOf([{ kind: 'value', value: { claims: [ENTRY] } }]);
       const recorded = toolsOf();
-      await makeExtractor(CONFIG, { minimise: hide, tools: recorded.tools, prompt }).run(
-        scripted.context,
-      );
+      await makeExtractor(CONFIG, { tools: recorded.tools, prompt }).run(scripted.context);
       keys.push((recorded.proposed[0] as { idempotencyKey: string }).idempotencyKey);
     }
     expect(keys[0]).not.toBe(keys[1]);

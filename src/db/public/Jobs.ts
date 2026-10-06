@@ -10,14 +10,6 @@ export default interface Jobs {
 
   status: string;
 
-  attempts: number;
-
-  network_failures: number;
-
-  rejected_failures: number;
-
-  failure_kind: string | null;
-
   failure_reason: string | null;
 
   claimed_by: string | null;
@@ -40,14 +32,6 @@ export interface JobsInitializer {
 
   status?: string;
 
-  attempts?: number;
-
-  network_failures?: number;
-
-  rejected_failures?: number;
-
-  failure_kind?: string | null;
-
   failure_reason?: string | null;
 
   claimed_by?: string | null;
@@ -69,14 +53,6 @@ export interface JobsMutator {
   document_id?: DocumentsId;
 
   status?: string;
-
-  attempts?: number;
-
-  network_failures?: number;
-
-  rejected_failures?: number;
-
-  failure_kind?: string | null;
 
   failure_reason?: string | null;
 

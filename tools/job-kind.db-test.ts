@@ -60,14 +60,16 @@ test('enqueue_job refuses a document with no bytes', async () => {
   ).rejects.toThrow(/no bytes/);
 });
 
-test('enqueue_job refuses a kind that is not a work kind', async () => {
-  await expect(
-    rolledBack('app', async (ask) => {
-      await ask(PUT_WITH_BYTES, [WITH_BYTES]);
-      await ask("SELECT public.enqueue_job($1, 'store_only')", [WITH_BYTES]);
-    }),
-  ).rejects.toMatchObject({ code: '22023' });
-});
+// A second reading is not queued any more, so its kind is refused as `store_only` is.
+for (const kind of ['store_only', 'second_read'])
+  test(`enqueue_job refuses the kind ${kind}`, async () => {
+    await expect(
+      rolledBack('app', async (ask) => {
+        await ask(PUT_WITH_BYTES, [WITH_BYTES]);
+        await ask('SELECT public.enqueue_job($1, $2)', [WITH_BYTES, kind]);
+      }),
+    ).rejects.toMatchObject({ code: '22023' });
+  });
 
 test('enqueue_job refuses a second open job of one kind and accepts another kind', async () => {
   const held = await rolledBack('app', async (ask) => {

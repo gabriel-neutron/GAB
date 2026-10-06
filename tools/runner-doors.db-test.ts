@@ -1,7 +1,7 @@
-// The doors that the runner needs: a claim that goes back for a quota that is spent, the three
-// waits of the runner as one strict read, and a proposal that carries its idempotency key. Each
-// gesture runs inside a transaction that rolls back, so the census tests count the same rows
-// before and after.
+// The doors that the runner needs: the requeue of the jobs that a crash left running, the wait of
+// the runner as one strict read, and a proposal that carries its idempotency key. Each gesture
+// runs inside a transaction that rolls back, so the census tests count the same rows before and
+// after.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -21,12 +21,11 @@ const claimed = z.array(z.object({ job_id: z.uuid(), job_document: z.string() })
 const jobs = z.array(
   z.object({
     status: z.string(),
-    attempts: z.number().int(),
     claimed_at: z.date().nullable(),
     claimed_by: z.string().nullable(),
   }),
 );
-const READ_JOB = 'SELECT status, attempts, claimed_at, claimed_by FROM public.jobs WHERE id = $1';
+const READ_JOB = 'SELECT status, claimed_at, claimed_by FROM public.jobs WHERE id = $1';
 
 const ids = z.array(z.object({ id: z.uuid() }));
 
@@ -63,83 +62,54 @@ const running = async (ask: Ask): Promise<string> => {
   });
 };
 
-const release = (ask: Ask, id: string): Promise<readonly unknown[]> =>
-  as(ask, 'gabriel_agent', () => ask('SELECT public.release_job_for_quota($1)', [id]));
-
 const jobOf = async (ask: Ask, id: string): Promise<z.infer<typeof jobs>[number]> => {
   const [job] = jobs.parse(await ask(READ_JOB, [id]));
   if (job === undefined) throw new Error('The job row is absent.');
   return job;
 };
 
-test('a release for quota returns the job to the queue with the count it had before the claim', async () => {
+const OTHER = 'doc_runner_doors_other';
+
+test('the requeue returns the running jobs of its caller, and leaves the job of another role', async () => {
   const held = await inside(async (ask) => {
-    const id = await running(ask);
-    const before = await jobOf(ask, id);
-    await release(ask, id);
-    return { before, after: await jobOf(ask, id) };
+    const mine = await running(ask);
+    await ask(PUT.replace('runner-doors.pdf', 'runner-doors-other.pdf'), [OTHER]);
+    const [other] = ids.parse(
+      await ask('SELECT public.enqueue_job($1, $2) AS id', [OTHER, 'extract_text']),
+    );
+    if (other === undefined) throw new Error('The seed queued no job.');
+    await ask("UPDATE public.jobs SET status = 'running', claimed_at = now() WHERE id = $1", [
+      other.id,
+    ]);
+    const [count] = await as(ask, 'gabriel_agent', () =>
+      ask('SELECT public.requeue_running_jobs() AS n'),
+    );
+    return { count, mine: await jobOf(ask, mine), other: await jobOf(ask, other.id) };
   });
-  expect(held.before).toMatchObject({ status: 'running', attempts: 1 });
-  expect(held.after).toStrictEqual({
-    status: 'queued',
-    attempts: 0,
-    claimed_at: null,
-    claimed_by: null,
-  });
+  expect(held.count).toStrictEqual({ n: 1 });
+  expect(held.mine).toStrictEqual({ status: 'queued', claimed_at: null, claimed_by: null });
+  expect(held.other).toMatchObject({ status: 'running', claimed_by: 'gabriel' });
 });
 
-test('a release never takes the count below the failures that the row holds', async () => {
-  const after = await inside(async (ask) => {
-    const id = await running(ask);
-    await ask('UPDATE public.jobs SET network_failures = 1 WHERE id = $1', [id]);
-    await release(ask, id);
-    return jobOf(ask, id);
-  });
-  expect(after).toMatchObject({ status: 'queued', attempts: 1 });
-});
+const settings = z.array(z.object({ empty_wait_seconds: z.number() }));
 
-test('a release refuses a job that is not running', async () => {
-  await expect(
-    inside(async (ask) => {
-      await ask(PUT, [DOCUMENT]);
-      const [queued] = ids.parse(
-        await ask('SELECT public.enqueue_job($1, $2) AS id', [DOCUMENT, 'extract_text']),
-      );
-      return release(ask, queued?.id ?? '');
-    }),
-  ).rejects.toThrow(/not running/);
-});
-
-const settings = z.array(
-  z.object({
-    lease_seconds: z.number(),
-    quota_wait_seconds: z.number(),
-    empty_wait_seconds: z.number(),
-  }),
-);
-
-test('the runner reads its lease and its two waits in one call, as numbers above zero', async () => {
-  const [row] = await inside((ask) =>
+test('the runner reads its wait on an empty queue, as a number above zero', async () => {
+  const rows = await inside((ask) =>
     as(ask, 'gabriel_agent', async () =>
       settings.parse(await ask('SELECT * FROM public.runner_settings()')),
     ),
   );
-  expect(row).toBeDefined();
-  expect(Object.keys(row ?? {}).sort()).toStrictEqual([
-    'empty_wait_seconds',
-    'lease_seconds',
-    'quota_wait_seconds',
-  ]);
-  for (const value of Object.values(row ?? {})) expect(value).toBeGreaterThan(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.empty_wait_seconds).toBeGreaterThan(0);
 });
 
 test('an absent row of the runner stops the read and gives no default', async () => {
   await expect(
     inside(async (ask) => {
-      await ask("DELETE FROM public.parameter WHERE key = 'runner_quota_wait_seconds'");
+      await ask("DELETE FROM public.parameter WHERE key = 'runner_empty_wait_seconds'");
       return as(ask, 'gabriel_agent', () => ask('SELECT * FROM public.runner_settings()'));
     }),
-  ).rejects.toThrow(/runner_quota_wait_seconds/);
+  ).rejects.toThrow(/runner_empty_wait_seconds/);
 });
 
 const CALL = `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1,

@@ -23,8 +23,10 @@ The read API serves the `api` schema as `gabriel_read`. It writes nothing.
 
 ## The writer and the worker
 
-Run `pnpm writer`, `pnpm layout` and `pnpm reconcile` on the operator's machine, with the same
-`infra/.env` as above. They run as they do against the local stack. Only the values change.
+Run `pnpm writer`, `pnpm runner`, `pnpm layout` and `pnpm reconcile` on the operator's machine,
+with the same `infra/.env` as above. They run as they do against the local stack. Only the values
+change. Run one runner at a time: at its start, the runner puts back each job that is still
+running.
 
 ## Public writes
 
