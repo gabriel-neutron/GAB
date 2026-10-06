@@ -385,8 +385,8 @@ export default defineConfig(
     // then load into every story (#60).
     //
     // A workspace package is named as well. The `package` element was declared as a target of an
-    // import only, so no rule below ran **from** a package: one could import a browser feature,
-    // a route or the base tables, and nothing objected.
+    // import only, so no rule below ran **from** a package: one could import a browser feature
+    // or a route, and nothing objected.
     //
     // `.mts` and `.cts` are named because they compile. A file with either extension belonged to
     // no element, so `no-unknown-files` passed it and every policy below missed it.
@@ -417,11 +417,9 @@ export default defineConfig(
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
         { type: 'route', pattern: 'src/routes', partialMatch: false },
 
-        // The two generated folders. `contract` is read from the api schema and the user
-        // interface imports it; `base-tables` is read from the public schema and nothing under
-        // `src/` may import it. Both are declared, so a generated file is a known file.
+        // The generated folder. It is read from the api schema and the user interface imports
+        // it. It is declared, so a generated file is a known file.
         { type: 'contract', pattern: 'src/contract', partialMatch: false },
-        { type: 'base-tables', pattern: 'src/db', partialMatch: false },
 
         // A workspace package. `@gab/proposal` resolves through a symlink in `node_modules`, and
         // the resolver follows it to the real path, so the target of the import is this folder.
@@ -544,7 +542,7 @@ export default defineConfig(
               disallow: {
                 to: {
                   element: {
-                    types: ['feature', 'route', 'shared', 'contract', 'base-tables', 'storybook'],
+                    types: ['feature', 'route', 'shared', 'contract', 'storybook'],
                   },
                 },
               },
@@ -559,15 +557,7 @@ export default defineConfig(
             {
               from: {
                 element: {
-                  types: [
-                    'shared',
-                    'feature',
-                    'route',
-                    'storybook',
-                    'contract',
-                    'base-tables',
-                    'package',
-                  ],
+                  types: ['shared', 'feature', 'route', 'storybook', 'contract', 'package'],
                 },
               },
               disallow: {
@@ -590,36 +580,6 @@ export default defineConfig(
               allow: {
                 to: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
               },
-            },
-
-            // The base tables, refused from every side and stated last, so a policy above can
-            // never open it. `default: 'disallow'` already refuses it; a named rule with a
-            // reason reads as a decision, and a silent default reads as an oversight.
-            {
-              from: { element: { types: ['shared', 'feature', 'route', 'storybook', 'contract'] } },
-              disallow: { to: { element: { type: 'base-tables' } } },
-              message:
-                'The base tables are the shape of the storage, and the browser never reaches one. Import the contract, which is the shape of a read',
-            },
-          ],
-        },
-      ],
-    },
-  },
-
-  // Departure: the two files above sit outside every boundaries policy, so the refusal of the base
-  // tables reaches them here by name. The flat config keeps one `no-restricted-imports` per file.
-  {
-    files: ['src/main.tsx', 'src/router.tsx'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@/db', '@/db/**', './db', './db/**'],
-              message:
-                'The base tables are the shape of the storage, and the browser never reaches one. Import the contract, which is the shape of a read',
             },
           ],
         },
