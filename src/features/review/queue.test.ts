@@ -30,6 +30,7 @@ const actOf = (id: string, confidence: number | null, dissent: boolean): Proposa
   createdAt: '2026-08-03T09:12:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 });
 
 const LOW_AGREED = actOf('bb000001-0000-4000-8000-000000000001', 0.4, false);
