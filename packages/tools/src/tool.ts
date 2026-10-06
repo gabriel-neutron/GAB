@@ -30,6 +30,8 @@ export interface Web {
   readonly searxngUrl?: string;
   /** The key of the Brave Search API. It leaves in a header and in no address. */
   readonly braveKey?: string;
+  /** The key of the Companies House API. It leaves in a header and in no address. */
+  readonly companiesHouseKey?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around

@@ -29,7 +29,7 @@ const stop = (cause: unknown): never => {
 };
 
 // The read tools need no object store, so a workspace with no store credential still starts, and
-// only the fetch tool refuses. The sentence of the store names no secret. The web needs no store.
+// only the tools that store refuse. The sentence of the store names no secret. The web needs no store.
 const reachOf = (): Reach => {
   const web = webOf(process.env);
   try {
@@ -37,7 +37,7 @@ const reachOf = (): Reach => {
     return { store: { put: (object) => putObject(store, object) }, web, now: () => new Date() };
   } catch (cause) {
     console.error(
-      `fetch_document is off: ${cause instanceof Error ? cause.message : 'no object store'}`,
+      `the tools that store are off: ${cause instanceof Error ? cause.message : 'no object store'}`,
     );
     return { web, now: () => new Date() };
   }

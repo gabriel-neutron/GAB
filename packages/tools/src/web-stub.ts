@@ -29,7 +29,11 @@ export const text = (
 
 export const stubWeb = (
   answer: Answerer,
-  settings: { readonly searxngUrl?: string; readonly braveKey?: string } = {},
+  settings: {
+    readonly searxngUrl?: string;
+    readonly braveKey?: string;
+    readonly companiesHouseKey?: string;
+  } = {},
 ): StubWeb => {
   const asked: Asked[] = [];
   return {

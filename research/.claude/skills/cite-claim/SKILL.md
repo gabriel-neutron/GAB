@@ -15,6 +15,8 @@ that state it.
 - `list_vocabulary`: get the entity types, the relation types and the identifier keys.
 - `find_document`: find the stored document that holds the fact.
 - `fetch_document`: store a new page and get its document id and its text.
+- `gleif_lookup`, `companies_house`, `wikidata_ids`: read one record of a register by its
+  identifier. Each answer is stored as a document, and the tool gives its document id.
 - `document_text`: read the stored text of a document again, page by page.
 - `search_graph`: find the entity that already holds an identifier.
 - `list_proposals`: find the proposals that wait for the operator.
@@ -40,6 +42,13 @@ that state it.
    that item, and call `propose` again. A retry writes nothing twice.
 8. If the answer marks an item as disputed, a value of the act is not in its excerpt. Check the
    value. Keep the proposal ids that the tool gives. The skill `carto-step` reports them.
+
+## A register record
+
+- A lookup tool stores one answer for each record that it reads, and it gives the document id.
+  Read the text with `document_text`, find the excerpt, and cite that id in `propose`.
+- A lookup by name is a list of leads, and nothing is stored. Never cite it. Read the record
+  with its identifier, and cite the document of that record.
 
 ## A sanctions status
 
