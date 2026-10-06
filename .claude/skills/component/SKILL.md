@@ -11,7 +11,7 @@ density, the parts of the kit and the lint set. A value copied here goes stale i
 
 ## The steps
 
-1. **Read the ticket whole.** It carries what the component does, the rules it holds, and the
+1. **Read the ticket or the request whole.** It carries what the component does, the rules it holds, and the
    check that says it works. State back in five lines: what it does, its rules, its "Works when",
    and its check.
 2. **Place the file.** See *Placement*.
@@ -20,17 +20,9 @@ density, the parts of the kit and the lint set. A value copied here goes stale i
 5. **Write one story for each state the ticket names.**
 6. **Run the check command, then the test command**, then answer *Before you report*.
 
-**No ticket names this component: stop.** A shared file is the exception. It has no ticket, its
-contract is its two call sites, and you name both in your report.
-
-**Climb the ladder before you ask.** Read the document that governs the task, search the code for
-a precedent, then `gh issue list --search` for a ruling. **A form the operator refused lives in the
-tracker and in no file.** Then take the reversible option, record it under ASSUMED with its cost
-and what proves it wrong, and continue.
-
-**Ask only three things**, and only at the end of the task: a ticket contradicts an ADR or a rule
-below; a value must sit in an ancestor of a live canvas; a dependency is missing. Each is costly to
-reverse. A contradiction is a question and never a licence.
+**Decide, and continue.** Search the code for a precedent, take the simplest option, and note it in
+your report. Ask the operator only a product question (`docs/authoring.md`). A conflict with an
+ADR is yours to settle: update the ADR in the same change.
 
 **A folder that drives a live canvas:** read [`CANVAS.md`](CANVAS.md) before step 2.
 
@@ -90,7 +82,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | Do | Do not |
 |---|---|
 | Take every colour from a token | Write a hex, or a raw palette class |
-| Find the `--color-<name>` line before you use a name outside the kit set. Where it is absent, use the class, report it under ASSUMED, and name the file that must declare it | Trust a colour class to paint. An undeclared token emits no rule at all, in silence |
+| Find the `--color-<name>` line before you use a name outside the kit set. Where it is absent, use the class, note it in your report, and name the file that must declare it | Trust a colour class to paint. An undeclared token emits no rule at all, in silence |
 | Mark data in words as well as with a hue | Let a hue be the only mark |
 | Compose every class list with the merge helper | Build a class list with a template string or `+` |
 | Correct the kit at the call site in `className` | Edit a vendored file. The kit is closed |
@@ -123,7 +115,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | Copy the kit `focus-visible` recipe whole onto every control | Use `ring` alone. It paints at rest, and with no colour utility it paints `currentcolor` |
 | Give a kit part that is a link `asChild` and one `<a>` | Put a second control on a row that is already a button |
 | Draw a read-only value with `defaultValue` | Write `value` with no `onChange` |
-| Build the `disabled` control the ticket asks for, and put the tension under ASK | Fade the data to say "not editable" |
+| Build the `disabled` control the ticket asks for, and note the tension in your report | Fade the data to say "not editable" |
 | Use a 14px line icon from the set installed, and give an icon-only control an `aria-label` | Let an icon alone label a destructive action |
 | Write sentence case | Use uppercase outside a small table header |
 
@@ -182,5 +174,5 @@ be suppressed. Carry the reference in your report.
 4. Walk each row of *What to write* against the file.
 5. The check command passes and the test command passes.
 
-Report as RESULT, FILES, CHECK, RULES, ASSUMED, ASK. Leave the commit to the operator. Reach for
+Report what you changed, the checks you ran and each choice you made. Reach for
 the visual check agent only for what a story cannot hold: the live canvas, and a whole route.

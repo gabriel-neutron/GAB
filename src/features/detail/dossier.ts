@@ -1,6 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
-import { positionFromWords, relationLines, relationTypeWords } from '@/shared/canvas-label';
+import { positionFromWords, relationLines } from '@/shared/canvas-label';
 import type {
   AuthorRole,
   Corpus,
@@ -14,6 +14,7 @@ import type {
 } from '@/shared/read/model';
 
 import { readBand, readRating } from '@/shared/read/rating';
+import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
 
@@ -90,8 +91,8 @@ export interface LinkTarget {
   readonly name: string;
 }
 
-/** What the new-relation form offers. The record holds no table of relation types, so `types` is
- * what the corpus already carries and never a closed set. */
+/** What the new-relation form offers. `types` is what the corpus already carries. A word that
+ * no live type holds is still sent, and the promotion keeps it beside the fallback type. */
 export interface LinkChoices {
   readonly types: readonly string[];
   readonly targets: readonly LinkTarget[];
@@ -166,6 +167,15 @@ function shorten(uri: string | null): string | null {
 interface Index {
   readonly entityById: ReadonlyMap<string, Entity>;
   readonly relationById: ReadonlyMap<string, Relation>;
+  readonly wordsOf: (type: string) => RelationWords;
+}
+
+function indexOf(read: Corpus): Index {
+  return {
+    entityById: new Map(read.entities.map((row) => [row.id, row])),
+    relationById: new Map(read.relations.map((row) => [row.id, row])),
+    wordsOf: relationWording(read.relationTypes),
+  };
 }
 
 function cardOf(
@@ -236,7 +246,7 @@ function endpointWords(index: Index, kind: EndpointKind, id: string, depth: numb
   if (held === undefined) return 'a relation that is absent from the record';
   const from = endpointWords(index, held.srcKind, held.srcId, depth - 1);
   const to = endpointWords(index, held.dstKind, held.dstId, depth - 1);
-  return `the "${relationTypeWords(held.type)}" of ${from} and ${to}`;
+  return `the "${index.wordsOf(held.type).label}" of ${from} and ${to}`;
 }
 
 /**
@@ -265,10 +275,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
   if (entity === undefined) return null;
 
   const documentById = new Map(read.documents.map((row) => [row.id, row]));
-  const index: Index = {
-    entityById: new Map(read.entities.map((row) => [row.id, row])),
-    relationById: new Map(read.relations.map((row) => [row.id, row])),
-  };
+  const index = indexOf(read);
 
   // Departure: the page order is the entity, then the claims, then the relations, then the
   // pending proposals, so the lists below call the register in that order.
@@ -297,11 +304,22 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
         (relation.dstKind === 'relation' && directIds.has(relation.dstId))),
   );
 
+  // A relation is stored in one direction only. Read from its far end, it takes the inverse words,
+  // so the entity of the page stands first in each sentence that names it.
+  const sentenceOf = (relation: Relation): string => {
+    const from = endpointWords(index, relation.srcKind, relation.srcId, 1);
+    const to = endpointWords(index, relation.dstKind, relation.dstId, 1);
+    const words = index.wordsOf(relation.type);
+    const fromFarEnd =
+      relation.dstKind === 'entity' &&
+      relation.dstId === entityId &&
+      !(relation.srcKind === 'entity' && relation.srcId === entityId);
+    return fromFarEnd ? `${to} ${words.inverseLabel} ${from}` : `${from} ${words.label} ${to}`;
+  };
+
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => ({
     id: relation.id,
-    sentence: `${endpointWords(index, relation.srcKind, relation.srcId, 1)} ${relationTypeWords(
-      relation.type,
-    )} ${endpointWords(index, relation.dstKind, relation.dstId, 1)}`,
+    sentence: sentenceOf(relation),
     interval: intervalWords(relation),
     // The mark comes from the relation and never from the list it is placed in: a relation can
     // be direct and invisible at once.
@@ -436,17 +454,13 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   if (relation === undefined) return null;
 
   const documentById = new Map(read.documents.map((row) => [row.id, row]));
-  const index: Index = {
-    entityById: new Map(read.entities.map((row) => [row.id, row])),
-    relationById: new Map(read.relations.map((row) => [row.id, row])),
-  };
+  const index = indexOf(read);
 
   const from = endpointWords(index, relation.srcKind, relation.srcId, 1);
   const to = endpointWords(index, relation.dstKind, relation.dstId, 1);
-  const type = relationTypeWords(relation.type);
-  // The raw identifier goes in. `relationLines` states the words for this panel and for the two
-  // canvases at once.
-  const [fromLine, typeLine, toLine] = relationLines(from, relation.type, to);
+  const type = index.wordsOf(relation.type).label;
+  // `relationLines` lays out the words for this panel and for the two canvases at once.
+  const [fromLine, typeLine, toLine] = relationLines(from, type, to);
 
   const register = sourceRegister(documentById);
   const sources = register.refsOf(relation.sources);

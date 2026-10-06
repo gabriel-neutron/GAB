@@ -66,15 +66,15 @@ export const AnEndMustBeChosen: Story = {
   },
 };
 
-// The database holds the same five words in a check constraint, and refuses every other.
-export const AnIntervalBelongsToFiveTypes: Story = {
+// The database reads the same flag on the type row, and refuses an interval on every other type.
+export const AnIntervalBelongsToTheDatedTypes: Story = {
   play: async ({ canvas }) => {
     await userEvent.type(canvas.getByLabelText('Type'), 'berthed_at');
     await userEvent.selectOptions(canvas.getByLabelText('Other end'), COMPANY);
     await fireEvent.change(canvas.getByLabelText('From'), { target: { value: '2011-03-09' } });
 
     await expect(canvas.getByText(/An interval belongs to a relation of/)).toHaveTextContent(
-      'owns, operates, flags, insures, appoints',
+      'owns, operates, flags, insures, appoints, designated_by, exempted_by, charters.',
     );
     await expect(canvas.getByRole('button', { name: 'Make the relation' })).toBeDisabled();
   },

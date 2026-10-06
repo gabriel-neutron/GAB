@@ -1,3 +1,4 @@
+import { openStore, putObject } from '@gab/store';
 import { serve } from '@hono/node-server';
 
 import { openPool } from './pool.ts';
@@ -9,7 +10,8 @@ const HOSTNAME = '127.0.0.1';
 const PORT = 5177;
 
 const pool = openPool();
-const app = writeRoutes(pool);
+const store = openStore();
+const app = writeRoutes(pool, { put: (object) => putObject(store, object) });
 
 serve({ fetch: app.fetch, hostname: HOSTNAME, port: PORT });
 console.log(`The writer answers on http://${HOSTNAME}:${PORT}/write`);

@@ -5,9 +5,14 @@
   "type": "module",
   "exports": {
     "./catalogue": "./src/catalogue.ts",
+    "./document-text": "./src/document-text.ts",
     "./fetch-document": "./src/fetch-document.ts",
     "./fetch-guard": "./src/fetch-guard.ts",
+    "./lookup-entity": "./src/lookup-entity.ts",
     "./profiles": "./src/profiles.ts",
+    "./propose-change": "./src/propose-change.ts",
+    "./put-claim-reading": "./src/put-claim-reading.ts",
+    "./reading": "./src/reading.ts",
     "./tool": "./src/tool.ts"
   },
   "dependencies": {
@@ -15,6 +20,7 @@
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
     "exiftool-vendored": "^38.3.0",
+    "playwright": "^1.62.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

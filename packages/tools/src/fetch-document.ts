@@ -9,8 +9,9 @@ import { z } from 'zod';
 
 import { checkedRange, documentText } from './document-text.ts';
 import { rowsOf } from './fields.ts';
-import { FetchRefusal, guardedGet } from './fetch-guard.ts';
-import { defineTool, type Session, ToolRefusal } from './tool.ts';
+import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
+import { renderPage } from './render-page.ts';
+import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
 import { unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
@@ -19,9 +20,17 @@ export const MAX_BYTES = 20 * 1024 * 1024;
 const TIMEOUT_MS = 20_000;
 const MAX_REDIRECTS = 5;
 
-// A page that a script draws gives its shell and almost no text. Under this count the answer says
-// so, and the page stays stored, because its bytes are still the bytes the origin gave.
-const LITTLE_TEXT = 200;
+// A page that a script draws gives its shell and almost no text. Under this count of characters the
+// page is rendered with no flag, and the bytes of the origin stay stored as they came.
+const RENDER_BELOW = 200;
+
+// The whole render, from the launch of the browser to the read of the page. A page that a script
+// draws is quiet inside a few seconds, or it is a page that this tool reads only in part.
+const RENDER_BUDGET_MS = 30_000;
+
+// The words that the common CAPTCHA services put in a page. A page that holds one is stored as it
+// is, and the answer says so; nothing on it is solved or avoided.
+const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
 
 // External constraint: the worker writes the text of a stored file under this same word, and a
 // second word would make two sets of pages for one reading. The worker holds the other copy, in
@@ -149,6 +158,89 @@ const knownOf = async (session: Session, sha256: string) => {
   return row;
 };
 
+interface Fetched {
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+  readonly uri: string;
+  readonly title: string;
+  readonly pages: readonly string[];
+  readonly day: string;
+}
+
+// Bytes already stored are known by their hash, and nothing is written for them.
+const storeFetched = async (
+  session: Session,
+  store: NonNullable<Reach['store']>,
+  fetched: Fetched,
+) => {
+  const sha256 = createHash('sha256').update(fetched.bytes).digest('hex');
+  let status: 'known' | 'stored' = 'known';
+  let known = await knownOf(session, sha256);
+  if (known === undefined) {
+    // The key holds the hash alone, as the worker writes it, so the two paths name one object.
+    const key = await store.put({
+      key: `raw/${sha256}`,
+      bytes: fetched.bytes,
+      mime: fetched.mime,
+    });
+    try {
+      await rowsOf(session, storedRow, STORE, [
+        fetched.title,
+        key,
+        fetched.uri,
+        sha256,
+        fetched.mime,
+        fetched.day,
+        JSON.stringify(fetched.pages),
+        EXTRACTOR,
+      ]);
+      status = 'stored';
+    } catch (fault) {
+      // A second caller stored the same bytes at the same instant.
+      if (!isUniqueViolation(fault)) throw fault;
+    }
+    known = await knownOf(session, sha256);
+    if (known === undefined) throw new Error('the door stored a document and no row holds it');
+  }
+  return { ...known, status };
+};
+
+const reasonOf = (fault: unknown): string =>
+  (fault instanceof Error ? fault.message : String(fault)).split('\n')[0]?.slice(0, 200) ?? '';
+
+const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+// A launch fault, a crash or a timeout of the browser gives a notice and no refusal, because the
+// plain document is already stored and its text still comes back.
+const renderedOf = async (
+  got: Got,
+  mime: string,
+  options: GetOptions,
+  notices: string[],
+): Promise<{ html: string; bytes: Uint8Array; pages: readonly string[] } | null> => {
+  try {
+    const page = await renderPage(got.url, got.bytes, got.contentType ?? mime, {
+      ...options,
+      budgetMs: RENDER_BUDGET_MS,
+    });
+    if (page.refused > 0)
+      notices.push(
+        `the page made ${plural(page.refused, 'request')} to the machine or to a private ` +
+          'network, and each one was stopped',
+      );
+    if (page.timedOut)
+      notices.push(
+        `the page was not quiet within ${RENDER_BUDGET_MS / 1000} seconds, and the rendered ` +
+          'text is what it held then',
+      );
+    const bytes = new TextEncoder().encode(page.html);
+    return { html: page.html, bytes, pages: (await extractText(bytes, 'text/html')).pages };
+  } catch (fault) {
+    notices.push(`the page could not be rendered: ${reasonOf(fault)}`);
+    return null;
+  }
+};
+
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
@@ -161,37 +253,54 @@ const outputShape = z.strictObject({
   lastPage: z.number().int().nullable(),
   truncated: z.boolean(),
   notice: z.string().nullable(),
+  rendered: z
+    .strictObject({
+      document: z.string(),
+      status: z.enum(['known', 'stored']),
+      title: z.string(),
+    })
+    .nullable(),
 });
 
 export const fetchDocument = defineTool({
   name: 'fetch_document',
   description:
     'Reads one web page or file at one http or https address, stores its bytes as a document, ' +
-    'and returns the document id and the text of its pages. Cite the id in a proposal. A page ' +
-    'whose bytes are already stored comes back as "known", and nothing is written. The pages ' +
-    'follow the caps of document_text. "notice" says when a page gave little text, because a ' +
-    'script draws it and this tool runs none.',
+    'and returns the document id and the text of its pages. Cite the id of the document that ' +
+    'gave the pages in a proposal. A page whose bytes are already stored comes back as ' +
+    '"known", and nothing is written. The pages follow the caps of document_text. An HTML page ' +
+    'is also loaded in a headless browser when "render" is true, or when its text is shorter ' +
+    'than "renderBelow" characters (0 stops the render). The browser runs the scripts of the ' +
+    'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
+    'address, named in "rendered"; "document" stays the bytes that the server gave. When ' +
+    '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
+    'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
+    'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
+    'refused, and a render of that kind is not stored.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
     toPage: z.number().int().min(1).optional(),
+    render: z.boolean().default(false),
+    renderBelow: z.number().int().min(0).default(RENDER_BELOW),
   }),
   output: outputShape,
   async run(session, input, reach) {
-    if (reach === undefined)
+    if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
 
     const day = reach.now().toISOString().slice(0, 10);
+    const getOptions: GetOptions = {
+      maxBytes: MAX_BYTES,
+      timeoutMs: TIMEOUT_MS,
+      maxRedirects: MAX_REDIRECTS,
+      ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
+      ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
+    };
     let got;
     try {
-      got = await guardedGet(input.url, {
-        maxBytes: MAX_BYTES,
-        timeoutMs: TIMEOUT_MS,
-        maxRedirects: MAX_REDIRECTS,
-        ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
-        ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
-      });
+      got = await guardedGet(input.url, getOptions);
     } catch (fault) {
       if (fault instanceof FetchRefusal) throw new ToolRefusal(fault.message);
       throw fault;
@@ -212,56 +321,71 @@ export const fetchDocument = defineTool({
     const unreadable = unreadablePage(mime, pages);
     if (unreadable !== null) throw new ToolRefusal(unreadable);
 
-    const sha256 = createHash('sha256').update(got.bytes).digest('hex');
     const metadata = await metadataOf(got.bytes, mime);
+    const plain = await storeFetched(session, reach.store, {
+      bytes: got.bytes,
+      mime,
+      uri: got.url,
+      title: titleOf(mime, got.bytes, metadata, got.url),
+      pages,
+      day,
+    });
 
-    let status: 'known' | 'stored' = 'known';
-    let known = await knownOf(session, sha256);
-    if (known === undefined) {
-      // The key holds the hash alone, as the worker writes it, so the two paths name one object.
-      const key = await reach.store.put({ key: `raw/${sha256}`, bytes: got.bytes, mime });
-      const title = titleOf(mime, got.bytes, metadata, got.url);
-      try {
-        await rowsOf(session, storedRow, STORE, [
-          title,
-          key,
-          got.url,
-          sha256,
-          mime,
+    const notices: string[] = [];
+    let captcha = mime === 'text/html' && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
+    let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
+    const allText = pages.join('').trim().length;
+    const html = mime === 'text/html';
+    if (input.render && !html)
+      notices.push(`only an HTML page is rendered, and this answer is ${mime}`);
+    if (html && !input.render && allText < input.renderBelow)
+      notices.push(
+        `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
+      );
+
+    if (html && (input.render || allText < input.renderBelow)) {
+      // The plain document is stored first, so a fault of the browser loses no part of it.
+      const page = await renderedOf(got, mime, getOptions, notices);
+      // A render that gives a challenge or a missing page is not stored. The plain page stays.
+      const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
+      if (unreadableRender !== null) notices.push(`the render was not stored: ${unreadableRender}`);
+      else if (page !== null) {
+        captcha ||= CAPTCHA.test(page.html);
+        const stored = await storeFetched(session, reach.store, {
+          bytes: page.bytes,
+          mime: 'text/html',
+          uri: got.url,
+          title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
+          pages: page.pages,
           day,
-          JSON.stringify(pages),
-          EXTRACTOR,
-        ]);
-        status = 'stored';
-      } catch (fault) {
-        // A second caller stored the same bytes at the same instant.
-        if (!isUniqueViolation(fault)) throw fault;
+        });
+        rendered = { id: stored.id, status: stored.status, title: stored.title };
       }
-      known = await knownOf(session, sha256);
-      if (known === undefined) throw new Error('the door stored a document and no row holds it');
     }
+    if (captcha)
+      notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
 
     const text = await documentText.run(session, {
-      document: known.id,
+      document: rendered?.id ?? plain.id,
       fromPage: input.fromPage,
       toPage,
     });
-    const allText = pages.join('').trim().length;
     return {
-      document: known.id,
-      status,
-      title: known.title,
-      mime: known.mime ?? mime,
+      document: plain.id,
+      status: plain.status,
+      title: plain.title,
+      mime: plain.mime ?? mime,
       url: got.url,
-      retrievedAt: known.retrieved_at ?? day,
+      retrievedAt: plain.retrieved_at ?? day,
       metadata: { author: metadata.author, created: metadata.created },
       pages: text.pages,
       lastPage: text.lastPage,
       truncated: text.truncated,
-      notice:
-        mime === 'text/html' && allText < LITTLE_TEXT
-          ? `the page gave ${allText} characters of text: it may need JavaScript, and this tool runs none`
-          : null,
+      notice: notices.length === 0 ? null : notices.join('; '),
+      rendered:
+        rendered === null
+          ? null
+          : { document: rendered.id, status: rendered.status, title: rendered.title },
     };
   },
 });
