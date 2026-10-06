@@ -1,7 +1,7 @@
 # The gates that nobody has to remember. Every command below already existed in `package.json`,
 # and every one of them was voluntary: no hook and no runner called them.
 #
-# The name is not `check`. `pnpm check` is defined in ADR 0001 §3 and it begins with the drift
+# The name is not `check`. `pnpm check` is defined in ADR 0001 and it begins with the drift
 # check, which needs the database. Nothing here reaches the database, so this workflow runs
 # `check:static` — `pnpm check` without that first step — and then the build and the suite as
 # steps of their own. A weaker gate must not carry the name of the stronger one.

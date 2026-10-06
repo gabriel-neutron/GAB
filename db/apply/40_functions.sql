@@ -2357,7 +2357,7 @@ $$;
 
 
 -- ============================================================================== THE TRAVERSAL =
--- T4 and docs/spec.md §4: complex read logic lives in a SQL function and never in the client.
+-- T4 and docs/spec.md: complex read logic lives in a SQL function and never in the client.
 -- The join requires an entity at BOTH ends. Without that, the walk returns the identifier of an
 -- M4 relation in a column named entity_id, and the surface draws a phantom node.
 --

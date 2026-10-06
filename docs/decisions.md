@@ -1,367 +1,294 @@
-# Gabriel — Decision Register
+# Gabriel — Product rules
 
-**Version** 1.2 · 24 August 2026
-One entry per locked decision: what is decided, why, what it costs.
-This document is the project's memory. Any future decision that contradicts an entry here must replace it explicitly, not work around it.
+The operator owns this document (`authoring.md`). Each entry gives one product rule, its reason and
+its cost. An identifier (C4, M8, P1) names an entry, and the code and the other documents can cite
+it. The build decisions are in the ADRs.
 
-**Read one entry, not the whole file.** The table below gives each identifier in one line.
-Find the identifier you need, then read that entry only.
-
-An identifier in `spec.md` or `prd.md` always names a row of this table. The
-workflow steps of `prd.md` §3 use the prefix `W`, so that they cannot be confused with the
-`S` entries here.
-
-## Index
-
-| ID | Decision | Group |
+| ID | Rule | Group |
 |---|---|---|
-| C1 | The framing phase delivers a requirements spec, not a tech stack | Framing |
-| C2 | The reference user is one real operator, not a team and not a market | Framing |
-| C3 | The spec is anchored on the analyst workflow; the exclusion list is a deliverable | Framing |
-| C4 | Single arbitration criterion: a capability must multiply investigative capacity | Framing |
-| C5 | Single operator, no authentication, no roles | Framing |
-| C6 | Multi-project support is theoretical; no `project_id` | Framing |
-| C7 | The existing corpus is rebuilt, not carried over | Framing |
-| M1 | FollowTheMoney is abandoned; it has no geometric type | Data model |
-| M2 | Two tables: typed for what connects, free for what describes | Data model |
-| M3 | An occurrence is not an object | Data model |
-| M4 | A relation can be the end of a relation, from the first day | Data model |
-| M5 | Current-state model, no versioning, no query as of a date | Data model |
+| C1 | The requirements come first, the technology second | Framing |
+| C2 | The reference user is one real operator | Framing |
+| C3 | The spec follows the analyst workflow; the exclusion list is a deliverable | Framing |
+| C4 | A capability must multiply investigative capacity | Framing |
+| C5 | One operator, no authentication, no roles | Framing |
+| C6 | One project; no project partition | Framing |
+| C7 | The old corpus is rebuilt, not carried over | Framing |
+| M1 | No FollowTheMoney | Data model |
+| M2 | Typed fields for what connects, free attributes for what describes | Data model |
+| M3 | An occurrence is a relation or an attribute, not a node | Data model |
+| M4 | A relation can point at a relation | Data model |
+| M5 | The graph is the present state; no history, no query by date | Data model |
 | M6 | A date is provenance, or a bound on a claim that changes hands | Data model |
-| M7 | One shape for every attribute: a value, and the sources of that value | Data model |
-| M8 | A source is never absent; a person may cite their own authority, a machine may not | Data model |
-| M9 | A value always exists; the unknown is the absence of a key | Data model |
-| M10 | The unit is carried by the key name, such as `coal_stock_t` | Data model |
+| M7 | One shape for every attribute: a value and its sources | Data model |
+| M8 | A source is never absent; a machine never cites the operator's authority | Data model |
+| M9 | A value is never null or blank; the unknown is an absent key | Data model |
+| M10 | The unit is in the key name | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
-| M12 | Entity merges are reversible | Data model |
-| S1 | ADMIRALTY is scored at the document, never at the claim — **replaced by ADR 0011** | Sources and scoring |
-| S2 | The source is listed at entity, relation and attribute level | Sources and scoring |
-| S3 | Automated scoring; the operator validates by exception only | Sources and scoring |
-| S4 | The origin of every rating is stored and published | Sources and scoring |
-| P1 | Two layers: the machine writes candidates, the operator promotes | Pipeline and AI |
-| P2 | Proposals are operations, not ghost entities | Pipeline and AI |
-| P3 | Dual review surface: a graph marker, and a queue | Pipeline and AI |
-| P4 | The proposal contract is frozen; agents and prompts stay free | Pipeline and AI |
-| P5 | Ingestion formats: extractable text only, no OCR, no audio, no video | Pipeline and AI |
-| P6 | One ingestion door; structured data is mapped by proposal | Pipeline and AI |
-| P7 | Live search queries three substrates: documents, graph, internet | Pipeline and AI |
-| PU1 | Everything is public, candidate layer included | Publication |
-| T1 | TypeScript end to end | Technical |
-| T2 | PostgreSQL/PostGIS is the single GOLD datastore | Technical |
-| T3 | Binary split: the S3 store holds raw, PostgreSQL holds GOLD | Technical |
-| T4 | The frontend reads on its own; the backend serves writes only | Technical |
-| T5 | Qdrant and NATS are deferred; pgvector and a job table replace them | Technical |
-| T6 | Two-tier validation: Zod at the boundary, `CHECK` in the database | Technical |
-| T7 | Frontend framework choice — **replaced by ADR 0004** | Technical |
-| T8 | Cartographic library — **replaced by ADR 0005** | Technical |
-| T9 | One call to the model is retried; the job-level count is set in T9a | Technical |
+| M12 | An entity merge is reversible | Data model |
+| S1 | A rating rates the originator of the information, and only that | Sources and trust |
+| S2 | The source is listed at entity, relation and attribute level | Sources and trust |
+| S3 | The machine prepares; the operator decides by exception | Sources and trust |
+| S4 | The origin of each decision is stored and published | Sources and trust |
+| S5 | A claim speaks in GAB's voice only on strong evidence | Sources and trust |
+| S6 | An allegation about a named person or company is attributed | Sources and trust |
+| P1 | Two layers: the machine proposes, a promotion makes evidence | Pipeline and AI |
+| P2 | A proposal is an operation, not a ghost entity | Pipeline and AI |
+| P3 | Two review surfaces: a marker on the graph, and a queue | Pipeline and AI |
+| P4 | The proposal contract is stable; agents and prompts are free | Pipeline and AI |
+| P5 | Text formats only; OCR only as a second reading | Pipeline and AI |
+| P6 | One ingestion door; a structured file is mapped by a proposal | Pipeline and AI |
+| P7 | Live search reads documents, the graph and the internet | Pipeline and AI |
+| PU1 | The app is public, with clear labels | Publication |
 
 ---
 
 ## Framing
 
-### C1 — The deliverable of the framing phase is a requirements spec, not a tech stack
+### C1 — The requirements come first
 
-**Decision.** Define the requirements first, the technology second.
-**Why.** v1 drifted through incremental accumulation with no overall vision. Restarting from the technology would have replayed the same mechanism.
-**Consequence.** The stack was settled in a second pass, once the requirements had been decided. The two documents remain separate.
+**Rule.** Define the requirements first, the technology second.
+**Why.** Version 1 grew by small additions with no general view. Starting from the technology would
+repeat that.
 
-### C2 — The reference user is an internal investigation instrument
+### C2 — The reference user is one real operator
 
-**Decision.** Gabriel is specified for a single, real operator — not for a hypothetical team, and not for a market.
-**Why.** Specifying for "any OSINT team" makes every feature defensible and none prioritisable. A user who is actually present is the only filter that cuts.
-**Consequence.** Open-source publication becomes a constraint on form (standard formats, no structural proprietary dependency), not a source of requirements. The product dimension is out of scope.
+**Rule.** Gabriel is for one real operator, not for a team or a market.
+**Why.** "Any OSINT team" makes every feature defensible and none a priority. A real user is the
+only filter that cuts.
+**Cost.** Open-source publication only constrains the form (standard formats, no closed
+dependency).
 
-### C3 — The spec is anchored on the analyst workflow
+### C3 — The spec follows the analyst workflow
 
-**Decision.** The backbone of the PRD is the real sequence of work, with each step marked as inside or outside Gabriel.
-**Why.** A feature list has no exclusion criterion. A workflow has one: the step either exists or it does not, and it is either in the tool or outside it.
-**Consequence.** The "what Gabriel does not do" list is a first-class deliverable, not an appendix.
+**Rule.** The PRD follows the real sequence of work, and marks each step as in or out of Gabriel.
+**Why.** A feature list has no exclusion criterion. A workflow has one.
+**Cost.** The list "what Gabriel does not do" is a deliverable.
 
-### C4 — Single arbitration criterion: capacity multiplier
+### C4 — A capability must multiply investigative capacity
 
-**Decision.** Any capability that does not multiply investigative capacity within the project's horizon is out of scope.
-**Why.** A single, enforceable criterion avoids case-by-case arbitration, which is the mechanism of drift.
-**Consequence.** This criterion takes precedence over technical elegance, exhaustiveness and generality.
+**Rule.** A capability that does not multiply investigative capacity in the project horizon is out
+of scope.
+**Why.** One criterion stops case-by-case decisions, which is how scope drifts.
+**Cost.** This criterion wins over elegance, completeness and generality.
 
-### C5 — Single operator, no authentication
+### C5 — One operator, no authentication
 
-**Decision.** One person edits. External contributions enter as source documents, not as users.
-**Why.** Real usage is single-operator. Building accounts, roles and permissions for one user is pure cost.
-**Consequence.** No auth, no RBAC, no real-time collaboration, no edit-conflict handling. An external contribution is attributed through the document, not through the account.
+**Rule.** One person edits. An external contribution enters as a source document, not as a user.
+**Why.** Accounts, roles and permissions for one user are pure cost.
+**Cost.** No login, no roles, no real-time collaboration.
 
-### C6 — Multi-project support is theoretical
+### C6 — One project
 
-**Decision.** The system is single-project in practice. The notion of a project does not structure the data model.
-**Why.** No second project exists. Partitioning built in advance contaminates every table and every query.
-**Consequence.** No `project_id` column, no cross-cutting filtering. Introducing it later will be a real migration — a cost accepted in exchange for an immediate simplification of the entire schema.
+**Rule.** The data model has no notion of a project.
+**Why.** No second project exists, and a partition made in advance touches every table and query.
+**Cost.** A second project later is a real migration.
 
-### C7 — The existing corpus is rebuilt, not carried over
+### C7 — The old corpus is rebuilt
 
-**Decision.** The structure is rethought without debt. The 1000+ existing entities will be migrated afterwards.
-**Why.** The material collected has value; the structure carrying it does not.
-**Consequence.** Validation safeguard: a sample of v1 entities must be shown to be representable in the target model before that model is frozen.
+**Rule.** The structure starts again with no debt. The 1,000+ old entities are migrated later.
+**Why.** The material has value; the structure that carried it does not.
+**Check.** A sample of old entities must fit the new model.
 
 ---
 
 ## Data model
 
-### M1 — FollowTheMoney is abandoned
+### M1 — No FollowTheMoney
 
-**Decision.** No adoption of FTM, no FTM export mapping.
-**Why.** FTM has **no geometric type** — the 20 available property types include neither point, nor polygon, nor coordinates ([reference](https://followthemoney.tech/explorer/types/)). Yet the cartographic pillar is central. PostGIS handles natively what FTM cannot express.
-**Accepted consequence.** Loss of immediate interoperability with OpenSanctions and Aleph, which produce and consume FTM. Any external reuse of the dataset will require conversion work, to be written later if the need arises.
+**Rule.** No FTM model and no FTM export.
+**Why.** FTM has no geometry type, and the map is central. PostGIS does what FTM cannot.
+**Cost.** No direct exchange with OpenSanctions or Aleph.
 
-### M2 — Two tables, and one line through them
+### M2 — Typed fields for what connects, free attributes for what describes
 
-**Decision.** An entity table and a relation table. Each row carries typed columns for what every row of its kind shares, and free attributes for what only that row says.
-**Why.** A rigid shape makes the data bend to fit. A completely free shape makes correlation impossible. The line falls in the correct place when what connects is typed, and what describes is free.
-**Consequence.** A free attribute is not indexed one by one. A search through the attributes is slower than a search on a column. This is accepted at the volumes of this project.
+**Rule.** There are entities and relations. What every row of a kind shares is a typed field. What
+only one row says is a free attribute.
+**Why.** A rigid shape bends the data, and a free shape stops correlation.
+**Cost.** A search through free attributes is slower. This is acceptable at our volume.
 
-### M3 — An occurrence is not an object
+### M3 — An occurrence is not a node
 
-**Replaces the earlier M3**, which made an event an entity.
-**Decision.** A transfer, a port call or a loading operation is a relation between the parties, or an attribute of one of them. No node stands for a moment.
-**Why the earlier entry was wrong.** Its reason was that an event carries a date. M5 makes the graph a statement of the present, and M6 gives a date two meanings, of which neither is "when this occurred". The model thus has no place for the one thing that made an event an object, and no query that would read it.
-**Accepted cost.** An occurrence with three or more parties has no single shape. It becomes two or more relations, and nothing ties them together. A shape for occurrences is a later decision, and it is a real migration.
+**Rule.** A transfer, a port call or a loading is a relation between the parties, or an attribute
+of one of them.
+**Why.** The graph is the present state (M5), so no node can stand for a moment.
+**Cost.** An occurrence with three or more parties becomes several relations with no tie between
+them.
 
-### M4 — Minimal reification of relations
+### M4 — A relation can point at a relation
 
-**Decision.** A relation can be the end of another relation. The schema carries this from the first day, and nothing uses it yet.
-**Why.** The real case is **contradiction between claims**: two documents assert incompatible things about the same link, and the exception mechanism rests entirely on dissent — it needs somewhere to record it. Today it is carried and unused; in six months it is a migration over tens of thousands of rows.
-**Consequence.** An end that can point at two kinds carries no foreign key. Its integrity is held by a guard on the write path, which is weaker than a constraint that the engine owns.
+**Rule.** The end of a relation can be another relation.
+**Why.** Two documents can disagree about one link, and the disagreement needs a place.
+**Cost.** The database cannot use a plain foreign key for such an end, so the write path guards it.
 
-### M5 — Current-state model, no versioning
+### M5 — The graph is the present state
 
-**Decision.** The graph describes the present state. No modification history, no "as of date T" query.
-**Why.** The cost of a temporal or bi-temporal model — modelling, queries, data-entry ergonomics — exceeds the value it brings given the resources available.
-**Accepted consequence.** It is impossible to demonstrate by query that an asset belonged to X at the time of a fact and then to Y afterwards. Any demonstration of sequence rests on the documents, not on the graph.
+**Rule.** No change history, and no query "as of a date".
+**Why.** A time model costs more than it gives with our resources.
+**Cost.** The graph cannot prove that an asset belonged to X and then to Y. The documents prove a
+sequence.
 
 ### M6 — A date is provenance, or a bound
 
-**Replaces the earlier M6**, which counted places instead of giving a rule.
-**Decision.** The system stores a date for one of two reasons. It says when a source was read. Or it bounds a claim that can change hands, such as who owns a thing, or who a thing is. The system stores no date to record when something occurred.
-**Why.** Without the date a source was read, a link that has died proves nothing. That is provenance, and not a model of time. A bound on ownership documents the transfer that follows a designation, which is a central object of the investigation, for the cost of one optional field.
-**Consequence.** These dates describe. They make no temporal query, and they give back nothing that M5 gives up. Which claims take a bound is a question for the schema, and the schema answers it.
-**The one way that is left.** A date can also be the value of an attribute, because an attribute takes any value. Such a date is a claim like any other, and M7 and M8 govern it, not this entry. M5 still refuses to query it.
+**Rule.** The system stores a date for two reasons only: when a source was read, or the bounds of a
+claim that can change hands (who owns a thing, who a thing is).
+**Why.** A dead link proves nothing without the date it was read. A bound on ownership records the
+transfer after a designation.
+**Cost.** No time query. A date can still be the value of an attribute, as a sourced claim.
 
 ### M7 — One shape for every attribute
 
-**Decision.** An attribute is a value, and the sources of that value, always in that one shape. There is no short form, no third part, and no depth in the value.
-**Why.** One shape gives one code path, one rule to validate, and one behaviour on a write. A value that needs depth shows that an entity or a relation was necessary, and not an attribute.
-**Consequence.** It is long to write. The interface writes it, and the database refuses each other shape.
+**Rule.** An attribute is a value and the sources of that value, always in that one shape.
+**Why.** One shape gives one code path and one rule.
+**Cost.** A value that needs depth is an entity or a relation.
 
 ### M8 — A source is never absent
 
-**Decision.** Every attribute cites a minimum of one source. A person who asserts on their own authority cites a source reserved for that purpose. **A machine must not use that reserved source**, and must cite a real document.
-**Why.** The "everything is sourced" invariant does not survive a silent exception. The machine/human asymmetry prevents the AI from creating unsupported claims while making explicit what a human has asserted on their own authority.
-**Consequence.** The reserved source is a source like any other. It can be scored, and everything that stands on the authority of the operator alone is one query.
+**Rule.** Each attribute cites at least one source. The operator can cite their own authority
+through a reserved source. A machine never can, and always cites a real document.
+**Why.** "Everything is sourced" does not survive a silent exception. A machine cannot make an
+unsupported claim.
+**Cost.** All that stands on the operator's word alone is one query away.
 
-### M9 — A value always exists; the unknown is the absence of a key
+### M9 — A value is never empty
 
-**Decision.** `v` is never null. Information that is not known is expressed by the absence of the key.
-**Why.** Two ways of saying "we don't know" produce two query behaviours and two bugs.
-**Consequence.** It is impossible to distinguish "not filled in" from "searched for and not found". If that need arises, it will have to go through an explicit key, not through a null.
-**Amended 28 September 2026.** A bare string value that is empty or all whitespace is refused, at both tiers (`attributeEdit` in `packages/proposal/src/attribute-value.ts`, and `attrs_valid` in the database). It stated no fact — unlike null, which M9 already routes through the absence of the key, a blank string was never distinguishable from an unset field. A list keeps no minimum: `{"v": []}` still states a known "none", a fact M11 leaves untouched.
+**Rule.** A value is never null and never a blank string. The unknown is an absent key.
+**Why.** Two ways to say "we do not know" give two query behaviours and two bugs.
+**Cost.** "Not filled" and "searched and not found" look the same. An explicit key can say the
+second.
 
-### M10 — The unit is carried by the key name
+### M10 — The unit is in the key name
 
-**Decision.** `coal_stock_t`, not `coal_stock` with a unit field.
-**Why.** Zero cost, zero ambiguity, no schema complexity.
-**Consequence.** A change of unit creates a new key and manual reconciliation work.
+**Rule.** For example `coal_stock_t`, not `coal_stock` with a unit field.
+**Cost.** A change of unit makes a new key.
 
 ### M11 — No attribute registry
 
-**Decision.** No attribute-definition table, no key allowlist.
-**Why.** The registry is work done ahead of an undemonstrated need, contrary to C4.
-**Accepted consequence.** Nothing prevents `coal_stock`, `coalStock` and `coal_stock_tonnes` from coexisting on three entities of the same type, all three valid, rendering the graph silently unusable. Mitigation adopted: a monitoring view of keys by type, reviewed periodically. It makes the problem visible; it does not prevent it. This safeguard becomes insufficient as soon as an agent writes at volume.
+**Rule.** No list of allowed keys. A monitoring view shows the keys by type.
+**Why.** A registry is work for a need nobody showed (C4).
+**Cost.** Three spellings of one key can live side by side. The view shows this; it does not stop
+it. This becomes weak when an agent writes at volume.
 
-### M12 — Entity merges are reversible
+### M12 — An entity merge is reversible
 
-**Decision.** A merge keeps the identifier of the entity it absorbs, and it keeps a full copy of everything that entity held.
-**Why.** Identity resolution will produce erroneous merges. Without a snapshot, a merge is a permanent loss of information.
-**Consequence.** Historical identifiers remain resolvable; no external link breaks after a merge.
+**Rule.** A merge keeps the identifier and a full copy of the entity it absorbs.
+**Why.** Identity resolution will make wrong merges.
+**Cost.** None of note. Old identifiers still resolve.
 
 ---
 
-## Sources and scoring
+## Sources and trust
 
-### S1 — ADMIRALTY is scored at the document, not at the claim
+### S1 — A rating rates the originator
 
-**Decision.** One score per document. No score at claim level.
-**Why.** Scoring every claim is unmanageable given the resources available.
-**Accepted consequence.** The **reliability (A–F)** axis is handled correctly: it is a property of the source. The **credibility (1–6)** axis is not: a single document contains a corroborated fact and a rumour, and they receive the same score. **The dataset must present the scoring as a source score, never as a claim score.** Any presentation to the contrary would be false.
-**Superseded 4 October 2026 by ADR 0011 §7.** No document carries an ADMIRALTY grade. The letter rates the originator. The digit is a view on each claim.
+**Rule.** A rating rates the originator of the information only. It never rates a platform, a
+domain, a document or a type of claim. A new source starts with no basis to judge. Only its record
+of claims that later evidence settled can change its rating; the agreement of other media never
+does. The public does not see the rating.
+**Why.** A document mixes facts and rumours, so one grade per document is false. The originator is
+the thing whose record we can measure.
+**Cost.** A new source is weak until it has a record.
 
-### S2 — The source is listed at entity, relation and attribute level
+### S2 — The source is listed at each level
 
-**Replaces the earlier S2**, which named the three levels but left open what the entity's and
-the relation's own list assert, next to an attribute's own list. #86 named the gap.
+**Rule.** An entity and a relation carry a list of sources for their typed fields (name, type,
+position, ends, dates). Each attribute carries its own sources. A promotion that changes a typed
+field replaces the list of that row.
+**Why.** The typed fields need a source, and one list per field costs too much.
+**Cost.** The row list does not say which typed field each source supports.
 
-**Decision.** The row-level list on `entities` and on `relations` backs the typed columns of
-that row — the columns outside `attrs`, which M7's `{v, src}` shape cannot reach. On an entity,
-that is `label`, `type` and `geom`. On a relation, that is `type`, its two endpoints, and
-`valid_from` / `valid_to`. An attribute's own `src`, inside `attrs`, backs that one value alone.
-A promotion that changes any of a row's typed columns replaces the whole row-level list with its
-own sources. It does not keep the sources of the value it supersedes. This is the same rule M5
-already gives every other current-state fact.
-**Why.** The row-level list needed a job an attribute's own list cannot do: an entity's name,
-its type and its map location are not stored as `{v, src}` pairs, so nothing else in the schema
-carries their source. Splitting one list per typed column would need a schema change for a fact
-of small cost; combining them into one list is the cost this decision accepts.
-**Consequence.** A reader cannot tell, from the row-level list alone, which of `label`, `type` or
-`geom` a given source backs. It only shows that the source backs one of the three, as of the
-last promotion that touched any of them. Postgres constrains nothing from inside a JSON
-document, so an attribute's own integrity is not a foreign key. That guard stays where
-`spec.md` invariant 2 puts it.
+### S3 — The machine prepares, the operator decides by exception
 
-### S3 — Automated scoring, human validation by exception
+**Rule.** The machine reads, checks and proposes. The operator looks only at the doubtful cases.
+No model writes a rating, a public state or an audit label: only code and the operator do.
+**Why.** A queue of every claim makes one person the bottleneck and cancels the gain.
+**Cost.** Two similar models can share a blind spot. Until an audit measures a path, the public
+text says that its accuracy is not measured.
 
-**Decision.** Scores are produced by a multi-agent arrangement designed to produce contradiction. The operator intervenes only in cases of dissent between agents or of confidence below threshold.
-**Why.** An exhaustive validation queue bottlenecks the whole system on one person's attention, which cancels the multiplier effect.
-**Accepted consequence.** Dissent detects disagreement between agents, **not the blind spot they share**: similar models trust the same laundered source and miss the same transliteration. Without a random audit sample — ruled out here — **no public claim about the accuracy rate of the scoring is defensible**. The dataset must state that the scoring is automated and unmeasured.
-**Amended 3 October 2026 by ADR 0010 §7.** S3 is not a door. A rule score from the cited sources puts a machine proposal in one of three bands: accept, review, drop. Dissent and the rule score order the review band. This replaces the dissent-or-confidence order of #42.
-**Amended 4 October 2026 by ADR 0011 §8 and §12.** The decision table of ADR 0011 replaces the rule score and the three bands. The audit of each format cell measures it. "Accuracy unmeasured" stays true for a cell until its bound passes.
+### S4 — The origin of each decision is published
 
-### S4 — The origin of every rating is stored and published
+**Rule.** Each public claim shows who or what decided it: the operator, or a named rule.
+**Why.** A machine decision shown as a human one would destroy trust. Declared, it stays
+defensible.
 
-**Decision.** Machine, arbitrated or human, the origin accompanies the rating in the export.
-**Why.** Automated scoring presented as human would invalidate the entire arrangement in the eyes of a peer. Declared, it remains defensible.
-**Consequence.** None. It is one field.
-**Amended 3 October 2026 by ADR 0010 §7.** The decision origin is a typed column, published and labelled.
-**Amended 4 October 2026 by ADR 0011 §14.2.** The decision origin reads `rule:v4.<n>`, with a method statement. The letter and the digit are internal. They are not exported and not shown.
+### S5 — GAB's voice needs strong evidence
+
+**Rule.** A claim goes public in GAB's own voice only when an official record, a verified
+observation, or audited independent first-hand sources support it. Each other public claim is
+attributed to its source. At launch, every automatic path to GAB's voice is closed. A path opens
+only after the operator audits it with hand checks.
+**Why.** A wrong claim in GAB's voice costs more than a slow claim.
+**Cost.** At the start, the operator decides each claim in GAB's voice.
+
+### S6 — An allegation about a named subject is attributed
+
+**Rule.** An adverse allegation about a named person or company is always attributed. Before it
+goes public, GAB searches for a public response from the subject. GAB never contacts the subject.
+**Why.** Fairness, and the legal risk of a public allegation.
+**Cost.** Each such claim needs a search before it goes public.
 
 ---
 
 ## Pipeline and AI
 
-### P1 — Two layers: candidate and evidentiary
+### P1 — Two layers
 
-**Decision.** The machine writes freely into the candidate layer. Nothing reaches the evidentiary layer without explicit promotion by the operator.
-**Why.** Automatic correlation only has value if it can cast a wide net without costing a decision per result; the report only has value if nothing enters it without validation.
-**Consequence.** Promotion is the central gesture of the workflow. The ergonomics of review determine the value of the entire system: if review is painful, the evidentiary layer stays empty.
-**Amended 3 October 2026 by ADR 0010 §7.** The operator, or a source rule computed by the database, moves a proposal to the evidentiary layer or rejects it. The rule is off until #9 sets its parameters. This note supersedes the resolution of #42.
-**Amended 4 October 2026 by ADR 0011 §8.** The operator, or the decision table of ADR 0011, moves a claim to a public state. This replaces the source rule of ADR 0010 §7.
+**Rule.** The machine writes freely into the candidate layer. Nothing reaches the evidentiary layer
+without a promotion: by the operator, or by an audited rule (S5).
+**Why.** Correlation has value only when it casts a wide net at no cost per result. Evidence has
+value only when nothing enters it without a check.
+**Cost.** Promotion is the central action. If review is slow, the evidentiary layer stays empty.
 
-### P2 — Proposals are operations, not ghost entities
+### P2 — A proposal is an operation
 
-**Decision.** The candidate layer is a table of proposed operations (create, modify, link, merge), not a copy of the graph.
-**Why.** Duplicating the graph would mean maintaining two schemas and keeping them in sync. A proposal is a change, not an object.
-**Consequence.** Displaying candidates as ghost nodes or links on the graph is client-side rendering work, not a structure in the database.
+**Rule.** The candidate layer is a list of proposed operations (create, change, link, merge), not a
+copy of the graph.
+**Why.** A copy of the graph means two schemas to keep equal.
+**Cost.** The UI draws candidates as ghost nodes itself.
 
-### P3 — Dual review surface
+### P3 — Two review surfaces
 
-**Decision.** Proposals appear both as a marker on the graph, for review in context, and in a dedicated queue, for batch processing.
-**Why.** The two modes correspond to two real uses: digging into one element, or clearing a batch.
-**Consequence.** Two surfaces to build and to keep consistent.
+**Rule.** A proposal shows as a marker on the graph, and in a queue.
+**Why.** Two real uses: look at one element, or clear a batch.
 
-### P4 — The proposal contract is stable, everything else is free
+### P4 — The proposal contract is stable
 
-**Decision.** The format of a proposal is frozen: target, operation, value, mandatory sources, confidence score, emitting agent, dissenting votes. Agents, models, prompts and sequences can change without touching the schema.
-**Why.** This is the interface between an unstable layer and a database that has to last.
-**Consequence.** Any non-conforming proposal is rejected at the boundary, including one coming from an agent.
+**Rule.** The shape of a proposal is fixed: target, operation, value, sources, confidence, author.
+Agents, models and prompts can change freely.
+**Why.** It is the interface between a changing layer and a database that must last.
+**Cost.** A proposal of the wrong shape is refused, also from an agent.
 
-### P5 — Ingestion formats: extractable text only
+### P5 — Text formats only
 
-**Decision.** Text PDF, docx, txt, md, html, csv. No OCR, no audio, no video.
-**Why.** Each additional tier is a separate pipeline to build and maintain, for an undemonstrated gain.
-**Consequence.** A scanned document must be converted outside the tool before ingestion.
-**Amended 4 October 2026 by ADR 0011 §3.1.** Code runs OCR (Tesseract rus+ukr+eng) on stored images, as a second reader.
+**Rule.** Text PDF, docx, txt, md, html, csv. No audio, no video. OCR runs only as a second reading
+of a stored image, never as the first.
+**Why.** Each new format is a new pipeline to build and keep.
+**Cost.** A scanned document is converted outside the tool first.
 
-### P6 — One ingestion door; structured data is mapped by proposal
+### P6 — One ingestion door
 
-**Replaces the earlier P6**, which sent GeoJSON, shapefile and structured CSV directly into the database, without the AI.
-**Decision.** Every file enters through one operation, `put_document`. That operation writes the object to the raw store, writes the `documents` row with its source and its retrieval date, and records the entry. Work is asked for by `enqueue_job`. Behind that door there are two paths. A text file goes to extraction, chunking and the agents (P5). A structured file goes to a mapping step (`map_structured`): code profiles every column, and the model reads the header, the profile and a sample of at most 20 rows under a cap in characters, after the personal-data step. The model emits one `map_document` proposal for each table. The operator promotes it, and the promotion queues `load_mapped`. Code loads every row with no model: each row gives one proposal and one reading of kind `mapped`, which cites its row span, and each unfit row goes into one `report` document of the load. A new file from the same host with the same header signature reuses the accepted mapping with no model call. The model never reads the bulk of the file.
-**Why the earlier entry was wrong.** It assumed that structured data arrives ready to load. A file collected from the internet has arbitrary column names, and fitting them to the M7 attribute contract is judgement, not transport. Judgement made by a machine is a proposal — that is P1. A second door also made a second place where the retrieval date of M6 and the row that invariant 2 requires in `documents` could be omitted.
-**Accepted cost.** Loading a shapefile now needs an operator decision that it did not need before. The geographic import path is slower by one promotion step. In exchange, no file exists without a source, and no column mapping enters the graph unreviewed.
+**Rule.** Every file enters through one door, which stores the raw file, records its source and its
+retrieval date, and queues the work. A text file goes to extraction. A structured file goes to a
+mapping: the model reads the header and a small sample, and proposes how the columns map. After the
+operator promotes the mapping, code loads every row with no model.
+**Why.** A file from the internet has arbitrary columns. Fitting them is judgement, and judgement by
+a machine is a proposal (P1). One door means no file without a source.
+**Cost.** A structured import needs one operator decision.
 
-### P7 — Live search queries three substrates
+### P7 — Live search reads three places
 
-**Decision.** Local documents, the graph, and the internet.
-**Why.** This is the usage described: ask a question and get an answer wherever the material happens to sit.
-**Consequence.** Three retrieval paths to build and to merge into a single answer.
+**Rule.** The local documents, the graph and the internet.
+**Why.** The operator asks a question and gets an answer wherever the material is.
 
 ---
 
 ## Publication
 
-### PU1 — Everything is public, candidate layer included
+### PU1 — The app is public, with clear labels
 
-**Decision.** The entire system is publishable, including unvalidated machine claims.
-**Why.** The operator's decision, taken in full knowledge of the risks below.
-**Accepted risks.** Entities under investigation gain access to the progress of the investigation in real time. Unverified claims targeting named companies and individuals are exposed, with the corresponding legal and GDPR exposure. The candidate/evidentiary distinction is weakened in the eyes of a reader who does not understand it.
-**Mitigations adopted.** Visible, non-bypassable labelling of every candidate claim, with origin and score. No personal data on a natural person beyond what a cited source already publishes. A correction and right-of-reply mechanism, documented and accessible.
-**Amended 4 October 2026 by ADR 0011 §9.** HELD and REJECTED claims are not public. The decision origin stays published. The mitigation "no personal data beyond what a cited source publishes" stays.
-
----
-
-## Technical
-
-### T1 — TypeScript end to end
-
-**Decision.** Frontend and backend in TypeScript.
-**Why.** One language, types shared across both sides, one ecosystem to master for a lone operator.
-**Consequence.** Building blocks from the Python world — document processing, geospatial, ML — will have to be called as external services or rewritten.
-
-### T2 — PostgreSQL/PostGIS as the single GOLD datastore
-
-**Decision.** One database for the relational data, the JSONB and the geometry.
-**Why.** One service to operate, native joins between attributes and geometry, and an engine that does all three correctly.
-**Consequence.** Every attribute search goes through a GIN index on JSONB.
-
-### T3 — Binary split: raw / GOLD
-
-**Replaces the earlier T3**, which called the raw file immutable without saying what held it so.
-**Decision.** S3 (SeaweedFS, ADR 0007) holds the raw file. PostgreSQL holds the processed and validated data. Between the two, the pipelines and the references. **The raw file is unchanged by convention, and not by a guarantee the store enforces.** The operator upholds it. No versioning, no object lock and no unique key stand behind it.
-**Why.** Two natures, two guarantees: the raw is not reworked and serves as evidence; the GOLD is continuously reworked. Mixing them loses both guarantees.
-**Why the earlier entry was wrong.** It said "immutable", and the word was measured and found false. The account that writes the bucket may put an object over a key that already exists, which replaces the bytes and deletes nothing. Removing the delete action stops removal and never destruction. Three mechanisms would have made the word true — bucket versioning, object lock at bucket creation, or a key that is the content hash under a unique constraint — and none is built. A guarantee that nothing enforces is a sentence a reader trusts and a machine ignores.
-**Accepted cost.** A source file can be overwritten by a retry, a re-ingest, or a second `documents` row that carries the same key, and nothing warns. Evidence rests on the care of one operator. The day a second person writes to the bucket, or the day the corpus is offered as evidence to somebody else, this entry is replaced again and one of the three mechanisms is built.
-**Consequence.** Every document has an S3 key and a row in the database. Their consistency is the pipeline's responsibility.
-
-### T4 — Frontend autonomous for reads, backend reserved for writes
-
-**Decision.** The frontend reads the database through a read-only HTTP layer. The Node backend serves only editing and heavy processing.
-**Why.** The read path contains no business logic; a backend that relays SELECTs is dead weight.
-**Amended 4 October 2026 by ADR 0010 §8.** The writer also serves the reads of the private data (the #18 conversations). The public read path reads only the results.
-**Consequences.** There is no "direct" access from a browser: the real choice is between a generated HTTP layer and a hand-written one. Complex read logic — graph traversals — moves down into SQL functions. A publicly readable database is a surface for abuse through resource exhaustion, to be fenced in with a read-only role, timeouts, default limits and a CDN cache. Finally, "the frontend works on its own" means **without the Node backend**, not without infrastructure: a reachable database is still required.
-
-### T5 — Qdrant and NATS are deferred
-
-**Decision.** pgvector in the existing database replaces Qdrant. A job table with locking replaces NATS.
-**Why.** At 100 documents and one operator, these two services add operational load for an undetectable gain. Moving to either one later is trivial; carrying them from day one costs two services and two synchronisations.
-**Consequence.** The first build runs on two services: PostgreSQL/PostGIS and SeaweedFS.
-**Amended 3 October 2026 by ADR 0010 §10.** Two services are added: freellmapi and SearXNG.
-
-### T6 — Two-tier validation
-
-**Decision.** Zod at the application boundary, a `CHECK` constraint in the database.
-**Why.** The application tier gives readable errors and frontend typing. The database tier is the only one that survives a writer outside TypeScript — which will happen as soon as the first external worker exists.
-**Consequence.** One rule expressed twice, to be kept in sync.
-
-### T7 — Frontend framework choice deferred
-
-**Replaced by ADR 0004**, which chooses the framework. The consequence below is kept.
-**Decision.** Postponed until the real volumes, the cartographic library and the graph rendering mode are known.
-**Why.** The T4 constraint already imposes the front/back separation, which removes most of the benefit of a fullstack meta-framework. The remaining choice depends on constraints not yet established.
-**Consequence.** shadcn is adopted regardless of the host framework.
-
-### T8 — Cartographic library and tile path deferred
-
-**Replaced by ADR 0005**, which chooses the library and the tile path.
-**Decision.** Postponed, without debt: PostGIS prejudges no rendering path.
-**Caution.** The choice must be made **before** any rendering code is written. Leaflet (raster first, no rotation, no native vector tiles) and MapLibre (vector, GPU) do not share the same layer model, and code for one does not carry over to the other.
-
-### T9 — The retry of one call to the model
-
-**Decision.** One question to the model gets one attempt and three retries after a network failure, and one retry of an answer the boundary refuses, with the fault fed back. The client of the model service holds both counts. What a **job** does when that chain ends is set in T9a, below, and not here.
-**Why.** The two counts bound one call, and they are known without measurement: a transport that fails four times is down, and a model that breaks its schema twice will break it again. The job-level rule is a different question — how many times a document is taken up again, how long the wait grows, and when a job is marked failed — and it needs real traffic to answer.
-**Consequence.** The two counts stay in the code and are not caller configuration, so a caller cannot weaken them. The job table carries columns for a retry history that nothing writes yet, and the migration says so.
-
-### T9a — The job-level retry limit, 26 September 2026
-
-**Decision.** A job gets 3 total attempts (claims). A failure on the 1st or 2nd attempt leaves the row `running`, and the existing lease expiry requeues it. A failure on the 3rd attempt marks the job `failed`, with the error message as `failure_reason`, through a new door, `fail_job`.
-**Why.** T9 left this number undecided for lack of real traffic. The operator now sets it directly, at a small number that matches the model client's own retry counts, so one job does not loop through the queue far longer than one call to the model already does. `failure_kind` stays NULL for this path: it is a job-exhaustion reason, not one of the three call-level kinds the column is checked against.
-**Consequence.** `fail_job(uuid, text)` is the eighth door and the first to write `status = 'failed'`. It is granted to `gabriel_agent`, the same role that holds `claim_job`, since the worker is the one that knows a job has run out of attempts.
-**Amended 26 September 2026.** The queue dispatch claimed per-document jobs for corpus-wide work, so it was deleted. `fail_job`, the attempt limit and the lease requeue belong to the per-document P6 runner, and no process claims a job until it exists.
-**Amended 3 October 2026 by ADR 0010 §5.** A quota pause spends no attempt. A `complete_job` door and a `jobs.kind` column are added. The lease is longer than the worst case of one job.
-**Amended 6 October 2026.** A deterministic stop of an agent (`JobStop`: for example `turn_cap`, `usage_cap`, `no_text`, `no_minimiser`, `no_second_reading`) fails the job on its first claim, with its reason. A retry on the same input gives the same stop, and it spends the token budget again. A model failure and an unknown error keep the three attempts.
+**Rule.** The app is publishable, with the candidate layer. Held and rejected claims are not
+public. Each candidate claim shows a visible label with its origin.
+**Why.** The operator's decision, with the risks known.
+**Risks.** A subject can follow the investigation. An unverified claim about a named company or
+person is exposed (legal and GDPR risk).
+**Mitigations.** The labels. No personal data on a person beyond what a cited source already
+publishes. A correction and right-of-reply process.
