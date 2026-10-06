@@ -93,8 +93,17 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
 };
 
 /** Reads the configuration of the lead agent. It asks the model of the extractor, which is
- * pinned and calls tools, and it has a token budget of its own. */
-export const readLeadConfig = (env: Env): LeadConfig => ({
-  model: readModelConfig('EXTRACTOR', env),
-  tokenCap: numberOf(env, 'LEAD_TOKEN_CAP', true),
-});
+ * pinned and calls tools, and it has a token budget of its own. A lead with no search engine
+ * finds no page, so a search setting is required too. */
+export const readLeadConfig = (env: Env): LeadConfig => {
+  const tokenCap = numberOf(env, 'LEAD_TOKEN_CAP', true);
+  const searches = ['SEARXNG_URL', 'BRAVE_SEARCH_API_KEY'].some(
+    (name) => (env[name]?.trim() ?? '') !== '',
+  );
+  if (!searches)
+    throw new Error(
+      'SEARXNG_URL is empty or absent, and no BRAVE_SEARCH_API_KEY is set. A lead needs a ' +
+        'search engine.',
+    );
+  return { model: readModelConfig('EXTRACTOR', env), tokenCap };
+};

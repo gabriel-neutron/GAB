@@ -151,7 +151,13 @@ code writes its proposals.
   the agent stores, so the claims reach the review queue through the extractor. The agent has no
   propose tool, and its role holds no grant to start a lead, so it starts no lead of its own.
 - **It never stores a page twice.** Before each fetch, code looks for the address in the stored
-  documents. A stored page is not fetched again, and the model reads its document id.
+  documents, in the form that the fetch stores: no fragment, and with or without a slash at the
+  end of the path. A stored page is not fetched again, and the model reads its document id.
+- **It fetches only public addresses.** A search result and a page are untrusted text. The fetch
+  refuses an address of the machine or of a private network, so a page cannot send the agent to
+  an internal service.
+- **A lead setting never stops the extraction.** When a lead setting is absent, the worker starts,
+  and each lead fails at once with a reason that names the setting.
 - **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
   it needs. The token budget of the job is its one stop, and the job fails with that reason. The
   pages stored before the stop stay stored.
