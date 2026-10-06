@@ -70,6 +70,7 @@ function resolvePositions(
       // here either, because a default would draw an unstated position as a measured one.
       precision: typeof precision === 'string' ? precision : null,
       parentId: found?.parentId ?? null,
+      area: null,
     };
   });
 }

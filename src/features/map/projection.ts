@@ -2,6 +2,7 @@ import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
 import type {
+  Area,
   Attributes,
   Corpus,
   Entity,
@@ -24,6 +25,10 @@ export interface GeoEntity {
   readonly label: string;
   readonly lon: number;
   readonly lat: number;
+  /** The shape of an entity that a polygon locates, and null for a point. `lon` and `lat` are then
+   * a point inside it: the one mark of the entity, so the rail, the selection and the relations
+   * read an area as they read a point. */
+  readonly area: Area | null;
   readonly sources: readonly string[];
   /** M7 and M8: a value, and the documents that carry it. The index rows read these. */
   readonly attrs: Attributes;
@@ -208,6 +213,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     label: entity.label,
     lon: at.point.lon,
     lat: at.point.lat,
+    area: at.area,
     sources: entity.sources,
     attrs: entity.attrs,
     // The identity and the words are separate on purpose. An ancestor that the entity list does
@@ -249,14 +255,19 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     }
   }
 
+  // The frame holds the whole of an area, and not its mark alone.
+  const corners = entities.flatMap((entity) => [
+    [entity.lon, entity.lat] as const,
+    ...(entity.area ?? []).flat(2),
+  ]);
   const bounds: Projection['bounds'] =
     entities.length === 0
       ? null
       : [
-          Math.min(...entities.map((entity) => entity.lon)),
-          Math.min(...entities.map((entity) => entity.lat)),
-          Math.max(...entities.map((entity) => entity.lon)),
-          Math.max(...entities.map((entity) => entity.lat)),
+          Math.min(...corners.map(([lon]) => lon)),
+          Math.min(...corners.map(([, lat]) => lat)),
+          Math.max(...corners.map(([lon]) => lon)),
+          Math.max(...corners.map(([, lat]) => lat)),
         ];
 
   return {

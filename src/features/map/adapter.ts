@@ -10,6 +10,7 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { arrowImage } from '@/shared/canvas-arrow';
+import type { Area, Ring } from '@/shared/read/model';
 import {
   CANVAS_LABEL_CLASS,
   canvasLabelTransform,
@@ -70,6 +71,10 @@ export interface MapHandle {
 
 /** The one source of points. A panel of thirty types must not make thirty queries. */
 const ENTITY_SOURCE = 'entities';
+/** The areas of every polygon entity. One source, and a fill and an outline for each type. */
+const AREA_SOURCE = 'areas';
+const fillOfType = (type: string): string => `area-fill-${type}`;
+const outlineOfType = (type: string): string => `area-outline-${type}`;
 /** The selected point, alone. So the ring is a change of data, and never a change of style. */
 const SELECTION_SOURCE = 'selection';
 const SELECTION_LAYER = 'selection-ring';
@@ -116,6 +121,11 @@ const HALO_OPACITY = 0.3;
 // unclickable. A point is a disc of 3px at zoom 3, so a bare point query gives the narrower
 // tolerance and a click 4px from the centre returns the line under it. Points take this box too.
 const HIT_BOX = 5;
+
+// The faint fill of an area, and the width of its outline. Invented: the fill lets imagery show
+// through and the outline carries the hue, so the shape reads on both grounds.
+const AREA_FILL_OPACITY = 0.2;
+const AREA_OUTLINE_WIDTH = 1.5;
 
 // Two or more entities that share one point draw in a circle around it instead, at this many CSS
 // pixels from the centre — the same unit `icon-size` and `circle-radius` use, so it reads the
@@ -173,6 +183,21 @@ const collect = (features: readonly PointFeature[]): PointCollection => ({
   type: 'FeatureCollection',
   features,
 });
+
+// `id` is the `fid` of the projection, as on a point, so a click on the area finds its entity.
+interface AreaFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry:
+    | { readonly type: 'Polygon'; readonly coordinates: readonly Ring[] }
+    | { readonly type: 'MultiPolygon'; readonly coordinates: Area };
+  readonly properties: { readonly entityType: string };
+}
+
+interface AreaCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly AreaFeature[];
+}
 
 // `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
 // Nothing reads a property of a line, so the record is empty.
@@ -352,6 +377,28 @@ export function mountMap({
     return features;
   };
 
+  // An entity that a polygon locates keeps its one point above, and its shape draws here. The type
+  // of an entity that has no hue draws nothing, as for a point.
+  const areaFeaturesOf = (entities: readonly GeoEntity[]): AreaCollection => ({
+    type: 'FeatureCollection',
+    features: entities.flatMap((entity): AreaFeature[] => {
+      const { area } = entity;
+      if (area === null || !colourOfType.has(entity.type)) return [];
+      const [only] = area;
+      return [
+        {
+          type: 'Feature',
+          id: entity.fid,
+          geometry:
+            area.length === 1 && only !== undefined
+              ? { type: 'Polygon', coordinates: only }
+              : { type: 'MultiPolygon', coordinates: area },
+          properties: { entityType: entity.type },
+        },
+      ];
+    }),
+  });
+
   // **A point that draws its military marks draws no disc under them.** The two filters are
   // complementary over one property, so one entity is one mark and the map states its kind once.
   const pointLayers: LayerSpec[] = projection.types.map((facet) => ({
@@ -419,6 +466,27 @@ export function mountMap({
       'icon-ignore-placement': true,
     },
   }));
+
+  // One fill and one outline for each type, over the one source of areas. The fill is faint, so the
+  // ground stays readable under it, and the outline carries the hue at full strength.
+  const areaLayers: LayerSpec[] = projection.types.flatMap((facet): LayerSpec[] => [
+    {
+      id: fillOfType(facet.type),
+      type: 'fill',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'entityType'], facet.type],
+      layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
+      paint: { 'fill-color': facet.colour, 'fill-opacity': AREA_FILL_OPACITY },
+    },
+    {
+      id: outlineOfType(facet.type),
+      type: 'line',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'entityType'], facet.type],
+      layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible', 'line-join': 'round' },
+      paint: { 'line-color': facet.colour, 'line-width': AREA_OUTLINE_WIDTH },
+    },
+  ]);
 
   const linkLayers: LayerSpec[] = [
     {
@@ -514,6 +582,7 @@ export function mountMap({
     sources: {
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
+      [AREA_SOURCE]: { type: 'geojson', data: areaFeaturesOf(projection.entities) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
       // The lines belong to a selection, which the address restores below this style. So the
       // first frame carries none, and `paintBaseLinks` fills the two sources through the queue.
@@ -524,6 +593,9 @@ export function mountMap({
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
       ...groundLayers,
+      // **The areas are under every line and every point.** An area is ground, and a mark on it
+      // must never be covered by it.
+      ...areaLayers,
       // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
       arrowLayer,
@@ -754,6 +826,9 @@ export function mountMap({
   /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
   const linkLayerIds = linkLayers.map((layer) => layer.id);
 
+  /** Only the fills answer a click: a click on the area selects it, and its outline is no more. */
+  const fillLayerIds = projection.types.map((facet) => fillOfType(facet.type));
+
   // `fid` is a position in an array and not an identity: it is valid against the one `Projection`
   // that made it. A point of a hidden type gives `ground`, because the old tile still answers
   // until the worker parses it again. Points are asked first, so a point wins over a line.
@@ -775,17 +850,26 @@ export function mountMap({
     // **A relation that is switched off gives the result `ground`.** It is the same window as the
     // guard above: the layer is marked hidden, and the old tile still answers until the worker
     // parses it again. The two paths therefore hold one rule.
-    if (linksHidden) return { kind: 'ground' };
-    // **A line needs a hit box of about five pixels on each side.** A line of one pixel is
-    // otherwise unclickable. The box above is that box, and the points already used it.
-    for (const feature of map.queryRenderedFeatures(box, { layers: linkLayerIds })) {
+    if (!linksHidden) {
+      // **A line needs a hit box of about five pixels on each side.** A line of one pixel is
+      // otherwise unclickable. The box above is that box, and the points already used it.
+      for (const feature of map.queryRenderedFeatures(box, { layers: linkLayerIds })) {
+        const fid = feature.id;
+        if (typeof fid !== 'number') continue;
+        const link = projection.byLinkFid.get(fid);
+        // A relation whose endpoint is not drawn gives the result `ground`. It is the same window
+        // as the guard on the points: the source is marked, and the old tile still answers until
+        // the worker parses it again.
+        if (link !== undefined && isDrawnLink(link, draws)) return { kind: 'link', link };
+      }
+    }
+    // **An area is asked last, and with the bare point.** A mark and a line that stand on it win,
+    // and a click beside an area must not select it.
+    for (const feature of map.queryRenderedFeatures(point, { layers: fillLayerIds })) {
       const fid = feature.id;
       if (typeof fid !== 'number') continue;
-      const link = projection.byLinkFid.get(fid);
-      // A relation whose endpoint is not drawn gives the result `ground`. It is the same window
-      // as the guard on the points: the source is marked, and the old tile still answers until
-      // the worker parses it again.
-      if (link !== undefined && isDrawnLink(link, draws)) return { kind: 'link', link };
+      const entity = projection.byFid.get(fid);
+      if (entity !== undefined && draws(entity)) return { kind: 'entity', entity };
     }
     return { kind: 'ground' };
   };
@@ -1116,7 +1200,13 @@ export function mountMap({
         // The halo and the marks of a type switch with the points of that type. A halo left
         // behind is a coloured disc with no mark inside it, and a symbol left behind is a unit at
         // a position the map draws nowhere.
-        for (const id of [layerOfType(type), haloOfType(type), symbolOfType(type)]) {
+        for (const id of [
+          layerOfType(type),
+          haloOfType(type),
+          symbolOfType(type),
+          fillOfType(type),
+          outlineOfType(type),
+        ]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });
