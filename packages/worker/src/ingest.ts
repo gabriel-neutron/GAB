@@ -8,11 +8,6 @@ import { extractText } from '@gab/text';
 
 import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
 
-// External constraint: the text door keys a set of pages by document, extractor and page, so a
-// better extractor writes a new set beside the old one under a new word. This word names the
-// extractor of today.
-const EXTRACTOR = 'text-1';
-
 // External constraint: the types that extractText reads, by the extension that a file name holds.
 // A name with another extension names no type, and the file is refused before any write.
 const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
@@ -22,6 +17,10 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
+  '.xml': 'application/xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
 };
 
 const KINDS = ['file', 'report'] as const;
@@ -192,6 +191,7 @@ const writeRow = async (
     readonly sha256: string;
     readonly mime: string;
     readonly pages: readonly string[];
+    readonly extractor: string;
   },
 ): Promise<void> => {
   await session.query('BEGIN');
@@ -208,7 +208,7 @@ const writeRow = async (
       row.providerId,
       row.costEur,
     ]);
-    await session.query(PUT_TEXT, [row.id, JSON.stringify(row.pages), EXTRACTOR]);
+    await session.query(PUT_TEXT, [row.id, JSON.stringify(row.pages), row.extractor]);
     await session.query('COMMIT');
   } catch (error) {
     await session.query('ROLLBACK').catch(() => undefined);
@@ -239,8 +239,9 @@ export const storeBytes = async (
   // The text is read before any write, so a file that holds none that can be read leaves no
   // object behind.
   let pages: readonly string[];
+  let extractor: string;
   try {
-    ({ pages } = await extractText(file.bytes, mime));
+    ({ pages, extractor } = await extractText(file.bytes, mime));
   } catch (error) {
     throw new RefusedFile(`the text of the file cannot be read: ${reasonOf(error)}`, {
       cause: error,
@@ -252,7 +253,7 @@ export const storeBytes = async (
   const id = `doc_${sha256.slice(0, 12)}`;
   const key = await door.put({ key: `raw/${sha256}`, bytes: file.bytes, mime });
   try {
-    await writeRow(session, { ...file, id, key, sha256, mime, pages });
+    await writeRow(session, { ...file, id, key, sha256, mime, pages, extractor });
   } catch (error) {
     if (!isSameBytes(error)) throw error;
     const holder = idOfRow((await session.query(LOOKUP, [sha256])).rows);

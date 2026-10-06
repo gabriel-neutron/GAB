@@ -158,7 +158,7 @@ test('an HTML page is stored with its text, and a second call returns it as know
       mime: 'text/html',
       retrieved_at: '2026-10-05',
       pages: 1,
-      extractor: 'text-1',
+      extractor: 'html-live-1',
     });
 
     const second = await fetched(ask, `${base}/entry.html`, reach);

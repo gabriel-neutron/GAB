@@ -28,13 +28,9 @@ const RENDER_BELOW = 200;
 const RENDER_BUDGET_MS = 30_000;
 
 // The words that the common CAPTCHA services put in a page. A page that holds one is stored as it
-// is, and the answer says so; nothing on it is solved or avoided.
-const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
-
-// External constraint: the worker writes the text of a stored file under this same word, and a
-// second word would make two sets of pages for one reading. The worker holds the other copy, in
-// its ingest module.
-const EXTRACTOR = 'text-1';
+// is, and the answer says so; nothing on it is solved or avoided. The check door reads the same
+// words in a stored page, and a test holds its copy equal to this one.
+export const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -163,6 +159,7 @@ interface Fetched {
   readonly uri: string;
   readonly title: string;
   readonly pages: readonly string[];
+  readonly extractor: string;
   readonly day: string;
 }
 
@@ -187,7 +184,7 @@ const storeFetched = async (session: Session, reach: Reach, fetched: Fetched) =>
         fetched.mime,
         fetched.day,
         JSON.stringify(fetched.pages),
-        EXTRACTOR,
+        fetched.extractor,
       ]);
       status = 'stored';
     } catch (fault) {
@@ -212,7 +209,12 @@ const renderedOf = async (
   mime: string,
   options: GetOptions,
   notices: string[],
-): Promise<{ html: string; bytes: Uint8Array; pages: readonly string[] } | null> => {
+): Promise<{
+  html: string;
+  bytes: Uint8Array;
+  pages: readonly string[];
+  extractor: string;
+} | null> => {
   try {
     const page = await renderPage(got.url, got.bytes, got.contentType ?? mime, {
       ...options,
@@ -229,7 +231,8 @@ const renderedOf = async (
           'text is what it held then',
       );
     const bytes = new TextEncoder().encode(page.html);
-    return { html: page.html, bytes, pages: (await extractText(bytes, 'text/html')).pages };
+    const { pages, extractor } = await extractText(bytes, 'text/html');
+    return { html: page.html, bytes, pages, extractor };
   } catch (fault) {
     notices.push(`the page could not be rendered: ${reasonOf(fault)}`);
     return null;
@@ -304,8 +307,9 @@ export const fetchDocument = defineTool({
     // The text is read before any write, so an answer with no text that can be read leaves no
     // object behind.
     let pages: readonly string[];
+    let extractor: string;
     try {
-      ({ pages } = await extractText(got.bytes, mime));
+      ({ pages, extractor } = await extractText(got.bytes, mime));
     } catch (fault) {
       if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
       throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
@@ -318,6 +322,7 @@ export const fetchDocument = defineTool({
       uri: got.url,
       title: titleOf(mime, got.bytes, metadata, got.url),
       pages,
+      extractor,
       day,
     });
 
@@ -344,6 +349,7 @@ export const fetchDocument = defineTool({
           uri: got.url,
           title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
           pages: page.pages,
+          extractor: page.extractor,
           day,
         });
         rendered = { id: stored.id, status: stored.status, title: stored.title };

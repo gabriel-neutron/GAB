@@ -62,7 +62,7 @@ describe('extractText', () => {
     expect(pages).toStrictEqual(['ab']);
   });
 
-  test('an HTML article gives Markdown without the navigation', async () => {
+  test('an HTML page gives its live text without the navigation', async () => {
     const html = `<html><head><title>Fleet</title></head><body>
       <nav><ul><li><a href="/home">Home page link</a></li><li><a href="/about">About us link</a></li></ul></nav>
       <article><h1>Shadow fleet</h1>
@@ -70,18 +70,20 @@ describe('extractText', () => {
       <p>${'A second paragraph says that the lender sits in a port city of the Gulf. '.repeat(6)}</p>
       </article>
       <footer>Copyright footer text</footer></body></html>`;
-    const { pages } = await extractText(bytesOf(html), 'text/html');
+    const { pages, extractor } = await extractText(bytesOf(html), 'text/html');
+    expect(extractor).toBe('html-live-1');
     expect(pages).toHaveLength(1);
     expect(pages[0]).toContain('Shadow fleet');
     expect(pages[0]).toContain('changed its flag');
     expect(pages[0]).not.toContain('Home page link');
   });
 
-  test.each(['text/plain', 'text/markdown', 'text/csv'])(
+  test.each(['text/plain', 'text/markdown', 'text/csv', 'application/xml', 'text/xml'])(
     '%s is returned as it is',
     async (mime) => {
-      const { pages } = await extractText(bytesOf('a,b\n1,2\n'), mime);
+      const { pages, extractor } = await extractText(bytesOf('a,b\n1,2\n'), mime);
       expect(pages).toStrictEqual(['a,b\n1,2\n']);
+      expect(extractor).toBe('text-1');
     },
   );
 
