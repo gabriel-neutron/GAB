@@ -38,6 +38,10 @@ it. The build decisions are in the ADRs.
 | P5 | Text formats only; OCR only as a second reading | Pipeline and AI |
 | P6 | One ingestion door; a structured file is mapped by a proposal | Pipeline and AI |
 | P7 | Live search reads documents, the graph and the internet | Pipeline and AI |
+| P8 | The text of a document goes to the model as it is | Pipeline and AI |
+| P9 | Each AI claim cites a page and an excerpt that code checks | Pipeline and AI |
+| P10 | A lead agent finds and stores sources, and proposes nothing | Pipeline and AI |
+| P11 | A linked batch is decided as one unit | Pipeline and AI |
 | PU1 | The app is public, with clear labels | Publication |
 
 ---
@@ -280,6 +284,43 @@ a machine is a proposal (P1). One door means no file without a source.
 
 **Rule.** The local documents, the graph and the internet.
 **Why.** The operator asks a question and gets an answer wherever the material is.
+
+### P8 — The text goes to the model as it is
+
+**Rule.** The stored text of a document goes to the model as it is. Code masks nothing before a
+model call.
+**Why.** The documents are public sources, and the names in them are the data that the extraction
+needs. A minimiser blocked every extraction.
+**Cost.** The free model providers see the full text of each document, contact details included.
+
+### P9 — Each AI claim cites a checked excerpt
+
+**Rule.** When an AI proposes a claim, it gives the page and a verbatim excerpt for each value.
+Code finds the excerpt in the stored text. An excerpt that is not in the document refuses the
+claim. A value in another form of the same value (a date, a number, a case) passes. A value that is
+different or ambiguous marks the claim as disputed, and the review card says why. The stored record
+cites the document.
+**Why.** A model can cite a document that does not say the claim. Code can prove that the passage
+is there.
+**Cost.** A claim with a wrong excerpt goes back to the model, and after one retry it is lost.
+
+### P10 — A lead agent finds sources and proposes nothing
+
+**Rule.** The operator, or Claude or Codex, gives a lead. An AI inside Gabriel searches, fetches
+and stores pages with no page limit, and queues their extraction. It proposes nothing and starts no
+lead of its own. A token budget stops each lead. No lead runs on a schedule.
+**Why.** The search for sources is the slow part of an investigation, and the extraction and the
+operator's decision stay the checks.
+**Cost.** A broad lead can store many pages and fill the review queue.
+
+### P11 — A linked batch is decided as one unit
+
+**Rule.** An AI can propose linked facts in one batch: for example a company, its vessels and the
+links between them. The operator promotes or rejects the batch as one unit. If one item cannot be
+promoted, nothing of the batch is written.
+**Why.** A network can be mapped in one session, and the graph never holds a link to a missing
+entity.
+**Cost.** One wrong item makes the operator reject the whole batch.
 
 ---
 
