@@ -18,22 +18,22 @@ export function beginVerdict(
   decision: DecisionState,
   act: { readonly changeId: string; readonly verdict: Verdict },
 ): DecisionState | null {
-  if (decision.step === 'deciding') return null;
-  return { step: 'deciding', changeId: act.changeId, verdict: act.verdict };
+  if (decision.step === 'working') return null;
+  return { step: 'working', changeId: act.changeId, verdict: act.verdict };
 }
 
 /** Read the answer of the record for one verdict. The record can hold a later state than this
  * queue: the act landed, another window decided it, or the record refused it and it waits. */
 export function settleVerdict(answer: DecisionState, act: Decision): VerdictSettled {
   switch (answer.step) {
-    case 'decided':
+    case 'done':
       return act.verdict === 'deferred'
         ? { held: { verdict: 'deferred', reason: act.reason }, readAgain: false }
         : { held: { verdict: act.verdict, reason: act.reason }, readAgain: true };
     case 'refused':
     case 'unknown':
     case 'idle':
-    case 'deciding':
+    case 'working':
       return { held: null, readAgain: true };
     default:
       return unreached(answer);

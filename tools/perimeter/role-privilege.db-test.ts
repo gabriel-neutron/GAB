@@ -206,9 +206,7 @@ for (const document of RESERVED) {
     await expect(proposeCiting('agent', document)).rejects.toMatchObject({
       code: '23514',
       constraint: 'proposals_machine_not_reserved',
-      message:
-        'new row for relation "proposals" violates check constraint ' +
-        '"proposals_machine_not_reserved"',
+      message: 'a machine cannot cite the reserved documents manual and inherited',
     });
   });
 
