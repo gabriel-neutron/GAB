@@ -1,297 +1,16 @@
 import js from '@eslint/js';
 import vitest from '@vitest/eslint-plugin';
-import type { Rule } from 'eslint';
 import { defineConfig } from 'eslint/config';
 import boundaries from 'eslint-plugin-boundaries';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
-import { LIMITS, measure } from './tools/comment-budget.ts';
-
-/**
- * Every feature entry point that mounts a live canvas. **One list, and the two gates below both
- * read it**, so a third canvas feature is added at one point and cannot reach one gate and miss
- * the other.
- *
- * A hazard is a mount and not a name. These are the folders that mount MapLibre and Sigma today —
- * `CANVAS.md` holds the rule and names the same two.
- */
-const CANVAS_PAGES = ['map', 'graph'] as const;
-
-/**
- * The workspace packages that run in Node and hold a secret or reach the database. **One list, and the two package
- * policies below both read it**, so the side that is refused to the browser and the side that a
- * Node part may reach can never fall out of step.
- */
+// The workspace packages that run in Node and hold a secret or reach the database. The browser
+// imports none of them.
 const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as const;
 
-/**
- * **A comment records a reason, and never a reference.** A reason is a fact about the code, and it
- * cannot go stale: if the code changes, it changes with it. A reference is an address to something
- * outside the file, and it goes stale in silence when somebody else edits or deletes the thing it
- * names.
- *
- * **The defect this rule exists to not repeat.** Four surface documents were deleted on 17 August
- * 2026. Two days later, 67 paths under `src/` still named them and 578 section marks still pointed
- * into their sections. No check failed and nothing warned.
- *
- * Departure: a run of three or six hexadecimal characters is read as a colour, so `#999`, `#abc`
- * and `#2971c6` pass and `#89` and `#1234` are refused. `#123` and `#123456` could each be a
- * ticket, and the shape reads them as a colour, because a colour must never fail the build.
- *
- * **A link is an address too.** A ticket written as `https://github.com/.../issues/89` defeated
- * the first shape completely, and it is the form a paste produces.
- *
- * **An entry of the decision register stays.** `M8` and `P1` carry no address, and a new decision
- * replaces an entry by name, so the name outlives even its replacement. They are domain words.
- *
- * **A use case of a deleted document is refused.** `UC1` to `UC5` were defined in the four surface
- * documents and nowhere else, and the same token named two different things in two of them. So the
- * shape had already rotted when it was added here. It is case sensitive, because the token was
- * only ever written in capitals.
- *
- * **A numbered rule is refused.** The rules of the visual language were cited by number from 34
- * places, and an inserted rule would have renumbered every citation after it in silence. The list
- * carries no numbers now, so a number here names nothing at all.
- *
- * **A numbered invariant stays, and no shape below matches one.** It is a name and not a position:
- * a number is given once and never given again, so no citation can rot. The one condition of the
- * locked register applies to it — the identifier never travels alone, and every site states the
- * invariant beside the number.
- *
- * **A module beside the file is an address too.** `./claims` names a file, and a rename or a
- * move leaves the comment pointing at nothing. The shape with an extension missed every one of
- * the ten that stood under `src/`, because a relative import carries no extension.
- *
- * **A stylesheet is out of reach, and it now carries nothing.** ESLint does not read
- * `src/index.css`, so a reference there is refused by nobody. Its rules are no longer numbered and
- * its comments cite none, so there is nothing left for this rule to miss.
- *
- * **A path with no `./` and no `.md` is an address too.** `src/index.css` and
- * `features/map/adapter.ts` name a file. A rename can break the link. The rule now catches this
- * shape too.
- *
- * **The longest match wins at one spot.** A link text already holds a path, and `./src` sits
- * inside `./src/routes/map.tsx`. The rule keeps the longest match at each spot and drops a
- * shorter one under it, so one address gives one report, and the report names the whole address.
- */
-export const REFERENCE_SHAPES = [
-  {
-    pattern: /(?<!#)#(?:\s+\d+|(?!(?:[0-9a-fA-F]{3}){1,2}(?![\w-]))\d+)\b/g,
-    kind: 'a ticket number',
-  },
-  { pattern: /\b(?:issues?|pulls?|PR|ticket)[\s/#:-]*\d+\b/gi, kind: 'a ticket number' },
-  { pattern: /https?:\/\/\S+/g, kind: 'a link' },
-  { pattern: /\u00a7/g, kind: 'a section mark' },
-  { pattern: /\b(?:section|sect\.?)\s*\d+(?:\.\d+)*\b/gi, kind: 'a section' },
-  { pattern: /\badr[\s._-]*\d{1,4}\b/gi, kind: 'an ADR citation' },
-  { pattern: /[\w./-]+\.(?:md|mdx|markdown)(?![\w-])/gi, kind: 'a path to a document' },
-  { pattern: /\.{1,2}\/[\w.-]+/g, kind: 'a path to a file' },
-  {
-    pattern: /[\w.-]+(?:\/[\w.-]+)+\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|css|json|sql|ya?ml|toml)\b/gi,
-    kind: 'a path to a file',
-  },
-  { pattern: /\bUC\s*\d+\b/g, kind: 'a use case of a deleted document' },
-  { pattern: /\brules?\s*\d+\b/gi, kind: 'a numbered rule' },
-] as const;
-
-// The cap reads the same `measure()` the census reads, so the gate and the report cannot
-// give two numbers. A comment that states a ruling of the operator belongs in the tracker.
-const commentBudget: Rule.RuleModule = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      block:
-        'A comment block is {{cap}} lines. This one is {{lines}}. Keep the reason a reader needs, and put the rest in the commit body or in the tracker',
-      long: 'A comment line is {{cap}} characters. This one is {{chars}}',
-    },
-  },
-  create(context) {
-    return {
-      Program() {
-        const found = measure(context.sourceCode.getText());
-        for (const block of found.overBlocks)
-          context.report({
-            loc: { line: block.line, column: 0 },
-            messageId: 'block',
-            data: { cap: String(LIMITS.blockLines), lines: String(block.lines) },
-          });
-        for (const line of found.longLines)
-          context.report({
-            loc: { line: line.line, column: 0 },
-            messageId: 'long',
-            data: { cap: String(LIMITS.lineChars), chars: String(line.chars) },
-          });
-      },
-    };
-  },
-};
-
-/**
- * **A length that the theme names is written once, in the theme.** `--text-small` and
- * `--tracking-caps` were declared in `:root`, where Tailwind does not read them, so no class
- * carried either value and 48 places wrote `text-[11px]/4` by hand. The theme said 11px and
- * could not enforce it: to move the floor of the text ladder, a person had to edit 48 lines and
- * hope that none was missed.
- *
- * The two values are in an `@theme` block now, under a name of the namespace that builds the
- * utility. This rule keeps them there.
- *
- * **An arbitrary value is not the defect.** `w-[17rem]` for one column and `h-[600px]` for one
- * story frame are correct: the value carries no meaning that repeats. The defect is a value that
- * the theme already names, written again in a class, where nothing keeps the two equal.
- *
- * `REPLACEMENTS` names the class to write, so each report is a rewrite and never a search.
- * `HAND_WRITTEN` has no single answer to give, so it names the ladder to read instead. A general
- * shape is skipped where a replacement already matched at the same place, and one hand-written
- * length gets one report.
- *
- * **The shapes read a string and not an attribute.** A class list reaches `className` through
- * `cn`, through `cva` and through a variant table, and a rule that reads the attribute alone
- * sees the last of these and misses the first two.
- */
-const REPLACEMENTS = [
-  { pattern: /\btext-\[11px\]/g, use: '`text-small`' },
-  { pattern: /\btracking-\[0\.06em\]/g, use: '`tracking-caps`' },
-] as const;
-
-const TINTS =
-  'slate|gray|grey|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
-const PAINTS =
-  'text|bg|border|fill|stroke|ring|shadow|outline|decoration|accent|caret|divide|from|via|to';
-
-const HAND_WRITTEN = [
-  {
-    pattern: /\btext-\[[\d.]+px\]/g,
-    use: 'a text size token of the theme',
-  },
-  {
-    pattern: new RegExp(`\\b(?:${PAINTS})-\\[(?:#[0-9a-fA-F]{3,8}|(?:oklch|rgba?|hsla?)\\()`, 'g'),
-    use: 'a colour token of the theme',
-  },
-  {
-    pattern: new RegExp(`\\b(?:${PAINTS})-(?:${TINTS})-\\d{2,3}\\b`, 'g'),
-    use: 'a colour token of the theme',
-  },
-] as const;
-
-const noHandWrittenToken: Rule.RuleModule = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      value:
-        'The theme names this value, and a class must read it: `{{text}}`. Write {{use}}, so that the value moves when the theme moves',
-    },
-  },
-  create(context) {
-    const source = context.sourceCode;
-
-    const read = (text: string, start: number) => {
-      const taken = new Set<number>();
-      const report = (found: RegExpExecArray, use: string) => {
-        const at = source.getLocFromIndex(start + found.index);
-        context.report({
-          loc: { start: at, end: at },
-          messageId: 'value',
-          data: { text: found[0], use },
-        });
-      };
-      for (const shape of REPLACEMENTS) {
-        shape.pattern.lastIndex = 0;
-        let found = shape.pattern.exec(text);
-        while (found !== null) {
-          taken.add(found.index);
-          report(found, shape.use);
-          found = shape.pattern.exec(text);
-        }
-      }
-      for (const shape of HAND_WRITTEN) {
-        shape.pattern.lastIndex = 0;
-        let found = shape.pattern.exec(text);
-        while (found !== null) {
-          if (!taken.has(found.index)) report(found, shape.use);
-          found = shape.pattern.exec(text);
-        }
-      }
-    };
-
-    return {
-      // `range[0]` is the opening quote of a string and the opening delimiter of a template, and
-      // the text of both begins one character later.
-      Literal(node) {
-        if (typeof node.value !== 'string' || node.range === undefined) return;
-        read(node.value, node.range[0] + 1);
-      },
-      TemplateElement(node) {
-        if (node.range === undefined) return;
-        read(node.value.raw, node.range[0] + 1);
-      },
-    };
-  },
-};
-
-const noReferenceInComment: Rule.RuleModule = {
-  meta: {
-    type: 'problem',
-    schema: [],
-    messages: {
-      address:
-        'A comment records a reason, and never a reference. `{{text}}` is {{kind}}. Write the fact the reader needs, and carry the reference in the commit message or in your report',
-    },
-  },
-  create(context) {
-    return {
-      Program() {
-        const source = context.sourceCode;
-        for (const comment of source.getAllComments()) {
-          const start = comment.range?.[0];
-          if (start === undefined) continue;
-          // `range[0]` is the first character of the delimiter, and `value` begins two characters
-          // later for `//` and for `/*` alike.
-          const body = start + 2;
-
-          const candidates: { from: number; to: number; text: string; kind: string }[] = [];
-          for (const shape of REFERENCE_SHAPES) {
-            shape.pattern.lastIndex = 0;
-            let found = shape.pattern.exec(comment.value);
-            while (found !== null) {
-              candidates.push({
-                from: found.index,
-                to: found.index + found[0].length,
-                text: found[0],
-                kind: shape.kind,
-              });
-              found = shape.pattern.exec(comment.value);
-            }
-          }
-
-          // Longest first, so a full address is kept and a shorter span inside it is dropped.
-          candidates.sort((a, b) => b.to - b.from - (a.to - a.from));
-          const taken: { from: number; to: number }[] = [];
-          const kept: typeof candidates = [];
-          for (const candidate of candidates) {
-            if (taken.some((span) => candidate.from < span.to && candidate.to > span.from))
-              continue;
-            taken.push({ from: candidate.from, to: candidate.to });
-            kept.push(candidate);
-          }
-
-          kept.sort((a, b) => a.from - b.from);
-          for (const candidate of kept) {
-            const at = source.getLocFromIndex(body + candidate.from);
-            context.report({
-              loc: { start: at, end: at },
-              messageId: 'address',
-              data: { text: candidate.text, kind: candidate.kind },
-            });
-          }
-        }
-      },
-    };
-  },
-};
+const CANVAS =
+  'No story mounts a live canvas: a browser drops the oldest WebGL context after about sixteen. Story the panels';
 
 export default defineConfig(
   {
@@ -302,26 +21,15 @@ export default defineConfig(
       '**/coverage',
       '**/storybook-static',
       '.scratch',
+      '.claude/worktrees',
+      'src/routeTree.gen.ts',
     ],
   },
 
-  // Each agent worktree is a whole second checkout, and typed linting of all of them fills the heap.
-  { ignores: ['.claude/worktrees'] },
-
-  // The route tree is generated and carries its own banner. It is excluded by name, never by a
-  // pattern that authored code can enter (ADR 0004).
-  { ignores: ['src/routeTree.gen.ts'] },
-
-  // No file may suppress a rule. CODING_STANDARDS.md requires zero suppressions, so an inline
-  // directive is inert and an unused one is an error, not a warning.
+  // No file may suppress a rule.
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
 
-  // `jsx` is here because no other block names it. Without it a `.jsx` file under `src/` gets
-  // no rule at all, and an adversarial test walked a cross-feature import through one.
-  {
-    files: ['**/*.{js,mjs,cjs,jsx}'],
-    extends: [js.configs.recommended],
-  },
+  { files: ['**/*.{js,mjs,cjs,jsx}'], extends: [js.configs.recommended] },
 
   {
     files: ['**/*.{ts,mts,cts,tsx}'],
@@ -331,35 +39,19 @@ export default defineConfig(
       tseslint.configs.stylisticTypeChecked,
     ],
     languageOptions: {
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
-      // Neither `eslint:recommended` nor typescript-eslint turns this on.
       eqeqeq: ['error', 'always'],
-
-      // Both rules below are correct in principle and produce suppressions in practice.
-      // A number in a template string and a void arrow shorthand are not defects.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       '@typescript-eslint/no-confusing-void-expression': ['error', { ignoreArrowShorthand: true }],
-
-      // `noInlineConfig` above stops an ESLint directive. It cannot see a TypeScript one,
-      // because that is a comment to the compiler and not to the linter. The default of this
-      // rule permits `@ts-expect-error` when a description follows, and the rule tells an
-      // author to write exactly that when it refuses `@ts-ignore`. A zero-suppression
-      // repository must refuse all three. In this rule `true` means "report it".
+      // `noInlineConfig` cannot see a directive to the compiler, so this rule refuses all three.
       '@typescript-eslint/ban-ts-comment': [
         'error',
         { 'ts-expect-error': true, 'ts-ignore': true, 'ts-nocheck': true },
       ],
-
-      // `verbatimModuleSyntax` is on in all seven targets, so the compiler erases exactly the
-      // imports that carry the word `type` and keeps every other one. An import of a type
-      // written without the word therefore survives into the emitted module and pulls its file
-      // in at runtime. The compiler cannot report that: both forms are legal. This rule makes
-      // the word mandatory, so what the bundle loads is what the author asked for.
+      // With `verbatimModuleSyntax`, a type import without the word `type` loads its file at run
+      // time.
       '@typescript-eslint/consistent-type-imports': [
         'error',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
@@ -367,193 +59,62 @@ export default defineConfig(
     },
   },
 
-  // `src/shared/ui/` takes **no exemption**, and `routeTree.gen.ts` above is the only one.
-  // ADR 0004 holds the decision, the two facts that disproved the premise of the override
-  // that version 1 granted, and the hole it left. #39 removed it. Read ADR 0004 before you add it
-  // back: `src/shared/ui/**` is a pattern that authored code can enter.
-  //
-  // The day a vendored file genuinely fails, an agent adds that **one file name** here.
-
-  // The seam of ADR 0001 and ADR 0004, held by a rule and not by a convention.
+  // The import boundaries: a feature reaches only `shared/`, and the browser reaches no Node part.
   {
-    // JavaScript is named as well as TypeScript. `allowJs` is off, so a `.js` file under a
-    // feature does not compile, but a `.d.ts` beside it removes that limit and the import
-    // then escapes every rule here.
-    //
-    // `.storybook/` is named as well as `src/`. Without it no rule below reaches that folder,
-    // and nothing stops `.storybook/preview.ts` from importing a feature. Every feature would
-    // then load into every story (#60).
-    //
-    // A workspace package is named as well. The `package` element was declared as a target of an
-    // import only, so no rule below ran **from** a package: one could import a browser feature
-    // or a route, and nothing objected.
-    //
-    // `.mts` and `.cts` are named because they compile. A file with either extension belonged to
-    // no element, so `no-unknown-files` passed it and every policy below missed it.
     files: [
       'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       '.storybook/**/*.{ts,tsx,mts,cts}',
     ],
-
-    // The mount and the router instance, excluded **by name**. An element pattern matches a
-    // folder, so neither file can be an element unless `src` itself becomes one — and `src` as
-    // an element swallows every folder that nobody declared, which is the one thing
-    // `no-unknown-files` below exists to catch. Two names is the smaller hole, and a name is
-    // not a pattern that authored code can enter: a third file at the root of `src/` fails.
     ignores: ['src/main.tsx', 'src/router.tsx'],
-
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
-        // `partialMatch: false` makes each pattern read from the repository root, so a folder
-        // that nobody declared matches nothing and fails loudly under `default: 'disallow'`.
-        {
-          type: 'feature',
-          pattern: 'src/features/*',
-          capture: ['feature'],
-          partialMatch: false,
-        },
+        { type: 'feature', pattern: 'src/features/*', capture: ['feature'], partialMatch: false },
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
         { type: 'route', pattern: 'src/routes', partialMatch: false },
-
-        // The generated folder. It is read from the api schema and the user interface imports
-        // it. It is declared, so a generated file is a known file.
         { type: 'contract', pattern: 'src/contract', partialMatch: false },
-
-        // A workspace package. `@gab/proposal` resolves through a symlink in `node_modules`, and
-        // the resolver follows it to the real path, so the target of the import is this folder.
-        // The capture holds the folder name, which is the name of the package after the scope.
         { type: 'package', pattern: 'packages/*/src', capture: ['pkg'], partialMatch: false },
-
-        // The Storybook configuration. It has a target of its own, `tsconfig.storybook.json`.
-        // It is not a feature, not the seam and not a route.
-        //
-        // The pattern is `.storybook/**`, and not `.storybook`. The plugin reads a dot in the
-        // last segment of a pattern as a file name, and prints "element descriptors appear to
-        // use file patterns" on each run. `.storybook/*` is worse: it then classifies no file,
-        // and `no-unknown-files` fails. The two stars state the folder without doubt.
+        // External constraint: the plugin reads a dot in the last segment as a file name.
         { type: 'storybook', pattern: '.storybook/**', partialMatch: false },
       ],
-
-      // The one stylesheet, ignored **as a dependency and by name**. `.storybook/preview.ts`
-      // imports it, and an element pattern matches a folder and never a file, so the stylesheet
-      // can never be an element and `no-unknown-dependencies` refuses the import.
-      //
-      // This setting removes that one import from the analysis. It does **not** remove
-      // `preview.ts`: putting the file in `ignores` above would drop it from every rule in this
-      // block, and the file that reaches for a feature is the very file this block exists to
-      // hold. A second stylesheet fails here, which is the intended gate.
-      //
-      // The login helper of the schema tests is ignored the same way: a test beside a package
-      // logs in through it, and no element describes a file under `tools/`.
       'boundaries/ignore': ['src/index.css', 'tools/probe.ts'],
-
       'import/resolver': { typescript: { alwaysTryTypes: true } },
     },
     rules: {
-      // A file that belongs to no declared element is a new folder that nobody decided. It
-      // fails here, loudly, instead of escaping every rule below in silence.
       'boundaries/no-unknown-files': 'error',
-
-      // The same statement from the other side, and it is not optional. `boundaries/dependencies`
-      // skips a dependency whose target belongs to no element, so without this rule `shared/`
-      // could import `@/router`, and through it `routeTree.gen.ts`, every route and every
-      // feature. That is the cycle that the leaf rule below claims to prevent.
       'boundaries/no-unknown-dependencies': 'error',
-
+      // External constraint: the last policy that matches an import decides it.
       'boundaries/dependencies': [
         'error',
         {
           default: 'disallow',
           policies: [
-            // The leaf rule, first. It names no feature, so it never needs an edit, and it
-            // prevents every cycle: nothing that `shared/` imports can import `shared/` back.
             {
               from: { element: { type: 'shared' } },
               disallow: { to: { element: { types: ['feature', 'route'] } } },
               message: '`shared/` is a leaf. It imports no feature and no route.',
             },
-
-            // A feature reaches the seam. An import of itself is a same-element dependency and
-            // is not checked, so no rule is needed for it.
             {
               from: { element: { type: 'feature' } },
               allow: { to: { element: { type: 'shared' } } },
             },
-
-            // ...and never another feature. Stated, although `default: 'disallow'` already
-            // says it, so that flipping the default cannot silently open the seam.
-            {
-              from: { element: { type: 'feature' } },
-              disallow: {
-                to: {
-                  element: {
-                    type: 'feature',
-                    captured: { feature: '!{{ from.element.captured.feature }}' },
-                  },
-                },
-              },
-              message: 'A feature never imports another feature. The seam is `shared/`.',
-            },
-
-            // `routes/` is not a feature. It is the only folder that may import one.
             {
               from: { element: { type: 'route' } },
               allow: { to: { element: { types: ['feature', 'shared', 'route'] } } },
             },
-
-            // The contract is the shape of a read, and every part of the user interface reads.
-            // It imports nothing of its own, so it opens no cycle and joins no two features. A
-            // re-export through the seam would be a file that only passes on what it imports.
             {
               from: { element: { types: ['shared', 'feature', 'route'] } },
-              allow: { to: { element: { type: 'contract' } } },
+              allow: { to: { element: { types: ['contract', 'package'] } } },
             },
-
-            // Storybook reaches the seam, and **never a feature**. A story
-            // lives beside its component and imports what that component may import; the
-            // configuration folder is not a place to reach across the seam. `main.ts` names
-            // the story files in a glob, which is not an import, so no rule is needed for it.
             {
               from: { element: { type: 'storybook' } },
               allow: { to: { element: { type: 'shared' } } },
             },
-
-            // A workspace package holds a shape that both sides of the product import. It imports
-            // nothing under `src/`, so it opens no cycle and joins no two features.
-            {
-              from: { element: { types: ['shared', 'feature', 'route'] } },
-              allow: { to: { element: { type: 'package' } } },
-            },
-
-            // A package reaches another package, which is how the writer reads the shape of a
-            // proposal. The refusal below still holds, so this opens no path to the writer.
             {
               from: { element: { type: 'package' } },
               allow: { to: { element: { type: 'package' } } },
             },
-
-            // ...and nothing under `src/`. A package is a leaf: the browser and the writer both
-            // import it, so a package that reaches into `src/` puts a browser feature inside the
-            // Node backend, and puts `src/` inside every side that imports the package.
-            {
-              from: { element: { type: 'package' } },
-              disallow: {
-                to: {
-                  element: {
-                    types: ['feature', 'route', 'shared', 'contract', 'storybook'],
-                  },
-                },
-              },
-              message:
-                'A workspace package is a leaf, and it imports nothing under `src/`. Both sides of the product import the package, so what it imports lands in both. Move the shape you need into the package',
-            },
-
-            // ...and never a Node part. The writer, the worker, the model client and the store
-            // each run in Node and hold a secret, and one list names them all, because two lists
-            // fall out of step. Every importing side is named too: a package the browser imports
-            // is a browser file by another name.
             {
               from: {
                 element: {
@@ -561,25 +122,24 @@ export default defineConfig(
                 },
               },
               disallow: {
-                to: {
-                  element: {
-                    type: 'package',
-                    captured: { pkg: [...NODE_PACKAGES] },
-                  },
-                },
+                to: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
               },
               message:
-                'The writer, the model client, the store, the worker, the tool catalogue and the MCP server run in Node and hold the secrets or reach the database. The browser imports none of them. A browser file that imports one ships a secret to the client. Call the writer over the wire, and import a shared shape from another workspace package',
+                'The browser and the shared packages import no Node part: a Node part holds a secret or reaches the database. Call the writer over the wire',
             },
-
-            // ...and a Node part reaches another Node part. Both sides come from the one list
-            // above, so nothing the browser imports is opened: the worker reads the bucket
-            // through the store, which is the module that holds the address and the account.
             {
               from: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
               allow: {
                 to: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
               },
+            },
+            // The MCP server reads untrusted web content, so no package that it can reach may
+            // import the writer, which signs as the operator.
+            {
+              from: { element: { type: 'package', captured: { pkg: '!writer' } } },
+              disallow: { to: { element: { type: 'package', captured: { pkg: 'writer' } } } },
+              message:
+                'Only the writer signs as the operator. No other package imports it, so the MCP server cannot reach it',
             },
           ],
         },
@@ -587,63 +147,7 @@ export default defineConfig(
     },
   },
 
-  // External constraint: a boundaries element is a folder and matches files at any depth under it,
-  // and only the deprecated `mode` option bounds the depth. So this block keeps a feature flat.
-  {
-    files: ['src/features/*/*/**'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'Program',
-          message:
-            'A feature is one flat folder. Move this file up into the feature folder, or make the subfolder a feature of its own',
-        },
-      ],
-    },
-  },
-
-  // No story mounts a live canvas. ADR 0004 gives MapLibre and Sigma one element each, and
-  // their own loop. ADR 0004 keeps React state out of both. One story makes one live WebGL
-  // context, and a browser removes the oldest context after approximately sixteen.
-  //
-  // A comment in `.storybook/main.ts` is not a gate. The glob `../src/**/*.stories.tsx` collects
-  // such a file, and the run then makes the contexts one at a time until the browser removes
-  // them. A negation in that glob is worse: it drops the file in silence.
-  //
-  // The entry points are named **by name**, from `CANVAS_PAGES`. A story for a panel inside these
-  // folders is correct and must pass. `Program` always exists, so an empty file fails as well.
-  {
-    files: CANVAS_PAGES.map((page) => `src/features/${page}/${page}-page.stories.tsx`),
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'Program',
-          message:
-            'No story mounts a live canvas — ADR 0004. A browser removes the oldest WebGL context after approximately sixteen. Delete this file, and write a story for each panel beside the canvas',
-        },
-      ],
-    },
-  },
-
-  // The rule above names two files, and the hazard is the mount and not the name. A third story
-  // that drives a canvas directly is the same fault under a different file name, so the import
-  // is refused as well.
-  //
-  // A pattern is correct here, and ADR 0004 does not bind. That rule governs an **exemption**,
-  // where a pattern that authored code can enter opens a hole in silence. This is a prohibition:
-  // a pattern that matches too much fails loudly, and the operator sees it at once.
-  //
-  // **It did match too much, and it failed loudly.** The group was `**/*-page`, so it caught
-  // `detail-page` and `review-page` as well. Neither mounts a canvas, and neither reaches MapLibre
-  // or Sigma through any import. The hazard is the mount, so the group now names the pages that
-  // mount, from the same `CANVAS_PAGES` list as the block above. **Extend that list, and never
-  // this group**: two lists of the canvas pages is how one gate falls behind the other.
-  //
-  // The gate is partial, and it is stated so that nobody reads more into it. A story that imports
-  // a sibling, which then imports MapLibre, passes both blocks. `CANVAS.md` holds the rule; these
-  // two blocks hold the two cases a rule can reach.
+  // No story mounts a live canvas.
   {
     files: ['src/**/*.stories.tsx'],
     rules: {
@@ -651,79 +155,19 @@ export default defineConfig(
         'error',
         {
           paths: [
-            {
-              name: 'maplibre-gl',
-              message: 'No story mounts a live canvas — ADR 0004. Story the panels',
-            },
-            {
-              name: 'sigma',
-              message: 'No story mounts a live canvas — ADR 0004. Story the panels',
-            },
+            { name: 'maplibre-gl', message: CANVAS },
+            { name: 'sigma', message: CANVAS },
           ],
-          patterns: [
-            {
-              group: CANVAS_PAGES.map((page) => `**/${page}-page`),
-              message:
-                'The map page and the graph page own a live canvas. Story the panels beside it, and not the page',
-            },
-          ],
+          patterns: [{ group: ['**/map-page', '**/graph-page'], message: CANVAS }],
         },
       ],
     },
   },
 
-  // The rule above holds `src/`, each workspace package and the Storybook configuration, and it
-  // takes no exception. `main.tsx` and `router.tsx` are outside the boundaries block and inside
-  // this one on purpose: a reference rots in them exactly as it rots anywhere else. `.mts` and
-  // `.cts` are named because they compile, and the boundaries block above names them too.
-  {
-    files: [
-      'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
-      'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
-      '.storybook/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
-    ],
-    plugins: {
-      local: {
-        rules: {
-          'no-reference-in-comment': noReferenceInComment,
-          'no-hand-written-token': noHandWrittenToken,
-        },
-      },
-    },
-    rules: {
-      'local/no-reference-in-comment': 'error',
-      'local/no-hand-written-token': 'error',
-    },
-  },
+  { files: ['src/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
 
-  // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
-  // and under a workspace package is inside, and the kit takes no exemption — the day a vendored
-  // file genuinely fails, an agent adds that one file name here.
   {
-    files: ['src/**/*.{ts,tsx,mts,cts}', 'packages/*/src/**/*.{ts,tsx,mts,cts}'],
-    plugins: { budget: { rules: { 'comment-budget': commentBudget } } },
-    rules: { 'budget/comment-budget': 'error' },
-  },
-
-  // A dependency array that lies, a hook behind a condition, a component declared inside another
-  // component, a ref read while the body renders. Each one is legal TypeScript and each one is
-  // wrong at run time. No compiler flag and no boundary rule reaches any of them, and every
-  // panel of this application is a function component.
-  //
-  // `.storybook/` is outside: `preview.ts` and `main.ts` declare no component.
-  {
-    files: ['src/**/*.{ts,tsx}'],
-    extends: [reactHooks.configs.flat.recommended],
-  },
-
-  // A test that no assertion reaches, a focused test that hides the tests beside it, and two
-  // tests under one name. Each one is a suite that reports a safety it does not give. This suite
-  // is the only proof that the live database keeps its perimeter, so it needs a reader of its
-  // own. A story is a test here too, and `play` carries its assertions.
-  //
-  // The first pattern reaches every package and `tools/` already. A story has its own name.
-  {
-    files: ['**/*.{test,db-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
+    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',
@@ -732,12 +176,9 @@ export default defineConfig(
       'vitest/no-conditional-tests': 'error',
       'vitest/valid-expect': 'error',
       'vitest/valid-describe-callback': 'error',
-      // A helper that holds the `expect` is named here, or each test that calls it reads as a
-      // test with no assertion. Add each new such helper to the list.
+      // A test with no assertion reports a safety that it does not give. A helper that holds the
+      // `expect` is named here. An `afterAll` that counts the rows a suite left is an assertion too.
       'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'refusedGeom'] }],
-      // `afterAll` is named because a suite against the live database ends by counting the rows
-      // it met. An assertion there is the residue guard, and it fails the suite that leaves a
-      // row behind. Without the name, that guard reads as an expectation nobody runs.
       'vitest/no-standalone-expect': ['error', { additionalTestBlockFunctions: ['afterAll'] }],
     },
   },

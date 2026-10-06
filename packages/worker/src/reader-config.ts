@@ -4,7 +4,7 @@ import type { AgentModel } from '@gab/model';
  * constant gives one. */
 export interface ReaderConfig {
   readonly model: AgentModel;
-  /** The family of the model. Two readers of one family share their blind spots. */
+  /** The family of the model. A check by a model of the same family shares its blind spots. */
   readonly family: string;
   /** The tokens that one job may spend. */
   readonly tokenCap: number;
@@ -69,21 +69,4 @@ export const readReaderConfig = (prefix: string, env: Env): ReaderConfig => {
     turnCap: numberOf(env, name('TURN_CAP'), true),
     chunkCap: numberOf(env, name('CHUNK_CAP'), true),
   };
-};
-
-const sameFamily = (left: string, right: string): boolean =>
-  left.trim().toLowerCase() === right.trim().toLowerCase();
-
-/** The second reader, or null unless its switch is the word `true`. It throws when a value is
- * absent or wrong, and when its family is the family of the extractor: two readers of one family
- * share their errors, so their second reading proves nothing. */
-export const readReader2 = (env: Env, extractor: ReaderConfig): ReaderConfig | null => {
-  if (env['READER2_ENABLED'] !== 'true') return null;
-  const config = readReaderConfig('READER2', env);
-  if (sameFamily(config.family, extractor.family))
-    throw new Error(
-      `READER2_FAMILY is "${config.family}", the same family as EXTRACTOR_FAMILY. The second ` +
-        'reader runs on a model of another family.',
-    );
-  return config;
 };

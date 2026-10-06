@@ -23,8 +23,12 @@ The read API serves the `api` schema as `gabriel_read`. It writes nothing.
 
 ## The writer and the worker
 
-Run `pnpm writer`, `pnpm layout` and `pnpm reconcile` on the operator's machine, with the same
-`infra/.env` as above. They run as they do against the local stack. Only the values change.
+Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
+The worker is one command with four sub-commands: `pnpm worker run` takes the queued AI jobs,
+`pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout, and
+`pnpm worker reconcile` compares the raw store with the document index. They run as they do
+against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
+start, it puts back each job that is still running.
 
 ## Public writes
 

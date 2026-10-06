@@ -383,9 +383,9 @@ END $$;
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
 --
--- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after its lease
--- ended writes the same act with the same key, and the door then returns the proposal that stands
--- and writes nothing.
+-- THE KEY MAKES A SECOND WRITE OF ONE ACT RETURN THE FIRST. A job that runs again after a crash
+-- writes the same act with the same key, and the door then returns the proposal that stands and
+-- writes nothing.
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
@@ -468,8 +468,8 @@ END $$;
 -- extract_text is the first reader and second_read is the second, and both are model readers.
 -- The document is the document of the job, so a caller cannot name another one.
 --
--- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A worker that lost its lease must not add a reading
--- to a job that another worker now runs.
+-- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A role that does not hold the job must not add a
+-- reading to it.
 --
 -- THE FIRST READER NAMES THE PROPOSAL THAT IT MADE, and that proposal cites the document of the
 -- job. The second reader ran no proposal, so it names none. The call is a call of this job.
@@ -1008,23 +1008,19 @@ END $$;
 -- THE CLAIM. It is a door and not a table write, because no role holds UPDATE on any table, and
 -- a worker that could write `jobs` directly could also write it into a state no claim produced.
 --
--- SKIP LOCKED IS THE WHOLE MECHANISM. The row is locked for the length of the caller's
--- transaction, so a second worker walks past it instead of waiting behind it. Ordinary FOR
--- UPDATE would serialise every worker on the oldest row and give one queue with one throat.
---
--- IT COUNTS THE ATTEMPT AND ENFORCES NO LIMIT. The caller that ends a failed job reads the count,
--- so this door refuses no claim on a count.
+-- SKIP LOCKED KEEPS TWO CLAIMS OFF ONE ROW. The row is locked for the length of the caller's
+-- transaction, so a second claim walks past it instead of waiting behind it.
 --
 -- IT TAKES A WORK KIND AND NEVER A `store_only` ROW. The kind goes back to the caller, because
 -- the runner that routes the row has to know which path it takes.
 --
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
--- caller supplies proves nothing about who holds the row. The earlier signature is dropped
--- here: a re-runnable file that only replaces would leave the two side by side.
+-- caller supplies proves nothing about who holds the row. The earlier signatures are dropped
+-- here: a re-runnable file that only replaces would leave them side by side.
 DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document doc_id, job_attempts int, job_kind text)
+RETURNS TABLE (job_id uuid, job_document doc_id, job_kind text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
@@ -1043,103 +1039,57 @@ BEGIN
 
   UPDATE public.jobs j
      SET status     = 'running',
-         attempts   = j.attempts + 1,
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.attempts, j.kind
-       INTO job_id, job_document, job_attempts, job_kind;
+  RETURNING j.id, j.document_id, j.kind
+       INTO job_id, job_document, job_kind;
 
   RETURN NEXT;
 END $$;
 
 
--- THE WAY BACK. Without it a worker that stops between the claim and the work holds its row for
--- ever, and the queue delivers at most once.
+-- THE WAY BACK AFTER A CRASH. A runner that stops in the middle of a job leaves its row `running`,
+-- and the open-job index then refuses a new job of that kind for that document. The runner calls
+-- this at its start, before its first claim, so the work continues.
 --
--- THE ATTEMPT IS SPENT. The claim counted it at the hour it took the row, and nothing here
--- rewrites a count that is already written.
---
--- THE LEASE IS A ROW AND NOT A NUMBER IN THIS FILE, and STRICT is the point: an absent lease
--- stops the release loudly instead of releasing every running row or none of them.
-CREATE OR REPLACE FUNCTION release_expired_claims()
+-- ONLY THE ROWS OF THE CALLER GO BACK. One runner works for one operator, so at its start no job
+-- of its role is in the hands of a live process.
+CREATE OR REPLACE FUNCTION requeue_running_jobs()
 RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_lease    interval;
-  v_released int;
+DECLARE v_requeued int;
 BEGIN
-  SELECT make_interval(secs => p.value::double precision) INTO STRICT v_lease
-    FROM public.parameter p WHERE p.key = 'job_claim_lease_seconds';
-
   UPDATE public.jobs j
      SET status     = 'queued',
          claimed_at = NULL,
          updated_at = now()
-   WHERE j.status = 'running'
-     AND j.claimed_at + v_lease < now();
+   WHERE j.status = 'running' AND j.claimed_by = session_user;
 
-  GET DIAGNOSTICS v_released = ROW_COUNT;
-  RETURN v_released;
+  GET DIAGNOSTICS v_requeued = ROW_COUNT;
+  RETURN v_requeued;
 END $$;
 
-
--- THE WAY BACK FOR A QUOTA THAT IS SPENT. A quota pause fails no job and spends no attempt, so the
--- row returns to `queued` with the count it had before the claim, and the next claim counts the
--- attempt again.
---
--- THE COUNT NEVER FALLS BELOW THE FAILURES THE ROW HOLDS. jobs_failures_within_attempts says that
--- the failures never pass the attempts, and a row that already holds a failure of each claim
--- would break it. GREATEST keeps the check true, and the attempt is then not given back: the
--- failures are a record of claims that ran, so those claims did spend their attempts.
---
--- ONLY A RUNNING ROW GOES BACK. A row that ended or never ran has no claim to release.
-CREATE OR REPLACE FUNCTION release_job_for_quota(p_id uuid)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  UPDATE public.jobs j
-     SET status     = 'queued',
-         attempts   = GREATEST(j.attempts - 1, j.network_failures + j.rejected_failures),
-         claimed_at = NULL,
-         updated_at = now()
-   WHERE j.id = p_id AND j.status = 'running';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'job % is not running, and only a running job goes back for quota', p_id;
-  END IF;
-END $$;
-
--- THE THREE NUMBERS THAT THE RUNNER READS, AS ONE STRICT READ. The lease, the wait on a spent quota
--- and the wait on an empty queue are rows, and a row that is absent stops the runner loudly. A
--- default here would let a runner start with a lease that nobody chose. The door returns these
--- three and no other row of the table.
+-- THE WAIT OF THE RUNNER ON AN EMPTY QUEUE, AS ONE STRICT READ. The number is a row, and a row
+-- that is absent stops the runner loudly. The door returns this number and no other row of the
+-- table. The earlier signature returned three numbers, so it is dropped first.
+DROP FUNCTION IF EXISTS runner_settings();
 CREATE OR REPLACE FUNCTION runner_settings()
-RETURNS TABLE (lease_seconds double precision, quota_wait_seconds double precision,
-               empty_wait_seconds double precision)
+RETURNS TABLE (empty_wait_seconds double precision)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_key text;
-  v_value double precision;
 BEGIN
-  FOREACH v_key IN ARRAY ARRAY['job_claim_lease_seconds','runner_quota_wait_seconds',
-                               'runner_empty_wait_seconds'] LOOP
-    SELECT p.value::double precision INTO v_value FROM public.parameter p WHERE p.key = v_key;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'the parameter % is absent, and the runner reads no default', v_key;
-    END IF;
-    IF v_key = 'job_claim_lease_seconds' THEN lease_seconds := v_value;
-    ELSIF v_key = 'runner_quota_wait_seconds' THEN quota_wait_seconds := v_value;
-    ELSE empty_wait_seconds := v_value;
-    END IF;
-  END LOOP;
+  SELECT p.value::double precision INTO empty_wait_seconds
+    FROM public.parameter p WHERE p.key = 'runner_empty_wait_seconds';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the parameter runner_empty_wait_seconds is absent, and no default stands';
+  END IF;
   RETURN NEXT;
 END $$;
 
--- THE END OF A JOB THAT FAILED. Without it a job that fails on each claim returns to the queue
--- for ever, and the operator sees no reason.
+-- THE END OF A JOB THAT FAILED. The runner calls it on the first failure, so the operator sees
+-- the reason and can queue the document again.
 --
 -- ONLY A RUNNING ROW ENDS, and the reason is required: a `failed` row with no reason gives the
 -- operator nothing to act on. No failure kind is written, because the three kinds name the fault
@@ -1174,9 +1124,9 @@ DECLARE
   v_id    uuid;
   v_bytes text;
 BEGIN
-  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured','second_read') THEN
+  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured') THEN
     RAISE EXCEPTION
-      'a job asks for extract_text, map_structured or second_read, and this one asked for %',
+      'a job asks for extract_text or map_structured, and this one asked for %',
       coalesce(p_kind, 'nothing')
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
