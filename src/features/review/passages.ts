@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { askWriter } from '@/shared/write/door';
+
 /** One passage that an act cites: the words of the page between the offsets that code found. */
 export interface Passage {
   readonly document: string;
@@ -29,7 +31,6 @@ export type ActPassages =
     }
   | { readonly state: 'private'; readonly why: string };
 
-// The development server proxies this path to the writer, so the browser stays same-origin.
 const DOOR = '/private/passages';
 
 // External constraint: the writer reads the passages of at most this many acts in one request.
@@ -54,17 +55,8 @@ const answered = z.object({
 type Answered = z.output<typeof answered>;
 
 const readPart = async (proposalIds: readonly string[]): Promise<Answered | null> => {
-  try {
-    const answer = await fetch(DOOR, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proposalIds }),
-    });
-    const held = answered.safeParse(await answer.json());
-    return answer.ok && held.success ? held.data : null;
-  } catch {
-    return null;
-  }
+  const read = await askWriter(DOOR, { proposalIds }, answered);
+  return read.step === 'done' ? read : null;
 };
 
 /** Reads the passages of the named acts from the writer, in parts that the writer takes. It

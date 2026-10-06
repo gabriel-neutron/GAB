@@ -37,8 +37,11 @@ and continue at step 6.
 6. Call `job_status` for each document. Wait between two calls. Stop when each job is done or
    failed.
 7. For each done job, call `list_proposals` with the document id. These are the claims of the
-   extractor. Propose only a fact that it missed, with the skill `cite-claim`.
-8. Give the result as a table: URL, document id, job status, number of proposals, failure reason.
+   extractor. Propose only a fact that it missed, with the skill `cite-claim`. When the job
+   gives `refused`, the extractor lost the claims of those parts: read the document with
+   `document_text` and propose what those parts state.
+8. Give the result as a table: URL, document id, job status, number of proposals, refused parts,
+   failure reason.
 
 ## Never
 
