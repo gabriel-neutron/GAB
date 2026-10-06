@@ -24,6 +24,7 @@ const held = z
   .parse(process.env);
 
 const MODEL = 'stub-family/stub-model';
+const CHECKER = 'other-family/check-model';
 const PAGE = 'The tanker Nayara left Sikka.';
 const LABEL = 'Nayara';
 const WORKER = fileURLToPath(new URL('./main.ts', import.meta.url));
@@ -38,7 +39,8 @@ const db = new Client({
 });
 
 // The gateway refuses the first question about the flaky document, and answers each other
-// question with one claim that the page states.
+// question with one claim that the page states. The checker, a model of another family, supports
+// the claim of the recovered document and not the claim of the flaky one.
 let flakyRefused = false;
 
 const bodyOf = async (request: IncomingMessage): Promise<string> => {
@@ -64,10 +66,18 @@ const claimOf = (body: string): string => {
   });
 };
 
+const verdictOf = (body: string): string =>
+  JSON.stringify({
+    verdicts: [{ ref: 'vessel', verdict: body.includes(FLAKY) ? 'not_supported' : 'supported' }],
+  });
+
+const asked = z.object({ model: z.string() });
+
 const gateway: Server = createServer((request, response) => {
   void bodyOf(request).then((body) => {
     response.setHeader('content-type', 'application/json');
-    if (body.includes(FLAKY) && !flakyRefused) {
+    const { model } = asked.parse(JSON.parse(body));
+    if (model === MODEL && body.includes(FLAKY) && !flakyRefused) {
       flakyRefused = true;
       response.statusCode = 400;
       response.end(JSON.stringify({ error: { message: 'the stub refuses this question' } }));
@@ -75,9 +85,15 @@ const gateway: Server = createServer((request, response) => {
     }
     response.end(
       JSON.stringify({
-        model: MODEL,
+        model,
         choices: [
-          { message: { role: 'assistant', content: claimOf(body) }, finish_reason: 'stop' },
+          {
+            message: {
+              role: 'assistant',
+              content: model === CHECKER ? verdictOf(body) : claimOf(body),
+            },
+            finish_reason: 'stop',
+          },
         ],
         usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
       }),
@@ -97,7 +113,6 @@ const startRunner = (): ChildProcess => {
       GABRIEL_DATABASE: held.GABRIEL_DATABASE,
       FREELLMAPI_BASE_URL: `http://127.0.0.1:${String(address.port)}/v1`,
       FREELLMAPI_API_KEY: 'a-stub-key',
-      EXTRACTOR_ENDPOINT: 'freellmapi',
       EXTRACTOR_MODEL: MODEL,
       EXTRACTOR_FAMILY: 'stub-family',
       EXTRACTOR_FIRST_WAIT_MS: '1',
@@ -108,6 +123,13 @@ const startRunner = (): ChildProcess => {
       EXTRACTOR_TOKEN_CAP: '10000',
       EXTRACTOR_TURN_CAP: '10',
       EXTRACTOR_CHUNK_CAP: '6000',
+      CHECKER_MODEL: CHECKER,
+      CHECKER_FAMILY: 'other-family',
+      CHECKER_FIRST_WAIT_MS: '1',
+      CHECKER_WAIT_GROWTH: '1',
+      CHECKER_MAX_WAIT_MS: '1',
+      CHECKER_TIMEOUT_MS: '5000',
+      CHECKER_MAX_ANSWER_TOKENS: '200',
     },
   });
 };
@@ -165,19 +187,16 @@ const jobsOf = async (document: string) =>
     ).rows,
   );
 
-const pendingOf = async (document: string): Promise<string[]> =>
-  z
-    .array(z.object({ label: z.string() }))
-    .parse(
-      (
-        await db.query(
-          `SELECT payload ->> 'label' AS label FROM public.proposals
-            WHERE status = 'pending' AND $1 = ANY(src::text[])`,
-          [document],
-        )
-      ).rows,
-    )
-    .map((row) => row.label);
+const pendingOf = async (document: string): Promise<{ label: string; dissent: boolean }[]> =>
+  z.array(z.object({ label: z.string(), dissent: z.boolean() })).parse(
+    (
+      await db.query(
+        `SELECT payload ->> 'label' AS label, dissent FROM public.proposals
+          WHERE status = 'pending' AND $1 = ANY(src::text[])`,
+        [document],
+      )
+    ).rows,
+  );
 
 const citationsOf = async (document: string): Promise<number> =>
   z
@@ -248,7 +267,7 @@ afterAll(async () => {
   }
 });
 
-test('a queued document gives pending proposals, and a crash or a failure blocks no document', async () => {
+test('a queued document gives checked proposals, and a crash or a failure blocks no document', async () => {
   // A runner that stopped in the middle of a job left this job running.
   await store(RECOVERED);
   const recovered = await queue(RECOVERED);
@@ -260,25 +279,18 @@ test('a queued document gives pending proposals, and a crash or a failure blocks
   await db.query('RESET SESSION AUTHORIZATION');
   expect(claimed).toStrictEqual([{ job_id: recovered }]);
 
-  // A database that ran 0036 can hold a queued second reading, and no agent runs that kind now.
-  await db.query("INSERT INTO public.jobs (document_id, kind) VALUES ($1, 'second_read')", [
-    RECOVERED,
-  ]);
-
   await store(FLAKY);
   await queue(FLAKY);
 
   const first = startRunner();
   try {
-    const recoveredJobs = await ended(RECOVERED, 2);
+    const recoveredJobs = await ended(RECOVERED, 1);
     const flakyJobs = await ended(FLAKY, 1);
 
     expect(recoveredJobs.map(({ kind, status }) => ({ kind, status }))).toStrictEqual([
       { kind: 'extract_text', status: 'done' },
-      { kind: 'second_read', status: 'failed' },
     ]);
-    expect(recoveredJobs[1]?.failure_reason).toMatch(/second_read/u);
-    expect(await pendingOf(RECOVERED)).toStrictEqual([LABEL]);
+    expect(await pendingOf(RECOVERED)).toStrictEqual([{ label: LABEL, dissent: false }]);
 
     expect(flakyJobs[0]?.status).toBe('failed');
     expect(flakyJobs[0]?.failure_reason).toMatch(/\S/u);
@@ -295,11 +307,12 @@ test('a queued document gives pending proposals, and a crash or a failure blocks
   try {
     const flakyJobs = await ended(FLAKY, 2);
     expect(flakyJobs.map((job) => job.status)).toStrictEqual(['failed', 'done']);
-    expect(await pendingOf(FLAKY)).toStrictEqual([LABEL]);
+    // The checker does not support the claim of this document, so the claim waits as disputed.
+    expect(await pendingOf(FLAKY)).toStrictEqual([{ label: LABEL, dissent: true }]);
 
-    const recoveredJobs = await ended(RECOVERED, 3);
-    expect(recoveredJobs.map((job) => job.status)).toStrictEqual(['done', 'failed', 'done']);
-    expect(await pendingOf(RECOVERED)).toStrictEqual([LABEL]);
+    const recoveredJobs = await ended(RECOVERED, 2);
+    expect(recoveredJobs.map((job) => job.status)).toStrictEqual(['done', 'done']);
+    expect(await pendingOf(RECOVERED)).toStrictEqual([{ label: LABEL, dissent: false }]);
     expect(await citationsOf(RECOVERED)).toBe(1);
   } finally {
     await stopRunner(second);

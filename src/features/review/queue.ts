@@ -423,21 +423,21 @@ function destroyed(index: Index, attrs: Attributes): readonly DifferenceRow[] {
 }
 
 const ROUTING_WORDS: Readonly<Record<Routing, string>> = {
-  dissent: 'Here because the agents disagreed.',
+  dissent: 'Here because a check disputes it.',
   unstated:
     'No disagreement is recorded, and no confidence is compared with a threshold here, so this screen cannot say why the act is in front of you.',
 };
 
 const ROUTING_SHORT: Readonly<Record<Routing, string>> = {
-  dissent: 'disagreed',
+  dissent: 'disputed',
   unstated: 'reason unstated',
 };
 
 const HOLE: Readonly<Record<HoleKind, Hole>> = {
   argument: {
     kind: 'argument',
-    short: 'the disagreement is not recorded',
-    long: 'The record holds that the agents disagreed, and neither side of it: not who objected, and not what it asked for instead.',
+    short: 'the dispute is not recorded',
+    long: 'The record holds that a check disputes the act, and not which one: a value that no cited passage states, or a model of another family that did not support it. Read the passage.',
   },
   duplicate: {
     kind: 'duplicate',

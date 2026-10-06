@@ -88,7 +88,8 @@ a file  →  one ingestion door (P6)
              → text extraction
              → a job in the queue
                   → text file: the extractor reads the text as it is stored and
-                    proposes claims, each with a checked excerpt
+                    proposes claims, each with a checked excerpt; a model of
+                    another family checks each claim against its passage
                   → structured file: a mapping proposal; after promotion, code loads the rows
 every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
 promotion       →  entities and relations (the evidentiary layer)
@@ -106,6 +107,11 @@ span of stored text, which code found from a quoted excerpt. The door writes the
 citations together, refuses the whole batch on one fault, and returns a pending act that it
 already holds instead of a duplicate. The cited passage is private and reaches only the review
 card of the operator.
+
+Before the extractor writes its acts, a model of another family checks each one against its
+passage. An act that the check does not support, or that a failed check could not read, is
+written as disputed, and the review card shows it as disputed. Every model call goes to the free
+model gateway and is recorded.
 
 The acts of one call that name each other are one linked batch. The review queue shows a batch as
 one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion

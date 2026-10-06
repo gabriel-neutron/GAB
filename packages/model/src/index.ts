@@ -1,14 +1,15 @@
 export { openBudget, type Budget } from './budget.ts';
 export { REASON, type Failure, type ReasonKind } from './failure.ts';
+export { GATEWAY, gatewayModel } from './gateway.ts';
 export {
   openModel,
-  type AgentModel,
   type Answer,
+  type CallRecord,
   type Message,
   type Model,
+  type ModelLine,
+  type ModelOptions,
   type Question,
-  type Send,
   type Tool,
-  type ToolCall,
   type ToolUse,
-} from './client.ts';
+} from './model.ts';

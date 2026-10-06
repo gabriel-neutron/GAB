@@ -32,6 +32,22 @@ export interface Web {
   readonly braveKey?: string;
 }
 
+/** One passage that an item cites: the words that code found in the page, and the words around
+ * them. */
+export interface CheckedPassage {
+  readonly document: string;
+  readonly page: number;
+  readonly excerpt: string;
+  readonly context: string;
+}
+
+/** One item that the propose tool is about to write, with the passages that state it. */
+export interface ItemToCheck {
+  readonly ref: string;
+  readonly claim: { readonly act: unknown; readonly originator: string; readonly modality: string };
+  readonly passages: readonly CheckedPassage[];
+}
+
 /** What a tool needs beyond the database: the object store, the web, the clock and the resolver. */
 export interface Reach {
   readonly store?: { put(object: RawObject): Promise<string> };
@@ -41,6 +57,9 @@ export interface Reach {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */
   readonly refuses?: (address: string) => boolean;
+  /** A check of each item by a model of another family, before the write. It gives the refs of
+   * the items that their passages support. Each other item is written as disputed. */
+  readonly check?: (items: readonly ItemToCheck[]) => Promise<ReadonlySet<string>>;
 }
 
 /** A request that a tool declines, with the one sentence that says why. */
