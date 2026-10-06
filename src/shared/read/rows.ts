@@ -122,5 +122,6 @@ export const row = {
     created_at: text('proposal.created_at'),
     decided_at: nullableText('proposal.decided_at'),
     decided_by: nullableText('proposal.decided_by'),
+    batch_id: nullableText('proposal.batch_id'),
   }),
 } as const;

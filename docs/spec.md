@@ -113,6 +113,13 @@ passage. An act that the check does not support, or that a failed check could no
 written as disputed, and the review card shows it as disputed. Every model call goes to the free
 model gateway and is recorded.
 
+The acts of one call that name each other are one linked batch. The review queue shows a batch as
+one card, and the operator promotes or rejects it as one unit, in one transaction. A promotion
+writes each entity before the relation that names it, and one refused act refuses the whole batch:
+the refusal names the act and the reason, and nothing is written. An act that names no other act
+of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
+The door of one act refuses an act of a batch, so a batch is never half decided.
+
 ## Technical baseline
 
 | ID | Decision | Reason |

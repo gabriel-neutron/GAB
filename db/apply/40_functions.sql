@@ -116,11 +116,11 @@ BEGIN
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id, NEW.act_digest, NEW.originator)
+      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id, OLD.act_digest, OLD.originator) THEN
+      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -467,6 +467,10 @@ END $$;
 -- THE RULES OF THE DATA ARE HERE, and the tool only finds the excerpt. A machine act cites at
 -- least one page. The page exists in the text of the document, the span lies in that page, and
 -- the document is a source of the act. Each refusal names the item.
+--
+-- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH, and the operator decides them as one unit. An
+-- item that names no other item, and that no other item names, stays a single act: a faulty claim
+-- never blocks a good claim of the same page. A retry joins the batch of the act that waits.
 CREATE OR REPLACE FUNCTION propose_batch(p_items jsonb)
 RETURNS TABLE (item int, proposal_id uuid, written boolean)
 LANGUAGE plpgsql SECURITY DEFINER
@@ -489,11 +493,39 @@ DECLARE
   v_code     text;
   v_said     text;
   v_valid    boolean;
+  v_group    jsonb := '{}'::jsonb;
+  v_joined   text[];
+  v_key      text;
+  v_batches  jsonb := '{}'::jsonb;
+  v_batch    uuid;
+  v_held     uuid;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+
+  -- THE GROUPS OF LINKED ITEMS. Each item starts as a group of its own. Each item then joins its
+  -- group to the groups of the items that it names, in any order of the items. Each group takes
+  -- the identifier of one of its items.
+  SELECT coalesce(jsonb_object_agg(e.value->>'id', e.value->>'id'), '{}'::jsonb) INTO v_group
+    FROM jsonb_array_elements(p_items) AS e WHERE e.value->>'id' IS NOT NULL;
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    SELECT array_agg(DISTINCT v_group->>n.ref) INTO v_joined
+      FROM (SELECT jsonb_array_elements_text(
+                     CASE WHEN jsonb_typeof(v_item->'names') = 'array' THEN v_item->'names'
+                          ELSE '[]'::jsonb END)
+            UNION SELECT v_item->>'id'
+            UNION SELECT v_item->>'target_id'
+            UNION SELECT v_item->'payload'->>'src_id'
+            UNION SELECT v_item->'payload'->>'dst_id') AS n(ref)
+     WHERE n.ref IS NOT NULL AND v_group ? n.ref;
+    IF cardinality(v_joined) > 1 THEN
+      v_key := v_joined[1];
+      SELECT jsonb_object_agg(g.key, CASE WHEN g.value = ANY (v_joined) THEN v_key ELSE g.value END)
+        INTO v_group FROM jsonb_each_text(v_group) AS g;
+    END IF;
+  END LOOP;
 
   FOR v_item, v_no IN SELECT e.value, e.ordinality::int FROM jsonb_array_elements(p_items)
                          WITH ORDINALITY AS e(value, ordinality) LOOP
@@ -594,20 +626,27 @@ BEGIN
       END IF;
     END IF;
 
+    -- A group of one item is a single act. The first item of a group that already waits gives
+    -- the group its batch, so a retry joins the batch that the first call made.
+    v_key   := v_group->>(v_item->>'id');
+    v_batch := CASE WHEN (SELECT count(*) FROM jsonb_each_text(v_group) g WHERE g.value = v_key) > 1
+                    THEN coalesce((v_batches->>v_key)::uuid, v_key::uuid) END;
+
     v_id := NULL;
     -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-         model_call_id, originator)
+         model_call_id, originator, batch_id)
       VALUES
         (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
          v_src::doc_id[], v_names, (v_item->>'confidence')::numeric,
          coalesce((v_item->>'dissent')::boolean, false),
          session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
-         (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'))
+         (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
+         v_batch)
       ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
-      RETURNING id INTO v_id;
+      RETURNING id, batch_id INTO v_id, v_held;
     EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
       GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_code = RETURNED_SQLSTATE,
                               v_said = MESSAGE_TEXT;
@@ -617,12 +656,23 @@ BEGIN
     written := v_id IS NOT NULL;
     IF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
-      SELECT p.id INTO STRICT v_id FROM public.proposals p
+      -- The share lock waits for a decision on that act that runs now. So a retry never joins a
+      -- batch that the operator decides at the same time.
+      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
                                           v_payload::jsonb, v_src, session_user::text,
-                                          btrim(v_item->>'originator', E' \t\n\r\f\v'));
+                                          btrim(v_item->>'originator', E' \t\n\r\f\v'))
+         FOR SHARE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
+                        'batch was written, so send the batch again', v_no
+          USING CONSTRAINT = 'proposal_pending';
+      END IF;
       v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
+    END IF;
+    IF v_batch IS NOT NULL AND NOT v_batches ? v_key THEN
+      v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
     END IF;
 
     INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
@@ -896,6 +946,25 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- A LINKED BATCH IS DECIDED AS ONE UNIT (operator decision). The doors of one act refuse an act
+-- that waits in a batch, so no act of a batch is decided alone and a batch is never half decided.
+-- No role holds this step: it runs inside the two doors of one act.
+CREATE OR REPLACE FUNCTION refuse_batch_act(p_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_batch uuid;
+BEGIN
+  SELECT batch_id INTO v_batch FROM public.proposals
+   WHERE id = p_id AND status = 'pending' AND batch_id IS NOT NULL;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the act % is part of the linked batch %, and the operator decides a batch '
+                    'as one unit: decide the batch', p_id, v_batch
+      USING CONSTRAINT = 'batch_whole';
+  END IF;
+END $$;
+
 -- THE DECISION ON AN ACT THAT WAITS. Only the operator role holds it, and that grant is the rule
 -- "a machine proposes, only the operator promotes".
 CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
@@ -907,6 +976,8 @@ DECLARE
   v_table text;
   v_code  text;
 BEGIN
+  -- An act of a linked batch names another act of it, so it is promoted only with the batch.
+  PERFORM public.refuse_batch_act(p_id);
   -- The measured forgery: propose and accept inside one transaction. Refused by a stored
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
@@ -963,6 +1034,8 @@ BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
+  -- An act of a linked batch is rejected only with the batch, as it is promoted only with it.
+  PERFORM public.refuse_batch_act(p_id);
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
    WHERE id = p_id AND status = 'pending';
@@ -973,6 +1046,96 @@ BEGIN
     RAISE EXCEPTION 'the act % is decided already, and a decided act is frozen', p_id
       USING CONSTRAINT = 'proposal_pending';
   END IF;
+END $$;
+
+-- THE DECISION ON A LINKED BATCH, AS ONE UNIT. Only the operator role holds it, as it holds the
+-- promotion of one act. A promotion writes each act that waits in the batch, an entity before the
+-- relation that names it, or it writes none: the first refusal stops the whole transaction, and
+-- the sentence names the act and the reason. A rejection rejects each act that waits in the batch.
+CREATE OR REPLACE FUNCTION decide_batch(p_batch uuid, p_verdict text, p_decided_by text)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_left  uuid[];
+  v_count int;
+  p       public.proposals%ROWTYPE;
+  v_said  text;
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  IF coalesce(p_verdict, '') NOT IN ('promote', 'reject') THEN
+    RAISE EXCEPTION 'a decision on a batch is promote or reject' USING CONSTRAINT = 'batch_verdict';
+  END IF;
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+
+  -- The lock closes a second decision on the same batch while this one runs.
+  PERFORM 1 FROM public.proposals
+    WHERE batch_id = p_batch AND status = 'pending' ORDER BY id FOR UPDATE;
+  SELECT array_agg(id ORDER BY id) INTO v_left FROM public.proposals
+   WHERE batch_id = p_batch AND status = 'pending';
+  v_count := coalesce(cardinality(v_left), 0);
+  IF v_count = 0 THEN
+    RAISE EXCEPTION 'the record holds no batch % that waits', p_batch
+      USING CONSTRAINT = 'batch_pending';
+  END IF;
+
+  IF p_verdict = 'reject' THEN
+    UPDATE public.proposals
+       SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
+     WHERE id = ANY (v_left);
+    RETURN v_count;
+  END IF;
+
+  -- The same guard as the promotion of one act: no act is decided by the transaction that
+  -- proposed it.
+  IF EXISTS (SELECT 1 FROM public.proposals
+              WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the batch % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_batch
+      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
+  END IF;
+
+  WHILE cardinality(v_left) > 0 LOOP
+    -- The next act names no act of the batch that still waits.
+    SELECT * INTO p FROM public.proposals x
+     WHERE x.id = ANY (v_left)
+       AND NOT EXISTS (
+             SELECT 1 FROM unnest(x.names || ARRAY[x.target_id,
+                                                   (x.payload->>'src_id')::uuid,
+                                                   (x.payload->>'dst_id')::uuid]) AS n(id)
+              WHERE n.id = ANY (v_left) AND n.id <> x.id)
+     ORDER BY x.id
+     LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'nothing of the batch is promoted, because its acts name each other in a '
+                      'circle' USING CONSTRAINT = 'batch_order';
+    END IF;
+    BEGIN
+      PERFORM public.apply_proposal(p.id, p_decided_by);
+    EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+      GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                              v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+      -- A rule of a table gets its own sentence, as it gets it for one act.
+      BEGIN
+        PERFORM public.raise_rule(v_rule, v_table, v_code);
+      EXCEPTION WHEN OTHERS THEN
+        GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT;
+      END;
+      RAISE EXCEPTION 'nothing of the batch is promoted, because the record refuses its %: %',
+        CASE p.op
+          WHEN 'create_entity'   THEN 'new entity ' || (p.payload->>'label')
+          WHEN 'create_relation' THEN 'new relation ' || (p.payload->>'type')
+          ELSE 'act ' || p.id::text END,
+        v_said
+        USING ERRCODE = v_code, CONSTRAINT = coalesce(nullif(v_rule, ''), 'batch_item');
+    END;
+    v_left := array_remove(v_left, p.id);
+  END LOOP;
+  RETURN v_count;
 END $$;
 
 

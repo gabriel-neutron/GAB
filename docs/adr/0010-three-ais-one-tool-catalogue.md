@@ -62,7 +62,8 @@ a line end differs, and calculates the offsets. An excerpt that the page does no
 whole batch, and the refusal names the item, so the model can correct it once. A value that no
 excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
 such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. Code mints
-the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The door
+the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The items
+that name each other stay one linked batch, which the operator promotes or rejects as one unit. The door
 writes each act with its citations in one transaction, and it holds the rules of the data: the
 page exists, the span lies in it, and a machine act cites at least one page. A pending act with the
 same operation, target, payload, sources, role and originator is returned and not written again,

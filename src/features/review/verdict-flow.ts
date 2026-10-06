@@ -16,10 +16,13 @@ type VerdictSettled =
  * way. The second one is dropped, and never queued behind the first. */
 export function beginVerdict(
   decision: DecisionState,
-  act: { readonly changeId: string; readonly verdict: Verdict },
+  act: { readonly changeId: string; readonly verdict: Verdict; readonly batch?: true },
 ): DecisionState | null {
   if (decision.step === 'working') return null;
-  return { step: 'working', changeId: act.changeId, verdict: act.verdict };
+  const { changeId, verdict, batch } = act;
+  return batch
+    ? { step: 'working', changeId, verdict, batch }
+    : { step: 'working', changeId, verdict };
 }
 
 /** Read the answer of the record for one verdict. The record can hold a later state than this
