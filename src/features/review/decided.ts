@@ -29,7 +29,6 @@ export interface DecidedRow {
 
 const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], DoorVerdict>> = {
   accepted: 'promoted',
-  rejected: 'rejected',
 };
 
 const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {
@@ -104,11 +103,7 @@ function subjectOf(names: Names, act: DecidedAct['act']): string {
   const payload = act.payload;
   switch (payload.kind) {
     case 'entity':
-      return (
-        names.madeFrom.get(act.id) ??
-        payload.label ??
-        `A new ${payload.type ?? 'entity'} the act does not name`
-      );
+      return names.madeFrom.get(act.id) ?? payload.label;
     case 'relation':
     case 'merge':
       return payloadHeadline(labelIn(names), names.typeWordsOf, payload);
@@ -136,14 +131,14 @@ function keysOf(act: DecidedAct['act']): string {
       return named([payload.label !== null && 'Name', payload.type !== null && 'Type']);
     case 'entity':
       return named([
-        payload.label !== null && 'Name',
-        payload.type !== null && 'Type',
+        'Name',
+        'Type',
         payload.geom !== null && 'Location',
         ...Object.keys(payload.attrs),
       ]);
     case 'relation':
       return named([
-        payload.type !== null && 'Type',
+        'Type',
         payload.valid_from !== null && 'Valid from',
         payload.valid_to !== null && 'Valid to',
         ...Object.keys(payload.attrs),

@@ -1,6 +1,7 @@
 import { CircleDashed, FileX } from 'lucide-react';
 import { useId, useState } from 'react';
 
+import { ExtractionControl } from '@/shared/extraction-control';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 
@@ -115,6 +116,7 @@ export function SourceCard({ source }: SourceCardProps) {
               </ul>
             )}
           </div>
+          {source.extractable ? <ExtractionControl documentId={source.id} /> : null}
         </div>
       ) : null}
     </article>

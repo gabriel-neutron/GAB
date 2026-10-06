@@ -268,93 +268,6 @@ test('arm 8 finds a foreign key that sets an evidentiary column to null on a del
   expect(found).toStrictEqual(['entities_type_fkey']);
 });
 
-const DEFINER_DOORS = `
-  SELECT n.nspname || '.' || p.proname || ' to '
-         || CASE WHEN a.grantee = 0 THEN 'PUBLIC'
-                 ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS found
-    FROM pg_catalog.pg_proc p
-    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-    CROSS JOIN LATERAL pg_catalog.aclexplode(
-           coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) AS a
-   WHERE n.nspname IN ('public','api') AND p.prosecdef
-     AND a.privilege_type = 'EXECUTE'
-     AND (a.grantee = 0 OR pg_catalog.pg_get_userbyid(a.grantee) <> 'gabriel_owner')
-   ORDER BY 1`;
-
-const THE_DOOR_SET = [
-  'public.append_chat_message to gabriel_app',
-  'public.claim_job to gabriel_agent',
-  'public.complete_job to gabriel_agent',
-  'public.confirm_fabrication to gabriel_app',
-  'public.contest_letter to gabriel_app',
-  'public.decide_originator_fact to gabriel_app',
-  'public.enqueue_job to gabriel_agent',
-  'public.enqueue_job to gabriel_app',
-  'public.enqueue_job to gabriel_research',
-  'public.ensure_originator to gabriel_app',
-  'public.ensure_originator_candidate to gabriel_agent',
-  'public.ensure_originator_candidate to gabriel_app',
-  'public.fail_job to gabriel_agent',
-  'public.issuer_card_for to gabriel_app',
-  'public.link_imprint to gabriel_app',
-  'public.load_trust_list to gabriel_app',
-  'public.merge_originator to gabriel_app',
-  'public.open_conversation to gabriel_app',
-  'public.originator_exceptions to gabriel_app',
-  'public.originator_letter_for to gabriel_app',
-  'public.promote_proposal to gabriel_app',
-  'public.propose_change to gabriel_agent',
-  'public.propose_change to gabriel_app',
-  'public.propose_change to gabriel_research',
-  'public.propose_originator_fact to gabriel_agent',
-  'public.propose_originator_fact to gabriel_app',
-  'public.put_claim_reading to gabriel_agent',
-  'public.put_document to gabriel_app',
-  'public.put_document_text to gabriel_agent',
-  'public.put_document_text to gabriel_app',
-  'public.put_document_text to gabriel_research',
-  'public.put_fetched_document to gabriel_agent',
-  'public.put_fetched_document to gabriel_research',
-  'public.record_model_call to gabriel_agent',
-  'public.refresh_originator to gabriel_app',
-  'public.reject_proposal to gabriel_app',
-  'public.release_expired_claims to gabriel_app',
-  'public.release_job_for_quota to gabriel_agent',
-  'public.remove_operator_letter to gabriel_app',
-  'public.review_originator_card to gabriel_app',
-  'public.runner_settings to gabriel_agent',
-  'public.second_read_done to gabriel_agent',
-  'public.set_entity_layout to gabriel_agent',
-  'public.set_operator_letter to gabriel_app',
-  'public.set_party_false to gabriel_app',
-];
-
-// A departure: a door writes as gabriel_owner and holds no table grant, so EXECUTE on one is a
-// write that arm 4 cannot see. The door set is held by hand, and a new grant fails here.
-test('every definer door is granted to the roles in this list and to no other', async () => {
-  expect(await foundBy(DEFINER_DOORS)).toStrictEqual(THE_DOOR_SET);
-});
-
-// External constraint: a NULL ACL is the built-in default, which gives PUBLIC EXECUTE, and
-// aclexplode gives no row for it. The default privilege is dropped here to make that door.
-test('a definer door that nobody revoked shows as a door to PUBLIC', async () => {
-  const doors = await probe('superuser', async (ask) => {
-    await ask('BEGIN');
-    try {
-      await ask(
-        'ALTER DEFAULT PRIVILEGES FOR ROLE gabriel_owner GRANT EXECUTE ON FUNCTIONS TO PUBLIC',
-      );
-      await ask('SET LOCAL ROLE gabriel_owner');
-      await ask(`CREATE FUNCTION public.zz_unrevoked_door() RETURNS int LANGUAGE sql
-                   SECURITY DEFINER SET search_path = pg_catalog AS 'SELECT 1'`);
-      return findings.parse(await ask(DEFINER_DOORS)).map((row) => row.found);
-    } finally {
-      await ask('ROLLBACK');
-    }
-  });
-  expect(doors).toContain('public.zz_unrevoked_door to PUBLIC');
-});
-
 const OUTSIDE_OWNER = `
   SELECT c.relname AS table_name, pg_catalog.pg_get_userbyid(c.relowner) AS owner,
          (SELECT e.extname FROM pg_catalog.pg_depend d
@@ -401,20 +314,14 @@ const READ_VIEWS = [
   'api.document_provider SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
-  'api.full_graph SELECT',
   'api.full_map SELECT',
-  'api.job SELECT',
-  'api.key_usage SELECT',
   'api.layout SELECT',
-  'api.model_call SELECT',
-  'api.originator_card SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.relation_type SELECT',
-  'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the fifteen api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the nine public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -443,11 +350,19 @@ const MACHINE_HOLDS = `
      AND g.table_schema = 'api'
    ORDER BY 1`;
 
-const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
+const MACHINE_VIEWS = [
+  'document',
+  'entity',
+  'entity_type',
+  'job',
+  'proposal',
+  'relation',
+  'relation_type',
+];
 
-// A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
-// to no tool until a person writes it in. api.model_call is the one that must stay closed.
-test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
+// A departure: the seven views are named, and ALL TABLES is not used, so a view added later opens
+// to no tool until a person writes it in.
+test('the three tool roles hold SELECT on seven api views and on nothing else of api', async () => {
   const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
     MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
   );

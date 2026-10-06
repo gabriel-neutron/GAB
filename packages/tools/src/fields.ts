@@ -19,3 +19,11 @@ export const rowsOf = async <Row extends z.ZodType>(
   const { rows } = await session.query(text, values);
   return rows.map((held) => row.parse(held));
 };
+
+// External constraint: a door raises its own refusals with this code, and any other code is a
+// fault of the database that the caller must see.
+const REFUSED_CODE = '22023';
+
+/** A refusal that a door worded for the caller. */
+export const isDoorRefusal = (cause: unknown): cause is Error =>
+  cause instanceof Error && 'code' in cause && cause.code === REFUSED_CODE;

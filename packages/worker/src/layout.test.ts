@@ -1,11 +1,23 @@
 import { expect, test } from 'vitest';
 
-import { entityLayout, type LayoutLink } from './layout.ts';
+import { entityLayout, type LayoutLink, type LayoutPosition } from './layout.ts';
 
-// entityLayout never promises one exact coordinate, because a relaxation and a spiral pack are
-// both iterative. It promises one position per entity, every id placed, and a repeatable run.
+// The layout promises no exact coordinate. It promises one position per entity, a repeatable run,
+// related entities near each other, and no two entities on one point.
 
 const link = (source: string, target: string): LayoutLink => ({ source, target });
+
+const distance = (one: LayoutPosition, two: LayoutPosition): number =>
+  Math.hypot(one.x - two.x, one.y - two.y);
+
+const placedById = (placed: readonly LayoutPosition[]): ((id: string) => LayoutPosition) => {
+  const byId = new Map(placed.map((position) => [position.id, position]));
+  return (id) => {
+    const found = byId.get(id);
+    if (found === undefined) throw new Error(`the layout placed no ${id}`);
+    return found;
+  };
+};
 
 test('every entity given gets exactly one position, and no other id appears', () => {
   const placed = entityLayout(['a', 'b', 'c'], [link('a', 'b')]);
@@ -39,79 +51,55 @@ test('a link reads either end as the same relation', () => {
   expect(forward).toEqual(reversed);
 });
 
+test('two relations between one pair weigh as one', () => {
+  const once = entityLayout(['a', 'b', 'c'], [link('a', 'b')]);
+  const twice = entityLayout(['a', 'b', 'c'], [link('a', 'b'), link('b', 'a')]);
+  expect(twice).toEqual(once);
+});
+
 test('the run is deterministic: the same entities and relations give the same picture', () => {
   const entities = ['a', 'b', 'c', 'd', 'e'];
   const links = [link('a', 'b'), link('b', 'c'), link('d', 'e')];
   expect(entityLayout(entities, links)).toEqual(entityLayout(entities, links));
 });
 
-test('the largest component is centred on the origin', () => {
-  const placed = entityLayout(['a', 'b', 'c', 'lone'], [link('a', 'b'), link('b', 'c')]);
-  const byId = new Map(placed.map((position) => [position.id, position]));
-  const group = ['a', 'b', 'c'].map((id) => byId.get(id));
-  const middleX = group.reduce((total, position) => total + (position?.x ?? 0), 0) / group.length;
-  const middleY = group.reduce((total, position) => total + (position?.y ?? 0), 0) / group.length;
-
-  expect(middleX).toBeCloseTo(0, 5);
-  expect(middleY).toBeCloseTo(0, 5);
+test('each position is a finite number', () => {
+  const placed = entityLayout(['lone'], []);
+  expect(placed).toHaveLength(1);
+  for (const position of placed) {
+    expect(Number.isFinite(position.x)).toBe(true);
+    expect(Number.isFinite(position.y)).toBe(true);
+  }
 });
 
-test('a tie between components of one size goes to the one that holds the earlier node', () => {
-  // Both `b` and `a` stand alone. `b` comes first in the entity list, so it holds the earlier
-  // node and its singleton component is centred on the origin.
-  const placed = entityLayout(['b', 'a'], []);
-  const byId = new Map(placed.map((position) => [position.id, position]));
-  expect(byId.get('b')).toEqual({ id: 'b', x: 0, y: 0 });
-});
-
-test('two components never land on the same point', () => {
-  const placed = entityLayout(['a', 'b', 'c', 'd'], [link('a', 'b')]);
-  const points = placed.map((position) => `${position.x},${position.y}`);
-  expect(new Set(points).size).toBe(points.length);
-});
-
-test('the discs of two components never overlap, over many components of one size', () => {
-  const lone = Array.from({ length: 30 }, (_unused, index) => `lone-${index}`);
-  const pairs = Array.from({ length: 5 }, (_unused, index): readonly [string, string] => [
-    `pair-${index}-a`,
-    `pair-${index}-b`,
-  ]);
-  const componentOf = new Map([
-    ...lone.map((id): [string, string] => [id, id]),
-    ...pairs.flatMap(([a, b]): [string, string][] => [
-      [a, a],
-      [b, a],
-    ]),
+test('no two entities land on one point, over many components', () => {
+  const lone = Array.from({ length: 30 }, (_unused, index) => `lone-${String(index)}`);
+  const pairs = Array.from({ length: 5 }, (_unused, index) => [
+    `pair-${String(index)}-a`,
+    `pair-${String(index)}-b`,
   ]);
   const placed = entityLayout(
     [...lone, ...pairs.flat()],
-    pairs.map(([a, b]) => link(a, b)),
+    pairs.map(([a = '', b = '']) => link(a, b)),
   );
-
-  // Origin: each entity stands half the spacing of 24 inside the disc of its component, and a gap
-  // of 16 parts two discs, so two entities of different components stand 24 + 16 apart or more.
-  const least = 24 + 16 - 1e-6;
-  const crowded = placed.flatMap((one, index) =>
-    placed
-      .slice(index + 1)
-      .filter((two) => componentOf.get(one.id) !== componentOf.get(two.id))
-      .filter((two) => Math.hypot(one.x - two.x, one.y - two.y) < least)
-      .map((two) => `${one.id} ${two.id}`),
-  );
-
+  const points = placed.map((position) => `${position.x.toFixed(3)},${position.y.toFixed(3)}`);
   expect(placed).toHaveLength(40);
-  expect(crowded).toEqual([]);
+  expect(new Set(points).size).toBe(points.length);
 });
 
 test('an entity connected to the rest sits closer to its neighbour than an unconnected one', () => {
-  const placed = entityLayout(['a', 'b', 'far'], [link('a', 'b')]);
-  const byId = new Map(placed.map((position) => [position.id, position]));
-  const a = byId.get('a');
-  const b = byId.get('b');
-  const far = byId.get('far');
-  const distance = (one?: { x: number; y: number }, two?: { x: number; y: number }): number =>
-    Math.hypot((one?.x ?? 0) - (two?.x ?? 0), (one?.y ?? 0) - (two?.y ?? 0));
+  const at = placedById(entityLayout(['a', 'b', 'far'], [link('a', 'b')]));
+  expect(distance(at('a'), at('b'))).toBeLessThan(distance(at('a'), at('far')));
+  expect(distance(at('a'), at('b'))).toBeLessThan(distance(at('b'), at('far')));
+});
 
-  expect(distance(a, b)).toBeLessThan(distance(a, far));
-  expect(distance(a, b)).toBeLessThan(distance(b, far));
+test('in a chain, each entity sits closer to its neighbour than to the far end', () => {
+  const at = placedById(
+    entityLayout(
+      ['a', 'b', 'c', 'd', 'e'],
+      [link('a', 'b'), link('b', 'c'), link('c', 'd'), link('d', 'e')],
+    ),
+  );
+  expect(distance(at('a'), at('b'))).toBeLessThan(distance(at('a'), at('e')));
+  expect(distance(at('d'), at('e'))).toBeLessThan(distance(at('a'), at('e')));
 });

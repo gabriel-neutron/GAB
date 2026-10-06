@@ -1,13 +1,14 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-
-import { REASON, type Message, type Tool as ModelTool } from '@gab/model';
+import type { Message, ToolUse } from '@gab/model';
 import { documentText } from '@gab/tools/document-text';
-import { lookupEntity } from '@gab/tools/lookup-entity';
-import { proposeChange } from '@gab/tools/propose-change';
-import { putClaimReading } from '@gab/tools/put-claim-reading';
-import { chunkAnswer, claimEntry, type ClaimEntry } from '@gab/tools/reading';
-import { callTool, type Session, type Tool } from '@gab/tools/tool';
+import { proposeItem, proposeOf } from '@gab/tools/propose';
+import { searchGraph } from '@gab/tools/search-graph';
+import {
+  callTool,
+  type CheckVerdict,
+  type ItemToCheck,
+  type Session,
+  type Tool,
+} from '@gab/tools/tool';
 import { z } from 'zod';
 
 import {
@@ -19,302 +20,228 @@ import {
   type Refusal,
   type RunnerAgent,
 } from '../agents.ts';
-import { chunkPages, codePoints, type Chunk } from '../chunk.ts';
+import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
+import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
 
-/** The reader id of the first reader. The key of each of its acts holds it. */
-export const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v1';
-const INPUT_FORM = 'text';
+/** The name of the extractor in the record of each of its model calls. */
+const EXTRACTOR_NAME = 'extractor';
+const VERSION = 'v4';
 
-/** The four tools of the profile. A test gives a stub for each one. */
-export interface ExtractorTools {
+/** The tools of the extractor. A test gives a stub for each one. The propose tool names the
+ * model call that gave the batch. */
+interface ExtractorTools {
   readonly documentText: Tool;
-  readonly lookupEntity: Tool;
-  readonly proposeChange: Tool;
-  readonly putClaimReading: Tool;
+  readonly searchGraph: Tool;
+  readonly propose: (modelCallId: string) => Tool;
 }
 
-export interface ExtractorOptions {
-  /** Replaces personal data with placeholders of the same length. With none, no model reads a
-   * stored document, and each job stops. */
-  readonly minimise?: (text: string) => string;
+interface ExtractorOptions {
   readonly tools?: ExtractorTools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
+  /** The text of the prompt of the checker. The default is the versioned file beside this one. */
+  readonly checkPrompt?: string;
 }
 
-const DEFAULT_TOOLS: ExtractorTools = {
-  documentText,
-  lookupEntity,
-  proposeChange,
-  putClaimReading,
+const DEFAULT_TOOLS: ExtractorTools = { documentText, searchGraph, propose: proposeOf };
+
+// The answer of the model is the batch that the propose tool takes, so the research AI and the
+// extractor give one shape. An empty list is a chunk that states no claim.
+const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
+
+// The checker gives one verdict for each item. Only `supported` lets an item stand undisputed.
+const checkAnswer = z.strictObject({
+  verdicts: z.array(
+    z.strictObject({
+      ref: z.string(),
+      verdict: z.enum(['supported', 'not_supported', 'unclear']),
+      // A model can give `null` for no reason, and that is not a fault of the answer.
+      reason: z.string().nullish(),
+    }),
+  ),
+});
+
+// Items that cite the same passages go to the checker in one question.
+const byPassage = (items: readonly ItemToCheck[]): ItemToCheck[][] => {
+  const groups = new Map<string, ItemToCheck[]>();
+  for (const item of items) {
+    const key = JSON.stringify(item.passages);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return [...groups.values()];
 };
 
-const proposed = z.object({ proposalId: z.uuid() });
-
-// One claim that the boundary refused goes back alone, so the model answers for that claim.
-const retryAnswer = z.strictObject({ claim: claimEntry });
-
-const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
-
-// The order of the keys of an object is not part of a claim, so the key of a claim sorts them.
-const canonical = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value === null || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([name, held]) => [name, canonical(held)]),
-  );
-};
-
-export interface ClaimKeyParts {
-  readonly keyOf: AgentContext['keyOf'];
-  readonly chunkHash: string;
-  readonly servedModel: string;
-  readonly inputForm: string;
-  readonly promptHash: string;
-  readonly entry: unknown;
-}
-
-/** The key of one claim: the key of its chunk with the claim itself. A chunk gives more than one
- * claim, and the key of the chunk alone would join every claim of it to the first proposal. */
-export const claimKeyOf = (parts: ClaimKeyParts): string =>
-  sha256(
-    JSON.stringify([
-      parts.keyOf({
-        chunkHash: parts.chunkHash,
-        servedModel: parts.servedModel,
-        inputForm: parts.inputForm,
-        promptHash: parts.promptHash,
-      }),
-      canonical(parts.entry),
-    ]),
-  );
-
-const promptBytes = (given: string | undefined): Buffer =>
-  given === undefined
-    ? readFileSync(new URL('./prompt.md', import.meta.url))
-    : Buffer.from(given, 'utf8');
-
-/** The first reader. It reads each chunk of the newest text of a document, and code proposes each
- * claim that the model gives and stores where the page states it. The model writes nothing. */
+/** The extractor. It reads each chunk of the newest text of a document, and code proposes the
+ * batch that the model gives through the same tool as the research AI. Before the write, a model
+ * of another family checks each item against its passage. The models write nothing. */
 export const makeExtractor = (
   config: ReaderConfig,
   options: ExtractorOptions = {},
 ): RunnerAgent => {
   const tools = options.tools ?? DEFAULT_TOOLS;
-  const bytes = promptBytes(options.prompt);
-  const prompt = bytes.toString('utf8');
-  const promptHash = sha256(bytes);
+  const prompt = promptOf(options.prompt, new URL('./prompt.md', import.meta.url));
+  const checkPrompt = promptOf(options.checkPrompt, new URL('./check-prompt.md', import.meta.url));
 
-  // The model reads and looks up. A call to any other tool is refused, and the two writes are
-  // made by code alone.
-  const offered = new Map(
-    [tools.documentText, tools.lookupEntity].map((tool) => [tool.name, tool]),
-  );
-  const modelTools: ModelTool[] = [...offered.values()].map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    input: tool.input,
-  }));
+  // The model reads and looks up. A call to any other tool is refused, and the write is made by
+  // code alone.
+  const offer = offerOf([tools.documentText, tools.searchGraph]);
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
-    // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise;
-    if (minimise === undefined) throw new JobStop('no_minimiser');
-
+    const { job } = context;
+    if (job.kind !== 'extract_text') throw new JobStop(`the extractor runs no job of ${job.kind}`);
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
     let turns = 0;
 
-    const ask = async <T>(
+    const ask = async (
       messages: readonly Message[],
-      shape: z.ZodType<T>,
-      withTools: boolean,
-    ): Promise<Asked<T>> => {
+    ): Promise<Asked<z.output<typeof chunkAnswer>>> => {
       if (turns >= config.turnCap) throw new JobStop('turn_cap');
       turns += 1;
-      try {
-        return await context.ask({ messages, shape, ...(withTools ? { tools: modelTools } : {}) });
-      } catch (cause) {
-        if (cause instanceof ModelFailure && cause.failure.kind === REASON.overCap)
-          throw new JobStop('usage_cap');
-        throw cause;
-      }
+      // A copy, so the question that was asked keeps the messages it held at that time.
+      return withinBudget(
+        context.ask(config.reader, {
+          messages: [...messages],
+          shape: chunkAnswer,
+          tools: offer.forModel,
+        }),
+        'usage_cap',
+      );
     };
 
-    // Every text from the store, from a tool or from the model goes through the minimiser before
-    // a model reads it. The fixed prompt and the framing that code writes do not.
-    const answerCall = async (call: {
-      readonly id: string;
-      readonly name: string;
-      readonly input: unknown;
-    }): Promise<Message[]> => {
-      const tool = offered.get(call.name);
-      let content: string;
-      if (tool === undefined) {
-        const reason = `the tool ${call.name} is not offered to this model, and code runs the writes`;
-        refusals.push({ tool: call.name, reason });
-        content = reason;
-      } else {
-        const outcome = await callTool(tool, session, call.input);
-        content = outcome.ok
-          ? JSON.stringify(outcome.output)
-          : `The tool refused the call: ${outcome.refusal}`;
-      }
+    const turnOf = async (call: ToolUse): Promise<Message[]> => {
+      const content = await answerCall(
+        offer.byName,
+        call,
+        refusals,
+        'to this model, and code runs the write',
+        async (tool) => outcomeText(await callTool(tool, session, call.input)),
+      );
       return [
-        {
-          role: 'assistant',
-          content: '',
-          tool_calls: [
-            {
-              id: call.id,
-              type: 'function',
-              function: { name: call.name, arguments: minimise(JSON.stringify(call.input ?? {})) },
-            },
-          ],
-        },
-        { role: 'tool', tool_call_id: call.id, content: minimise(content) },
+        { role: 'assistant', call },
+        { role: 'tool', call, content },
       ];
     };
 
-    const spanFault = (chunk: Chunk, entry: ClaimEntry): string | null => {
-      const length = codePoints(chunk.text);
-      if (entry.page === chunk.page && entry.end <= length) return null;
-      return (
-        `the span ${String(entry.start)} to ${String(entry.end)} on page ${String(entry.page)} ` +
-        `lies outside the chunk, which is page ${String(chunk.page)} and holds ` +
-        `${String(length)} code points`
-      );
+    // A model of another family reads each item with its passage. A checker that fails gives no
+    // verdict, and each item of its question is then written as disputed: a failure never drops
+    // an item.
+    const checkGroup = async (
+      group: readonly ItemToCheck[],
+    ): Promise<(readonly [string, CheckVerdict])[]> => {
+      const refs = group.map((item) => item.ref);
+      let asked: Asked<z.output<typeof checkAnswer>>;
+      try {
+        asked = await context.ask(config.checker, {
+          messages: [
+            { role: 'system', content: checkPrompt },
+            {
+              role: 'user',
+              content: JSON.stringify({
+                passages: group[0]?.passages ?? [],
+                claims: group.map((item) => ({ ref: item.ref, ...item.claim })),
+              }),
+            },
+          ],
+          shape: checkAnswer,
+        });
+      } catch (cause) {
+        if (cause instanceof ModelFailure) return [];
+        throw cause;
+      }
+      if (asked.kind !== 'value') return [];
+      const { verdicts } = asked.value;
+      // One verdict for each item. A second verdict on one item makes it unclear.
+      return refs.flatMap((ref): (readonly [string, CheckVerdict])[] => {
+        const said = verdicts.filter((one) => one.ref === ref);
+        const [only] = said;
+        if (only === undefined) return [];
+        if (said.length > 1)
+          return [[ref, { verdict: 'unclear', reason: 'the checker gave more than one verdict' }]];
+        if (only.verdict === 'supported') return [[ref, { verdict: 'supported' }]];
+        return [[ref, { verdict: only.verdict, reason: only.reason ?? '' }]];
+      });
     };
 
-    // The span check and a refusal of the proposal go back to the model, once. A refusal of the
-    // reading comes after a stored proposal, so it is a fault of code: it throws, and the next
-    // claim of the job finds the same proposal by its key and writes the reading then.
-    const settle = async (
-      chunk: Chunk,
-      textSet: string,
-      entry: ClaimEntry,
-      asked: { readonly callId: string; readonly served: string },
-      conversation: readonly Message[],
-      retries: number,
-    ): Promise<void> => {
-      let fault = spanFault(chunk, entry);
-      if (fault === null) {
-        const key = claimKeyOf({
-          keyOf: context.keyOf,
-          chunkHash: chunk.hash,
-          servedModel: asked.served,
-          inputForm: INPUT_FORM,
-          promptHash,
-          entry,
-        });
-        const made = await callTool(tools.proposeChange, session, {
-          act: entry.act,
-          documents: [context.job.documentId],
-          modelCallId: asked.callId,
-          idempotencyKey: key,
-        });
-        if (made.ok) {
-          const { proposalId } = proposed.parse(made.output);
-          const read = await callTool(tools.putClaimReading, session, {
-            job: context.job.id,
-            claim: proposalId,
-            textExtractor: textSet,
-            page: chunk.page,
-            start: chunk.start + entry.start,
-            end: chunk.start + entry.end,
-            modality: entry.modality,
-            ...(entry.adverse === true ? { adverse: true } : {}),
-            modelCallId: asked.callId,
-            inputForm: INPUT_FORM,
-            readerFingerprint: `${asked.served} ${promptHash}`,
-            chunkHash: chunk.hash,
-            idempotencyKey: key,
-          });
-          if (!read.ok)
-            throw new Error(
-              `the door refused the reading of proposal ${proposalId}: ${read.refusal}`,
-            );
-          return;
-        }
-        fault = made.refusal;
-      }
-
-      if (retries === 0) {
-        refusals.push({ tool: tools.proposeChange.name, reason: fault });
-        return;
-      }
-      const again = await ask(
-        [
-          ...conversation,
-          {
-            role: 'user',
-            content: minimise(
-              `The boundary refuses this claim: ${JSON.stringify(entry)}. The fault: ${fault}. ` +
-                'Give this one claim again, corrected, as {"claim": {...}}.',
-            ),
-          },
-        ],
-        retryAnswer,
-        false,
-      );
-      if (again.kind === 'call') {
-        refusals.push({
-          tool: again.call.name,
-          reason: 'a tool call came back where a claim was asked',
-        });
-        return;
-      }
-      await settle(chunk, textSet, again.value.claim, again, conversation, retries - 1);
+    const check = async (
+      items: readonly ItemToCheck[],
+    ): Promise<ReadonlyMap<string, CheckVerdict>> => {
+      const verdicts = new Map<string, CheckVerdict>();
+      for (const group of byPassage(items))
+        for (const [ref, verdict] of await checkGroup(group)) verdicts.set(ref, verdict);
+      return verdicts;
     };
 
-    const readChunk = async (chunk: Chunk, textSet: string): Promise<void> => {
-      const text = minimise(chunk.text);
-      if (codePoints(text) !== codePoints(chunk.text)) throw new JobStop('minimiser_length');
-
+    // The model answers with the batch of one chunk. A refusal of the batch goes back to the
+    // model once, with the sentence of the tool, and the model gives the whole batch again. The
+    // answer is the second refusal, or null.
+    const readChunk = async (chunk: Chunk): Promise<string | null> => {
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
           role: 'user',
-          content: JSON.stringify({ document: context.job.documentId, page: chunk.page, text }),
+          content: JSON.stringify({
+            document: job.documentId,
+            page: chunk.page,
+            text: chunk.text,
+          }),
         },
       ];
+      let retries = 1;
       for (;;) {
-        // A copy, so the question that was asked keeps the messages it held at that time.
-        const asked = await ask([...messages], chunkAnswer, true);
+        const asked = await ask(messages);
         if (asked.kind === 'call') {
-          messages.push(...(await answerCall(asked.call)));
+          messages.push(...(await turnOf(asked.call)));
           continue;
         }
-        const conversation: Message[] = [
-          ...messages,
-          { role: 'assistant', content: minimise(JSON.stringify(asked.value)) },
-        ];
-        for (const entry of asked.value.claims)
-          await settle(chunk, textSet, entry, asked, conversation, 1);
-        return;
+        if (asked.value.items.length === 0) return null;
+        const proposer = tools.propose(asked.callId);
+        const made = await callTool(
+          proposer,
+          session,
+          { items: asked.value.items },
+          { now: () => new Date(), check },
+        );
+        if (made.ok) return null;
+        if (retries === 0) {
+          refusals.push({ tool: proposer.name, reason: made.refusal });
+          return made.refusal;
+        }
+        retries -= 1;
+        messages.push(
+          { role: 'assistant', content: JSON.stringify(asked.value) },
+          {
+            role: 'user',
+            content:
+              `The tool refused the batch: ${made.refusal}. Give the whole answer again, ` +
+              'corrected, in the same shape.',
+          },
+        );
       }
     };
 
-    const newest = await readNewestPages(context.db, context.job.documentId);
+    const newest = await readNewestPages(context.db, job.documentId);
     if (newest === null) throw new JobStop('no_text');
 
-    for (const chunk of chunkPages(newest.pages, config.chunkCap))
-      await readChunk(chunk, newest.textSet);
-    return { refusals };
+    const chunks = chunkPages(newest, config.chunkCap);
+    const refused: string[] = [];
+    for (const chunk of chunks) {
+      const refusal = await readChunk(chunk);
+      if (refusal !== null) refused.push(refusal);
+    }
+    return {
+      refusals,
+      parts: { parts: chunks.length, refused: refused.length, firstRefusal: refused[0] ?? null },
+    };
   };
 
   return {
     name: EXTRACTOR_NAME,
     version: VERSION,
     kind: 'extract_text',
-    settings: config.model,
-    // Each question of the job counts one turn, so the cap is the most questions of one job.
-    questionsPerJob: config.turnCap,
+    models: [config.reader, config.checker],
     tokenCap: config.tokenCap,
     run,
   };

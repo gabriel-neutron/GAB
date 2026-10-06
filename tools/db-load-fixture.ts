@@ -5,7 +5,7 @@
 // Every fixture row is invented, and the record is published, so the load reaches the test
 // database only.
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -34,15 +34,18 @@ const SEEDED_DOCUMENT = 'manual';
 const DECIDED_BY = 'fixture-loader';
 
 const PUT_DOCUMENT = 'SELECT put_document($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id';
-const PROPOSE =
-  'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[], $7, $8, $9::uuid) AS id';
+const PROPOSE = 'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[]) AS id';
+const PROPOSE_BATCH = 'SELECT proposal_id AS id FROM propose_batch($1::jsonb)';
+const PUT_TEXT = `INSERT INTO public.document_text (document_id, extractor, page, text)
+  VALUES ($1, $2, 1, $3) ON CONFLICT DO NOTHING`;
+
+// A machine act cites a page of stored text, and the fixture stores no file, so the text door
+// refuses each document. The owner of the test database writes one page for each document that a
+// candidate cites: its title, which the candidate cites whole.
+const TEXT_SET = 'fixture@1';
+const ORIGINATOR_NAME = 'Fixture agency';
 const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
 const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
-
-// The card view of the read service must answer with a row, so the fixture holds one originator.
-// It is invented, and the door gives it letter F and a party that is unknown.
-const ORIGINATOR =
-  "SELECT ensure_originator('host:fixture.example', 'Fixture agency', 'organisation') AS id";
 
 interface Act {
   readonly op: string;
@@ -53,7 +56,6 @@ interface Act {
   readonly names: readonly string[];
   readonly confidence: number | null;
   readonly dissent: boolean;
-  readonly modelCallId?: string;
 }
 
 type Translation = ReadonlyMap<string, string>;
@@ -86,10 +88,49 @@ const propose = (client: Client, act: Act): Promise<string> =>
     act.targetKind,
     act.targetId,
     act.names,
-    act.confidence,
-    act.dissent,
-    act.modelCallId ?? null,
   ]);
+
+const titleOf = (id: DocId): string => {
+  const found = corpus.documents.find((row) => row.id === id);
+  if (found === undefined) throw new Error(`A candidate cites ${id}, which the fixture lacks.`);
+  return found.title;
+};
+
+const proposeCandidate = (client: Client, act: Act, modelCallId: string): Promise<string> => {
+  const [cited] = act.src;
+  if (cited === undefined) throw new Error('A candidate cites no document.');
+  return call(client, PROPOSE_BATCH, [
+    JSON.stringify([
+      {
+        id: randomUUID(),
+        op: act.op,
+        payload: act.payload,
+        src: act.src,
+        target_kind: act.targetKind,
+        target_id: act.targetId,
+        names: act.names,
+        confidence: act.confidence,
+        dissent: act.dissent,
+        model_call_id: modelCallId,
+        originator: ORIGINATOR_NAME,
+        modality: 'asserts',
+        citations: [
+          {
+            document: cited,
+            text_extractor: TEXT_SET,
+            page: 1,
+            start: 0,
+            end: Array.from(titleOf(cited)).length,
+          },
+        ],
+      },
+    ]),
+  ]);
+};
+
+const giveText = async (client: Client, documents: readonly DocId[]): Promise<void> => {
+  for (const id of new Set(documents)) await client.query(PUT_TEXT, [id, TEXT_SET, titleOf(id)]);
+};
 
 const promote = (client: Client, proposalId: string): Promise<string> =>
   call(client, PROMOTE, [proposalId, DECIDED_BY]);
@@ -237,8 +278,8 @@ const candidatePayload = (
         ...(payload.type === null ? {} : { type: payload.type }),
       };
     case 'relation': {
-      const srcId = payload.src_id === null ? undefined : entities.get(payload.src_id);
-      const dstId = payload.dst_id === null ? undefined : entities.get(payload.dst_id);
+      const srcId = entities.get(payload.src_id);
+      const dstId = entities.get(payload.dst_id);
       if (srcId === undefined || dstId === undefined) {
         throw new Error('A candidate relation names an endpoint that the fixture does not hold.');
       }
@@ -279,10 +320,15 @@ const candidateTarget = (
 // The candidate layer. These stay pending, and the connection stamps them as gabriel_agent.
 const loadCandidates = async (
   client: Client,
+  owner: Client,
   entities: Translation,
   relations: Translation,
 ): Promise<number> => {
   const pending = corpus.proposals.filter((proposal) => proposal.status === 'pending');
+  await giveText(
+    owner,
+    pending.flatMap((proposal) => proposal.src.slice(0, 1)),
+  );
   for (const proposal of pending) {
     try {
       // The candidate layer is authored by the machine, and a machine act names its call. The
@@ -292,17 +338,20 @@ const loadCandidates = async (
       ]);
       const payload = candidatePayload(proposal.payload, entities);
       const targetId = candidateTarget(proposal, entities, relations);
-      await propose(client, {
-        op: proposal.op,
-        payload,
-        src: citedDocuments(proposal.src, candidateAttributes(proposal.payload)),
-        targetKind: targetId === null ? null : proposal.targetKind,
-        targetId,
-        names: candidateNames(payload),
-        confidence: proposal.confidence,
-        dissent: proposal.dissent,
+      await proposeCandidate(
+        client,
+        {
+          op: proposal.op,
+          payload,
+          src: citedDocuments(proposal.src, candidateAttributes(proposal.payload)),
+          targetKind: targetId === null ? null : proposal.targetKind,
+          targetId,
+          names: candidateNames(payload),
+          confidence: proposal.confidence,
+          dissent: proposal.dissent,
+        },
         modelCallId,
-      });
+      );
     } catch (error) {
       throw named(`${proposal.op} ${proposal.id}`, error);
     }
@@ -314,14 +363,15 @@ const loadCandidates = async (
 export const loadCommittedFixture = async (): Promise<void> => {
   const operator = new Client({ connectionString: connectionString('app', 'gabriel_test') });
   const machine = new Client({ connectionString: connectionString('agent', 'gabriel_test') });
+  const owner = new Client({ connectionString: connectionString('superuser', 'gabriel_test') });
   await operator.connect();
   await machine.connect();
+  await owner.connect();
   try {
     const documents = await loadDocuments(operator);
-    await operator.query(ORIGINATOR);
     const entities = await loadEntities(operator);
     const relations = await loadRelations(operator, entities);
-    const candidates = await loadCandidates(machine, entities, relations);
+    const candidates = await loadCandidates(machine, owner, entities, relations);
     // The corpus moved, so the picture is computed here. gabriel_agent alone holds EXECUTE on
     // the layout door, and the machine connection is the one that has it.
     const placed = await runLayout(machine);
@@ -334,6 +384,7 @@ export const loadCommittedFixture = async (): Promise<void> => {
   } finally {
     await operator.end();
     await machine.end();
+    await owner.end();
   }
 };
 

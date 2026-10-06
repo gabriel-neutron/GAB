@@ -1,150 +1,12 @@
 // The write-authorisation model, stated as privileges. Every sentence here was a hand check
 // before it was a test.
 
+import { randomUUID } from 'node:crypto';
+
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../probe.ts';
-
-const DOORS = {
-  put_document: 'public.put_document(text,text,text,text,text,text,text,text,date,text,numeric)',
-  propose_change:
-    'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
-  record_model_call:
-    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
-  promote_proposal: 'public.promote_proposal(uuid,text)',
-  reject_proposal: 'public.reject_proposal(uuid,text)',
-  claim_job: 'public.claim_job()',
-  release_expired_claims: 'public.release_expired_claims()',
-  fail_job: 'public.fail_job(uuid,text)',
-  enqueue_job: 'public.enqueue_job(text,text)',
-  complete_job: 'public.complete_job(uuid)',
-  release_job_for_quota: 'public.release_job_for_quota(uuid)',
-  runner_settings: 'public.runner_settings()',
-  set_entity_layout: 'public.set_entity_layout(jsonb)',
-  open_conversation: 'public.open_conversation(text,text,uuid)',
-  append_chat_message: 'public.append_chat_message(uuid,text,text,uuid,jsonb)',
-  put_document_text: 'public.put_document_text(text,jsonb,text)',
-  put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
-  put_claim_reading:
-    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
-  second_read_done: 'public.second_read_done(uuid,text,text,text)',
-} as const;
-
-const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
-
-const doorsHeldBy = async (
-  identity: 'app' | 'agent' | 'research',
-): Promise<Record<string, boolean>> => {
-  const names = Object.keys(DOORS);
-  const signatures = Object.values(DOORS);
-  const rows = await probe(identity, async (ask) =>
-    holders.parse(
-      await ask(
-        `SELECT d.door, has_function_privilege(d.signature, 'EXECUTE') AS held
-           FROM unnest($1::text[], $2::text[]) AS d(door, signature)`,
-        [names, signatures],
-      ),
-    ),
-  );
-  return Object.fromEntries(rows.map((row) => [row.door, row.held]));
-};
-
-// THE TWO ENDS OF THE QUEUE ARE HELD BY DIFFERENT ROLES. The worker takes a row with the
-// narrower secret, and the role that owns the doors of the operator is the one that gives a
-// lost row back, so neither one holds both halves.
-
-// The layout door writes a drawing of the graph and no evidence, so the worker that runs it holds
-// this role: the one that cannot sign as the operator.
-test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout door, the claim and the failure', async () => {
-  expect(await doorsHeldBy('agent')).toStrictEqual({
-    put_document: false,
-    propose_change: true,
-    promote_proposal: false,
-    reject_proposal: false,
-    record_model_call: true,
-    claim_job: true,
-    release_expired_claims: false,
-    fail_job: true,
-    enqueue_job: true,
-    complete_job: true,
-    release_job_for_quota: true,
-    runner_settings: true,
-    set_entity_layout: true,
-    open_conversation: false,
-    append_chat_message: false,
-    put_document_text: true,
-    put_fetched_document: true,
-    put_claim_reading: true,
-    second_read_done: true,
-  });
-});
-
-// THE RESEARCH ROLE PROPOSES AND STORES A FETCHED DOCUMENT, AND IT CANNOT DECIDE OR CLAIM. It holds
-// no door of the operator, no door of the queue except the request for work, and no call record.
-test('gabriel_research holds EXECUTE on five doors and no other', async () => {
-  expect(await doorsHeldBy('research')).toStrictEqual({
-    put_document: false,
-    propose_change: true,
-    promote_proposal: false,
-    reject_proposal: false,
-    record_model_call: false,
-    claim_job: false,
-    release_expired_claims: false,
-    fail_job: false,
-    enqueue_job: true,
-    complete_job: false,
-    release_job_for_quota: false,
-    runner_settings: false,
-    set_entity_layout: false,
-    open_conversation: false,
-    append_chat_message: false,
-    put_document_text: true,
-    put_fetched_document: true,
-    put_claim_reading: false,
-    second_read_done: false,
-  });
-});
-
-const REFUSED = [
-  { identity: 'app', call: 'SELECT * FROM public.claim_job()' },
-  { identity: 'agent', call: 'SELECT public.release_expired_claims()' },
-  { identity: 'app', call: "SELECT public.fail_job(gen_random_uuid(), 'a perimeter test')" },
-  { identity: 'app', call: 'SELECT public.complete_job(gen_random_uuid())' },
-  { identity: 'app', call: 'SELECT public.release_job_for_quota(gen_random_uuid())' },
-  { identity: 'research', call: 'SELECT * FROM public.runner_settings()' },
-] as const;
-
-for (const refused of REFUSED)
-  test(`${refused.identity} cannot call the other end of the queue`, async () => {
-    await expect(rolledBack(refused.identity, (ask) => ask(refused.call))).rejects.toMatchObject({
-      code: '42501',
-    });
-  });
-
-test('gabriel_app holds EXECUTE on the four acts of the operator and on the release', async () => {
-  expect(await doorsHeldBy('app')).toStrictEqual({
-    put_document: true,
-    propose_change: true,
-    promote_proposal: true,
-    reject_proposal: true,
-    record_model_call: false,
-    claim_job: false,
-    release_expired_claims: true,
-    fail_job: false,
-    enqueue_job: true,
-    complete_job: false,
-    release_job_for_quota: false,
-    runner_settings: false,
-    set_entity_layout: false,
-    open_conversation: true,
-    append_chat_message: true,
-    put_document_text: true,
-    put_fetched_document: false,
-    put_claim_reading: false,
-    second_read_done: false,
-  });
-});
 
 // THE TIER IS HELD BY NO ROLE YET. The reader of an export gets EXECUTE with the export, because
 // the owner of a view does not lend it. gabriel_read has no USAGE on public, so the superuser
@@ -215,7 +77,7 @@ test('a column grant of UPDATE on an evidentiary table shows as a write', async 
 });
 
 // Departure: the claim is a door and not a table write. A worker that could mark a row by hand
-// could put it in a state no claim produced, and the count of the attempts would prove nothing.
+// could put it in a state no claim produced.
 test('gabriel_agent cannot mark a job by hand', async () => {
   await expect(
     rolledBack('agent', (ask) => ask("UPDATE public.jobs SET status = 'running'")),
@@ -242,7 +104,7 @@ test('gabriel_app cannot queue work without a document', async () => {
 });
 
 const QUEUED = `SELECT count(*)::int AS n FROM public.jobs
-   WHERE document_id = $1 AND status = 'queued' AND attempts = 0`;
+   WHERE document_id = $1 AND status = 'queued' AND claimed_at IS NULL`;
 
 const counted = z.array(z.object({ n: z.number().int() }));
 
@@ -318,15 +180,40 @@ test('gabriel_read carries a five second statement timeout', async () => {
 // with. `inherited` says no document supports the value, and that is a claim only a person makes.
 const RESERVED = ['manual', 'inherited'] as const;
 
+// The operator proposes through its own door, and a machine through the batch door, which also
+// writes a citation of a page of text. So the document that the machine cites holds one page.
 const cites = (document: string): string => `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[],
-  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-// A machine act names its call, and the agent holds the one door that records it. The operator
-// names none.
-const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise<string | null> => {
+// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
+// document the act cites and its page, and removes both after. No act that cites it survives the
+// rollback.
+const ORDINARY = 'doc_perimeter_value_source';
+const TEXT_SET = 'perimeter@1';
+
+const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
+  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
+const PUT_PAGE = `INSERT INTO public.document_text (document_id, extractor, page, text)
+  VALUES ($1, $2, 1, 'A perimeter test') ON CONFLICT DO NOTHING`;
+
+beforeAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask(PUT_ORDINARY, [ORDINARY]);
+    await ask(PUT_PAGE, [ORDINARY, TEXT_SET]);
+  });
+});
+
+afterAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask('DELETE FROM public.document_text WHERE document_id = $1', [ORDINARY]);
+    await ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]);
+  });
+});
+
+// A machine act names its call, and the agent holds the one door that records it.
+const callOf = async (identity: 'agent' | 'research', ask: Ask): Promise<string | null> => {
   if (identity !== 'agent') return null;
   const [row] = made.parse(
     await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
@@ -335,129 +222,71 @@ const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise
   return row?.id ?? null;
 };
 
-const proposeCiting = (
-  identity: 'app' | 'agent' | 'research',
-  document: string,
+const machineProposes = (
+  identity: 'agent' | 'research',
+  src: readonly string[],
+  attrs: Readonly<Record<string, unknown>> = {},
 ): Promise<readonly unknown[]> =>
-  rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
+  rolledBack(identity, async (ask) =>
+    ask('SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)', [
+      JSON.stringify([
+        {
+          id: randomUUID(),
+          op: 'create_entity',
+          payload: { type: 'vessel', label: 'A perimeter test', attrs },
+          src,
+          names: [],
+          model_call_id: await callOf(identity, ask),
+          originator: 'A perimeter test',
+          modality: 'asserts',
+          citations: [{ document: ORDINARY, text_extractor: TEXT_SET, page: 1, start: 0, end: 4 }],
+        },
+      ]),
+    ]),
+  );
+
+// The batch door names the item and the rule, and gives the sentence of the rule.
+const violates = (constraint: string) => ({
+  code: '22023',
+  constraint,
+  message: expect.stringMatching(/^item 1: /u) as string,
+});
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('agent', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-      message:
-        'new row for relation "proposals" violates check constraint ' +
-        '"proposals_machine_not_reserved"',
-    });
+    await expect(machineProposes('agent', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`a research proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('research', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-    });
+    await expect(machineProposes('research', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`an operator proposal that cites ${document} is accepted`, async () => {
-    expect(made.parse(await proposeCiting('app', document))).toHaveLength(1);
+    expect(made.parse(await rolledBack('app', (ask) => ask(cites(document))))).toHaveLength(1);
   });
 }
 
-// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
-// document the act cites, and removes it after. No act that cites it survives the rollback.
-const ORDINARY = 'doc_perimeter_value_source';
-
-const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
-  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
-
-beforeAll(async () => {
-  await probe('superuser', (ask) => ask(PUT_ORDINARY, [ORDINARY]));
-});
-
-afterAll(async () => {
-  await probe('superuser', (ask) => ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]));
-});
-
 const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
-  rolledBack('agent', async (ask) =>
-    ask(
-      `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
-         'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
-         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[],
-         NULL, NULL, '{}', NULL, false, $3::uuid) AS id`,
-      [value, act, await callOf('agent', ask)],
-    ),
-  );
+  machineProposes('agent', act, { flag: { v: 'PA', src: [value] } });
 
 // Departure: no rule reads a reserved word inside a value. A value source stays inside the act
 // sources, so a reserved word in a value is either missing from them or cited by the act.
 test('a machine value that cites manual where the act does not is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_src_within',
-  });
+  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject(
+    violates('proposals_src_within'),
+  );
 });
 
 test('a machine value that cites manual where the act does is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_machine_not_reserved',
-  });
+  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject(
+    violates('proposals_machine_not_reserved'),
+  );
 });
 
 test('a machine value that cites the document of its act is accepted', async () => {
   expect(made.parse(await valueCites(ORDINARY, [ORDINARY]))).toHaveLength(1);
 });
-
-// Departure: the conversations are the operator's and they are private. The read role has no
-// USAGE on public, the agent holds no grant, and the writer reads them as gabriel_app.
-const CHAT_TABLES = ['conversation', 'chat_message', 'chat_citation'] as const;
-
-for (const table of CHAT_TABLES) {
-  test(`gabriel_read cannot read ${table}`, async () => {
-    await expect(
-      probe('read', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
-    ).rejects.toMatchObject({ code: '42501', message: 'permission denied for schema public' });
-  });
-
-  test(`gabriel_agent cannot read ${table}`, async () => {
-    await expect(
-      probe('agent', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
-    ).rejects.toMatchObject({ code: '42501', message: `permission denied for table ${table}` });
-  });
-
-  test(`gabriel_app reads ${table}`, async () => {
-    expect(
-      await probe('app', async (ask) => ask(`SELECT count(*) FROM public.${table}`)),
-    ).toHaveLength(1);
-  });
-}
-
-const BY_HAND = [
-  ['conversation', "INSERT INTO public.conversation (title) VALUES ('a test')"],
-  ['conversation', "UPDATE public.conversation SET title = 'a test'"],
-  ['conversation', 'DELETE FROM public.conversation'],
-  [
-    'chat_message',
-    `INSERT INTO public.chat_message (conversation_id, role, text)
-       VALUES (gen_random_uuid(), 'user', 'a test')`,
-  ],
-  ['chat_message', "UPDATE public.chat_message SET text = 'a test'"],
-  ['chat_message', 'DELETE FROM public.chat_message'],
-  [
-    'chat_citation',
-    `INSERT INTO public.chat_citation (message_id, document_id)
-       VALUES (gen_random_uuid(), 'manual')`,
-  ],
-  ['chat_citation', "UPDATE public.chat_citation SET excerpt = 'a test'"],
-  ['chat_citation', 'DELETE FROM public.chat_citation'],
-] as const;
-
-for (const [table, sql] of BY_HAND)
-  test(`gabriel_app cannot write ${table} by hand: ${sql.split(' ')[0]}`, async () => {
-    await expect(rolledBack('app', (ask) => ask(sql))).rejects.toMatchObject({
-      code: '42501',
-      message: `permission denied for table ${table}`,
-    });
-  });

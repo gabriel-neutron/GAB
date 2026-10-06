@@ -144,6 +144,7 @@ const ACT: Proposal = {
   createdAt: '2026-09-01T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 };
 
 const SOURCE_1 = { id: 'd1', number: 1, name: 'Source 1 — Port call register' };

@@ -23,13 +23,9 @@ export const checkedRange = (fromPage: number, given: number | undefined): numbe
   return toPage;
 };
 
-// The set of the newest extractor answers when the caller names none, because an older set is a
-// reading that a newer one replaced.
+// The newest set of text when the caller names none.
 const PAGES = `WITH chosen AS (
-    SELECT coalesce($4::text,
-             (SELECT t.extractor FROM public.document_text t
-               WHERE t.document_id = $1::text
-               ORDER BY t.created_at DESC, t.extractor DESC LIMIT 1)) AS extractor)
+    SELECT coalesce($4::text, public.newest_text_extractor($1::text)) AS extractor)
   SELECT t.extractor, t.page::int AS page, t.text,
          (SELECT max(m.page) FROM public.document_text m
            WHERE m.document_id = $1::text AND m.extractor = c.extractor)::int AS last_page
@@ -38,6 +34,10 @@ const PAGES = `WITH chosen AS (
       ON t.document_id = $1::text AND t.extractor = c.extractor
      AND t.page BETWEEN $2::int AND $3::int
    ORDER BY t.page`;
+
+const TITLE = 'SELECT title, uri FROM api.document WHERE id = $1::text';
+
+const titleRow = z.strictObject({ title: z.string(), uri: z.string().nullable() });
 
 const row = z.strictObject({
   extractor: z.string(),
@@ -48,6 +48,8 @@ const row = z.strictObject({
 
 const outputShape = z.strictObject({
   document: z.string(),
+  title: z.string(),
+  url: z.string().nullable(),
   extractor: z.string().nullable(),
   pages: z.array(z.strictObject({ page: z.number().int().min(1), text: z.string() })),
   lastPage: z.number().int().nullable(),
@@ -57,7 +59,8 @@ const outputShape = z.strictObject({
 export const documentText = defineTool({
   name: 'document_text',
   description:
-    `Reads the text of the pages of one stored document. A call returns at most ${MAX_PAGES} ` +
+    `Reads the text of the pages of one stored document, with its title and its address for a ` +
+    `citation. A call returns at most ${MAX_PAGES} ` +
     `pages and ${MAX_CHARACTERS} characters, and "truncated" says that the text went on. ` +
     '"lastPage" is the last page of the set, so the next call can start after the end of this one.',
   input: z.strictObject({
@@ -69,6 +72,11 @@ export const documentText = defineTool({
   output: outputShape,
   async run(session, input) {
     const toPage = checkedRange(input.fromPage, input.toPage);
+    const [named] = await rowsOf(session, titleRow, TITLE, [input.document]);
+    if (named === undefined)
+      throw new ToolRefusal(
+        `the record holds no document ${input.document}; find_document finds a stored one`,
+      );
 
     const found = await rowsOf(session, row, PAGES, [
       input.document,
@@ -92,6 +100,8 @@ export const documentText = defineTool({
 
     return {
       document: input.document,
+      title: named.title,
+      url: named.uri,
       extractor: found[0]?.extractor ?? null,
       pages,
       lastPage: found[0]?.last_page ?? null,

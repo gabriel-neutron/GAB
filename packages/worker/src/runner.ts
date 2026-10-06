@@ -1,10 +1,9 @@
 import {
+  GATEWAY,
+  gatewayModel,
   openBudget,
   openModel,
-  REASON,
-  worstQuestionMs,
-  type AgentModel,
-  type Model,
+  type CallRecord,
   type Question,
 } from '@gab/model';
 import { z } from 'zod';
@@ -17,58 +16,25 @@ import {
   type RunnerAgent,
 } from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
-import { idempotencyKey, promptDigest } from './idempotency.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 
-const SETTINGS = `SELECT lease_seconds, quota_wait_seconds, empty_wait_seconds
-  FROM public.runner_settings()`;
+const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
+const REQUEUE = 'SELECT public.requeue_running_jobs()';
 const RECORD = `SELECT public.record_model_call($1::text, $2::text, $3::text, $4::text, $5::text,
   $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int)::text AS id`;
-const RELEASE = 'SELECT public.release_job_for_quota($1::uuid)';
 const FAIL = 'SELECT public.fail_job($1::uuid, $2::text)';
-const COMPLETE = 'SELECT public.complete_job($1::uuid)';
+const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::text) AS status`;
 
 const MS = 1000;
 
-// A spent quota fails no job, so it returns the job to the queue for every agent. An agent that
-// must never fall back names more failures of its own.
-const RELEASE_ON: NonNullable<RunnerAgent['releaseOn']> = { [REASON.quota]: 'quota' };
-
-// Origin: decided by the operator on 26 September 2026. A job gets three claims. A failure on the
-// first or the second leaves the row running, and the end of its lease returns it to the queue.
-// The failure of the third ends the job as failed.
-const MAX_ATTEMPTS = 3;
-
-const settingsRow = z.object({
-  lease_seconds: z.number().positive(),
-  quota_wait_seconds: z.number().positive(),
-  empty_wait_seconds: z.number().positive(),
-});
+const settingsRow = z.object({ empty_wait_seconds: z.number().positive() });
 
 const recorded = z.object({ id: z.uuid() });
 
-/** The three rows of the parameter table that the runner reads, in seconds. */
-export type RunnerSettings = z.infer<typeof settingsRow>;
+const ended = z.object({ status: z.enum(['done', 'failed']) });
 
-/** The seconds that one job may take at the worst, waits included. */
-export const worstJobSeconds = (agent: RunnerAgent): number =>
-  Math.ceil((agent.questionsPerJob * worstQuestionMs(agent.settings)) / MS);
-
-/** Throws when the lease is shorter than the worst job of an agent. A claim whose lease ends
- * returns to the queue under a worker that still works, and the job then runs twice. */
-export const checkLease = (leaseSeconds: number, agents: readonly RunnerAgent[]): void => {
-  const short = agents.filter((agent) => worstJobSeconds(agent) > leaseSeconds);
-  if (short.length === 0) return;
-  const named = short
-    .map((agent) => `${agent.name} needs ${String(worstJobSeconds(agent))} seconds`)
-    .join('; ');
-  throw new Error(
-    `The claim lease is ${String(leaseSeconds)} seconds, and it is shorter than the worst job: ` +
-      `${named}. Raise job_claim_lease_seconds, or lower the questions of the agent.`,
-  );
-};
-
-/** The seams of the runner. A test gives a stub for each one. */
+/** The seams of the runner. */
 export interface RunnerDeps {
   /** The connection of gabriel_agent. */
   readonly db: Queryable;
@@ -77,21 +43,18 @@ export interface RunnerDeps {
   readonly sleep: (ms: number) => Promise<void>;
   /** The clock in milliseconds, read to time each call of the model. */
   readonly now: () => number;
-  /** Opens the line to a model. The default is the client of the package. */
-  readonly open?: (settings: AgentModel) => Model;
+  /** Makes the pinned model of the free-model gateway. The default reads the gateway from the
+   * environment. */
+  readonly open?: (model: string) => ReturnType<typeof gatewayModel>;
 }
 
 /** What one step of the runner did. */
 export type Step =
-  | { readonly did: 'paused' }
   | { readonly did: 'idle' }
   | { readonly did: 'done'; readonly job: string }
-  | { readonly did: 'released'; readonly job: string; readonly reason: string }
-  | { readonly did: 'failed'; readonly job: string }
-  | { readonly did: 'left'; readonly job: string };
+  | { readonly did: 'failed'; readonly job: string };
 
-export interface Runner {
-  readonly settings: RunnerSettings;
+interface Runner {
   /** Takes at most one job, and waits when there is nothing to take. */
   readonly step: () => Promise<Step>;
   /** Steps until the signal aborts. */
@@ -102,171 +65,115 @@ export interface Runner {
 // holds this sentence, because the cause can quote a path, an address or a document.
 const UNKNOWN_FAULT = 'the agent stopped with an error, and nothing more is known';
 
-/** Reads the settings and checks the lease. It throws, and starts nothing, when an agent is
- * absent, a row is absent or the lease is short. */
+/** Reads the settings and puts back each job that a crash left running. It throws, and starts
+ * nothing, when an agent or a setting is absent. */
 export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   if (deps.agents.length === 0)
     throw new Error('The runner has no agent to run, so it claims nothing.');
 
   const settings = settingsRow.parse((await deps.db.query(SETTINGS)).rows[0]);
-  checkLease(settings.lease_seconds, deps.agents);
+  await deps.db.query(REQUEUE);
 
-  const open = deps.open ?? ((given: AgentModel): Model => openModel(given));
-  const lines = new Map(deps.agents.map((agent) => [agent, open(agent.settings)] as const));
+  // Each model is made at the start, so a gateway that is not set stops the start and claims
+  // nothing.
+  const open = deps.open ?? ((model: string) => gatewayModel(model));
+  const made = new Map(
+    deps.agents.flatMap((agent) => agent.models).map((one) => [one, open(one.model)] as const),
+  );
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
-  // A pool with no figure is a pool the gateway never observed, and it counts as open. A read
-  // that fails, or a gateway with no pool at all, is no proof of quota, so the runner waits: a
-  // job that is not claimed spends no attempt.
-  const quotaIsOpen = async (): Promise<boolean> => {
-    for (const line of new Set(lines.values())) {
-      if (line.quota === undefined) continue;
-      const read = await line.quota();
-      if (!read.ok) return false;
-      if (!read.pools.some((pool) => pool.remaining === null || pool.remaining > 0)) return false;
-    }
-    return true;
-  };
-
-  const record = async (
-    agent: RunnerAgent,
-    job: ClaimedJob,
-    row: { promptHash: string; latencyMs: number; outcome: string; served: string | undefined },
-  ): Promise<string> => {
-    const made = recorded.parse(
+  const record = async (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
+    recorded.parse(
       (
         await deps.db.query(RECORD, [
           agent.name,
           agent.version,
-          agent.settings.endpoint,
-          agent.settings.model,
-          row.promptHash,
-          row.latencyMs,
-          row.outcome,
+          GATEWAY,
+          call.requested,
+          call.promptSha256,
+          call.latencyMs,
+          call.outcome,
           job.id,
-          row.served ?? null,
-          null,
-          null,
+          call.served ?? null,
+          call.inputTokens,
+          call.outputTokens,
         ])
       ).rows[0],
-    );
-    return made.id;
-  };
+    ).id;
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
-    const line = lines.get(agent);
-    if (line === undefined) throw new Error(`The agent ${agent.name} has no line to a model.`);
     const budget = openBudget(agent.tokenCap);
 
-    const ask = async <T>(question: Omit<Question<T>, 'budget'>): Promise<Asked<T>> => {
-      const promptHash = promptDigest(question.messages);
-      const started = deps.now();
-      const answer = await line.ask<T>({ ...question, budget });
-      const latencyMs = Math.max(0, Math.round(deps.now() - started));
-      const outcome = answer.ok ? 'ok' : answer.failure.kind;
-      // The call lands before any proposal that it leads to, and it lands when it failed too.
-      const callId = await record(agent, job, {
-        promptHash,
-        latencyMs,
-        outcome,
-        served: answer.served,
+    const ask = async <T>(
+      model: ModelConfig,
+      question: Omit<Question<T>, 'budget'>,
+    ): Promise<Asked<T>> => {
+      const language = made.get(model);
+      if (language === undefined || !agent.models.includes(model))
+        throw new Error(`The agent ${agent.name} asks a model that it did not declare.`);
+      const line = openModel(language, model.line, {
+        record: (call) => record(agent, job, call),
+        sleep: deps.sleep,
+        now: deps.now,
       });
+      const answer = await line.ask<T>({ ...question, budget });
       if (!answer.ok) throw new ModelFailure(answer.failure);
       if (answer.served === undefined)
-        throw new Error('the client gave an answer with no served model');
-      const common = { callId, promptHash, served: answer.served, tokens: answer.tokens };
+        throw new Error('the adapter gave an answer with no served model');
+      const common = { callId: answer.callId, served: answer.served, tokens: answer.tokens };
       if ('call' in answer) return { kind: 'call', call: answer.call, ...common };
       return { kind: 'value', value: answer.value, ...common };
     };
 
-    return {
-      job,
-      db: deps.db,
-      ask,
-      keyOf: (parts) =>
-        idempotencyKey({
-          ...parts,
-          documentId: job.documentId,
-          readerId: `${agent.name}@${agent.version}`,
-        }),
-    };
+    return { job, db: deps.db, ask };
   };
 
-  const fail = async (job: ClaimedJob, reason: string): Promise<void> => {
+  const fail = async (job: ClaimedJob, reason: string): Promise<Step> => {
     await deps.db.query(FAIL, [job.id, reason]);
-  };
-
-  // A failure follows the limit of three claims. Before the third the row stays running, because
-  // only the end of its lease returns it, and the failure counts of the row stay as they were.
-  const failed = async (job: ClaimedJob, reason: string): Promise<Step> => {
-    if (job.attempt < MAX_ATTEMPTS) return { did: 'left', job: job.id };
-    await fail(job, reason);
     return { did: 'failed', job: job.id };
   };
 
   const work = async (agent: RunnerAgent, job: ClaimedJob): Promise<Step> => {
+    let result;
     try {
-      const result = await agent.run(contextOf(agent, job));
-      // No table holds a refusal yet, so the log is its record. A refusal ends no job.
-      if (result.refusals.length > 0)
-        console.error('the agent refused tool calls', {
-          agent: agent.name,
-          job: job.id,
-          refusals: result.refusals,
-        });
+      result = await agent.run(contextOf(agent, job));
     } catch (cause) {
-      if (cause instanceof JobStop) return failed(job, cause.reason);
-      if (cause instanceof ModelFailure) {
-        const reason = (agent.releaseOn ?? RELEASE_ON)[cause.failure.kind];
-        if (reason !== undefined) {
-          // The door of the release takes no reason, so the log is the record of it, and the
-          // record of the call keeps the kind of the failure.
-          await deps.db.query(RELEASE, [job.id]);
-          console.error('the runner returned a job to the queue', {
-            agent: agent.name,
-            job: job.id,
-            reason,
-          });
-          return { did: 'released', job: job.id, reason };
-        }
-        return failed(job, cause.failure.reason);
-      }
+      if (cause instanceof JobStop) return fail(job, cause.reason);
+      if (cause instanceof ModelFailure) return fail(job, cause.failure.reason);
       console.error('the agent stopped with an error', { agent: agent.name, cause });
-      return failed(job, UNKNOWN_FAULT);
+      return fail(job, UNKNOWN_FAULT);
     }
-    await deps.db.query(COMPLETE, [job.id]);
-    return { did: 'done', job: job.id };
-  };
-
-  const waitOf = (step: Step): number => {
-    if (step.did === 'paused' || step.did === 'released') return settings.quota_wait_seconds * MS;
-    if (step.did === 'idle') return settings.empty_wait_seconds * MS;
-    return 0;
+    // The job keeps the count of the refused parts. The log keeps each refused call.
+    if (result.refusals.length > 0)
+      console.error('the agent refused tool calls', {
+        agent: agent.name,
+        job: job.id,
+        refusals: result.refusals,
+      });
+    const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
+    const { status } = ended.parse(
+      (await deps.db.query(COMPLETE, [job.id, parts.parts, parts.refused, parts.firstRefusal]))
+        .rows[0],
+    );
+    return { did: status, job: job.id };
   };
 
   const once = async (): Promise<Step> => {
-    if (!(await quotaIsOpen())) return { did: 'paused' };
-
     const job = await claimJob(deps.db);
     if (job === null) return { did: 'idle' };
 
     const agent = byKind.get(job.kind);
-    if (agent === undefined) {
-      await fail(job, `no agent is registered for the kind ${job.kind}`);
-      return { did: 'failed', job: job.id };
-    }
+    if (agent === undefined) return fail(job, `no agent is registered for the kind ${job.kind}`);
     return work(agent, job);
   };
 
   const step = async (): Promise<Step> => {
     const done = await once();
-    const ms = waitOf(done);
-    if (ms > 0) await deps.sleep(ms);
+    if (done.did === 'idle') await deps.sleep(settings.empty_wait_seconds * MS);
     return done;
   };
 
   return {
-    settings,
     step,
     run: async (signal) => {
       while (!signal.aborted) await step();

@@ -6,12 +6,12 @@ import { chromium, type Browser, type Route } from 'playwright';
 
 import { FetchRefusal, guardedGet, refusedAddress, type GetOptions } from './fetch-guard.ts';
 
-export interface RenderOptions extends GetOptions {
+interface RenderOptions extends GetOptions {
   /** The time of the whole render: launch, load, the requests of the page and the read. */
   readonly budgetMs: number;
 }
 
-export interface RenderedPage {
+interface RenderedPage {
   readonly html: string;
   /** Each request of the page that the range check refused. */
   readonly refused: number;

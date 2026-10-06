@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
 import { entityHref } from '@/features/detail/address';
+import { LeadDialog } from '@/features/ingest/lead-dialog';
 import { UploadDocumentDialog } from '@/features/ingest/upload-document-dialog';
 import { searchByAttributeValue } from '@/features/search/attribute-search';
 import { searchByDocument } from '@/features/search/document-search';
@@ -33,11 +34,12 @@ function SearchRoute() {
   );
   const documentAnswer = useMemo(() => searchByDocument(corpus.documents, query), [corpus, query]);
 
-  // The documents are searched on this page, so a new document is uploaded from it. The search
-  // feature and the ingest feature meet here and nowhere else.
+  // The documents are searched on this page, so a new document is uploaded and a lead is given
+  // from it. The search feature and the ingest feature meet here and nowhere else.
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 justify-end border-b border-border p-2">
+      <div className="flex shrink-0 justify-end gap-2 border-b border-border p-2">
+        <LeadDialog />
         <UploadDocumentDialog
           providers={providers}
           onStored={() => refreshCorpus(() => router.invalidate())}

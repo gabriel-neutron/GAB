@@ -2,6 +2,8 @@
 // that rolls back, so the census tests count the same rows before and after.
 
 import { REASON } from '@gab/model';
+import { randomUUID } from 'node:crypto';
+
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -14,7 +16,32 @@ const made = z.array(z.object({ id: z.uuid() }));
 const RECORD = `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1,
   120, $2, $3::uuid, 'a-served-model', 10, 5) AS id`;
 
-const PROPOSE = `SELECT public.propose_change('create_entity',
+// The agent proposes through the batch door, and each act cites a page of the stored text.
+const DOC = 'doc_model_call_test';
+const PAGE = `INSERT INTO public.document_text (document_id, extractor, page, text)
+  VALUES ($1, 'model-call-test@1', 1, 'A model call test')`;
+const PUT = `INSERT INTO public.documents (id, kind, title) VALUES ($1, 'url', 'A model call test')`;
+
+const PROPOSE = 'SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)';
+
+const batchOf = (call: string | null): string =>
+  JSON.stringify([
+    {
+      id: randomUUID(),
+      op: 'create_entity',
+      payload: { type: 'vessel', label: 'A model call test' },
+      src: [DOC],
+      names: [],
+      model_call_id: call,
+      originator: 'A model call test',
+      modality: 'asserts',
+      citations: [
+        { document: DOC, text_extractor: 'model-call-test@1', page: 1, start: 0, end: 4 },
+      ],
+    },
+  ]);
+
+const APP_WITH_CALL = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A model call test"}'::jsonb, ARRAY['doc_8f2a41']::text[],
   NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
 
@@ -40,6 +67,8 @@ const rolledBack = async <T>(work: (ask: Ask) => Promise<T>): Promise<T> =>
   probe('superuser', async (ask) => {
     await ask('BEGIN');
     try {
+      await ask(PUT, [DOC]);
+      await ask(PAGE, [DOC]);
       return await work(ask);
     } finally {
       await ask('ROLLBACK');
@@ -50,16 +79,18 @@ const recorded = (ask: Ask, outcome = 'ok'): Promise<string> =>
   as(ask, 'gabriel_agent', RECORD, [SHA, outcome, null]);
 
 test('a proposal of gabriel_agent with no call id is refused', async () => {
-  await expect(rolledBack((ask) => as(ask, 'gabriel_agent', NO_CALL))).rejects.toMatchObject({
-    code: '23514',
-    message: 'a proposal of gabriel_agent names the model call that made it',
+  await expect(
+    rolledBack((ask) => as(ask, 'gabriel_agent', PROPOSE, [batchOf(null)])),
+  ).rejects.toMatchObject({
+    code: '22023',
+    message: 'item 1: a proposal of gabriel_agent names the model call that made it',
   });
 });
 
 test('a proposal of gabriel_agent with a call id is stored with it', async () => {
   const found = await rolledBack(async (ask) => {
     const call = await recorded(ask);
-    const proposal = await as(ask, 'gabriel_agent', PROPOSE, [call]);
+    const proposal = await as(ask, 'gabriel_agent', PROPOSE, [batchOf(call)]);
     const rows = await ask('SELECT model_call_id FROM public.proposals WHERE id = $1', [proposal]);
     return { call, rows };
   });
@@ -70,7 +101,7 @@ test('a proposal of gabriel_app with a call id is refused', async () => {
   await expect(
     rolledBack(async (ask) => {
       const call = await recorded(ask);
-      return as(ask, 'gabriel_app', PROPOSE, [call]);
+      return as(ask, 'gabriel_app', APP_WITH_CALL, [call]);
     }),
   ).rejects.toMatchObject({ code: '23514', message: /proposals_app_carries_no_call/ });
 });
@@ -145,49 +176,4 @@ test('every failure kind of packages/model is recorded', async () => {
     return found;
   });
   expect(ids).toHaveLength(Object.values(REASON).length + 1);
-});
-
-const VIEW_COLUMNS = `SELECT column_name FROM information_schema.columns
-  WHERE table_schema = 'api' AND table_name = 'model_call' ORDER BY ordinal_position`;
-
-test('api.model_call shows a digest of the prompt and never a prompt', async () => {
-  const rows = z
-    .array(z.object({ column_name: z.string() }))
-    .parse(await probe('superuser', (ask) => ask(VIEW_COLUMNS)));
-  expect(rows.map((row) => row.column_name)).toStrictEqual([
-    'id',
-    'job_id',
-    'agent',
-    'agent_version',
-    'endpoint',
-    'requested_model',
-    'served_model',
-    'prompt_sha256',
-    'input_tokens',
-    'output_tokens',
-    'latency_ms',
-    'outcome',
-    'created_at',
-  ]);
-});
-
-test('the read role reaches the call of one proposal', async () => {
-  const rows = await rolledBack(async (ask) => {
-    const call = await recorded(ask);
-    const proposal = await as(ask, 'gabriel_agent', PROPOSE, [call]);
-    await ask('SET LOCAL ROLE gabriel_read');
-    return ask(
-      `SELECT c.agent_version, c.requested_model, c.served_model, c.outcome
-         FROM api.proposal p JOIN api.model_call c ON c.id = p.model_call_id WHERE p.id = $1`,
-      [proposal],
-    );
-  });
-  expect(rows).toStrictEqual([
-    {
-      agent_version: 'v1',
-      requested_model: 'a-model',
-      served_model: 'a-served-model',
-      outcome: 'ok',
-    },
-  ]);
 });

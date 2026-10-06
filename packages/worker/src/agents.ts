@@ -1,8 +1,8 @@
-import type { AgentModel, Failure, Question, ReasonKind } from '@gab/model';
+import type { Failure, Question } from '@gab/model';
 
 import type { ClaimedJob } from './claim.ts';
-import type { KeyParts } from './idempotency.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 
 /** A question that the model answered with a value or with one tool call. */
 export type Asked<T> = (
@@ -14,12 +14,11 @@ export type Asked<T> = (
 ) & {
   /** The record of this call. A proposal that this answer led to names it. */
   readonly callId: string;
-  readonly promptHash: string;
   readonly served: string;
   readonly tokens: number;
 };
 
-/** The model stopped a question, and the runner decides what the job does next. */
+/** The model stopped a question, and the runner fails the job with its reason. */
 export class ModelFailure extends Error {
   readonly failure: Failure;
 
@@ -30,7 +29,7 @@ export class ModelFailure extends Error {
 }
 
 /** The agent ends its job for a reason that no retry inside the job mends. The runner fails the
- * job with this reason under the limit of three claims, as it does for any other failure. */
+ * job with this reason at once, as it does for any other failure. */
 export class JobStop extends Error {
   readonly reason: string;
 
@@ -47,22 +46,31 @@ export interface Refusal {
   readonly reason: string;
 }
 
-/** What an agent returns when its job ended well. */
+/** The parts of a job that reads a document in parts: how many it read, how many the propose
+ * door refused, and the first refusal. */
+export interface PartCount {
+  readonly parts: number;
+  readonly refused: number;
+  readonly firstRefusal: string | null;
+}
+
+/** What an agent returns when its job ran to its end. */
 export interface AgentResult {
   readonly refusals: readonly Refusal[];
+  /** Only an agent that reads in parts gives a count. */
+  readonly parts?: PartCount;
 }
 
 /** What the runner gives to the agent of one job. */
 export interface AgentContext {
   readonly job: ClaimedJob;
-  /** The connection of the worker. An agent writes proposals through the tools of its profile
+  /** The connection of the worker. An agent writes proposals through its tools
    * on this connection and writes nothing else. */
   readonly db: Queryable;
-  /** One question. The call is recorded before this returns, so a proposal that follows can name
-   * it. A failed question is recorded too, and it throws a ModelFailure. */
-  readonly ask: <T>(question: Omit<Question<T>, 'budget'>) => Promise<Asked<T>>;
-  /** The key of one act of this job, with the document and the reader filled in. */
-  readonly keyOf: (parts: Omit<KeyParts, 'documentId' | 'readerId'>) => string;
+  /** One question to one model of the agent. The call is recorded before this returns, so a
+   * proposal that follows can name it. A failed question is recorded too, and it throws a
+   * ModelFailure. All the models of the agent spend one token budget for each job. */
+  readonly ask: <T>(model: ModelConfig, question: Omit<Question<T>, 'budget'>) => Promise<Asked<T>>;
 }
 
 /** One back-end agent. The runner hands it a job of its kind and ends the job itself. */
@@ -70,13 +78,9 @@ export interface RunnerAgent {
   readonly name: string;
   readonly version: string;
   readonly kind: ClaimedJob['kind'];
-  readonly settings: AgentModel;
-  /** The most questions one job asks. The lease must outlast this many worst questions. */
-  readonly questionsPerJob: number;
+  /** The models that the agent asks. Each one is pinned. */
+  readonly models: readonly ModelConfig[];
   /** The soft stop of the tokens of one job. */
   readonly tokenCap: number;
-  /** The failures of the model that return the job to the queue with no attempt spent, each with
-   * the reason that the runner gives. With none, a spent quota alone does it. */
-  readonly releaseOn?: Readonly<Partial<Record<ReasonKind, string>>>;
   readonly run: (context: AgentContext) => Promise<AgentResult>;
 }

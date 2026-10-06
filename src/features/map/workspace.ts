@@ -6,13 +6,13 @@ const FEATURE = 'map';
 
 export type Ground = 'plan' | 'imagery';
 
-export interface Camera {
+interface Camera {
   readonly lon: number;
   readonly lat: number;
   readonly zoom: number;
 }
 
-export interface MapWorkspace {
+interface MapWorkspace {
   readonly camera: Camera | null;
   // The types that are switched OFF, and never the types that are on. The corpus gains a type
   // when a document does, and a stored list of the types that are on would hide each new type.
@@ -25,7 +25,7 @@ export interface MapWorkspace {
   readonly imagery: Imagery;
 }
 
-export const DEFAULT_WORKSPACE: MapWorkspace = {
+const DEFAULT_WORKSPACE: MapWorkspace = {
   camera: null,
   hiddenTypes: [],
   linksHidden: false,

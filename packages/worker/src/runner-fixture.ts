@@ -1,32 +1,32 @@
-// The stubs of the runner tests: a gateway that answers from a script, a stub agent that reads
-// chunks and proposes one entity for each, and the deps with a clock and a sleep that cost no
-// time. No code outside a test imports this file.
+// The stubs of the extractor tests: a gateway that answers from a script, and the deps with a
+// clock and a sleep that cost no time. No code outside a test imports this file.
 
-import { createHash } from 'node:crypto';
-
-import { openModel, type AgentModel, type Model, type Send } from '@gab/model';
-import { CATALOGUE } from '@gab/tools/catalogue';
-import { callTool, type Session } from '@gab/tools/tool';
+import { gatewayModel } from '@gab/model';
 import { z } from 'zod';
 
 import type { RunnerAgent } from './agents.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 import type { RunnerDeps } from './runner.ts';
 
-export const STUB_MODEL: AgentModel = {
-  endpoint: 'freellmapi',
+const LINE = { firstWaitMs: 1, waitGrowth: 1, maxWaitMs: 1, timeoutMs: 1000, maxAnswerTokens: 200 };
+
+export const READER: ModelConfig = {
   model: 'stub-family/stub-model',
-  firstWaitMs: 1,
-  waitGrowth: 1,
-  maxWaitMs: 1,
-  timeoutMs: 1000,
-  maxAnswerTokens: 200,
+  family: 'stub-family',
+  line: LINE,
+};
+
+export const CHECKER: ModelConfig = {
+  model: 'other-family/check-model',
+  family: 'other-family',
+  line: LINE,
 };
 
 const ENV = { FREELLMAPI_API_KEY: 'a-stub-key', FREELLMAPI_BASE_URL: 'http://100.64.0.1:4001/v1' };
 
 /** A completion as the gateway words it. */
-export const completionOf = (content: string, model = STUB_MODEL.model): Response =>
+export const completionOf = (content: string, model = READER.model): Response =>
   new Response(
     JSON.stringify({
       model,
@@ -36,129 +36,96 @@ export const completionOf = (content: string, model = STUB_MODEL.model): Respons
     { status: 200 },
   );
 
-/** The 429 that names a spent quota. */
-export const quotaSpentResponse = (): Response =>
-  new Response(JSON.stringify({ error: { message: 'daily quota exhausted' } }), { status: 429 });
-
-/** What the quota read answers when some pool holds the given number of calls. */
-export const forecastOf = (remaining: number): Response =>
+/** One tool call as the gateway words it. */
+export const toolCallOf = (name: string, input: unknown, id = `call_${name}`): Response =>
   new Response(
     JSON.stringify({
-      pools: [
+      model: READER.model,
+      choices: [
         {
-          platform: 'a-platform',
-          pool: 'a-pool',
-          remaining,
-          limit: 100,
-          reset_at: null,
-          low_balance: remaining === 0,
+          message: {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              { id, type: 'function', function: { name, arguments: JSON.stringify(input) } },
+            ],
+          },
+          finish_reason: 'tool_calls',
         },
       ],
+      usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
     }),
     { status: 200 },
   );
 
-export interface StubGateway {
-  readonly send: Send;
-  readonly chats: () => number;
-  readonly reads: () => number;
-}
-
-/** A gateway that answers each chat call from `chat` and each quota read from `forecast`. */
-export const gatewayOf = (
-  chat: (call: number) => Response,
-  forecast: () => Response = () => forecastOf(50),
-): StubGateway => {
-  let chats = 0;
-  let reads = 0;
-  return {
-    send: (url) => {
-      if (url.endsWith('/quota-forecast')) {
-        reads += 1;
-        return Promise.resolve(forecast());
-      }
-      chats += 1;
-      return Promise.resolve(chat(chats));
-    },
-    chats: () => chats,
-    reads: () => reads,
-  };
-};
-
-const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
-
-const CLAIM = z.object({ claim: z.string().min(1) });
-
-const sessionOf = (db: Queryable): Session => ({
-  query: (text, values) => db.query(text, values),
+const offered = z.object({
+  tools: z.array(z.object({ function: z.object({ name: z.string() }) })).default([]),
 });
 
-const proposeTool = CATALOGUE.find((tool) => tool.name === 'propose_change');
+/** The names of the tools that one question offers to the model. */
+export const toolsOf = (body: string): string[] =>
+  offered.parse(JSON.parse(body)).tools.map((one) => one.function.name);
 
-export interface StubAgentOptions {
-  readonly kind?: RunnerAgent['kind'];
-  readonly chunks?: readonly string[];
-  /** Throws after the proposals of the first run are written, as a worker that dies would. */
-  readonly stopsAfterWriting?: boolean;
-  readonly seen?: (status: string) => Promise<void>;
+const sent = z.object({
+  model: z.string(),
+  messages: z.array(z.object({ role: z.string(), content: z.unknown() })),
+});
+
+const question = z.object({ claims: z.array(z.object({ ref: z.string() })) });
+
+/** The refs of the claims that one question to the checker holds. */
+export const claimsOf = (body: string): string[] => {
+  const last = sent.parse(JSON.parse(body)).messages.at(-1)?.content;
+  return question
+    .parse(JSON.parse(typeof last === 'string' ? last : '{}'))
+    .claims.map((one) => one.ref);
+};
+
+/** The checker answers with one verdict for each ref. */
+export const verdictsOf = (verdicts: readonly (readonly [string, string])[]): Response =>
+  completionOf(
+    JSON.stringify({ verdicts: verdicts.map(([ref, verdict]) => ({ ref, verdict })) }),
+    CHECKER.model,
+  );
+
+const supportsAll = (body: string): Response =>
+  verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const));
+
+export interface StubGateway {
+  readonly send: typeof fetch;
+  /** The questions to the reader. */
+  readonly chats: () => number;
+  /** The questions to the checker. */
+  readonly checks: () => number;
 }
 
-/** An agent that asks one question for each chunk and proposes the claim that the model gives. */
-export const stubAgent = (options: StubAgentOptions = {}): RunnerAgent => {
-  const chunks = options.chunks ?? ['the first chunk'];
-  let runs = 0;
+const bodyOf = (init: RequestInit | undefined): string =>
+  typeof init?.body === 'string' ? init.body : '';
+
+/** A gateway that answers each question to the reader from `chat`, and each question to the
+ * checker from `check`. The default checker supports every claim. */
+export const gatewayOf = (
+  chat: (call: number, body: string) => Response,
+  check: (call: number, body: string) => Response = (_call, body) => supportsAll(body),
+): StubGateway => {
+  let chats = 0;
+  let checks = 0;
   return {
-    name: 'stub',
-    version: 'v1',
-    kind: options.kind ?? 'extract_text',
-    settings: STUB_MODEL,
-    questionsPerJob: chunks.length,
-    tokenCap: 10_000,
-    run: async (context) => {
-      runs += 1;
-      if (proposeTool === undefined) throw new Error('the catalogue holds no propose_change');
-      if (options.seen !== undefined) {
-        const rows = z
-          .array(z.object({ status: z.string() }))
-          .parse(
-            (
-              await context.db.query('SELECT status FROM public.jobs WHERE id = $1', [
-                context.job.id,
-              ])
-            ).rows,
-          );
-        await options.seen(rows[0]?.status ?? 'absent');
+    send: (_url, init) => {
+      const body = bodyOf(init);
+      if (sent.parse(JSON.parse(body)).model === CHECKER.model) {
+        checks += 1;
+        return Promise.resolve(check(checks, body));
       }
-      for (const chunk of chunks) {
-        const asked = await context.ask({
-          messages: [
-            { role: 'system', content: 'Read the chunk and give one claim as JSON.' },
-            { role: 'user', content: chunk },
-          ],
-          shape: CLAIM,
-        });
-        if (asked.kind !== 'value') throw new Error('the stub asks no tool');
-        const outcome = await callTool(proposeTool, sessionOf(context.db), {
-          act: { op: 'create_entity', type: 'vessel', label: asked.value.claim },
-          documents: [context.job.documentId],
-          modelCallId: asked.callId,
-          idempotencyKey: context.keyOf({
-            chunkHash: sha256(chunk),
-            servedModel: asked.served,
-            inputForm: 'page-text',
-            promptHash: asked.promptHash,
-          }),
-        });
-        if (!outcome.ok) throw new Error(outcome.refusal);
-      }
-      if (options.stopsAfterWriting === true && runs === 1)
-        throw new Error('the worker stopped after it wrote');
-      return { refusals: [] };
+      chats += 1;
+      return Promise.resolve(chat(chats, body));
     },
+    chats: () => chats,
+    checks: () => checks,
   };
 };
 
-export interface Stubs {
+interface Stubs {
   readonly deps: RunnerDeps;
   readonly slept: number[];
 }
@@ -185,7 +152,7 @@ export const depsOf = (
         clock += 5;
         return clock;
       },
-      open: (settings): Model => openModel(settings, gateway.send, ENV),
+      open: (model) => gatewayModel(model, ENV, gateway.send),
     },
   };
 };

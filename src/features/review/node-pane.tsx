@@ -131,7 +131,7 @@ export function NodePane({ subject, lines, currentChangeId, onFocus }: NodePaneP
                   </span>
                 ) : null}
                 {verdict.state === 'waiting' ? (
-                  <Confidence report={line.confidenceReport} low={false} />
+                  <Confidence report={line.confidenceReport} />
                 ) : (
                   <>
                     <VerdictMark verdict={verdict.verdict} words={verdict.words} />

@@ -23,8 +23,9 @@ import { originOf, type Origin } from './origin';
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
 export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge';
 
-/** What is being changed. The queue lists these, and never one act on its own. */
-export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge';
+/** What is being changed. The queue lists these, and never one act on its own. A batch holds the
+ * acts of a machine that name each other, and the operator decides them as one unit. */
+export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge' | 'batch';
 
 /** A verdict on one act. A promotion and a rejection are written to the record and cannot be
  * taken back; a hold is a state of this pass, because nothing in the record holds one. */
@@ -46,7 +47,7 @@ export const verdictOf = (verdicts: Verdicts, id: string): Decision | null =>
   Object.hasOwn(verdicts, id) ? (verdicts[id] ?? null) : null;
 
 /** Why this act stands in front of the analyst. */
-export type Routing = 'dissent' | 'low-confidence' | 'both' | 'neither' | 'unstated';
+export type Routing = 'dissent' | 'unstated';
 
 /** What the screen cannot show. The kind chooses the mark, and the sentence stays on the mark. */
 export type HoleKind = 'argument' | 'duplicate' | 'merge-result' | 'destroyed-row' | 'absent-row';
@@ -188,6 +189,7 @@ const SUBJECT_WORDS: Readonly<Record<SubjectKind, string>> = {
   'new-node': 'New entity',
   link: 'Relation',
   merge: 'Merge',
+  batch: 'Linked batch',
 };
 
 const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
@@ -218,6 +220,9 @@ function words(value: AttributeValue): string {
 interface Index {
   readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly entityById: ReadonlyMap<string, Entity>;
+  /** The name of each new entity that waits. Its promotion keeps the identifier of its act, so a
+   * relation of the same batch names it by that identifier before it stands in the record. */
+  readonly waitingLabelById: ReadonlyMap<string, string>;
   readonly relationById: ReadonlyMap<string, Relation>;
   readonly liveTypes: ReadonlySet<string> | null;
   readonly typeWordsOf: TypeWordsOf;
@@ -233,7 +238,7 @@ const storedTypeNote = (index: Index, type: string): string | null =>
 const labelIn =
   (index: Index) =>
   (id: string): string | undefined =>
-    index.entityById.get(id)?.label;
+    index.entityById.get(id)?.label ?? index.waitingLabelById.get(id);
 
 function addressOf(row: DocumentRow | undefined): SourceAddress | null {
   if (row === undefined) return null;
@@ -377,7 +382,7 @@ function relationCreation(
   const stated = (key: string, value: string | null): readonly DifferenceRow[] =>
     value === null ? [] : [createdColumn(key, value, cited)];
   return [
-    ...stated('Type', payload.type === null ? null : index.typeWordsOf(payload.type)),
+    ...stated('Type', index.typeWordsOf(payload.type)),
     ...stated('Valid from', payload.valid_from),
     ...stated('Valid to', payload.valid_to),
     ...differenceOf(index, null, payload.attrs),
@@ -417,38 +422,22 @@ function destroyed(index: Index, attrs: Attributes): readonly DifferenceRow[] {
   }));
 }
 
-function routingOf(proposal: Proposal, threshold: number | null): Routing {
-  if (threshold === null || proposal.confidence === null) {
-    return proposal.dissent ? 'dissent' : 'unstated';
-  }
-  const low = proposal.confidence < threshold;
-  if (proposal.dissent && low) return 'both';
-  if (proposal.dissent) return 'dissent';
-  return low ? 'low-confidence' : 'neither';
-}
-
 const ROUTING_WORDS: Readonly<Record<Routing, string>> = {
-  dissent: 'Here because the agents disagreed.',
-  'low-confidence': 'Here because the confidence is under the threshold in force.',
-  both: 'Here because the agents disagreed, and the confidence is under the threshold.',
-  neither: 'Neither condition sends this act to review, and no act is promoted without a person.',
+  dissent: 'Here because a check disputes it.',
   unstated:
     'No disagreement is recorded, and no confidence is compared with a threshold here, so this screen cannot say why the act is in front of you.',
 };
 
 const ROUTING_SHORT: Readonly<Record<Routing, string>> = {
-  dissent: 'disagreed',
-  'low-confidence': 'under threshold',
-  both: 'disagreed, under threshold',
-  neither: 'neither condition',
+  dissent: 'disputed',
   unstated: 'reason unstated',
 };
 
 const HOLE: Readonly<Record<HoleKind, Hole>> = {
   argument: {
     kind: 'argument',
-    short: 'the disagreement is not recorded',
-    long: 'The record holds that the agents disagreed, and neither side of it: not who objected, and not what it asked for instead.',
+    short: 'the dispute is not recorded',
+    long: 'The record holds that a check disputes the act, and not which one: a value that no cited passage states, or a model of another family that did not support it. Read the passage.',
   },
   duplicate: {
     kind: 'duplicate',
@@ -477,8 +466,10 @@ interface Filing {
   readonly kind: SubjectKind;
 }
 
-/** A node collects its acts. Everything else stands alone, under the identifier of the act. */
+/** A batch collects its acts, and so does a node. Everything else stands alone, under the
+ * identifier of the act. */
 function filingOf(proposal: Proposal): Filing {
+  if (proposal.batchId !== null) return { key: proposal.batchId, kind: 'batch' };
   switch (proposal.payload.kind) {
     case 'entity':
       return { key: proposal.id, kind: 'new-node' };
@@ -519,7 +510,7 @@ function confidenceOf(self: number | null, origin: Origin): ConfidenceReport {
   };
 }
 
-function changeOf(index: Index, proposal: Proposal, threshold: number | null): Change {
+function changeOf(index: Index, proposal: Proposal): Change {
   const target = targetOf(index, proposal);
   const payload = proposal.payload;
   // A hole that every act carries is not a hole a reader can act on. Only what this act lacks.
@@ -546,7 +537,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       break;
     }
     case 'entity':
-      headline = `A new ${payload.type ?? 'entity, of a type the act does not name'}`;
+      headline = `A new ${payload.type}`;
       rows = entityCreation(index, payload, proposal.src);
       holes.push(HOLE.duplicate);
       break;
@@ -565,7 +556,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       break;
   }
 
-  const routing = routingOf(proposal, threshold);
+  const routing: Routing = proposal.dissent ? 'dissent' : 'unstated';
   const kind = kindOf(proposal.op, rows);
   const origin = originOf(proposal.authorRole);
   const report = confidenceOf(proposal.confidence, origin);
@@ -589,14 +580,27 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
   };
 }
 
-function labelOf(index: Index, kind: SubjectKind, key: string, first: Change): string {
+const newNameOf = (change: Change): string | undefined =>
+  change.rows.find((row) => row.key === 'Name')?.proposed ?? undefined;
+
+function labelOf(
+  index: Index,
+  kind: SubjectKind,
+  key: string,
+  changes: readonly [Change, ...Change[]],
+): string {
+  const [first] = changes;
   switch (kind) {
     case 'node':
       return (
         index.entityById.get(key)?.label ?? `An entity absent from the record, ${shortId(key)}`
       );
     case 'new-node':
-      return first.rows.find((row) => row.key === 'Name')?.proposed ?? first.headline;
+      return newNameOf(first) ?? first.headline;
+    case 'batch': {
+      const named = changes.flatMap((change) => newNameOf(change) ?? []);
+      return named.length === 0 ? first.headline : named.join(', ');
+    }
     case 'merge':
       return first.headline;
     case 'link': {
@@ -628,17 +632,19 @@ function contestedKeysOf(changes: readonly Change[]): readonly string[] {
   return [...counted].filter(([, count]) => count > 1).map(([key]) => key);
 }
 
-/** Everything that waits for a decision, grouped by what it changes. The threshold is an
- * operational parameter, so it enters here and is never a constant of this file. */
-export function readQueue(
-  read: Corpus,
-  threshold: number | null,
-  types?: TypeVocabulary,
-): readonly Subject[] {
+/** Everything that waits for a decision, grouped by what it changes. */
+export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subject[] {
   const wordsOf = relationWording(read.relationTypes);
   const index: Index = {
     documentById: new Map(read.documents.map((row) => [row.id, row])),
     entityById: new Map(read.entities.map((row) => [row.id, row])),
+    waitingLabelById: new Map(
+      read.proposals.flatMap((proposal) =>
+        proposal.status === 'pending' && proposal.payload.kind === 'entity'
+          ? [[proposal.id, proposal.payload.label] as const]
+          : [],
+      ),
+    ),
     relationById: new Map(read.relations.map((row) => [row.id, row])),
     liveTypes:
       types === undefined
@@ -653,25 +659,26 @@ export function readQueue(
     if (proposal.status !== 'pending') continue;
     const { key, kind } = filingOf(proposal);
     const held = filed.get(key) ?? { kind, changes: [] };
-    held.changes.push(changeOf(index, proposal, threshold));
+    held.changes.push(changeOf(index, proposal));
     filed.set(key, held);
   }
 
   return [...filed].flatMap(([key, held]) => {
     const changes = [...held.changes].sort(weakestFirst);
-    const [first] = changes;
+    const [first, ...rest] = changes;
     // A key exists because an act was filed under it. This narrows the type, and guards nothing.
     if (first === undefined) return [];
     const entity = held.kind === 'node' ? index.entityById.get(key) : undefined;
     const relation = held.kind === 'link' ? index.relationById.get(key) : undefined;
     const standing = entity?.attrs ?? relation?.attrs ?? null;
-    const contestedKeys = contestedKeysOf(changes);
+    // The acts of a batch change different rows, so a key that two of them name is no contest.
+    const contestedKeys = held.kind === 'batch' ? [] : contestedKeysOf(changes);
     return [
       {
         id: key,
         kind: held.kind,
         kindWords: SUBJECT_WORDS[held.kind],
-        label: labelOf(index, held.kind, key, first),
+        label: labelOf(index, held.kind, key, [first, ...rest]),
         type: entity?.type ?? relation?.type ?? null,
         standing: standing === null ? [] : standingRows(index, standing),
         changes,
@@ -681,6 +688,14 @@ export function readQueue(
     ];
   });
 }
+
+/** The name of a linked batch, which says how many acts one verdict decides. */
+export const batchName = (subject: Subject): string =>
+  `One linked batch of ${String(subject.changes.length)} acts`;
+
+/** The acts that one verdict on a batch decides. */
+export const actIdsOf = (subject: Subject): readonly string[] =>
+  subject.changes.map((change) => change.id);
 
 /** The lowest confidence of a subject. A subject is only as sound as its weakest act. */
 const weakestOf = (subject: Subject): number => Math.min(...subject.changes.map(scoreOf));
@@ -705,7 +720,7 @@ export function subjectOf(subjects: readonly Subject[], id: string | null): Subj
   return subjects.find((subject) => subject.id === id) ?? subjects[0] ?? null;
 }
 
-export interface Focus {
+interface Focus {
   readonly current: Change | null;
   /** The other acts that name a key this one names. They are read beside it, never after it. */
   readonly beside: readonly Change[];

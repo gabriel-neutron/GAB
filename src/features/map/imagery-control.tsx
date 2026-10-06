@@ -14,7 +14,7 @@ import {
   type Imagery,
 } from './imagery';
 
-export interface ImageryControlProps {
+interface ImageryControlProps {
   readonly imagery: Imagery;
   readonly onChange: (imagery: Imagery) => void;
 }

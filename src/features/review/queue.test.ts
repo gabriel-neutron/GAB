@@ -14,8 +14,6 @@ import {
 
 const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const THRESHOLD = 0.5;
-
 const actOf = (id: string, confidence: number | null, dissent: boolean): Proposal => ({
   id,
   op: 'update_attrs',
@@ -32,67 +30,36 @@ const actOf = (id: string, confidence: number | null, dissent: boolean): Proposa
   createdAt: '2026-08-03T09:12:00Z',
   decidedAt: null,
   decidedBy: null,
+  batchId: null,
 });
 
 const LOW_AGREED = actOf('bb000001-0000-4000-8000-000000000001', 0.4, false);
-const LOW_DISSENT = actOf('bb000001-0000-4000-8000-000000000002', 0.4, true);
 const HIGH_DISSENT = actOf('bb000001-0000-4000-8000-000000000003', 0.9, true);
 const HIGH_AGREED = actOf('bb000001-0000-4000-8000-000000000004', 0.9, false);
-const AT_THRESHOLD = actOf('bb000001-0000-4000-8000-000000000005', THRESHOLD, false);
-const SILENT_AGREED = actOf('bb000001-0000-4000-8000-000000000006', null, false);
 const SILENT_DISSENT = actOf('bb000001-0000-4000-8000-000000000007', null, true);
 
 const READ: Corpus = {
   ...corpus,
-  proposals: [
-    LOW_AGREED,
-    LOW_DISSENT,
-    HIGH_DISSENT,
-    HIGH_AGREED,
-    AT_THRESHOLD,
-    SILENT_AGREED,
-    SILENT_DISSENT,
-  ],
+  proposals: [LOW_AGREED, HIGH_DISSENT, HIGH_AGREED, SILENT_DISSENT],
 };
 
-function changeIn(threshold: number | null, act: Proposal): Change {
-  const found = readQueue(READ, threshold)
+function changeIn(act: Proposal): Change {
+  const found = readQueue(READ)
     .flatMap((subject) => subject.changes)
     .find((change) => change.id === act.id);
   if (found === undefined) throw new Error(`the queue holds no act ${act.id}`);
   return found;
 }
 
-describe('why an act stands in the queue, with a threshold in force', () => {
-  it('sends a low confidence with no disagreement on the confidence alone', () => {
-    expect(changeIn(THRESHOLD, LOW_AGREED).routing).toBe('low-confidence');
+describe('why an act stands in the queue', () => {
+  it('names the disagreement, with a confidence or with none', () => {
+    expect(changeIn(HIGH_DISSENT).routing).toBe('dissent');
+    expect(changeIn(SILENT_DISSENT).routing).toBe('dissent');
   });
 
-  it('names both conditions when the agents disagreed and the confidence is low', () => {
-    expect(changeIn(THRESHOLD, LOW_DISSENT).routing).toBe('both');
-  });
-
-  it('names the disagreement alone when the confidence is high', () => {
-    expect(changeIn(THRESHOLD, HIGH_DISSENT).routing).toBe('dissent');
-  });
-
-  it('names neither condition when the agents agreed and the confidence is high', () => {
-    expect(changeIn(THRESHOLD, HIGH_AGREED).routing).toBe('neither');
-  });
-
-  it('reads a confidence equal to the threshold as not under it', () => {
-    expect(changeIn(THRESHOLD, AT_THRESHOLD).routing).toBe('neither');
-  });
-
-  it('names the disagreement of an act that states no confidence', () => {
-    expect(changeIn(THRESHOLD, SILENT_DISSENT).routing).toBe('dissent');
-  });
-
-  it('never says the screen holds no threshold when the act alone states no confidence', () => {
-    const change = changeIn(THRESHOLD, SILENT_AGREED);
-    expect(change.routing).toBe('unstated');
-    expect(change.routingWords).not.toMatch(/holds no threshold/i);
-    expect(change.routingWords).toMatch(/confidence/i);
+  it('states no reason for an act the agents agreed on', () => {
+    expect(changeIn(LOW_AGREED).routing).toBe('unstated');
+    expect(changeIn(LOW_AGREED).routingWords).toMatch(/threshold/i);
   });
 });
 
@@ -124,7 +91,7 @@ const renameCiting = (src: readonly string[]): Proposal => ({
 });
 
 function renameIn(read: Corpus, act: Proposal): Change {
-  const [found] = readQueue({ ...read, proposals: [act] }, THRESHOLD).flatMap((s) => s.changes);
+  const [found] = readQueue({ ...read, proposals: [act] }).flatMap((s) => s.changes);
   if (found === undefined) throw new Error(`the queue holds no act ${act.id}`);
   return found;
 }
@@ -165,7 +132,7 @@ const retypeTo = (type: string): Proposal => ({
 
 const typeRowOf = (act: Proposal, types?: TypeVocabulary): DifferenceRow | undefined => {
   const read = { ...portBackedBy(['doc_geo']), proposals: [act] };
-  return readQueue(read, THRESHOLD, types)
+  return readQueue(read, types)
     .flatMap((subject) => subject.changes)
     .flatMap((change) => change.rows)
     .find((row) => row.key === 'Type');
@@ -195,7 +162,7 @@ describe('the type a promotion stores', () => {
       targetId: null,
       payload: { kind: 'entity', type: 'tanker', label: 'Probe', geom: null, attrs: {} },
     };
-    const [subject] = readQueue({ ...corpus, proposals: [created] }, THRESHOLD, VOCABULARY);
+    const [subject] = readQueue({ ...corpus, proposals: [created] }, VOCABULARY);
     const typed = subject?.changes[0]?.rows.find((row) => row.key === 'Type');
     expect(typed?.note).toMatch(/stores the type 'unknown'/);
   });
@@ -236,7 +203,7 @@ const NEW_OWNERSHIP: Proposal = {
 };
 
 const onlyAct = (act: Proposal) => {
-  const [subject] = readQueue({ ...corpus, proposals: [act] }, THRESHOLD);
+  const [subject] = readQueue({ ...corpus, proposals: [act] });
   const change = subject?.changes[0];
   if (subject === undefined || change === undefined) throw new Error(`no act ${act.id}`);
   return { subject, change, proposed: (key: string) => change.rows.find((r) => r.key === key) };
@@ -272,14 +239,6 @@ describe('every value the promotion of a creation writes', () => {
   });
 });
 
-describe('why an act stands in the queue, with no threshold in force', () => {
-  it('names the disagreement, and states no reason for an act the agents agreed on', () => {
-    expect(changeIn(null, HIGH_DISSENT).routing).toBe('dissent');
-    expect(changeIn(null, LOW_AGREED).routing).toBe('unstated');
-    expect(changeIn(null, LOW_AGREED).routingWords).toMatch(/threshold/i);
-  });
-});
-
 describe('who wrote an act in the queue', () => {
   const OPERATOR_ACT: Proposal = {
     ...actOf('bb000001-0000-4000-8000-000000000008', 1, false),
@@ -287,7 +246,7 @@ describe('who wrote an act in the queue', () => {
   };
 
   it('marks an act of the operator as the operator, and never words it as the machine', () => {
-    const [change] = readQueue({ ...corpus, proposals: [OPERATOR_ACT] }, THRESHOLD).flatMap(
+    const [change] = readQueue({ ...corpus, proposals: [OPERATOR_ACT] }).flatMap(
       (subject) => subject.changes,
     );
     expect(change?.origin).toBe('operator');
@@ -296,7 +255,7 @@ describe('who wrote an act in the queue', () => {
   });
 
   it('marks an act of an agent as the machine', () => {
-    const change = changeIn(THRESHOLD, HIGH_AGREED);
+    const change = changeIn(HIGH_AGREED);
     expect(change.origin).toBe('machine');
     expect(change.confidenceReport.words).toMatch(/The machine reports/);
   });
@@ -451,17 +410,14 @@ const newEntity = (
   payload: { kind: 'entity', type: 'vessel', label, geom: null, attrs: {} },
 });
 
-const THREE = readQueue(
-  {
-    ...corpus,
-    proposals: [
-      newEntity('dd000002-0000-4000-8000-000000000001', 'Bravo', 0.4, '2026-08-03T10:00:00Z'),
-      newEntity('dd000002-0000-4000-8000-000000000002', 'Charlie', null, '2026-08-01T10:00:00Z'),
-      newEntity('dd000002-0000-4000-8000-000000000003', 'Alpha', 0.7, '2026-08-02T10:00:00Z'),
-    ],
-  },
-  THRESHOLD,
-);
+const THREE = readQueue({
+  ...corpus,
+  proposals: [
+    newEntity('dd000002-0000-4000-8000-000000000001', 'Bravo', 0.4, '2026-08-03T10:00:00Z'),
+    newEntity('dd000002-0000-4000-8000-000000000002', 'Charlie', null, '2026-08-01T10:00:00Z'),
+    newEntity('dd000002-0000-4000-8000-000000000003', 'Alpha', 0.7, '2026-08-02T10:00:00Z'),
+  ],
+});
 
 describe('the order of the subjects', () => {
   it('puts the weakest first, and a subject that states no confidence last', () => {
@@ -480,17 +436,14 @@ describe('the order of the subjects', () => {
   });
 
   it('puts the weakest act of one subject first, and an act that states no confidence last', () => {
-    const [subject] = readQueue(
-      {
-        ...corpus,
-        proposals: [
-          actOf('dd000003-0000-4000-8000-000000000001', 0.7, false),
-          actOf('dd000003-0000-4000-8000-000000000002', null, false),
-          actOf('dd000003-0000-4000-8000-000000000003', 0.4, false),
-        ],
-      },
-      THRESHOLD,
-    );
+    const [subject] = readQueue({
+      ...corpus,
+      proposals: [
+        actOf('dd000003-0000-4000-8000-000000000001', 0.7, false),
+        actOf('dd000003-0000-4000-8000-000000000002', null, false),
+        actOf('dd000003-0000-4000-8000-000000000003', 0.4, false),
+      ],
+    });
     expect(subject?.changes.map((change) => change.score)).toEqual([0.4, 0.7, null]);
   });
 });

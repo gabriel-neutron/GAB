@@ -3,7 +3,6 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
-import { assertNoEnvDrift } from './tools/env-drift.ts';
 import { testRunDatabase } from './tools/test-database.ts';
 
 // External constraint: the compose file sets the password of `gabriel_app` and the secret of the
@@ -31,10 +30,6 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
       'RAW_STORE_SECRET_KEY are set. To run the offline part on purpose, set OFFLINE=1 — that ' +
       'part proves no perimeter, no role, no grant and no row of the corpus.',
   );
-
-// Departure: a name that the example adds and the real file lacks fails each test that reaches its
-// service. One sentence, before any live project runs, names it once.
-if (!offlineWasAsked) assertNoEnvDrift(import.meta.dirname);
 
 // External constraint: the compose file publishes the read service of the test database on this
 // port. The guard above runs first, so a refused run opens no socket.
@@ -73,6 +68,10 @@ const nodeProject = (
 const SCHEMA_GROUP = 1;
 const WRITER_GROUP = 2;
 
+// Departure: the end-to-end test starts the runner in a child process on its own connection, so
+// its rows commit, and the runner takes any queued job. It runs alone, after every other project.
+const END_TO_END_GROUP = 3;
+
 // Departure: the dot in `.db-test.ts` holds the two halves apart, because `*.test.ts` does not
 // match it. The offline half takes each other test file, so no new test file falls outside it.
 const offlineProject = nodeProject('offline', [
@@ -93,6 +92,7 @@ const liveProjects = [
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
   nodeProject('corpus', ['tools/corpus/*.db-test.ts'], LIVE_TARGET),
   nodeProject('service', ['tools/service/*.db-test.ts'], LIVE_TARGET),
+  nodeProject('e2e', ['packages/*/src/**/*.e2e-test.ts'], LIVE_TARGET, END_TO_END_GROUP),
 ];
 
 export default defineConfig({

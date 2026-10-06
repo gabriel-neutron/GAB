@@ -60,13 +60,28 @@ test('enqueue_job refuses a document with no bytes', async () => {
   ).rejects.toThrow(/no bytes/);
 });
 
-test('enqueue_job refuses a kind that is not a work kind', async () => {
+// A second reading is not queued any more, so its kind is refused as `store_only` is.
+for (const kind of ['store_only', 'second_read'])
+  test(`enqueue_job refuses the kind ${kind}`, async () => {
+    await expect(
+      rolledBack('app', async (ask) => {
+        await ask(PUT_WITH_BYTES, [WITH_BYTES]);
+        await ask('SELECT public.enqueue_job($1, $2)', [WITH_BYTES, kind]);
+      }),
+    ).rejects.toMatchObject({ code: '22023' });
+  });
+
+// The second reader is gone, so a job of its kind that an old database still holds is never taken.
+test('claim_job takes no job of the second reader', async () => {
   await expect(
-    rolledBack('app', async (ask) => {
+    rolledBack('superuser', async (ask) => {
       await ask(PUT_WITH_BYTES, [WITH_BYTES]);
-      await ask("SELECT public.enqueue_job($1, 'store_only')", [WITH_BYTES]);
+      await ask(`INSERT INTO public.jobs (document_id, kind) VALUES ($1, 'second_read')`, [
+        WITH_BYTES,
+      ]);
+      await claimUntil(ask, WITH_BYTES);
     }),
-  ).rejects.toMatchObject({ code: '22023' });
+  ).rejects.toThrow(/held no job/);
 });
 
 test('enqueue_job refuses a second open job of one kind and accepts another kind', async () => {
@@ -84,7 +99,11 @@ test('enqueue_job refuses a second open job of one kind and accepts another kind
     await ask("SELECT public.enqueue_job($1, 'map_structured')", [WITH_BYTES]);
     return { refusal, rows: jobs.parse(await ask(JOBS_OF, [WITH_BYTES])) };
   });
-  expect(held.refusal).toMatchObject({ code: '23505' });
+  expect(held.refusal).toMatchObject({
+    code: '22023',
+    constraint: 'jobs_one_open_per_kind',
+    message: `document ${WITH_BYTES} has a job of kind extract_text that is queued or runs already`,
+  });
   expect(held.rows.map((row) => `${row.kind}:${row.status}`)).toStrictEqual([
     'extract_text:queued',
     'map_structured:queued',

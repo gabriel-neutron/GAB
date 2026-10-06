@@ -30,7 +30,7 @@ import {
   type StructureState,
 } from './structure';
 
-export interface DetailPageProps {
+interface DetailPageProps {
   readonly dossier: Dossier;
   /** The source named by `?src=`, read once by the route. `null` is the normal arrival. */
   readonly arrivedAtSource: DocId | null;
@@ -81,7 +81,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // Until the reload lands, the page draws the record from before the act. A control left open
   // in that time offers a second act on an element that is already gone.
   const [reloading, setReloading] = useState(false);
-  const busy = structure.step === 'working' || save.step === 'saving' || reloading;
+  const busy = structure.step === 'working' || save.step === 'working' || reloading;
 
   // A draft outlives a move to the reading view, which draws the stored record. A switch that
   // threw the draft away would lose the one thing the analyst typed.
@@ -96,7 +96,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // A keystroke clears the sentence of the last act, and never the act in flight: the step in
   // flight is what disables the button, and a second act for one value writes a second proposal.
   const onEdit = (key: string, typed: TypedValue): void => {
-    setSave((current) => (current.step === 'saving' ? current : IDLE));
+    setSave((current) => (current.step === 'working' ? current : IDLE));
     setDrafts(typedInto(dossier.rows, drafts, key, typed));
   };
 
@@ -115,10 +115,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     if (!edit.ready || busy) return;
     const sent = drafts;
     const act = edit.attrs;
-    setSave({ step: 'saving' });
+    setSave({ step: 'working' });
     void saveClaims(dossier.entityId, act).then(async (state) => {
       setSave(state);
-      if (state.step !== 'signed') return;
+      if (state.step !== 'done') return;
       setDrafts((current) => draftsAfterSave(current, sent, act));
       await reloadAfterSigned(onSaved);
     });
@@ -128,10 +128,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // hold, so no draft of the record stands for it and none is cleared when it lands.
   const onMint = async (attrs: AttributeEdit): Promise<SaveState> => {
     if (busy) return IDLE;
-    setSave({ step: 'saving' });
+    setSave({ step: 'working' });
     const state = await saveClaims(dossier.entityId, attrs);
     setSave(state);
-    if (state.step === 'signed') void reloadAfterSigned(onSaved);
+    if (state.step === 'done') void reloadAfterSigned(onSaved);
     return state;
   };
 
@@ -142,7 +142,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     setStructure({ step: 'working', deed: act.op });
     const state = await changeStructure(act);
     setStructure(state);
-    if (state.step === 'signed')
+    if (state.step === 'done')
       void reloadAfterSigned(act.op === 'delete_entity' ? onDeleted : onSaved);
     return state;
   };

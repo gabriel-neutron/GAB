@@ -41,6 +41,7 @@ const PROPOSAL_ROW = {
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,
   decided_by: null,
+  batch_id: null,
 };
 
 const SRC_ID = '0ea482d0-cd00-4c77-911e-419dd2d1779f';
@@ -196,15 +197,10 @@ test('each operation reads its own payload, and states what the act holds', () =
   }
 });
 
-test('a payload that states no value at all reaches the surface as an absence', () => {
-  const row = { ...PROPOSAL_ROW, op: 'create_entity', payload: {} };
-  expect(toDomain.proposal(row).payload).toEqual({
-    kind: 'entity',
-    type: null,
-    label: null,
-    geom: null,
-    attrs: {},
-  });
+// The record refuses a new entity with no type or no name, so the read refuses one too.
+test('a creation that states no name is refused', () => {
+  const row = { ...PROPOSAL_ROW, op: 'create_entity', payload: { type: 'vessel' } };
+  expect(() => toDomain.proposal(row)).toThrow();
 });
 
 test('the two ends of a proposed relation keep the spelling the act wrote', () => {
@@ -239,7 +235,7 @@ test('a creation keeps every key its promotion writes', () => {
       ],
     ],
   };
-  expect(created('create_entity', { geom: area })).toMatchObject({
+  expect(created('create_entity', { type: 'port', label: 'P', geom: area })).toMatchObject({
     geom: { kind: 'shape', shape: 'Polygon' },
   });
   const share = { share_pct: { v: 51, src: ['doc_8f2a41'] } };

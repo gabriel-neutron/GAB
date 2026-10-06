@@ -83,9 +83,7 @@ test('a merge act is refused at promotion, stays pending, and changes no entity'
   const outcome = await mergeOutcome();
   expect(outcome.refusal).toMatchObject({
     code: 'P0001',
-    message:
-      'the operation merge_entities has no write path yet. M12 needs an alias table and a ' +
-      'snapshot before a merge can be undone',
+    constraint: 'op_has_path',
   });
   expect(outcome.status).toBe('pending');
   expect(outcome.before).toHaveLength(2);

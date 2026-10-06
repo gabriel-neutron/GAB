@@ -3,10 +3,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   type CallToolResult,
+  type Tool as ListedTool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { callTool, type Reach, type Session } from '@gab/tools/tool';
+import { CATALOGUE } from '@gab/tools/catalogue';
+import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@gab/tools/tool';
 
-import { GROUPS } from './groups.ts';
+import { RESEARCH_TOOLS } from './surface.ts';
 
 /** A session that goes back to its pool when the call ends. */
 export interface PooledSession extends Session {
@@ -20,12 +22,32 @@ export interface SessionPool {
 
 const SERVER = { name: 'gab', version: '0.0.0' } as const;
 
+const toolNamed = (name: string): Tool => {
+  const found = CATALOGUE.find((tool) => tool.name === name);
+  if (found === undefined) throw new Error(`the catalogue holds no tool named ${name}`);
+  return found;
+};
+
+const SURFACE = Object.entries(RESEARCH_TOOLS).map(([name, annotations]) => ({
+  tool: toolNamed(name),
+  annotations,
+}));
+
+const TOOLS: readonly Tool[] = SURFACE.map(({ tool }) => tool);
+
+const LISTED: readonly ListedTool[] = SURFACE.map(({ tool, annotations }) => ({
+  name: tool.name,
+  description: tool.description,
+  inputSchema: { ...inputSchemaOf(tool), type: 'object' as const },
+  annotations,
+}));
+
 const toolError = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
   isError: true,
 });
 
-const sqlState = (cause: unknown): string | null =>
+const codeOf = (cause: unknown): string | null =>
   typeof cause === 'object' &&
   cause !== null &&
   'code' in cause &&
@@ -34,13 +56,25 @@ const sqlState = (cause: unknown): string | null =>
     ? cause.code
     : null;
 
-// A message of the database can name a role, a host or a password. The operator reads it in the
-// log, and the client gets the code alone.
+const hintOf = (cause: Error): string | null =>
+  'hint' in cause && typeof cause.hint === 'string' && cause.hint !== '' ? cause.hint : null;
+
+// External constraint: SQLSTATE class 22 is a fault of the data, 23 is a rule of the record and
+// P0 is a refusal that a door raises. Their message is the sentence of the rule, and the hint
+// names the field to correct. Every other class can name a role, a host or a password, so the
+// operator reads it in the log, and the client gets the code alone.
+const DATA_CLASSES: readonly string[] = ['22', '23', 'P0'];
+
 const faultSentence = (cause: unknown): string => {
-  const code = sqlState(cause);
-  return code === null
-    ? 'the database refused the call'
-    : `the database refused the call (SQLSTATE ${code})`;
+  const code = codeOf(cause);
+  if (code === null) return 'the database refused the call';
+  if (DATA_CLASSES.includes(code.slice(0, 2)) && cause instanceof Error) {
+    const field = hintOf(cause);
+    return field === null
+      ? `the record refused the call: ${cause.message}`
+      : `the record refused the call: ${field}: ${cause.message}`;
+  }
+  return `the database refused the call (SQLSTATE ${code})`;
 };
 
 const run = async (
@@ -49,19 +83,11 @@ const run = async (
   name: string,
   raw: unknown,
 ): Promise<CallToolResult> => {
-  const group = GROUPS.find((entry) => entry.name === name);
-  if (group === undefined)
+  const tool = TOOLS.find((entry) => entry.name === name);
+  if (tool === undefined)
     return toolError(
-      `the server holds no tool named ${name}; it holds ${GROUPS.map((g) => g.name).join(', ')}`,
+      `the server holds no tool named ${name}; it holds ${TOOLS.map((one) => one.name).join(', ')}`,
     );
-
-  const given = group.envelope.safeParse(raw ?? {});
-  if (!given.success)
-    return toolError(
-      `give action, one of ${[...group.actions.keys()].join(', ')}, and the input of that action`,
-    );
-  const tool = group.actions.get(given.data.action);
-  if (tool === undefined) return toolError(`the tool ${name} holds no action ${given.data.action}`);
 
   let session: PooledSession;
   try {
@@ -71,7 +97,7 @@ const run = async (
     return toolError(faultSentence(cause));
   }
   try {
-    const outcome = await callTool(tool, session, given.data.input, reach);
+    const outcome = await callTool(tool, session, raw ?? {}, reach);
     if (!outcome.ok) return toolError(outcome.refusal);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
@@ -82,19 +108,13 @@ const run = async (
   }
 };
 
-// The server registers its own handlers, so the input schema of a group goes out as it is built
-// and no tool of the catalogue is wrapped in a second schema.
+// The server registers its own handlers, so the input schema of each tool goes out as the
+// catalogue builds it, and the refusal of a bad input is the sentence of the tool.
 /** The MCP server of the research workspace. With no reach, the fetch tool refuses each call. */
 export const createServer = (pool: SessionPool, reach?: Reach): McpServer => {
   const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
 
-  mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({
-    tools: GROUPS.map((group) => ({
-      name: group.name,
-      description: group.description,
-      inputSchema: { ...group.inputSchema, type: 'object' as const },
-    })),
-  }));
+  mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...LISTED] }));
 
   mcp.server.setRequestHandler(CallToolRequestSchema, (request) =>
     run(pool, reach, request.params.name, request.params.arguments),

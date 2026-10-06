@@ -2,6 +2,12 @@
 
 **Status** Accepted · 4 October 2026
 
+**Not built: the letter of the originator.** The register cards, the track record, the letter,
+the sanction flags and the trust lists are not built. A first build of their tables, doors and
+loaders had no caller, and it was removed on 6 October 2026 (operator decision). The method below
+stays the decision. A later spec builds the rating, and it can start from the stored name of the
+originator of each claim.
+
 ## Context
 
 GAB publishes facts about named units, companies, vessels and persons on a public map. Agents write
@@ -54,20 +60,24 @@ database grants.
 
 ## How a claim is read
 
-- Each claim rests on a **span**: two offsets in a stored, untouched copy of the document. Agents
-  give offsets and closed values only. Code reads the span again and checks that it contains the
-  claim value. A failed check counts zero.
-- **Two independent readings** are necessary. Where possible, the second reader is of another
-  kind: a parser for a structured file, OCR for an image, a model of another family for free
-  text. When the readers disagree on a field, or a second reading is missing, the claim is held.
-  The method never takes a majority of model votes.
+- Each claim rests on a **span**: two offsets in a stored, untouched copy of the document. The
+  excerpt that an agent gives is an input that code checks: code finds it in the stored text and
+  checks that it holds the claim values, and the stored record keeps the offsets and cites the
+  document. A failed check counts zero.
+- **Two independent readings** are necessary. For free text, the second reading is a check by a
+  model of another family: it reads the claim with its passage and answers supported, not
+  supported or unclear. For another format, the second reader is of another kind where possible:
+  a parser for a structured file, OCR for an image. When the check does not support the claim,
+  when it fails, or when a second reading is missing, the claim is disputed and held. The method
+  never takes a majority of model votes.
 - **Access** says how the source knows: issuer, first-hand, holder of a declaration, repeater, or
   unknown. Only a stored structural fact can make a source an issuer or first-hand. A model label
   can only lower access.
 - **Origins, not copies, count.** Code joins copies of one origin into one group. Two groups are
   independent only when each has its own structural mark and code finds no join. Bodies with one
   owner or controller are one group. By default, sources are dependent.
-- Before each model call, code removes the personal data that the task does not need.
+- The text of a stored document goes to the model as it is stored (operator decision of
+  6 October 2026).
 
 ## The decision table in principle
 

@@ -1,22 +1,38 @@
-import type { AgentModel } from '@gab/model';
+import { checkLine, checkTokenCap, pinnedName, type ModelLine } from '@gab/model';
 
-/** What the operator sets for one reader. Each value is calibrated on real traffic, so no code
- * constant gives one. */
-export interface ReaderConfig {
-  readonly model: AgentModel;
-  /** The family of the model. Two readers of one family share their blind spots. */
+import { checkChunkCap } from './chunk.ts';
+
+/** One pinned model of the free-model gateway, its family, and how the adapter reaches it. */
+export interface ModelConfig {
+  readonly model: string;
+  /** The family of the model. A check by a model of the same family shares its blind spots. */
   readonly family: string;
-  /** The tokens that one job may spend. */
+  readonly line: ModelLine;
+}
+
+/** What the operator sets for the extractor. Each value is calibrated on real traffic, so no
+ * code constant gives one. */
+export interface ReaderConfig {
+  readonly reader: ModelConfig;
+  /** The model of another family that checks each item against its passage. */
+  readonly checker: ModelConfig;
+  /** The tokens that one job may spend, on both models together. */
   readonly tokenCap: number;
-  /** The questions that one job may ask. */
+  /** The questions that the reader may ask in one job. */
   readonly turnCap: number;
   /** The longest chunk, in code points. */
   readonly chunkCap: number;
 }
 
-type Env = Readonly<Record<string, string | undefined>>;
+/** What the operator sets for the lead agent. */
+export interface LeadConfig {
+  /** The pinned model that chooses the searches and the pages. */
+  readonly model: ModelConfig;
+  /** The tokens that one lead may spend. A lead has no page limit, so this is its one stop. */
+  readonly tokenCap: number;
+}
 
-const ENDPOINTS: readonly AgentModel['endpoint'][] = ['freellmapi', 'openrouter'];
+type Env = Readonly<Record<string, string | undefined>>;
 
 const textOf = (env: Env, name: string): string => {
   const value = env[name]?.trim() ?? '';
@@ -25,65 +41,86 @@ const textOf = (env: Env, name: string): string => {
   return value;
 };
 
-const numberOf = (env: Env, name: string, whole: boolean): number => {
+const numberOf = (env: Env, name: string): number => {
   const text = textOf(env, name);
   const value = Number(text);
-  const fits = Number.isFinite(value) && value > 0 && (!whole || Number.isInteger(value));
-  if (!fits)
-    throw new Error(
-      `${name} is "${text}", and it must be a ${whole ? 'whole number' : 'number'} above zero.`,
-    );
+  if (!Number.isFinite(value)) throw new Error(`${name} is "${text}", and it is not a number.`);
   return value;
 };
 
-/** Reads the configuration of one reader from the variables that start with `prefix`. It throws a
- * sentence that names the variable when a value is absent, blank or wrong. */
-export const readReaderConfig = (prefix: string, env: Env): ReaderConfig => {
+// The range of each value is a rule of the model package and of the chunks. Here the check of its
+// owner runs at the start, and the sentence names the variables.
+const checked = <T>(name: string, check: () => T): T => {
+  try {
+    return check();
+  } catch (fault) {
+    throw new Error(`${name}: ${fault instanceof Error ? fault.message : String(fault)}`, {
+      cause: fault,
+    });
+  }
+};
+
+/** Reads one model from the variables that start with `prefix`. */
+const readModelConfig = (prefix: string, env: Env): ModelConfig => {
   const name = (part: string): string => `${prefix}_${part}`;
-
-  const endpoint = textOf(env, name('ENDPOINT'));
-  const known = ENDPOINTS.find((one) => one === endpoint);
-  if (known === undefined)
-    throw new Error(
-      `${name('ENDPOINT')} is "${endpoint}", and it must be ${ENDPOINTS.join(' or ')}.`,
-    );
-
-  // The gateway picks the model of each call under `auto`, and the key of a reading then holds a
-  // model that nobody pinned.
   const model = textOf(env, name('MODEL'));
-  if (model.toLowerCase() === 'auto')
-    throw new Error(`${name('MODEL')} is auto, and a reader runs on a pinned model.`);
-
+  const line = {
+    firstWaitMs: numberOf(env, name('FIRST_WAIT_MS')),
+    waitGrowth: numberOf(env, name('WAIT_GROWTH')),
+    maxWaitMs: numberOf(env, name('MAX_WAIT_MS')),
+    timeoutMs: numberOf(env, name('TIMEOUT_MS')),
+    maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS')),
+  };
   return {
-    model: {
-      endpoint: known,
-      model,
-      firstWaitMs: numberOf(env, name('FIRST_WAIT_MS'), true),
-      waitGrowth: numberOf(env, name('WAIT_GROWTH'), false),
-      maxWaitMs: numberOf(env, name('MAX_WAIT_MS'), true),
-      timeoutMs: numberOf(env, name('TIMEOUT_MS'), true),
-      maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS'), true),
-    },
+    model: checked(name('MODEL'), () => pinnedName(model)),
     family: textOf(env, name('FAMILY')),
-    tokenCap: numberOf(env, name('TOKEN_CAP'), true),
-    turnCap: numberOf(env, name('TURN_CAP'), true),
-    chunkCap: numberOf(env, name('CHUNK_CAP'), true),
+    line: checked(`${prefix}_* (the line)`, () => checkLine(line)),
   };
 };
 
-const sameFamily = (left: string, right: string): boolean =>
-  left.trim().toLowerCase() === right.trim().toLowerCase();
+const turnCapOf = (env: Env): number => {
+  const cap = numberOf(env, 'EXTRACTOR_TURN_CAP');
+  if (!Number.isInteger(cap) || cap <= 0)
+    throw new Error(`EXTRACTOR_TURN_CAP is "${cap}", and it must be a whole number above zero.`);
+  return cap;
+};
 
-/** The second reader, or null unless its switch is the word `true`. It throws when a value is
- * absent or wrong, and when its family is the family of the extractor: two readers of one family
- * share their errors, so their second reading proves nothing. */
-export const readReader2 = (env: Env, extractor: ReaderConfig): ReaderConfig | null => {
-  if (env['READER2_ENABLED'] !== 'true') return null;
-  const config = readReaderConfig('READER2', env);
-  if (sameFamily(config.family, extractor.family))
+/** Reads the configuration of the extractor and of its checker. It throws a sentence that names
+ * the variable when a value is absent, blank or wrong. */
+export const readExtractorConfig = (env: Env): ReaderConfig => {
+  const reader = readModelConfig('EXTRACTOR', env);
+  const checker = readModelConfig('CHECKER', env);
+  const tokenCap = numberOf(env, 'EXTRACTOR_TOKEN_CAP');
+  const turnCap = turnCapOf(env);
+  const chunkCap = numberOf(env, 'EXTRACTOR_CHUNK_CAP');
+  const config = {
+    reader,
+    checker,
+    tokenCap: checked('EXTRACTOR_TOKEN_CAP', () => checkTokenCap(tokenCap)),
+    turnCap,
+    chunkCap: checked('EXTRACTOR_CHUNK_CAP', () => checkChunkCap(chunkCap)),
+  };
+  if (config.checker.family.toLowerCase() === reader.family.toLowerCase())
     throw new Error(
-      `READER2_FAMILY is "${config.family}", the same family as EXTRACTOR_FAMILY. The second ` +
-        'reader runs on a model of another family.',
+      `CHECKER_FAMILY is "${config.checker.family}", and the checker must be of another family ` +
+        'than the extractor.',
     );
   return config;
+};
+
+/** Reads the configuration of the lead agent. It asks the model of the extractor, which is
+ * pinned and calls tools, and it has a token budget of its own. A lead with no search engine
+ * finds no page, so a search setting is required too. */
+export const readLeadConfig = (env: Env): LeadConfig => {
+  const cap = numberOf(env, 'LEAD_TOKEN_CAP');
+  const tokenCap = checked('LEAD_TOKEN_CAP', () => checkTokenCap(cap));
+  const searches = ['SEARXNG_URL', 'BRAVE_SEARCH_API_KEY'].some(
+    (name) => (env[name]?.trim() ?? '') !== '',
+  );
+  if (!searches)
+    throw new Error(
+      'SEARXNG_URL is empty or absent, and no BRAVE_SEARCH_API_KEY is set. A lead needs a ' +
+        'search engine.',
+    );
+  return { model: readModelConfig('EXTRACTOR', env), tokenCap };
 };

@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 
 import type { DocumentProvider } from '@/shared/read/model';
+import { ExtractionControl } from '@/shared/extraction-control';
 import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -9,7 +10,7 @@ import { Input } from '@/shared/ui/input';
 import { sendUpload, uploadSaid, type UploadState } from './upload';
 import { BLANK_UPLOAD, readUploadDraft, titleOf, type UploadForm } from './upload-draft';
 
-export interface UploadDocumentDialogProps {
+interface UploadDocumentDialogProps {
   /** The providers a document may name. The route reads them, and this file reads nothing. */
   readonly providers: readonly DocumentProvider[];
   /** Read the record again, so every surface draws the new document. The route holds the router. */
@@ -48,7 +49,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
 
   const draft = readUploadDraft(form);
   const working = state.step === 'working';
-  const done = state.step === 'stored' || state.step === 'known';
+  const done = state.step === 'done';
 
   // Each opening starts at a blank form, so a file chosen days ago is never sent by mistake.
   const onOpenChange = (next: boolean): void => {
@@ -70,7 +71,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
     setState({ step: 'working' });
     void sendUpload(draft.file, draft.fields).then(async (answer) => {
       setState(answer);
-      if (answer.step === 'stored') await onStored(answer.documentId);
+      if (answer.step === 'done' && answer.document === 'stored') await onStored(answer.documentId);
     });
   };
 
@@ -196,6 +197,10 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
           </div>
 
           <SaidLine said={uploadSaid(state, draft)} label={SAYS} />
+
+          {state.step === 'done' ? (
+            <ExtractionControl key={state.documentId} documentId={state.documentId} />
+          ) : null}
 
           <div className="flex items-center gap-2">
             <Button

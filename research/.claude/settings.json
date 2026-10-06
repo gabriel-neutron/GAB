@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__gab__search_graph",
+      "mcp__gab__read_entity",
+      "mcp__gab__neighbourhood",
+      "mcp__gab__list_vocabulary",
+      "mcp__gab__list_proposals",
+      "mcp__gab__find_document",
+      "mcp__gab__document_text",
+      "mcp__gab__job_status",
+      "mcp__gab__web_search",
+      "mcp__gab__news_search"
+    ]
+  }
+}

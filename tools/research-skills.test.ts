@@ -1,5 +1,5 @@
 // The research workspace states each research procedure once, as a skill. A skill that names a tool
-// the research profile does not offer sends the model to a tool it cannot call, and a Codex copy
+// the research MCP server does not offer sends the model to a tool it cannot call, and a Codex copy
 // that differs from its Claude source gives the two clients two procedures. The test reads text
 // and opens no socket.
 
@@ -26,91 +26,72 @@ const read = (file: string): string => readFileSync(file, 'utf8');
 
 const shown = (file: string): string => path.relative(ROOT, file).split(path.sep).join('/');
 
-// The YAML block between the two opening fences, and the text after it.
-const split = (text: string): { head: unknown; body: string } => {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/u.exec(text);
+// The YAML block between the two opening fences.
+const headOf = (text: string): unknown => {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/u.exec(text);
   if (match === null) throw new Error('the file does not start with a YAML front matter block');
-  return { head: parse(match[1] ?? ''), body: match[2] ?? '' };
+  return parse(match[1] ?? '');
 };
 
-// The text of one level-two section, up to the next level-two heading.
-const section = (body: string, heading: string): string | undefined => {
-  const parts = body.split(/^## /mu);
-  const found = parts.find(
-    (part) => part.startsWith(`${heading}\n`) || part.startsWith(`${heading}\r\n`),
-  );
-  return found?.slice(heading.length);
-};
-
-const codeNames = (text: string): string[] =>
-  [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)].map((match) => match[1] ?? '');
-
-// Departure: the compile target of this folder does not hold the tool package, and a static import
-// would pull the whole catalogue into it. The test loads the profiles when it runs, and checks
-// their shape, so a wrong shape fails here and not as a silent empty set.
-const profilesModule = z.object({
-  PROFILES: z
-    .record(z.string(), z.array(z.string()))
-    .and(z.object({ research: z.array(z.string()) })),
+// Departure: the compile target of this folder does not hold the MCP package, and a static import
+// would pull the whole catalogue into it. The test loads the surface when it runs, and checks its
+// shape, so a wrong shape fails here and not as a silent empty set.
+const surfaceModule = z.object({
+  RESEARCH_TOOLS: z.record(z.string(), z.object({ readOnlyHint: z.boolean() })),
 });
 
-const { PROFILES } = profilesModule.parse(
-  await import(pathToFileURL(path.join(ROOT, 'packages', 'tools', 'src', 'profiles.ts')).href),
+const { RESEARCH_TOOLS } = surfaceModule.parse(
+  await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'surface.ts')).href),
 );
 
-// The research MCP server offers each tool of its groups, so a skill may name a tool that a group
-// offers and the profile does not hold, such as the entity lookup that the profile left out.
-const groupsModule = z.object({ RESEARCH_GROUPS: z.record(z.string(), z.array(z.string())) });
+const RESEARCH = new Set(Object.keys(RESEARCH_TOOLS));
 
-const { RESEARCH_GROUPS } = groupsModule.parse(
-  await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'groups.ts')).href),
-);
+// A name in back quotes with an underscore is a tool, unless it is one of these words of the
+// record that a skill shows as an example.
+const RECORD_WORDS = new Set(['legal_act', 'capacity_dwt']);
 
-const RESEARCH = new Set([...PROFILES.research, ...Object.values(RESEARCH_GROUPS).flat()]);
-const EVERY_PROFILE_TOOL = new Set(Object.values(PROFILES).flat());
+const namedTools = (text: string): string[] =>
+  [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)]
+    .map((match) => match[1] ?? '')
+    .filter((name) => !RECORD_WORDS.has(name));
+
+const RULES = path.join(ROOT, 'research', 'AGENTS.md');
 
 test.each(SKILLS)('the skill %s has a source file', (skill) => {
   expect(existsSync(sourceOf(skill)), `${shown(sourceOf(skill))} is absent`).toBe(true);
 });
 
 test.each(SKILLS)('the front matter of %s names the skill and describes it', (skill) => {
-  const { head } = split(read(sourceOf(skill)));
-  const parsed = frontMatter.parse(head);
+  const parsed = frontMatter.parse(headOf(read(sourceOf(skill))));
 
   expect(parsed.name).toBe(skill);
 });
 
-test.each(SKILLS)('the skill %s has the sections Tools, Steps and Never', (skill) => {
-  const { body } = split(read(sourceOf(skill)));
-
-  for (const heading of ['Tools', 'Steps', 'Never'])
-    expect(section(body, heading), `${skill} has no section "## ${heading}"`).toBeDefined();
-});
-
-test.each(SKILLS)('each tool under the Tools section of %s is in the research profile', (skill) => {
-  const { body } = split(read(sourceOf(skill)));
-  const tools = codeNames(section(body, 'Tools') ?? '');
-
-  expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
-  for (const tool of tools)
+test.each([...SKILLS.map(sourceOf), RULES])('each tool that %s names is offered', (file) => {
+  for (const tool of namedTools(read(file)))
     expect(
       RESEARCH.has(tool),
-      `${skill} lists ${tool}, which the research surface does not offer`,
+      `${shown(file)} names ${tool}, which the server does not offer`,
     ).toBe(true);
 });
 
-test.each(SKILLS)(
-  'each profile tool that %s names anywhere is in the research profile',
-  (skill) => {
-    const { body } = split(read(sourceOf(skill)));
+test('the rules of the workspace name each tool of the server', () => {
+  const named = new Set(namedTools(read(RULES)));
+  for (const tool of RESEARCH)
+    if (tool.includes('_')) expect(named.has(tool), `AGENTS.md does not name ${tool}`).toBe(true);
+});
 
-    for (const tool of codeNames(body).filter((name) => EVERY_PROFILE_TOOL.has(name)))
-      expect(
-        RESEARCH.has(tool),
-        `${skill} names ${tool}, which the research surface does not offer`,
-      ).toBe(true);
-  },
-);
+// Claude Code runs a read with no question, and asks the operator before each other tool. The
+// schema is strict, so a second key (a permission mode, a hook, an extra directory) fails here.
+test('the Claude Code settings allow the reads of the server, and nothing else', () => {
+  const settings = z
+    .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
+    .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
+  const reads = Object.entries(RESEARCH_TOOLS)
+    .filter(([, hints]) => hints.readOnlyHint)
+    .map(([name]) => `mcp__gab__${name}`);
+  expect([...settings.permissions.allow].sort()).toStrictEqual(reads.sort());
+});
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {
   const source = sourceOf(skill);

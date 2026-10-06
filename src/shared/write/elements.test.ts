@@ -36,7 +36,7 @@ test('an attribute act sends its target and its attributes, and no act', async (
     attrs: { imo: { v: '9321483' } },
   });
 
-  expect(outcome).toStrictEqual({ state: 'signed', proposalId: PROPOSAL, targetId: TARGET });
+  expect(outcome).toStrictEqual({ step: 'done', proposalId: PROPOSAL, targetId: TARGET });
   expect(asked).toStrictEqual([
     {
       address: '/write/update-attrs',

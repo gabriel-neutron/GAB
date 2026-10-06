@@ -168,6 +168,6 @@ test('an act must cite every document its own values cite', async () => {
   await expect(rolledBack('app', (ask) => ask(CITES_OUTSIDE))).rejects.toMatchObject({
     code: '23514',
     constraint: 'proposals_src_within',
-    message: 'new row for relation "proposals" violates check constraint "proposals_src_within"',
+    message: 'each document that a value cites is also a document of the act',
   });
 });
