@@ -1,4 +1,4 @@
-// The web of the server against a fetch that is a stub. No socket opens. The test proves that a
+// The web of a surface against a fetch that is a stub. No socket opens. The test proves that a
 // redirect is handed back and never followed, that the caps hold, and that an empty setting is no
 // setting.
 

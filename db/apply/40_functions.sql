@@ -1146,7 +1146,8 @@ END $$;
 -- transaction, so a second claim walks past it instead of waiting behind it.
 --
 -- IT TAKES A WORK KIND AND NEVER A `store_only` ROW. The kind goes back to the caller, because
--- the runner that routes the row has to know which path it takes.
+-- the runner that routes the row has to know which path it takes. A lead has no document, and its
+-- text goes back with it: the worker reads the text of the lead that it holds and of no other.
 --
 -- IT TAKES NO NAME. The taker is stamped from session_user by a trigger, because a label the
 -- caller supplies proves nothing about who holds the row. The earlier signatures are dropped
@@ -1154,14 +1155,14 @@ END $$;
 DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document doc_id, job_kind text)
+RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured')
+   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','research_lead')
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -1176,8 +1177,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.kind
-       INTO job_id, job_document, job_kind;
+  RETURNING j.id, j.document_id, j.kind, j.lead
+       INTO job_id, job_document, job_kind, job_lead;
 
   RETURN NEXT;
 END $$;
@@ -1279,6 +1280,61 @@ BEGIN
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;
+
+-- THE DOOR THAT STARTS A LEAD. The operator and the research AI give a short text, and the worker
+-- searches and stores the sources for it. The role that asked is kept from the connection, never
+-- from a label of the caller. The worker role holds no grant on it, so the agent that runs a lead
+-- starts no lead of its own.
+CREATE OR REPLACE FUNCTION start_lead(p_lead text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF p_lead IS NULL OR btrim(p_lead, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a lead states what to search for'
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_lead_text';
+  END IF;
+  INSERT INTO public.jobs (kind, lead, lead_by)
+  VALUES ('research_lead', btrim(p_lead, E' \t\n\r\f\v'), session_user)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+-- THE RECORD OF WHAT A LEAD STORED. Only the worker that runs the lead calls it, and only while
+-- the lead runs. A second record of one document is no fault, and it writes nothing.
+CREATE OR REPLACE FUNCTION record_lead_document(p_job uuid, p_document text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  PERFORM 1 FROM public.jobs j
+   WHERE j.id = p_job AND j.kind = 'research_lead' AND j.status = 'running';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not a running lead, and only a running lead stores a document', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.lead_document (job_id, document_id) VALUES (p_job, p_document::doc_id)
+  ON CONFLICT DO NOTHING;
+END $$;
+
+-- THE LEADS, FOR THE OPERATOR. Each lead comes with its text, its state and the documents that it
+-- stored, the newest lead first. The text is private, so only the operator role holds this read.
+CREATE OR REPLACE FUNCTION lead_jobs()
+RETURNS TABLE (job_id uuid, lead text, lead_by text, job_status text, job_reason text,
+               created_at timestamptz, documents jsonb)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.id, j.lead, j.lead_by, j.status, j.failure_reason, j.created_at,
+         coalesce((SELECT jsonb_agg(jsonb_build_object('id', d.id, 'title', d.title, 'url', d.uri)
+                                    ORDER BY l.created_at, d.id)
+                     FROM public.lead_document l
+                     JOIN public.documents d ON d.id = l.document_id
+                    WHERE l.job_id = j.id), '[]'::jsonb)
+    FROM public.jobs j
+   WHERE j.kind = 'research_lead'
+   ORDER BY j.created_at DESC, j.id
+$$;
 
 -- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
 -- through the model calls it recorded, and the operator role holds no read of those calls. So

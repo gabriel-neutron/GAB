@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readExtractorConfig } from './reader-config.ts';
+import { readExtractorConfig, readLeadConfig } from './reader-config.ts';
 
 const FULL = {
   EXTRACTOR_MODEL: 'a-family/a-model',
@@ -85,5 +85,17 @@ describe('the configuration of the extractor', () => {
 
   it('holds no default: an empty environment names the first value it needs', () => {
     expect(() => readExtractorConfig({})).toThrow(/EXTRACTOR_/u);
+  });
+});
+
+describe('the configuration of the lead agent', () => {
+  it('asks the model of the extractor with a token budget of its own', () => {
+    const read = readLeadConfig({ ...FULL, LEAD_TOKEN_CAP: '200000' });
+    expect(read.model).toStrictEqual(readExtractorConfig(FULL).reader);
+    expect(read.tokenCap).toBe(200000);
+  });
+
+  it('stops with a sentence that names LEAD_TOKEN_CAP when it is absent', () => {
+    expect(() => readLeadConfig(FULL)).toThrow(/LEAD_TOKEN_CAP/u);
   });
 });

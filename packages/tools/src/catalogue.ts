@@ -11,6 +11,7 @@ import { newsSearch } from './news-search.ts';
 import { propose } from './propose.ts';
 import { readEntity } from './read-entity.ts';
 import { searchGraph } from './search-graph.ts';
+import { startLead } from './start-lead.ts';
 import { webSearch } from './web-search.ts';
 
 /** Every tool that is built, once. A surface adapts a part of this list and holds no logic. */
@@ -28,6 +29,7 @@ export const CATALOGUE = [
   archiveSnapshot,
   fetchDocument,
   enqueueExtract,
+  startLead,
   propose,
 ] as const;
 
