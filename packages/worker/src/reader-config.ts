@@ -74,11 +74,10 @@ export const readReaderConfig = (prefix: string, env: Env): ReaderConfig => {
 const sameFamily = (left: string, right: string): boolean =>
   left.trim().toLowerCase() === right.trim().toLowerCase();
 
-/** The second reader, or null unless its switch is the word `true`. It throws when a value is
- * absent or wrong, and when its family is the family of the extractor: two readers of one family
- * share their errors, so their second reading proves nothing. */
-export const readReader2 = (env: Env, extractor: ReaderConfig): ReaderConfig | null => {
-  if (env['READER2_ENABLED'] !== 'true') return null;
+/** The second reader. Each claim of free text needs it, so it has no switch. It throws when a value
+ * is absent or wrong, and when its family is the family of the extractor: two readers of one
+ * family share their errors, so their second reading proves nothing. */
+export const readReader2 = (env: Env, extractor: ReaderConfig): ReaderConfig => {
   const config = readReaderConfig('READER2', env);
   if (sameFamily(config.family, extractor.family))
     throw new Error(

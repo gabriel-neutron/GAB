@@ -67,7 +67,6 @@ describe('the configuration of a reader', () => {
 const EXTRACTOR = readReaderConfig('EXTRACTOR', FULL);
 
 const SECOND = {
-  READER2_ENABLED: 'true',
   READER2_ENDPOINT: 'openrouter',
   READER2_MODEL: 'b-family/b-model',
   READER2_FAMILY: 'b-family',
@@ -82,17 +81,12 @@ const SECOND = {
 };
 
 describe('the configuration of the second reader', () => {
-  it('reads every value when the switch is on', () => {
+  it('reads every value, with no switch', () => {
     expect(readReader2(SECOND, EXTRACTOR)).toStrictEqual(readReaderConfig('READER2', SECOND));
   });
 
-  for (const off of [undefined, '', 'false', 'TRUE', '1', 'yes'])
-    it(`starts no second reader when READER2_ENABLED is ${String(off)}`, () => {
-      expect(readReader2({ ...SECOND, READER2_ENABLED: off }, EXTRACTOR)).toBeNull();
-    });
-
-  it('starts no second reader when the switch is absent, with no other value set', () => {
-    expect(readReader2({}, EXTRACTOR)).toBeNull();
+  it('refuses to start with no value set, because each claim of free text needs it', () => {
+    expect(() => readReader2({}, EXTRACTOR)).toThrow(/READER2_/u);
   });
 
   for (const name of ['READER2_ENDPOINT', 'READER2_MODEL', 'READER2_FAMILY'])
