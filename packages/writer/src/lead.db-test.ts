@@ -161,3 +161,19 @@ test('only the operator reads a lead', async () => {
   const listed = await research.query('SELECT id FROM api.job WHERE id = $1::uuid', [jobId]);
   expect(listed.rows).toStrictEqual([]);
 });
+
+test('a request from another site starts no lead and reads no lead', async () => {
+  const lead = `A lead from another site ${randomUUID()}`;
+  for (const door of ['/write/start-lead', '/private/leads']) {
+    const answer = await app.request(door, {
+      method: 'POST',
+      headers: { ...OWN, origin: 'http://attacker.example' },
+      body: JSON.stringify({ lead }),
+    });
+    expect([answer.status, await answer.json()]).toStrictEqual([
+      403,
+      { refusal: 'the request does not come from this site' },
+    ]);
+  }
+  expect((await leadsOf()).some((one) => one.lead === lead)).toBe(false);
+});

@@ -14,7 +14,9 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { makeExtractor } from '../extractor/extractor.ts';
 import {
+  CHECKER,
   completionOf,
   depsOf,
   gatewayOf,
@@ -25,7 +27,8 @@ import {
 } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
 import type { LeadConfig } from '../reader-config.ts';
-import { makeLeadAgent } from './lead.ts';
+import type { RunnerAgent } from '../agents.ts';
+import { leadAgentOf, makeLeadAgent } from './lead.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
@@ -100,6 +103,7 @@ interface Held {
   readonly known: string;
   readonly ask: (text: string, values?: unknown[]) => Promise<unknown[]>;
   readonly step: (config: LeadConfig, gateway: StubGateway, reach: Reach) => Promise<Step>;
+  readonly stepWith: (agents: readonly RunnerAgent[], gateway: StubGateway) => Promise<Step>;
 }
 
 const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
@@ -113,8 +117,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
     const job = one.parse(await ask(START, [LEAD]))[0]?.id ?? '';
     await ask(OLDEST, [job]);
 
-    const step = async (config: LeadConfig, gateway: StubGateway, reach: Reach) => {
-      const { deps } = depsOf(client, [makeLeadAgent(config, { reach })], gateway);
+    const stepWith = async (agents: readonly RunnerAgent[], gateway: StubGateway) => {
+      const { deps } = depsOf(client, agents, gateway);
       await client.query('SET LOCAL SESSION AUTHORIZATION gabriel_agent');
       try {
         return await (await openRunner(deps)).step();
@@ -122,7 +126,9 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         await client.query('RESET SESSION AUTHORIZATION');
       }
     };
-    await work({ client, job, known, ask, step });
+    const step = (config: LeadConfig, gateway: StubGateway, reach: Reach) =>
+      stepWith([makeLeadAgent(config, { reach })], gateway);
+    await work({ client, job, known, ask, step, stepWith });
   } finally {
     await client.query('ROLLBACK');
     client.release();
@@ -199,5 +205,101 @@ test('the token budget stops a lead that loops, with that reason', async () => {
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
       { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
     ]);
+  });
+});
+
+test('a lead fetches no address that differs from a stored one only in its form', async () => {
+  await inTransaction(async ({ job, known, step }) => {
+    const bodies: string[] = [];
+    // The fragment is never sent, the name of a host has no case, and a slash at the end of the
+    // path names the same page.
+    const variants = [
+      `${KNOWN}#owner`,
+      KNOWN.replace(FIXTURE_HOST, FIXTURE_HOST.toUpperCase()),
+      `${KNOWN}/`,
+    ];
+    const gateway = gatewayOf((call, body) => {
+      bodies.push(body);
+      const variant = variants[call - 1];
+      if (variant !== undefined)
+        return toolCallOf('fetch_document', { url: variant }, `call_${String(call)}`);
+      return completionOf(JSON.stringify({ summary: 'Nothing new.' }));
+    });
+
+    expect(await step(CONFIG, gateway, reachOf())).toStrictEqual({ did: 'done', job });
+
+    expect(fixture.requests.filter((path) => path.startsWith('/known.html'))).toStrictEqual([]);
+    for (const body of bodies.slice(1)) expect(body).toContain(known);
+  });
+});
+
+test('the pages that a lead stored stay when its token budget stops it', async () => {
+  await inTransaction(async ({ job, ask, step }) => {
+    const gateway = gatewayOf((call) =>
+      call === 1
+        ? toolCallOf('fetch_document', { url: NEW }, 'call_new')
+        : toolCallOf('web_search', { query: LEAD }),
+    );
+
+    expect(await step({ ...CONFIG, tokenCap: 30 }, gateway, reachOf())).toStrictEqual({
+      did: 'failed',
+      job,
+    });
+
+    expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
+      { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
+    ]);
+    const [lead] = leadRow.parse(await ask(LEAD_DOCUMENTS, [job]));
+    const stored = lead?.documents.map((document) => document.id) ?? [];
+    expect(stored).toHaveLength(1);
+    expect(workRows.parse(await ask(WORK_OF, [stored[0]]))).toStrictEqual([
+      { kind: 'extract_text', status: 'queued' },
+    ]);
+  });
+});
+
+test('a worker with no lead settings starts, and each lead fails with the setting it lacks', async () => {
+  await inTransaction(async ({ job, ask, stepWith }) => {
+    let opened = false;
+    const lead = leadAgentOf({}, () => {
+      opened = true;
+      return reachOf();
+    });
+    const extractor = makeExtractor({
+      reader: READER,
+      checker: CHECKER,
+      tokenCap: 10_000,
+      turnCap: 5,
+      chunkCap: 6000,
+    });
+    const gateway = gatewayOf(() => completionOf('{}'));
+
+    expect(await stepWith([extractor, lead], gateway)).toStrictEqual({ did: 'failed', job });
+
+    expect(opened).toBe(false);
+    expect(gateway.chats()).toBe(0);
+    const [row] = jobRow.parse(await ask(JOB, [job]));
+    expect(row?.failure_reason).toMatch(/^the lead agent is not set up: LEAD_TOKEN_CAP /u);
+  });
+});
+
+test('a lead fetches no address of the machine, even when a page or a result names one', async () => {
+  await inTransaction(async ({ job, step }) => {
+    const bodies: string[] = [];
+    const inside = `http://127.0.0.1:${String(fixture.port)}/new.html`;
+    const gateway = gatewayOf((call, body) => {
+      bodies.push(body);
+      if (call === 1) return toolCallOf('fetch_document', { url: inside }, 'call_inside');
+      return completionOf(JSON.stringify({ summary: 'Nothing stored.' }));
+    });
+    // The worker gives the fetch no range check of its own, so the default check runs.
+    const { lookup, refuses, ...reach } = reachOf();
+    expect([lookup, refuses].every((one) => one !== undefined)).toBe(true);
+    const before = fixture.requests.length;
+
+    expect(await step(CONFIG, gateway, reach)).toStrictEqual({ did: 'done', job });
+
+    expect(fixture.requests.length).toBe(before);
+    expect(bodies[1]).toContain('private network');
   });
 });

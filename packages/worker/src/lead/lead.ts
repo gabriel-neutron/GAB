@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab/model';
 import { enqueueExtract } from '@gab/tools/enqueue-extract';
 import { fetchDocument } from '@gab/tools/fetch-document';
+import { pageAddress } from '@gab/tools/fetch-guard';
 import { findDocument } from '@gab/tools/find-document';
 import { newsSearch } from '@gab/tools/news-search';
 import { searchGraph } from '@gab/tools/search-graph';
@@ -18,7 +19,7 @@ import {
   type Refusal,
   type RunnerAgent,
 } from '../agents.ts';
-import type { LeadConfig } from '../reader-config.ts';
+import { readLeadConfig, type LeadConfig } from '../reader-config.ts';
 
 /** The name of the lead agent in the record of each of its model calls. */
 export const LEAD_NAME = 'lead';
@@ -32,6 +33,7 @@ export interface LeadOptions {
 }
 
 const BUDGET_SPENT = 'the token budget of this lead is spent';
+const NO_COUNT = 'the model gave no token count, so the token budget cannot stop this lead';
 
 // Origin of the number: the model reads the start of a page to judge it and to find the next
 // search, and the extractor reads the whole page later. A whole page in each answer fills the
@@ -39,6 +41,8 @@ const BUDGET_SPENT = 'the token budget of this lead is spent';
 const TEXT_SHOWN = 3000;
 
 const RECORD = 'SELECT public.record_lead_document($1::uuid, $2::text)';
+const STORED = `SELECT id::text AS id FROM api.document
+  WHERE uri = ANY($1::text[]) ORDER BY created_at, id LIMIT 1`;
 
 // The last answer of the model. It states what the lead found, and code writes nothing from it.
 const finalAnswer = z.strictObject({ summary: z.string() });
@@ -53,9 +57,20 @@ const fetched = z.object({
   rendered: z.object({ document: z.string(), status: z.enum(['known', 'stored']) }).nullable(),
 });
 
-const found = z.object({
-  documents: z.array(z.object({ id: z.string(), url: z.string().nullable() })),
-});
+const held = z.array(z.object({ id: z.string() })).max(1);
+
+// The addresses that give the page of `url`: the address that the fetch stores, and the same
+// address with or without a slash at the end of its path. A server gives one page for both nearly
+// always, and a second fetch only stores the same page again.
+const addressesOf = (url: string): string[] => {
+  const address = pageAddress(url);
+  const parts = new URL(address);
+  if (parts.pathname === '/') return [address];
+  parts.pathname = parts.pathname.endsWith('/')
+    ? parts.pathname.replace(/\/+$/u, '')
+    : `${parts.pathname}/`;
+  return [address, parts.href];
+};
 
 // The tools of the lead. None of them proposes, and none of them starts a lead.
 const OFFERED: readonly Tool[] = [
@@ -87,11 +102,16 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
     const refusals: Refusal[] = [];
 
     // A page that Gabriel holds already is never fetched again. Code checks the address before
-    // the fetch, so the model cannot store one page twice.
+    // the fetch, so the model cannot store one page twice. An address that the fetch refuses
+    // goes on to the fetch, which gives the model its reason.
     const storedAs = async (url: string): Promise<string | undefined> => {
-      const outcome = await callTool(findDocument, session, { url });
-      if (!outcome.ok) return undefined;
-      return found.parse(outcome.output).documents.find((one) => one.url === url)?.id;
+      let addresses: string[];
+      try {
+        addresses = addressesOf(url);
+      } catch {
+        return undefined;
+      }
+      return held.parse((await context.db.query(STORED, [addresses])).rows)[0]?.id;
     };
 
     // The extraction of a new page is queued by code, so no stored page waits for the model to
@@ -103,10 +123,10 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
     };
 
     const fetchOf = async (input: unknown): Promise<string> => {
-      const url = z.object({ url: z.string() }).parse(input).url.trim();
-      const held = await storedAs(url);
-      if (held !== undefined)
-        return `Gabriel holds this page already as document ${held}, so it was not fetched again.`;
+      const given = z.object({ url: z.string() }).safeParse(input);
+      const known = given.success ? await storedAs(given.data.url) : undefined;
+      if (known !== undefined)
+        return `Gabriel holds this page already as document ${known}, so it was not fetched again.`;
 
       const outcome = await callTool(fetchDocument, session, input, reach);
       if (!outcome.ok) return `The tool refused the call: ${outcome.refusal}`;
@@ -164,6 +184,8 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
           throw new JobStop(BUDGET_SPENT);
         throw cause;
       }
+      // An answer that costs no token never spends the budget, and the budget is the one stop.
+      if (asked.tokens === 0) throw new JobStop(NO_COUNT);
       if (asked.kind === 'value') return { refusals };
       messages.push(
         { role: 'assistant', call: asked.call },
@@ -180,4 +202,27 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
     tokenCap: config.tokenCap,
     run,
   };
+};
+
+/** The lead agent that the environment sets up. A lead setting that is absent never stops the
+ * worker, so the extraction still runs: each lead then fails at once with the sentence that names
+ * the setting. `reachOf` opens the store and the web only when the settings are present. */
+export const leadAgentOf = (
+  env: Readonly<Record<string, string | undefined>>,
+  reachOf: () => Reach,
+): RunnerAgent => {
+  try {
+    return makeLeadAgent(readLeadConfig(env), { reach: reachOf() });
+  } catch (fault) {
+    const reason = `the lead agent is not set up: ${fault instanceof Error ? fault.message : String(fault)}`;
+    console.error(reason);
+    return {
+      name: LEAD_NAME,
+      version: VERSION,
+      kind: 'research_lead',
+      models: [],
+      tokenCap: 1,
+      run: () => Promise.reject(new JobStop(reason)),
+    };
+  }
 };

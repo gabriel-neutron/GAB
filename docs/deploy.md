@@ -36,9 +36,15 @@ lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different mode
 worker does not start when they are the same.
 
 The lead agent of `pnpm worker run` asks the extractor model. Set `LEAD_TOKEN_CAP`, the token
-budget of one lead, and `SEARXNG_URL`, the address of the search service. `BRAVE_SEARCH_API_KEY`
-is optional. The worker stores each page that a lead fetches, so it also needs the raw store
-values. A lead runs only when the operator or the research AI starts it: no schedule starts one.
+budget of one lead, and `SEARXNG_URL`, the address of the search service. The worker stores each
+page that a lead fetches, so it also needs the raw store values. When one of these values is
+absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
+names the value.
+
+`BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
+that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
+gives no result. A lead runs only when the operator or the research AI starts it: no schedule
+starts one.
 
 ## Public writes
 
