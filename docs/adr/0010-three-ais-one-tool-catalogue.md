@@ -37,7 +37,8 @@ tools.
 
 Each consumer has its own database role.
 
-- **The operator**, through the interface and the writer, can store, propose and promote.
+- **The operator**, through the interface and the writer, can store, propose, promote and queue an
+  extraction.
 - **The operator AI**, through the MCP server, has its own research role. It can store a fetched
   document and propose. It cannot promote.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
