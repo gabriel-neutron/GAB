@@ -10,11 +10,12 @@ does not block on the wording of a commit, a PR or a comment.
 - Name each export in domain words (`GLOSSARY.md`). The name alone says what the caller gets.
 - A module hides its storage, transport, format and retry details. Its interface is smaller than its
   interior.
-- One feature is one flat folder. A feature never imports another feature.
+- One feature is one folder. A feature never imports another feature (the lint refuses it).
 - Import each symbol from the file that declares it. A file that only passes on the exports of other
   files has no reason to exist.
 - A boundary (a route, a handler, a CLI entry) reads its input, calls one feature function and maps
-  the result. It makes no decision. Presentation code shows a result and holds no logic.
+  the result. It makes no decision. A component may filter or join what it shows; a rule of the
+  product that needs its own test goes in a `.ts` beside it.
 
 ## Types
 
