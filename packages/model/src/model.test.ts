@@ -8,7 +8,18 @@ import {
   createOpenAICompatible,
   OpenAICompatibleChatLanguageModel,
 } from '@ai-sdk/openai-compatible';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerTelemetry } from 'ai';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from 'vitest';
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
@@ -177,6 +188,16 @@ describe('the gateway', () => {
     expect(() => gatewayModel(PINNED, { FREELLMAPI_API_KEY: 'k' })).toThrow(/FREELLMAPI_BASE_URL/u);
   });
 
+  // The library sends a bare model name to the paid router of its vendor. The type refuses a
+  // name, and the adapter refuses it at run time too.
+  it('refuses a bare model name', () => {
+    expectTypeOf<string>().not.toExtend<Parameters<typeof openModel>[0]>();
+    const bare = PINNED as unknown as OpenAICompatibleChatLanguageModel;
+    expect(() => openModel(bare, LINE, { record: () => Promise.resolve('call') })).toThrow(
+      /free-model gateway/u,
+    );
+  });
+
   it('refuses a model that another provider made', () => {
     const elsewhere = createOpenAICompatible({ name: 'elsewhere', baseURL: base })(PINNED);
     if (!(elsewhere instanceof OpenAICompatibleChatLanguageModel))
@@ -212,6 +233,16 @@ describe('a good answer', () => {
     const body = sent.parse(bodies[0]);
     expect(body).toMatchObject({ model: PINNED, max_tokens: LINE.maxAnswerTokens });
     expect(body.messages.map((one) => one.role)).toStrictEqual(['system', 'user']);
+  });
+
+  it('gives no event to a telemetry hook of the library', async () => {
+    const heard = vi.fn();
+    registerTelemetry({ onStart: heard, onEnd: heard, onLanguageModelCallStart: heard });
+    replies.push(said('{"claim":"a ship"}'));
+    const { ask } = open();
+
+    expect(await ask()).toMatchObject({ ok: true });
+    expect(heard).not.toHaveBeenCalled();
   });
 
   it('gives one tool call with its checked input', async () => {
