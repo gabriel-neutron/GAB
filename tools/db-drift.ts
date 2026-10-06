@@ -1,10 +1,7 @@
-// Departure: the check applies the re-runnable SQL to the database GABRIEL_DATABASE names, so
-// the measure is the SQL this repository holds. Without that step an edited view that nobody
-// applied regenerates to the same bytes, and the check reports no drift.
-
-// Departure: that step writes rows, because the seed file adds rows and updates entity types. An
-// ordered file the ledger does not hold stops the check instead: running one can destroy data, so
-// the check says which file to run, and the person runs it.
+// Departure: the check reaches the test database and never the record. The check applies the
+// re-runnable SQL first, so the measure is the SQL this repository holds, and that step writes
+// rows: the seed file adds rows and updates entity types. Build the test database again with
+// `pnpm db:reset` before the check.
 
 // Departure: the exit code of the generator is not the measure. It stops at random on this
 // machine, three runs in six, and the output it wrote was correct and identical every time.
@@ -16,16 +13,12 @@ import { fileURLToPath } from 'node:url';
 
 import { applyRerunnableFiles } from './db-apply.ts';
 import { orderedFileNotRun } from './db-migrate.ts';
-import type { GeneratedFolders } from './kanel-configuration.ts';
-import { committedFolders } from './kanel-configuration.ts';
+import { committedFolder } from './kanel-configuration.ts';
 import { generatedFiles, writeDatabaseTypes } from './db-types.ts';
 
-const SCRATCH = join(import.meta.dirname, '..', 'node_modules', '.cache', 'db-types');
+const SCRATCH = join(import.meta.dirname, '..', 'node_modules', '.cache', 'db-types', 'contract');
 
-const scratchFolders: GeneratedFolders = {
-  contract: join(SCRATCH, 'contract'),
-  baseTables: join(SCRATCH, 'db'),
-};
+const DATABASE = 'gabriel_test';
 
 /** One file where the schema and the repository disagree, and the shape of the disagreement. */
 export interface Drift {
@@ -81,21 +74,18 @@ const compareFolder = async (committed: string, regenerated: string): Promise<Dr
 
 /** The first committed file that disagrees with the SQL this repository holds, or null. */
 export const databaseTypeDrift = async (): Promise<Drift | null> => {
-  const pending = await orderedFileNotRun();
+  const pending = await orderedFileNotRun(DATABASE);
   if (pending !== null)
     return {
       path: join('db', 'migrations', pending),
       reason:
-        'the database never ran this ordered file, so it is not the schema. Run `pnpm db:migrate`',
+        'the test database never ran this ordered file, so it is not the schema. Run `pnpm db:reset`',
       excerpt: '',
     };
 
-  await applyRerunnableFiles();
-  await writeDatabaseTypes(scratchFolders);
-  return (
-    (await compareFolder(committedFolders.contract, scratchFolders.contract)) ??
-    (await compareFolder(committedFolders.baseTables, scratchFolders.baseTables))
-  );
+  await applyRerunnableFiles(DATABASE);
+  await writeDatabaseTypes(SCRATCH, DATABASE);
+  return compareFolder(committedFolder, SCRATCH);
 };
 
 if (argv[1] === fileURLToPath(import.meta.url)) {

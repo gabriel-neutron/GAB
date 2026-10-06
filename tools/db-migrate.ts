@@ -78,9 +78,9 @@ const namesThatRan = async (client: Client): Promise<ReadonlySet<string>> => {
 };
 
 /** The first ordered file the database never ran, or null when it ran every one. */
-export const orderedFileNotRun = async (): Promise<string | null> => {
+export const orderedFileNotRun = async (database: DatabaseName): Promise<string | null> => {
   const files = (await readdir(MIGRATIONS)).filter((name) => name.endsWith('.sql')).sort();
-  const client = new Client({ connectionString: connectionString('superuser') });
+  const client = new Client({ connectionString: connectionString('superuser', database) });
   await client.connect();
   try {
     const ran = await namesThatRan(client);
