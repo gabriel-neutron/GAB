@@ -71,12 +71,55 @@ const verdictOf = (body: string): string =>
     verdicts: [{ ref: 'vessel', verdict: body.includes(FLAKY) ? 'not_supported' : 'supported' }],
   });
 
-const asked = z.object({ model: z.string() });
+const asked = z.object({
+  model: z.string(),
+  messages: z.array(z.object({ role: z.string() })),
+  tools: z.array(z.object({ function: z.object({ name: z.string() }) })).optional(),
+});
+
+// The lead agent asks a search first, and ends when it has read the results. The search service
+// is a route of the same server, as SearXNG answers it.
+const LEAD = `A lead of the runner test ${RUN}`;
+const searched: string[] = [];
+
+const leadAnswerOf = (said: z.infer<typeof asked>): Record<string, unknown> => {
+  if (!said.messages.some((message) => message.role === 'tool'))
+    return {
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'call_search',
+          type: 'function',
+          function: { name: 'web_search', arguments: JSON.stringify({ query: LEAD }) },
+        },
+      ],
+    };
+  return { role: 'assistant', content: JSON.stringify({ summary: 'The search gave no page.' }) };
+};
 
 const gateway: Server = createServer((request, response) => {
   void bodyOf(request).then((body) => {
     response.setHeader('content-type', 'application/json');
-    const { model } = asked.parse(JSON.parse(body));
+    const address = new URL(request.url ?? '/', 'http://127.0.0.1');
+    if (address.pathname === '/search') {
+      searched.push(address.searchParams.get('q') ?? '');
+      response.end(JSON.stringify({ results: [] }));
+      return;
+    }
+    const said = asked.parse(JSON.parse(body));
+    const { model } = said;
+    if (said.tools?.some((tool) => tool.function.name === 'web_search') === true) {
+      const message = leadAnswerOf(said);
+      response.end(
+        JSON.stringify({
+          model,
+          choices: [{ message, finish_reason: 'content' in message ? 'stop' : 'tool_calls' }],
+          usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+        }),
+      );
+      return;
+    }
     if (model === MODEL && body.includes(FLAKY) && !flakyRefused) {
       flakyRefused = true;
       response.statusCode = 400;
@@ -112,6 +155,9 @@ const startRunner = (): ChildProcess => {
       GABRIEL_AGENT_PASSWORD: held.GABRIEL_AGENT_PASSWORD,
       GABRIEL_DATABASE: held.GABRIEL_DATABASE,
       FREELLMAPI_BASE_URL: `http://127.0.0.1:${String(address.port)}/v1`,
+      SEARXNG_URL: `http://127.0.0.1:${String(address.port)}`,
+      BRAVE_SEARCH_API_KEY: '',
+      LEAD_TOKEN_CAP: '10000',
       FREELLMAPI_API_KEY: 'a-stub-key',
       EXTRACTOR_MODEL: MODEL,
       EXTRACTOR_FAMILY: 'stub-family',
@@ -235,11 +281,17 @@ const LEDGER_TRIGGERS = [
   ['public.model_call', 'model_call_append_only'],
 ] as const;
 
+// The lead names no document, so its rows are found by its text.
+const LEAD_JOBS = 'SELECT id FROM public.jobs WHERE lead = $1';
+
 const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
   await db.query('BEGIN');
   try {
     for (const [table, trigger] of LEDGER_TRIGGERS)
       await db.query(`ALTER TABLE ${table} DISABLE TRIGGER ${trigger}`);
+    await db.query(`DELETE FROM public.model_call WHERE job_id IN (${LEAD_JOBS})`, [LEAD]);
+    await db.query(`DELETE FROM public.lead_document WHERE job_id IN (${LEAD_JOBS})`, [LEAD]);
+    await db.query('DELETE FROM public.jobs WHERE lead = $1', [LEAD]);
     const jobIds = `SELECT id FROM public.jobs WHERE document_id = ANY($1::text[])`;
     await db.query('DELETE FROM public.citation WHERE doc_id = ANY($1::text[])', [documents]);
     await db.query('DELETE FROM public.proposals WHERE src::text[] && $1::text[]', [documents]);
@@ -316,5 +368,46 @@ test('a queued document gives checked proposals, and a crash or a failure blocks
     expect(await citationsOf(RECOVERED)).toBe(1);
   } finally {
     await stopRunner(second);
+  }
+});
+
+const startLead = CATALOGUE.find((tool) => tool.name === 'start_lead');
+
+const leadJob = z.array(
+  z.object({ status: z.string(), failure_reason: z.string().nullable(), calls: z.number() }),
+);
+
+const LEAD_STATE = `SELECT j.status, j.failure_reason,
+    (SELECT count(*)::int FROM public.model_call m WHERE m.job_id = j.id) AS calls
+  FROM public.jobs j WHERE j.id = $1`;
+
+test('a lead runs its tool calls through the runner, searches, and proposes nothing', async () => {
+  if (startLead === undefined) throw new Error('the catalogue holds no start_lead');
+  const outcome = await callTool(
+    startLead,
+    { query: (text, values) => db.query(text, values) },
+    { lead: LEAD },
+  );
+  if (!outcome.ok) throw new Error(outcome.refusal);
+  const { jobId } = z.object({ jobId: z.uuid() }).parse(outcome.output);
+
+  const runner = startRunner();
+  try {
+    let state: z.infer<typeof leadJob> = [];
+    for (let round = 0; round < 200; round += 1) {
+      state = leadJob.parse((await db.query(LEAD_STATE, [jobId])).rows);
+      if (['done', 'failed'].includes(state[0]?.status ?? '')) break;
+      await sleepFor(100);
+    }
+    expect(state).toStrictEqual([{ status: 'done', failure_reason: null, calls: 2 }]);
+    expect(searched).toStrictEqual([LEAD]);
+    const proposals = await db.query(
+      `SELECT p.id FROM public.proposals p JOIN public.model_call m ON m.id = p.model_call_id
+        WHERE m.job_id = $1`,
+      [jobId],
+    );
+    expect(proposals.rows).toStrictEqual([]);
+  } finally {
+    await stopRunner(runner);
   }
 });

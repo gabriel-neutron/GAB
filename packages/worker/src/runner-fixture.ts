@@ -36,6 +36,36 @@ export const completionOf = (content: string, model = READER.model): Response =>
     { status: 200 },
   );
 
+/** One tool call as the gateway words it. */
+export const toolCallOf = (name: string, input: unknown, id = `call_${name}`): Response =>
+  new Response(
+    JSON.stringify({
+      model: READER.model,
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              { id, type: 'function', function: { name, arguments: JSON.stringify(input) } },
+            ],
+          },
+          finish_reason: 'tool_calls',
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+    }),
+    { status: 200 },
+  );
+
+const offered = z.object({
+  tools: z.array(z.object({ function: z.object({ name: z.string() }) })).default([]),
+});
+
+/** The names of the tools that one question offers to the model. */
+export const toolsOf = (body: string): string[] =>
+  offered.parse(JSON.parse(body)).tools.map((one) => one.function.name);
+
 const sent = z.object({
   model: z.string(),
   messages: z.array(z.object({ role: z.string(), content: z.unknown() })),

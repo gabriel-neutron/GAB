@@ -40,20 +40,20 @@ flowchart LR
 |---|---|
 | PostgreSQL / PostGIS | Holds every record and enforces the rules below. |
 | S3 raw store | Keeps each original file unchanged. Any S3 server can hold it. |
-| Writer | The only write service for the operator: upload, edit, promote, reject, queue an extraction. It also gives the operator the status of the jobs of a document, which the public read never shows. |
+| Writer | The only write service for the operator: upload, edit, promote, reject, queue an extraction, start a lead. It also gives the operator the status of the jobs of a document and the leads, which the public read never shows. |
 | Read API | Read-only HTTP over a fixed set of public views. |
 | Web interface | The graph, the map, the review queue, search and entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
-| MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job. Each tool says if it reads or writes. |
+| MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job, start a lead. Each tool says if it reads or writes. |
 | Model gateway, web search | External services. They hold no record of the project. |
 
 ## Who can do what
 
 | Actor | Can | Cannot |
 |---|---|---|
-| Operator | Upload, edit, promote, reject, rate a source. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job. | Promote. |
-| Worker agents | Read a document, propose a change with the passage that states it. | Promote. |
+| Operator | Upload, edit, promote, reject, rate a source, start a lead. | — |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. | Promote. Read a lead. |
+| Worker agents | Read a document, propose a change with the passage that states it. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database, not the application, holds these limits.
@@ -77,7 +77,7 @@ reads, such as a graph traversal, run as SQL functions in the database. A timeou
 and a cache protect the public read.
 
 The public read shows the record and the candidate layer, and nothing else (PU1). It shows no
-rejected proposal, no job and no model call. The machine roles read through their own grants.
+rejected proposal, no job, no lead and no model call. The machine roles read through their own grants.
 
 ## The write path
 
@@ -119,6 +119,21 @@ writes each entity before the relation that names it, and one refused act refuse
 the refusal names the act and the reason, and nothing is written. An act that names no other act
 of its call stays a single act, so a faulty claim never blocks a good claim of the same page.
 The door of one act refuses an act of a batch, so a batch is never half decided.
+
+## The lead path
+
+```
+a lead (a short text from the operator or the research AI)
+  → a job in the queue, with the text and no document
+  → the lead agent: web search, news search, graph search, a search of the stored documents
+  → each new page: fetch, store (the ingestion door), queue its extraction
+  → the extraction path above proposes the claims
+```
+
+The lead agent proposes nothing and starts no lead. It does not fetch a page whose address is
+already stored. It has no page limit, and its token budget stops it, with that reason. No schedule
+starts a lead. The text of a lead is private: only the operator reads the leads, and the worker
+reads the text of the one lead that it runs.
 
 ## Technical baseline
 

@@ -40,6 +40,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: false,
     openWorldHint: false,
   },
+  // Each call starts one more lead.
+  start_lead: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   // The door returns the act that waits, so a retry writes nothing twice.
   propose: {
     readOnlyHint: false,

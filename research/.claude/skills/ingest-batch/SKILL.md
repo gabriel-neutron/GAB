@@ -8,6 +8,11 @@ description: Store a list of URLs as documents, queue the extraction of each one
 Use this skill for a list of URLs. Gabriel stores each source, and the extractor (the back-end
 AI) proposes the claims of each one. You do not extract with your own tokens.
 
+If you have a lead and no list of URLs (for example "Intershipping and its vessels"), call
+`start_lead` with the lead. The lead agent of Gabriel searches, stores each new page and queues
+its extraction, with its own tokens. Later, find the pages that it stored with `find_document`,
+and continue at step 6.
+
 ## Tools
 
 - `find_document`: find a page that Gabriel already stores, by its address.
@@ -16,6 +21,7 @@ AI) proposes the claims of each one. You do not extract with your own tokens.
   job id.
 - `job_status`: read the state of the jobs of one document and the number of their proposals.
 - `list_proposals`: read the proposals that the extraction made for one document.
+- `start_lead`: give a lead to the lead agent of Gabriel. It returns the job id.
 
 ## Steps
 

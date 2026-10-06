@@ -22,6 +22,14 @@ export interface ReaderConfig {
   readonly chunkCap: number;
 }
 
+/** What the operator sets for the lead agent. */
+export interface LeadConfig {
+  /** The pinned model that chooses the searches and the pages. */
+  readonly model: ModelConfig;
+  /** The tokens that one lead may spend. A lead has no page limit, so this is its one stop. */
+  readonly tokenCap: number;
+}
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 const textOf = (env: Env, name: string): string => {
@@ -83,3 +91,10 @@ export const readExtractorConfig = (env: Env): ReaderConfig => {
     );
   return config;
 };
+
+/** Reads the configuration of the lead agent. It asks the model of the extractor, which is
+ * pinned and calls tools, and it has a token budget of its own. */
+export const readLeadConfig = (env: Env): LeadConfig => ({
+  model: readModelConfig('EXTRACTOR', env),
+  tokenCap: numberOf(env, 'LEAD_TOKEN_CAP', true),
+});

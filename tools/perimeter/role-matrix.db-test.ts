@@ -43,18 +43,21 @@ test('the role matrix of the doors', async () => {
       "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
       "public.fail_job": "agent",
+      "public.lead_jobs": "app",
       "public.promote_proposal": "app",
       "public.propose_batch": "agent research",
       "public.propose_change": "app",
       "public.put_document": "app",
       "public.put_document_text": "agent app research",
       "public.put_fetched_document": "agent research",
+      "public.record_lead_document": "agent",
       "public.record_model_call": "agent",
       "public.reject_proposal": "app",
       "public.requeue_running_jobs": "agent",
       "public.runner_settings": "agent",
       "public.set_entity_layout": "agent",
       "public.sign_change": "app",
+      "public.start_lead": "app research",
     }
   `);
 });
