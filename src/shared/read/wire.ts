@@ -11,6 +11,7 @@ import { fullMap as apiFullMap } from '@/contract/api/FullMap';
 import { layout as apiLayout } from '@/contract/api/Layout';
 import { proposal as apiProposal } from '@/contract/api/Proposal';
 import { relation as apiRelation } from '@/contract/api/Relation';
+import { relationType as apiRelationType } from '@/contract/api/RelationType';
 
 import { CLOSED_SET } from './closed-set';
 
@@ -31,6 +32,16 @@ export const wireRow = {
       colour_dark: text('entity_type.colour_dark'),
       ord: z.number(stated('entity_type.ord')),
       retired: z.boolean(stated('entity_type.retired')),
+    }),
+  ),
+
+  relationType: apiRelationType.and(
+    z.object({
+      key: text('relation_type.key'),
+      label: text('relation_type.label'),
+      inverse_label: text('relation_type.inverse_label'),
+      takes_interval: z.boolean(stated('relation_type.takes_interval')),
+      retired: z.boolean(stated('relation_type.retired')),
     }),
   ),
 

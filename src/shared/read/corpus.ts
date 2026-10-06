@@ -6,11 +6,12 @@ import { readRows } from './http';
 import { toDomain } from './map';
 import { readOnce } from './once';
 import type { Corpus } from './model';
+import { loadRelationTypes } from './vocabulary';
 
 // Only the pending acts are read. Every surface of the corpus filters on that status, and the
 // history of the review reads the decided acts on its own.
 async function read(): Promise<Corpus> {
-  const [documents, entities, relations, proposals, positions] = await Promise.all([
+  const [documents, entities, relations, proposals, positions, relationTypes] = await Promise.all([
     readRows('document'),
     readRows('entity'),
     readRows('relation'),
@@ -18,6 +19,9 @@ async function read(): Promise<Corpus> {
     // A fifth read and not a column of `entity`: the point it carries is walked and not stored.
     // It is as long as the entity list, and the two carry the same exemption from a row cap.
     readRows('full_map'),
+    // The words of a relation type travel with the corpus, because every surface that words a
+    // relation reads the corpus. The list is held once, and a refresh of the record reuses it.
+    loadRelationTypes(),
   ]);
 
   return {
@@ -26,6 +30,7 @@ async function read(): Promise<Corpus> {
     relations: relations.map((row) => toDomain.relation(row)),
     proposals: proposals.map((row) => toDomain.proposal(row)),
     positions: positions.map((row) => toDomain.mapPosition(row)),
+    relationTypes,
   };
 }
 

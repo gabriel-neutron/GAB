@@ -138,6 +138,7 @@ const CORPUS: Corpus = {
   // The entity carries no geometry and no ancestor, so `api.full_map` places it nowhere.
   // These stories draw a card and never a canvas.
   positions: [],
+  relationTypes: [],
 };
 
 const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', entityTypes)?.rows ?? [];
@@ -282,6 +283,7 @@ const NOTE_CORPUS: Corpus = {
   // The entity carries no geometry and no ancestor, so `api.full_map` places it nowhere.
   // These stories draw a card and never a canvas.
   positions: [],
+  relationTypes: [],
 };
 
 const NOTE_ROWS: readonly RecordRow[] =
@@ -374,6 +376,7 @@ const NO_SUCH_DAY_CORPUS: Corpus = {
   // The entity carries no geometry and no ancestor, so `api.full_map` places it nowhere.
   // These stories draw a card and never a canvas.
   positions: [],
+  relationTypes: [],
 };
 
 const NO_SUCH_DAY_ROWS: readonly RecordRow[] =

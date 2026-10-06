@@ -16,4 +16,8 @@ export interface put_document_params {
   p_mime?: string;
 
   p_retrieved_at?: Date;
+
+  p_provider_id?: string;
+
+  p_cost_eur?: string;
 }

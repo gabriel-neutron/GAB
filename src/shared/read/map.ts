@@ -10,6 +10,7 @@ import type {
   Entity,
   EntityPlacement,
   EntityTypeDeclaration,
+  RelationTypeDeclaration,
   MapPosition,
   Point,
   PriorValue,
@@ -178,6 +179,17 @@ function entityType(row: unknown): EntityTypeDeclaration {
   };
 }
 
+function relationType(row: unknown): RelationTypeDeclaration {
+  const read = wireRow.relationType.parse(row);
+  return {
+    key: read.key,
+    label: read.label,
+    inverseLabel: read.inverse_label,
+    takesInterval: read.takes_interval,
+    retired: read.retired,
+  };
+}
+
 const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
 
 // Departure: a surface puts a document address into a link. Any other scheme, or an address
@@ -222,6 +234,7 @@ function relation(row: unknown): Relation {
   return {
     id: read.id,
     type: read.type,
+    proposedType: read.proposed_type,
     srcKind: read.src_kind,
     srcId: read.src_id,
     dstKind: read.dst_kind,
@@ -282,6 +295,7 @@ function mapPosition(row: unknown): MapPosition {
 /** Each one reads a row of the read API and gives the record row a surface works in. */
 export const toDomain = {
   entityType,
+  relationType,
   document,
   entity,
   relation,

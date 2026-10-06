@@ -14,6 +14,7 @@ import {
   StartRefusal,
 } from './role.ts';
 import { createServer } from './server.ts';
+import { webOf } from './web.ts';
 
 const stop = (cause: unknown): never => {
   // A refusal is the sentence the operator needs. Any other fault can hold the URL, so only its
@@ -28,16 +29,17 @@ const stop = (cause: unknown): never => {
 };
 
 // The read tools need no object store, so a workspace with no store credential still starts, and
-// only the fetch tool refuses. The sentence of the store names no secret.
-const reachOf = (): Reach | undefined => {
+// only the fetch tool refuses. The sentence of the store names no secret. The web needs no store.
+const reachOf = (): Reach => {
+  const web = webOf(process.env);
   try {
     const store = openStore();
-    return { store: { put: (object) => putObject(store, object) }, now: () => new Date() };
+    return { store: { put: (object) => putObject(store, object) }, web, now: () => new Date() };
   } catch (cause) {
     console.error(
       `fetch_document is off: ${cause instanceof Error ? cause.message : 'no object store'}`,
     );
-    return undefined;
+    return { web, now: () => new Date() };
   }
 };
 

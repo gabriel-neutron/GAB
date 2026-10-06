@@ -1,7 +1,6 @@
 /** The queue, in domain words. It groups what waits by what is changed, and it decides nothing:
  * where the record cannot answer, it returns the hole as a sentence and the view prints it. */
 
-import { relationTypeWords } from '@/shared/canvas-label';
 import { readBand, readRating } from '@/shared/read/rating';
 import type {
   AttributeValue,
@@ -16,8 +15,9 @@ import type {
   Relation,
   TypeVocabulary,
 } from '@/shared/read/model';
+import { relationWording } from '@/shared/relation-words';
 
-import { payloadHeadline, relationPhrase, shortId } from './act-words';
+import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './act-words';
 import { originOf, type Origin } from './origin';
 
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
@@ -220,6 +220,7 @@ interface Index {
   readonly entityById: ReadonlyMap<string, Entity>;
   readonly relationById: ReadonlyMap<string, Relation>;
   readonly liveTypes: ReadonlySet<string> | null;
+  readonly typeWordsOf: TypeWordsOf;
 }
 
 /** External constraint: a promotion stores a word that is not a live type, a retired type too,
@@ -376,7 +377,7 @@ function relationCreation(
   const stated = (key: string, value: string | null): readonly DifferenceRow[] =>
     value === null ? [] : [createdColumn(key, value, cited)];
   return [
-    ...stated('Type', payload.type === null ? null : relationTypeWords(payload.type)),
+    ...stated('Type', payload.type === null ? null : index.typeWordsOf(payload.type)),
     ...stated('Valid from', payload.valid_from),
     ...stated('Valid to', payload.valid_to),
     ...differenceOf(index, null, payload.attrs),
@@ -550,11 +551,11 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       holes.push(HOLE.duplicate);
       break;
     case 'relation':
-      headline = payloadHeadline(labelIn(index), payload);
+      headline = payloadHeadline(labelIn(index), index.typeWordsOf, payload);
       rows = relationCreation(index, payload, proposal.src);
       break;
     case 'merge':
-      headline = payloadHeadline(labelIn(index), payload);
+      headline = payloadHeadline(labelIn(index), index.typeWordsOf, payload);
       holes.push(HOLE['merge-result']);
       break;
     case 'delete':
@@ -603,6 +604,7 @@ function labelOf(index: Index, kind: SubjectKind, key: string, first: Change): s
       if (relation === undefined) return first.headline === '' ? shortId(key) : first.headline;
       return relationPhrase(
         labelIn(index),
+        index.typeWordsOf,
         { kind: relation.srcKind, id: relation.srcId },
         relation.type,
         { kind: relation.dstKind, id: relation.dstId },
@@ -633,6 +635,7 @@ export function readQueue(
   threshold: number | null,
   types?: TypeVocabulary,
 ): readonly Subject[] {
+  const wordsOf = relationWording(read.relationTypes);
   const index: Index = {
     documentById: new Map(read.documents.map((row) => [row.id, row])),
     entityById: new Map(read.entities.map((row) => [row.id, row])),
@@ -641,6 +644,8 @@ export function readQueue(
       types === undefined
         ? null
         : new Set(types.filter((type) => !type.retired).map((type) => type.key)),
+
+    typeWordsOf: (type) => wordsOf(type).label,
   };
 
   const filed = new Map<string, { kind: SubjectKind; changes: Change[] }>();

@@ -1,7 +1,7 @@
 -- =============================================================================================
 -- 0002 — the types, and the one function a CHECK depends on                            ORDERED
 --
--- A domain is a type, so it is ordered (ADR 0003 §3). A function that a CHECK calls is ordered
+-- A domain is a type, so it is ordered (ADR 0003). A function that a CHECK calls is ordered
 -- too: db/migrations/ runs before db/apply/, and a CHECK cannot call a function created later.
 -- Measured on #14 and #15.
 -- =============================================================================================
@@ -66,7 +66,7 @@ $$;
 
 
 -- ----------------------------------------------------------------------- attrs_cites_manual ---
--- Invariant 3, for the value. docs/spec.md §2 fixes the tier as "Database for the value", and a
+-- Invariant 3, for the value. docs/spec.md fixes the tier as "Database for the value", and a
 -- check that reads only proposals.src leaves an agent free to write src: ["manual"] INSIDE its
 -- own payload.
 CREATE FUNCTION attrs_cites_manual(a jsonb) RETURNS boolean

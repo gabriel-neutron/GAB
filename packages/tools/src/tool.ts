@@ -8,9 +8,34 @@ export interface Session {
   query(text: string, values: unknown[]): Promise<{ readonly rows: readonly unknown[] }>;
 }
 
-/** What a tool needs beyond the database: the object store, the clock and the resolver. */
+/** What one web request asks of the surface: the headers, and the two caps of the answer. */
+export interface WebRequest {
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly timeoutMs: number;
+  readonly maxBytes: number;
+}
+
+/** The answer of one web request. A redirect is an answer and is never followed. */
+export interface WebAnswer {
+  readonly status: number;
+  /** The names are in lower case. */
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+/** The only way a web tool reaches the web. The surface builds it, so a tool holds no socket. */
+export interface Web {
+  get(url: string, request: WebRequest): Promise<WebAnswer>;
+  /** The address of the local SearXNG. It is an http address on the machine itself. */
+  readonly searxngUrl?: string;
+  /** The key of the Brave Search API. It leaves in a header and in no address. */
+  readonly braveKey?: string;
+}
+
+/** What a tool needs beyond the database: the object store, the web, the clock and the resolver. */
 export interface Reach {
-  readonly store: { put(object: RawObject): Promise<string> };
+  readonly store?: { put(object: RawObject): Promise<string> };
+  readonly web?: Web;
   readonly now: () => Date;
   /** Every address of a name. The default asks the resolver of the system. */
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;

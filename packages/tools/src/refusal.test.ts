@@ -24,6 +24,13 @@ const CREATE = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
 const REFUSED: readonly (readonly [string, string, unknown])[] = [
   ['search_graph', 'a blank query', { query: '  ' }],
   ['search_graph', 'a limit above fifty', { query: 'nayara', limit: 51 }],
+  ['search_graph', 'neither a query nor an identifier', { type: 'vessel' }],
+  [
+    'search_graph',
+    'an identifier key that is not a fixed spelling',
+    { identifier: { key: 'imo_number', value: '9074729' } },
+  ],
+  ['search_graph', 'a blank identifier value', { identifier: { key: 'imo', value: '  ' } }],
   ['neighbourhood', 'a root that is no identifier', { root: 'nayara' }],
   ['neighbourhood', 'a depth above three', { root: ID, depth: 4 }],
   ['document_text', 'a range above the cap', { document: DOC, fromPage: 1, toPage: 11 }],
