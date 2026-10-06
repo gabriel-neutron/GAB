@@ -184,7 +184,9 @@ the identifier of the proposal that made it, `NOT NULL UNIQUE`, so one proposal 
 **Applying a proposal**: a single transaction that writes the target, moves the proposal to
 `accepted`, and fills in `decided_at` / `decided_by`. A rejection moves it to `rejected`
 without writing the target — rejected proposals are never deleted, they are the record of
-what was set aside.
+what was set aside. A `map_document` proposal has no target. Its promotion writes nothing to the
+graph: in the same transaction it moves the proposal to `accepted` and queues one `load_mapped`
+job (P6).
 
 **Review surfaces (P3).** Two reads must stay cheap: the pending proposals attached to one
 graph element, and the full review queue. Each one needs its own index.
