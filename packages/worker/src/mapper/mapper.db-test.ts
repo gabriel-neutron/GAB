@@ -483,6 +483,65 @@ test('a load that runs two times writes each act and the report once', async () 
   });
 });
 
+const pendingActs = z.array(z.object({ id: z.uuid(), batch_id: z.uuid().nullable() }));
+
+/** The operator promotes each act that the first load proposed, a batch as one unit. */
+const promoteAllOfTheLoad = async (held: Held): Promise<void> => {
+  await held.ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+  await held.ask(
+    `UPDATE public.proposals SET xact = '1'::xid8
+      WHERE author_role = 'gabriel_agent' AND op <> 'map_document' AND status = 'pending'`,
+  );
+  await held.ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+  const pending = pendingActs.parse(
+    await held.ask(
+      `SELECT id, batch_id FROM public.proposals
+        WHERE author_role = 'gabriel_agent' AND op <> 'map_document' AND status = 'pending'
+        ORDER BY created_at, id`,
+    ),
+  );
+  const decided = new Set<string>();
+  for (const act of pending) {
+    if (act.batch_id === null)
+      await held.asApp(() =>
+        held.ask("SELECT public.promote_proposal($1::uuid, 'a test')", [act.id]),
+      );
+    else if (!decided.has(act.batch_id)) {
+      decided.add(act.batch_id);
+      await held.asApp(() =>
+        held.ask("SELECT public.decide_batch($1::uuid, 'promote', 'a test')", [act.batch_id]),
+      );
+    }
+  }
+};
+
+test('a load after the promotion of the first one proposes no act that changes nothing', async () => {
+  await inTransaction(async (held) => {
+    const mapped = await mappedList(held);
+    await held.ask(OLDEST, [mapped.load]);
+    const loader = makeLoader({ store: storeOf(held) });
+    await held.step(loader, noModel());
+    const first = await loadedOf(held, LIST);
+    await promoteAllOfTheLoad(held);
+    const graph = await held.ask(COUNTS);
+
+    const again = await held.idOf(
+      `INSERT INTO public.jobs (document_id, kind, mapping) VALUES ($1, 'load_mapped', $2::uuid)
+       RETURNING id::text AS id`,
+      [LIST, mapped.mapping],
+    );
+    await held.ask(OLDEST, [again]);
+    expect(await held.step(loader, noModel())).toStrictEqual({ did: 'done', job: again });
+
+    expect(await loadedOf(held, LIST)).toHaveLength(first.length);
+    expect(await held.ask(COUNTS)).toStrictEqual(graph);
+    expect(await reportsOf(held, LIST)).toHaveLength(2);
+    expect(held.stored[1]?.bytes).toBeDefined();
+    const lines = new TextDecoder().decode(held.stored[1]?.bytes).split('\r\n');
+    expect(lines[0]).toMatch(/read 4; loaded 2; excluded 2$/u);
+  });
+});
+
 test('two loads give two reports, each with its own title and counts', async () => {
   await inTransaction(async (held) => {
     const mapped = await mappedList(held);

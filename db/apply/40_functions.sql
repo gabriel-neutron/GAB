@@ -709,8 +709,10 @@ END $$;
 
 -- THE DOOR OF A MAPPING. gabriel_agent alone calls it: the mapper is the one agent that proposes
 -- how the columns of a table map, and it names the call of the model that gave the mapping. The
--- table holds the rules of the payload. A pending mapping that is written already is returned,
--- as the batch door returns a pending act, so a retry writes nothing twice.
+-- table holds the rules of the payload. The call must be a call of the map_structured job of the
+-- document that the caller runs now, so a mapping never names the call of another job. A pending
+-- mapping that is written already is returned, as the batch door returns a pending act, so a retry
+-- writes nothing twice.
 CREATE OR REPLACE FUNCTION propose_mapping(p_document text, p_mapping jsonb, p_model_call uuid)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -721,6 +723,16 @@ DECLARE
   v_table text;
   v_code  text;
 BEGIN
+  IF NOT EXISTS (SELECT 1
+                   FROM public.model_call m
+                   JOIN public.jobs j ON j.id = m.job_id
+                  WHERE m.id = p_model_call AND j.kind = 'map_structured'
+                    AND j.status = 'running' AND j.claimed_by = session_user
+                    AND j.document_id = p_document::doc_id) THEN
+    RAISE EXCEPTION 'the call of a mapping belongs to the map_structured job of the document, '
+                    'and this job must run under this role'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   INSERT INTO public.proposals
     (op, payload, src, author_role, model_call_id)
   VALUES
@@ -1432,10 +1444,10 @@ $$;
 -- mapping that the operator already promoted, and no model reads it. The door finds the newest
 -- accepted mapping of the same host and the same header, and queues the load. It returns no
 -- identifier when there is none, and the caller asks the model. A file with no address has no
--- host, so it always gets a mapping of its own. The loader reads the header of the file again
--- and stops on a header that differs, so a caller that states a false header loads nothing.
--- A load that is open already for the document is returned, so a job that runs again queues no
--- second one.
+-- host, so it always gets a mapping of its own. The caller runs the map_structured job of the
+-- document. The loader reads the header of the file again and stops on a header that differs, so
+-- a caller that states a false header loads nothing. A load that is open already for the document
+-- is returned, so a job that runs again queues no second one.
 CREATE OR REPLACE FUNCTION enqueue_mapped_load(p_document text, p_header_sig text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
@@ -1445,12 +1457,18 @@ DECLARE
   v_mapping uuid;
   v_id      uuid;
 BEGIN
+  IF coalesce(p_header_sig, '') !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'the header signature is 64 hexadecimal characters, the digest of the header'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.jobs j
+                  WHERE j.document_id = p_document::doc_id AND j.kind = 'map_structured'
+                    AND j.status = 'running' AND j.claimed_by = session_user) THEN
+    RAISE EXCEPTION 'this role holds no running map_structured job of document %', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   SELECT public.uri_host(d.uri) INTO v_host
     FROM public.documents d WHERE d.id = p_document::doc_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'document % does not exist', p_document
-      USING ERRCODE = 'foreign_key_violation';
-  END IF;
 
   SELECT j.id INTO v_id FROM public.jobs j
    WHERE j.document_id = p_document::doc_id AND j.kind = 'load_mapped'
@@ -1471,18 +1489,26 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  INSERT INTO public.jobs (document_id, kind, mapping)
-  VALUES (p_document::doc_id, 'load_mapped', v_mapping)
-  RETURNING id INTO v_id;
+  BEGIN
+    INSERT INTO public.jobs (document_id, kind, mapping)
+    VALUES (p_document::doc_id, 'load_mapped', v_mapping)
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    -- Another caller queued the load between the read and the insert.
+    SELECT j.id INTO v_id FROM public.jobs j
+     WHERE j.document_id = p_document::doc_id AND j.kind = 'load_mapped'
+       AND j.status IN ('queued','running');
+  END;
   RETURN v_id;
 END $$;
 
 -- THE REPORT OF A LOAD. Each load stores the rows it excluded, with the reason of each, as one
 -- `report` document. The worker holds no other door that writes a report, and this one is as
--- narrow as the act: the caller holds a running load, the bytes are in the store and the day is
--- today. The bytes name the load, so two loads never share a report, and the same bytes return
--- the report that holds them, so a load that runs again stores one report. Bytes that another
--- kind of document holds are refused.
+-- narrow as the act: the caller holds a running load, the key is raw/ and the hash of the bytes,
+-- and the day is today. The door cannot read the store, so the caller writes the bytes first. The
+-- bytes name the load, so two loads never share a report, and the same bytes return the report
+-- that holds them, so a load that runs again stores one report. Bytes that another kind of
+-- document holds are refused.
 CREATE OR REPLACE FUNCTION put_load_report(p_job uuid, p_title text, p_s3_key text,
                                            p_sha256 text, p_mime text)
 RETURNS doc_id
@@ -1502,6 +1528,11 @@ BEGIN
   END IF;
   IF v_kind <> 'load_mapped' THEN
     RAISE EXCEPTION 'a load report belongs to a job of load_mapped, and this job is %', v_kind
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  IF p_s3_key IS DISTINCT FROM 'raw/' || p_sha256 THEN
+    RAISE EXCEPTION 'the key of a load report is raw/ and the hash of its bytes'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 

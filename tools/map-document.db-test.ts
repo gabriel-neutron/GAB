@@ -57,19 +57,31 @@ const seedDocuments = async (ask: Ask): Promise<void> => {
 };
 
 const CALL = `SELECT public.record_model_call('mapper', 'v1', 'freellmapi', 'a-model', $1, 10, 'ok',
-  NULL, 'a-model') AS id`;
+  $2::uuid, 'a-model') AS id`;
 
 const PROPOSE = 'SELECT public.propose_mapping($1, $2::jsonb, $3::uuid) AS id';
 
-const callOf = (ask: Ask): Promise<string> =>
-  asRole(ask, 'gabriel_agent', () => idOf(ask, CALL, [SHA]));
+const OLDEST = "UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1";
+
+/** The map_structured job of a document, claimed by gabriel_agent. */
+const runningMapJob = async (ask: Ask, document: string): Promise<string> => {
+  const job = await idOf(ask, "SELECT public.enqueue_job($1, 'map_structured') AS id", [document]);
+  await ask(OLDEST, [job]);
+  await asRole(ask, 'gabriel_agent', () => ask('SELECT * FROM public.claim_job()'));
+  return job;
+};
+
+const callOf = (ask: Ask, job: string | null): Promise<string> =>
+  asRole(ask, 'gabriel_agent', () => idOf(ask, CALL, [SHA, job]));
 
 const propose = async (
   ask: Ask,
   payload: unknown = PAYLOAD,
   document: string = LIST,
+  held?: string,
 ): Promise<string> => {
-  const call = await callOf(ask);
+  const job = held ?? (await runningMapJob(ask, document));
+  const call = await callOf(ask, job);
   return asRole(ask, 'gabriel_agent', () =>
     idOf(ask, PROPOSE, [document, JSON.stringify(payload), call]),
   );
@@ -90,11 +102,14 @@ const promote = (ask: Ask, id: string): Promise<string> =>
   );
 
 /** A map_document proposal for the list, accepted, with its load queued. */
-const acceptedMapping = async (ask: Ask): Promise<{ mapping: string; job: string }> => {
+const acceptedMapping = async (
+  ask: Ask,
+): Promise<{ mapping: string; job: string; map: string }> => {
   await seedDocuments(ask);
-  const mapping = await propose(ask);
+  const map = await runningMapJob(ask, LIST);
+  const mapping = await propose(ask, PAYLOAD, LIST, map);
   await fromAnEarlierTransaction(ask, mapping);
-  return { mapping, job: await promote(ask, mapping) };
+  return { mapping, job: await promote(ask, mapping), map };
 };
 
 // ------------------------------------------------------- the shape of the act ---
@@ -124,7 +139,7 @@ test('a mapping names one document, no target and the call of its model', async 
 test('a second proposal of the same mapping returns the one that waits', async () => {
   const [first, second] = await rolledBack('superuser', async (ask) => {
     await seedDocuments(ask);
-    const call = await callOf(ask);
+    const call = await callOf(ask, await runningMapJob(ask, LIST));
     const door = (): Promise<string> =>
       asRole(ask, 'gabriel_agent', () => idOf(ask, PROPOSE, [LIST, JSON.stringify(PAYLOAD), call]));
     return [await door(), await door()];
@@ -142,18 +157,34 @@ const REFUSED_SHAPES: readonly (readonly [string, unknown])[] = [
 
 for (const [name, payload] of REFUSED_SHAPES)
   test(`the door refuses a mapping with ${name}, and names the field to correct`, async () => {
-    await expect(
-      rolledBack('superuser', async (ask) => {
-        await seedDocuments(ask);
-        return propose(ask, payload);
-      }),
-    ).rejects.toMatchObject({
+    const refusal = rolledBack('superuser', async (ask) => {
+      await seedDocuments(ask);
+      return propose(ask, payload);
+    });
+    await expect(refusal).rejects.toMatchObject({
       code: '23514',
       constraint: 'proposals_map_document_shape',
       hint: 'mapping',
-      message: expect.stringMatching(/^a mapping names one document/u) as unknown,
     });
+    await expect(refusal).rejects.toThrow(/^a mapping names one document/u);
   });
+
+test('the door refuses a call of another job, and a call of no job', async () => {
+  for (const other of ['another document', 'no job'] as const)
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        await seedDocuments(ask);
+        await runningMapJob(ask, LIST);
+        const stray =
+          other === 'no job'
+            ? await callOf(ask, null)
+            : await callOf(ask, await runningMapJob(ask, SECOND));
+        return asRole(ask, 'gabriel_agent', () =>
+          idOf(ask, PROPOSE, [LIST, JSON.stringify(PAYLOAD), stray]),
+        );
+      }),
+    ).rejects.toThrow(/the call of a mapping belongs to the map_structured job of the document/u);
+});
 
 test('the operator door refuses a mapping, because only a model makes one', async () => {
   await expect(
@@ -206,8 +237,8 @@ test('the promotion of a mapping writes nothing to the graph and queues one load
 
 test('the promotion refuses a mapping while a load of its document is open, in words', async () => {
   const refusal = rolledBack('superuser', async (ask) => {
-    await acceptedMapping(ask);
-    const second = await propose(ask, { ...PAYLOAD, table: 'second sheet' });
+    const { map } = await acceptedMapping(ask);
+    const second = await propose(ask, { ...PAYLOAD, table: 'second sheet' }, LIST, map);
     await fromAnEarlierTransaction(ask, second);
     return promote(ask, second);
   });
@@ -271,6 +302,7 @@ const ENQUEUE = 'SELECT public.enqueue_mapped_load($1, $2) AS id';
 test('enqueue_mapped_load queues the load of a second file of the same host and header', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     const { mapping } = await acceptedMapping(ask);
+    await runningMapJob(ask, SECOND);
     const job = await asRole(ask, 'gabriel_agent', () => idOf(ask, ENQUEUE, [SECOND, SIG]));
     return {
       mapping,
@@ -289,6 +321,7 @@ test('enqueue_mapped_load queues the load of a second file of the same host and 
 test('enqueue_mapped_load returns the open load of a document, and queues no second one', async () => {
   const [first, second] = await rolledBack('superuser', async (ask) => {
     await acceptedMapping(ask);
+    await runningMapJob(ask, SECOND);
     const door = (): Promise<string> =>
       asRole(ask, 'gabriel_agent', () => idOf(ask, ENQUEUE, [SECOND, SIG]));
     return [await door(), await door()];
@@ -312,15 +345,43 @@ for (const [name, document, sig, accepted] of NO_REUSE)
         await fromAnEarlierTransaction(ask, mapping);
         await promote(ask, mapping);
       }
+      await runningMapJob(ask, document);
       return asRole(ask, 'gabriel_agent', () => ask(ENQUEUE, [document, sig]));
     });
     expect(found).toStrictEqual([{ id: null }]);
   });
 
+const REFUSED_REUSE: readonly (readonly [string, string, RegExp])[] = [
+  ['a header signature that is not a digest', 'abc', /64 hexadecimal characters/u],
+  ['a header signature that is absent', '', /64 hexadecimal characters/u],
+];
+
+for (const [name, sig, message] of REFUSED_REUSE)
+  test(`enqueue_mapped_load refuses ${name}`, async () => {
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        await seedDocuments(ask);
+        await runningMapJob(ask, SECOND);
+        return asRole(ask, 'gabriel_agent', () => ask(ENQUEUE, [SECOND, sig]));
+      }),
+    ).rejects.toThrow(message);
+  });
+
+test('enqueue_mapped_load refuses a document that the caller holds no mapping job for', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) => {
+      await acceptedMapping(ask);
+      return asRole(ask, 'gabriel_agent', () => ask(ENQUEUE, [SECOND, SIG]));
+    }),
+  ).rejects.toThrow(/running map_structured job of document doc_map_second/u);
+});
+
 // ------------------------------------------------------- the report door ---
 
-const REPORT = `SELECT public.put_load_report($1::uuid, 'The load report', 'raw/report.csv', $2,
+const REPORT = `SELECT public.put_load_report($1::uuid, 'The load report', $3, $2,
   'text/csv')::text AS id`;
+
+const keyOf = (sha: string): string => `raw/${sha}`;
 
 /** The load of the list, claimed by gabriel_agent. */
 const claimedLoad = async (ask: Ask): Promise<{ mapping: string; job: string }> => {
@@ -337,8 +398,12 @@ const reportRow = z.array(
 test('put_load_report stores one report for a held load, and the same bytes return the same row', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     const { job } = await claimedLoad(ask);
-    const first = await asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA]));
-    const second = await asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA]));
+    const first = await asRole(ask, 'gabriel_agent', () =>
+      idOf(ask, REPORT, [job, SHA, keyOf(SHA)]),
+    );
+    const second = await asRole(ask, 'gabriel_agent', () =>
+      idOf(ask, REPORT, [job, SHA, keyOf(SHA)]),
+    );
     return {
       first,
       second,
@@ -359,7 +424,9 @@ test('put_load_report refuses bytes that a document of another kind holds', asyn
   await expect(
     rolledBack('superuser', async (ask) => {
       const { job } = await claimedLoad(ask);
-      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, 'd'.repeat(64)]));
+      return asRole(ask, 'gabriel_agent', () =>
+        idOf(ask, REPORT, [job, 'd'.repeat(64), keyOf('d'.repeat(64))]),
+      );
     }),
   ).rejects.toThrow(/doc_map_list of kind url, and not a report/u);
 });
@@ -368,9 +435,18 @@ test('put_load_report refuses a load that the caller does not hold', async () =>
   await expect(
     rolledBack('superuser', async (ask) => {
       const { job } = await acceptedMapping(ask);
-      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA]));
+      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA, keyOf(SHA)]));
     }),
   ).rejects.toMatchObject({ code: '22023' });
+});
+
+test('put_load_report refuses a key that is not the hash of the bytes', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) => {
+      const { job } = await claimedLoad(ask);
+      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA, 'raw/report.csv']));
+    }),
+  ).rejects.toThrow(/the key of a load report is raw\/ and the hash of its bytes/u);
 });
 
 test('put_load_report refuses a job of another kind', async () => {
@@ -380,7 +456,7 @@ test('put_load_report refuses a job of another kind', async () => {
       const job = await idOf(ask, "SELECT public.enqueue_job($1, 'extract_text') AS id", [LIST]);
       await ask("UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1", [job]);
       await asRole(ask, 'gabriel_agent', () => ask('SELECT * FROM public.claim_job()'));
-      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA]));
+      return asRole(ask, 'gabriel_agent', () => idOf(ask, REPORT, [job, SHA, keyOf(SHA)]));
     }),
   ).rejects.toThrow(/load_mapped/u);
 });

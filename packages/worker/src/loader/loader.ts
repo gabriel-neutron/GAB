@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 
 import { identifierContainment } from '@gab/proposal/identifiers';
 import { machineAct } from '@gab/proposal/machine';
@@ -106,6 +107,46 @@ export const lookupOrder = <T extends { readonly key: LookupKey }>(given: readon
   ...given.filter((one) => !FIRST_KEYS.includes(one.key) && one.key !== 'label'),
   ...given.filter((one) => one.key === 'label'),
 ];
+
+const ENTITY_ATTRS = 'SELECT attrs FROM api.entity WHERE id = $1::uuid';
+
+const SAME_RELATION = `SELECT 1 AS held FROM api.relation
+  WHERE coalesce(proposed_type, type) = $1::text AND src_id = $2::uuid AND dst_id = $3::uuid
+    AND valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date
+  LIMIT 1`;
+
+const attrsRow = z.array(
+  z.object({
+    attrs: z.record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() })),
+  }),
+);
+
+/** True when the entity holds each of these values already, and already cites this document for
+ * each one. A value that another document states is corroboration, so it is not a no-op. */
+const holdsEach = async (
+  db: Queryable,
+  entity: string,
+  document: string,
+  attrs: Readonly<Record<string, { readonly v: unknown }>>,
+): Promise<boolean> => {
+  const [held] = attrsRow.parse((await db.query(ENTITY_ATTRS, [entity])).rows);
+  return Object.entries(attrs).every(
+    ([key, value]) =>
+      isDeepStrictEqual(held?.attrs[key]?.v, value.v) &&
+      (held?.attrs[key]?.src ?? []).includes(document),
+  );
+};
+
+/** True when the record holds a relation of this type between these ends and these days. */
+const isLinked = async (
+  db: Queryable,
+  type: string,
+  src: string,
+  dst: string,
+  days: { readonly validFrom?: string; readonly validTo?: string },
+): Promise<boolean> =>
+  (await db.query(SAME_RELATION, [type, src, dst, days.validFrom ?? null, days.validTo ?? null]))
+    .rows.length > 0;
 
 const lookedUp = async (
   db: Queryable,
@@ -255,21 +296,25 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       // The entity of the row has the identifier that its act is given, so a relation of the row
       // can name it before the operator promotes it.
       const rowId = found.kind === 'one' ? found.id : randomUUID();
-      const acts: { ref: string; request: unknown }[] = [
-        {
+      const acts: { ref: string; request: unknown }[] = [];
+      // An update that changes no value is not proposed. A load that follows the promotion of an
+      // earlier load then adds no act of no effect.
+      if (found.kind === 'none')
+        acts.push({
           ref: 'row',
-          request:
-            found.kind === 'one'
-              ? { op: 'update_attrs', targetKind: 'entity', targetId: found.id, attrs }
-              : {
-                  op: 'create_entity',
-                  type: mapping.rows.entity_type,
-                  label,
-                  ...(geom === undefined ? {} : { geom }),
-                  ...(hasAttrs ? { attrs } : {}),
-                },
-        },
-      ];
+          request: {
+            op: 'create_entity',
+            type: mapping.rows.entity_type,
+            label,
+            ...(geom === undefined ? {} : { geom }),
+            ...(hasAttrs ? { attrs } : {}),
+          },
+        });
+      else if (!(await holdsEach(context.db, found.id, document, attrs)))
+        acts.push({
+          ref: 'row',
+          request: { op: 'update_attrs', targetKind: 'entity', targetId: found.id, attrs },
+        });
 
       for (const relation of mapping.relations) {
         const note = (reason: string): void => {
@@ -301,10 +346,18 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           continue;
         }
         const [srcId, dstId] = relation.row_is === 'src' ? [rowId, end.id] : [end.id, rowId];
+        if (found.kind === 'one' && (await isLinked(context.db, relation.type, srcId, dstId, days)))
+          continue;
         acts.push({
           ref: 'relation',
           request: { op: 'create_relation', type: relation.type, srcId, dstId, ...days },
         });
+      }
+
+      // A row with nothing to write has been loaded before, and it counts as loaded.
+      if (acts.length === 0) {
+        loaded += 1;
+        return;
       }
 
       // The span of the row is the citation of each act of the row. Code reads it from the page,
