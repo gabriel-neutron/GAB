@@ -163,17 +163,10 @@ ON CONFLICT (key) DO UPDATE SET
 -- operator changes a number in the live database, and an apply that restored the value below
 -- would undo that change on the next routine run.
 --
--- FIFTEEN MINUTES, AND IT IS A CHOICE AND NOT A MEASUREMENT. No real job has run, so no
--- duration of the work is known. It is long enough that a slow job is never released under the
--- worker that holds it, and short enough that a stopped worker frees its row within one break.
---
--- THE TWO WAITS OF THE RUNNER ARE CHOICES TOO. A spent quota returns with the day of the gateway,
--- so the runner looks again every ten minutes and spends no call to find out sooner. An empty
--- queue is looked at every thirty seconds, which is the longest the operator waits after queuing
--- a document with the runner idle. Neither number is a measurement.
+-- THE WAIT OF THE RUNNER IS A CHOICE AND NOT A MEASUREMENT. An empty queue is looked at every
+-- thirty seconds, which is the longest the operator waits after queuing a document with the
+-- runner idle.
 INSERT INTO parameter (key, value) VALUES
-  ('job_claim_lease_seconds', 900),
-  ('runner_quota_wait_seconds', 600),
   ('runner_empty_wait_seconds', 30)
 ON CONFLICT (key) DO NOTHING;
 

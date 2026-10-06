@@ -87,8 +87,8 @@ a file  →  one ingestion door (P6)
              → document record (source, retrieval date)
              → text extraction
              → a job in the queue
-                  → text file: the extractor reads and proposes claims;
-                    a second reader of another model family reads again
+                  → text file: the extractor reads the text as it is stored and
+                    proposes claims
                   → structured file: a mapping proposal; after promotion, code loads the rows
 every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
 promotion       →  entities and relations (the evidentiary layer)

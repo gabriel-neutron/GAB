@@ -1,4 +1,4 @@
-import type { AgentModel, Failure, Question, ReasonKind } from '@gab/model';
+import type { AgentModel, Failure, Question } from '@gab/model';
 
 import type { ClaimedJob } from './claim.ts';
 import type { KeyParts } from './idempotency.ts';
@@ -19,7 +19,7 @@ export type Asked<T> = (
   readonly tokens: number;
 };
 
-/** The model stopped a question, and the runner decides what the job does next. */
+/** The model stopped a question, and the runner fails the job with its reason. */
 export class ModelFailure extends Error {
   readonly failure: Failure;
 
@@ -30,7 +30,7 @@ export class ModelFailure extends Error {
 }
 
 /** The agent ends its job for a reason that no retry inside the job mends. The runner fails the
- * job with this reason under the limit of three claims, as it does for any other failure. */
+ * job with this reason at once, as it does for any other failure. */
 export class JobStop extends Error {
   readonly reason: string;
 
@@ -71,12 +71,7 @@ export interface RunnerAgent {
   readonly version: string;
   readonly kind: ClaimedJob['kind'];
   readonly settings: AgentModel;
-  /** The most questions one job asks. The lease must outlast this many worst questions. */
-  readonly questionsPerJob: number;
   /** The soft stop of the tokens of one job. */
   readonly tokenCap: number;
-  /** The failures of the model that return the job to the queue with no attempt spent, each with
-   * the reason that the runner gives. With none, a spent quota alone does it. */
-  readonly releaseOn?: Readonly<Partial<Record<ReasonKind, string>>>;
   readonly run: (context: AgentContext) => Promise<AgentResult>;
 }

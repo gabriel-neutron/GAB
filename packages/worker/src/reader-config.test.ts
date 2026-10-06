@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readReader2, readReaderConfig } from './reader-config.ts';
+import { readReaderConfig } from './reader-config.ts';
 
 const FULL = {
   EXTRACTOR_ENDPOINT: 'freellmapi',
@@ -62,55 +62,4 @@ describe('the configuration of a reader', () => {
   it('holds no default: an empty environment names the first value it needs', () => {
     expect(() => readReaderConfig('EXTRACTOR', {})).toThrow(/EXTRACTOR_/u);
   });
-});
-
-const EXTRACTOR = readReaderConfig('EXTRACTOR', FULL);
-
-const SECOND = {
-  READER2_ENABLED: 'true',
-  READER2_ENDPOINT: 'openrouter',
-  READER2_MODEL: 'b-family/b-model',
-  READER2_FAMILY: 'b-family',
-  READER2_FIRST_WAIT_MS: '1000',
-  READER2_WAIT_GROWTH: '2',
-  READER2_MAX_WAIT_MS: '60000',
-  READER2_TIMEOUT_MS: '30000',
-  READER2_MAX_ANSWER_TOKENS: '2000',
-  READER2_TOKEN_CAP: '50000',
-  READER2_TURN_CAP: '40',
-  READER2_CHUNK_CAP: '6000',
-};
-
-describe('the configuration of the second reader', () => {
-  it('reads every value when the switch is on', () => {
-    expect(readReader2(SECOND, EXTRACTOR)).toStrictEqual(readReaderConfig('READER2', SECOND));
-  });
-
-  for (const off of [undefined, '', 'false', 'TRUE', '1', 'yes'])
-    it(`starts no second reader when READER2_ENABLED is ${String(off)}`, () => {
-      expect(readReader2({ ...SECOND, READER2_ENABLED: off }, EXTRACTOR)).toBeNull();
-    });
-
-  it('starts no second reader when the switch is absent, with no other value set', () => {
-    expect(readReader2({}, EXTRACTOR)).toBeNull();
-  });
-
-  for (const name of ['READER2_ENDPOINT', 'READER2_MODEL', 'READER2_FAMILY'])
-    it(`refuses to start when ${name} is absent`, () => {
-      const env = Object.fromEntries(Object.entries(SECOND).filter(([held]) => held !== name));
-      expect(() => readReader2(env, EXTRACTOR)).toThrow(new RegExp(name, 'u'));
-    });
-
-  it('refuses to start on the model auto', () => {
-    expect(() => readReader2({ ...SECOND, READER2_MODEL: 'Auto' }, EXTRACTOR)).toThrow(
-      /READER2_MODEL.*auto/u,
-    );
-  });
-
-  for (const family of ['a-family', ' A-Family ', 'A-FAMILY'])
-    it(`refuses to start when its family "${family}" is the family of the extractor`, () => {
-      expect(() => readReader2({ ...SECOND, READER2_FAMILY: family }, EXTRACTOR)).toThrow(
-        /READER2_FAMILY.*EXTRACTOR_FAMILY/u,
-      );
-    });
 });
