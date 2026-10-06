@@ -252,8 +252,8 @@ COMMENT ON VIEW api.full_graph IS
 -- a relation from a row to itself, and none refuses a ring of three.
 --
 -- ONLY A POINT IS TAKEN, AT BOTH ENDS. An ancestor that carries an area is walked through, and
--- an entity that carries an area takes the inherited point over its own area. A surface that
--- draws a dot reads any other geometry as no position at all.
+-- an entity that carries an area takes the inherited point over its own area. A borrowed
+-- position is a point, and a surface never draws it as an area.
 --
 -- DISTINCT ON, AND NOT min(hop) ALONE. Two ancestors may stand at one distance, and a bare
 -- min(hop) would answer with two rows for one entity. The tie is broken on the identifier, so

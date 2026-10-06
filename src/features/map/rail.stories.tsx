@@ -2,10 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { RefObject } from 'react';
 import { expect, fireEvent, userEvent, waitFor } from 'storybook/test';
 
-import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import type { MapHandle } from './adapter';
+import { MULTIPOLYGON_ID, POLYGON_ID, areaCorpus } from './area-corpus';
 import { DEFAULT_IMAGERY, type Imagery } from './imagery';
 import type { Ground } from './workspace';
 import { GroundControl } from './ground-control';
@@ -14,7 +14,7 @@ import { Rail } from './rail';
 
 // No story mounts a live canvas: `MapHandle` is a type, so the double below is a plain object.
 // The rail opens at the stored width, 240px by default, and folds to a 44px strip.
-const projection = project(corpus, entityTypes);
+const projection = project(areaCorpus, entityTypes);
 
 interface TestMap {
   /** The rail takes a ref, because `map-page.tsx` keeps the handle in a `useRef`. */
@@ -181,6 +181,9 @@ const foldedOnly = testMap([], firstOf(UNITS, 'military unit').id);
 const clickedOnly = testMap([], null);
 const linksOnly = testMap([], null);
 const unitOnly = testMap([], null);
+const polygonOnly = testMap([], POLYGON_ID);
+const multipolygonOnly = testMap([], MULTIPOLYGON_ID);
+const besidePointsOnly = testMap([], null);
 
 const meta = {
   component: Rail,
@@ -425,5 +428,49 @@ export const AClickInTheRailDoesNotMoveTheList: Story = {
 
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(scroller.scrollTop).toBe(held);
+  },
+};
+
+const rowOf = (root: HTMLElement, id: string): HTMLElement => {
+  const row = root.querySelector<HTMLElement>(`[data-id="${id}"]`);
+  if (row === null) throw new Error('The index draws no row for this entity.');
+  return row;
+};
+
+/** The click on the area ends as `select`, so a selection from the map is what the rail reads. */
+export const APolygonEntityIsSelectedAndTheRailShowsItsRow: Story = {
+  args: { map: polygonOnly.map },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('button', { name: 'Close the facility list' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    const row = rowOf(canvasElement, POLYGON_ID);
+    await expect(row).toHaveAttribute('aria-current', 'true');
+    await expect(row).toHaveTextContent('Invented mooring area');
+  },
+};
+
+export const AMultipolygonEntityIsSelectedAndTheRailShowsItsRow: Story = {
+  args: { map: multipolygonOnly.map },
+  play: async ({ canvasElement }) => {
+    const row = rowOf(canvasElement, MULTIPOLYGON_ID);
+    await expect(row).toHaveAttribute('aria-current', 'true');
+    await expect(row).toHaveTextContent('Invented anchorage areas');
+  },
+};
+
+export const APolygonStandsInTheListBesideThePointsOfItsType: Story = {
+  args: { map: besidePointsOnly.map },
+  play: async ({ canvas, canvasElement }) => {
+    const facilities = entitiesOfType(projection, 'facility');
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the facility list' }));
+    await expect(rowsIn(canvasElement)).toHaveLength(facilities.length);
+    await expect(projection.byId.get(POLYGON_ID)?.area).not.toBeNull();
+    await expect(projection.byId.get(MULTIPOLYGON_ID)?.area).not.toBeNull();
+
+    await userEvent.click(rowOf(canvasElement, POLYGON_ID));
+    await expect(rowOf(canvasElement, POLYGON_ID)).toHaveAttribute('aria-current', 'true');
+    await expect(besidePointsOnly.flown).toContain(POLYGON_ID);
   },
 };
