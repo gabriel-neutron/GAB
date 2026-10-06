@@ -64,10 +64,12 @@ database grants.
   excerpt that an agent gives is an input that code checks: code finds it in the stored text and
   checks that it holds the claim values, and the stored record keeps the offsets and cites the
   document. A failed check counts zero.
-- **Two independent readings** are necessary. Where possible, the second reader is of another
-  kind: a parser for a structured file, OCR for an image, a model of another family for free
-  text. When the readers disagree on a field, or a second reading is missing, the claim is held.
-  The method never takes a majority of model votes.
+- **Two independent readings** are necessary. For free text, the second reading is a check by a
+  model of another family: it reads the claim with its passage and answers supported, not
+  supported or unclear. For another format, the second reader is of another kind where possible:
+  a parser for a structured file, OCR for an image. When the check does not support the claim,
+  when it fails, or when a second reading is missing, the claim is disputed and held. The method
+  never takes a majority of model votes.
 - **Access** says how the source knows: issuer, first-hand, holder of a declaration, repeater, or
   unknown. Only a stored structural fact can make a source an issuer or first-hand. A model label
   can only lower access.
