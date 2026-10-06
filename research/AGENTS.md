@@ -13,15 +13,13 @@ the operator.
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
   `list_proposals`.
-- Read the documents: `find_document`, `document_text`, `job_status`.
+- Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
+  first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
-<<<<<<< HEAD
-- Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`, `start_lead`, `propose`.
-=======
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
-- Write: `archive_snapshot`, `fetch_document`, `enqueue_extract`, `start_lead`, `propose`.
->>>>>>> fb64690 (feat(tools): three register lookups store each answer once as an api document)
+- Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`,
+  `start_lead`, `propose`.
 
 ## Who proposes what
 

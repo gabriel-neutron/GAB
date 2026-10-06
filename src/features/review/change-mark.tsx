@@ -1,4 +1,4 @@
-import { GitMerge, Minus, Pencil, Plus } from 'lucide-react';
+import { GitMerge, Minus, Pencil, Plus, Table } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 
@@ -17,6 +17,7 @@ export const KIND_PAINT: Readonly<Record<ChangeKind, string>> = {
   edit: 'text-candidate',
   delete: 'text-dissent',
   merge: 'text-dissent',
+  map: 'text-candidate',
 };
 
 const GLYPH: Readonly<Record<ChangeKind, typeof Plus>> = {
@@ -24,6 +25,7 @@ const GLYPH: Readonly<Record<ChangeKind, typeof Plus>> = {
   edit: Pencil,
   delete: Minus,
   merge: GitMerge,
+  map: Table,
 };
 
 /** The mark of a kind, in a hue and in a word. The chip and the glyph are one job: a card has

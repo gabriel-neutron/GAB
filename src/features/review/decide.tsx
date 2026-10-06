@@ -61,6 +61,7 @@ const NO_PROMOTION: Readonly<Record<ChangeKind | 'batch', string | null>> = {
   edit: null,
   delete: null,
   merge: 'A merge has no write path yet.',
+  map: null,
   batch: null,
 };
 

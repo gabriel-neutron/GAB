@@ -291,9 +291,11 @@ const candidatePayload = (
         dst_id: dstId,
       };
     }
-    // A merge and a delete have no agreed payload shape, so neither is written.
+    // A merge and a delete have no agreed payload shape, and a mapping names a stored table that
+    // the fixture does not hold, so none of the three is written.
     case 'merge':
     case 'delete':
+    case 'mapping':
       throw new Error(`A ${payload.kind} candidate has no agreed payload shape.`);
   }
 };

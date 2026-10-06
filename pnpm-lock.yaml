@@ -297,6 +297,9 @@ importers:
       '@gab/model':
         specifier: workspace:*
         version: link:../model
+      '@gab/proposal':
+        specifier: workspace:*
+        version: link:../proposal
       '@gab/store':
         specifier: workspace:*
         version: link:../store
