@@ -45,8 +45,12 @@ do every action that the research needs. It reads the graph and the documents, f
 a document, queries the external sources of #174, proposes a change, and starts and follows a
 job. The tools follow the deep-module rule: few tools, each with a small interface and more
 parameters. Tools are grouped by purpose, for example `graph`, `document`, `lookup`, `propose`
-and `job`. A new external source is a new value of the `source` parameter of `lookup`, with its
-own Zod schema, not a new tool. This ADR fixes no tool list. The list changes when the research
+and `job`. Each group is one MCP tool, and its `action` field names a tool of the catalogue.
+Amended 6 October 2026: a new external source is a new catalogue tool, with its own Zod input,
+its own Zod output and its own function. On the MCP server it is a new action of the `lookup`
+group, or of the `document` group when it reads and stores a post or a page (`telegram_channel`).
+The client still sees one `lookup` tool. The profile limit of eight tools does not apply to the
+MCP server. This ADR fixes no tool list. The list changes when the research
 needs change. When the AI selects tools badly, a skill or a document in `research/` tells it how
 to use them. The tool count does not decrease.
 
