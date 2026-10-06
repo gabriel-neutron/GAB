@@ -25,16 +25,16 @@ in development.
 
 **Sigma and graphology draw the graph.** The graph shows the full corpus, because its purpose is
 the large structure, not the labels. A canvas renderer cannot draw that many items. A job computes
-the positions and the database stores them. The browser does not compute them at each open, because
-a force layout is not deterministic and the picture would change each time. The operator starts
-the job, and no schedule runs it.
+the positions with the maintained ForceAtlas2 layout of graphology, and the database stores them.
+The browser does not compute them at each open: the run takes seconds on the full corpus, and a
+stored picture stays the same from one open to the next. The operator starts the job, and no
+schedule runs it.
 
 A relation can point to another relation (`decisions.md` M4). The graph does not show such a
 relation. The detail panel shows it.
 
 **Features load as separate bundles.** The map library does not load when the graph is open. A lint
-rule proves that no feature imports another feature. A check on the build output proves that no
-feature loads another feature. ADR 0001 holds the folder layout.
+rule proves that no feature imports another feature. ADR 0001 holds the folder layout.
 
 **Pages, not a panel shell.** Each route fills the screen with one view. A dockable panel shell is
 a feature, not a layout choice. It needs a layout engine and a stored workspace.

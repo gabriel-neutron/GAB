@@ -26,7 +26,7 @@ const held = z
 const MODEL = 'stub-family/stub-model';
 const PAGE = 'The tanker Nayara left Sikka.';
 const LABEL = 'Nayara';
-const RUNNER = fileURLToPath(new URL('./runner-main.ts', import.meta.url));
+const WORKER = fileURLToPath(new URL('./main.ts', import.meta.url));
 
 // A run of the suite writes rows that the ledger keeps, so each run takes documents of its own.
 const RUN = randomUUID().replaceAll('-', '').slice(0, 12);
@@ -89,7 +89,7 @@ const startRunner = (): ChildProcess => {
   const address = gateway.address();
   if (address === null || typeof address === 'string')
     throw new Error('the stub gateway listens on no port');
-  return spawn(process.execPath, [RUNNER], {
+  return spawn(process.execPath, [WORKER, 'run'], {
     stdio: ['ignore', 'ignore', 'inherit'],
     env: {
       ...process.env,

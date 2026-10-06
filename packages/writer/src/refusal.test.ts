@@ -40,32 +40,32 @@ test.each([
   expect(refusalFrom({ code, message: 'a text of the server at 10.0.0.1' })).toBe(sentence);
 });
 
-test.each([
-  [
-    'value coal_stock_t drops a document from the sources of that value',
-    'the act keeps the value, so it must keep every document that value already cites',
-  ],
-  [
-    'the entity is an endpoint of a relation',
-    'the target is an endpoint of a relation, and it stays',
-  ],
-  [
-    'the target no longer exists, and nothing was applied',
-    'the target no longer exists, and nothing was applied',
-  ],
-  [
-    'the act changes neither the name nor the type',
-    'the act changes neither the name nor the type of the entity',
-  ],
-  [
-    'proposal 1 is accepted, and only a pending proposal is applied',
-    'the act is decided already, and a decided act is frozen',
-  ],
-  ['a decided act is frozen', 'the act is decided already, and a decided act is frozen'],
-  ['the op merge has no write path yet', 'the writer has no path for this act'],
-  ['proposal 1f2e does not exist', 'the record holds no act under that name'],
-])('the message "%s" gives its own sentence', (message, sentence) => {
-  expect(refusalFrom({ code: 'P0001', message })).toBe(sentence);
+const doorRaised = (message: string, rule: string, field?: string): DatabaseError => {
+  const raised = raisedError('P0001', message);
+  raised.constraint = rule;
+  raised.hint = field;
+  return raised;
+};
+
+test('a door gives its own sentence, and the field it names leads', () => {
+  expect(
+    refusalFrom(
+      doorRaised('an interval starts on or before the day it ends', 'rel_dates_order', 'validFrom'),
+    ),
+  ).toBe('validFrom: an interval starts on or before the day it ends');
+  expect(refusalFrom(doorRaised('a decision names who took it', 'decision_named'))).toBe(
+    'a decision names who took it',
+  );
+});
+
+test('a rule that PostgreSQL checks itself names its table, and gives the sentence of its code', () => {
+  const composed = raisedError(
+    '23514',
+    'new row for relation "relations" violates check constraint "rel_dates_order"',
+  );
+  composed.constraint = 'rel_dates_order';
+  composed.table = 'relations';
+  expect(refusalFrom(composed)).toBe('the act breaks a rule the record holds on its shape');
 });
 
 test('a code the map knows wins over a message that a shape reads', () => {
@@ -80,36 +80,27 @@ test('a code the map knows wins over a message that a shape reads', () => {
   );
 });
 
-test('a message split over lines is read as one line', () => {
-  expect(refusalFrom({ code: 'P0001', message: 'proposal\n  1f2e   does not exist ' })).toBe(
-    'the record holds no act under that name',
+test('a rule of a type that PostgreSQL checks itself gives the sentence of its code', () => {
+  const composed = raisedError(
+    '23514',
+    'value for domain doc_id violates check constraint "doc_id_check"',
   );
-});
-
-test('a failure the map does not know names the act that stays pending', () => {
-  expect(refusalFrom({ code: 'XX000', message: 'an internal fault' }, 'p-1')).toBe(
-    `${GENERIC}, and the act stays pending as p-1`,
-  );
-  expect(refusalFrom({ code: 'XX000', message: 'an internal fault' })).toBe(GENERIC);
-});
-
-test('a known sentence never names the act that stays pending', () => {
-  expect(refusalFrom({ code: '23505', message: 'a duplicate' }, 'p-1')).toBe(
-    'the act repeats a value that must stay unique',
-  );
+  composed.constraint = 'doc_id_check';
+  composed.dataType = 'doc_id';
+  expect(refusalFrom(composed)).toBe('the act breaks a rule the record holds on its shape');
 });
 
 // Departure: the two answers are parted by the error that PostgreSQL itself raises. Any other
 // failure reached no statement that answered, and the act may stand in the record.
 test('a failure with no code is a doubt, and a raised failure keeps its refusal', () => {
-  const frozen = raisedError(
-    'P0001',
-    'proposal 1 is accepted, and only a pending proposal is applied',
+  const frozen = doorRaised(
+    'the act 1 is accepted already, and a decided act is frozen',
+    'proposal_pending',
   );
 
   expect(failureFrom(frozen)).toStrictEqual({
     raised: true,
-    refusal: 'the act is decided already, and a decided act is frozen',
+    refusal: 'the act 1 is accepted already, and a decided act is frozen',
   });
   expect(failureFrom(new Error('the connection was dropped'))).toStrictEqual({
     raised: false,

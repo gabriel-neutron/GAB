@@ -165,8 +165,9 @@ BEGIN
     ELSE PERFORM 1 FROM public.relations WHERE id = NEW.src_id FOR KEY SHARE;
   END IF;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'src % (%) does not exist', NEW.src_id, NEW.src_kind
-      USING ERRCODE = 'foreign_key_violation';
+    RAISE EXCEPTION 'the source % does not exist', NEW.src_id
+      USING ERRCODE = 'foreign_key_violation', CONSTRAINT = 'relation_ends_exist',
+            HINT = 'srcId';
   END IF;
 
   IF NEW.dst_kind = 'entity'
@@ -174,8 +175,9 @@ BEGIN
     ELSE PERFORM 1 FROM public.relations WHERE id = NEW.dst_id FOR KEY SHARE;
   END IF;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'dst % (%) does not exist', NEW.dst_id, NEW.dst_kind
-      USING ERRCODE = 'foreign_key_violation';
+    RAISE EXCEPTION 'the target % does not exist', NEW.dst_id
+      USING ERRCODE = 'foreign_key_violation', CONSTRAINT = 'relation_ends_exist',
+            HINT = 'dstId';
   END IF;
 
   RETURN NEW;
@@ -196,9 +198,9 @@ BEGIN
   SELECT t.takes_interval INTO dated FROM public.relation_type t
    WHERE t.key = NEW.type FOR SHARE;
   IF NOT coalesce(dated, false) THEN
-    RAISE EXCEPTION 'a relation of type % takes no interval', NEW.type
-      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope',
-            TABLE = 'relations', SCHEMA = 'public';
+    RAISE EXCEPTION 'a relation of type % takes no interval, so it has no first and no last day',
+      NEW.type
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope', HINT = 'validFrom';
   END IF;
   RETURN NEW;
 END $$;
@@ -230,7 +232,7 @@ BEGIN
                 AND r.id <> NEW.id) THEN
     RAISE EXCEPTION 'a relation of type % between these ends is already open: give it an end date first', NEW.type
       USING ERRCODE = 'unique_violation', CONSTRAINT = 'relations_one_open_per_type',
-            TABLE = 'relations', SCHEMA = 'public';
+            HINT = 'validTo';
   END IF;
   RETURN NEW;
 END $$;
@@ -320,6 +322,94 @@ BEGIN
   -- a rate_document act, and it is built with the first caller that scores a document.
 END $$;
 
+-- THE SENTENCE OF EACH RULE THAT A TABLE HOLDS. PostgreSQL composes the message of a CHECK, a
+-- key or a unique index itself, and that message names a table and not the fault. A door that
+-- writes a table catches such a refusal and raises the sentence below in its place, with the same
+-- code and the same rule name. The field is the field of the request that the caller corrects.
+-- A door names its rule and no table, so a reader of the refusal can tell the two apart.
+CREATE OR REPLACE FUNCTION raise_rule(p_rule text, p_table text, p_code text)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_sentence text;
+  v_field    text;
+BEGIN
+  IF coalesce(p_table, '') = '' THEN
+    RETURN;
+  END IF;
+  SELECT r.sentence, r.field INTO v_sentence, v_field FROM (VALUES
+    ('proposals_payload_attrs', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('entities_attrs_valid', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('relations_attrs_valid', 'attrs',
+     'each attribute key is lower case words of letters and digits, joined by one underscore, '
+     'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
+     'or no, or a flat list of them'),
+    ('proposals_update_names_attrs', 'attrs', 'an update names at least one attribute'),
+    ('proposals_update_entity_shape', 'label',
+     'the act names a new name, a new type, or both, and neither one is blank'),
+    ('proposals_create_entity_shape', 'label',
+     'a new entity has a type and a name, and neither one is blank'),
+    ('entities_label_check', 'label', 'the name of an entity is not blank'),
+    ('proposals_create_relation_shape', 'validFrom',
+     'a new relation has a type and two ends, and each day of its interval is a day of the '
+     'calendar, written as year, month and day: 2026-01-31'),
+    ('relations_type_check', 'type', 'the type of a relation is not blank'),
+    ('proposals_create_relation_type_length', 'type',
+     'the type of a relation is 200 characters at most'),
+    ('relations_type_length', 'type', 'the type of a relation is 200 characters at most'),
+    ('rel_dates_order', 'validFrom', 'an interval starts on or before the day it ends'),
+    ('proposals_payload_geom', 'geom',
+     'the geometry is a Point, a MultiPoint, a LineString, a MultiLineString, a Polygon or a '
+     'MultiPolygon, with a type, coordinates and no other key, and with no empty list'),
+    ('proposals_payload_geom_position', 'geom',
+     'each position of the geometry is a longitude from -180 to 180 and a latitude from -90 to '
+     '90, and no third number'),
+    ('entities_geom_on_globe', 'geom',
+     'the geometry is not a valid shape on the globe: a line has two positions or more, and a '
+     'ring has four or more and ends on the position it starts on'),
+    ('proposals_op_target_kind', 'targetKind', 'the act names a target of the wrong kind'),
+    ('proposals_target_pairs', 'targetId', 'the act names its target with a kind and an id'),
+    ('proposals_target_required', 'targetId', 'the act names its target'),
+    ('proposals_src_shape', 'documents', 'the act cites at least one document'),
+    ('proposals_machine_not_reserved', 'documents',
+     'a machine cannot cite the reserved documents manual and inherited'),
+    ('proposals_src_within', 'documents',
+     'each document that a value cites is also a document of the act')
+  ) AS r(rule, field, sentence)
+  WHERE r.rule = p_rule;
+  IF v_sentence IS NULL THEN
+    RETURN;
+  END IF;
+  RAISE EXCEPTION USING MESSAGE = v_sentence, ERRCODE = p_code, CONSTRAINT = p_rule,
+    HINT = v_field;
+END $$;
+
+-- A REFUSAL OF ONE ITEM OF A BATCH. The rule keeps its own sentence and its field from the table
+-- above, and the sentence goes on with the number of the item, so the caller corrects that item.
+-- A rule that the table does not word keeps the sentence that it raised.
+CREATE OR REPLACE FUNCTION raise_item_rule(p_item int, p_rule text, p_code text, p_said text)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_said  text := p_said;
+  v_field text := '';
+BEGIN
+  BEGIN
+    PERFORM public.raise_rule(p_rule, 'proposals', p_code);
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_field = PG_EXCEPTION_HINT;
+  END;
+  RAISE EXCEPTION 'item %: %', p_item, v_said
+    USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = coalesce(p_rule, ''),
+          HINT = coalesce(v_field, '');
+END $$;
+
 -- THE DOOR OF THE OPERATOR. gabriel_app alone calls it, through the writer. A machine proposes
 -- through propose_batch, which writes the citations with the act. The author role is stamped by
 -- a trigger and is never a parameter.
@@ -342,7 +432,11 @@ CREATE OR REPLACE FUNCTION propose_change(
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_id uuid;
+DECLARE
+  v_id    uuid;
+  v_rule  text;
+  v_table text;
+  v_code  text;
 BEGIN
   INSERT INTO public.proposals
     (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
@@ -354,6 +448,10 @@ BEGIN
      p_model_call_id)
   RETURNING id INTO v_id;
   RETURN v_id;
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
 END $$;
 
 -- THE ONE DOOR OF A MACHINE. gabriel_agent and gabriel_research call it with a batch of items.
@@ -390,6 +488,10 @@ DECLARE
   v_moved    jsonb := '{}'::jsonb;
   v_from     text;
   v_to       text;
+  v_rule     text;
+  v_code     text;
+  v_said     text;
+  v_valid    boolean;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -453,9 +555,42 @@ BEGIN
       END IF;
     END LOOP;
 
+    -- THREE RULES THAT THE TABLE CANNOT HOLD, AND THE PROMOTION HOLDS TOO LATE. A relation table
+    -- and a geometry column refuse them, after the act waited in the queue. The scope of an
+    -- interval reads the type row, so no CHECK of this table can hold it.
+    IF v_item->>'op' = 'create_relation' THEN
+      IF NOT coalesce(pg_input_is_valid(v_payload::jsonb->>'valid_from', 'date'), true)
+         OR NOT coalesce(pg_input_is_valid(v_payload::jsonb->>'valid_to', 'date'), true) THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_create_relation_shape', '23514',
+                                       'the day is not a day of the calendar');
+      END IF;
+      IF (v_payload::jsonb->>'valid_from')::date > (v_payload::jsonb->>'valid_to')::date THEN
+        PERFORM public.raise_item_rule(v_no, 'rel_dates_order', '23514',
+                                       'an interval starts on or before the day it ends');
+      END IF;
+      IF (v_payload::jsonb ? 'valid_from' OR v_payload::jsonb ? 'valid_to')
+         AND NOT EXISTS (SELECT 1 FROM public.relation_type t
+                          WHERE t.key = v_payload::jsonb->>'type' AND t.takes_interval) THEN
+        RAISE EXCEPTION 'item %: a relation of type % takes no interval, so it has no first and '
+                        'no last day', v_no, v_payload::jsonb->>'type'
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'rel_dates_scope',
+                HINT = 'validFrom';
+      END IF;
+    END IF;
+    IF v_payload::jsonb ? 'geom' THEN
+      BEGIN
+        v_valid := public.ST_IsValid(public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'));
+      EXCEPTION WHEN OTHERS THEN
+        v_valid := false;
+      END;
+      IF NOT coalesce(v_valid, false) THEN
+        PERFORM public.raise_item_rule(v_no, 'entities_geom_on_globe', '23514',
+                                       'the geometry is not a valid shape on the globe');
+      END IF;
+    END IF;
+
     v_id := NULL;
-    -- A rule of the table refuses the act with its own sentence, and the caller must know which
-    -- item it refused, so the sentence goes on with the number of the item.
+    -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
@@ -469,7 +604,9 @@ BEGIN
       ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
       RETURNING id INTO v_id;
     EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
-      RAISE EXCEPTION 'item %: %', v_no, SQLERRM USING ERRCODE = 'invalid_parameter_value';
+      GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_code = RETURNED_SQLSTATE,
+                              v_said = MESSAGE_TEXT;
+      PERFORM public.raise_item_rule(v_no, v_rule, v_code, v_said);
     END;
 
     IF v_id IS NULL THEN
@@ -614,39 +751,33 @@ BEGIN
   RETURN v_id;
 END $$;
 
--- THE ONE DOOR INTO THE EVIDENTIARY LAYER. It encodes no rule about WHO may call it, so this
--- file stays neutral on #42.
-CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
+-- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the two doors
+-- below, which are owned by the same role. It encodes no rule about WHO may decide.
+CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text)
 RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   p       public.proposals%ROWTYPE;
   v_id    uuid;
   v_old   jsonb;
   v_prior jsonb;
-  v_lost  text;
+  v_attrs jsonb;
   v_type  text;
+  v_uses  bigint;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it';
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
 
   -- FOR UPDATE closes the concurrent replay; the status test closes the serial one. #17 (a).
   SELECT * INTO p FROM public.proposals WHERE id = p_id FOR UPDATE;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'proposal % does not exist', p_id;
+    RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
   END IF;
   IF p.status <> 'pending' THEN
-    RAISE EXCEPTION 'proposal % is %, and only a pending proposal is applied', p_id, p.status;
-  END IF;
-
-  -- The measured forgery: propose and accept inside one transaction. Refused by a stored
-  -- column, so the legitimate shape — proposed now, decided later — still passes.
-  IF p.xact = pg_current_xact_id() THEN
-    RAISE EXCEPTION 'proposal % was written by this transaction, and an act is not decided by '
-                    'the transaction that proposed it', p_id
-      USING ERRCODE = 'insufficient_privilege';
+    RAISE EXCEPTION 'the act % is % already, and a decided act is frozen', p_id, p.status
+      USING CONSTRAINT = 'proposal_pending';
   END IF;
 
   -- ---------------------------------------------------------------------------- creations --
@@ -706,22 +837,25 @@ BEGIN
     END IF;
     -- #17 (c): a promotion that applies nothing must not commit as a success.
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
     END IF;
 
-    -- S2: the src of an attribute backs that one value alone. A changed value may cite new
-    -- sources alone, and prior_value keeps the old claim. A kept value that dropped a document
-    -- would lose corroboration, so it is refused. jsonb equality reads 41200.0 as 41200.
-    SELECT string_agg(n.k, ', ' ORDER BY n.k) INTO v_lost
-      FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val)
-     WHERE v_old ? n.k
-       AND v_old->n.k->'v' = n.val->'v'
-       AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(v_old->n.k->'src') AS o(doc)
-                    WHERE NOT ((n.val->'src') @> to_jsonb(o.doc)));
-    IF v_lost IS NOT NULL THEN
-      RAISE EXCEPTION 'the write keeps the value of % and drops a document from the sources of '
-                      'that value', v_lost;
-    END IF;
+    -- S2: the src of an attribute backs that one value alone. A changed value cites the sources
+    -- of the act alone, and prior_value keeps the old claim. A kept value keeps each document it
+    -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
+    -- reads 41200.0 as 41200.
+    SELECT jsonb_object_agg(n.k,
+             CASE WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
+                  THEN jsonb_build_object('v', n.val->'v', 'src',
+                         (v_old->n.k->'src') || coalesce(
+                           (SELECT jsonb_agg(y.doc ORDER BY y.ord)
+                              FROM jsonb_array_elements(n.val->'src') WITH ORDINALITY AS y(doc, ord)
+                             WHERE NOT (v_old->n.k->'src') @> jsonb_build_array(y.doc)),
+                           '[]'::jsonb))
+                  ELSE n.val END)
+      INTO v_attrs
+      FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val);
 
     -- ONLY THE KEYS THE ACT NAMED. A whole-row copy would freeze and republish every other
     -- key, and api.proposal publishes the copy.
@@ -731,11 +865,11 @@ BEGIN
 
     IF p.target_kind = 'entity' THEN
       UPDATE public.entities
-         SET attrs = attrs || coalesce(p.payload->'attrs','{}'::jsonb), updated_at = now()
+         SET attrs = attrs || coalesce(v_attrs,'{}'::jsonb), updated_at = now()
        WHERE id = p.target_id;
     ELSE
       UPDATE public.relations
-         SET attrs = attrs || coalesce(p.payload->'attrs','{}'::jsonb), updated_at = now()
+         SET attrs = attrs || coalesce(v_attrs,'{}'::jsonb), updated_at = now()
        WHERE id = p.target_id;
     END IF;
     -- The row-level `sources` list is NOT extended here. It backs the typed columns outside
@@ -747,7 +881,8 @@ BEGIN
   ELSIF p.op = 'update_entity' THEN
     SELECT to_jsonb(e) INTO v_old FROM public.entities e WHERE id = p.target_id FOR UPDATE;
     IF v_old IS NULL THEN
-      RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
     END IF;
 
     SELECT t.key INTO v_type FROM public.entity_type t
@@ -779,8 +914,9 @@ BEGIN
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                  WHEN v_type IS NULL THEN p.payload->>'type' END);
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'the act changes neither the name nor the type of %, and nothing was '
-                      'applied', p.target_id;
+      RAISE EXCEPTION 'the act changes neither the name nor the type of the entity, and nothing '
+                      'was applied'
+        USING CONSTRAINT = 'act_changes_something';
     END IF;
     v_id := p.target_id;
 
@@ -789,25 +925,33 @@ BEGIN
     IF p.target_kind = 'entity' THEN
       SELECT to_jsonb(e) INTO v_prior FROM public.entities e WHERE id = p.target_id FOR UPDATE;
       IF v_prior IS NULL THEN
-        RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+        RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+          USING CONSTRAINT = 'target_exists', HINT = 'targetId';
       END IF;
-      IF EXISTS (SELECT 1 FROM public.relations r
-                  WHERE (r.src_kind = 'entity' AND r.src_id = p.target_id)
-                     OR (r.dst_kind = 'entity' AND r.dst_id = p.target_id)) THEN
-        RAISE EXCEPTION 'entity % is an endpoint of a relation, and it is not deleted',
-                        p.target_id;
+      SELECT count(*) INTO v_uses FROM public.relations r
+       WHERE (r.src_kind = 'entity' AND r.src_id = p.target_id)
+          OR (r.dst_kind = 'entity' AND r.dst_id = p.target_id);
+      IF v_uses > 0 THEN
+        RAISE EXCEPTION 'the entity is an endpoint of % %, and it is not deleted. Delete each of '
+                        'those relations first, and then delete the entity again',
+                        v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
+          USING CONSTRAINT = 'endpoint_free', HINT = 'targetId';
       END IF;
       DELETE FROM public.entities WHERE id = p.target_id;
     ELSE
       SELECT to_jsonb(r) INTO v_prior FROM public.relations r WHERE id = p.target_id FOR UPDATE;
       IF v_prior IS NULL THEN
-        RAISE EXCEPTION 'the target % no longer exists, and nothing was applied', p.target_id;
+        RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+          USING CONSTRAINT = 'target_exists', HINT = 'targetId';
       END IF;
-      IF EXISTS (SELECT 1 FROM public.relations r
-                  WHERE (r.src_kind = 'relation' AND r.src_id = p.target_id)
-                     OR (r.dst_kind = 'relation' AND r.dst_id = p.target_id)) THEN
-        RAISE EXCEPTION 'relation % is an endpoint of a relation, and it is not deleted',
-                        p.target_id;
+      SELECT count(*) INTO v_uses FROM public.relations r
+       WHERE (r.src_kind = 'relation' AND r.src_id = p.target_id)
+          OR (r.dst_kind = 'relation' AND r.dst_id = p.target_id);
+      IF v_uses > 0 THEN
+        RAISE EXCEPTION 'the relation is an endpoint of % %, and it is not deleted. Delete each '
+                        'of those relations first, and then delete this relation again',
+                        v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
+          USING CONSTRAINT = 'endpoint_free', HINT = 'targetId';
       END IF;
       DELETE FROM public.relations WHERE id = p.target_id;
     END IF;
@@ -816,8 +960,9 @@ BEGIN
   ELSE
     -- M12 makes a merge reversible through an alias table and a full snapshot. Neither table
     -- exists, so a merge cannot land, and it must not half-land.
-    RAISE EXCEPTION 'the operation % has no write path yet. M12 needs an alias table and a '
-                    'snapshot before a merge can be undone', p.op;
+    RAISE EXCEPTION 'the act % has no write path yet: a merge cannot be undone until the record '
+                    'holds an alias table and a snapshot', p.op
+      USING CONSTRAINT = 'op_has_path';
   END IF;
 
   UPDATE public.proposals
@@ -830,6 +975,62 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE DECISION ON AN ACT THAT WAITS. Only the operator role holds it, and that grant is the rule
+-- "a machine proposes, only the operator promotes".
+CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  -- The measured forgery: propose and accept inside one transaction. Refused by a stored
+  -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
+  -- signs an act of its own in one transaction through sign_change, which proposes it there.
+  IF EXISTS (SELECT 1 FROM public.proposals
+              WHERE id = p_id AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the act % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_id
+      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
+  END IF;
+  RETURN public.apply_proposal(p_id, p_decided_by);
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
+-- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
+-- role holds it, so a machine still proposes and never decides. The act is written whole or not
+-- at all: a refusal at the promotion rolls the proposal back with it.
+CREATE OR REPLACE FUNCTION sign_change(
+  p_decided_by  text,
+  p_op          text,
+  p_payload     jsonb,
+  p_src         text[],
+  p_target_kind text,
+  p_target_id   uuid,
+  p_names       uuid[])
+RETURNS TABLE (proposal_id uuid, target_id uuid)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rule  text;
+  v_table text;
+  v_code  text;
+BEGIN
+  proposal_id := public.propose_change(p_op, p_payload, p_src, p_target_kind, p_target_id,
+                                       p_names);
+  target_id := public.apply_proposal(proposal_id, p_decided_by);
+  RETURN NEXT;
+EXCEPTION WHEN integrity_constraint_violation THEN
+  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+  PERFORM public.raise_rule(v_rule, v_table, v_code);
+  RAISE;
+END $$;
+
 -- A rejection writes the decision and leaves the row. A rejected act is never deleted: it is
 -- the record of what was set aside. It carries NO REASON, and that is decided and not pending:
 -- the record keeps the status, the hour and the name of a rejection, and nothing else.
@@ -839,16 +1040,17 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it';
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
    WHERE id = p_id AND status = 'pending';
   IF NOT FOUND THEN
     IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE id = p_id) THEN
-      RAISE EXCEPTION 'proposal % does not exist', p_id;
+      RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
     END IF;
-    RAISE EXCEPTION 'proposal % is not pending, and a decided act is frozen', p_id;
+    RAISE EXCEPTION 'the act % is decided already, and a decided act is frozen', p_id
+      USING CONSTRAINT = 'proposal_pending';
   END IF;
 END $$;
 

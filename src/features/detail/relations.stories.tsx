@@ -137,6 +137,21 @@ export const ARowDeletesTheRelationItDraws: Story = {
   },
 };
 
+export const KeepingTheRowDeletesNothing: Story = {
+  play: async ({ canvasElement }) => {
+    onDelete.mockClear();
+    const row = rowOf(canvasElement, APPOINTS);
+    const name = lineOf(FROM_ENTITY_END, APPOINTS).sentence;
+
+    await userEvent.click(within(row).getByRole('button', { name: `Delete ${name}` }));
+    await expect(within(row).getByText(`Delete ${name}? No door brings it back.`)).toBeVisible();
+    await userEvent.click(within(row).getByRole('button', { name: `Keep ${name}` }));
+
+    await expect(onDelete).not.toHaveBeenCalled();
+    await expect(within(row).getByRole('button', { name: `Delete ${name}` })).toBeEnabled();
+  },
+};
+
 export const AnActInFlightTakesNoRowDeletion: Story = {
   args: { deleting: { offered: true, busy: true, onDelete } },
   play: async ({ canvasElement }) => {

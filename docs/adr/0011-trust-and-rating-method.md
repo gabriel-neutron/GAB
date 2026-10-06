@@ -54,9 +54,10 @@ database grants.
 
 ## How a claim is read
 
-- Each claim rests on a **span**: two offsets in a stored, untouched copy of the document. Agents
-  give offsets and closed values only. Code reads the span again and checks that it contains the
-  claim value. A failed check counts zero.
+- Each claim rests on a **span**: two offsets in a stored, untouched copy of the document. The
+  excerpt that an agent gives is an input that code checks: code finds it in the stored text and
+  checks that it holds the claim values, and the stored record keeps the offsets and cites the
+  document. A failed check counts zero.
 - **Two independent readings** are necessary. Where possible, the second reader is of another
   kind: a parser for a structured file, OCR for an image, a model of another family for free
   text. When the readers disagree on a field, or a second reading is missing, the claim is held.

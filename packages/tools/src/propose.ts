@@ -112,21 +112,22 @@ const TABLE = { entity: 'api.entity', relation: 'api.relation' } as const;
 
 type Kind = keyof typeof TABLE;
 
-const held = z.strictObject({ attrs: z.unknown() });
-
-const attributesOf = async (session: Session, kind: Kind, id: string): Promise<unknown> => {
-  const [found] = await rowsOf(session, held, `SELECT attrs FROM ${TABLE[kind]} WHERE id = $1`, [
-    id,
-  ]);
-  return found?.attrs;
-};
-
 // External constraint: the door raises its refusals with this code, and any other code is a fault
 // of the database that the caller must see.
 const REFUSED_CODE = '22023';
 
-const codeOf = (cause: unknown): unknown =>
-  typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
+const fieldOf = (cause: object): string =>
+  'hint' in cause && typeof cause.hint === 'string' ? cause.hint : '';
+
+// The door numbers the items from one, and the caller named each one by its ref. A rule of the
+// record names the field of the act that the caller corrects.
+const refusalOf = (cause: Error, refs: readonly string[]): string => {
+  const field = fieldOf(cause);
+  return cause.message.replace(/^item (\d+): /u, (_whole, number: string) => {
+    const ref = refs[Number(number) - 1] ?? number;
+    return field === '' ? `item ${ref}: ` : `item ${ref}: act.${field}: `;
+  });
+};
 
 interface Cited {
   readonly document: string;
@@ -252,11 +253,10 @@ const resolvedAct = async (
   return parsed.data;
 };
 
-const priorOf = async (session: Session, ref: string, act: WriteRequest): Promise<unknown> => {
-  if (act.op !== 'update_attrs') return null;
-  const prior = await attributesOf(session, act.targetKind, act.targetId);
-  if (prior === undefined) refuse(ref, `the target ${act.targetId} does not exist`);
-  return prior;
+const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
+  if (act.op !== 'update_attrs') return;
+  if (!(await present(session, act.targetKind, act.targetId)))
+    refuse(ref, `the target ${act.targetId} does not exist`);
 };
 
 const outcome = z.strictObject({
@@ -296,7 +296,8 @@ export const propose = defineTool({
       const cited: Cited[] = [];
       for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
       const documents = [...new Set(cited.map((one) => one.document))];
-      const draft = machineAct(request, documents, await priorOf(session, given.ref, request));
+      await checkTarget(session, given.ref, request);
+      const draft = machineAct(request, documents);
       if (!draft.ready) refuse(given.ref, draft.refusal);
       const unstated = unstatedValues(
         request,
@@ -332,8 +333,13 @@ export const propose = defineTool({
     try {
       rows = await rowsOf(session, doorRow, BATCH, [JSON.stringify(items)]);
     } catch (cause) {
-      if (codeOf(cause) === REFUSED_CODE && cause instanceof Error)
-        throw new ToolRefusal(cause.message);
+      if (cause instanceof Error && 'code' in cause && cause.code === REFUSED_CODE)
+        throw new ToolRefusal(
+          refusalOf(
+            cause,
+            input.items.map((given) => given.ref),
+          ),
+        );
       throw cause;
     }
 

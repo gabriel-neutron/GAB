@@ -23,9 +23,7 @@ export default defineConfig({
     proxy: { '/write': 'http://127.0.0.1:5177', '/private': 'http://127.0.0.1:5177' },
   },
 
-  // Departure: the bundler warns above 500 kB, and the map chunk is over 900 kB by nature. The
-  // bundle guard runs after the build and holds a ceiling per chunk, so a size that grows too
-  // far fails and never only warns.
+  // Departure: the bundler warns above 500 kB, and the map chunk is over 900 kB by nature.
   build: { chunkSizeWarningLimit: Infinity },
 
   // External constraint: pre-bundled by esbuild, the tile worker of `maplibre-gl` never starts.
