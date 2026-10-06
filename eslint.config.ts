@@ -763,7 +763,7 @@ export default defineConfig(
   //
   // The first pattern reaches every package and `tools/` already. A story has its own name.
   {
-    files: ['**/*.{test,db-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
+    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',
