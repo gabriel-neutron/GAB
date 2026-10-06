@@ -69,6 +69,22 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
     expect(second).not.toContain('2026-05-04');
   });
 
+  test('a bar inside a cell adds no column, so the cells after it keep their place', async () => {
+    const text = await textOf(
+      wrap(
+        '<table><thead><tr><th>Unit</th><th>Place</th><th>Day</th></tr></thead><tbody>' +
+          '<tr><td>Unit 4 | Pokrovsk</td><td></td><td>2026-05-04</td></tr></tbody></table>',
+      ),
+    );
+    const row = text.split('\n').find((line) => line.includes('Unit 4')) ?? '';
+    const cells = row.split(/(?<!\\)\|/u).slice(1, -1);
+    expect(cells.map((cell) => cell.trim())).toStrictEqual([
+      String.raw`Unit 4 \| Pokrovsk`,
+      '',
+      '2026-05-04',
+    ]);
+  });
+
   test('a struck sentence is marked, and never reads as a live one', async () => {
     const text = await textOf(
       wrap(
