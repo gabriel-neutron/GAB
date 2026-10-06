@@ -92,9 +92,16 @@ jobs:
       - name: start the database and the S3 store
         run: >-
           docker compose --env-file infra/.env -f infra/docker-compose.yml -p gab
-          up --detach --wait --wait-timeout 300 db postgrest-test seaweedfs
+          up --detach --wait --wait-timeout 300 db seaweedfs
 
       - run: pnpm run db:reset
+
+      # The reset sets the password of the read role. A read service that starts before it fails
+      # its login, waits longer after each failure, and can miss the first tests.
+      - name: start the read service of the test database
+        run: >-
+          docker compose --env-file infra/.env -f infra/docker-compose.yml -p gab
+          up --detach --wait --wait-timeout 300 postgrest-test
 
       - run: pnpm run db:drift
 

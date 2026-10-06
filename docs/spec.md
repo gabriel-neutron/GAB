@@ -40,7 +40,7 @@ flowchart LR
 |---|---|
 | PostgreSQL / PostGIS | Holds every record and enforces the rules below. |
 | S3 raw store | Keeps each original file unchanged. Any S3 server can hold it. |
-| Writer | The only write service for the operator: upload, edit, promote, reject. |
+| Writer | The only write service for the operator: upload, edit, promote, reject, queue an extraction. It also gives the operator the status of the jobs of a document, which the public read never shows. |
 | Read API | Read-only HTTP over a fixed set of public views. |
 | Web interface | The graph, the map, the review queue, search and entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |

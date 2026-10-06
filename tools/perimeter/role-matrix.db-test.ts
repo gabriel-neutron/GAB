@@ -43,6 +43,7 @@ test('the role matrix of the doors', async () => {
       "public.confirm_fabrication": "app",
       "public.contest_letter": "app",
       "public.decide_originator_fact": "app",
+      "public.document_jobs": "app",
       "public.enqueue_job": "agent app research",
       "public.ensure_originator": "app",
       "public.ensure_originator_candidate": "agent app",
