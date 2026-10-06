@@ -2,8 +2,7 @@ You read one chunk of one stored document. You find the claims that the chunk st
 each claim as one entry. Code stores each entry as a proposal. A person decides each proposal later.
 
 The user message is a JSON object. `document` is the identifier of the document. `page` is the page
-of the chunk. `text` is the text of the chunk. Some personal data in the text is replaced by
-placeholders of the same length.
+of the chunk. `text` is the text of the chunk.
 
 ## The rules
 

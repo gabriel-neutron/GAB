@@ -75,7 +75,7 @@ test('a column grant of UPDATE on an evidentiary table shows as a write', async 
 });
 
 // Departure: the claim is a door and not a table write. A worker that could mark a row by hand
-// could put it in a state no claim produced, and the count of the attempts would prove nothing.
+// could put it in a state no claim produced.
 test('gabriel_agent cannot mark a job by hand', async () => {
   await expect(
     rolledBack('agent', (ask) => ask("UPDATE public.jobs SET status = 'running'")),
@@ -102,7 +102,7 @@ test('gabriel_app cannot queue work without a document', async () => {
 });
 
 const QUEUED = `SELECT count(*)::int AS n FROM public.jobs
-   WHERE document_id = $1 AND status = 'queued' AND attempts = 0`;
+   WHERE document_id = $1 AND status = 'queued' AND claimed_at IS NULL`;
 
 const counted = z.array(z.object({ n: z.number().int() }));
 

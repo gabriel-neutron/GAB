@@ -37,6 +37,7 @@
     "test:perimeter": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project perimeter",
     "test:corpus": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project corpus",
     "test:service": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project service",
+    "test:e2e": "node --env-file=infra/.env node_modules/vitest/vitest.mjs run --project e2e",
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "mcp": "node packages/mcp/src/main.ts",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
