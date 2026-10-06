@@ -21,10 +21,6 @@ export interface ReviewSearch {
   readonly view: ReviewView;
 }
 
-/** The confidence threshold is an operational parameter, and never a constant of the source. No
- * path carries one to the browser today, so an act with no disagreement states no reason. */
-const THRESHOLD = null;
-
 const IDLE: DecisionState = { step: 'idle' };
 
 export const Route = createFileRoute('/review')({
@@ -72,7 +68,7 @@ function ReviewRoute() {
   const [decision, setDecision] = useState<DecisionState>(IDLE);
 
   // Without this memory every render of this route walks the whole corpus again.
-  const queued = useMemo(() => readQueue(corpus, THRESHOLD, types), [corpus, types]);
+  const queued = useMemo(() => readQueue(corpus, types), [corpus, types]);
   const query = useScreenQuery({
     named: queued,
     choose: (subjectId) => {

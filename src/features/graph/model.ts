@@ -38,7 +38,7 @@ export interface EdgeAttrs {
 // The two colours the canvas paints that no type declares. Each one is `#rrggbb`: Sigma parses
 // hex on the CPU, and an `hsl()` colour comes out black in silence. The hue of a type is not
 // here: `entity_type` declares it, and this file reads that declaration.
-export interface GraphPalette {
+interface GraphPalette {
   readonly isolate: string;
   readonly edge: string;
 }

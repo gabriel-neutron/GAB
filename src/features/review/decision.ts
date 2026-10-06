@@ -24,7 +24,7 @@ export type DecisionState = WriteState<object, DecisionAbout>;
 
 /** What the surface reads: the sentence and its urgency, and whether a second verdict must
  * wait. One state answers the three, so they travel as one. */
-export interface DecisionSaid extends Said {
+interface DecisionSaid extends Said {
   readonly busy: boolean;
 }
 

@@ -44,7 +44,7 @@ export const stubWeb = (
   };
 };
 
-export const WEB_DAY = new Date('2026-10-05T10:00:00Z');
+const WEB_DAY = new Date('2026-10-05T10:00:00Z');
 
 /** The reach of a test that may use the stub web and nothing else. */
 export const webReach = (web: Web, now: () => Date = () => WEB_DAY): Reach => ({ web, now });

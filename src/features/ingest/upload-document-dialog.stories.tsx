@@ -31,6 +31,9 @@ const doorAnswering = (body: unknown, status = 200): void => {
 // The dialog is portalled to the body, so its content stands outside the canvas element.
 const panel = () => within(document.body);
 
+// A stored file offers its extraction, which speaks on a line of its own.
+const uploadLine = () => panel().getByRole('status', { name: 'The upload of the file' });
+
 const openIt = async (): Promise<void> => {
   await userEvent.click(panel().getByRole('button', { name: 'Upload a document' }));
 };
@@ -63,7 +66,7 @@ export const AnEmptyFormSendsNothing: Story = {
   play: async () => {
     await openIt();
     await expect(panel().getByRole('button', { name: 'Upload' })).toBeDisabled();
-    await expect(panel().getByRole('status')).toHaveTextContent('Choose the file to upload.');
+    await expect(uploadLine()).toHaveTextContent('Choose the file to upload.');
   },
 };
 
@@ -73,7 +76,7 @@ export const AFilledFormIsReady: Story = {
     await openIt();
     await fillAll(filing());
     await expect(panel().getByLabelText('Title')).toHaveValue('mgt-7.pdf');
-    await expect(panel().getByRole('status')).toHaveTextContent('Ready to upload.');
+    await expect(uploadLine()).toHaveTextContent('Ready to upload.');
     await expect(panel().getByRole('button', { name: 'Upload' })).toBeEnabled();
   },
 };
@@ -82,9 +85,7 @@ export const AFormWithNoDateIsRefused: Story = {
   play: async () => {
     await openIt();
     await userEvent.upload(panel().getByLabelText('File'), filing());
-    await expect(panel().getByRole('status')).toHaveTextContent(
-      'Write the day the file was retrieved.',
-    );
+    await expect(uploadLine()).toHaveTextContent('Write the day the file was retrieved.');
     await expect(panel().getByRole('button', { name: 'Upload' })).toBeDisabled();
   },
 };
@@ -94,7 +95,7 @@ export const AFileOverTheCapIsRefused: Story = {
     await openIt();
     await userEvent.upload(panel().getByLabelText('File'), tooLarge());
     await userEvent.type(panel().getByLabelText('Retrieved on'), '2026-10-01');
-    await expect(panel().getByRole('status')).toHaveTextContent('larger than 20 MiB');
+    await expect(uploadLine()).toHaveTextContent('larger than 20 MiB');
     await expect(panel().getByRole('button', { name: 'Upload' })).toBeDisabled();
   },
 };
@@ -109,7 +110,7 @@ export const AKnownFileNamesItsDocument: Story = {
     await userEvent.click(panel().getByRole('button', { name: 'Upload' }));
 
     await waitFor(async () => {
-      await expect(panel().getByRole('status')).toHaveTextContent(
+      await expect(uploadLine()).toHaveTextContent(
         `The file is already in the record as document ${KNOWN_ID}.`,
       );
     });
@@ -127,9 +128,7 @@ export const AStoredScanNamesItsEmptyPages: Story = {
     await userEvent.click(panel().getByRole('button', { name: 'Upload' }));
 
     await waitFor(async () => {
-      await expect(panel().getByRole('status')).toHaveTextContent(
-        'Pages 1, 2 hold no text that can be read.',
-      );
+      await expect(uploadLine()).toHaveTextContent('Pages 1, 2 hold no text that can be read.');
     });
     await expect(onStored).toHaveBeenCalledWith(KNOWN_ID);
   },
@@ -144,9 +143,23 @@ export const ARefusalOfTheWriterIsShown: Story = {
     await userEvent.click(panel().getByRole('button', { name: 'Upload' }));
 
     await waitFor(async () => {
-      await expect(panel().getByRole('status')).toHaveTextContent(
+      await expect(uploadLine()).toHaveTextContent(
         'Nothing was written. providerId: the record holds no provider of that name.',
       );
+    });
+  },
+};
+
+// A stored file offers the extraction of its claims at once.
+export const AStoredFileOffersAnExtraction: Story = {
+  play: async () => {
+    doorAnswering({ state: 'stored', documentId: KNOWN_ID, emptyPages: [] });
+    await openIt();
+    await fillAll(filing());
+    await userEvent.click(panel().getByRole('button', { name: 'Upload' }));
+
+    await waitFor(async () => {
+      await expect(panel().getByRole('button', { name: 'Extract claims' })).toBeEnabled();
     });
   },
 };

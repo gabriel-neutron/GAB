@@ -2,6 +2,12 @@
 
 **Status** Accepted · 4 October 2026
 
+**Not built: the letter of the originator.** The register cards, the track record, the letter,
+the sanction flags and the trust lists are not built. A first build of their tables, doors and
+loaders had no caller, and it was removed on 6 October 2026 (operator decision). The method below
+stays the decision. A later spec builds the rating, and it can start from the stored name of the
+originator of each claim.
+
 ## Context
 
 GAB publishes facts about named units, companies, vessels and persons on a public map. Agents write

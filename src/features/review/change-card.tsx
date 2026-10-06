@@ -1,4 +1,4 @@
-import { Split, TrendingDown, TriangleAlert } from 'lucide-react';
+import { Split } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 
@@ -8,7 +8,7 @@ import { Confidence } from './confidence';
 import { Difference } from './difference';
 import { Holes } from './holes';
 import type { ActPassages } from './passages';
-import type { Change, Routing } from './queue';
+import type { Change } from './queue';
 import { SourceBadge } from './sources';
 
 export interface ChangeCardProps {
@@ -18,27 +18,7 @@ export interface ChangeCardProps {
   readonly passages: ActPassages;
 }
 
-/** A mark and never a sentence. `unstated` draws no mark: while no threshold reaches this screen
- * almost every act carries it, and a mark on every card marks nothing. It draws the words. */
-const ROUTING_GLYPH: Readonly<Record<Routing, typeof Split | null>> = {
-  dissent: Split,
-  'low-confidence': TrendingDown,
-  both: Split,
-  neither: TriangleAlert,
-  unstated: null,
-};
-
-const ROUTING_PAINT: Readonly<Record<Routing, string>> = {
-  dissent: 'text-dissent',
-  'low-confidence': 'text-candidate',
-  both: 'text-dissent',
-  neither: 'text-candidate',
-  unstated: 'text-label',
-};
-
 export function ChangeCard({ change, current, passages }: ChangeCardProps) {
-  const Routed = ROUTING_GLYPH[change.routing];
-  const low = change.routing === 'low-confidence' || change.routing === 'both';
   // A row of an update carries the documents of the act. A row of a deletion carries the documents
   // of the lost value, so a deletion shows the documents of the act as well as its rows.
   const actSources =
@@ -65,8 +45,11 @@ export function ChangeCard({ change, current, passages }: ChangeCardProps) {
         <span data-origin={change.origin} className="shrink-0 text-small/4 text-label">
           {change.origin}
         </span>
-        <Confidence report={change.confidenceReport} low={low} />
-        {Routed === null ? (
+        <Confidence report={change.confidenceReport} />
+        {/* A disagreement is a mark and never a sentence. An act with no recorded reason draws
+            the words and no mark: almost every act carries it, and a mark on every card marks
+            nothing. */}
+        {change.routing === 'unstated' ? (
           <span
             data-routing={change.routing}
             title={change.routingWords}
@@ -78,12 +61,9 @@ export function ChangeCard({ change, current, passages }: ChangeCardProps) {
           <span
             data-routing={change.routing}
             title={change.routingWords}
-            className={cn(
-              'inline-flex shrink-0 items-center gap-1 text-small/4',
-              ROUTING_PAINT[change.routing],
-            )}
+            className="inline-flex shrink-0 items-center gap-1 text-small/4 text-dissent"
           >
-            <Routed size={14} aria-hidden="true" />
+            <Split size={14} aria-hidden="true" />
             {change.routingShort}
             <span className="sr-only">{change.routingWords}</span>
           </span>

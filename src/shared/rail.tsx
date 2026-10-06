@@ -63,7 +63,7 @@ export type RailAct =
   | { readonly kind: 'open-type'; readonly type: string; readonly open: boolean }
   | { readonly kind: 'show-every-type' };
 
-export interface RailProps {
+interface RailProps {
   readonly rows: RailRows;
   readonly onAct: (act: RailAct) => void;
   // Departure: a function of the type and not one node. More than one type may stand unfolded,

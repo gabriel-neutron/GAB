@@ -30,7 +30,7 @@ import {
   type StructureState,
 } from './structure';
 
-export interface DetailPageProps {
+interface DetailPageProps {
   readonly dossier: Dossier;
   /** The source named by `?src=`, read once by the route. `null` is the normal arrival. */
   readonly arrivedAtSource: DocId | null;
