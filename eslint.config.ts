@@ -173,7 +173,13 @@ export default defineConfig(
       'vitest/no-focused-tests': 'error',
       'vitest/no-disabled-tests': 'error',
       'vitest/no-identical-title': 'error',
+      'vitest/no-conditional-tests': 'error',
       'vitest/valid-expect': 'error',
+      'vitest/valid-describe-callback': 'error',
+      // A test with no assertion reports a safety that it does not give. A helper that holds the
+      // `expect` is named here. An `afterAll` that counts the rows a suite left is an assertion too.
+      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'refusedGeom'] }],
+      'vitest/no-standalone-expect': ['error', { additionalTestBlockFunctions: ['afterAll'] }],
     },
   },
 );
