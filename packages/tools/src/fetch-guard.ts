@@ -17,10 +17,8 @@ export interface Resolved {
 export class FetchRefusal extends Error {}
 
 // External constraint: the special-purpose ranges of the IANA registries. A range that carries an
-// IPv4 address inside an IPv6 one is refused whole, because the address inside can be private. The
-// IPv4-compatible range (::/96, with the unspecified address and the loopback address in it) and
-// the IPv4-translated range (::ffff:0:0:0/96) are two of these. The site-local range (fec0::/10)
-// and the segment-routing range (5f00::/16) are never public.
+// IPv4 address inside an IPv6 one (::/96, ::ffff:0:0:0/96) is refused whole, because the address
+// inside can be private. The site-local and the segment-routing ranges are never public.
 const REFUSED = new BlockList();
 for (const [network, prefix] of [
   ['0.0.0.0', 8],

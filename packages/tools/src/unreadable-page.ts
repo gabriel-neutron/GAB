@@ -1,7 +1,5 @@
-// A server answers 200 to a request from a machine and gives a page that is not the page. A
-// challenge of a bot filter and a "not found" page that carries a success status are two cases.
-// Their bytes are bytes of the origin, but they are no record of the source, and a stored copy
-// could be cited as one. This module judges the text of an answer and stores nothing.
+// A bot challenge or a "not found" page can come with a success status. Its bytes come from the
+// origin, but they are no record of the source, and a stored copy could be cited as one.
 
 /** A text longer than this is an article or a record, and an article can mention a captcha. */
 export const SHORT_PAGE = 1500;
