@@ -41,7 +41,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The type check, the lint and the format check.
-      - run: pnpm run check:static
+      - run: pnpm run check
 
       # The bundle guard reads the emitted chunks, so the build is the only way to reach it.
       - run: pnpm run build
@@ -82,7 +82,7 @@ jobs:
       - name: a throwaway environment for the stack
         run: |
           while IFS= read -r line; do
-            if [[ "$line" =~ ^([A-Z_][A-Z0-9_]*)= ]]; then
+            if [[ "$line" =~ ^[[:space:]]*([A-Z_][A-Z0-9_]*)[[:space:]]*= ]]; then
               echo "${BASH_REMATCH[1]}=$(openssl rand -hex 16)"
             fi
           done < infra/.env.example > infra/.env

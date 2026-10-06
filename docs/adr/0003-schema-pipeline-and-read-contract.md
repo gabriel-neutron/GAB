@@ -61,9 +61,8 @@ A grant, not a prompt, controls each write. The rule is by layer, not by table:
 ## Generated types and the read layer
 
 Kanel generates the types of `api` into one folder, and the user interface imports it. No type is
-generated from `public`, because no code read those types. We chose Kanel
-by a test with geometry, vector and JSON columns: it gave useful types where the other tool gave
-`any`.
+generated from `public`, because no code used those types. We chose Kanel by a test with geometry,
+vector and JSON columns: it gave useful types where the other tool gave `any`.
 
 PostgREST serves the `api` schema over HTTP as the read role. This generated layer cannot widen what
 a reader sees, because the grants of the read role hold that limit. To add a read, write a view. ADR

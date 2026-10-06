@@ -10,7 +10,7 @@ import { processDatabase } from 'kanel';
 import { format, resolveConfig } from 'prettier';
 
 import { committedFolder, kanelConfiguration } from './kanel-configuration.ts';
-import { chosenDatabase, type DatabaseName } from './test-database.ts';
+import type { DatabaseName } from './test-database.ts';
 
 // Prettier reads its options from the folder of the file it formats. The anchor is a path inside
 // the repository, so a scratch copy gets the options the committed folder gets.
@@ -40,8 +40,10 @@ export const writeDatabaseTypes = async (folder: string, database: DatabaseName)
   await formatFolder(folder);
 };
 
+// Departure: the command reads the test database, as the drift check does. A new migration then
+// reaches the committed types after `pnpm db:reset`, and the record does not have to run it first.
 if (argv[1] === fileURLToPath(import.meta.url)) {
-  await writeDatabaseTypes(committedFolder, chosenDatabase(process.env)).catch((error: unknown) => {
+  await writeDatabaseTypes(committedFolder, 'gabriel_test').catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
   });
