@@ -53,7 +53,7 @@ flowchart LR
 |---|---|---|
 | Operator | Upload, edit, promote, reject, rate a source. | — |
 | Research AI | Read, fetch and store documents, propose a change, queue a job. | Promote. |
-| Worker agents | Read a document, write readings, propose a change. | Promote. |
+| Worker agents | Read a document, propose a change with the passage that states it. | Promote. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database, not the application, holds these limits.
@@ -88,7 +88,7 @@ a file  →  one ingestion door (P6)
              → text extraction
              → a job in the queue
                   → text file: the extractor reads the text as it is stored and
-                    proposes claims
+                    proposes claims, each with a checked excerpt
                   → structured file: a mapping proposal; after promotion, code loads the rows
 every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
 promotion       →  entities and relations (the evidentiary layer)
@@ -100,6 +100,12 @@ writes no target. A rejected proposal is kept as a record.
 An edit of the operator is a proposal and its promotion in one transaction, so it is written whole
 or not at all. Only the operator role holds the promotion, so a machine proposes and never decides.
 A value that an act keeps keeps each document that it already cites.
+
+A machine proposes through one door, which takes a batch. Each act of a machine cites a page and a
+span of stored text, which code found from a quoted excerpt. The door writes the act and its
+citations together, refuses the whole batch on one fault, and returns a pending act that it
+already holds instead of a duplicate. The cited passage is private and reaches only the review
+card of the operator.
 
 ## Technical baseline
 

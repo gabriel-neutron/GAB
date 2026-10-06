@@ -45,11 +45,16 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, propos
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
+-- THE CITED PASSAGE IS PRIVATE FOR THE SAME REASON. The writer reads it for the review card as
+-- gabriel_app. No view of the read API shows it.
+GRANT SELECT ON citation TO gabriel_app;
+
 -- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
   FROM PUBLIC;
+REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
@@ -65,8 +70,6 @@ REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION second_read_done(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 
@@ -83,8 +86,11 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
   TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
-  TO gabriel_agent, gabriel_app, gabriel_research;
+-- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
+-- batch with a citation for each act, and it has no door that writes an act with no citation.
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+  TO gabriel_app;
+GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
@@ -115,16 +121,6 @@ GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 REVOKE ALL ON FUNCTION document_jobs(text)         FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION document_jobs(text)      TO gabriel_app;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
-
--- THE READING DOOR IS gabriel_agent ALONE. Only the worker that ran the reader knows what it read,
--- and the door writes claim_reading and nothing else. No role holds a grant on claim_reading or on
--- citation: the revoke above covers both, because this file runs after the migrations.
-GRANT EXECUTE ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text)
-  TO gabriel_agent;
-
--- THE CHECK OF A CHUNK THAT IS READ IS gabriel_agent ALONE. It answers yes or no for the job that
--- the caller holds, and it returns no row of the readings.
-GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --

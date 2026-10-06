@@ -1,6 +1,8 @@
 // The write-authorisation model, stated as privileges. Every sentence here was a hand check
 // before it was a test.
 
+import { randomUUID } from 'node:crypto';
+
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -178,15 +180,40 @@ test('gabriel_read carries a five second statement timeout', async () => {
 // with. `inherited` says no document supports the value, and that is a claim only a person makes.
 const RESERVED = ['manual', 'inherited'] as const;
 
+// The operator proposes through its own door, and a machine through the batch door, which also
+// writes a citation of a page of text. So the document that the machine cites holds one page.
 const cites = (document: string): string => `SELECT public.propose_change('create_entity',
-  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[],
-  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
+  '{"type":"vessel","label":"A perimeter test"}'::jsonb, ARRAY['${document}']::text[]) AS id`;
 
 const made = z.array(z.object({ id: z.uuid() }));
 
-// A machine act names its call, and the agent holds the one door that records it. The operator
-// names none.
-const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise<string | null> => {
+// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
+// document the act cites and its page, and removes both after. No act that cites it survives the
+// rollback.
+const ORDINARY = 'doc_perimeter_value_source';
+const TEXT_SET = 'perimeter@1';
+
+const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
+  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
+const PUT_PAGE = `INSERT INTO public.document_text (document_id, extractor, page, text)
+  VALUES ($1, $2, 1, 'A perimeter test') ON CONFLICT DO NOTHING`;
+
+beforeAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask(PUT_ORDINARY, [ORDINARY]);
+    await ask(PUT_PAGE, [ORDINARY, TEXT_SET]);
+  });
+});
+
+afterAll(async () => {
+  await probe('superuser', async (ask) => {
+    await ask('DELETE FROM public.document_text WHERE document_id = $1', [ORDINARY]);
+    await ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]);
+  });
+});
+
+// A machine act names its call, and the agent holds the one door that records it.
+const callOf = async (identity: 'agent' | 'research', ask: Ask): Promise<string | null> => {
   if (identity !== 'agent') return null;
   const [row] = made.parse(
     await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
@@ -195,73 +222,69 @@ const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise
   return row?.id ?? null;
 };
 
-const proposeCiting = (
-  identity: 'app' | 'agent' | 'research',
-  document: string,
+const machineProposes = (
+  identity: 'agent' | 'research',
+  src: readonly string[],
+  attrs: Readonly<Record<string, unknown>> = {},
 ): Promise<readonly unknown[]> =>
-  rolledBack(identity, async (ask) => ask(cites(document), [await callOf(identity, ask)]));
+  rolledBack(identity, async (ask) =>
+    ask('SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)', [
+      JSON.stringify([
+        {
+          id: randomUUID(),
+          op: 'create_entity',
+          payload: { type: 'vessel', label: 'A perimeter test', attrs },
+          src,
+          names: [],
+          model_call_id: await callOf(identity, ask),
+          originator: 'A perimeter test',
+          modality: 'asserts',
+          citations: [{ document: ORDINARY, text_extractor: TEXT_SET, page: 1, start: 0, end: 4 }],
+        },
+      ]),
+    ]),
+  );
+
+// The batch door names the item and the rule, and gives the sentence of the rule.
+const violates = (constraint: string) => ({
+  code: '22023',
+  constraint,
+  message: expect.stringMatching(/^item 1: /u) as string,
+});
 
 for (const document of RESERVED) {
   test(`a machine proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('agent', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-      message: 'a machine cannot cite the reserved documents manual and inherited',
-    });
+    await expect(machineProposes('agent', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`a research proposal that cites ${document} is refused`, async () => {
-    await expect(proposeCiting('research', document)).rejects.toMatchObject({
-      code: '23514',
-      constraint: 'proposals_machine_not_reserved',
-    });
+    await expect(machineProposes('research', [ORDINARY, document])).rejects.toMatchObject(
+      violates('proposals_machine_not_reserved'),
+    );
   });
 
   test(`an operator proposal that cites ${document} is accepted`, async () => {
-    expect(made.parse(await proposeCiting('app', document))).toHaveLength(1);
+    expect(made.parse(await rolledBack('app', (ask) => ask(cites(document))))).toHaveLength(1);
   });
 }
 
-// Departure: an agent reads no uncommitted row of another session, so the suite commits the one
-// document the act cites, and removes it after. No act that cites it survives the rollback.
-const ORDINARY = 'doc_perimeter_value_source';
-
-const PUT_ORDINARY = `INSERT INTO public.documents (id, kind, title)
-  VALUES ($1, 'url', 'A perimeter test of a value source') ON CONFLICT (id) DO NOTHING`;
-
-beforeAll(async () => {
-  await probe('superuser', (ask) => ask(PUT_ORDINARY, [ORDINARY]));
-});
-
-afterAll(async () => {
-  await probe('superuser', (ask) => ask('DELETE FROM public.documents WHERE id = $1', [ORDINARY]));
-});
-
 const valueCites = (value: string, act: readonly string[]): Promise<readonly unknown[]> =>
-  rolledBack('agent', async (ask) =>
-    ask(
-      `SELECT public.propose_change('create_entity', jsonb_build_object('type', 'vessel',
-         'label', 'A perimeter test', 'attrs', jsonb_build_object('flag',
-         jsonb_build_object('v', 'PA', 'src', jsonb_build_array($1::text)))), $2::text[],
-         NULL, NULL, '{}', NULL, false, $3::uuid) AS id`,
-      [value, act, await callOf('agent', ask)],
-    ),
-  );
+  machineProposes('agent', act, { flag: { v: 'PA', src: [value] } });
 
 // Departure: no rule reads a reserved word inside a value. A value source stays inside the act
 // sources, so a reserved word in a value is either missing from them or cited by the act.
 test('a machine value that cites manual where the act does not is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_src_within',
-  });
+  await expect(valueCites('manual', [ORDINARY])).rejects.toMatchObject(
+    violates('proposals_src_within'),
+  );
 });
 
 test('a machine value that cites manual where the act does is refused', async () => {
-  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject({
-    code: '23514',
-    constraint: 'proposals_machine_not_reserved',
-  });
+  await expect(valueCites('manual', [ORDINARY, 'manual'])).rejects.toMatchObject(
+    violates('proposals_machine_not_reserved'),
+  );
 });
 
 test('a machine value that cites the document of its act is accepted', async () => {

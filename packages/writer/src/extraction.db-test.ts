@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import { openStore, putObject } from '@gab/store';
 import { Pool } from 'pg';
@@ -85,11 +85,35 @@ const proposedBy = async (jobId: string, documentId: string): Promise<string> =>
        $2::uuid, 'a-model') AS id`,
     [SHA, jobId],
   );
+  const page = await owner.query<{ extractor: string }>(
+    'SELECT extractor FROM public.document_text WHERE document_id = $1 AND page = 1',
+    [documentId],
+  );
   const made = await agent.query<{ id: string }>(
-    `SELECT public.propose_change('create_entity',
-       '{"type":"vessel","label":"MV Test Ledger"}'::jsonb, ARRAY[$1]::text[], NULL, NULL, '{}',
-       NULL, false, $2::uuid) AS id`,
-    [documentId, call.rows[0]?.id],
+    'SELECT proposal_id AS id FROM public.propose_batch($1::jsonb)',
+    [
+      JSON.stringify([
+        {
+          id: randomUUID(),
+          op: 'create_entity',
+          payload: { type: 'vessel', label: 'MV Test Ledger' },
+          src: [documentId],
+          names: [],
+          model_call_id: call.rows[0]?.id,
+          originator: 'A register',
+          modality: 'asserts',
+          citations: [
+            {
+              document: documentId,
+              text_extractor: page.rows[0]?.extractor,
+              page: 1,
+              start: 0,
+              end: 14,
+            },
+          ],
+        },
+      ]),
+    ],
   );
   return made.rows[0]?.id ?? '';
 };

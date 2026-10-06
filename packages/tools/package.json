@@ -9,9 +9,7 @@
     "./fetch-document": "./src/fetch-document.ts",
     "./fetch-guard": "./src/fetch-guard.ts",
     "./lookup-entity": "./src/lookup-entity.ts",
-    "./propose-change": "./src/propose-change.ts",
-    "./put-claim-reading": "./src/put-claim-reading.ts",
-    "./reading": "./src/reading.ts",
+    "./propose": "./src/propose.ts",
     "./tool": "./src/tool.ts"
   },
   "dependencies": {

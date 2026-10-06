@@ -1,3 +1,5 @@
 {
-  "rewrites": [{ "source": "/((?!assets/|write/|write$).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/((?!assets/|write/|write$|private/).*)", "destination": "/index.html" }
+  ]
 }
