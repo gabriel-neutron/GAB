@@ -28,6 +28,7 @@ const DOORS = {
   put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
   put_claim_reading:
     'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
+  second_read_done: 'public.second_read_done(uuid,text,text,text)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -75,6 +76,7 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     put_document_text: true,
     put_fetched_document: true,
     put_claim_reading: true,
+    second_read_done: true,
   });
 });
 
@@ -100,6 +102,7 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     put_document_text: true,
     put_fetched_document: true,
     put_claim_reading: false,
+    second_read_done: false,
   });
 });
 
@@ -139,6 +142,7 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     put_document_text: true,
     put_fetched_document: false,
     put_claim_reading: false,
+    second_read_done: false,
   });
 });
 

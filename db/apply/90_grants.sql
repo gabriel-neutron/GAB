@@ -71,6 +71,7 @@ REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLI
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION second_read_done(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 
@@ -182,6 +183,10 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 -- citation: the revoke above covers both, because this file runs after the migrations.
 GRANT EXECUTE ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text)
   TO gabriel_agent;
+
+-- THE CHECK OF A CHUNK THAT IS READ IS gabriel_agent ALONE. It answers yes or no for the job that
+-- the caller holds, and it returns no row of the readings.
+GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
