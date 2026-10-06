@@ -13,7 +13,7 @@ with another part. Do not make a package for a plan or for a preference.
 
 Under `src/`, there are four kinds of folder:
 
-- **A feature.** One surface of the user interface, in one flat folder.
+- **A feature.** One surface of the user interface, in one folder.
 - **`shared/`.** The user interface kit, and what one feature needs from another feature.
 - **`routes/`.** The route files that the router reads.
 - **A generated folder.** ADR 0003 tells what writes it and who can import it.
