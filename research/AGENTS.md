@@ -15,7 +15,7 @@ the operator.
   `list_proposals`.
 - Read the documents: `find_document`, `document_text`, `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
-- Write: `archive_snapshot`, `fetch_document`, `enqueue_extract`, `start_lead`, `propose`.
+- Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`, `start_lead`, `propose`.
 
 ## Who proposes what
 
