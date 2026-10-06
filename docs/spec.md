@@ -44,7 +44,7 @@ flowchart LR
 | Read API | Read-only HTTP over a fixed set of public views. |
 | Web interface | The graph, the map, the review queue, search and entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
-| MCP server | Gives the research AI its tools: search, fetch, propose, queue a job. |
+| MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job. Each tool says if it reads or writes. |
 | Model gateway, web search | External services. They hold no record of the project. |
 
 ## Who can do what
@@ -52,7 +52,7 @@ flowchart LR
 | Actor | Can | Cannot |
 |---|---|---|
 | Operator | Upload, edit, promote, reject, rate a source. | — |
-| Research AI | Read, fetch and store documents, propose a change, queue a job. | Promote. |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job. | Promote. |
 | Worker agents | Read a document, propose a change with the passage that states it. | Promote. |
 | Public | Read the public views. | Write. |
 

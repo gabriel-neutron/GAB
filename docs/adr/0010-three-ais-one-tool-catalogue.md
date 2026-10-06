@@ -1,7 +1,8 @@
 # ADR 0010 — Three AIs share one tool catalogue
 
 **Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
-table, not a source rule, now decides promotion.
+table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
+2026.
 
 ## Context
 
@@ -29,10 +30,22 @@ its job, because a small model chooses badly among many tools. The code of the a
 list.
 
 The operator AI reaches the catalogue through an MCP server, with no tool limit, because Claude Code
-and Codex are large models. With it, the operator AI can do each action that the research needs. The
-MCP tools follow the deep-module rule: few tools, each one a group of related actions. A new
-external source is a new catalogue tool and a new action of a group. This ADR fixes no list of
+and Codex are large models. With it, the operator AI can do each action that the research needs.
+
+**The MCP tools are flat.** Each catalogue tool is one MCP tool, with its own exact input schema
+and a hint that says whether it reads or writes. So the permission rules of Claude Code and Codex
+allow each read and ask the operator before each write. A group of tools behind one envelope was
+tried first: a model guessed the action names and the shape of the input, and a client could not
+allow the reads alone. A new external source is a new catalogue tool. This ADR fixes no list of
 tools.
+
+- The reads let the AI see the record before it proposes: an entity with its relations and
+  sources, the pending proposals, the vocabulary, a stored document, and the jobs of a document.
+- No input asks for a value that only a runner knows. The runner gives the record of its model
+  call to the propose tool in code, and the door makes the duplicate key from the act.
+- **A refusal says what to correct.** A shape refusal names the field and says how to write it. A
+  refusal of the record gives the sentence of the rule and its field. A fault of the connection
+  or of a role gives its code alone, because its text can name a host or a role.
 
 ## Machine roles propose, and only the operator or the rule promotes
 
@@ -75,7 +88,9 @@ word loses its claim, and an excerpt proves only that the page holds the words.
 AI through the writer would enter the evidence as an operator act that nothing tells apart.
 
 **The research workspace is separate from the build workspace.** A research session must not read
-the operator secret.
+the operator secret. Its rules override the build rules of the repository, so a research session
+never changes code and never commits. It reaches the object store by its address, so the store
+can run on another machine.
 
 ## External sources are reached on demand
 

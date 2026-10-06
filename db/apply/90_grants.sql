@@ -116,10 +116,11 @@ GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
 
--- THE STATUS READ IS gabriel_app ALONE. The writer shows the operator the work on a document,
--- and the public read holds no door of the queue.
+-- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
+-- a document, and the research AI follows the extraction that it queued. The door returns a count
+-- of proposals and no row of a model call. The public read holds no door of the queue.
 REVOKE ALL ON FUNCTION document_jobs(text)         FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION document_jobs(text)      TO gabriel_app;
+GRANT EXECUTE ON FUNCTION document_jobs(text)      TO gabriel_app, gabriel_research;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
@@ -169,13 +170,13 @@ GRANT SELECT  ON api.document, api.document_provider, api.entity, api.entity_typ
   api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
--- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH FIVE VIEWS ONLY. A tool asks for
--- an entity, a relation, a proposal, a document or a job, and for the neighbourhood of one entity.
--- The list is written by name and never as ALL TABLES. A view added later opens to nobody by
--- default.
+-- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH SEVEN VIEWS ONLY. A tool asks
+-- for an entity, a relation, a proposal, a document, a job or a word of the two vocabularies, and
+-- for the neighbourhood of one entity. The list is written by name and never as ALL TABLES. A
+-- view added later opens to nobody by default.
 GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
-GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job
-  TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job, api.entity_type,
+  api.relation_type TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
   TO gabriel_app, gabriel_agent, gabriel_research;
 

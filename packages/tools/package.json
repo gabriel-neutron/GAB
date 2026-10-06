@@ -8,8 +8,8 @@
     "./document-text": "./src/document-text.ts",
     "./fetch-document": "./src/fetch-document.ts",
     "./fetch-guard": "./src/fetch-guard.ts",
-    "./lookup-entity": "./src/lookup-entity.ts",
     "./propose": "./src/propose.ts",
+    "./search-graph": "./src/search-graph.ts",
     "./tool": "./src/tool.ts"
   },
   "dependencies": {

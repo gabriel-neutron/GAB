@@ -47,15 +47,28 @@ const listedTools = (text: string): string[] =>
   [...text.matchAll(/^- `([a-z][a-z0-9_]*)`/gmu)].map((match) => match[1] ?? '');
 
 // Departure: the compile target of this folder does not hold the MCP package, and a static import
-// would pull the whole catalogue into it. The test loads the groups when it runs, and checks their
+// would pull the whole catalogue into it. The test loads the surface when it runs, and checks its
 // shape, so a wrong shape fails here and not as a silent empty set.
-const groupsModule = z.object({ RESEARCH_GROUPS: z.record(z.string(), z.array(z.string())) });
+const surfaceModule = z.object({
+  RESEARCH_TOOLS: z.record(z.string(), z.object({ readOnlyHint: z.boolean() })),
+});
 
-const { RESEARCH_GROUPS } = groupsModule.parse(
-  await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'groups.ts')).href),
+const { RESEARCH_TOOLS } = surfaceModule.parse(
+  await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'surface.ts')).href),
 );
 
-const RESEARCH = new Set(Object.values(RESEARCH_GROUPS).flat());
+const RESEARCH = new Set(Object.keys(RESEARCH_TOOLS));
+
+// A name in back quotes with an underscore is a tool, unless it is one of these words of the
+// record that a skill shows as an example.
+const RECORD_WORDS = new Set(['legal_act', 'capacity_dwt']);
+
+const namedTools = (text: string): string[] =>
+  [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)]
+    .map((match) => match[1] ?? '')
+    .filter((name) => !RECORD_WORDS.has(name));
+
+const RULES = path.join(ROOT, 'research', 'AGENTS.md');
 
 test.each(SKILLS)('the skill %s has a source file', (skill) => {
   expect(existsSync(sourceOf(skill)), `${shown(sourceOf(skill))} is absent`).toBe(true);
@@ -89,6 +102,31 @@ test.each(SKILLS)(
       ).toBe(true);
   },
 );
+
+test.each([...SKILLS.map(sourceOf), RULES])('each tool that %s names is offered', (file) => {
+  for (const tool of namedTools(read(file)))
+    expect(
+      RESEARCH.has(tool),
+      `${shown(file)} names ${tool}, which the server does not offer`,
+    ).toBe(true);
+});
+
+test('the rules of the workspace name each tool of the server', () => {
+  const named = new Set(namedTools(read(RULES)));
+  for (const tool of RESEARCH)
+    if (tool.includes('_')) expect(named.has(tool), `AGENTS.md does not name ${tool}`).toBe(true);
+});
+
+// Claude Code runs a read with no question, and asks the operator before each other tool.
+test('the Claude Code settings allow the reads of the server, and no write', () => {
+  const settings = z
+    .object({ permissions: z.object({ allow: z.array(z.string()) }) })
+    .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
+  const reads = Object.entries(RESEARCH_TOOLS)
+    .filter(([, hints]) => hints.readOnlyHint)
+    .map(([name]) => `mcp__gab__${name}`);
+  expect([...settings.permissions.allow].sort()).toStrictEqual(reads.sort());
+});
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {
   const source = sourceOf(skill);

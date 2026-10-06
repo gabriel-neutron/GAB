@@ -269,7 +269,7 @@ export const fetchDocument = defineTool({
     'gave the pages in a proposal. A page whose bytes are already stored comes back as ' +
     '"known", and nothing is written. The pages follow the caps of document_text. An HTML page ' +
     'is also loaded in a headless browser when "render" is true, or when its text is shorter ' +
-    'than "renderBelow" characters (0 stops the render). The browser runs the scripts of the ' +
+    `than ${String(RENDER_BELOW)} characters. The browser runs the scripts of the ` +
     'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
     'address, named in "rendered"; "document" stays the bytes that the server gave. When ' +
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
@@ -280,7 +280,6 @@ export const fetchDocument = defineTool({
     fromPage: z.number().int().min(1).default(1),
     toPage: z.number().int().min(1).optional(),
     render: z.boolean().default(false),
-    renderBelow: z.number().int().min(0).default(RENDER_BELOW),
   }),
   output: outputShape,
   async run(session, input, reach) {
@@ -332,12 +331,12 @@ export const fetchDocument = defineTool({
     const html = mime === 'text/html';
     if (input.render && !html)
       notices.push(`only an HTML page is rendered, and this answer is ${mime}`);
-    if (html && !input.render && allText < input.renderBelow)
+    if (html && !input.render && allText < RENDER_BELOW)
       notices.push(
         `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
       );
 
-    if (html && (input.render || allText < input.renderBelow)) {
+    if (html && (input.render || allText < RENDER_BELOW)) {
       // The plain document is stored first, so a fault of the browser loses no part of it.
       const page = await renderedOf(got, mime, getOptions, notices);
       if (page !== null) {
