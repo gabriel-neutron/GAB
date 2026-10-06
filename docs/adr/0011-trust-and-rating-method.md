@@ -119,7 +119,7 @@ migration drops it.
 
 | Task | Code | Agents | Operator |
 |---|---|---|---|
-| Capture, hash, archive, deep-link check, hidden-text strip | Yes | Collector | - |
+| Capture, hash, archive, deep-link check, hidden-text mask | Yes | Collector | - |
 | OCR of images (Tesseract rus+ukr+eng, versioned) | Yes | - | - |
 | Span check, identity check, date check, sanctions-list match by entry id, register-card host check | Yes | - | - |
 | Personal-data minimisation before each model call, with same-length placeholders (§3.2) | Yes | - | - |
@@ -152,8 +152,9 @@ or reader where it can:
   Code finds the bounding boxes of both names in the OCR output and the connector line between
   them. Without a passed layout check, the relation stays a lead, and the chart row gives a name
   citation only.
-- Free text: reader 2 is a model of another family, given the untouched HTML or a screenshot
-  (another input form) when possible.
+- Free text: reader 2 is a model of another family. In v1 it reads the same stored, minimised
+  text as reader 1 (amended 6 October 2026). The untouched HTML or a screenshot is a later input
+  form.
 - Each citation stores `same_family`. A claim whose only readings are same-family never anchors and
   never counts for gate path (c). It can still be ATTRIBUTED (§8 row 8).
 - **Family probe (weekly, code).** Code reads `same_family` and "served-model mismatch" from the
@@ -166,7 +167,10 @@ or reader where it can:
 - Disagreement on a field: that field is HELD and goes to the search loop. The gate never takes a
   majority of model votes.
 - Fail closed: when no second reading exists (an outage of the second family, or a served-model
-  mismatch that refuses the answer), the claim is HELD (§8 row 3a). The job pauses and resumes. It
+  mismatch that refuses the answer), the claim is HELD (§8 row 3a). Amended 6 October 2026: the
+  check job waits in the queue while a reader job of the document is queued or running. When the
+  second reading is terminal (failed or absent), the check job writes the held row and stops with
+  `no_second_reading`. A new extraction request queues the readers and the check again. It
   never falls back to one reading. This is the only case in which the model family puts a claim in
   HELD. A second reading with `same_family = true` or `unknown` blocks only anchor use and gate
   path (c) use (lock L16).
@@ -525,7 +529,7 @@ only with its own claim-level citation.
 | 1 | REJECTED | Integrity fails (hash, span, or identity not cured in 90 days); the only source is an AI answer or a broken value; an issuer record or a verified observation contradicts; a canary | No (the audit log keeps it) |
 | 2 | HELD (legal) | The claim has an adverse predicate about a named person or company in the claim span (§13 item b), it is not class 1 (§13) or it is a party court act about the adversary (§13 item c.1), and the denial search has not run on the current version of the claim | No |
 | 3 | HELD (v1 inherited) | A v1 claim whose only reference is the parent unit's document, or an entity-level URL with no span for this claim (Q6) | No. The parent's document and the entity-level URL are leads for the search loop. |
-| 3a | HELD (fail closed) | No second reading exists (outage, served-model mismatch, §3.1); the two readers disagree on a field; the identity check is pending; the document is unreadable (dead link, captcha, channel link with no post); a check cannot run | No. The job or the search loop resumes. |
+| 3a | HELD (fail closed) | No second reading exists (outage, served-model mismatch, §3.1); the two readers disagree on a field; the identity check is pending; the document is unreadable (dead link, captcha, channel link with no post); the modality of a reading is stronger than its span window allows (`modality_exceeds_window`); a check cannot run | No. A new extraction request or the search loop resumes. |
 | 4 | **ACCEPTED gate path (a), record** | An `issuer` + `enacts` span from a register-card host; two readers of different kind (parser or input form); identifiers pass; K = 0 against anchors; the parameter row `path_a.<cell>` exists. A party originator can anchor gate path (a) only for its own act as issuer with a register card (for example a kremlin.ru decree). Its other content stays ATTRIBUTED. If the claim has an adverse predicate about a named person or company (§13 item b), the act must be class 1 (§13 item c.1); else row 8. A court act of a belligerent about a national or a body of the adversary uses the party wording of §13 item c.1. | Yes, GAB voice, status wording with as-of date |
 | 5 | **ACCEPTED gate path (b), observation** | A verified observation of the tested fields, from a geolocation originator at letter B or better on the gold set; K = 0; the parameter row `path_b` exists. For a field that the observation did not test, one more origin that meets row 6, items 2-7. Without it, only the tested fields go public in GAB voice, and the untested field stays ATTRIBUTED. A claim with an adverse predicate about a named person or company never uses this row; it goes to row 8 (§6.3). | Yes, GAB voice, tested fields only |
 | 6 | **ACCEPTED gate path (c), corroborated** | All must be true: (1) two or more origin groups; (2) each leg is from an identified on-record originator with a canonical id, and has `first_hand` access with a structural mark (§5.1); (3) no leg has `party = true` or `party = unknown`; (4) no leg has `sanctioned_origin` or letter E; (5) no leg is a repeater; (6) no leg has `post_hoc = true`; (7) no leg rests on readings with `same_family = true` or `unknown`; (8) the legs are independent of each other under L23, and no language pair is uncalibrated; (9) no two legs share an owner or controller; (10) event windows overlap and K = 0; (11) the claim has no adverse predicate about any named person or company in the claim span (§13 item b); (12) as a second guard, the claim is not adverse about a named natural person; (13) the parameter row `path_c.<cell>` exists for the format cell of each leg (§12). | Yes, as a GAB assessment with moderate confidence |
@@ -679,7 +683,7 @@ Rate limit: 20 items per origin per day.
 - **L8** Issuer access needs a register-card host over TLS.
 - **L9** `post_hoc` comes from capture dates only.
 - **L10** Agent outputs are offsets and enums; code re-reads spans from the untouched copy; code
-  strips and flags hidden text.
+  masks hidden text with a placeholder of the same length in code points (U+FFFC), and flags it.
 - **L11** No parameter row = rule off (this includes `path_a.<cell>`, `path_b` and
   `path_c.<cell>`).
 - **L12** Agent agreement is never an origin and never ground truth.
@@ -1203,7 +1207,7 @@ operator answer, and that the operator accepted).
 | A5 | Backdating a page | §6.2, L9 | FIXED | An early capture with a forged date counts for attribution only. |
 | A6 | Mirror substitution (lursoft) | L8 | FIXED | - |
 | A7 | Lookalike issuer host, forged PDF | Register card with TLS names; bulk-file hash | FIXED | A hacked real issuer page (R3). |
-| A8 | Prompt injection | L10, L19; hidden-text strip | PARTLY | Visible injected text can bias offsets. |
+| A8 | Prompt injection | L10, L19; hidden-text mask | PARTLY | Visible injected text can bias offsets. |
 | A9 | Many false dispute reports | §14.3 leg conditions; queue; rate limit | FIXED | A true unlinked complaint waits. |
 | A10 | "All agents are Claude; no second family" | §3.1 parser, OCR, other input, `same_family`, probe, L16 | PARTLY | R1. |
 | A11 | Western and English bias | Language lock; local registers; per-cell bound; fairness rates | PARTLY | R2, R20. |

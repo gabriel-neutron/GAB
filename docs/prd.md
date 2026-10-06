@@ -106,7 +106,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 ## 5. What Gabriel does not do
 
 - **No interactive geometry editor** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
-- **No OCR** (P5). A scan is converted outside the tool before ingestion.
+- **No OCR as a first reading** (P5, amended by ADR 0011 §3.1). Code runs OCR on a stored image only as its second reading. A scanned PDF is converted outside the tool before ingestion.
 - **No audio, no video** (P5).
 - **No heavy satellite imagery processing.** Scope only.
 - **No drafting.** Scope only. Gabriel supplies the material and the references.
