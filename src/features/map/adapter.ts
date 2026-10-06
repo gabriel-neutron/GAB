@@ -33,7 +33,7 @@ type StyleSpec = Exclude<MapOptions['style'], string | undefined>;
 type LayerSpec = StyleSpec['layers'][number];
 type SourceSpec = StyleSpec['sources'][string];
 
-export interface MountMapOptions {
+interface MountMapOptions {
   // The content of this element must not decide its size. This file writes the canvas size with
   // `map.resize()`, and a container that sizes to its canvas makes a loop with the observer.
   readonly container: HTMLElement;

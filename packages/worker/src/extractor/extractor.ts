@@ -24,7 +24,7 @@ import type { ReaderConfig } from '../reader-config.ts';
 export const EXTRACTOR_NAME = 'extractor';
 const VERSION = 'v2';
 
-/** The three tools of the profile. A test gives a stub for each one. */
+/** The three tools of the extractor. A test gives a stub for each one. */
 export interface ExtractorTools {
   readonly documentText: Tool;
   readonly lookupEntity: Tool;

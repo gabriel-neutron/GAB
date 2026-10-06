@@ -1,5 +1,5 @@
 // The research workspace states each research procedure once, as a skill. A skill that names a tool
-// the research profile does not offer sends the model to a tool it cannot call, and a Codex copy
+// the research MCP server does not offer sends the model to a tool it cannot call, and a Codex copy
 // that differs from its Claude source gives the two clients two procedures. The test reads text
 // and opens no socket.
 
@@ -46,32 +46,16 @@ const section = (body: string, heading: string): string | undefined => {
 const listedTools = (text: string): string[] =>
   [...text.matchAll(/^- `([a-z][a-z0-9_]*)`/gmu)].map((match) => match[1] ?? '');
 
-const codeNames = (text: string): string[] =>
-  [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)].map((match) => match[1] ?? '');
-
-// Departure: the compile target of this folder does not hold the tool package, and a static import
-// would pull the whole catalogue into it. The test loads the profiles when it runs, and checks
-// their shape, so a wrong shape fails here and not as a silent empty set.
-const profilesModule = z.object({
-  PROFILES: z
-    .record(z.string(), z.array(z.string()))
-    .and(z.object({ research: z.array(z.string()) })),
-});
-
-const { PROFILES } = profilesModule.parse(
-  await import(pathToFileURL(path.join(ROOT, 'packages', 'tools', 'src', 'profiles.ts')).href),
-);
-
-// The research MCP server offers each tool of its groups, so a skill may name a tool that a group
-// offers and the profile does not hold, such as the entity lookup that the profile left out.
+// Departure: the compile target of this folder does not hold the MCP package, and a static import
+// would pull the whole catalogue into it. The test loads the groups when it runs, and checks their
+// shape, so a wrong shape fails here and not as a silent empty set.
 const groupsModule = z.object({ RESEARCH_GROUPS: z.record(z.string(), z.array(z.string())) });
 
 const { RESEARCH_GROUPS } = groupsModule.parse(
   await import(pathToFileURL(path.join(ROOT, 'packages', 'mcp', 'src', 'groups.ts')).href),
 );
 
-const RESEARCH = new Set([...PROFILES.research, ...Object.values(RESEARCH_GROUPS).flat()]);
-const EVERY_PROFILE_TOOL = new Set(Object.values(PROFILES).flat());
+const RESEARCH = new Set(Object.values(RESEARCH_GROUPS).flat());
 
 test.each(SKILLS)('the skill %s has a source file', (skill) => {
   expect(existsSync(sourceOf(skill)), `${shown(sourceOf(skill))} is absent`).toBe(true);
@@ -91,27 +75,17 @@ test.each(SKILLS)('the skill %s has the sections Tools, Steps and Never', (skill
     expect(section(body, heading), `${skill} has no section "## ${heading}"`).toBeDefined();
 });
 
-test.each(SKILLS)('each tool under the Tools section of %s is in the research profile', (skill) => {
-  const { body } = split(read(sourceOf(skill)));
-  const tools = listedTools(section(body, 'Tools') ?? '');
-
-  expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
-  for (const tool of tools)
-    expect(
-      RESEARCH.has(tool),
-      `${skill} lists ${tool}, which the research surface does not offer`,
-    ).toBe(true);
-});
-
 test.each(SKILLS)(
-  'each profile tool that %s names anywhere is in the research profile',
+  'each tool under the Tools section of %s is offered by the research server',
   (skill) => {
     const { body } = split(read(sourceOf(skill)));
+    const tools = listedTools(section(body, 'Tools') ?? '');
 
-    for (const tool of codeNames(body).filter((name) => EVERY_PROFILE_TOOL.has(name)))
+    expect(tools.length, `${skill} names no tool under "## Tools"`).toBeGreaterThan(0);
+    for (const tool of tools)
       expect(
         RESEARCH.has(tool),
-        `${skill} names ${tool}, which the research surface does not offer`,
+        `${skill} lists ${tool}, which the research surface does not offer`,
       ).toBe(true);
   },
 );

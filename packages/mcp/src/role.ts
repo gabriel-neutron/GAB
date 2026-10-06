@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** The one role the server runs as. Its grants hold no door that signs as the operator. */
-export const RESEARCH_ROLE = 'gabriel_research';
+const RESEARCH_ROLE = 'gabriel_research';
 
 export const CREDENTIALS_VARIABLE = 'GAB_RESEARCH_DATABASE_URL';
 

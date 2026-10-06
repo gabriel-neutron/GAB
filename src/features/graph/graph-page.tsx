@@ -41,7 +41,7 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
   );
 });
 
-export interface GraphPageProps {
+interface GraphPageProps {
   // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
   // may hold nothing, and a later read of the record reaches the graph as a new value.
   readonly corpus: Corpus;

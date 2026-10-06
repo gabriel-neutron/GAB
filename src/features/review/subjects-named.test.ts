@@ -6,7 +6,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 import { readQueue } from './queue';
 import { subjectsNamed } from './subjects-named';
 
-const subjects = readQueue(corpus, null, entityTypes);
+const subjects = readQueue(corpus, entityTypes);
 
 describe('the review queue under the filter of the screen', () => {
   it('keeps only the subjects whose label holds the filter', () => {

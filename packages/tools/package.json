@@ -9,7 +9,6 @@
     "./fetch-document": "./src/fetch-document.ts",
     "./fetch-guard": "./src/fetch-guard.ts",
     "./lookup-entity": "./src/lookup-entity.ts",
-    "./profiles": "./src/profiles.ts",
     "./propose": "./src/propose.ts",
     "./tool": "./src/tool.ts"
   },

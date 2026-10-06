@@ -47,11 +47,6 @@ const ORIGINATOR_NAME = 'Fixture agency';
 const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
 const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
 
-// The card view of the read service must answer with a row, so the fixture holds one originator.
-// It is invented, and the door gives it letter F and a party that is unknown.
-const ORIGINATOR =
-  "SELECT ensure_originator('host:fixture.example', 'Fixture agency', 'organisation') AS id";
-
 interface Act {
   readonly op: string;
   readonly payload: Readonly<Record<string, unknown>>;
@@ -374,7 +369,6 @@ export const loadCommittedFixture = async (): Promise<void> => {
   await owner.connect();
   try {
     const documents = await loadDocuments(operator);
-    await operator.query(ORIGINATOR);
     const entities = await loadEntities(operator);
     const relations = await loadRelations(operator, entities);
     const candidates = await loadCandidates(machine, owner, entities, relations);

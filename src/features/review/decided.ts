@@ -29,7 +29,6 @@ export interface DecidedRow {
 
 const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], DoorVerdict>> = {
   accepted: 'promoted',
-  rejected: 'rejected',
 };
 
 const ACT_WORDS: Readonly<Record<ProposalOp, string>> = {

@@ -1,6 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 
-export interface UnplacedCountProps {
+interface UnplacedCountProps {
   /** How many entities the layout run never placed, and the canvas draws on the band. */
   readonly unplaced: number;
 }

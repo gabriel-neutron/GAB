@@ -46,12 +46,3 @@ for (const role of ROLES)
         message: 'permission denied for view entity',
       });
     });
-
-// The call record is the worker's, and the digest of a prompt is not for each tool. No role of a
-// tool reads it.
-for (const role of ROLES)
-  test(`gabriel_${role} cannot read api.model_call`, async () => {
-    await expect(
-      rolledBack(role, (ask) => ask('SELECT 1 FROM api.model_call')),
-    ).rejects.toMatchObject({ code: '42501' });
-  });

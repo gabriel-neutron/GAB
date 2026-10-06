@@ -1,6 +1,6 @@
 import type { UnitHierarchy } from './fold-subordinates';
 
-export interface UnitFolds {
+interface UnitFolds {
   readonly open: ReadonlySet<string>;
   /** Departure: `true` means the open units changed, and the caller lists its rows again. */
   readonly reveal: (entity: string) => boolean;

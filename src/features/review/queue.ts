@@ -46,7 +46,7 @@ export const verdictOf = (verdicts: Verdicts, id: string): Decision | null =>
   Object.hasOwn(verdicts, id) ? (verdicts[id] ?? null) : null;
 
 /** Why this act stands in front of the analyst. */
-export type Routing = 'dissent' | 'low-confidence' | 'both' | 'neither' | 'unstated';
+export type Routing = 'dissent' | 'unstated';
 
 /** What the screen cannot show. The kind chooses the mark, and the sentence stays on the mark. */
 export type HoleKind = 'argument' | 'duplicate' | 'merge-result' | 'destroyed-row' | 'absent-row';
@@ -417,30 +417,14 @@ function destroyed(index: Index, attrs: Attributes): readonly DifferenceRow[] {
   }));
 }
 
-function routingOf(proposal: Proposal, threshold: number | null): Routing {
-  if (threshold === null || proposal.confidence === null) {
-    return proposal.dissent ? 'dissent' : 'unstated';
-  }
-  const low = proposal.confidence < threshold;
-  if (proposal.dissent && low) return 'both';
-  if (proposal.dissent) return 'dissent';
-  return low ? 'low-confidence' : 'neither';
-}
-
 const ROUTING_WORDS: Readonly<Record<Routing, string>> = {
   dissent: 'Here because the agents disagreed.',
-  'low-confidence': 'Here because the confidence is under the threshold in force.',
-  both: 'Here because the agents disagreed, and the confidence is under the threshold.',
-  neither: 'Neither condition sends this act to review, and no act is promoted without a person.',
   unstated:
     'No disagreement is recorded, and no confidence is compared with a threshold here, so this screen cannot say why the act is in front of you.',
 };
 
 const ROUTING_SHORT: Readonly<Record<Routing, string>> = {
   dissent: 'disagreed',
-  'low-confidence': 'under threshold',
-  both: 'disagreed, under threshold',
-  neither: 'neither condition',
   unstated: 'reason unstated',
 };
 
@@ -519,7 +503,7 @@ function confidenceOf(self: number | null, origin: Origin): ConfidenceReport {
   };
 }
 
-function changeOf(index: Index, proposal: Proposal, threshold: number | null): Change {
+function changeOf(index: Index, proposal: Proposal): Change {
   const target = targetOf(index, proposal);
   const payload = proposal.payload;
   // A hole that every act carries is not a hole a reader can act on. Only what this act lacks.
@@ -565,7 +549,7 @@ function changeOf(index: Index, proposal: Proposal, threshold: number | null): C
       break;
   }
 
-  const routing = routingOf(proposal, threshold);
+  const routing: Routing = proposal.dissent ? 'dissent' : 'unstated';
   const kind = kindOf(proposal.op, rows);
   const origin = originOf(proposal.authorRole);
   const report = confidenceOf(proposal.confidence, origin);
@@ -628,13 +612,8 @@ function contestedKeysOf(changes: readonly Change[]): readonly string[] {
   return [...counted].filter(([, count]) => count > 1).map(([key]) => key);
 }
 
-/** Everything that waits for a decision, grouped by what it changes. The threshold is an
- * operational parameter, so it enters here and is never a constant of this file. */
-export function readQueue(
-  read: Corpus,
-  threshold: number | null,
-  types?: TypeVocabulary,
-): readonly Subject[] {
+/** Everything that waits for a decision, grouped by what it changes. */
+export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subject[] {
   const wordsOf = relationWording(read.relationTypes);
   const index: Index = {
     documentById: new Map(read.documents.map((row) => [row.id, row])),
@@ -653,7 +632,7 @@ export function readQueue(
     if (proposal.status !== 'pending') continue;
     const { key, kind } = filingOf(proposal);
     const held = filed.get(key) ?? { kind, changes: [] };
-    held.changes.push(changeOf(index, proposal, threshold));
+    held.changes.push(changeOf(index, proposal));
     filed.set(key, held);
   }
 
@@ -705,7 +684,7 @@ export function subjectOf(subjects: readonly Subject[], id: string | null): Subj
   return subjects.find((subject) => subject.id === id) ?? subjects[0] ?? null;
 }
 
-export interface Focus {
+interface Focus {
   readonly current: Change | null;
   /** The other acts that name a key this one names. They are read beside it, never after it. */
   readonly beside: readonly Change[];

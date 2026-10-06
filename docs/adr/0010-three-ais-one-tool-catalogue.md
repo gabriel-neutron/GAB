@@ -21,11 +21,12 @@ extraction, a call to a registry API. Repetitive judgement is the back-end AI. R
 operator AI. The operator AI never ingests with its own tokens: it stores a document and queues its
 extraction.
 
-## One catalogue, and a small profile for each consumer
+## One catalogue, and few tools for each back-end agent
 
 The tools package holds each tool once: a checked input, a checked output and one function. A
-surface is an adapter and holds no logic. Each back-end agent and the chat see a small **profile**
-of the catalogue, because a small model chooses badly among many tools.
+surface is an adapter and holds no logic. Each back-end agent gives its model only the few tools of
+its job, because a small model chooses badly among many tools. The code of the agent holds that
+list.
 
 The operator AI reaches the catalogue through an MCP server, with no tool limit, because Claude Code
 and Codex are large models. With it, the operator AI can do each action that the research needs. The
@@ -37,7 +38,8 @@ tools.
 
 Each consumer has its own database role.
 
-- **The operator**, through the interface and the writer, can store, propose and promote.
+- **The operator**, through the interface and the writer, can store, propose, promote and queue an
+  extraction.
 - **The operator AI**, through the MCP server, has its own research role. It can store a fetched
   document and propose. It cannot promote.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
@@ -100,7 +102,10 @@ the operator secret.
 ## The chat is local, and the conversations are private
 
 The chat runs on the operator's writer, not on the public deployment. The results are public. The
-conversations are in a part of the database that the public read path cannot see.
+conversations go in a part of the database that the public read path cannot see.
+
+**Not built.** The chat is not built. Its store of conversations had no caller, and it was removed
+on 6 October 2026. The chat feature builds its store again.
 
 ## Consequences
 

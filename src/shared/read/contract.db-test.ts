@@ -4,9 +4,6 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { keyUsage } from '@/contract/api/KeyUsage';
-import { valueSupport } from '@/contract/api/ValueSupport';
-
 import { readRows } from './http';
 import { toDomain } from './map';
 
@@ -34,13 +31,6 @@ const VIEWS: readonly View[] = [
     column: 'ord',
     instead: 'third',
   },
-  {
-    view: 'value_support',
-    read: (row) => valueSupport.parse(row),
-    column: 'owner_id',
-    instead: 'the northern ledger',
-  },
-  { view: 'key_usage', read: (row) => keyUsage.parse(row), column: 'claims', instead: 'many' },
   { view: 'full_map', read: (row) => toDomain.mapPosition(row), column: 'type', instead: null },
   // Departure: x and y are null on an entity the last run did not place, so only the key breaks.
   {

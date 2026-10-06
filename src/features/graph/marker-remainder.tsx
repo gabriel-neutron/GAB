@@ -1,6 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 
-export interface MarkerRemainderProps {
+interface MarkerRemainderProps {
   /** How many lit elements carry a marker. */
   readonly drawn: number;
   /** How many lit elements carry pending evidence and no marker. */
