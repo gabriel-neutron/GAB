@@ -9,7 +9,7 @@ service holds one private bucket for the raw files. The service makes the bucket
 The bucket is reachable on the loopback address only.
 
 The code speaks S3 and nothing else. A deployment can use any S3 provider through configuration.
-This ADR chooses no provider for a deployment. `decisions.md` T3 asks for an S3 store and names no
+This ADR chooses no provider for a deployment. `spec.md` T3 asks for an S3 store and names no
 product, so this ADR does not contradict the register.
 
 ## Least privilege

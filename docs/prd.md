@@ -31,7 +31,7 @@ The volumes are small. Any complexity justified by scaling is explicitly out of 
 
 ## 3. Analyst workflow
 
-The prefix `W` marks a workflow step. The prefixes `C`, `M`, `S`, `P`, `PU` and `T` in this
+The prefix `W` marks a workflow step. The prefixes `C`, `M`, `S`, `P` and `PU` in this
 document always name an entry in `decisions.md`, never a step.
 
 | # | Step | In / out |

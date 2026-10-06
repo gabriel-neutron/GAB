@@ -4,7 +4,7 @@
 
 ## Context
 
-`decisions.md` T2 makes PostgreSQL with PostGIS the single datastore of record. T5 puts pgvector in
+`spec.md` T2 makes PostgreSQL with PostGIS the single datastore of record. T5 puts pgvector in
 the same database. T3 keeps each raw file, unchanged, in an S3 store. The operator develops on
 Windows and is not a Docker expert.
 

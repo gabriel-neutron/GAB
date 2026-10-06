@@ -42,8 +42,8 @@ The drift check makes the database types again and compares them with the commit
 difference fails the check.
 
 **Definition of done:** `pnpm check` passes, the tests of the change pass, and the change does what
-its ticket asks. The agent commits its own work and does not claim more than it did. The operator
-accepts the change after a read of the diff.
+its ticket asks, and a separate review agent finds nothing that blocks. The agent then merges into
+`staging`. The operator promotes `staging` to `main`.
 
 ## Reason
 

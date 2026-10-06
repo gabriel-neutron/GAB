@@ -20,7 +20,7 @@ servers.
 
 A hosted archive is an optimisation, not a condition to run. When we host one, it is a PMTiles
 archive in the S3 store (ADR 0007), in a second, public bucket. The raw bucket stays private, so
-`decisions.md` T3 does not change: a basemap is not raw material and not evidence. The archive is
+`spec.md` T3 does not change: a basemap is not raw material and not evidence. The archive is
 tiered, because the operator refused a full-country file at high zoom: the world at low zoom, each
 country with entities at middle zoom, and a buffer around each entity at high zoom. Before the first
 archive is served, the store must prove that it supports range requests and entity tags.
