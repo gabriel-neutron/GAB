@@ -28,4 +28,5 @@ Give one JSON object, and nothing else. Give one verdict for each claim, with it
 ] }
 ```
 
-`verdict` is one of `supported`, `not_supported` or `unclear`. Give no other key.
+`verdict` is one of `supported`, `not_supported` or `unclear`. `reason` is one short sentence of
+plain text, and only a claim that is not `supported` has it. Give no other key.

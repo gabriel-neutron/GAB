@@ -479,6 +479,36 @@ test('the record keeps why the checker disputes an item, and nothing for an item
   expect(reasonOf('port')).toBe('the checker did not answer');
 });
 
+// A free model can give a reason with control characters, or a reason that is very long.
+const messy: Reach = {
+  now: () => new Date(),
+  check: async () =>
+    Promise.resolve(
+      new Map([
+        ['owner', { verdict: 'unclear' as const, reason: `two\u0000\nowners ${'x'.repeat(2000)}` }],
+      ]),
+    ),
+};
+
+test('a messy reason of the checker is kept as one cut line of plain text', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      { items: [SEATRADE] },
+      messy,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const reason = found.rows[0]?.dissent_reason ?? '';
+  expect(found.batch.proposals).toMatchObject([{ disputed: true, written: true }]);
+  expect(reason.startsWith('the checker says unclear: two owners xxx')).toBe(true);
+  expect(reason).toHaveLength(1000);
+});
+
 test('a relation of a batch names an entity that the same batch creates', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await connected(ask);
