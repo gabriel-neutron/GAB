@@ -1,5 +1,6 @@
 import type { ProposalsId } from './Proposals';
 import type { DocumentsId } from './Documents';
+import type { DocumentTextPage, DocumentTextExtractor } from './DocumentText';
 
 /** Identifier type for public.citation */
 export type CitationId = string & { __brand: 'public.citation' };
@@ -11,7 +12,7 @@ export default interface Citation {
 
   doc_id: DocumentsId;
 
-  page: number;
+  page: DocumentTextPage;
 
   start: number;
 
@@ -20,6 +21,8 @@ export default interface Citation {
   modality: string;
 
   created_at: Date;
+
+  text_extractor: DocumentTextExtractor;
 }
 
 export interface CitationInitializer {
@@ -29,7 +32,7 @@ export interface CitationInitializer {
 
   doc_id: DocumentsId;
 
-  page: number;
+  page: DocumentTextPage;
 
   start: number;
 
@@ -38,6 +41,8 @@ export interface CitationInitializer {
   modality: string;
 
   created_at?: Date;
+
+  text_extractor: DocumentTextExtractor;
 }
 
 export interface CitationMutator {
@@ -47,7 +52,7 @@ export interface CitationMutator {
 
   doc_id?: DocumentsId;
 
-  page?: number;
+  page?: DocumentTextPage;
 
   start?: number;
 
@@ -56,4 +61,6 @@ export interface CitationMutator {
   modality?: string;
 
   created_at?: Date;
+
+  text_extractor?: DocumentTextExtractor;
 }

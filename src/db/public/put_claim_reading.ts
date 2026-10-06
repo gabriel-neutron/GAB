@@ -24,6 +24,12 @@ export interface put_claim_reading_params {
   p_chunk_hash: string;
 
   p_idempotency_key: string;
+
+  p_model_family?: string;
+
+  p_parsed?: Record<string, unknown>;
+
+  p_act_effect?: string;
 }
 
 export type put_claim_reading_return_type = string;

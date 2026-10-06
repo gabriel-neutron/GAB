@@ -4,12 +4,16 @@ import { documentId, rowsOf } from './fields.ts';
 import { defineTool } from './tool.ts';
 
 // The door refuses a document that does not exist, a document with no bytes and a second open
-// job of one kind for one document. A claim from free text needs a blind second reading, so one
-// statement queues both jobs, and a refusal of either one queues neither.
+// job of one kind for one document. One statement queues every job, so a refusal queues none. The
+// OCR text is the second reading of an image, so an image gets no second model reading.
 const ENQUEUE = `SELECT public.enqueue_job($1::text, 'extract_text')::text AS id,
-  public.enqueue_job($1::text, 'second_read')::text AS second_id`;
+  CASE WHEN lower(coalesce((SELECT d.mime FROM public.documents d WHERE d.id = $1::text), ''))
+            LIKE 'image/%'
+       THEN NULL
+       ELSE public.enqueue_job($1::text, 'second_read')::text END AS second_id,
+  public.enqueue_job($1::text, 'evidence_check')::text AS evidence_id`;
 
-const row = z.strictObject({ id: z.uuid(), second_id: z.uuid() });
+const row = z.strictObject({ id: z.uuid(), second_id: z.uuid().nullable(), evidence_id: z.uuid() });
 
 export const enqueueExtract = defineTool({
   name: 'enqueue_extract',

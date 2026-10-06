@@ -206,5 +206,62 @@ INSERT INTO parameter (key, value) VALUES
   ('sanction_control_share', 50)
 ON CONFLICT (key) DO NOTHING;
 
+-- ============================================================================ the word lists ===
+-- THE CUE WORDS OF THE WINDOW CHECK, VERSION 1, SIZED TO THE FIXTURES. A larger list is new rows
+-- with version 2, and the check reads the highest version; it is never an edit of these rows. A
+-- word that is a common part of another word stays out: "may" is a month in English, so the
+-- hedge list holds "may be". The absence words mark a reading whose value is an absence.
+INSERT INTO evidence_word (version, lang, cue_kind, word) VALUES
+  (1, 'eng', 'negation', 'not'), (1, 'eng', 'negation', 'never'), (1, 'eng', 'negation', 'no longer'),
+  (1, 'eng', 'attribution', 'according to'), (1, 'eng', 'attribution', 'reported'),
+  (1, 'eng', 'attribution', 'reportedly'), (1, 'eng', 'attribution', 'citing'),
+  (1, 'eng', 'attribution', 'said'), (1, 'eng', 'attribution', 'says'),
+  (1, 'eng', 'allegation', 'allege'), (1, 'eng', 'allegation', 'alleges'),
+  (1, 'eng', 'allegation', 'alleged'), (1, 'eng', 'allegation', 'allegedly'),
+  (1, 'eng', 'allegation', 'accused'),
+  (1, 'eng', 'denial', 'denies'), (1, 'eng', 'denial', 'denied'), (1, 'eng', 'denial', 'deny'),
+  (1, 'eng', 'denial', 'refuted'),
+  (1, 'eng', 'hedge', 'may be'), (1, 'eng', 'hedge', 'might'), (1, 'eng', 'hedge', 'possibly'),
+  (1, 'eng', 'hedge', 'perhaps'), (1, 'eng', 'hedge', 'likely'),
+  (1, 'eng', 'future', 'will'), (1, 'eng', 'future', 'next month'),
+  (1, 'eng', 'future', 'next week'), (1, 'eng', 'future', 'plans to'),
+  (1, 'eng', 'conditional', 'if'), (1, 'eng', 'conditional', 'would'),
+  (1, 'eng', 'conditional', 'unless'),
+  (1, 'eng', 'absence', 'no record'), (1, 'eng', 'absence', 'not listed'),
+  (1, 'eng', 'absence', 'no data'),
+  (1, 'rus', 'negation', 'не'), (1, 'rus', 'negation', 'нет'), (1, 'rus', 'negation', 'никогда'),
+  (1, 'rus', 'attribution', 'по данным'), (1, 'rus', 'attribution', 'сообщает'),
+  (1, 'rus', 'attribution', 'по словам'),
+  (1, 'rus', 'allegation', 'якобы'), (1, 'rus', 'allegation', 'утверждают'),
+  (1, 'rus', 'allegation', 'обвиняют'),
+  (1, 'rus', 'denial', 'отрицает'), (1, 'rus', 'denial', 'опроверг'),
+  (1, 'rus', 'hedge', 'возможно'), (1, 'rus', 'hedge', 'вероятно'),
+  (1, 'rus', 'hedge', 'предположительно'),
+  (1, 'rus', 'future', 'будет'), (1, 'rus', 'future', 'планирует'),
+  (1, 'rus', 'conditional', 'если'), (1, 'rus', 'conditional', 'бы'),
+  (1, 'rus', 'absence', 'нет данных'), (1, 'rus', 'absence', 'не значится'),
+  (1, 'ukr', 'negation', 'не'), (1, 'ukr', 'negation', 'ні'), (1, 'ukr', 'negation', 'ніколи'),
+  (1, 'ukr', 'attribution', 'за даними'), (1, 'ukr', 'attribution', 'повідомляє'),
+  (1, 'ukr', 'allegation', 'нібито'), (1, 'ukr', 'allegation', 'стверджують'),
+  (1, 'ukr', 'denial', 'заперечує'), (1, 'ukr', 'denial', 'спростував'),
+  (1, 'ukr', 'hedge', 'можливо'), (1, 'ukr', 'hedge', 'ймовірно'),
+  (1, 'ukr', 'future', 'буде'), (1, 'ukr', 'future', 'планує'),
+  (1, 'ukr', 'conditional', 'якщо'), (1, 'ukr', 'conditional', 'би'),
+  (1, 'ukr', 'absence', 'немає даних'), (1, 'ukr', 'absence', 'не значиться')
+ON CONFLICT DO NOTHING;
+
+-- THE CUES OF A COURT ACT, VERSION 1. The decision rule reads the flag that they set.
+INSERT INTO court_act_cue (version, lang, cue) VALUES
+  (1, 'eng', 'sentenced'), (1, 'eng', 'convicted'), (1, 'eng', 'verdict'),
+  (1, 'rus', 'приговор'), (1, 'rus', 'осужден'), (1, 'rus', 'приговорил'),
+  (1, 'ukr', 'вирок'), (1, 'ukr', 'засуджено'), (1, 'ukr', 'засудив')
+ON CONFLICT DO NOTHING;
+
+-- THE KINDS OF A STRONG IDENTIFIER OF A PERSON, VERSION 1. Each is an attribute key of a person
+-- that names one person alone. A tax id is not in the list, because it needs a second identifier.
+INSERT INTO strong_id_kind (version, kind) VALUES
+  (1, 'passport_number'), (1, 'snils'), (1, 'national_id')
+ON CONFLICT DO NOTHING;
+
 
 RESET ROLE;

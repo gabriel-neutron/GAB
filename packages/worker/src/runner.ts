@@ -4,6 +4,7 @@ import {
   REASON,
   worstQuestionMs,
   type AgentModel,
+  type Message,
   type Model,
   type Question,
 } from '@gab/model';
@@ -18,12 +19,13 @@ import {
 } from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
 import { idempotencyKey, promptDigest } from './idempotency.ts';
+import { personalCategories } from './minimise.ts';
 import type { Queryable } from './queryable.ts';
 
 const SETTINGS = `SELECT lease_seconds, quota_wait_seconds, empty_wait_seconds
   FROM public.runner_settings()`;
 const RECORD = `SELECT public.record_model_call($1::text, $2::text, $3::text, $4::text, $5::text,
-  $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int)::text AS id`;
+  $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int, $12::text, $13::text[])::text AS id`;
 const RELEASE = 'SELECT public.release_job_for_quota($1::uuid)';
 const FAIL = 'SELECT public.fail_job($1::uuid, $2::text)';
 const COMPLETE = 'SELECT public.complete_job($1::uuid)';
@@ -50,9 +52,12 @@ const recorded = z.object({ id: z.uuid() });
 /** The three rows of the parameter table that the runner reads, in seconds. */
 export type RunnerSettings = z.infer<typeof settingsRow>;
 
-/** The seconds that one job may take at the worst, waits included. */
+/** The seconds that one job may take at the worst, waits included. An agent with no model asks
+ * nothing, so its questions take no time. */
 export const worstJobSeconds = (agent: RunnerAgent): number =>
-  Math.ceil((agent.questionsPerJob * worstQuestionMs(agent.settings)) / MS);
+  agent.settings === undefined
+    ? 0
+    : Math.ceil((agent.questionsPerJob * worstQuestionMs(agent.settings)) / MS);
 
 /** Throws when the lease is shorter than the worst job of an agent. A claim whose lease ends
  * returns to the queue under a worker that still works, and the job then runs twice. */
@@ -112,7 +117,11 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   checkLease(settings.lease_seconds, deps.agents);
 
   const open = deps.open ?? ((given: AgentModel): Model => openModel(given));
-  const lines = new Map(deps.agents.map((agent) => [agent, open(agent.settings)] as const));
+  const lines = new Map(
+    deps.agents.flatMap((agent) =>
+      agent.settings === undefined ? [] : [[agent, open(agent.settings)] as const],
+    ),
+  );
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
   // A pool with no figure is a pool the gateway never observed, and it counts as open. A read
@@ -129,9 +138,15 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   };
 
   const record = async (
-    agent: RunnerAgent,
+    agent: RunnerAgent & { readonly settings: AgentModel; readonly minimiser: string },
     job: ClaimedJob,
-    row: { promptHash: string; latencyMs: number; outcome: string; served: string | undefined },
+    row: {
+      promptHash: string;
+      latencyMs: number;
+      outcome: string;
+      served: string | undefined;
+      categories: readonly string[];
+    },
   ): Promise<string> => {
     const made = recorded.parse(
       (
@@ -147,29 +162,54 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
           row.served ?? null,
           null,
           null,
+          agent.minimiser,
+          [...row.categories],
         ])
       ).rows[0],
     );
     return made.id;
   };
 
+  // The categories of personal data that a question still holds after the minimiser of the agent
+  // ran. The record of the call stores them, so a category that a task allowed stays visible.
+  const categoriesOf = (messages: readonly Message[]): string[] =>
+    personalCategories(
+      messages
+        .map((message) =>
+          [
+            message.content,
+            ...('tool_calls' in message
+              ? (message.tool_calls ?? []).map((call) => call.function.arguments)
+              : []),
+          ].join('\n'),
+        )
+        .join('\n'),
+    );
+
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
     const line = lines.get(agent);
-    if (line === undefined) throw new Error(`The agent ${agent.name} has no line to a model.`);
     const budget = openBudget(agent.tokenCap);
 
     const ask = async <T>(question: Omit<Question<T>, 'budget'>): Promise<Asked<T>> => {
+      const settings = agent.settings;
+      if (line === undefined || settings === undefined)
+        throw new Error(`The agent ${agent.name} has no line to a model.`);
+      // A call with no minimiser record is refused before the model reads one word of it.
+      const minimiser = agent.minimiser;
+      if (minimiser === undefined) throw new JobStop('no_minimiser');
       const promptHash = promptDigest(question.messages);
+      const categories = categoriesOf(question.messages);
       const started = deps.now();
       const answer = await line.ask<T>({ ...question, budget });
       const latencyMs = Math.max(0, Math.round(deps.now() - started));
       const outcome = answer.ok ? 'ok' : answer.failure.kind;
       // The call lands before any proposal that it leads to, and it lands when it failed too.
-      const callId = await record(agent, job, {
+      const callId = await record({ ...agent, settings, minimiser }, job, {
         promptHash,
         latencyMs,
         outcome,
         served: answer.served,
+        categories,
       });
       if (!answer.ok) throw new ModelFailure(answer.failure);
       if (answer.served === undefined)

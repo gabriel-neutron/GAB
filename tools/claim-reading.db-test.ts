@@ -38,7 +38,7 @@ interface Seeded {
 // The job is made the oldest of the queue, so the claim takes it first.
 const seed = async (
   ask: Ask,
-  kind: 'extract_text' | 'second_read' | 'map_structured',
+  kind: 'extract_text' | 'second_read' | 'map_structured' | 'evidence_check',
   claims = true,
 ): Promise<Seeded> => {
   await ask(PUT, [DOC]);
@@ -58,7 +58,7 @@ const seed = async (
     const call = await idOf(
       ask,
       `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1, 10, 'ok',
-         $2::uuid, 'a-model') AS id`,
+         $2::uuid, 'a-model', p_minimiser => 'minimiser-test', p_personal_categories => '{}') AS id`,
       [SHA, job],
     );
     const claim = await idOf(
@@ -80,27 +80,38 @@ interface Reading {
   readonly modality?: string;
   readonly adverse?: boolean | null;
   readonly key?: string;
+  readonly call?: string | null;
+  readonly family?: string | null;
+  readonly parsed?: string | null;
+  readonly actEffect?: string | null;
+  readonly textSet?: string;
+  readonly fingerprint?: string;
 }
 
 const DOOR = `SELECT public.put_claim_reading(p_job => $1::uuid, p_claim => $2::uuid,
   p_text_extractor => $3, p_page => $4::int, p_start => $5::int, p_end => $6::int,
   p_modality => $7, p_adverse => $8::boolean, p_model_call => $9::uuid, p_input_form => 'text',
-  p_reader_fingerprint => 'a-model abc', p_chunk_hash => $10, p_idempotency_key => $11) AS id`;
+  p_reader_fingerprint => $14, p_chunk_hash => $10, p_idempotency_key => $11,
+  p_model_family => $12, p_parsed => $13::jsonb, p_act_effect => $15) AS id`;
 
 const putReading = (ask: Ask, seeded: Seeded, given: Reading = {}): Promise<string> =>
   asRole(ask, 'gabriel_agent', () =>
     idOf(ask, DOOR, [
       seeded.job,
       given.claim === undefined ? seeded.claim : given.claim,
-      EXTRACTOR,
+      given.textSet ?? EXTRACTOR,
       given.page ?? 1,
       given.start ?? 11,
       given.end ?? 17,
       given.modality ?? 'asserts',
       given.adverse ?? null,
-      seeded.call,
+      given.call === undefined ? seeded.call : given.call,
       SHA,
       given.key ?? 'd'.repeat(64),
+      given.family === undefined ? 'family-a' : given.family,
+      given.parsed ?? null,
+      given.fingerprint ?? 'a-model abc',
+      given.actEffect ?? null,
     ]),
   );
 
@@ -203,30 +214,146 @@ test('the door refuses a job that another role holds', async () => {
 test('the door refuses a job of a kind that reads no claim', async () => {
   await expect(
     rolledBack('superuser', async (ask) => putReading(ask, await seed(ask, 'map_structured'))),
-  ).rejects.toThrow(/extract_text or second_read/u);
+  ).rejects.toThrow(/extract_text, second_read or evidence_check/u);
 });
 
-test('the door takes no reader number from the caller', async () => {
+for (const name of ['p_reader_no', 'p_reader_kind', 'p_hedge', 'p_confidence', 'p_parties'])
+  test(`the door takes no argument ${name} from the caller`, async () => {
+    await expect(
+      rolledBack('superuser', async (ask) => {
+        const seeded = await seed(ask, 'extract_text');
+        return asRole(ask, 'gabriel_agent', () =>
+          ask(DOOR.replace("p_input_form => 'text'", `p_input_form => 'text', ${name} => 1`), [
+            seeded.job,
+            seeded.claim,
+            EXTRACTOR,
+            1,
+            11,
+            17,
+            'asserts',
+            null,
+            seeded.call,
+            SHA,
+            'd'.repeat(64),
+            'family-a',
+            null,
+            'a-model abc',
+            null,
+          ]),
+        );
+      }),
+    ).rejects.toMatchObject({ code: '42883' });
+  });
+
+test('the door refuses adverse false, because a reader never clears the flag', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) =>
+      putReading(ask, await seed(ask, 'extract_text'), { adverse: false }),
+    ),
+  ).rejects.toThrow(/never clears it/u);
+});
+
+test('the door refuses a model reading with no family', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) =>
+      putReading(ask, await seed(ask, 'extract_text'), { family: null }),
+    ),
+  ).rejects.toThrow(/family of its model/u);
+});
+
+test('the door refuses parsed fields on a model reading', async () => {
+  await expect(
+    rolledBack('superuser', async (ask) =>
+      putReading(ask, await seed(ask, 'extract_text'), {
+        parsed: '{"imo":"9123453"}',
+        actEffect: 'insert',
+      }),
+    ),
+  ).rejects.toThrow(/only a parser row/u);
+});
+
+const PARSER = { call: null, family: null, parsed: '{"imo":"9123453"}', actEffect: 'insert' };
+
+test('under a check job the door writes a parser row with the claim and its parsed fields', async () => {
+  const rows = await rolledBack('superuser', async (ask) => {
+    const seeded = await seed(ask, 'evidence_check');
+    return stored.parse(await ask(READ, [await putReading(ask, seeded, PARSER)]));
+  });
+  expect(rows).toStrictEqual([expect.objectContaining({ reader_no: 2, reader_kind: 'parser' })]);
+});
+
+test('under a check job on a Tesseract page the door writes an OCR row', async () => {
+  const rows = await rolledBack('superuser', async (ask) => {
+    const seeded = await seed(ask, 'evidence_check');
+    await ask("SELECT public.put_document_text($1, '[\"NAYARA STAR\"]'::jsonb, 'tesseract:7:4')", [
+      DOC,
+    ]);
+    return stored.parse(
+      await ask(READ, [
+        await putReading(ask, seeded, {
+          call: null,
+          family: null,
+          textSet: 'tesseract:7:4',
+          start: 0,
+          end: 6,
+        }),
+      ]),
+    );
+  });
+  expect(rows).toStrictEqual([expect.objectContaining({ reader_no: 2, reader_kind: 'ocr' })]);
+});
+
+const CODE_REFUSALS: readonly (readonly [string, Reading, RegExp])[] = [
+  [
+    'a model call on a parser row',
+    { family: null, parsed: PARSER.parsed, actEffect: PARSER.actEffect },
+    /no model call/u,
+  ],
+  ['a family on a parser row', { ...PARSER, family: 'family-a' }, /no model call and no family/u],
+  ['a parser row with no claim', { ...PARSER, claim: null }, /names the proposal/u],
+  ['a parser row with no parsed fields', { ...PARSER, parsed: null }, /parsed fields/u],
+  [
+    'a parser row with an effect outside the list',
+    { ...PARSER, actEffect: 'amend' },
+    /insert, replace or delete/u,
+  ],
+  ['adverse on a parser row', { ...PARSER, adverse: true }, /no adverse flag/u],
+];
+
+for (const [name, given, message] of CODE_REFUSALS)
+  test(`the door refuses ${name}`, async () => {
+    await expect(
+      rolledBack('superuser', async (ask) =>
+        putReading(ask, await seed(ask, 'evidence_check'), given),
+      ),
+    ).rejects.toThrow(message);
+  });
+
+test('the table refuses a parser row or an OCR row with no claim', async () => {
   await expect(
     rolledBack('superuser', async (ask) => {
       const seeded = await seed(ask, 'extract_text');
-      return asRole(ask, 'gabriel_agent', () =>
-        ask(DOOR.replace("p_input_form => 'text'", "p_input_form => 'text', p_reader_no => 1"), [
-          seeded.job,
-          seeded.claim,
-          EXTRACTOR,
-          1,
-          11,
-          17,
-          'asserts',
-          null,
-          seeded.call,
-          SHA,
-          'd'.repeat(64),
-        ]),
-      );
+      const row = ownerRow(seeded, {
+        kind: 'ocr',
+        readerNo: 2,
+        claim: null,
+        call: null,
+        key: 'e'.repeat(64),
+      });
+      return ask(row.text, row.values);
     }),
-  ).rejects.toMatchObject({ code: '42883' });
+  ).rejects.toMatchObject({ code: '23514', constraint: 'claim_reading_code_claim' });
+});
+
+test('a new reader fingerprint is a new row beside the old one', async () => {
+  const ids = await rolledBack('superuser', async (ask) => {
+    const seeded = await seed(ask, 'extract_text');
+    return [
+      await putReading(ask, seeded, { fingerprint: 'a-model prompt-one', key: '1'.repeat(64) }),
+      await putReading(ask, seeded, { fingerprint: 'a-model prompt-two', key: '2'.repeat(64) }),
+    ];
+  });
+  expect(new Set(ids).size).toBe(2);
 });
 
 for (const write of [
@@ -264,6 +391,11 @@ const ownerRow = (
       chunk_hash, idempotency_key)
     VALUES ($1, $2, $3, 1, 0, 3, 'asserts', $4, $5, $6, 'text', 'f', $7, $8, $9) RETURNING id`,
   values: [row.claim, DOC, EXTRACTOR, row.readerNo, row.kind, row.call, seeded.job, SHA, row.key],
+  parserText: `INSERT INTO public.claim_reading (claim_id, doc_id, text_extractor, page, start, "end",
+      modality, reader_no, reader_kind, model_call_id, input_form, reader_fingerprint, job_id,
+      chunk_hash, idempotency_key, parsed, act_effect)
+    VALUES ($1, $2, $3, 1, 0, 3, 'asserts', $4, $5, $6, 'text', 'f', $7, $8, $9, '{}', 'insert')
+    RETURNING id`,
 });
 
 test('the table refuses a model reading with no model call', async () => {
@@ -291,7 +423,7 @@ test('the table takes a parser row and an ocr row with no model call', async () 
       ['ocr', 'f'.repeat(64)],
     ] as const) {
       const row = ownerRow(seeded, { kind, readerNo: 1, claim: seeded.claim, call: null, key });
-      made.push(await idOf(ask, row.text, row.values));
+      made.push(await idOf(ask, kind === 'parser' ? row.parserText : row.text, row.values));
     }
     return made;
   });
@@ -324,14 +456,14 @@ test('the table refuses two rows with the same key', async () => {
         call: null,
         key: 'e'.repeat(64),
       });
-      await ask(row.text, row.values);
-      return ask(row.text, row.values);
+      await ask(row.parserText, row.values);
+      return ask(row.parserText, row.values);
     }),
   ).rejects.toMatchObject({ code: '23505' });
 });
 
 for (const [write, message] of [
-  ["UPDATE public.citation SET modality = 'denies' WHERE id = $1", /never updated/u],
+  ["UPDATE public.citation SET modality = 'denies' WHERE id = $1", /fixed, and it never changes/u],
   ['DELETE FROM public.citation WHERE id = $1', /never deleted/u],
 ] as const)
   test(`no role changes a citation: ${write.slice(0, 6)}`, async () => {
@@ -340,9 +472,9 @@ for (const [write, message] of [
         const seeded = await seed(ask, 'extract_text');
         const id = await idOf(
           ask,
-          `INSERT INTO public.citation (claim_id, doc_id, page, start, "end", modality)
-             VALUES ($1, $2, 1, 0, 3, 'asserts') RETURNING id`,
-          [seeded.claim, DOC],
+          `INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end",
+             modality) VALUES ($1, $2, $3, 1, 0, 3, 'asserts') RETURNING id`,
+          [seeded.claim, DOC, EXTRACTOR],
         );
         return ask(write, [id]);
       }),

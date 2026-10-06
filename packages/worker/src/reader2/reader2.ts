@@ -18,6 +18,7 @@ import {
 } from '../agents.ts';
 import { chunkPages, codePoints, type Chunk } from '../chunk.ts';
 import { claimKeyOf } from '../extractor/extractor.ts';
+import type { Minimiser } from '../minimise.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 
@@ -40,9 +41,9 @@ export interface Reader2Tools {
 }
 
 export interface Reader2Options {
-  /** Replaces personal data with placeholders of the same length. With none, no model reads a
-   * stored document, and each job stops. */
-  readonly minimise?: (text: string) => string;
+  /** Replaces personal data with placeholders of the same length, and names its version. With
+   * none, no model reads a stored document, and each job stops. */
+  readonly minimise?: Minimiser;
   readonly tools?: Reader2Tools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -79,7 +80,7 @@ export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}):
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
     // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise;
+    const minimise = options.minimise?.apply;
     if (minimise === undefined) throw new JobStop('no_minimiser');
 
     const session: Session = { query: (text, values) => context.db.query(text, values) };
@@ -157,6 +158,7 @@ export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}):
         readerFingerprint: fingerprint,
         chunkHash: chunk.hash,
         idempotencyKey: key,
+        modelFamily: config.family,
       });
       if (!read.ok) refusals.push({ tool: tools.putClaimReading.name, reason: read.refusal });
     };
@@ -200,6 +202,7 @@ export const makeReader2 = (config: ReaderConfig, options: Reader2Options = {}):
     // Each question of the job counts one turn, so the cap is the most questions of one job.
     questionsPerJob: config.turnCap,
     tokenCap: config.tokenCap,
+    ...(options.minimise === undefined ? {} : { minimiser: options.minimise.version }),
     releaseOn: READER2_RELEASE,
     run,
   };

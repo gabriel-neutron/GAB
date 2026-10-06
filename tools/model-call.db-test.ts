@@ -12,7 +12,7 @@ const SHA = 'a'.repeat(64);
 const made = z.array(z.object({ id: z.uuid() }));
 
 const RECORD = `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1,
-  120, $2, $3::uuid, 'a-served-model', 10, 5) AS id`;
+  120, $2, $3::uuid, 'a-served-model', 10, 5, 'minimiser-test', '{}') AS id`;
 
 const PROPOSE = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A model call test"}'::jsonb, ARRAY['doc_8f2a41']::text[],

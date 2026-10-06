@@ -120,8 +120,7 @@ END $$;
 
 -- A READING IS A FACT AND NOT A STATE: what one reader saw in one page is written once. The
 -- comparison reads it, and a reading that changed after the comparison would change a claim in
--- silence. The owner and the superuser ignore a grant, so a trigger holds it. The citation is
--- held the same way until its write-once columns arrive.
+-- silence. The owner and the superuser ignore a grant, so a trigger holds it.
 CREATE OR REPLACE FUNCTION claim_reading_append_only_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
@@ -357,46 +356,74 @@ END $$;
 -- table by hand. It takes the digest of the prompt and never the prompt, and the table refuses a
 -- digest that is not 64 hexadecimal characters. The outcome list is a CHECK of the table, so a
 -- word outside it is refused there, and a test holds that list against packages/model.
+--
+-- A CALL WITH NO MINIMISER RECORD IS REFUSED. Personal data that a task does not need leaves the
+-- prompt before the call, and the record names the minimiser that ran and the categories that the
+-- prompt still held. The two arguments come last with no value, so the earlier positions keep
+-- their meaning, and the door refuses a call that leaves the minimiser out. The categories are a
+-- CHECK of the table. The earlier signature is dropped here, so no call reaches it.
+DROP FUNCTION IF EXISTS record_model_call(text,text,text,text,text,int,text,uuid,text,int,int);
 CREATE OR REPLACE FUNCTION record_model_call(
-  p_agent           text,
-  p_agent_version   text,
-  p_endpoint        text,
-  p_requested_model text,
-  p_prompt_sha256   text,
-  p_latency_ms      int,
-  p_outcome         text,
-  p_job_id          uuid DEFAULT NULL,
-  p_served_model    text DEFAULT NULL,
-  p_input_tokens    int  DEFAULT NULL,
-  p_output_tokens   int  DEFAULT NULL)
+  p_agent               text,
+  p_agent_version       text,
+  p_endpoint            text,
+  p_requested_model     text,
+  p_prompt_sha256       text,
+  p_latency_ms          int,
+  p_outcome             text,
+  p_job_id              uuid   DEFAULT NULL,
+  p_served_model        text   DEFAULT NULL,
+  p_input_tokens        int    DEFAULT NULL,
+  p_output_tokens       int    DEFAULT NULL,
+  p_minimiser           text   DEFAULT NULL,
+  p_personal_categories text[] DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
+  IF p_minimiser IS NULL OR btrim(p_minimiser, E' \t\n\r\f\v') = '' OR p_minimiser = 'none' THEN
+    RAISE EXCEPTION 'a model call names the minimiser that ran before it, and this call names none'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_personal_categories IS NULL THEN
+    RAISE EXCEPTION 'a model call states the personal categories that its prompt held'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   INSERT INTO public.model_call
     (job_id, agent, agent_version, endpoint, requested_model, served_model, prompt_sha256,
-     input_tokens, output_tokens, latency_ms, outcome)
+     input_tokens, output_tokens, latency_ms, outcome, minimiser, personal_categories)
   VALUES
     (p_job_id, p_agent, p_agent_version, p_endpoint, p_requested_model, p_served_model,
-     p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome)
+     p_prompt_sha256, p_input_tokens, p_output_tokens, p_latency_ms, p_outcome, p_minimiser,
+     p_personal_categories)
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;
 
 -- THE ONE DOOR INTO THE READINGS. A reader gives a page, two offsets in code points of that page
 -- and two enums, and never a quote: code reads the span again from the stored text. The door
--- takes no reader number and no reader kind. It sets both from the job that the caller holds:
--- extract_text is the first reader and second_read is the second, and both are model readers.
--- The document is the document of the job, so a caller cannot name another one.
+-- takes no reader number and no reader kind. It sets both from the job that the caller holds and
+-- from the page: extract_text is the first model reader and second_read is the second. Under an
+-- evidence_check job code writes the row: an OCR row when the text set is a Tesseract set, and a
+-- parser row else. The document is the document of the job, so a caller cannot name another one.
 --
 -- THE JOB IS RUNNING AND THE CALLER HOLDS IT. A worker that lost its lease must not add a reading
 -- to a job that another worker now runs.
 --
 -- THE FIRST READER NAMES THE PROPOSAL THAT IT MADE, and that proposal cites the document of the
--- job. The second reader ran no proposal, so it names none. The call is a call of this job.
+-- job. The second model reader ran no proposal, so it names none. A row of code names the claim
+-- it read. A model row names a call of this job and the family of its model. A row of code names
+-- no call and no family, because no model made it.
 --
--- THE KEY MAKES A SECOND WRITE OF ONE READING RETURN THE FIRST, as it does for a proposal.
+-- ONLY A PARSER ROW HOLDS PARSED FIELDS AND THE EFFECT OF THE ACT. Code wrote them, and no model.
+--
+-- A READER SETS ADVERSE OR LEAVES IT UNSET. It never clears it, so the door refuses false. A row of
+-- code reads no adverse flag, so it takes none.
+--
+-- THE KEY MAKES A SECOND WRITE OF ONE READING RETURN THE FIRST, as it does for a proposal. The
+-- earlier signature is dropped here, so no caller reaches a door that sets the kind 'llm' alone.
+DROP FUNCTION IF EXISTS put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text);
 CREATE OR REPLACE FUNCTION put_claim_reading(
   p_job                uuid,
   p_claim              uuid,
@@ -410,16 +437,20 @@ CREATE OR REPLACE FUNCTION put_claim_reading(
   p_input_form         text,
   p_reader_fingerprint text,
   p_chunk_hash         text,
-  p_idempotency_key    text)
+  p_idempotency_key    text,
+  p_model_family       text  DEFAULT NULL,
+  p_parsed             jsonb DEFAULT NULL,
+  p_act_effect         text  DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_kind      text;
-  v_doc       text;
-  v_reader_no smallint;
-  v_text      text;
-  v_id        uuid;
+  v_kind        text;
+  v_doc         text;
+  v_reader_no   smallint;
+  v_reader_kind text;
+  v_text        text;
+  v_id          uuid;
 BEGIN
   SELECT j.kind, j.document_id INTO v_kind, v_doc
     FROM public.jobs j
@@ -429,12 +460,17 @@ BEGIN
     RAISE EXCEPTION 'job % is not running under this role, so it takes no reading', p_job
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF v_kind NOT IN ('extract_text','second_read') THEN
-    RAISE EXCEPTION 'a reading belongs to a job of extract_text or second_read, and this job is %',
+  IF v_kind NOT IN ('extract_text','second_read','evidence_check') THEN
+    RAISE EXCEPTION
+      'a reading belongs to a job of extract_text, second_read or evidence_check, and this job is %',
       v_kind
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   v_reader_no := CASE v_kind WHEN 'extract_text' THEN 1 ELSE 2 END;
+  v_reader_kind := CASE
+    WHEN v_kind <> 'evidence_check' THEN 'llm'
+    WHEN p_text_extractor LIKE 'tesseract:%' THEN 'ocr'
+    ELSE 'parser' END;
 
   SELECT t.text INTO v_text
     FROM public.document_text t
@@ -457,10 +493,14 @@ BEGIN
       coalesce(p_modality, 'nothing')
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  IF p_adverse IS NOT NULL AND NOT p_adverse THEN
+    RAISE EXCEPTION 'a reader sets adverse or leaves it unset, and it never clears it'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
 
-  IF v_reader_no = 1 THEN
+  IF v_reader_no = 1 OR v_reader_kind <> 'llm' THEN
     IF p_claim IS NULL THEN
-      RAISE EXCEPTION 'a first reading names the proposal that it made'
+      RAISE EXCEPTION 'a first reading or a reading of code names the proposal that it read'
         USING ERRCODE = 'invalid_parameter_value';
     END IF;
     IF NOT EXISTS (SELECT 1 FROM public.proposals p
@@ -473,21 +513,53 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
-  IF p_model_call IS NULL
-     OR NOT EXISTS (SELECT 1 FROM public.model_call m
-                     WHERE m.id = p_model_call AND m.job_id = p_job) THEN
-    RAISE EXCEPTION 'a model reading names a call of job %', p_job
-      USING ERRCODE = 'invalid_parameter_value';
+  IF v_reader_kind = 'llm' THEN
+    IF p_model_call IS NULL
+       OR NOT EXISTS (SELECT 1 FROM public.model_call m
+                       WHERE m.id = p_model_call AND m.job_id = p_job) THEN
+      RAISE EXCEPTION 'a model reading names a call of job %', p_job
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF p_model_family IS NULL OR btrim(p_model_family, E' \t\n\r\f\v') = '' THEN
+      RAISE EXCEPTION 'a model reading names the family of its model'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF p_parsed IS NOT NULL OR p_act_effect IS NOT NULL THEN
+      RAISE EXCEPTION 'only a parser row holds parsed fields and the effect of an act'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+  ELSE
+    IF p_model_call IS NOT NULL OR p_model_family IS NOT NULL THEN
+      RAISE EXCEPTION 'a % row is written by code, so it names no model call and no family',
+        v_reader_kind
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF p_adverse IS NOT NULL THEN
+      RAISE EXCEPTION 'a % row is written by code, and it reads no adverse flag', v_reader_kind
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF v_reader_kind = 'parser'
+       AND (p_parsed IS NULL OR jsonb_typeof(p_parsed) <> 'object'
+            OR p_act_effect IS NULL OR p_act_effect NOT IN ('insert','replace','delete')) THEN
+      RAISE EXCEPTION
+        'a parser row holds its parsed fields and the effect of the act: insert, replace or delete'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF v_reader_kind = 'ocr' AND (p_parsed IS NOT NULL OR p_act_effect IS NOT NULL) THEN
+      RAISE EXCEPTION 'only a parser row holds parsed fields and the effect of an act'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
   END IF;
 
   INSERT INTO public.claim_reading
     (claim_id, doc_id, text_extractor, page, start, "end", modality, adverse, reader_no,
      reader_kind, model_call_id, input_form, reader_fingerprint, job_id, chunk_hash,
-     idempotency_key)
+     idempotency_key, model_family, parsed, act_effect)
   VALUES
     (p_claim, v_doc, p_text_extractor, p_page, p_start, p_end, p_modality,
-     coalesce(p_adverse, false), v_reader_no, 'llm', p_model_call, p_input_form,
-     p_reader_fingerprint, p_job, p_chunk_hash, p_idempotency_key)
+     coalesce(p_adverse, false), v_reader_no, v_reader_kind, p_model_call, p_input_form,
+     p_reader_fingerprint, p_job, p_chunk_hash, p_idempotency_key, p_model_family, p_parsed,
+     p_act_effect)
   ON CONFLICT (idempotency_key) DO NOTHING
   RETURNING id INTO v_id;
 
@@ -888,7 +960,16 @@ DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','second_read')
+   WHERE j.status = 'queued'
+     AND j.kind IN ('extract_text','map_structured','second_read','evidence_check')
+     -- THE CHECKS RUN AFTER THE READERS OF THEIR DOCUMENT. The jobs of one document have one
+     -- creation time, so the order alone could hand out the check job first. The order of the
+     -- queue stays as it was for every kind.
+     AND NOT (j.kind = 'evidence_check'
+              AND EXISTS (SELECT 1 FROM public.jobs r
+                           WHERE r.document_id = j.document_id
+                             AND r.kind IN ('extract_text','second_read')
+                             AND r.status IN ('queued','running')))
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -1031,9 +1112,10 @@ DECLARE
   v_id    uuid;
   v_bytes text;
 BEGIN
-  IF p_kind IS NULL OR p_kind NOT IN ('extract_text','map_structured','second_read') THEN
+  IF p_kind IS NULL
+     OR p_kind NOT IN ('extract_text','map_structured','second_read','evidence_check') THEN
     RAISE EXCEPTION
-      'a job asks for extract_text, map_structured or second_read, and this one asked for %',
+      'a job asks for extract_text, map_structured, second_read or evidence_check, and this one asked for %',
       coalesce(p_kind, 'nothing')
       USING ERRCODE = 'invalid_parameter_value';
   END IF;

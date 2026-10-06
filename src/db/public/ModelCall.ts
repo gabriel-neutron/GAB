@@ -29,6 +29,10 @@ export default interface ModelCall {
   outcome: string;
 
   created_at: Date;
+
+  minimiser: string;
+
+  personal_categories: string[];
 }
 
 export interface ModelCallInitializer {
@@ -57,6 +61,10 @@ export interface ModelCallInitializer {
   outcome: string;
 
   created_at?: Date;
+
+  minimiser: string;
+
+  personal_categories: string[];
 }
 
 export interface ModelCallMutator {
@@ -85,4 +93,8 @@ export interface ModelCallMutator {
   outcome?: string;
 
   created_at?: Date;
+
+  minimiser?: string;
+
+  personal_categories?: string[];
 }

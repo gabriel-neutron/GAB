@@ -44,14 +44,31 @@ CREATE OR REPLACE TRIGGER chat_message_append_only
   BEFORE UPDATE OR DELETE ON chat_message
   FOR EACH ROW EXECUTE FUNCTION chat_message_append_only_fn();
 
--- A reading is written once, and so is a citation.
+-- A reading is written once. A citation keeps its fixed columns, and each other column is set once.
 CREATE OR REPLACE TRIGGER claim_reading_append_only
   BEFORE UPDATE OR DELETE ON claim_reading
   FOR EACH ROW EXECUTE FUNCTION claim_reading_append_only_fn();
 
 CREATE OR REPLACE TRIGGER citation_append_only
   BEFORE UPDATE OR DELETE ON citation
-  FOR EACH ROW EXECUTE FUNCTION claim_reading_append_only_fn();
+  FOR EACH ROW EXECUTE FUNCTION citation_write_once_fn();
+
+-- A check row, a probe run, a predicate and a rule of the predicate list are written once.
+CREATE OR REPLACE TRIGGER citation_check_append_only
+  BEFORE UPDATE OR DELETE ON citation_check
+  FOR EACH ROW EXECUTE FUNCTION evidence_append_only_fn();
+
+CREATE OR REPLACE TRIGGER family_probe_run_append_only
+  BEFORE UPDATE OR DELETE ON family_probe_run
+  FOR EACH ROW EXECUTE FUNCTION evidence_append_only_fn();
+
+CREATE OR REPLACE TRIGGER adverse_predicate_append_only
+  BEFORE UPDATE OR DELETE ON adverse_predicate
+  FOR EACH ROW EXECUTE FUNCTION evidence_append_only_fn();
+
+CREATE OR REPLACE TRIGGER adverse_predicate_rule_append_only
+  BEFORE UPDATE OR DELETE ON adverse_predicate_rule
+  FOR EACH ROW EXECUTE FUNCTION evidence_append_only_fn();
 
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
@@ -88,6 +105,10 @@ ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE chat_message ENABLE ALWAYS TRIGGER chat_message_append_only;
 ALTER TABLE claim_reading ENABLE ALWAYS TRIGGER claim_reading_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
+ALTER TABLE citation_check ENABLE ALWAYS TRIGGER citation_check_append_only;
+ALTER TABLE family_probe_run ENABLE ALWAYS TRIGGER family_probe_run_append_only;
+ALTER TABLE adverse_predicate ENABLE ALWAYS TRIGGER adverse_predicate_append_only;
+ALTER TABLE adverse_predicate_rule ENABLE ALWAYS TRIGGER adverse_predicate_rule_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;

@@ -43,6 +43,12 @@ export default interface ClaimReading {
   idempotency_key: string;
 
   created_at: Date;
+
+  model_family: string | null;
+
+  parsed: Record<string, unknown> | null;
+
+  act_effect: string | null;
 }
 
 export interface ClaimReadingInitializer {
@@ -81,6 +87,12 @@ export interface ClaimReadingInitializer {
   idempotency_key: string;
 
   created_at?: Date;
+
+  model_family?: string | null;
+
+  parsed?: Record<string, unknown> | null;
+
+  act_effect?: string | null;
 }
 
 export interface ClaimReadingMutator {
@@ -119,4 +131,10 @@ export interface ClaimReadingMutator {
   idempotency_key?: string;
 
   created_at?: Date;
+
+  model_family?: string | null;
+
+  parsed?: Record<string, unknown> | null;
+
+  act_effect?: string | null;
 }

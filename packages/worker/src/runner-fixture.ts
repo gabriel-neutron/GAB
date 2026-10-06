@@ -112,6 +112,8 @@ export const stubAgent = (options: StubAgentOptions = {}): RunnerAgent => {
     version: 'v1',
     kind: options.kind ?? 'extract_text',
     settings: STUB_MODEL,
+    // The stub reads no stored document, so it removes nothing, and its record names it.
+    minimiser: 'stub-minimiser',
     questionsPerJob: chunks.length,
     tokenCap: 10_000,
     run: async (context) => {

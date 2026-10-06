@@ -3,6 +3,7 @@ import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
 import type { RunnerAgent } from '../agents.ts';
+import type { Minimiser } from '../minimise.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
   completionOf,
@@ -192,7 +193,7 @@ const readingsOf = async (held: Held) =>
     ).rows,
   );
 
-const identity = (text: string): string => text;
+const identity: Minimiser = { version: 'identity-test', apply: (text) => text };
 
 test('a two-chunk document gives one proposal and one first reading for each claim', async () => {
   await inTransaction(async (held) => {

@@ -49,12 +49,12 @@ GRANT SELECT ON conversation, chat_message, chat_citation TO gabriel_app;
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 
--- The eighteen doors, and nothing else.
+-- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
+REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int,text,text[])
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
@@ -70,7 +70,12 @@ REVOKE ALL ON FUNCTION open_conversation(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION append_chat_message(uuid,text,text,uuid,jsonb) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text,text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION add_citation(uuid,uuid,text,int,int,int,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION run_evidence_checks(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION mark_adverse_predicates(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION load_adverse_predicates(text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_family_probe(text,text,text,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION second_read_done(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
@@ -166,7 +171,7 @@ GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
 
 -- THE CALL RECORD IS gabriel_agent ALONE. Only the worker that asked the model knows what it
 -- asked, and the door writes model_call and nothing else.
-GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
+GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int,text,text[])
   TO gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
@@ -181,8 +186,22 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 -- THE READING DOOR IS gabriel_agent ALONE. Only the worker that ran the reader knows what it read,
 -- and the door writes claim_reading and nothing else. No role holds a grant on claim_reading or on
 -- citation: the revoke above covers both, because this file runs after the migrations.
-GRANT EXECUTE ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text)
+GRANT EXECUTE ON FUNCTION put_claim_reading(uuid,uuid,text,int,int,int,text,boolean,uuid,text,text,text,text,text,jsonb,text)
   TO gabriel_agent;
+
+-- THE THREE DOORS OF THE CHECKS FOR THE WORKER ARE gabriel_agent ALONE: the reading door above, the
+-- citation door and the check door. The check door takes a job and a claim and no result, so the
+-- role that runs a model over untrusted text cannot write a result. No role holds a grant on
+-- citation, citation_check, family_probe_run, adverse_predicate, adverse_predicate_rule, the word
+-- lists or parameter: the revoke above covers each one.
+GRANT EXECUTE ON FUNCTION add_citation(uuid,uuid,text,int,int,int,text) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION run_evidence_checks(uuid,uuid) TO gabriel_agent;
+
+-- THE LOADER OF THE PREDICATE LIST, THE PROBE RECORD AND THE PREDICATE OF THE OWN ANALYSIS ARE THE
+-- OPERATOR'S. A model role that could load a list or record a probe could choose what blocks it.
+GRANT EXECUTE ON FUNCTION load_adverse_predicates(text,jsonb) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION record_family_probe(text,text,text,int,int) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION mark_adverse_predicates(uuid) TO gabriel_app;
 
 -- THE CHECK OF A CHUNK THAT IS READ IS gabriel_agent ALONE. It answers yes or no for the job that
 -- the caller holds, and it returns no row of the readings.

@@ -2,7 +2,14 @@ import { worstQuestionMs } from '@gab/model';
 import { describe, expect, it } from 'vitest';
 
 import { checkLease, openRunner, worstJobSeconds } from './runner.ts';
-import { completionOf, depsOf, forecastOf, gatewayOf, stubAgent } from './runner-fixture.ts';
+import {
+  completionOf,
+  depsOf,
+  forecastOf,
+  gatewayOf,
+  STUB_MODEL,
+  stubAgent,
+} from './runner-fixture.ts';
 
 // A database that answers the settings read and the claim, and records every statement. It holds
 // no job, so the empty queue and the stops before a claim are measured without a server.
@@ -30,7 +37,7 @@ describe('the lease against the worst job', () => {
   const worst = worstJobSeconds(agent);
 
   it('is the questions of the job times the worst question, waits included', () => {
-    expect(worst).toBe(Math.ceil((3 * worstQuestionMs(agent.settings)) / 1000));
+    expect(worst).toBe(Math.ceil((3 * worstQuestionMs(STUB_MODEL)) / 1000));
   });
 
   it('accepts a lease as long as the worst job', () => {

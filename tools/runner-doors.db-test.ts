@@ -143,7 +143,7 @@ test('an absent row of the runner stops the read and gives no default', async ()
 });
 
 const CALL = `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1,
-  120, 'ok', $2::uuid, 'a-model', 10, 5) AS id`;
+  120, 'ok', $2::uuid, 'a-model', 10, 5, 'minimiser-test', '{}') AS id`;
 
 const PROPOSE = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A runner door test"}'::jsonb, ARRAY['doc_8f2a41']::text[],

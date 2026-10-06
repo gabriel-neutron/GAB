@@ -282,6 +282,7 @@ const DEFINER_DOORS = `
    ORDER BY 1`;
 
 const THE_DOOR_SET = [
+  'public.add_citation to gabriel_agent',
   'public.append_chat_message to gabriel_app',
   'public.claim_job to gabriel_agent',
   'public.complete_job to gabriel_agent',
@@ -297,7 +298,9 @@ const THE_DOOR_SET = [
   'public.fail_job to gabriel_agent',
   'public.issuer_card_for to gabriel_app',
   'public.link_imprint to gabriel_app',
+  'public.load_adverse_predicates to gabriel_app',
   'public.load_trust_list to gabriel_app',
+  'public.mark_adverse_predicates to gabriel_app',
   'public.merge_originator to gabriel_app',
   'public.open_conversation to gabriel_app',
   'public.originator_exceptions to gabriel_app',
@@ -315,6 +318,7 @@ const THE_DOOR_SET = [
   'public.put_document_text to gabriel_research',
   'public.put_fetched_document to gabriel_agent',
   'public.put_fetched_document to gabriel_research',
+  'public.record_family_probe to gabriel_app',
   'public.record_model_call to gabriel_agent',
   'public.refresh_originator to gabriel_app',
   'public.reject_proposal to gabriel_app',
@@ -322,6 +326,7 @@ const THE_DOOR_SET = [
   'public.release_job_for_quota to gabriel_agent',
   'public.remove_operator_letter to gabriel_app',
   'public.review_originator_card to gabriel_app',
+  'public.run_evidence_checks to gabriel_agent',
   'public.runner_settings to gabriel_agent',
   'public.second_read_done to gabriel_agent',
   'public.set_entity_layout to gabriel_agent',

@@ -20,6 +20,10 @@ export interface record_model_call_params {
   p_input_tokens?: number;
 
   p_output_tokens?: number;
+
+  p_minimiser?: string;
+
+  p_personal_categories?: string[];
 }
 
 export type record_model_call_return_type = string;

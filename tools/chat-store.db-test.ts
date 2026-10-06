@@ -50,7 +50,8 @@ const called = (ask: Ask): Promise<string> =>
   as(
     ask,
     'gabriel_agent',
-    `SELECT public.record_model_call('chat', 'v1', 'e', 'm', $1, 1, 'ok') AS id`,
+    `SELECT public.record_model_call('chat', 'v1', 'e', 'm', $1, 1, 'ok',
+       p_minimiser => 'chat-test', p_personal_categories => '{}'::text[]) AS id`,
     [SHA],
   );
 

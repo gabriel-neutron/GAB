@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { JobStop, ModelFailure, type AgentContext, type Asked } from '../agents.ts';
 import { idempotencyKey } from '../idempotency.ts';
+import type { Minimiser } from '../minimise.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import { claimKeyOf, EXTRACTOR_NAME, makeExtractor, type ExtractorTools } from './extractor.ts';
 
@@ -38,7 +39,13 @@ const ACT = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
 const ENTRY = { act: ACT, page: 1, start: 0, end: 6, modality: 'asserts' };
 
 // A minimiser that keeps the length and replaces the marker, so the test can see where it ran.
-const hide = (text: string): string => text.replaceAll('MARKER', '######');
+const hide: Minimiser = {
+  version: 'test-minimiser',
+  apply: (text) => text.replaceAll('MARKER', '######'),
+};
+
+// A minimiser that adds one character, so the length check of the reader stops the job.
+const longer: Minimiser = { version: 'test-minimiser', apply: (text) => `${text}x` };
 
 type Reply = { kind: 'value'; value: unknown } | { kind: 'call'; name: string; input: unknown };
 
@@ -155,7 +162,7 @@ describe('the gate of the minimiser', () => {
   it('stops with minimiser_length when the minimiser changes the length', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
     const agent = makeExtractor(CONFIG, {
-      minimise: (text) => `${text}x`,
+      minimise: longer,
       tools: toolsOf().tools,
     });
 

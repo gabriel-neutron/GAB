@@ -20,6 +20,7 @@ import {
   type RunnerAgent,
 } from '../agents.ts';
 import { chunkPages, codePoints, type Chunk } from '../chunk.ts';
+import type { Minimiser } from '../minimise.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 
@@ -37,9 +38,9 @@ export interface ExtractorTools {
 }
 
 export interface ExtractorOptions {
-  /** Replaces personal data with placeholders of the same length. With none, no model reads a
-   * stored document, and each job stops. */
-  readonly minimise?: (text: string) => string;
+  /** Replaces personal data with placeholders of the same length, and names its version. With
+   * none, no model reads a stored document, and each job stops. */
+  readonly minimise?: Minimiser;
   readonly tools?: ExtractorTools;
   /** The text of the prompt. The default is the versioned file beside this one. */
   readonly prompt?: string;
@@ -123,7 +124,7 @@ export const makeExtractor = (
 
   const run = async (context: AgentContext): Promise<AgentResult> => {
     // The gate stands before any read, so with no minimiser the stored text reaches no model.
-    const minimise = options.minimise;
+    const minimise = options.minimise?.apply;
     if (minimise === undefined) throw new JobStop('no_minimiser');
 
     const session: Session = { query: (text, values) => context.db.query(text, values) };
@@ -234,6 +235,7 @@ export const makeExtractor = (
             readerFingerprint: `${asked.served} ${promptHash}`,
             chunkHash: chunk.hash,
             idempotencyKey: key,
+            modelFamily: config.family,
           });
           if (!read.ok)
             throw new Error(
@@ -316,6 +318,7 @@ export const makeExtractor = (
     // Each question of the job counts one turn, so the cap is the most questions of one job.
     questionsPerJob: config.turnCap,
     tokenCap: config.tokenCap,
+    ...(options.minimise === undefined ? {} : { minimiser: options.minimise.version }),
     run,
   };
 };

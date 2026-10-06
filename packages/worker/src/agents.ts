@@ -70,7 +70,11 @@ export interface RunnerAgent {
   readonly name: string;
   readonly version: string;
   readonly kind: ClaimedJob['kind'];
-  readonly settings: AgentModel;
+  /** The model of the agent. An agent with none asks no question: code does its whole job. */
+  readonly settings?: AgentModel;
+  /** The version of the minimiser that the agent runs on each text before a model reads it. With
+   * none, the runner refuses each question of the agent. */
+  readonly minimiser?: string;
   /** The most questions one job asks. The lease must outlast this many worst questions. */
   readonly questionsPerJob: number;
   /** The soft stop of the tokens of one job. */

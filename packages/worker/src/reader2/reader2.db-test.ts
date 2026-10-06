@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import type { RunnerAgent } from '../agents.ts';
 import { makeExtractor } from '../extractor/extractor.ts';
+import type { Minimiser } from '../minimise.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
   completionOf,
@@ -69,7 +70,7 @@ const READER2_CONFIG: ReaderConfig = {
   chunkCap: CAP,
 };
 
-const identity = (text: string): string => text;
+const identity: Minimiser = { version: 'identity-test', apply: (text) => text };
 
 const extractor = (): RunnerAgent => makeExtractor(EXTRACTOR_CONFIG, { minimise: identity });
 const reader2 = (prompt?: string): RunnerAgent =>
@@ -533,7 +534,7 @@ const enqueueExtract = CATALOGUE.find((tool) => tool.name === 'enqueue_extract')
 describe('the enqueue of a second reading', () => {
   const kinds = z.array(z.object({ kind: z.string(), status: z.string() }));
 
-  test('enqueue_extract queues a second_read job beside the extract_text job', async () => {
+  test('enqueue_extract queues a second_read job beside the extract_text job and the checks', async () => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -557,6 +558,7 @@ describe('the enqueue of a second reading', () => {
         ).rows,
       );
       expect(found).toStrictEqual([
+        { kind: 'evidence_check', status: 'queued' },
         { kind: 'extract_text', status: 'queued' },
         { kind: 'second_read', status: 'queued' },
       ]);
@@ -569,7 +571,7 @@ describe('the enqueue of a second reading', () => {
     }
   });
 
-  test('the kinds of a job are the four work words known today', async () => {
+  test('the kinds of a job are the five work words known today', async () => {
     const found = z.array(z.object({ definition: z.string() })).parse(
       (
         await pool.query(
@@ -579,7 +581,13 @@ describe('the enqueue of a second reading', () => {
       ).rows,
     );
     expect(found).toHaveLength(1);
-    for (const kind of ['store_only', 'extract_text', 'map_structured', 'second_read'])
+    for (const kind of [
+      'store_only',
+      'extract_text',
+      'map_structured',
+      'second_read',
+      'evidence_check',
+    ])
       expect(found[0]?.definition).toContain(`'${kind}'`);
   });
 });

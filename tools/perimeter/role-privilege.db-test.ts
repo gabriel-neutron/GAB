@@ -11,7 +11,7 @@ const DOORS = {
   propose_change:
     'public.propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text)',
   record_model_call:
-    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer)',
+    'public.record_model_call(text,text,text,text,text,integer,text,uuid,text,integer,integer,text,text[])',
   promote_proposal: 'public.promote_proposal(uuid,text)',
   reject_proposal: 'public.reject_proposal(uuid,text)',
   claim_job: 'public.claim_job()',
@@ -27,8 +27,13 @@ const DOORS = {
   put_document_text: 'public.put_document_text(text,jsonb,text)',
   put_fetched_document: 'public.put_fetched_document(text,text,text,text,text,text,date,text,text)',
   put_claim_reading:
-    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text)',
+    'public.put_claim_reading(uuid,uuid,text,integer,integer,integer,text,boolean,uuid,text,text,text,text,text,jsonb,text)',
   second_read_done: 'public.second_read_done(uuid,text,text,text)',
+  add_citation: 'public.add_citation(uuid,uuid,text,integer,integer,integer,text)',
+  run_evidence_checks: 'public.run_evidence_checks(uuid,uuid)',
+  mark_adverse_predicates: 'public.mark_adverse_predicates(uuid)',
+  load_adverse_predicates: 'public.load_adverse_predicates(text,jsonb)',
+  record_family_probe: 'public.record_family_probe(text,text,text,integer,integer)',
 } as const;
 
 const holders = z.array(z.object({ door: z.string(), held: z.boolean() }));
@@ -77,6 +82,11 @@ test('gabriel_agent holds EXECUTE on propose_change, the call record, the layout
     put_fetched_document: true,
     put_claim_reading: true,
     second_read_done: true,
+    add_citation: true,
+    run_evidence_checks: true,
+    mark_adverse_predicates: false,
+    load_adverse_predicates: false,
+    record_family_probe: false,
   });
 });
 
@@ -103,6 +113,11 @@ test('gabriel_research holds EXECUTE on five doors and no other', async () => {
     put_fetched_document: true,
     put_claim_reading: false,
     second_read_done: false,
+    add_citation: false,
+    run_evidence_checks: false,
+    mark_adverse_predicates: false,
+    load_adverse_predicates: false,
+    record_family_probe: false,
   });
 });
 
@@ -143,6 +158,11 @@ test('gabriel_app holds EXECUTE on the four acts of the operator and on the rele
     put_fetched_document: false,
     put_claim_reading: false,
     second_read_done: false,
+    add_citation: false,
+    run_evidence_checks: false,
+    mark_adverse_predicates: true,
+    load_adverse_predicates: true,
+    record_family_probe: true,
   });
 });
 
@@ -330,7 +350,8 @@ const callOf = async (identity: 'app' | 'agent' | 'research', ask: Ask): Promise
   if (identity !== 'agent') return null;
   const [row] = made.parse(
     await ask(`SELECT public.record_model_call('a perimeter test', 'v1', 'e', 'm',
-                 repeat('a', 64), 1, 'ok') AS id`),
+                 repeat('a', 64), 1, 'ok', p_minimiser => 'perimeter-test',
+                 p_personal_categories => '{}'::text[]) AS id`),
   );
   return row?.id ?? null;
 };

@@ -36,14 +36,18 @@ const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::da
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
-const withDocument = async (ask: Ask, pages: readonly string[]): Promise<void> => {
+const withDocument = async (
+  ask: Ask,
+  pages: readonly string[],
+  mime = 'application/pdf',
+): Promise<void> => {
   await ask(STORE, [
     'url',
     'A report of the tool test',
     `raw/${SHA}`,
     'https://example.org/report',
     SHA,
-    'application/pdf',
+    mime,
     '2026-09-02',
     null,
   ]);
@@ -450,7 +454,7 @@ const JOBS = z.object({
   ),
 });
 
-test('enqueue_extract queues the extraction and the second reading, and job_status reports both', async () => {
+test('enqueue_extract queues the extraction, the second reading and the checks, and job_status reports each', async () => {
   const found = await rolledBack('research', async (ask) => {
     await withDocument(ask, ['page one']);
     const job = queued.parse(await output(ask, 'enqueue_extract', { document: DOC }));
@@ -468,7 +472,27 @@ test('enqueue_extract queues the extraction and the second reading, and job_stat
     'done',
     'queued',
     'queued',
+    'queued',
   ]);
+});
+
+const KINDS = z.array(z.object({ kind: z.string() }));
+
+// The OCR text is the second reading of an image, so no model reads it a second time.
+test('enqueue_extract of an image queues the extraction and the checks, and no second reading', async () => {
+  const kinds = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    await withDocument(ask, ['NAYARA STAR'], 'image/png');
+    await output(ask, 'enqueue_extract', { document: DOC });
+    await ask('RESET SESSION AUTHORIZATION');
+    return KINDS.parse(
+      await ask(
+        "SELECT kind FROM public.jobs WHERE document_id = $1 AND status = 'queued' ORDER BY kind",
+        [DOC],
+      ),
+    );
+  });
+  expect(kinds.map((row) => row.kind)).toStrictEqual(['evidence_check', 'extract_text']);
 });
 
 test('enqueue_extract of a second open job for one document is a fault of the database', async () => {

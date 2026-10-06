@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { JobStop, ModelFailure, type AgentContext, type Asked } from '../agents.ts';
 import { idempotencyKey } from '../idempotency.ts';
+import type { Minimiser } from '../minimise.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import { makeReader2, READER2_NAME, READER2_RELEASE, type Reader2Tools } from './reader2.ts';
 
@@ -38,7 +39,13 @@ const CONFIG: ReaderConfig = {
 const ENTRY = { page: 1, start: 0, end: 6, modality: 'asserts' };
 
 // A minimiser that keeps the length and replaces the marker, so the test can see where it ran.
-const hide = (text: string): string => text.replaceAll('MARKER', '######');
+const hide: Minimiser = {
+  version: 'test-minimiser',
+  apply: (text) => text.replaceAll('MARKER', '######'),
+};
+
+// A minimiser that adds one character, so the length check of the reader stops the job.
+const longer: Minimiser = { version: 'test-minimiser', apply: (text) => `${text}x` };
 
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
 
@@ -132,7 +139,7 @@ describe('the gate of the minimiser', () => {
 
   it('stops with minimiser_length when the minimiser changes the length', async () => {
     const scripted = contextOf([{ kind: 'value', value: { claims: [] } }]);
-    const agent = makeReader2(CONFIG, { minimise: (text) => `${text}x`, tools: toolsOf().tools });
+    const agent = makeReader2(CONFIG, { minimise: longer, tools: toolsOf().tools });
 
     await expect(agent.run(scripted.context)).rejects.toStrictEqual(
       new JobStop('minimiser_length'),
@@ -173,7 +180,7 @@ describe('what the model of the second reader gets', () => {
     const prompt = readFileSync(new URL('./prompt.md', import.meta.url), 'utf8');
     expect(scripted.asked[0]?.messages).toStrictEqual([
       { role: 'system', content: prompt },
-      { role: 'user', content: JSON.stringify({ document: DOC, page: 1, text: hide(PAGE) }) },
+      { role: 'user', content: JSON.stringify({ document: DOC, page: 1, text: hide.apply(PAGE) }) },
     ]);
   });
 
@@ -228,6 +235,7 @@ describe('a reading of the model', () => {
         readerFingerprint: `${MODEL} ${promptHash}`,
         chunkHash: expect.stringMatching(/^[0-9a-f]{64}$/u) as unknown,
         idempotencyKey: expect.stringMatching(/^[0-9a-f]{64}$/u) as unknown,
+        modelFamily: CONFIG.family,
       },
     ]);
   });

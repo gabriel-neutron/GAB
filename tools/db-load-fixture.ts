@@ -36,7 +36,10 @@ const DECIDED_BY = 'fixture-loader';
 const PUT_DOCUMENT = 'SELECT put_document($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id';
 const PROPOSE =
   'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[], $7, $8, $9::uuid) AS id';
-const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
+// The fixture asks no model, so its call record names the loader as its minimiser and holds no
+// personal category: no prompt was sent.
+const RECORD_CALL = `SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok',
+  p_minimiser => 'fixture-loader', p_personal_categories => '{}'::text[]) AS id`;
 const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
 
 // The card view of the read service must answer with a row, so the fixture holds one originator.
