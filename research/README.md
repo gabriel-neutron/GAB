@@ -1,6 +1,7 @@
 # Start a research session on Windows
 
-Run these five lines in PowerShell, from the root of the repository. Docker Desktop must run.
+Run these five lines in PowerShell, from the root of the repository. Docker Desktop must run, and
+the stack must have its `infra/.env` and its database (`infra/README.md`).
 
 ```powershell
 pnpm install
