@@ -27,17 +27,22 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- is the caller. It separates gabriel_agent from gabriel_app, and it CANNOT separate the
 -- operator from the backend, because both hold the name gabriel_app.
 -- What makes two machine acts the same act: the operation, the target, the payload, the
--- sources, the role that wrote it and the party that first stated it. The stamp below and the
--- batch door read it, so both compute one digest. Two roles, or two originators, are two
--- witnesses, and the digest keeps them apart: a merge would lose the second witness.
+-- sources and the role that wrote it. The stamp below and the batch door read it, so both compute
+-- one digest. Two roles are two witnesses, and the digest keeps them apart: a merge would lose the
+-- second witness. The originator is not part of it, because a model words the same party in more
+-- than one way, and each wording would make a second act of one claim.
+--
+-- An act that waited before this digest keeps the digest it was written with, because a pending
+-- act is frozen. A retry of such an act writes it once more.
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text,text);
 CREATE OR REPLACE FUNCTION act_digest_of(
   p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
-  p_author_role text, p_originator text)
+  p_author_role text)
 RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
   SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
-                               p_author_role, p_originator)::text)
+                               p_author_role)::text)
 $$;
 
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
@@ -65,7 +70,7 @@ BEGIN
   -- never joined to an act of a machine.
   NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
     ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
-                       NEW.author_role, NEW.originator) END;
+                       NEW.author_role) END;
   RETURN NEW;
 END $$;
 
@@ -460,13 +465,15 @@ END $$;
 --
 -- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
 -- digest of a pending act makes a retry return the act that waits. That act keeps its own
--- identifier, so each later item that named the minted one names the act that waits instead.
--- The door adds to that act each citation of the item that it does not hold yet, so a second
--- passage of the same witness is kept, and a retry writes no citation twice.
+-- identifier and its own originator, so each later item that named the minted one names the act
+-- that waits instead. The door adds to that act each citation of the item that it does not hold
+-- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
 --
--- THE RULES OF THE DATA ARE HERE, and the tool only finds the excerpt. A machine act cites at
--- least one page. The page exists in the text of the document, the span lies in that page, and
--- the document is a source of the act. Each refusal names the item.
+-- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
+-- attributes. A machine act cites at least one page. The page exists in the text of the document,
+-- the span lies in that page, and the document is a source of the act. Each refusal names the
+-- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
+-- model gets its fault before the write; the promotion holds those two rules too.
 --
 -- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH, and the operator decides them as one unit. An
 -- item that names no other item, and that no other item names, stays a single act: a faulty claim
@@ -554,6 +561,12 @@ BEGIN
     IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
       RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
         USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    -- A change of a name or a type and a deletion rewrite what the operator already decided.
+    IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs') THEN
+      RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation or new '
+                      'attributes, and never a change of a name or a type, nor a deletion', v_no
+        USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
     IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
                                                  'denies') THEN
@@ -661,8 +674,7 @@ BEGIN
       SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text,
-                                          btrim(v_item->>'originator', E' \t\n\r\f\v'))
+                                          v_payload::jsonb, v_src, session_user::text)
          FOR SHARE;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
@@ -1406,6 +1418,19 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END $$;
+
+-- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
+-- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
+-- text and the propose tool choose the set here, so they choose the same one. The caller reads the
+-- text with its own grant, so this is no door.
+CREATE OR REPLACE FUNCTION newest_text_extractor(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT t.extractor FROM public.document_text t
+   WHERE t.document_id = p_document
+   ORDER BY t.created_at DESC, t.extractor DESC
+   LIMIT 1
+$$;
 
 -- THE DOOR OF A MACHINE THAT FETCHED A SOURCE. put_document takes any kind and does not demand the
 -- bytes, so it is the operator's. This door is as narrow as the act it serves: an address that was

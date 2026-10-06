@@ -23,13 +23,9 @@ export const checkedRange = (fromPage: number, given: number | undefined): numbe
   return toPage;
 };
 
-// The set of the newest extractor answers when the caller names none, because an older set is a
-// reading that a newer one replaced.
+// The newest set of text when the caller names none.
 const PAGES = `WITH chosen AS (
-    SELECT coalesce($4::text,
-             (SELECT t.extractor FROM public.document_text t
-               WHERE t.document_id = $1::text
-               ORDER BY t.created_at DESC, t.extractor DESC LIMIT 1)) AS extractor)
+    SELECT coalesce($4::text, public.newest_text_extractor($1::text)) AS extractor)
   SELECT t.extractor, t.page::int AS page, t.text,
          (SELECT max(m.page) FROM public.document_text m
            WHERE m.document_id = $1::text AND m.extractor = c.extractor)::int AS last_page
