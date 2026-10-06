@@ -15,7 +15,7 @@ the operator.
   `list_proposals`.
 - Read the documents: `find_document`, `document_text`, `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
-- Write: `archive_snapshot`, `fetch_document`, `enqueue_extract`, `propose`.
+- Write: `archive_snapshot`, `fetch_document`, `enqueue_extract`, `start_lead`, `propose`.
 
 ## Who proposes what
 
@@ -25,6 +25,11 @@ the operator.
 - **You propose only what the extractor missed.** When the job is done (`job_status`), read its
   proposals with `list_proposals` for the document. Propose a fact only if no pending proposal
   holds it, through `propose`, with the page and the excerpt.
+- **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
+  vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
+  stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,
+  find the stored pages with `find_document` and their proposals with `list_proposals`. Start a
+  lead only for the lead of your ticket.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 

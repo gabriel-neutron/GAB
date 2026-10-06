@@ -33,7 +33,12 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
   relations, jobs TO gabriel_app;
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
-  relations, jobs TO gabriel_agent;
+  relations TO gabriel_agent;
+-- THE TEXT OF A LEAD IS PRIVATE, ALSO FROM THE WORKER. The worker reads the text of the lead that it
+-- claims through the claim door, so its read of the queue leaves out the text and its author. A
+-- process that reads untrusted web content then cannot read the other leads of the operator.
+GRANT SELECT (id, document_id, kind, status, failure_reason, claimed_by, claimed_at, created_at,
+  updated_at, finished_at) ON jobs TO gabriel_agent;
 
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
@@ -73,6 +78,9 @@ REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION start_lead(text)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_lead_document(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION lead_jobs()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 
@@ -124,6 +132,13 @@ GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
+
+-- A LEAD IS STARTED BY THE OPERATOR OR BY THE RESEARCH AI, AND NEVER BY THE WORKER. The agent that
+-- runs a lead starts no lead of its own, so the worker role holds no grant on the start. It
+-- records the documents of the lead that it runs, and the operator alone reads the leads.
+GRANT EXECUTE ON FUNCTION start_lead(text)         TO gabriel_app, gabriel_research;
+GRANT EXECUTE ON FUNCTION record_lead_document(uuid,text) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count

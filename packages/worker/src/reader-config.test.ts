@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readExtractorConfig } from './reader-config.ts';
+import { readExtractorConfig, readLeadConfig } from './reader-config.ts';
 
 const FULL = {
   EXTRACTOR_MODEL: 'a-family/a-model',
@@ -85,5 +85,28 @@ describe('the configuration of the extractor', () => {
 
   it('holds no default: an empty environment names the first value it needs', () => {
     expect(() => readExtractorConfig({})).toThrow(/EXTRACTOR_/u);
+  });
+});
+
+describe('the configuration of the lead agent', () => {
+  const LEAD = { ...FULL, LEAD_TOKEN_CAP: '200000', SEARXNG_URL: 'http://127.0.0.1:8080' };
+
+  it('asks the model of the extractor with a token budget of its own', () => {
+    const read = readLeadConfig(LEAD);
+    expect(read.model).toStrictEqual(readExtractorConfig(FULL).reader);
+    expect(read.tokenCap).toBe(200000);
+  });
+
+  it('stops with a sentence that names LEAD_TOKEN_CAP when it is absent', () => {
+    expect(() => readLeadConfig({ ...LEAD, LEAD_TOKEN_CAP: undefined })).toThrow(/LEAD_TOKEN_CAP/u);
+  });
+
+  it('stops with a sentence that names SEARXNG_URL when no search engine is set', () => {
+    expect(() => readLeadConfig({ ...LEAD, SEARXNG_URL: ' ' })).toThrow(/SEARXNG_URL/u);
+  });
+
+  it('takes a Brave key alone as the search engine', () => {
+    const read = readLeadConfig({ ...LEAD, SEARXNG_URL: undefined, BRAVE_SEARCH_API_KEY: 'k' });
+    expect(read.tokenCap).toBe(200000);
   });
 });

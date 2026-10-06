@@ -7,6 +7,7 @@ import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
 import { decideBatch } from './decide-batch.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
+import { readLeads, startLead } from './lead.ts';
 import { readPassages } from './passages.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
@@ -38,8 +39,8 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The doors of the operator, and two private reads: the status of the jobs of a document, and
- * the passages that the acts cite. The public read never shows either one. */
+/** The doors of the operator, and three private reads: the status of the jobs of a document,
+ * the passages that the acts cite, and the leads. The public read never shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
@@ -50,6 +51,18 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readPassages(pool, await context.req.text());
     return context.json(read.reply, read.status);
+  });
+
+  // The text of a lead can name a party before any source supports it, so it stays private.
+  app.post('/private/leads', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readLeads(pool);
+    return context.json(read.reply, read.status);
+  });
+
+  // The worker searches and stores the sources of a lead. It proposes nothing.
+  app.post('/write/start-lead', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await startLead(pool, await context.req.text());
+    return context.json(act.reply, act.status);
   });
 
   for (const op of WRITE_OPS)

@@ -427,6 +427,31 @@ exports[`the list of tools 1`] = `
   {
     "annotations": {
       "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+    },
+    "description": "Gives a lead to the back-end AI of Gabriel, and returns the job id. The back-end AI searches the web and the news for the lead, fetches and stores each new page, and queues the extraction of its claims. It proposes nothing by itself. The lead runs later: the stored pages come back with find_document, and their proposals with list_proposals. A lead is private and the public never reads it.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "lead": {
+          "description": "what to search for, such as "Intershipping and its vessels"",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "lead",
+      ],
+      "type": "object",
+    },
+    "name": "start_lead",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
       "idempotentHint": true,
       "openWorldHint": false,
       "readOnlyHint": false,

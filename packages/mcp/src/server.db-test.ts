@@ -351,3 +351,28 @@ test('the public read role cannot read the jobs of a document', async () => {
     rolledBack('read', (ask) => ask("SELECT * FROM public.document_jobs('doc_absent')")),
   ).rejects.toMatchObject({ code: '42501' });
 });
+
+// ------------------------------------------------------------------------ leads ---
+
+test('start_lead starts a lead of gabriel_research and returns its job id', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const started = await withServer(ask, async (call) =>
+      z
+        .object({ jobId: z.uuid() })
+        .parse(outputOf(await call('start_lead', { lead: 'Intershipping and its vessels' }))),
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return ask('SELECT kind, lead, lead_by, status FROM public.jobs WHERE id = $1', [
+      started.jobId,
+    ]);
+  });
+  expect(found).toStrictEqual([
+    {
+      kind: 'research_lead',
+      lead: 'Intershipping and its vessels',
+      lead_by: 'gabriel_research',
+      status: 'queued',
+    },
+  ]);
+});
