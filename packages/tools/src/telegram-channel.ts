@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { storeFetched } from './fetch-document.ts';
+import { storeAnswer } from './store-answer.ts';
 import { parseTelegramAddress } from './telegram-address.ts';
 import { readPreviewPage, type Post } from './telegram-preview.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
@@ -119,7 +119,8 @@ export const telegramChannel = defineTool({
     const stored = [];
     for (const post of posts) {
       const url = `https://t.me/${post.handle}/${post.message_id}`;
-      const document = await storeFetched(session, reach.store, {
+      const document = await storeAnswer(session, reach.store, {
+        kind: 'url',
         bytes: recordOf(post),
         mime: 'application/json',
         uri: url,

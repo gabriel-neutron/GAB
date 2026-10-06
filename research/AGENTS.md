@@ -15,7 +15,13 @@ the operator.
   `list_proposals`.
 - Read the documents: `find_document`, `document_text`, `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
+<<<<<<< HEAD
 - Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`, `start_lead`, `propose`.
+=======
+- Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
+  as a document.
+- Write: `archive_snapshot`, `fetch_document`, `enqueue_extract`, `start_lead`, `propose`.
+>>>>>>> fb64690 (feat(tools): three register lookups store each answer once as an api document)
 
 ## Who proposes what
 
@@ -30,6 +36,11 @@ the operator.
   stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,
   find the stored pages with `find_document` and their proposals with `list_proposals`. Start a
   lead only for the lead of your ticket.
+- **A register lookup gives a document to cite.** When you hold an LEI, a UK company number or a
+  Wikidata item id, call `gleif_lookup`, `companies_house` or `wikidata_ids`. Read the stored
+  text with `document_text`, and call `propose` with the document id and the excerpt.
+  `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
+  work.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 
@@ -45,7 +56,8 @@ the operator.
    0010). After the fetch, call `enqueue_extract` with the document id.
 4. **A search result is a lead, and not a source** (ADR 0010). A list of search results is not
    stored, and you must not cite it. Fetch the page that the result points to. Only a fetched
-   page is a document.
+   page is a document. A name search in a register is also a lead: read the record by its
+   identifier with the lookup tool, and cite the document that it stores.
 5. **Use the words of the record.** Call `list_vocabulary` for the entity types, the relation
    types and the identifier keys. Do not make up a type or a key.
 6. **ADR 0011 is the authority for ratings and wording.** Do not make a rating table of your own.

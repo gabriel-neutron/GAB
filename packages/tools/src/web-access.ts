@@ -1,4 +1,4 @@
-// What the three web tools share. A tool gets its web from the reach and from nowhere else, and a
+// What the tools share that reach the web through a reach. A tool gets its web from the reach and from nowhere else, and a
 // fault of the web is turned into a sentence that holds a status and nothing the web said. An
 // address can hold a query and a key can hold a secret, so no message made here repeats either.
 
