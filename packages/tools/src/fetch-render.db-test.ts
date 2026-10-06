@@ -142,10 +142,10 @@ const ROW = `SELECT d.id::text AS id, d.kind, d.title, d.s3_key, d.uri, d.mime,
 
 const rowOf = async (ask: Ask, sha: string) => z.array(documentRow).parse(await ask(ROW, [sha]));
 
-test('a script that fills a table gives its text with render, and the two documents are two rows', async () => {
+test('a page with little text is rendered, its script fills a table, and the two documents are two rows', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
-    const got = await fetched(ask, { url: `${base}/table`, render: true }, fixtureReach(store));
+    const got = await fetched(ask, { url: `${base}/table` }, fixtureReach(store));
     expect(got.rendered).not.toBeNull();
     expect(got.rendered?.status).toBe('stored');
     expect(got.rendered?.title).toBe('Port state control search (rendered)');
@@ -176,16 +176,6 @@ test('a script that fills a table gives its text with render, and the two docume
   });
 });
 
-test('a page with little text is rendered with no flag', async () => {
-  await rolledBack('research', async (ask) => {
-    const store = memoryStore();
-    const got = await fetched(ask, { url: `${base}/table` }, fixtureReach(store));
-    expect(got.rendered?.status).toBe('stored');
-    expect(got.pages[0]?.text).toContain('Detained at Port Louis');
-    expect(store.puts).toHaveLength(2);
-  });
-});
-
 test('a request of the page to a private address is stopped, counted, and not stored', async () => {
   const store = memoryStore();
   const before = fixture.requests.length;
@@ -202,7 +192,7 @@ test('a request of the page to a private address is stopped, counted, and not st
     refuses: (address) => address !== '127.0.0.1' && refusedAddress(address),
   };
   await rolledBack('research', async (ask) => {
-    const got = await fetched(ask, { url: `${base}/private`, render: true }, reach);
+    const got = await fetched(ask, { url: `${base}/private` }, reach);
     expect(fixture.requests.slice(before)).toStrictEqual(['/private']);
     expect(got.notice).toMatch(/2 requests? .*private/u);
     expect(got.notice).not.toMatch(/10\.0\.0\.1|10\.20\.30\.40/u);
@@ -212,10 +202,10 @@ test('a request of the page to a private address is stopped, counted, and not st
   });
 });
 
-test('a page with no script and render gives two documents, and both ids come back', async () => {
+test('a short page with no script gives two documents, and both ids come back', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
-    const got = await fetched(ask, { url: `${base}/static`, render: true }, fixtureReach(store));
+    const got = await fetched(ask, { url: `${base}/static` }, fixtureReach(store));
     expect(got.rendered).not.toBeNull();
     expect(got.rendered?.document).not.toBe(got.document);
     expect(got.pages[0]?.text).toContain(`Run ${RUN}`);
@@ -230,11 +220,7 @@ test('a page with no script and render gives two documents, and both ids come ba
 test('a file of the page that is absent is not counted as a private address', async () => {
   const before = fixture.requests.length;
   await rolledBack('research', async (ask) => {
-    const got = await fetched(
-      ask,
-      { url: `${base}/missing-file`, render: true },
-      fixtureReach(memoryStore()),
-    );
+    const got = await fetched(ask, { url: `${base}/missing-file` }, fixtureReach(memoryStore()));
     expect(fixture.requests.slice(before)).toStrictEqual(['/missing-file', '/missing.json']);
     expect(got.rendered?.status).toBe('stored');
     expect(got.notice ?? '').not.toMatch(/private/u);
