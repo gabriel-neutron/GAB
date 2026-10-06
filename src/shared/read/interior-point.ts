@@ -45,9 +45,13 @@ export function interiorPointOf(area: Area): Point | null {
   const outer = largest?.[0];
   if (largest === null || outer === undefined) return null;
 
-  const lats = outer.map(([, lat]) => lat);
-  const south = Math.min(...lats);
-  const height = Math.max(...lats) - south;
+  let south = Infinity;
+  let north = -Infinity;
+  for (const [, lat] of outer) {
+    south = Math.min(south, lat);
+    north = Math.max(north, lat);
+  }
+  const height = north - south;
 
   let best: Point | null = null;
   let bestSpan = -1;

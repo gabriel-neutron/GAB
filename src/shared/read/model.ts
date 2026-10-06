@@ -68,7 +68,7 @@ export interface DocumentProvider {
   readonly licence: string;
 }
 
-/** A point, in WGS 84. The column holds any geometry; a surface that draws a dot needs a point. */
+/** A point, in WGS 84. The column holds any geometry; a mark needs a point. */
 export interface Point {
   readonly lon: number;
   readonly lat: number;
