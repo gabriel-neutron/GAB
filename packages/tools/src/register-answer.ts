@@ -8,11 +8,16 @@ import { anyAnswerOf, UpstreamFault } from './web-access.ts';
 import { storeAnswer } from './store-answer.ts';
 import { type Reach, type Session, type Web, ToolRefusal } from './tool.ts';
 
+const REDIRECTS = new Set([301, 302, 303, 307, 308]);
+
 export interface RegisterRequest {
   readonly url: string;
   /** The name of the register, for the sentence of a refusal. */
   readonly register: string;
   readonly headers?: Readonly<Record<string, string>>;
+  /** The sentence of a refusal when the register moved the record: it gets the new address. A
+   * redirect is never followed. */
+  readonly moved?: (location: string) => string;
 }
 
 export interface RegisterAnswer {
@@ -36,6 +41,9 @@ export const readRegister = async (
     throw fault;
   }
   if (answer.status === 404) return null;
+  const location = answer.headers['location'];
+  if (request.moved !== undefined && REDIRECTS.has(answer.status) && location !== undefined)
+    throw new ToolRefusal(request.moved(location));
   if (answer.status < 200 || answer.status > 299)
     throw new ToolRefusal(`${request.register} answered ${answer.status}`);
   try {

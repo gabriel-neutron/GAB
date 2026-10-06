@@ -32,6 +32,10 @@ export interface Web {
   readonly braveKey?: string;
   /** The key of the Companies House API. It leaves in a header and in no address. */
   readonly companiesHouseKey?: string;
+  /** The key of the OpenSanctions API. It leaves in a header and in no address. */
+  readonly openSanctionsKey?: string;
+  /** The token of the Global Fishing Watch API. It leaves in a header and in no address. */
+  readonly gfwToken?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
