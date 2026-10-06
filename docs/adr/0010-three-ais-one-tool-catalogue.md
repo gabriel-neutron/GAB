@@ -61,10 +61,17 @@ The back-end profiles stay small, because the back-end AI is a small model on fr
 | Consumer | Surface | Role | Propose | Store | Promote |
 |---|---|---|---|---|---|
 | Operator | Interface → writer | `gabriel_app` | yes | `put_document` | yes |
-| Claude, Codex | MCP (stdio) | `gabriel_research` (new) | yes | `put_fetched_document` | no |
-| Back-end agents | Runner | `gabriel_agent` | yes | `put_fetched_document` | no |
+| Claude, Codex | MCP (stdio) | `gabriel_research` (new) | yes | `put_fetched_document`, and narrow doors (below) | no |
+| Back-end agents | Runner | `gabriel_agent` | yes | `put_fetched_document`, and narrow doors (below) | no |
 | Promotion rule | Runner | `gabriel_agent` | — | — | `decide_by_rule` only |
 | Chat | Writer route | `gabriel_read`, and enqueue through the writer | **no** | no | no |
+
+**A machine role writes only through narrow doors.** Amended 6 October 2026. Next to
+`put_fetched_document`, `gabriel_research` and `gabriel_agent` can hold other SECURITY DEFINER
+doors. Each door writes one kind of row, for example `put_telegram_post`, `put_claim_reading` or
+`put_load_report`. No machine role holds a grant to write a table directly.
+`db/apply/90_grants.sql` holds the full list of doors for each role, and the perimeter tests
+check it. A new door needs no change to this table.
 
 **The MCP server never calls `/write/*`.** A writer door signs as the operator
 (`packages/writer/src/sign.ts`), so a call from Claude through it would enter the evidentiary
