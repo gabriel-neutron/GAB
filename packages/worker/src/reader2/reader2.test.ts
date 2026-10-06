@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 
 import { REASON, type Question } from '@gab/model';
-import { PROFILES } from '@gab/tools/profiles';
 import { putClaimReading } from '@gab/tools/put-claim-reading';
 import { ToolRefusal } from '@gab/tools/tool';
 import { describe, expect, it } from 'vitest';
@@ -324,7 +323,7 @@ describe('the stops of a job', () => {
   });
 });
 
-describe('the agent and its profile', () => {
+describe('the agent', () => {
   it('is the second reader of the kind second_read, and it releases on the three failures', () => {
     const agent = makeReader2(CONFIG, { minimise: hide });
     expect(agent.name).toBe('reader2');
@@ -336,11 +335,6 @@ describe('the agent and its profile', () => {
       quota: 'quota',
       served_other: 'model_mismatch',
     });
-  });
-
-  it('holds document_text and put_claim_reading, and no tool that reads a proposal or a reading', () => {
-    expect(PROFILES.reader2).toStrictEqual(['document_text', 'put_claim_reading']);
-    for (const name of PROFILES.reader2) expect(name).not.toMatch(/proposal|propose|reading_read/u);
   });
 });
 

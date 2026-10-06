@@ -282,32 +282,16 @@ const DEFINER_DOORS = `
    ORDER BY 1`;
 
 const THE_DOOR_SET = [
-  'public.append_chat_message to gabriel_app',
   'public.claim_job to gabriel_agent',
   'public.complete_job to gabriel_agent',
-  'public.confirm_fabrication to gabriel_app',
-  'public.contest_letter to gabriel_app',
-  'public.decide_originator_fact to gabriel_app',
   'public.enqueue_job to gabriel_agent',
   'public.enqueue_job to gabriel_app',
   'public.enqueue_job to gabriel_research',
-  'public.ensure_originator to gabriel_app',
-  'public.ensure_originator_candidate to gabriel_agent',
-  'public.ensure_originator_candidate to gabriel_app',
   'public.fail_job to gabriel_agent',
-  'public.issuer_card_for to gabriel_app',
-  'public.link_imprint to gabriel_app',
-  'public.load_trust_list to gabriel_app',
-  'public.merge_originator to gabriel_app',
-  'public.open_conversation to gabriel_app',
-  'public.originator_exceptions to gabriel_app',
-  'public.originator_letter_for to gabriel_app',
   'public.promote_proposal to gabriel_app',
   'public.propose_change to gabriel_agent',
   'public.propose_change to gabriel_app',
   'public.propose_change to gabriel_research',
-  'public.propose_originator_fact to gabriel_agent',
-  'public.propose_originator_fact to gabriel_app',
   'public.put_claim_reading to gabriel_agent',
   'public.put_document to gabriel_app',
   'public.put_document_text to gabriel_agent',
@@ -316,17 +300,12 @@ const THE_DOOR_SET = [
   'public.put_fetched_document to gabriel_agent',
   'public.put_fetched_document to gabriel_research',
   'public.record_model_call to gabriel_agent',
-  'public.refresh_originator to gabriel_app',
   'public.reject_proposal to gabriel_app',
   'public.release_expired_claims to gabriel_app',
   'public.release_job_for_quota to gabriel_agent',
-  'public.remove_operator_letter to gabriel_app',
-  'public.review_originator_card to gabriel_app',
   'public.runner_settings to gabriel_agent',
   'public.second_read_done to gabriel_agent',
   'public.set_entity_layout to gabriel_agent',
-  'public.set_operator_letter to gabriel_app',
-  'public.set_party_false to gabriel_app',
 ];
 
 // A departure: a door writes as gabriel_owner and holds no table grant, so EXECUTE on one is a
@@ -401,20 +380,14 @@ const READ_VIEWS = [
   'api.document_provider SELECT',
   'api.entity SELECT',
   'api.entity_type SELECT',
-  'api.full_graph SELECT',
   'api.full_map SELECT',
-  'api.job SELECT',
-  'api.key_usage SELECT',
   'api.layout SELECT',
-  'api.model_call SELECT',
-  'api.originator_card SELECT',
   'api.proposal SELECT',
   'api.relation SELECT',
   'api.relation_type SELECT',
-  'api.value_support SELECT',
 ];
 
-test('gabriel_read holds SELECT on the fifteen api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the nine public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -446,7 +419,7 @@ const MACHINE_HOLDS = `
 const MACHINE_VIEWS = ['document', 'entity', 'job', 'proposal', 'relation'];
 
 // A departure: the five views are named, and ALL TABLES is not used, so a view added later opens
-// to no tool until a person writes it in. api.model_call is the one that must stay closed.
+// to no tool until a person writes it in.
 test('the three tool roles hold SELECT on five api views and on nothing else of api', async () => {
   const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
     MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),

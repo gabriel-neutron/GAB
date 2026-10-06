@@ -12,7 +12,7 @@ import { putClaimReading } from './put-claim-reading.ts';
 import { searchGraph } from './search-graph.ts';
 import { webSearch } from './web-search.ts';
 
-/** Every tool that is built, once. A surface adapts a profile of this list and holds no logic. */
+/** Every tool that is built, once. A surface adapts a part of this list and holds no logic. */
 export const CATALOGUE = [
   searchGraph,
   neighbourhood,
