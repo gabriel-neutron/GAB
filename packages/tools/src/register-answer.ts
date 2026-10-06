@@ -2,6 +2,8 @@
 // one `api` document. A key travels in a header and never in the address, so the stored address
 // never holds it. A redirect is never followed, so a header never reaches a second host.
 
+import type { z } from 'zod';
+
 import { anyAnswerOf, UpstreamFault } from './web-access.ts';
 import { storeAnswer } from './store-answer.ts';
 import { type Reach, type Session, type Web, ToolRefusal } from './tool.ts';
@@ -43,6 +45,19 @@ export const readRegister = async (
   }
 };
 
+/** The answer read through its shape. An answer of another shape is a refusal that names the
+ * register. */
+export const shaped = <Shape extends z.ZodType>(
+  register: string,
+  shape: Shape,
+  json: unknown,
+): z.output<Shape> => {
+  const found = shape.safeParse(json);
+  if (!found.success)
+    throw new ToolRefusal(`${register} gave an answer that this tool does not read`);
+  return found.data;
+};
+
 /** Stores the answer once, as an `api` document that holds the answer as one page. */
 export const storeRegister = async (
   session: Session,
@@ -58,7 +73,7 @@ export const storeRegister = async (
     mime: 'application/json',
     uri: request.url,
     title: request.title,
-    pages: [answer.body.replaceAll('\u0000', '')],
+    pages: [answer.body],
     day: reach.now().toISOString().slice(0, 10),
   });
   return { document: stored.id, status: stored.status };

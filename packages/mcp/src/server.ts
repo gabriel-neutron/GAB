@@ -110,7 +110,7 @@ const run = async (
 
 // The server registers its own handlers, so the input schema of each tool goes out as the
 // catalogue builds it, and the refusal of a bad input is the sentence of the tool.
-/** The MCP server of the research workspace. With no reach, the fetch tool refuses each call. */
+/** The MCP server of the research workspace. With no reach, each tool that stores or reads the web refuses its call. */
 export const createServer = (pool: SessionPool, reach?: Reach): McpServer => {
   const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
 

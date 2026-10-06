@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { readRegister, storeRegister } from './register-answer.ts';
+import { readRegister, shaped, storeRegister } from './register-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { webFromReach } from './web-access.ts';
 
@@ -112,13 +112,11 @@ export const wikidataIds = defineTool({
     };
     const answer = await readRegister(web, request);
     if (answer === null) throw new ToolRefusal('Wikidata holds no answer for this query');
-    const found = sparqlAnswer.safeParse(answer.json);
-    if (!found.success)
-      throw new ToolRefusal('Wikidata gave an answer that this tool does not read');
+    const found = shaped('Wikidata', sparqlAnswer, answer.json);
 
     // One row comes back for each mix of values, so the rows of one item are merged.
     const items = new Map<string, z.input<typeof outputShape>['items'][number]>();
-    for (const row of found.data.results.bindings) {
+    for (const row of found.results.bindings) {
       const qid = row.item.value.split('/').at(-1) ?? row.item.value;
       const item = items.get(qid) ?? {
         qid,
