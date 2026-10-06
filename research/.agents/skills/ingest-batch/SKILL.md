@@ -21,6 +21,7 @@ and continue at step 6.
   job id.
 - `job_status`: read the state of the jobs of one document and the number of their proposals.
 - `list_proposals`: read the proposals that the extraction made for one document.
+- `document_text`: read the stored text of one document, page by page.
 - `start_lead`: give a lead to the lead agent of Gabriel. It returns the job id.
 
 ## Steps
