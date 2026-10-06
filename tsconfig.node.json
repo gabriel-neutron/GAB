@@ -39,6 +39,8 @@
     // The load command computes the picture through the layout door of the worker. A project
     // reference cannot carry it: a referenced project may not disable emit, and none emits.
     "packages/worker/src/layout-job.ts",
-    "packages/worker/src/layout.ts"
+    "packages/worker/src/layout.ts",
+    // The family probe asks the two pinned models of the readers, so it reads their settings.
+    "packages/worker/src/reader-config.ts"
   ]
 }

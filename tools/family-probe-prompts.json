@@ -1,0 +1,15 @@
+{
+  "version": "family-probe-1",
+  "prompts": [
+    "Give one English word that rhymes with 'harbour', and nothing else.",
+    "Name one colour that is not in a rainbow. One word.",
+    "Write a random whole number between 1 and 1000.",
+    "Give one invented name for a cargo ship. Two words at most.",
+    "Name one animal whose name has exactly five letters.",
+    "Give one word in Russian for a thing you can find on a ship.",
+    "Pick one letter of the Latin alphabet at random.",
+    "Name one city that is not a capital. One word.",
+    "Write a short invented surname. One word.",
+    "Give one English verb that starts with the letter q."
+  ]
+}

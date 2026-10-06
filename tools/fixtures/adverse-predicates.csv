@@ -1,0 +1,6 @@
+row_kind,subject_kind,predicate,class,lang,keyword,key
+key,vessel,belligerent_listing,official_act,,,gur_listed
+key,company,sanctions_evasion,adverse_allegation,,,settles_through
+keyword,unit,war_crime,adverse_allegation,eng,shelled,
+keyword,company,sanctions_evasion,adverse_allegation,eng,evaded sanctions,
+keyword,person,named_crime,adverse_allegation,rus,"обвиняется в мошенничестве",

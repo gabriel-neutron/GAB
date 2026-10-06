@@ -54,8 +54,8 @@ const approvalsOf = (markdown: string): readonly Approval[] =>
     }));
 
 // A semicolon-separated file, UTF-8, with a BOM allowed. A field in double quotes may hold a
-// semicolon, a line break or a doubled quote.
-const rowsOfCsv = (text: string): readonly Record<string, string>[] => {
+// semicolon, a line break or a doubled quote. Another list can name another separator.
+export const rowsOfCsv = (text: string, separator = ';'): readonly Record<string, string>[] => {
   const body = text.codePointAt(0) === 0xfeff ? text.slice(1) : text;
   const table: string[][] = [];
   let row: string[] = [];
@@ -70,7 +70,7 @@ const rowsOfCsv = (text: string): readonly Record<string, string>[] => {
       } else if (char === '"') quoted = false;
       else field += char;
     } else if (char === '"') quoted = true;
-    else if (char === ';') {
+    else if (char === separator) {
       row.push(field);
       field = '';
     } else if (char === '\n' || char === '\r') {
