@@ -11,6 +11,8 @@ import { decisionSaid, type DecisionState } from './decision';
 import { NodePane } from './node-pane';
 import { passagesOf, type CitedPassages } from './passages';
 import {
+  actIdsOf,
+  batchName,
   changeLines,
   focusOf,
   railRows,
@@ -32,6 +34,14 @@ export type ReviewAct =
   | {
       readonly kind: 'decide';
       readonly changeId: string;
+      readonly verdict: Verdict;
+      readonly reason: string;
+    }
+  | {
+      readonly kind: 'decide-batch';
+      readonly batchId: string;
+      /** Every act of the batch, so the pass marks each one with the verdict. */
+      readonly changeIds: readonly string[];
       readonly verdict: Verdict;
       readonly reason: string;
     }
@@ -90,8 +100,11 @@ export function ReviewPage({ queue, examination, decision, passages, onAct }: Re
   const subject = subjectOf(ordered, subjectId);
   const { current, beside } = focusOf(subject, focusedId);
   const lines = subject === null ? [] : changeLines(subject, verdicts);
+  // A batch is decided as one unit, so the controls and the sentence are about the batch.
+  const batch = subject?.kind === 'batch';
   const open = together && beside.length > 0;
-  const said = decisionSaid(decision, current?.id ?? null);
+  const decidedId = batch ? subject.id : (current?.id ?? null);
+  const said = decisionSaid(decision, decidedId);
 
   const saidLine = <SaidLine said={said} label={RECORD_SAYS} />;
 
@@ -137,7 +150,7 @@ export function ReviewPage({ queue, examination, decision, passages, onAct }: Re
       </div>
 
       <div className={PANE}>
-        {beside.length === 0 ? null : (
+        {beside.length === 0 || batch ? null : (
           <div className="flex h-6 shrink-0 items-center gap-1.5">
             <ContestedGlyph />
             <span
@@ -167,39 +180,72 @@ export function ReviewPage({ queue, examination, decision, passages, onAct }: Re
 
         {/* Two acts that contradict each other are read beside each other. Below the width of
             two cards the pair scrolls, because a card that is cut hides evidence in silence. */}
-        <div
-          className={cn(
-            'flex min-h-0 shrink gap-2 overflow-x-auto overscroll-contain',
-            open ? null : 'max-w-[44rem]',
-          )}
-        >
-          <ChangeCard change={current} current={true} passages={passagesOf(passages, current.id)} />
-          {open
-            ? beside.map((change) => (
-                <ChangeCard
-                  key={change.id}
-                  change={change}
-                  current={false}
-                  passages={passagesOf(passages, change.id)}
-                />
-              ))
-            : null}
-        </div>
+        {batch ? (
+          <section
+            aria-label={batchName(subject)}
+            data-batch={subject.id}
+            className="min-h-0 max-w-[44rem] space-y-2 overflow-y-auto overscroll-contain"
+          >
+            {subject.changes.map((change) => (
+              <ChangeCard
+                key={change.id}
+                change={change}
+                current={true}
+                passages={passagesOf(passages, change.id)}
+              />
+            ))}
+          </section>
+        ) : (
+          <div
+            className={cn(
+              'flex min-h-0 shrink gap-2 overflow-x-auto overscroll-contain',
+              open ? null : 'max-w-[44rem]',
+            )}
+          >
+            <ChangeCard
+              change={current}
+              current={true}
+              passages={passagesOf(passages, current.id)}
+            />
+            {open
+              ? beside.map((change) => (
+                  <ChangeCard
+                    key={change.id}
+                    change={change}
+                    current={false}
+                    passages={passagesOf(passages, change.id)}
+                  />
+                ))
+              : null}
+          </div>
+        )}
 
         {/* The controls stay at the foot, whatever stands above them. That is why this layout
             was chosen: the hand goes to one place for every act. */}
         <footer className="mt-auto shrink-0 space-y-1 border-t border-border pt-2">
           {saidLine}
           <Decide
-            key={current.id}
-            kind={current.kind}
-            decision={verdictOf(verdicts, current.id)}
+            key={decidedId}
+            kind={batch ? 'batch' : current.kind}
+            decision={verdictOf(verdicts, decidedId ?? current.id)}
             busy={said.busy}
             onDecide={(verdict, reason) => {
-              onAct({ kind: 'decide', changeId: current.id, verdict, reason });
+              onAct(
+                batch
+                  ? {
+                      kind: 'decide-batch',
+                      batchId: subject.id,
+                      changeIds: actIdsOf(subject),
+                      verdict,
+                      reason,
+                    }
+                  : { kind: 'decide', changeId: current.id, verdict, reason },
+              );
             }}
             onUndo={() => {
-              onAct({ kind: 'undo', changeId: current.id });
+              // A hold of a batch marks the batch and each of its acts, so all are taken back.
+              for (const changeId of batch ? [subject.id, ...actIdsOf(subject)] : [current.id])
+                onAct({ kind: 'undo', changeId });
             }}
           />
         </footer>
