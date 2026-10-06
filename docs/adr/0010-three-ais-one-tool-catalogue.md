@@ -2,7 +2,8 @@
 
 **Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
 table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
-2026.
+2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
+check by a second model family.
 
 ## Context
 
@@ -106,13 +107,31 @@ can run on another machine.
 
 ## The model transport
 
-- A free model gateway is the default endpoint, and a paid router is the switch. The endpoint is a
-  setting of each agent.
-- **A back-end agent pins one model.** If the served model differs from the requested model, the
-  answer is refused. Two models in one job make the extraction inconsistent.
-- **Dissent needs a second model family.** The second reader uses a family that differs from the
-  first.
-- **Each model call is recorded**, so that a disputed claim can be traced to a prompt and a model.
+- **Every model call goes to the free model gateway.** No paid router is a switch any more.
+- **A maintained library makes the calls.** The Vercel AI SDK, with its OpenAI-compatible
+  provider, replaces a custom client. Both are free and under the Apache 2.0 licence, and the
+  versions are pinned exactly. One small adapter holds the rules of the project: the token budget
+  of each job, the network retries with a wait that grows and the wait that the gateway asks for,
+  one retry with the fault for an answer of a bad shape, and the stops for credits and for a text
+  that is too long. **Cost:** a new dependency that changes often, and a library error that the
+  adapter does not know stops the job.
+- **The adapter takes only a model of the free gateway.** The library sends a bare model name to
+  a paid router of its vendor. So the adapter takes no name: it takes only a chat model that the
+  OpenAI-compatible provider made for the gateway, and it refuses a model of any other provider.
+- **A back-end agent pins one model.** A middleware reads the served model of each answer before
+  any tool runs. If it differs from the requested model, the answer is refused. Two models in one
+  job make the extraction inconsistent.
+- **Each model call is recorded** before the proposal that it leads to is written, so that a
+  disputed claim can be traced to a prompt and a model.
+- **A model of another family checks each extracted claim.** Before the extractor writes its
+  items, the checker reads each item with its passage: the checked excerpt and the words around
+  it. It answers supported, not supported or unclear: one question for each passage, one verdict
+  for each item. An answer that is not "supported", or a checker that fails, marks the item as
+  disputed when it is written, and the mark cannot change later. A failure of the checker never
+  drops an item. The two families are set in the configuration, and the worker does not start
+  when they are the same. This check replaces the blind second reading, which wrote rows that
+  nothing read. **Cost:** one more call for each passage, from the same token budget, and the
+  operator must keep two models of two families available on the gateway.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
   left running. The operator queues a failed document again by hand. A job that runs again writes

@@ -1,7 +1,8 @@
-import type { AgentModel, Failure, Question } from '@gab/model';
+import type { Failure, Question } from '@gab/model';
 
 import type { ClaimedJob } from './claim.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 
 /** A question that the model answered with a value or with one tool call. */
 export type Asked<T> = (
@@ -13,7 +14,6 @@ export type Asked<T> = (
 ) & {
   /** The record of this call. A proposal that this answer led to names it. */
   readonly callId: string;
-  readonly promptHash: string;
   readonly served: string;
   readonly tokens: number;
 };
@@ -57,9 +57,10 @@ export interface AgentContext {
   /** The connection of the worker. An agent writes proposals through its tools
    * on this connection and writes nothing else. */
   readonly db: Queryable;
-  /** One question. The call is recorded before this returns, so a proposal that follows can name
-   * it. A failed question is recorded too, and it throws a ModelFailure. */
-  readonly ask: <T>(question: Omit<Question<T>, 'budget'>) => Promise<Asked<T>>;
+  /** One question to one model of the agent. The call is recorded before this returns, so a
+   * proposal that follows can name it. A failed question is recorded too, and it throws a
+   * ModelFailure. All the models of the agent spend one token budget for each job. */
+  readonly ask: <T>(model: ModelConfig, question: Omit<Question<T>, 'budget'>) => Promise<Asked<T>>;
 }
 
 /** One back-end agent. The runner hands it a job of its kind and ends the job itself. */
@@ -67,7 +68,8 @@ export interface RunnerAgent {
   readonly name: string;
   readonly version: string;
   readonly kind: ClaimedJob['kind'];
-  readonly settings: AgentModel;
+  /** The models that the agent asks. Each one is pinned. */
+  readonly models: readonly ModelConfig[];
   /** The soft stop of the tokens of one job. */
   readonly tokenCap: number;
   readonly run: (context: AgentContext) => Promise<AgentResult>;

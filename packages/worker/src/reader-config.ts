@@ -1,22 +1,28 @@
-import type { AgentModel } from '@gab/model';
+import type { ModelLine } from '@gab/model';
 
-/** What the operator sets for one reader. Each value is calibrated on real traffic, so no code
- * constant gives one. */
-export interface ReaderConfig {
-  readonly model: AgentModel;
+/** One pinned model of the free-model gateway, its family, and how the adapter reaches it. */
+export interface ModelConfig {
+  readonly model: string;
   /** The family of the model. A check by a model of the same family shares its blind spots. */
   readonly family: string;
-  /** The tokens that one job may spend. */
+  readonly line: ModelLine;
+}
+
+/** What the operator sets for the extractor. Each value is calibrated on real traffic, so no
+ * code constant gives one. */
+export interface ReaderConfig {
+  readonly reader: ModelConfig;
+  /** The model of another family that checks each item against its passage. */
+  readonly checker: ModelConfig;
+  /** The tokens that one job may spend, on both models together. */
   readonly tokenCap: number;
-  /** The questions that one job may ask. */
+  /** The questions that the reader may ask in one job. */
   readonly turnCap: number;
   /** The longest chunk, in code points. */
   readonly chunkCap: number;
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
-
-const ENDPOINTS: readonly AgentModel['endpoint'][] = ['freellmapi', 'openrouter'];
 
 const textOf = (env: Env, name: string): string => {
   const value = env[name]?.trim() ?? '';
@@ -36,37 +42,44 @@ const numberOf = (env: Env, name: string, whole: boolean): number => {
   return value;
 };
 
-/** Reads the configuration of one reader from the variables that start with `prefix`. It throws a
- * sentence that names the variable when a value is absent, blank or wrong. */
-export const readReaderConfig = (prefix: string, env: Env): ReaderConfig => {
+/** Reads one model from the variables that start with `prefix`. */
+const readModelConfig = (prefix: string, env: Env): ModelConfig => {
   const name = (part: string): string => `${prefix}_${part}`;
 
-  const endpoint = textOf(env, name('ENDPOINT'));
-  const known = ENDPOINTS.find((one) => one === endpoint);
-  if (known === undefined)
-    throw new Error(
-      `${name('ENDPOINT')} is "${endpoint}", and it must be ${ENDPOINTS.join(' or ')}.`,
-    );
-
-  // The gateway picks the model of each call under `auto`, and the key of a reading then holds a
-  // model that nobody pinned.
+  // The gateway picks the model of each call under `auto`, and the record then holds a model that
+  // nobody pinned.
   const model = textOf(env, name('MODEL'));
   if (model.toLowerCase() === 'auto')
-    throw new Error(`${name('MODEL')} is auto, and a reader runs on a pinned model.`);
+    throw new Error(`${name('MODEL')} is auto, and an agent runs on a pinned model.`);
 
   return {
-    model: {
-      endpoint: known,
-      model,
+    model,
+    family: textOf(env, name('FAMILY')),
+    line: {
       firstWaitMs: numberOf(env, name('FIRST_WAIT_MS'), true),
       waitGrowth: numberOf(env, name('WAIT_GROWTH'), false),
       maxWaitMs: numberOf(env, name('MAX_WAIT_MS'), true),
       timeoutMs: numberOf(env, name('TIMEOUT_MS'), true),
       maxAnswerTokens: numberOf(env, name('MAX_ANSWER_TOKENS'), true),
     },
-    family: textOf(env, name('FAMILY')),
-    tokenCap: numberOf(env, name('TOKEN_CAP'), true),
-    turnCap: numberOf(env, name('TURN_CAP'), true),
-    chunkCap: numberOf(env, name('CHUNK_CAP'), true),
   };
+};
+
+/** Reads the configuration of the extractor and of its checker. It throws a sentence that names
+ * the variable when a value is absent, blank or wrong. */
+export const readExtractorConfig = (env: Env): ReaderConfig => {
+  const reader = readModelConfig('EXTRACTOR', env);
+  const config = {
+    reader,
+    checker: readModelConfig('CHECKER', env),
+    tokenCap: numberOf(env, 'EXTRACTOR_TOKEN_CAP', true),
+    turnCap: numberOf(env, 'EXTRACTOR_TURN_CAP', true),
+    chunkCap: numberOf(env, 'EXTRACTOR_CHUNK_CAP', true),
+  };
+  if (config.checker.family.toLowerCase() === reader.family.toLowerCase())
+    throw new Error(
+      `CHECKER_FAMILY is "${config.checker.family}", and the checker must be of another family ` +
+        'than the extractor.',
+    );
+  return config;
 };

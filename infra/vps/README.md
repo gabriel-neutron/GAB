@@ -198,7 +198,7 @@ claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints:
 ## 7. The PC uses the VPS services
 
 The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. `packages/model/src/client.ts` reads the two model names below.
+through Tailscale. The model adapter in `packages/model` reads the two model names below.
 
 | Name | Value on the PC (`infra/.env`) |
 |---|---|
@@ -206,8 +206,8 @@ through Tailscale. `packages/model/src/client.ts` reads the two model names belo
 | `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
 | `SEARXNG_URL` | `http://<VPS_TS_IP>:8888` |
 
-`OPENROUTER_API_KEY` stays the paid switch (ADR 0010). An agent chooses its gateway with its
-`endpoint` setting, `freellmapi` or `openrouter`, and the code has no default.
+Every model call goes to freellmapi, and to no paid router (ADR 0010). The adapter refuses a
+model of any other provider.
 
 **Check (PC):** with the key in `$k`,
 `Invoke-RestMethod http://<VPS_TS_IP>:4001/v1/models -Headers @{Authorization="Bearer $k"}`

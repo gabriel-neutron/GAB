@@ -30,6 +30,11 @@ The worker is one command with four sub-commands: `pnpm worker run` takes the qu
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running.
 
+`pnpm worker run` needs the model gateway and two models. Set `FREELLMAPI_BASE_URL` and
+`FREELLMAPI_API_KEY`, the `EXTRACTOR_` values and the `CHECKER_` values, as `infra/.env.example`
+lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
+worker does not start when they are the same.
+
 ## Public writes
 
 No public write path exists. A public write needs real authentication first, and that is separate

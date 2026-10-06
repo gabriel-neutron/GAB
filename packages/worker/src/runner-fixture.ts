@@ -1,26 +1,32 @@
 // The stubs of the extractor tests: a gateway that answers from a script, and the deps with a
 // clock and a sleep that cost no time. No code outside a test imports this file.
 
-import { openModel, type AgentModel, type Model, type Send } from '@gab/model';
+import { gatewayModel } from '@gab/model';
+import { z } from 'zod';
 
 import type { RunnerAgent } from './agents.ts';
 import type { Queryable } from './queryable.ts';
+import type { ModelConfig } from './reader-config.ts';
 import type { RunnerDeps } from './runner.ts';
 
-export const STUB_MODEL: AgentModel = {
-  endpoint: 'freellmapi',
+const LINE = { firstWaitMs: 1, waitGrowth: 1, maxWaitMs: 1, timeoutMs: 1000, maxAnswerTokens: 200 };
+
+export const READER: ModelConfig = {
   model: 'stub-family/stub-model',
-  firstWaitMs: 1,
-  waitGrowth: 1,
-  maxWaitMs: 1,
-  timeoutMs: 1000,
-  maxAnswerTokens: 200,
+  family: 'stub-family',
+  line: LINE,
+};
+
+export const CHECKER: ModelConfig = {
+  model: 'other-family/check-model',
+  family: 'other-family',
+  line: LINE,
 };
 
 const ENV = { FREELLMAPI_API_KEY: 'a-stub-key', FREELLMAPI_BASE_URL: 'http://100.64.0.1:4001/v1' };
 
 /** A completion as the gateway words it. */
-export const completionOf = (content: string, model = STUB_MODEL.model): Response =>
+export const completionOf = (content: string, model = READER.model): Response =>
   new Response(
     JSON.stringify({
       model,
@@ -30,20 +36,62 @@ export const completionOf = (content: string, model = STUB_MODEL.model): Respons
     { status: 200 },
   );
 
+const sent = z.object({
+  model: z.string(),
+  messages: z.array(z.object({ role: z.string(), content: z.unknown() })),
+});
+
+const question = z.object({ claims: z.array(z.object({ ref: z.string() })) });
+
+/** The refs of the claims that one question to the checker holds. */
+export const claimsOf = (body: string): string[] => {
+  const last = sent.parse(JSON.parse(body)).messages.at(-1)?.content;
+  return question
+    .parse(JSON.parse(typeof last === 'string' ? last : '{}'))
+    .claims.map((one) => one.ref);
+};
+
+/** The checker answers with one verdict for each ref. */
+export const verdictsOf = (verdicts: readonly (readonly [string, string])[]): Response =>
+  completionOf(
+    JSON.stringify({ verdicts: verdicts.map(([ref, verdict]) => ({ ref, verdict })) }),
+    CHECKER.model,
+  );
+
+const supportsAll = (body: string): Response =>
+  verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const));
+
 export interface StubGateway {
-  readonly send: Send;
+  readonly send: typeof fetch;
+  /** The questions to the reader. */
   readonly chats: () => number;
+  /** The questions to the checker. */
+  readonly checks: () => number;
 }
 
-/** A gateway that answers each chat call from `chat`, which reads the body that was sent. */
-export const gatewayOf = (chat: (call: number, body: string) => Response): StubGateway => {
+const bodyOf = (init: RequestInit | undefined): string =>
+  typeof init?.body === 'string' ? init.body : '';
+
+/** A gateway that answers each question to the reader from `chat`, and each question to the
+ * checker from `check`. The default checker supports every claim. */
+export const gatewayOf = (
+  chat: (call: number, body: string) => Response,
+  check: (call: number, body: string) => Response = (_call, body) => supportsAll(body),
+): StubGateway => {
   let chats = 0;
+  let checks = 0;
   return {
     send: (_url, init) => {
+      const body = bodyOf(init);
+      if (sent.parse(JSON.parse(body)).model === CHECKER.model) {
+        checks += 1;
+        return Promise.resolve(check(checks, body));
+      }
       chats += 1;
-      return Promise.resolve(chat(chats, typeof init.body === 'string' ? init.body : ''));
+      return Promise.resolve(chat(chats, body));
     },
     chats: () => chats,
+    checks: () => checks,
   };
 };
 
@@ -74,7 +122,7 @@ export const depsOf = (
         clock += 5;
         return clock;
       },
-      open: (settings): Model => openModel(settings, gateway.send, ENV),
+      open: (model) => gatewayModel(model, ENV, gateway.send),
     },
   };
 };

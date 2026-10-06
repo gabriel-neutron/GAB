@@ -5,7 +5,7 @@ import { Pool } from 'pg';
 import { agentAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
 import { makeExtractor } from './extractor/extractor.ts';
-import { readReaderConfig } from './reader-config.ts';
+import { readExtractorConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
 /** Takes the queued jobs one at a time until a stop signal. This is the one sub-command that
@@ -18,7 +18,7 @@ export const runCommand: SubCommand = async () => {
 
   // The configuration is read at the start, so a value that is absent stops the start with its
   // name and claims nothing.
-  const agents = [makeExtractor(readReaderConfig('EXTRACTOR', process.env))];
+  const agents = [makeExtractor(readExtractorConfig(process.env))];
 
   const pool = new Pool({ connectionString: agentAddress() });
   try {
