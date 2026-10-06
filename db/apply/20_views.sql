@@ -1,7 +1,7 @@
 -- =============================================================================================
 -- 20 — the read surface                                                            RE-RUNNABLE
 --
--- ONE VIEW PER CONCEPT, NEVER PER SURFACE. docs/spec.md §4 and ADR 0003 §6. A surface-shaped
+-- ONE VIEW PER CONCEPT, NEVER PER SURFACE. docs/spec.md and ADR 0003. A surface-shaped
 -- view multiplies with the user interface; a concept-shaped one does not.
 --
 -- DROP then CREATE, and never CREATE OR REPLACE. Measured: CREATE OR REPLACE VIEW appends only

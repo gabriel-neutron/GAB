@@ -1,21 +1,4 @@
 {
-  "env": {
-    "DOCS_INDEX_PATH": "docs/README.md"
-  },
-  "permissions": {
-    "deny": [
-      "Write(.claude/skills/**)",
-      "Edit(.claude/skills/**)",
-      "NotebookEdit(.claude/skills/**)",
-      "Write(.claude/agents/**)",
-      "Edit(.claude/agents/**)",
-      "NotebookEdit(.claude/agents/**)",
-      "Write(.claude/settings.json)",
-      "Edit(.claude/settings.json)",
-      "Write(.claude/hooks/**)",
-      "Edit(.claude/hooks/**)"
-    ]
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -23,18 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Write(docs/**)",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
-          },
-          {
-            "type": "command",
-            "if": "Edit(docs/**)",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
-          },
-          {
-            "type": "command",
-            "if": "NotebookEdit(docs/**)",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/docs_protection.py\""
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/product_docs_guard.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/product_docs_guard.py\""
           }
         ]
       }

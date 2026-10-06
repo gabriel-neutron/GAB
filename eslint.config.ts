@@ -42,7 +42,7 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as 
  * **A link is an address too.** A ticket written as `https://github.com/.../issues/89` defeated
  * the first shape completely, and it is the form a paste produces.
  *
- * **An entry of the locked register stays.** `M8` and `T5` carry no address, and a new decision
+ * **An entry of the decision register stays.** `M8` and `P1` carry no address, and a new decision
  * replaces an entry by name, so the name outlives even its replacement. They are domain words.
  *
  * **A use case of a deleted document is refused.** `UC1` to `UC5` were defined in the four surface
@@ -309,24 +309,10 @@ export default defineConfig(
   { ignores: ['.claude/worktrees'] },
 
   // The route tree is generated and carries its own banner. It is excluded by name, never by a
-  // pattern that authored code can enter (ADR 0004 §8).
+  // pattern that authored code can enter (ADR 0004).
   { ignores: ['src/routeTree.gen.ts'] },
 
-  // The harness runs a workflow script inside an async function and supplies its globals, so a
-  // top-level `return` and a top-level `await` are correct there. A parser that reads the file as
-  // a module stops at the first one and reads nothing after it. Nothing here ships. Excluded by
-  // name, never by a pattern that authored code can enter (ADR 0004 §8): list each tracked
-  // workflow script as it is added, not the folder.
-  {
-    ignores: [
-      '.claude/workflows/gab-deep-review.js',
-      '.claude/workflows/ready-for-agent-run.js',
-      '.claude/workflows/requirement-debate.js',
-      '.claude/workflows/resolve-ticket.js',
-    ],
-  },
-
-  // No file may suppress a rule. `gab-coder` requires zero suppressions, so an inline
+  // No file may suppress a rule. CODING_STANDARDS.md requires zero suppressions, so an inline
   // directive is inert and an unused one is an error, not a warning.
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
 
@@ -382,13 +368,13 @@ export default defineConfig(
   },
 
   // `src/shared/ui/` takes **no exemption**, and `routeTree.gen.ts` above is the only one.
-  // ADR 0004 §8 holds the decision, the two facts that disproved the premise of the override
-  // that version 1 granted, and the hole it left. #39 removed it. Read §8 before you add it
+  // ADR 0004 holds the decision, the two facts that disproved the premise of the override
+  // that version 1 granted, and the hole it left. #39 removed it. Read ADR 0004 before you add it
   // back: `src/shared/ui/**` is a pattern that authored code can enter.
   //
-  // The day a vendored file genuinely fails, the operator adds that **one file name** here.
+  // The day a vendored file genuinely fails, an agent adds that **one file name** here.
 
-  // The seam of ADR 0001 §1 and ADR 0004 §5, held by a rule and not by a convention.
+  // The seam of ADR 0001 and ADR 0004, held by a rule and not by a convention.
   {
     // JavaScript is named as well as TypeScript. `allowJs` is off, so a `.js` file under a
     // feature does not compile, but a `.d.ts` beside it removes that limit and the import
@@ -657,8 +643,8 @@ export default defineConfig(
     },
   },
 
-  // No story mounts a live canvas. ADR 0004 §1 gives MapLibre and Sigma one element each, and
-  // their own loop. ADR 0004 §3 keeps React state out of both. One story makes one live WebGL
+  // No story mounts a live canvas. ADR 0004 gives MapLibre and Sigma one element each, and
+  // their own loop. ADR 0004 keeps React state out of both. One story makes one live WebGL
   // context, and a browser removes the oldest context after approximately sixteen.
   //
   // A comment in `.storybook/main.ts` is not a gate. The glob `../src/**/*.stories.tsx` collects
@@ -675,7 +661,7 @@ export default defineConfig(
         {
           selector: 'Program',
           message:
-            'No story mounts a live canvas — ADR 0004 §1 and §3. A browser removes the oldest WebGL context after approximately sixteen. Delete this file, and write a story for each panel beside the canvas',
+            'No story mounts a live canvas — ADR 0004. A browser removes the oldest WebGL context after approximately sixteen. Delete this file, and write a story for each panel beside the canvas',
         },
       ],
     },
@@ -685,7 +671,7 @@ export default defineConfig(
   // that drives a canvas directly is the same fault under a different file name, so the import
   // is refused as well.
   //
-  // A pattern is correct here, and ADR 0004 §8 does not bind. That rule governs an **exemption**,
+  // A pattern is correct here, and ADR 0004 does not bind. That rule governs an **exemption**,
   // where a pattern that authored code can enter opens a hole in silence. This is a prohibition:
   // a pattern that matches too much fails loudly, and the operator sees it at once.
   //
@@ -707,11 +693,11 @@ export default defineConfig(
           paths: [
             {
               name: 'maplibre-gl',
-              message: 'No story mounts a live canvas — ADR 0004 §1 and §3. Story the panels',
+              message: 'No story mounts a live canvas — ADR 0004. Story the panels',
             },
             {
               name: 'sigma',
-              message: 'No story mounts a live canvas — ADR 0004 §1 and §3. Story the panels',
+              message: 'No story mounts a live canvas — ADR 0004. Story the panels',
             },
           ],
           patterns: [
@@ -752,7 +738,7 @@ export default defineConfig(
 
   // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
   // and under a workspace package is inside, and the kit takes no exemption — the day a vendored
-  // file genuinely fails, the operator adds that one file name here.
+  // file genuinely fails, an agent adds that one file name here.
   {
     files: ['src/**/*.{ts,tsx,mts,cts}', 'packages/*/src/**/*.{ts,tsx,mts,cts}'],
     plugins: { budget: { rules: { 'comment-budget': commentBudget } } },

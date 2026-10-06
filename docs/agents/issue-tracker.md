@@ -63,10 +63,12 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
-## Wayfinding operations
+## When to open a ticket
 
-Read `wayfinder-tracker.md`, beside this file, when a wayfinder skill is installed and it
-names a map, a child ticket, a blocker or the frontier. No such skill is installed today.
+Open a ticket only for work that needs its own session: a spec (`/to-spec`) or a ticket of a spec
+(`/to-tickets`). Fix a small detail in the current work, with no ticket. Write a ticket in the
+words of the user and the product. Do not put a file path, a table, a function name or a code
+snippet in it, because these go out of date.
 
 ## Fault-finding
 

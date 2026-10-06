@@ -2,7 +2,7 @@
   // The solution file. It compiles nothing itself. The root package holds three targets: the
   // browser bundle under `src/`, the Node configuration files at the root, and the Storybook
   // folder. Each workspace package under `packages/` holds one more. They need different `lib`
-  // and different `types`, and a single file cannot hold them all. ADR 0001 §6 opened the
+  // and different `types`, and a single file cannot hold them all. ADR 0001 opened the
   // workspace: the schemas of a proposal are code that the browser and the writer both import.
   //
   // `baseUrl` and `paths` are repeated here because the shadcn CLI reads the root file to

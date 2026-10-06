@@ -1,87 +1,64 @@
-# Authoring a document
+# Writing a document
 
-Every document lives in `docs/`. `README.md` and `CLAUDE.md` stay at the repository root, and
-`GLOSSARY.md` joins them when the glossary exists, because every skill reads it from that path.
+Read this before you write or change a file under `docs/`, `README.md` or `CLAUDE.md`.
 
-**The operator owns `docs/`.** An agent proposes a change and names the document. It writes
-none.
+## Who owns each document
 
-## The drift test
+| Document | Owner | Rule |
+|---|---|---|
+| `prd.md`, `decisions.md` | The operator | They hold the purpose, the uses and the product rules. Change them only when the operator asks for it in the session. A hook asks the operator before each write. |
+| Every other document | The agent | Change it with no approval, in the same pull request as the code it describes. |
 
-A copy of something that changes is a copy that **drifts**. ADR 0003 §1 refuses drift in the
-schema, and the same rule holds for prose: a document drifts the moment it states a fact.
+## A document tells why and gives the general view
 
-**A sentence belongs in `docs/` only when a normal commit cannot make it false.** Installing a
-library, adding a file, closing a ticket: when one of these makes the sentence false, the
-sentence is a fact, and it already has a home. The repository, the configuration files and the
-tracker each hold their own facts.
+A document holds what the code cannot show:
 
-Name the constraint, and let the instance live in the code:
+- the purpose and the reason for a choice;
+- the cost of the choice;
+- the general shape: the components, the flows, who asks what from whom;
+- the rules that hold on every path.
 
-| Belongs in a document | Drifts, and belongs elsewhere |
+A document can name the stable things: the main folders (`db/`, `packages/`, `src/`, `infra/`,
+`tools/`), the packages, the external services, and the actors by their role.
+
+A document never copies the code. The code is the source of truth, and an agent reads it for each
+detail. So a document holds **no** table name, column, type, function name, file name below the
+main folders, job kind, enum value, SQL text, configuration value, count, status of a ticket, or
+list that repeats the code.
+
+**The test:** if a normal code commit can make a sentence false, delete the sentence.
+
+A how-to guide (`deploy.md`, a runbook) is the one exception: it can name the commands and the
+variables that the reader must type.
+
+| Write this | Not this |
 |---|---|
-| The runner is Vitest | `pnpm test` runs one browser project |
-| A feature never imports another feature | The features are `map`, `graph`, `review` and `detail` |
-| A generated file is committed, and a drift check guards it | `src/contract/` holds four files |
-| The zoom breakpoints are calibrated on real data | The breakpoints are 5, 10 and 15 |
+| The database refuses an attribute that has no source. | The `chk_attrs_sourced` check calls `attrs_are_sourced(jsonb)`. |
+| A machine role can propose, and only the operator promotes. | `gabriel_agent` has `EXECUTE` on six doors: `propose_change`, … |
+| The worker runs the AI jobs from a queue in the database. | The job kinds are `extract_text`, `second_read`, `load_mapped`. |
 
-**A document is ready when every sentence in it survives that test.**
+## Decide, or ask the operator
 
-## Two rules that follow
+- **A technical choice:** a name, a column, a format, a structure, the text of an ADR. The agent
+  decides it. If the choice is costly to reverse, the agent writes the reason in an ADR. The agent
+  continues, and asks no question.
+- **A product choice:** what the app does, what is public, what counts as evidence, the scope. Ask
+  the operator. The answer goes into `prd.md` or `decisions.md`.
 
-**Executing an accepted decision changes no document.** Installing the runner that an ADR
-chose is that ADR, carried out. The ticket records the work, and the commit shows the result.
-A document is needed when a **new** decision is made.
+## ADRs
 
-**A code commit leaves `docs/` untouched.** A task that seems to need a document change has met
-a decision that no ticket carries. Stop, and ask the operator.
+- An ADR holds one decision, its reason and its cost. Aim for 1,000 words or fewer.
+- Keep each ADR true. Edit it in place when the build changes, because git keeps the old text.
+  When a decision is replaced, mark it **Superseded by ADR NNNN**.
+- A measurement keeps its date.
+- Name another document by its name only (`ADR 0003`, `decisions.md` M8). Do not cite a section
+  number, because section numbers change.
 
-**Correct the document before the ticket closes.** A ticket that a document cites by number
-carries that document with it. Put the correction under ASK first, and close the ticket after.
-A ticket that closes first leaves a document that says a settled question is open, and nothing
-downstream finds it.
+## Size
 
-## Where each kind of sentence lives
+Keep each document short. A document that grows past 1,000 words probably copies the code or
+holds more than one decision.
 
-Placement follows one axis: how long the sentence stays true.
+## Style
 
-| Lifetime | Home |
-|---|---|
-| Never changes | `decisions.md`, which is locked, and `adr/NNNN`, which is written once |
-| Changes when the scope changes | `prd.md` |
-| Changes when an invariant, the read path or the write path changes | `spec.md` |
-| Changes every day | the tracker, the code, and the configuration files |
-
-## What an ADR is
-
-**A document is an ADR when all four are true.** The decision is made, not asked. It is about
-the build. It is costly to reverse. No entry in `decisions.md` already settles it.
-
-**Four things take another home.** An open question is a tracker ticket. A scope decision is
-`decisions.md` and `prd.md`. A rule held on every path is `spec.md`. A reversible choice is a
-configuration file.
-
-## Rules for an ADR
-
-- Number ADRs from 0001 up. Use each number once, and keep it for ever. Status is
-  **Proposed**, **Accepted**, or **Superseded by ADR NNNN**.
-- **An ADR is written once.** After it is Accepted, the Status line is the only line that
-  changes. A decision that changes gets a new ADR, which names the one it replaces. An ADR
-  carries no version.
-- Write the decision, the reason and the cost. A measurement that produced the decision is a
-  reason, and it belongs there. Every other fact about the repository as it stands today —
-  a folder tree, a file list, a status table, a ticket list, a "not yet" — drifts, and stays
-  out.
-- **A measurement keeps its date, and it is never refreshed.** A number that a measurement
-  produced is the reason for the decision, and an old reason is still the reason. Write the
-  date beside it. A new number is a new decision, and it needs a new ADR. This is why a
-  measurement passes the drift test that an ordinary fact fails.
-- **Silence says that a decision did not change.** Write the decision, and leave it alone.
-- Cite a section: `ADR 0003 §7`.
-- Name every decision an ADR replaces. `decisions.md` is locked, so an ADR that contradicts an
-  entry is a fault: stop, and ask the operator.
-- An ADR cites a **closed** ticket only, and only when that ticket adds something the ADR does
-  not say. For an open question write "the tracker carries it", and leave the number out.
-- Each meaning has one owner. When a second document needs the same rule, it cites the owner.
-- A new document gets a row in the first table of `README.md`. A new ADR gets a row in the
-  register there instead.
+Write in ASD-STE100 Simplified Technical English, as `CLAUDE.md` requires.
