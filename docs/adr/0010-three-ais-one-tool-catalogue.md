@@ -112,7 +112,11 @@ workspace; this ADR only requires them.
   returns the text and the document id in the same turn. The research loop needs the page now.
 - Extraction is asynchronous: `enqueue_extract`, then `job_status`.
 - **A search result list is a lead and is not stored.** Only a page that is fetched becomes a
-  document. Otherwise the corpus fills with result lists.
+  document. Otherwise the corpus fills with result lists. Amended 6 October 2026: an API answer
+  that lists candidates is a search result, also when the query is an identifier. Examples: a
+  GLEIF or Companies House name search, and the OpenSanctions `/match` answer for a name or for
+  an IMO number. Only the read of one record by its identifier is stored (a LEI record, a company
+  number, an OpenSanctions entity).
 - `sha256` decides identity before `put_fetched_document`.
 - One fetch, one URL. No crawl and no schedule (PRD §5).
 
