@@ -1,4 +1,9 @@
-// The shapes of the record, in domain words. Every surface reads these and never a wire row.
+// The shapes of the record, in domain words. Every surface reads these and never a wire row. A
+// closed set of words is the set that the row of its view allows, so each one is stated once.
+
+import type { z } from 'zod';
+
+import type { row } from './rows';
 
 export type DocId = string;
 
@@ -45,8 +50,8 @@ export interface RelationTypeDeclaration {
  * carries that word. */
 export type RelationTypeVocabulary = readonly RelationTypeDeclaration[];
 
-export type DocumentKind = 'file' | 'url' | 'api' | 'report' | 'manual';
-export type AdmiraltyOrigin = 'machine' | 'arbitrated' | 'human';
+export type DocumentKind = z.output<typeof row.document>['kind'];
+export type AdmiraltyOrigin = NonNullable<z.output<typeof row.document>['admiralty_origin']>;
 
 export interface DocumentRow {
   readonly id: DocId;
@@ -130,7 +135,7 @@ export interface Entity {
 }
 
 /** M4: a relation may point at a relation. Nothing writes that today and nothing prevents it. */
-export type EndpointKind = 'entity' | 'relation';
+export type EndpointKind = z.output<typeof row.relation>['src_kind'];
 
 export interface Relation {
   readonly id: string;
@@ -148,15 +153,7 @@ export interface Relation {
   readonly promotedFrom: string;
 }
 
-export type ProposalOp =
-  | 'create_entity'
-  | 'update_attrs'
-  | 'update_entity'
-  | 'delete_entity'
-  | 'create_relation'
-  | 'update_relation'
-  | 'delete_relation'
-  | 'merge_entities';
+export type ProposalOp = z.output<typeof row.proposal>['op'];
 
 /** Departure: a shape that is not a point keeps only its GeoJSON type, because a card prints no
  * positions of a line or an area. */
@@ -201,10 +198,10 @@ export type PriorValue =
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
   | { readonly kind: 'row'; readonly row: Readonly<Record<string, unknown>> };
 
-export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
+export type ProposalStatus = z.output<typeof row.proposal>['status'];
 
 /** A trigger stamps this from `session_user`. The caller cannot state it. */
-export type AuthorRole = 'gabriel_agent' | 'gabriel_app' | 'gabriel_research';
+export type AuthorRole = z.output<typeof row.proposal>['author_role'];
 
 export interface Proposal {
   readonly id: string;

@@ -254,7 +254,7 @@ exports[`the list of tools 1`] = `
       "openWorldHint": false,
       "readOnlyHint": true,
     },
-    "description": "Lists the jobs of one document, newest first, with the kind of work, the status (queued, running, done or failed), the reason of a failure and the number of proposals that the job made. When the extraction is done, list_proposals with the document gives its proposals. A failed job does not run again: queue the document again. A document that entered by a hand entry has no job.",
+    "description": "Lists the jobs of one document, newest first, with the kind of work, the status (queued, running, done or failed), the reason of a failure, the parts of the document that the propose door refused, and the number of proposals that the job made. When the extraction is done, list_proposals with the document gives its proposals. A failed job does not run again: queue the document again. A document that entered by a hand entry has no job.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

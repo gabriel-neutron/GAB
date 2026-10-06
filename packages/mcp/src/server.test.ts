@@ -178,7 +178,7 @@ for (const code of ['22023', '23503', 'P0001'])
     });
     const client = await connected(pool);
     const result = await client.callTool({
-      name: 'enqueue_extract',
+      name: 'job_status',
       arguments: { document: 'doc_absent' },
     });
     expect(isErrorOf(result)).toBe(true);

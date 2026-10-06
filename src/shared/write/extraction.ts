@@ -3,80 +3,62 @@
 
 import { z } from 'zod';
 
-/** The newest extraction of one document. A job that did not fail has no reason. */
+import { askWriter } from './door';
+import type { WriteResult } from './write-state';
+
+const status = z.enum(['queued', 'running', 'done', 'failed']);
+
+/** The newest extraction of one document. A job that did not fail has no reason, and a job of
+ * which the propose door refused no part has no refused words. */
 export interface Extraction {
-  readonly status: 'queued' | 'running' | 'done' | 'failed';
+  readonly status: z.output<typeof status>;
   readonly reason: string | null;
+  readonly refused: string | null;
   readonly proposals: number;
 }
 
-interface Refused {
-  readonly state: 'refused';
-  readonly refusal: string;
-}
-
-/** What one read became. `latest` is null when no extraction ran for the document. */
-export type StatusOutcome =
-  { readonly state: 'read'; readonly latest: Extraction | null } | Refused;
-
-// The development server proxies this path to the writer, so the browser stays same-origin.
 const QUEUE_DOOR = '/write/queue-extraction';
 const READ_DOOR = '/write/document-jobs';
 
 const EXTRACTION = 'extract_text';
 
-const NO_ANSWER = 'the write service did not answer. Read the status again';
+// The screen reads the status again after a queue, so the done step carries nothing.
+const queued = z.object({ jobId: z.string() }).transform(() => ({}));
 
-const queued = z.object({ jobId: z.string() });
-const refused = z.object({ refusal: z.string() });
-const jobs = z.object({
-  jobs: z.array(
-    z.object({
-      kind: z.string(),
-      status: z.enum(['queued', 'running', 'done', 'failed']),
-      reason: z.string().nullable(),
-      proposals: z.number(),
-    }),
-  ),
-});
-
-const knock = async (address: string, documentId: string): Promise<unknown> => {
-  try {
-    const answer = await fetch(address, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentId }),
-    });
-    return await answer.json();
-  } catch {
-    return undefined;
-  }
-};
-
-const refusalOf = (body: unknown): Refused => {
-  const sentence = refused.safeParse(body);
-  return { state: 'refused', refusal: sentence.success ? sentence.data.refusal : NO_ANSWER };
-};
+// The writer answers the newest job first. `latest` is null when no extraction ran.
+const jobs = z
+  .object({
+    jobs: z.array(
+      z.object({
+        kind: z.string(),
+        status,
+        reason: z.string().nullable(),
+        refused: z.string().nullable(),
+        proposals: z.number(),
+      }),
+    ),
+  })
+  .transform(({ jobs: all }): { readonly latest: Extraction | null } => {
+    const latest = all.find((job) => job.kind === EXTRACTION);
+    return {
+      latest:
+        latest === undefined
+          ? null
+          : {
+              status: latest.status,
+              reason: latest.reason,
+              refused: latest.refused,
+              proposals: latest.proposals,
+            },
+    };
+  });
 
 /** Ask for the extraction of one stored document. A failed one is asked for again this way. */
-export async function queueExtraction(
-  documentId: string,
-): Promise<{ readonly state: 'queued' } | Refused> {
-  const body = await knock(QUEUE_DOOR, documentId);
-  return queued.safeParse(body).success ? { state: 'queued' } : refusalOf(body);
-}
+export const queueExtraction = (documentId: string): Promise<WriteResult> =>
+  askWriter(QUEUE_DOOR, { documentId }, queued);
 
-/** Read the newest extraction of one document. The writer answers the newest job first. */
-export async function readExtraction(documentId: string): Promise<StatusOutcome> {
-  const body = await knock(READ_DOOR, documentId);
-  const held = jobs.safeParse(body);
-  if (!held.success) return refusalOf(body);
-  const latest = held.data.jobs.find((job) => job.kind === EXTRACTION);
-  return {
-    state: 'read',
-    latest:
-      latest === undefined
-        ? null
-        : { status: latest.status, reason: latest.reason, proposals: latest.proposals },
-  };
-}
+/** Read the newest extraction of one document. */
+export const readExtraction = (
+  documentId: string,
+): Promise<WriteResult<{ readonly latest: Extraction | null }>> =>
+  askWriter(READ_DOOR, { documentId }, jobs);

@@ -6,9 +6,9 @@ import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Textarea } from '@/shared/ui/textarea';
 
-import { giveLead, leadScreen, readLeadView, type LeadView } from './lead';
+import { giveLead, leadScreen, readLeadState, type LeadState } from './lead';
 
-const UNREAD: LeadView = { step: 'unread' };
+const UNREAD: LeadState = { step: 'idle' };
 
 // A modal is a true overlay, which is the one place the theme permits a shadow.
 const OVERLAY = 'fixed inset-0 z-50 bg-background/80';
@@ -26,14 +26,14 @@ const SAYS = 'The leads';
 export function LeadDialog() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
-  const [view, setView] = useState<LeadView>(UNREAD);
+  const [view, setView] = useState<LeadState>(UNREAD);
   const leadBox = useId();
   const screen = leadScreen(view, text);
   const working = view.step === 'working';
 
   // A second click while one request is in flight starts nothing twice: the step guards as well
   // as the button.
-  const run = (work: () => Promise<LeadView>): void => {
+  const run = (work: () => Promise<LeadState>): void => {
     if (working) return;
     setView({ step: 'working' });
     void work().then(setView);
@@ -44,7 +44,7 @@ export function LeadDialog() {
     setOpen(next);
     setText('');
     setView(UNREAD);
-    if (next) run(() => readLeadView());
+    if (next) run(() => readLeadState());
   };
 
   return (
@@ -98,7 +98,7 @@ export function LeadDialog() {
               size="xs"
               disabled={working}
               onClick={() => {
-                run(() => readLeadView());
+                run(() => readLeadState());
               }}
             >
               Read the leads
