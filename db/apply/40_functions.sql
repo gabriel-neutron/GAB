@@ -115,11 +115,11 @@ BEGIN
   END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
-      NEW.confidence, NEW.dissent, NEW.author_role, NEW.xact, NEW.created_at,
+      NEW.confidence, NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
       NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
-      OLD.confidence, OLD.dissent, OLD.author_role, OLD.xact, OLD.created_at,
+      OLD.confidence, OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
       OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
@@ -636,12 +636,12 @@ BEGIN
     -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
-        (id, op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-         model_call_id, originator, batch_id)
+        (id, op, target_kind, target_id, payload, src, names, confidence, dissent,
+         dissent_reason, author_role, model_call_id, originator, batch_id)
       VALUES
         (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
          v_src::doc_id[], v_names, (v_item->>'confidence')::numeric,
-         coalesce((v_item->>'dissent')::boolean, false),
+         coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason',
          session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
          (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
          v_batch)

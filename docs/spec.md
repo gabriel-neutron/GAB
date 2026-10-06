@@ -110,7 +110,10 @@ card of the operator.
 
 Before the extractor writes its acts, a model of another family checks each one against its
 passage. An act that the check does not support, or that a failed check could not read, is
-written as disputed, and the review card shows it as disputed. Every model call goes to the free
+written as disputed. An act with a value that no cited passage states is disputed too. The act
+keeps a short reason with the flag: the value that the passage does not state, the verdict of the
+checker and its reason, or that the checker did not answer. The reason is frozen with the act and
+private: the review card shows it, and the public read does not. Every model call goes to the free
 model gateway and is recorded.
 
 The acts of one call that name each other are one linked batch. The review queue shows a batch as

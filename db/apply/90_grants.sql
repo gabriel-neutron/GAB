@@ -54,6 +54,11 @@ GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 -- gabriel_app. No view of the read API shows it.
 GRANT SELECT ON citation TO gabriel_app;
 
+-- THE REASON OF A DISPUTE (proposals.dissent_reason) IS A COLUMN OF A TABLE THAT THE MACHINE ROLES
+-- READ. It holds only the values of the act and the words of the checker on a passage, and both
+-- machine roles already read the text of that passage. gabriel_read holds no grant on the table,
+-- and no view of the read API shows the column.
+
 -- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;

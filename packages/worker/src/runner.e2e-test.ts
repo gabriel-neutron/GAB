@@ -68,7 +68,11 @@ const claimOf = (body: string): string => {
 
 const verdictOf = (body: string): string =>
   JSON.stringify({
-    verdicts: [{ ref: 'vessel', verdict: body.includes(FLAKY) ? 'not_supported' : 'supported' }],
+    verdicts: [
+      body.includes(FLAKY)
+        ? { ref: 'vessel', verdict: 'not_supported', reason: 'the page names another tanker' }
+        : { ref: 'vessel', verdict: 'supported' },
+    ],
   });
 
 const asked = z.object({
@@ -233,11 +237,16 @@ const jobsOf = async (document: string) =>
     ).rows,
   );
 
-const pendingOf = async (document: string): Promise<{ label: string; dissent: boolean }[]> =>
-  z.array(z.object({ label: z.string(), dissent: z.boolean() })).parse(
+const pending = z.array(
+  z.object({ label: z.string(), dissent: z.boolean(), reason: z.string().nullable() }),
+);
+
+const pendingOf = async (document: string): Promise<z.output<typeof pending>> =>
+  pending.parse(
     (
       await db.query(
-        `SELECT payload ->> 'label' AS label, dissent FROM public.proposals
+        `SELECT payload ->> 'label' AS label, dissent, dissent_reason AS reason
+           FROM public.proposals
           WHERE status = 'pending' AND $1 = ANY(src::text[])`,
         [document],
       )
@@ -342,7 +351,9 @@ test('a queued document gives checked proposals, and a crash or a failure blocks
     expect(recoveredJobs.map(({ kind, status }) => ({ kind, status }))).toStrictEqual([
       { kind: 'extract_text', status: 'done' },
     ]);
-    expect(await pendingOf(RECOVERED)).toStrictEqual([{ label: LABEL, dissent: false }]);
+    expect(await pendingOf(RECOVERED)).toStrictEqual([
+      { label: LABEL, dissent: false, reason: null },
+    ]);
 
     expect(flakyJobs[0]?.status).toBe('failed');
     expect(flakyJobs[0]?.failure_reason).toMatch(/\S/u);
@@ -359,12 +370,21 @@ test('a queued document gives checked proposals, and a crash or a failure blocks
   try {
     const flakyJobs = await ended(FLAKY, 2);
     expect(flakyJobs.map((job) => job.status)).toStrictEqual(['failed', 'done']);
-    // The checker does not support the claim of this document, so the claim waits as disputed.
-    expect(await pendingOf(FLAKY)).toStrictEqual([{ label: LABEL, dissent: true }]);
+    // The checker does not support the claim of this document, so the claim waits as disputed,
+    // with the reason of the checker.
+    expect(await pendingOf(FLAKY)).toStrictEqual([
+      {
+        label: LABEL,
+        dissent: true,
+        reason: 'the checker says not_supported: the page names another tanker',
+      },
+    ]);
 
     const recoveredJobs = await ended(RECOVERED, 2);
     expect(recoveredJobs.map((job) => job.status)).toStrictEqual(['done', 'done']);
-    expect(await pendingOf(RECOVERED)).toStrictEqual([{ label: LABEL, dissent: false }]);
+    expect(await pendingOf(RECOVERED)).toStrictEqual([
+      { label: LABEL, dissent: false, reason: null },
+    ]);
     expect(await citationsOf(RECOVERED)).toBe(1);
   } finally {
     await stopRunner(second);

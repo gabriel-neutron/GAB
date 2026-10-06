@@ -127,7 +127,9 @@ can run on another machine.
   items, the checker reads each item with its passage: the checked excerpt and the words around
   it. It answers supported, not supported or unclear: one question for each passage, one verdict
   for each item. An answer that is not "supported", or a checker that fails, marks the item as
-  disputed when it is written, and the mark cannot change later. A failure of the checker never
+  disputed when it is written, and the mark cannot change later. The item keeps the verdict and
+  the short reason of the checker with the mark, as a private note for the review card. A failure
+  of the checker never
   drops an item. The two families are set in the configuration, and the worker does not start
   when they are the same. This check replaces the blind second reading, which wrote rows that
   nothing read. **Cost:** one more call for each passage, from the same token budget, and the

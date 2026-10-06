@@ -4,7 +4,13 @@ import { REASON, type Message, type Tool as ModelTool, type ToolUse } from '@gab
 import { documentText } from '@gab/tools/document-text';
 import { proposeItem, proposeOfCall } from '@gab/tools/propose';
 import { searchGraph } from '@gab/tools/search-graph';
-import { callTool, type ItemToCheck, type Session, type Tool } from '@gab/tools/tool';
+import {
+  callTool,
+  type CheckVerdict,
+  type ItemToCheck,
+  type Session,
+  type Tool,
+} from '@gab/tools/tool';
 import { z } from 'zod';
 
 import {
@@ -22,7 +28,7 @@ import type { ReaderConfig } from '../reader-config.ts';
 
 /** The name of the extractor in the record of each of its model calls. */
 export const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v3';
+const VERSION = 'v4';
 
 /** The tools of the extractor. A test gives a stub for each one. The propose tool names the
  * model call that gave the batch. */
@@ -52,6 +58,8 @@ const checkAnswer = z.strictObject({
     z.strictObject({
       ref: z.string(),
       verdict: z.enum(['supported', 'not_supported', 'unclear']),
+      // A model can give `null` for no reason, and that is not a fault of the answer.
+      reason: z.string().nullish(),
     }),
   ),
 });
@@ -137,7 +145,9 @@ export const makeExtractor = (
     // A model of another family reads each item with its passage. A checker that fails gives no
     // verdict, and each item of its question is then written as disputed: a failure never drops
     // an item.
-    const checkGroup = async (group: readonly ItemToCheck[]): Promise<string[]> => {
+    const checkGroup = async (
+      group: readonly ItemToCheck[],
+    ): Promise<(readonly [string, CheckVerdict])[]> => {
       const refs = group.map((item) => item.ref);
       let asked: Asked<z.output<typeof checkAnswer>>;
       try {
@@ -161,17 +171,24 @@ export const makeExtractor = (
       if (asked.kind !== 'value') return [];
       const { verdicts } = asked.value;
       // One verdict for each item. A second verdict on one item makes it unclear.
-      return refs.filter((ref) => {
+      return refs.flatMap((ref): (readonly [string, CheckVerdict])[] => {
         const said = verdicts.filter((one) => one.ref === ref);
-        return said.length === 1 && said[0]?.verdict === 'supported';
+        const [only] = said;
+        if (only === undefined) return [];
+        if (said.length > 1)
+          return [[ref, { verdict: 'unclear', reason: 'the checker gave more than one verdict' }]];
+        if (only.verdict === 'supported') return [[ref, { verdict: 'supported' }]];
+        return [[ref, { verdict: only.verdict, reason: only.reason ?? '' }]];
       });
     };
 
-    const check = async (items: readonly ItemToCheck[]): Promise<ReadonlySet<string>> => {
-      const supported = new Set<string>();
+    const check = async (
+      items: readonly ItemToCheck[],
+    ): Promise<ReadonlyMap<string, CheckVerdict>> => {
+      const verdicts = new Map<string, CheckVerdict>();
       for (const group of byPassage(items))
-        for (const ref of await checkGroup(group)) supported.add(ref);
-      return supported;
+        for (const [ref, verdict] of await checkGroup(group)) verdicts.set(ref, verdict);
+      return verdicts;
     };
 
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
