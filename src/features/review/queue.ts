@@ -21,11 +21,11 @@ import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './ac
 import { originOf, type Origin } from './origin';
 
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
-export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge';
+export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge' | 'map';
 
 /** What is being changed. The queue lists these, and never one act on its own. A batch holds the
  * acts of a machine that name each other, and the operator decides them as one unit. */
-export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge' | 'batch';
+export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge' | 'batch' | 'mapping';
 
 /** A verdict on one act. A promotion and a rejection are written to the record and cannot be
  * taken back; a hold is a state of this pass, because nothing in the record holds one. */
@@ -182,6 +182,7 @@ const KIND_WORDS: Readonly<Record<ChangeKind, string>> = {
   edit: 'Modification',
   delete: 'Deletion',
   merge: 'Merge',
+  map: 'Mapping',
 };
 
 const SUBJECT_WORDS: Readonly<Record<SubjectKind, string>> = {
@@ -190,6 +191,7 @@ const SUBJECT_WORDS: Readonly<Record<SubjectKind, string>> = {
   link: 'Relation',
   merge: 'Merge',
   batch: 'Linked batch',
+  mapping: 'Mapping of a table',
 };
 
 const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
@@ -201,6 +203,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ChangeKind>> = {
   delete_entity: 'delete',
   delete_relation: 'delete',
   merge_entities: 'merge',
+  map_document: 'map',
 };
 
 /** What the act does to the row, and not what its operation is called. An update that names
@@ -475,6 +478,8 @@ function filingOf(proposal: Proposal): Filing {
       return { key: proposal.id, kind: 'new-node' };
     case 'merge':
       return { key: proposal.id, kind: 'merge' };
+    case 'mapping':
+      return { key: proposal.id, kind: 'mapping' };
     case 'relation':
       return { key: proposal.targetId ?? proposal.id, kind: 'link' };
     case 'attrs':
@@ -549,6 +554,9 @@ function changeOf(index: Index, proposal: Proposal): Change {
       headline = payloadHeadline(labelIn(index), index.typeWordsOf, payload);
       holes.push(HOLE['merge-result']);
       break;
+    case 'mapping':
+      headline = `The mapping of ${payload.table ?? 'a table the act does not name'}`;
+      break;
     case 'delete':
       headline = payload.reason ?? 'The act gives no reason';
       rows = target === null ? [] : destroyed(index, target.attrs);
@@ -602,6 +610,7 @@ function labelOf(
       return named.length === 0 ? first.headline : named.join(', ');
     }
     case 'merge':
+    case 'mapping':
       return first.headline;
     case 'link': {
       const relation = index.relationById.get(key);
@@ -767,7 +776,7 @@ export interface SubjectRow {
 
 /** The order a count is drawn in, and the order that decides the hue of a row: the act that
  * destroys is read before the act that adds, and both before the act that edits. */
-const KIND_ORDER: readonly ChangeKind[] = ['delete', 'merge', 'add', 'edit'];
+const KIND_ORDER: readonly ChangeKind[] = ['delete', 'merge', 'add', 'map', 'edit'];
 
 const settledIn = (subject: Subject, verdicts: Verdicts): number =>
   subject.changes.filter((change) => verdictOf(verdicts, change.id) !== null).length;

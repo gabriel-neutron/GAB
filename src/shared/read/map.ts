@@ -79,6 +79,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   update_relation: 'attrs',
   delete_relation: 'delete',
   merge_entities: 'merge',
+  map_document: 'mapping',
 };
 
 const geometryType = z.looseObject({ type: z.string() });
@@ -120,6 +121,7 @@ const mergePayload = z.looseObject({
   merge_ids: z.array(z.string()).nullish(),
 });
 const deletePayload = z.looseObject({ reason: z.string().nullish() });
+const mappingPayload = z.looseObject({ table: z.string().nullish() });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
   const kind = KIND_OF_OP[op];
@@ -165,6 +167,10 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = deletePayload.parse(value);
       return { kind, reason: held.reason ?? null };
     }
+    case 'mapping': {
+      const held = mappingPayload.parse(value);
+      return { kind, table: held.table ?? null };
+    }
   }
 }
 
@@ -187,6 +193,7 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
     case 'create_entity':
     case 'create_relation':
     case 'merge_entities':
+    case 'map_document':
       return null;
   }
 }

@@ -189,7 +189,8 @@ export type ProposalPayload =
       readonly keep_id: string | null;
       readonly merge_ids: readonly string[];
     }
-  | { readonly kind: 'delete'; readonly reason: string | null };
+  | { readonly kind: 'delete'; readonly reason: string | null }
+  | { readonly kind: 'mapping'; readonly table: string | null };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds
  * every other one. A deletion copies the whole row it destroyed, and an act on the name or the

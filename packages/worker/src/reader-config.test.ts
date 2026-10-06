@@ -1,6 +1,32 @@
 import { describe, expect, it } from 'vitest';
 
-import { readExtractorConfig, readLeadConfig } from './reader-config.ts';
+import { readExtractorConfig, readLeadConfig, readMapperConfig } from './reader-config.ts';
+
+const MAPPER = {
+  MAPPER_MODEL: 'a-family/a-model',
+  MAPPER_FAMILY: 'a-family',
+  MAPPER_FIRST_WAIT_MS: '1000',
+  MAPPER_WAIT_GROWTH: '2',
+  MAPPER_MAX_WAIT_MS: '60000',
+  MAPPER_TIMEOUT_MS: '30000',
+  MAPPER_MAX_ANSWER_TOKENS: '2000',
+  MAPPER_TOKEN_CAP: '50000',
+};
+
+describe('the configuration of the mapper', () => {
+  it('reads the model and the token cap from the environment', () => {
+    expect(readMapperConfig(MAPPER)).toMatchObject({
+      model: { model: 'a-family/a-model', family: 'a-family' },
+      tokenCap: 50000,
+    });
+  });
+
+  for (const name of Object.keys(MAPPER))
+    it(`stops with a sentence that names ${name} when it is absent`, () => {
+      const env = Object.fromEntries(Object.entries(MAPPER).filter(([held]) => held !== name));
+      expect(() => readMapperConfig(env)).toThrow(new RegExp(name, 'u'));
+    });
+});
 
 const FULL = {
   EXTRACTOR_MODEL: 'a-family/a-model',

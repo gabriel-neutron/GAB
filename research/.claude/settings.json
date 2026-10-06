@@ -8,6 +8,7 @@
       "mcp__gab__list_proposals",
       "mcp__gab__find_document",
       "mcp__gab__document_text",
+      "mcp__gab__file_schema_sample",
       "mcp__gab__job_status",
       "mcp__gab__web_search",
       "mcp__gab__news_search"
