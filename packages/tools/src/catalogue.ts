@@ -13,9 +13,11 @@ import { neighbourhood } from './neighbourhood.ts';
 import { newsSearch } from './news-search.ts';
 import { propose } from './propose.ts';
 import { readEntity } from './read-entity.ts';
+import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
 import { startLead } from './start-lead.ts';
 import { telegramChannel } from './telegram-channel.ts';
+import { vesselEvents } from './vessel-events.ts';
 import { webSearch } from './web-search.ts';
 import { wikidataIds } from './wikidata-ids.ts';
 
@@ -38,6 +40,8 @@ export const CATALOGUE = [
   gleifLookup,
   companiesHouse,
   wikidataIds,
+  sanctionsMatch,
+  vesselEvents,
   enqueueExtract,
   startLead,
   propose,

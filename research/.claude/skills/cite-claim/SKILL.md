@@ -17,6 +17,8 @@ that state it.
 - `fetch_document`: store a new page and get its document id and its text.
 - `gleif_lookup`, `companies_house`, `wikidata_ids`: read one record of a register by its
   identifier. Each answer is stored as a document, and the tool gives its document id.
+- `sanctions_match`, `vessel_events`: read one OpenSanctions entity, or the events of one vessel
+  in Global Fishing Watch. Each answer is stored as a document, and the tool gives its id.
 - `document_text`: read the stored text of a document again, page by page.
 - `search_graph`: find the entity that already holds an identifier.
 - `list_proposals`: find the proposals that wait for the operator.
@@ -54,8 +56,17 @@ that state it.
 
 - Cite a sanctions status from the official entry, stored with `fetch_document`: the OFAC entry
   page, the EU act in EUR-Lex (`legal_act`), or the UK list entry.
-- Never cite OpenSanctions or a news article as the source of a listing.
+- Never cite OpenSanctions or a news article as the source of a listing. `sanctions_match`
+  stores the OpenSanctions entity and gives the address of each official entry: fetch that
+  address with `fetch_document`, and cite the document of the official entry.
 - A match list is a lead, and not a source. Fetch the official entry and cite that.
+
+## A vessel event
+
+- `vessel_events` stores the events of one vessel for a range of dates, and it gives the
+  document id. Cite that document for an event that its text holds.
+- A match by the MMSI alone is a lead: an MMSI is reused and spoofed. Join the events to a hull
+  only through the GFW vessel id or the IMO number.
 - Write the status as ADR 0011 says: "listed by the EU on <date> under Regulation <n>; status
   checked on <snapshot date>".
 

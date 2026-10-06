@@ -35,6 +35,17 @@ test('an empty or absent setting gives no address and no key', () => {
   );
   expect(blank).not.toHaveProperty('searxngUrl');
   expect(blank).not.toHaveProperty('braveKey');
+  const keyless = webOf(
+    { OPENSANCTIONS_API_KEY: ' ', GFW_API_TOKEN: '' },
+    stubFetch(() => new Response('')).fetcher,
+  );
+  expect(keyless).not.toHaveProperty('openSanctionsKey');
+  expect(keyless).not.toHaveProperty('gfwToken');
+  const keyed = webOf(
+    { OPENSANCTIONS_API_KEY: 'a', GFW_API_TOKEN: 'b' },
+    stubFetch(() => new Response('')).fetcher,
+  );
+  expect(keyed).toMatchObject({ openSanctionsKey: 'a', gfwToken: 'b' });
 });
 
 test('the settings come from the environment that is given, and from no other', () => {

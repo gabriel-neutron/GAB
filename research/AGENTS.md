@@ -18,6 +18,8 @@ the operator.
 - Find leads on the web: `web_search`, `news_search`.
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
+- Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
+  Each one stores its answer as a document.
 - Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`,
   `start_lead`, `propose`.
 
@@ -39,6 +41,10 @@ the operator.
   text with `document_text`, and call `propose` with the document id and the excerpt.
   `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
   work.
+- **A sanctions match or a vessel event gives a document to cite.** `sanctions_match` needs a
+  key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
+  other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
+  `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 

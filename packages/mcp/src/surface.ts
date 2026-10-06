@@ -61,6 +61,20 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // Each call reads and stores one record, so a second call writes nothing. A search stores
+  // nothing.
+  sanctions_match: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  vessel_events: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
     readOnlyHint: false,
