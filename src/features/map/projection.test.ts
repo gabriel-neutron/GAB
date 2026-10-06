@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
+import { MULTIPOLYGON_ID, POLYGON_ID, areaCorpus } from './area-corpus';
 import { indexLines } from './index-tree';
 import { entitiesOfType, project, railLegend, railRows } from './projection';
 
@@ -84,5 +85,41 @@ describe('the chain of command on the map rail', () => {
         true,
       ).width,
     ).toBe(240);
+  });
+});
+
+describe('an entity that a polygon locates', () => {
+  const read = project(areaCorpus, entityTypes);
+  const polygon = read.byId.get(POLYGON_ID);
+  const multi = read.byId.get(MULTIPOLYGON_ID);
+
+  it('is drawn once, at a point inside its area, and keeps its area', () => {
+    expect(polygon?.area).toHaveLength(1);
+    expect(polygon?.lon).toBeGreaterThan(4.02);
+    expect(polygon?.lon).toBeLessThan(4.06);
+    expect(polygon?.lat).toBeGreaterThan(51.94);
+    expect(polygon?.lat).toBeLessThan(51.97);
+    expect(polygon?.parentId).toBeNull();
+  });
+
+  it('keeps every polygon of a multipolygon', () => {
+    expect(multi?.area).toHaveLength(2);
+  });
+
+  it('counts in the type and in the drawn total, as a point does', () => {
+    const before = projection.facetByType.get('facility')?.count ?? 0;
+    expect(read.facetByType.get('facility')?.count).toBe(before + 2);
+    expect(read.entities).toHaveLength(projection.entities.length + 2);
+  });
+
+  it('leaves a point with no area', () => {
+    expect(read.entities.filter((entity) => entity.area === null)).toHaveLength(
+      projection.entities.length,
+    );
+  });
+
+  it('widens the frame to the whole area', () => {
+    expect(read.bounds?.[2]).toBeGreaterThanOrEqual(24.8);
+    expect(read.bounds?.[3]).toBeGreaterThanOrEqual(59.7);
   });
 });

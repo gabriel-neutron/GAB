@@ -68,11 +68,18 @@ export interface DocumentProvider {
   readonly licence: string;
 }
 
-/** A point, in WGS 84. The column holds any geometry; a surface that draws a dot needs a point. */
+/** A point, in WGS 84. The column holds any geometry; a mark needs a point. */
 export interface Point {
   readonly lon: number;
   readonly lat: number;
 }
+
+/** A closed ring of positions, longitude first. */
+export type Ring = readonly (readonly [number, number])[];
+
+/** The area of a `Polygon` or a `MultiPolygon`: one list of rings for each polygon, the outer ring
+ * first and each hole after it. A `Polygon` is a list of one. */
+export type Area = readonly (readonly Ring[])[];
 
 /** Where the graph draws one entity. It is derived from the record, and no source holds it up. */
 export interface EntityPosition {
@@ -95,6 +102,10 @@ export interface MapPosition {
   /** Null for an entity nobody located and whose ancestors carry no point either. A row arrives
    * for EVERY entity, and not for the drawn ones alone. */
   readonly point: Point | null;
+  /** The shape of an entity that is located by an area, and null for every other entity. `point`
+   * then lies inside it, so a surface that draws a mark reads `point` and need not read this. A
+   * borrowed position is a point, so `area` and `parentId` are never both set. */
+  readonly area: Area | null;
   /** The word the analyst wrote about the position: `exact`, `approximate` or `inherited`. It
    * may be ABSENT, and an absence is never a measured position. No surface may supply a default
    * word here: a row that states nothing must draw and read as the cautious state. */
