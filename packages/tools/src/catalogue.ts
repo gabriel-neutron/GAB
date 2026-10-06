@@ -1,8 +1,10 @@
 import { archiveSnapshot } from './archive-snapshot.ts';
+import { companiesHouse } from './companies-house.ts';
 import { documentText } from './document-text.ts';
 import { enqueueExtract } from './enqueue-extract.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { findDocument } from './find-document.ts';
+import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
@@ -14,6 +16,7 @@ import { searchGraph } from './search-graph.ts';
 import { startLead } from './start-lead.ts';
 import { telegramChannel } from './telegram-channel.ts';
 import { webSearch } from './web-search.ts';
+import { wikidataIds } from './wikidata-ids.ts';
 
 /** Every tool that is built, once. A surface adapts a part of this list and holds no logic. */
 export const CATALOGUE = [
@@ -30,6 +33,9 @@ export const CATALOGUE = [
   archiveSnapshot,
   fetchDocument,
   telegramChannel,
+  gleifLookup,
+  companiesHouse,
+  wikidataIds,
   enqueueExtract,
   startLead,
   propose,
