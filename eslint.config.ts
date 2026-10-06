@@ -42,7 +42,7 @@ const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as 
  * **A link is an address too.** A ticket written as `https://github.com/.../issues/89` defeated
  * the first shape completely, and it is the form a paste produces.
  *
- * **An entry of the locked register stays.** `M8` and `T5` carry no address, and a new decision
+ * **An entry of the decision register stays.** `M8` and `P1` carry no address, and a new decision
  * replaces an entry by name, so the name outlives even its replacement. They are domain words.
  *
  * **A use case of a deleted document is refused.** `UC1` to `UC5` were defined in the four surface
@@ -372,7 +372,7 @@ export default defineConfig(
   // that version 1 granted, and the hole it left. #39 removed it. Read ADR 0004 before you add it
   // back: `src/shared/ui/**` is a pattern that authored code can enter.
   //
-  // The day a vendored file genuinely fails, the operator adds that **one file name** here.
+  // The day a vendored file genuinely fails, an agent adds that **one file name** here.
 
   // The seam of ADR 0001 and ADR 0004, held by a rule and not by a convention.
   {
@@ -738,7 +738,7 @@ export default defineConfig(
 
   // A comment block is three lines and a comment line is 100 characters. Every file under `src/`
   // and under a workspace package is inside, and the kit takes no exemption — the day a vendored
-  // file genuinely fails, the operator adds that one file name here.
+  // file genuinely fails, an agent adds that one file name here.
   {
     files: ['src/**/*.{ts,tsx,mts,cts}', 'packages/*/src/**/*.{ts,tsx,mts,cts}'],
     plugins: { budget: { rules: { 'comment-budget': commentBudget } } },

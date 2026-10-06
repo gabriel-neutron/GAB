@@ -19,7 +19,7 @@ statement borrows nothing. A rule of the form "no geometry, and a parent with a 
 more entities than the ones that make the claim, and it destroys the difference that this ADR
 protects. The graph cannot rebuild the judgement, because the judgement is not in the graph.
 
-**The walk up the ancestors stands inside the map view**, in SQL, as `decisions.md` T4 asks for a
+**The walk up the ancestors stands inside the map view**, in SQL, as `spec.md` T4 asks for a
 graph traversal. It does not stand in a separate function. A function that the view calls must
 exist before the view, and it must read a view that is made in the same step. The two then need
 each other, and a database built from zero fails.

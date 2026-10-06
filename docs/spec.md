@@ -107,10 +107,7 @@ writes no target. A rejected proposal is kept as a record.
 
 The ADRs hold the other build decisions (`README.md`).
 
-## Open questions
+## Operational values
 
-- A technical question: the agent decides it, and records the reason in an ADR when the choice is
-  costly to reverse.
-- A product question: ask the operator. The answer goes into `prd.md` or `decisions.md`.
-- An operational value (a threshold, a radius, a zoom level) is set from real data, in
-  configuration, and never as a code constant.
+An operational value (a threshold, a radius, a zoom level) is set from real data, in configuration,
+and never as a code constant.

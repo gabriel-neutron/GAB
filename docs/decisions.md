@@ -214,7 +214,8 @@ defensible.
 
 **Rule.** A claim goes public in GAB's own voice only when an official record, a verified
 observation, or audited independent first-hand sources support it. Each other public claim is
-attributed to its source. At launch, every automatic path to GAB's voice is closed. A path opens
+attributed to its source. A list from a party to the conflict is only a statement of that party.
+All public text comes from fixed templates; no free text from a model goes public. At launch, every automatic path to GAB's voice is closed. A path opens
 only after the operator audits it with hand checks.
 **Why.** A wrong claim in GAB's voice costs more than a slow claim.
 **Cost.** At the start, the operator decides each claim in GAB's voice.
@@ -252,7 +253,8 @@ copy of the graph.
 
 ### P4 — The proposal contract is stable
 
-**Rule.** The shape of a proposal is fixed: target, operation, value, sources, confidence, author.
+**Rule.** The shape of a proposal is fixed: target, operation, value, sources, confidence, author,
+and the readings that disagree.
 Agents, models and prompts can change freely.
 **Why.** It is the interface between a changing layer and a database that must last.
 **Cost.** A proposal of the wrong shape is refused, also from an agent.
@@ -291,4 +293,7 @@ public. Each candidate claim shows a visible label with its origin.
 **Risks.** A subject can follow the investigation. An unverified claim about a named company or
 person is exposed (legal and GDPR risk).
 **Mitigations.** The labels. No personal data on a person beyond what a cited source already
-publishes. A correction and right-of-reply process.
+publishes. A unit stays hidden until it has its own citation. Each page gives the visitor "Report
+an error" and "Right of reply".
+**Accepted.** Every name that a cited source gives can be public. The operator accepts the legal
+risk of an anonymous publisher.

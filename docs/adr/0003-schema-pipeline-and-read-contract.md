@@ -71,7 +71,7 @@ a reader sees, because the grants of the read role hold that limit. To add a rea
 
 ## Cost
 
-- PostgREST is not TypeScript, but `decisions.md` T1 asks for TypeScript end to end. We treat
+- PostgREST is not TypeScript, but `spec.md` T1 asks for TypeScript end to end. We treat
   PostgREST as a service, like PostgreSQL and the object store.
 - The drift check applies the re-runnable files to the record database, unless a variable names
   another database. Thus a plain `pnpm check` deploys them to the record.

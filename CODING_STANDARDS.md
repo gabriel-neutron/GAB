@@ -1,11 +1,12 @@
 # Coding standards
 
 The reviewer (`/code-review`, Standards axis) applies these rules to the diff. `pnpm check` already
-enforces the lint, the format and the types, so the reviewer does not repeat them.
+enforces the lint, the format and the types, so the reviewer does not repeat them. The reviewer
+does not block on the wording of a commit, a PR or a comment.
 
 ## Modules
 
-- Each file exports one main symbol. More than three exports is a fault.
+- Each file has one job and one main export. A new file with many exports is probably two files.
 - Name each export in domain words (`GLOSSARY.md`). The name alone says what the caller gets.
 - A module hides its storage, transport, format and retry details. Its interface is smaller than its
   interior.
@@ -31,6 +32,6 @@ enforces the lint, the format and the types, so the reviewer does not repeat the
 
 - A comment records a reason the code cannot show: an external constraint, the origin of a number,
   or a departure from the obvious solution (ADR 0006). Delete every other comment.
-- A comment holds no reference: no document path, no section, no ticket number. The commit message
-  holds references.
+- A comment in the source code (`src/`, the source of each package) holds no reference: no document
+  path, no section, no ticket number. The commit message holds references.
 - Delete or correct each comment that the change made false.

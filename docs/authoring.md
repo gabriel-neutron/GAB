@@ -28,6 +28,9 @@ list that repeats the code.
 
 **The test:** if a normal code commit can make a sentence false, delete the sentence.
 
+A how-to guide (`deploy.md`, a runbook) is the one exception: it can name the commands and the
+variables that the reader must type.
+
 | Write this | Not this |
 |---|---|
 | The database refuses an attribute that has no source. | The `chk_attrs_sourced` check calls `attrs_are_sourced(jsonb)`. |
@@ -44,7 +47,7 @@ list that repeats the code.
 
 ## ADRs
 
-- An ADR holds one decision, its reason and its cost. Keep it to 1,000 words or fewer.
+- An ADR holds one decision, its reason and its cost. Aim for 1,000 words or fewer.
 - Keep each ADR true. Edit it in place when the build changes, because git keeps the old text.
   When a decision is replaced, mark it **Superseded by ADR NNNN**.
 - A measurement keeps its date.
