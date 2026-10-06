@@ -107,6 +107,18 @@ const readingsOf = (written: string): number[] => {
 const numbersIn = (text: string): number[] =>
   [...text.matchAll(NUMBER)].flatMap(([written]) => readingsOf(written));
 
+// A minus sign that stands after no letter and no digit, or a word that says minus, makes the
+// number after it negative. "3-5" is a range, and "ID-5" is a name: neither one states -5.
+const SIGNED = new RegExp(
+  `(?:(?<![\\p{L}\\d])[-\u2212]\\s?|(?<!\\p{L})(?:minus|moins|negative|négatif|negatif)\\s+)(${NUMBER.source})`,
+  'giu',
+);
+
+const negativesIn = (text: string): number[] =>
+  [...text.matchAll(SIGNED)].flatMap(([, written = '']) =>
+    readingsOf(written).map((reading) => -reading),
+  );
+
 const sameNumber = (left: number, right: number): boolean =>
   Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
 
@@ -118,6 +130,12 @@ const plainText = (text: string): string => fold(text).text.toLowerCase().replac
 const wordsOf = (text: string): string[] => plainText(text).match(/\d+(?:[.,]\d+)*|\p{L}+/gu) ?? [];
 
 const isDigit = (point: string | undefined): boolean => point !== undefined && /\d/u.test(point);
+
+// The words that state a yes or a no, in the languages of the corpus.
+const YES_NO: Readonly<Record<'true' | 'false', readonly string[]>> = {
+  true: ['yes', 'true', 'oui', 'vrai'],
+  false: ['no', 'false', 'non', 'faux'],
+};
 
 // The words of the value stand side by side in the passage, whole, and a sign between them is
 // free, so "Rosneft PJSC" stands in "ROSNEFT, PJSC" and "SA" stands in "S.A.". A part of a word
@@ -139,9 +157,14 @@ const statesWords = (value: string, passage: string): boolean => {
 };
 
 const stated = (value: Scalar, passage: string): boolean => {
-  if (typeof value === 'boolean') return true;
+  if (typeof value === 'boolean') {
+    const words = wordsOf(passage);
+    return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
+  }
   if (typeof value === 'number')
-    return numbersIn(passage).some((found) => sameNumber(found, Math.abs(value)));
+    return (value < 0 ? negativesIn(passage) : numbersIn(passage)).some((found) =>
+      sameNumber(found, value),
+    );
   if (DAY.test(value) && daysIn(passage).has(value)) return true;
   if (statesWords(value, passage)) return true;
   const asNumber = readingsOf(value);
