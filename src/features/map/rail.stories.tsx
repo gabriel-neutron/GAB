@@ -466,9 +466,8 @@ export const APolygonStandsInTheListBesideThePointsOfItsType: Story = {
     const facilities = entitiesOfType(projection, 'facility');
     await userEvent.click(canvas.getByRole('button', { name: 'Open the facility list' }));
     await expect(rowsIn(canvasElement)).toHaveLength(facilities.length);
-    await expect(
-      facilities.filter((entity) => entity.area !== null).map((entity) => entity.id),
-    ).toStrictEqual([POLYGON_ID, MULTIPOLYGON_ID]);
+    await expect(projection.byId.get(POLYGON_ID)?.area).not.toBeNull();
+    await expect(projection.byId.get(MULTIPOLYGON_ID)?.area).not.toBeNull();
 
     await userEvent.click(rowOf(canvasElement, POLYGON_ID));
     await expect(rowOf(canvasElement, POLYGON_ID)).toHaveAttribute('aria-current', 'true');

@@ -831,7 +831,7 @@ export function mountMap({
 
   // `fid` is a position in an array and not an identity: it is valid against the one `Projection`
   // that made it. A point of a hidden type gives `ground`, because the old tile still answers
-  // until the worker parses it again. Points are asked first, so a point wins over a line.
+  // until the worker parses it again. Points are asked first, then lines, then areas.
   const hitAt = (point: MapMouseEvent['point']): Hit => {
     if (!styleReady) return { kind: 'unknown' };
     // **One box, for the points and for the lines** — see `HIT_BOX`. A point that is asked with a
@@ -847,9 +847,9 @@ export function mountMap({
       const entity = projection.byFid.get(fid);
       if (entity !== undefined && draws(entity)) return { kind: 'entity', entity };
     }
-    // **A relation that is switched off gives the result `ground`.** It is the same window as the
-    // guard above: the layer is marked hidden, and the old tile still answers until the worker
-    // parses it again. The two paths therefore hold one rule.
+    // **A relation that is switched off is not asked.** It is the same window as the guard above:
+    // the layer is marked hidden, and the old tile still answers until the worker parses it again.
+    // The two paths therefore hold one rule.
     if (!linksHidden) {
       // **A line needs a hit box of about five pixels on each side.** A line of one pixel is
       // otherwise unclickable. The box above is that box, and the points already used it.
@@ -1277,7 +1277,7 @@ export function mountMap({
     },
     // `setTiles` on a raster source resets its attribution from the options it was built with, so
     // a new date would keep the old credit. The source and its layer are rebuilt instead, at the
-    // same place in the stack, so the grounds stay under every line and every point.
+    // same place in the stack, so the grounds stay under every area, every line and every point.
     setImagery: (next) => {
       if (destroyed) return;
       imagery = next;
@@ -1287,7 +1287,7 @@ export function mountMap({
         if (map.getLayer(id) !== undefined) map.removeLayer(id);
         if (map.getSource(id) !== undefined) map.removeSource(id);
         map.addSource(id, rasterSourceOf(groundSource('imagery', next)));
-        map.addLayer(groundLayerOf('imagery'), LINK_LAYER);
+        map.addLayer(groundLayerOf('imagery'), areaLayers[0]?.id ?? LINK_LAYER);
       });
     },
     get imagery() {

@@ -255,20 +255,25 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     }
   }
 
-  // The frame holds the whole of an area, and not its mark alone.
-  const corners = entities.flatMap((entity) => [
-    [entity.lon, entity.lat] as const,
-    ...(entity.area ?? []).flat(2),
-  ]);
-  const bounds: Projection['bounds'] =
-    entities.length === 0
-      ? null
-      : [
-          Math.min(...corners.map(([lon]) => lon)),
-          Math.min(...corners.map(([, lat]) => lat)),
-          Math.max(...corners.map(([lon]) => lon)),
-          Math.max(...corners.map(([, lat]) => lat)),
-        ];
+  // The frame holds the whole of an area, and not its mark alone. A loop, because a spread of
+  // every vertex into `Math.min` overflows the stack on a large coastline.
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  const widen = (lon: number, lat: number): void => {
+    west = Math.min(west, lon);
+    south = Math.min(south, lat);
+    east = Math.max(east, lon);
+    north = Math.max(north, lat);
+  };
+  for (const entity of entities) {
+    widen(entity.lon, entity.lat);
+    for (const rings of entity.area ?? []) {
+      for (const ring of rings) for (const [lon, lat] of ring) widen(lon, lat);
+    }
+  }
+  const bounds: Projection['bounds'] = entities.length === 0 ? null : [west, south, east, north];
 
   return {
     entities,
