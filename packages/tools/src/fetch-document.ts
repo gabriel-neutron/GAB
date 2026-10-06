@@ -168,7 +168,7 @@ interface Fetched {
 }
 
 // Bytes already stored are known by their hash, and nothing is written for them.
-const storeFetched = async (
+export const storeFetched = async (
   session: Session,
   store: NonNullable<Reach['store']>,
   fetched: Fetched,
