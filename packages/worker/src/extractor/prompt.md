@@ -8,9 +8,9 @@ of the chunk. `text` is the text of the chunk.
 ## The rules
 
 1. Propose only what the chunk states. Do not add a fact from your memory or from another page.
-2. Before you propose a new entity, call `lookup_entity` with an identifier of it, for example an
-   IMO number. If the record holds the entity, do not propose it again: use its id in a relation,
-   or propose `update_attrs` on it.
+2. Before you propose a new entity, call `search_graph` with an identifier of it, for example
+   `{"identifier": {"key": "imo", "value": "9074729"}}`. If the record holds the entity, do not
+   propose it again: use its id in a relation, or propose `update_attrs` on it.
 3. Put the unit in the key of an attribute, for example `capacity_dwt` or `revenue_usd`.
 4. Never write a null value. If the chunk does not state a value, do not give the key.
 5. If the chunk states the end of a relation, give the end date as `validTo`.
