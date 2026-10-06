@@ -3,16 +3,15 @@ import { z } from 'zod';
 import type { Queryable } from './queryable.ts';
 
 // The door takes the oldest queued row of a work kind and marks it running in one transaction of
-// its own. The lock that keeps two workers off one row is inside it, because no role may write
+// its own. The lock that keeps two claims off one row is inside it, because no role may write
 // the table.
-const CLAIM = 'SELECT job_id, job_document, job_attempts, job_kind FROM public.claim_job()';
+const CLAIM = 'SELECT job_id, job_document, job_kind FROM public.claim_job()';
 
 const claimed = z
   .array(
     z.object({
       job_id: z.uuid(),
       job_document: z.string().min(1),
-      job_attempts: z.number().int().positive(),
       job_kind: z.enum(['extract_text', 'map_structured', 'second_read']),
     }),
   )
@@ -22,7 +21,6 @@ const claimed = z
 export interface ClaimedJob {
   readonly id: string;
   readonly documentId: string;
-  readonly attempt: number;
   readonly kind: 'extract_text' | 'map_structured' | 'second_read';
 }
 
@@ -35,7 +33,6 @@ export const claimJob = async (on: Queryable): Promise<ClaimedJob | null> => {
   return {
     id: row.job_id,
     documentId: row.job_document,
-    attempt: row.job_attempts,
     kind: row.job_kind,
   };
 };
