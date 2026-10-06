@@ -174,6 +174,11 @@ GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid)       TO gabriel_agent;
+
+-- THE STATUS READ IS gabriel_app ALONE. The writer shows the operator the work on a document,
+-- and the public read holds no door of the queue.
+REVOKE ALL ON FUNCTION document_jobs(text)         FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION document_jobs(text)      TO gabriel_app;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 
 -- THE READING DOOR IS gabriel_agent ALONE. Only the worker that ran the reader knows what it read,

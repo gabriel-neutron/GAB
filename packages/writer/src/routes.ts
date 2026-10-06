@@ -5,6 +5,7 @@ import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
 import { decide } from './decide.ts';
+import { documentJobs, queueExtraction } from './extraction.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
 import { uploadDocument, type ObjectDoor } from './upload.ts';
@@ -35,7 +36,8 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The nine doors. No address here answers a GET: the writer serves no read and returns no row. */
+/** The doors of the operator. No address here answers a GET, and the one read is the status of
+ * the jobs of a document, which the public read never shows. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
@@ -58,6 +60,19 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   // claim it holds is proposed later and cites it.
   app.post('/write/upload-document', capped(LARGEST_UPLOAD_BODY), async (context) => {
     const act = await uploadDocument(pool, store, await context.req.text());
+    return context.json(act.reply, act.status);
+  });
+
+  // A failed extraction is asked for again through the same door.
+  app.post('/write/queue-extraction', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await queueExtraction(pool, await context.req.text());
+    return context.json(act.reply, act.status);
+  });
+
+  // Departure: a read on a POST. The status is private to the operator, and the admission of a
+  // JSON body from this site is the one guard the writer holds.
+  app.post('/write/document-jobs', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await documentJobs(pool, await context.req.text());
     return context.json(act.reply, act.status);
   });
 

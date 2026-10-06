@@ -288,6 +288,7 @@ const THE_DOOR_SET = [
   'public.confirm_fabrication to gabriel_app',
   'public.contest_letter to gabriel_app',
   'public.decide_originator_fact to gabriel_app',
+  'public.document_jobs to gabriel_app',
   'public.enqueue_job to gabriel_agent',
   'public.enqueue_job to gabriel_app',
   'public.enqueue_job to gabriel_research',

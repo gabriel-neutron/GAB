@@ -1003,6 +1003,24 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE STATUS OF THE WORK ON ONE DOCUMENT, FOR THE OPERATOR. A job names its proposals only
+-- through the model calls it recorded, and the operator role holds no read of those calls. So
+-- this door counts them, and returns the count and no row of a call. The `store_only` row of
+-- the ingestion is no work, so it is left out. The newest job comes first.
+CREATE OR REPLACE FUNCTION document_jobs(p_document text)
+RETURNS TABLE (job_id uuid, job_kind text, job_status text, job_reason text,
+               proposal_count bigint)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.id, j.kind, j.status, j.failure_reason,
+         (SELECT count(*) FROM public.model_call m
+            JOIN public.proposals p ON p.model_call_id = m.id
+           WHERE m.job_id = j.id)
+    FROM public.jobs j
+   WHERE j.document_id = p_document AND j.kind <> 'store_only'
+   ORDER BY j.created_at DESC, j.id
+$$;
+
 -- THE TEXT OF A DOCUMENT, WRITTEN ONCE. p_pages is a jsonb array of strings, and the door sets
 -- the page number from the place of each string, counting from 1, so the caller cannot leave a
 -- gap or repeat a number. An empty string is a valid page. A document with no bytes has nothing
