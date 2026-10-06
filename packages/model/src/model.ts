@@ -52,6 +52,15 @@ const line = z.object({
 /** How the adapter reaches the model: the waits, the timeout and the longest answer. */
 export type ModelLine = z.infer<typeof line>;
 
+/** Checks the ranges of a line and gives it back. A caller that reads the line at its start calls
+ * this, so a value out of range stops the start and no job. */
+export const checkLine = (given: ModelLine): ModelLine => {
+  const held = line.safeParse(given);
+  if (!held.success)
+    throw new Error(`the line of the model is wrong: ${z.prettifyError(held.error)}`);
+  return held.data;
+};
+
 export interface Tool {
   readonly name: string;
   readonly description: string;
@@ -381,7 +390,7 @@ export const openModel = (
 ): Model => {
   if (model.provider !== `${GATEWAY}.chat`)
     throw new Error('the adapter takes a model of the free-model gateway only');
-  const settings = line.parse(given);
+  const settings = checkLine(given);
   const pinned = model.modelId;
   const sleep =
     options.sleep ??
