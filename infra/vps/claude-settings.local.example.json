@@ -9,7 +9,6 @@
       "Write",
       "Glob",
       "Grep",
-      "Workflow",
       "Bash(pnpm:*)",
       "Bash(node:*)",
       "Bash(git:*)",

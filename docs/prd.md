@@ -1,8 +1,7 @@
 # Gabriel — Product Requirements Document
 
-**Version** 1.0 · 6 August 2026
-Related documents: `decisions.md` (rationale) and `spec.md` (contract). The schema itself is
-in `db/`, and no document draws it.
+The operator owns this document (`authoring.md`). The product rules, with their reasons, are in
+`decisions.md`. The general view of the build is in `spec.md`.
 
 ---
 
@@ -32,7 +31,7 @@ The volumes are small. Any complexity justified by scaling is explicitly out of 
 
 ## 3. Analyst workflow
 
-The prefix `W` marks a workflow step. The prefixes `C`, `M`, `S`, `P`, `PU` and `T` in this
+The prefix `W` marks a workflow step. The prefixes `C`, `M`, `S`, `P` and `PU` in this
 document always name an entry in `decisions.md`, never a step.
 
 | # | Step | In / out |
@@ -40,7 +39,7 @@ document always name an entry in `decisions.md`, never a step.
 | W1 | Scouting and collection of raw material | Out |
 | W2 | Ingestion of documents into the corpus | **In** |
 | W3 | Extraction: the system reads and proposes nodes and links | **In** |
-| W4 | Automated scoring: ADMIRALTY on the document, confidence on the proposal | **In** |
+| W4 | Automated checks: the rating of the originator, the confidence of the proposal | **In** |
 | W5 | Review by exception: dissent between agents or low confidence | **In** |
 | W6 | Promotion of a proposal to the evidentiary layer | **In** |
 | W7 | Manual creation and editing of entities and relations | **In** |
@@ -60,8 +59,7 @@ document always name an entry in `decisions.md`, never a step.
 ### 4.1 Data
 
 **The data rules are not restated here.** The **Data model** group of `decisions.md` holds each
-one with its reason and its cost, and `spec.md` §2 holds the form each takes on a write path. A
-third statement in this document would drift from both.
+one with its reason and its cost.
 
 What the scope adds, and the register does not: the system holds **two kinds of object**, the
 relational and the source. It stores nothing else.
@@ -92,7 +90,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 
 **Dual review surface (P3)**: a marker on the graph, and a dedicated queue.
 
-**Scoring**: see S1, S3 and S4.
+**Trust**: see S1 to S6.
 
 **The backend also carries**:
 
@@ -106,7 +104,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 ## 5. What Gabriel does not do
 
 - **No interactive geometry editor** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
-- **No OCR as a first reading** (P5, amended by ADR 0011 §3.1). Code runs OCR on a stored image only as its second reading. A scanned PDF is converted outside the tool before ingestion.
+- **No OCR as a first reading** (P5). Code runs OCR on a stored image only as its second reading. A scanned PDF is converted outside the tool before ingestion.
 - **No audio, no video** (P5).
 - **No heavy satellite imagery processing.** Scope only.
 - **No drafting.** Scope only. Gabriel supplies the material and the references.

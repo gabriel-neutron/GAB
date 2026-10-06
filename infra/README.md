@@ -85,6 +85,6 @@ Nothing is bound to a public address.
 
 - **Never use the `latest` tag.** Every tag here is pinned on purpose.
 - **Never make the `raw` bucket anonymously readable.** T3 makes the file evidence, and
-  ADR 0002 §3 states what publication does instead.
+  ADR 0002 states what publication does instead.
 - The database schema does **not** live here. It lives in `db/`, and
   [ADR 0003](../docs/adr/0003-schema-pipeline-and-read-contract.md) governs it.

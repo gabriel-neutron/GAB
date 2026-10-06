@@ -5,7 +5,7 @@
 -- schema `public` is owned by pg_database_owner, so a GRANT on it run as gabriel_owner grants
 -- nothing and passes with a warning.
 --
--- ADR 0003 §7 fixes the four role names. This file creates them and nothing else.
+-- ADR 0003 fixes the four role names. This file creates them and nothing else.
 -- =============================================================================================
 
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -34,7 +34,7 @@ ALTER ROLE gabriel_app   LOGIN   NOINHERIT;   -- calls the write functions, writ
 ALTER ROLE gabriel_agent LOGIN   NOINHERIT;   -- proposes only
 ALTER ROLE gabriel_read  LOGIN   NOINHERIT;   -- reads the api schema only
 
-ALTER ROLE gabriel_read  SET statement_timeout = '5s';   -- docs/spec.md §4
+ALTER ROLE gabriel_read  SET statement_timeout = '5s';   -- docs/spec.md
 ALTER ROLE gabriel_app   SET statement_timeout = '30s';
 ALTER ROLE gabriel_agent SET statement_timeout = '30s';
 

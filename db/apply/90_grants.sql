@@ -225,7 +225,7 @@ GRANT EXECUTE ON FUNCTION second_read_done(uuid,text,text,text) TO gabriel_agent
 -- THE RESIDUAL LIMIT, STATED SO IT IS NOT DISCOVERED. proposals.xact makes propose-and-accept
 -- inside one transaction unrepresentable. A backend that holds the gabriel_app secret can still
 -- author on one transaction and decide on a second, and only created_at and decided_at show it.
--- session_user cannot separate the operator from the backend, because ADR 0003 §7 gives both
+-- session_user cannot separate the operator from the backend, because ADR 0003 gives both
 -- the name gabriel_app. #42 owns whether a decision needs a second party.
 -- NO SCREEN MAY PRESENT decided_by AS PROOF OF A HUMAN DECISION.
 
