@@ -319,16 +319,18 @@ operator's decision stay the checks.
 
 **Rule.** An AI can propose linked facts in one group: for example a company, its vessels and the
 links between them. The operator decides one entity together with the relations that depend on it.
-One click on Promote writes them in one transaction. If one part cannot be written, nothing of that
+One promotion writes them together, or writes none: if one part cannot be written, nothing of that
 unit is written. The group is a label and a filter, and not a unit. On a group, the operator can
-promote all its clean acts at once: the entities with no dispute and no known fault, and their
-relations. The other acts of the group stay in the queue. A relation is never promoted without its
-two entities. Each end is already in the record, or it is promoted in the same click. Where an end
-is not, Promote is off, and the screen says which entity is missing.
+promote all its clean proposals at once: the entities with no dispute and no fault that the screen
+flags, and their relations. Each unit of the group succeeds or fails on its own, and the screen
+names each unit that fails. The other proposals of the group stay in the queue. A relation is
+never promoted without its two entities. Each end is already in the record, or it is promoted in
+the same click. Where an end is not, the operator cannot promote the relation, and the screen says
+which entity is missing.
 **Why.** The graph never holds a link to a missing entity. One wrong item no longer forces the
-operator to reject a whole group, and the operator can clear a large import in few clicks.
-**Cost.** The operator decides each entity of a disputed group on its own. A unit that has many
-relations is long to read. Promote on a group needs a clear count of what it writes.
+operator to reject a whole group, and the operator can clear a large import in a short time.
+**Cost.** The operator decides each entity of a disputed group on its own. A unit with many
+relations takes long to read. A promotion on a group needs a clear count of what it writes.
 
 ### P12 — The operator AI proposes the facts of a research layer
 
