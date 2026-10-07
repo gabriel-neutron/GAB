@@ -17,9 +17,10 @@ export interface UnitEnd {
   readonly rejectedOn: string | null;
 }
 
-/** What one fault does to a unit: it blocks Promote, it keeps the unit out of a group action, or
- * it is information only. */
-export type FaultLevel = 'blocks' | 'not_clean' | 'information';
+/** What one fault does to a unit: it blocks Promote; it holds Promote of this unit alone until an
+ * entity of its own group is in the record; it keeps the unit out of a group action; or it is
+ * information only. */
+export type FaultLevel = 'blocks' | 'waits' | 'not_clean' | 'information';
 
 /** Each fault that the check of the database finds. */
 const FAULT_KINDS = [
@@ -30,6 +31,7 @@ const FAULT_KINDS = [
   'end_missing',
   'self',
   'no_source',
+  'end_waits_in_group',
   'dispute',
   'contradiction',
   'reported_claim',
@@ -109,7 +111,8 @@ export interface Unit {
   readonly proposer: Proposer;
   readonly group: { readonly id: string; readonly subject: string | null } | null;
   readonly state: UnitState;
-  /** The blocks first, then the faults that are not clean, then the information. */
+  /** The blocks first, then the waits, then the faults that are not clean, then the
+   * information. */
   readonly faults: readonly Fault[];
   readonly acts: readonly UnitAct[];
   readonly documents: readonly SourceDocument[];
@@ -169,7 +172,7 @@ const answer = z.object({
       faults: z.array(
         z.object({
           kind: z.enum(FAULT_KINDS),
-          level: z.enum(['blocks', 'not_clean', 'information']),
+          level: z.enum(['blocks', 'waits', 'not_clean', 'information']),
           act: z.string().nullable(),
           said: z.string(),
         }),

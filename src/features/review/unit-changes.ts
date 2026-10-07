@@ -17,8 +17,9 @@ export interface RelationLine {
   readonly word: string;
   readonly other: string;
   readonly state: EndState;
-  /** The day the operator rejected the other end, or null. */
-  readonly rejectedOn: string | null;
+  /** The end that the operator rejected, either end, with the day. Null where no end was
+   * rejected. */
+  readonly rejected: { readonly name: string; readonly on: string } | null;
   readonly disputed: boolean;
 }
 
@@ -48,6 +49,11 @@ const NO_NAME = 'an element';
 
 const nameOf = (end: UnitEnd): string => end.name ?? NO_NAME;
 
+const rejectedOf = (ends: readonly UnitEnd[]): RelationLine['rejected'] => {
+  const end = ends.find((held) => held.state === 'rejected');
+  return end === undefined ? null : { name: nameOf(end), on: end.rejectedOn ?? 'an unknown day' };
+};
+
 export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
   const head = unit.acts.find((act) => act.kind === 'entity' && act.id === unit.id);
   const entity =
@@ -73,7 +79,7 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
           word: typed.inverseLabel,
           other: nameOf(act.src),
           state: act.src.state,
-          rejectedOn: act.src.rejectedOn,
+          rejected: rejectedOf([act.src]),
         },
       ];
     return [
@@ -83,7 +89,9 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
         word: typed.label,
         other: nameOf(act.dst),
         state: act.dst.state,
-        rejectedOn: act.dst.rejectedOn,
+        rejected: rejectedOf(
+          entity !== null && act.src.id === entity.id ? [act.dst] : [act.src, act.dst],
+        ),
       },
     ];
   });

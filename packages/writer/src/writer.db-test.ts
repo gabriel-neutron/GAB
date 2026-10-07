@@ -1193,12 +1193,12 @@ test('one promotion writes the entity and its relations, and each act keeps the 
       vessel,
     ]);
 
-    // The relation needs the vessel, which waits in a unit of its own.
+    // The relation needs the vessel, which waits in a unit of its own in the same group.
     const [refused, refusal] = await post('promote-unit', { unitId: owner });
     expect([refused, refusal.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for ' +
-        'Unit test promotion vessel, which is not in the record',
+      'nothing of the unit is promoted: Waits for Unit test promotion vessel in this group: ' +
+        'promote it first',
     ]);
     expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
 
@@ -1391,6 +1391,94 @@ test('two units that wait for each other are refused as a circle', async () => {
     expect((await post('promote-unit', { unitId: first }))[0]).toBe(200);
   } finally {
     await removed(there, first, second);
+  }
+});
+
+// The superuser lends the research role the door of the operator for one transaction, because no
+// door of a machine writes an act with no passage today, and older acts can hold none.
+const superuser = new Pool({
+  connectionString:
+    `postgresql://gabriel:${encodeURIComponent(z.string().parse(process.env['POSTGRES_PASSWORD']))}` +
+    '@127.0.0.1:5432/gabriel_test',
+});
+
+afterAll(async () => {
+  await superuser.end();
+});
+
+const PROPOSE_CHANGE = 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)';
+
+const unsourced = async (label: string): Promise<string> => {
+  const client = await superuser.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`GRANT EXECUTE ON FUNCTION ${PROPOSE_CHANGE} TO gabriel_research`);
+    await client.query('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const made = await client.query<{ id: string }>(
+      `SELECT public.propose_change('create_entity', $1::jsonb,
+         ARRAY[(SELECT document_id FROM public.document_text WHERE page = 1 LIMIT 1)]) AS id`,
+      [JSON.stringify({ type: 'vessel', label })],
+    );
+    await client.query('RESET SESSION AUTHORIZATION');
+    await client.query(`REVOKE EXECUTE ON FUNCTION ${PROPOSE_CHANGE} FROM gabriel_research`);
+    await client.query('COMMIT');
+    return z.string().parse(made.rows[0]?.id);
+  } finally {
+    client.release();
+  }
+};
+
+// The promotion reads the check of the faults that the screen reads, and refuses with its words.
+test('a promotion refuses a rejected end, a relation to itself and an act with no passage', async () => {
+  const [parent, child, link, self] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const end = await signedEntity('Fault test end');
+  await proposedBatch([
+    { id: parent, op: 'create_entity', payload: { type: 'company', label: 'Fault test parent' } },
+    { id: child, op: 'create_entity', payload: { type: 'company', label: 'Fault test child' } },
+    {
+      id: link,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: parent, dst_id: child },
+      names: [parent, child],
+    },
+  ]);
+  await proposedBatch([
+    {
+      id: self,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: end, dst_id: end },
+      names: [end],
+    },
+  ]);
+  let bare = '';
+  try {
+    bare = await unsourced('Fault test bare');
+    expect((await post('reject-unit', { unitId: child, reason: 'wrong_value' }))[0]).toBe(200);
+    const day = new Date().toISOString().slice(0, 10);
+    const [rejected, rejectedReply] = await post('promote-unit', { unitId: parent });
+    expect([rejected, rejectedReply.refusal]).toStrictEqual([
+      422,
+      `nothing of the unit is promoted: The other end Fault test child was rejected on ${day}`,
+    ]);
+    const [itself, itselfReply] = await post('promote-unit', { unitId: self });
+    expect(itself).toBe(422);
+    expect(itselfReply.refusal).toMatch(/has the same element at its two ends$/u);
+    const [unsourcedStatus, unsourcedReply] = await post('promote-unit', { unitId: bare });
+    expect([unsourcedStatus, unsourcedReply.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted: The act Fault test bare cites no passage of a source',
+    ]);
+    expect(await statusesOf([parent, link, self, bare])).toStrictEqual([
+      'pending',
+      'pending',
+      'pending',
+      'pending',
+    ]);
+  } finally {
+    await post('reject-unit', { unitId: parent, reason: 'end_rejected' });
+    await post('reject-unit', { unitId: self, reason: 'wrong_value' });
+    if (bare !== '') await post('reject-unit', { unitId: bare, reason: 'out_of_scope' });
+    await removed(end);
   }
 });
 

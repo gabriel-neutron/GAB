@@ -15,6 +15,7 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   end_missing: 'end missing',
   self: 'points to itself',
   no_source: 'no passage',
+  end_waits_in_group: 'parent first',
   dispute: 'disputed',
   contradiction: 'two values',
   reported_claim: 'reported claim',

@@ -29,10 +29,14 @@ const STATE_WORDS: Readonly<Record<Exclude<EndState, 'rejected'>, string>> = {
   missing: 'not in the record and not in the queue',
 };
 
-const stateWords = (line: RelationLine): string =>
-  line.state === 'rejected'
-    ? `the other end was rejected on ${line.rejectedOn ?? 'an unknown day'}`
-    : STATE_WORDS[line.state];
+// A relation alone names the end that was rejected, because either end can be the one.
+const stateWords = (line: RelationLine): string => {
+  if (line.rejected === null)
+    return line.state === 'rejected' ? STATE_WORDS.missing : STATE_WORDS[line.state];
+  return line.from === null
+    ? `the other end was rejected on ${line.rejected.on}`
+    : `${line.rejected.name} was rejected on ${line.rejected.on}`;
+};
 
 const HEADING = 'mt-3 text-small/4 tracking-caps text-label uppercase';
 
@@ -70,15 +74,12 @@ function Relation({ line, alone, aimed, onRelation }: RelationProps) {
       {line.from === null ? null : <span>{line.from} </span>}
       <span className="text-label">{line.word} →</span> <span>{line.other}</span>{' '}
       <span
-        className={cn(
-          'text-small/4',
-          line.state === 'rejected' ? 'text-destructive' : 'text-label',
-        )}
+        className={cn('text-small/4', line.rejected === null ? 'text-label' : 'text-destructive')}
       >
         ({stateWords(line)})
       </span>
       {line.disputed ? <span className="text-small/4 text-dissent"> disputed</span> : null}
-      {line.state === 'rejected' ? (
+      {line.rejected !== null ? (
         <button
           type="button"
           className={AIM}

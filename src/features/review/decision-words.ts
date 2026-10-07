@@ -27,7 +27,8 @@ export function decisionWords(unit: Unit, words: UnitWords, aimed: string | null
         ? `the relation ${relation}`
         : unit.name;
   const aimedLine = lines.find((line) => line.id === aimed);
-  const blocks = unit.faults.filter((fault) => fault.level === 'blocks');
+  // A wait for an entity of the same group stops Promote of this unit alone, as a block does.
+  const blocks = unit.faults.filter((fault) => fault.level === 'blocks' || fault.level === 'waits');
   return {
     promote:
       blocks.length === 0

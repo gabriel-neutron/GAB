@@ -8,7 +8,9 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, expect, test } from 'vitest';
 
-import { batchesOf, documentOf, linesOf, pointOf, readV1, spanOf } from './import-v1.ts';
+import { z } from 'zod';
+
+import { batchesOf, documentOf, doorItems, linesOf, pointOf, readV1, spanOf } from './import-v1.ts';
 
 const DISTRICT = '00000000-0000-4000-8000-000000000001';
 const ARMY = '00000000-0000-4000-8000-000000000002';
@@ -229,14 +231,23 @@ test('a top element and its units with no sub-unit are one batch, and each tree 
   });
 });
 
-test('an element with the sources of a parent keeps that parent in an attribute', () => {
-  const batches = batchesOf(linesOf(readV1(fixture())), DOCUMENT).flat();
-  const entityOf = (id: string) =>
-    batches.find((item) => item.line.element.id === id && item.request.op === 'create_entity');
-  expect(entityOf(BATTALION)?.request).toMatchObject({
-    attrs: { sources_from: { v: `1st Army (v1 ${ARMY})` } },
-  });
-  expect(entityOf(ARMY)?.request).not.toHaveProperty('attrs.sources_from');
+test('an element with the sources of a parent names that parent beside its attributes', () => {
+  const lines = linesOf(readV1(fixture()));
+  const page = { extractor: 'x', number: 1, text: documentOf(lines) };
+  const items = batchesOf(lines, DOCUMENT).flatMap((batch) => doorItems(batch, DOCUMENT, page));
+  const payloadOf = (id: string): unknown => {
+    const entity = batchesOf(lines, DOCUMENT)
+      .flat()
+      .find((item) => item.line.element.id === id && item.request.op === 'create_entity');
+    return items
+      .map((item) =>
+        z.object({ id: z.string(), payload: z.record(z.string(), z.unknown()) }).parse(item),
+      )
+      .find((item) => item.id === entity?.id)?.payload;
+  };
+  expect(payloadOf(BATTALION)).toMatchObject({ sources_from: '1st Army' });
+  expect(payloadOf(BATTALION)).not.toHaveProperty('attrs.sources_from');
+  expect(payloadOf(ARMY)).not.toHaveProperty('sources_from');
 });
 
 test('the same document gives the same acts, and another document gives other acts', () => {

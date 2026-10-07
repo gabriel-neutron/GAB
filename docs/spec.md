@@ -137,17 +137,17 @@ note when the reason is "other". The reason and the note are private. The operat
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
 relation, or a group action. The public page can then say who decided a fact and how.
 
-One check in the database finds the faults of each unit, and the queue, the promotion and the group
-action read it, so the screen and the record always agree. A unit is clean, not clean or blocked.
-A fault that blocks a unit stops Promote, and the refusal gives the same sentence as the screen:
-an end that waits in another group or in a circle, an end that was rejected or does not exist, a
-relation to itself or to a relation that is not in the record, and an act of a machine with no
-cited passage. A unit that is not clean is decided by hand and never in a group action: a dispute,
-two acts that set one key differently, a source that reports a claim, the same name and type under
-the same parent, and an unknown type. Some faults are information only, and the unit stays clean:
-sources from the parent (the v1 import), an approximate position, a note, and the same name under
-another parent. An entity that waits for an entity of its own group is not blocked, because a
-group action writes the parent first.
+One check in the database finds the faults of a list of units. The queue, the promotion and the
+group action read this check, so the screen and the record agree. Each fault has one level:
+
+- A fault that blocks stops Promote. The refusal gives the sentence that the screen shows.
+- A wait for an entity of the same group stops Promote of that unit alone. The unit stays clean,
+  because the group action writes the parent first.
+- A fault that is not clean keeps the unit out of a group action. The operator decides it alone.
+- Information does not change the state of the unit.
+
+The v1 import marks a unit whose sources come from a parent. The promotion does not copy the mark
+into the record.
 
 ## The lead path
 
