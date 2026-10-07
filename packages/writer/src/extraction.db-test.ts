@@ -179,7 +179,7 @@ test('a done extraction counts the proposals it made and the parts that were ref
     ]);
   } finally {
     // The ledger keeps the act, so the test decides it and the review queue stays as it was.
-    await send('reject-proposal', { proposalId });
+    await send('reject-unit', { unitId: proposalId, reason: 'out_of_scope' });
   }
 });
 

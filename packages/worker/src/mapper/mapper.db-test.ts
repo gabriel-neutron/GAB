@@ -201,9 +201,7 @@ const fromAnEarlierTransaction = async (held: Held, id: string): Promise<void> =
 
 const promote = async (held: Held, id: string): Promise<string> => {
   await fromAnEarlierTransaction(held, id);
-  return held.asApp(() =>
-    held.idOf("SELECT public.promote_proposal($1::uuid, 'a test') AS id", [id]),
-  );
+  return held.asApp(() => held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [id]));
 };
 
 /** An entity in the record, promoted from an act of the operator. */
@@ -483,9 +481,10 @@ test('a load that runs two times writes each act and the report once', async () 
   });
 });
 
-const pendingActs = z.array(z.object({ id: z.uuid(), batch_id: z.uuid().nullable() }));
+const pendingUnits = z.array(z.object({ unit_id: z.uuid() }));
 
-/** The operator promotes each act that the first load proposed, a batch as one unit. */
+/** The operator promotes each unit that the first load proposed. A unit whose end waits in
+ * another unit is promoted after that unit, so each round promotes what it can. */
 const promoteAllOfTheLoad = async (held: Held): Promise<void> => {
   await held.ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
   await held.ask(
@@ -493,25 +492,29 @@ const promoteAllOfTheLoad = async (held: Held): Promise<void> => {
       WHERE author_role = 'gabriel_agent' AND op <> 'map_document' AND status = 'pending'`,
   );
   await held.ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
-  const pending = pendingActs.parse(
-    await held.ask(
-      `SELECT id, batch_id FROM public.proposals
-        WHERE author_role = 'gabriel_agent' AND op <> 'map_document' AND status = 'pending'
-        ORDER BY created_at, id`,
-    ),
-  );
-  const decided = new Set<string>();
-  for (const act of pending) {
-    if (act.batch_id === null)
-      await held.asApp(() =>
-        held.ask("SELECT public.promote_proposal($1::uuid, 'a test')", [act.id]),
-      );
-    else if (!decided.has(act.batch_id)) {
-      decided.add(act.batch_id);
-      await held.asApp(() =>
-        held.ask("SELECT public.decide_batch($1::uuid, 'promote', 'a test')", [act.batch_id]),
-      );
+  let left = pendingUnits
+    .parse(
+      await held.ask(
+        `SELECT DISTINCT unit_id FROM public.proposals
+          WHERE author_role = 'gabriel_agent' AND op <> 'map_document' AND status = 'pending'
+          ORDER BY unit_id`,
+      ),
+    )
+    .map((row) => row.unit_id);
+  while (left.length > 0) {
+    const waits: string[] = [];
+    for (const unit of left) {
+      await held.ask('SAVEPOINT a_unit');
+      try {
+        await held.asApp(() => held.ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit]));
+        await held.ask('RELEASE SAVEPOINT a_unit');
+      } catch {
+        await held.ask('ROLLBACK TO SAVEPOINT a_unit');
+        waits.push(unit);
+      }
     }
+    if (waits.length === left.length) throw new Error('no unit of the load can be promoted');
+    left = waits;
   }
 };
 

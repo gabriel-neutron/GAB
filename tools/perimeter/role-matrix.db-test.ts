@@ -39,13 +39,12 @@ test('the role matrix of the doors', async () => {
     {
       "public.claim_job": "agent",
       "public.complete_job": "agent",
-      "public.decide_batch": "app",
       "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
       "public.enqueue_mapped_load": "agent",
       "public.fail_job": "agent",
       "public.lead_jobs": "app",
-      "public.promote_proposal": "app",
+      "public.promote_unit": "app",
       "public.propose_batch": "agent research",
       "public.propose_change": "app",
       "public.propose_mapping": "agent",
@@ -55,7 +54,8 @@ test('the role matrix of the doors', async () => {
       "public.put_load_report": "agent",
       "public.record_lead_document": "agent",
       "public.record_model_call": "agent",
-      "public.reject_proposal": "app",
+      "public.reject_relation": "app",
+      "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
       "public.review_units": "app",
       "public.runner_settings": "agent",
@@ -111,24 +111,19 @@ test('a machine role holds no door that promotes or rejects', async () => {
   expect(held).toStrictEqual([]);
 });
 
-for (const identity of ['agent', 'research'] as const)
-  for (const door of ['promote_proposal', 'reject_proposal'])
-    test(`gabriel_${identity} is refused when it calls ${door}`, async () => {
-      await expect(
-        rolledBack(identity, (ask) =>
-          ask(`SELECT public.${door}(gen_random_uuid(), 'a perimeter test')`),
-        ),
-      ).rejects.toMatchObject({ code: '42501' });
-    });
+const DECISIONS = [
+  "public.promote_unit(gen_random_uuid(), 'a perimeter test')",
+  "public.reject_unit(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
+  "public.reject_relation(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
+] as const;
 
 for (const identity of ['agent', 'research'] as const)
-  test(`gabriel_${identity} is refused when it decides a batch`, async () => {
-    await expect(
-      rolledBack(identity, (ask) =>
-        ask(`SELECT public.decide_batch(gen_random_uuid(), 'promote', 'a perimeter test')`),
-      ),
-    ).rejects.toMatchObject({ code: '42501' });
-  });
+  for (const door of DECISIONS)
+    test(`gabriel_${identity} is refused when it calls ${door}`, async () => {
+      await expect(rolledBack(identity, (ask) => ask(`SELECT ${door}`))).rejects.toMatchObject({
+        code: '42501',
+      });
+    });
 
 for (const identity of ['agent', 'research'] as const)
   test(`gabriel_${identity} is refused when it signs an act of the operator`, async () => {
@@ -145,8 +140,9 @@ test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
 });
 
-test('the operator promotes and rejects', async () => {
+test('only the operator promotes a unit, rejects a unit and rejects one relation', async () => {
   const held = await matrix();
-  expect(held['public.promote_proposal']).toBe('app');
-  expect(held['public.reject_proposal']).toBe('app');
+  expect(held['public.promote_unit']).toBe('app');
+  expect(held['public.reject_unit']).toBe('app');
+  expect(held['public.reject_relation']).toBe('app');
 });

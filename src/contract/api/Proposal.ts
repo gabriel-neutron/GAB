@@ -31,6 +31,8 @@ export default interface Proposal {
 
   decided_by: string | null;
 
+  decided_as: string | null;
+
   batch_id: string | null;
 
   proposer: string | null;
@@ -52,6 +54,7 @@ export const proposal = z.object({
   created_at: z.string().nullable(),
   decided_at: z.string().nullable(),
   decided_by: z.string().nullable(),
+  decided_as: z.string().nullable(),
   batch_id: z.uuid().nullable(),
   proposer: z.string().nullable(),
 });

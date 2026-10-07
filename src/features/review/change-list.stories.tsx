@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 
 import { ChangeList } from './change-list';
 import { unitPageOf } from './unit-page';
@@ -25,7 +25,7 @@ const WORDS = unitWords(
 
 const meta = {
   component: ChangeList,
-  args: { unit: unitOf(SAMPLE_UNITS.army), words: WORDS },
+  args: { unit: unitOf(SAMPLE_UNITS.army), words: WORDS, aimed: null, onAim: fn() },
   render: (args) => (
     <div className="flex h-[480px] w-[560px] flex-col border border-border">
       <ChangeList {...args} />

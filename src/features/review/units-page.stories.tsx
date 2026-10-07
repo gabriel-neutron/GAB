@@ -46,6 +46,7 @@ const meta = {
     view: { state: 'held', queue: { units, total: 1082, more: 'ready' } },
     selectedId: SAMPLE_UNITS.army,
     words: WORDS,
+    decision: { step: 'idle' },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -158,5 +159,34 @@ export const TheDarkThemePaintsTheColumns: Story = {
   ),
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('region', { name: 'The justification' })).toBeVisible();
+  },
+};
+
+/** One relation of the unit is rejected alone, with a reason, and the rest stays one unit. */
+export const OneRelationIsRejectedAlone: Story = {
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject this relation' }));
+    const bar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(
+      within(bar).getByText(
+        'Rejects the relation subordinate to → Eastern Military District. The rest of the unit ' +
+          'stays in the queue.',
+      ),
+    ).toBeVisible();
+    await userEvent.selectOptions(within(bar).getByLabelText('Reason'), 'not_in_source');
+    await userEvent.click(within(bar).getByRole('button', { name: 'Reject the relation' }));
+    await expect(onAct).toHaveBeenCalledWith({
+      kind: 'decide',
+      unitId: SAMPLE_UNITS.army,
+      decision: {
+        op: 'reject_relation',
+        proposalId: '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c',
+        reason: 'not_in_source',
+      },
+    });
+    await userEvent.click(within(bar).getByRole('button', { name: 'Back to the unit' }));
+    const unitBar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(within(unitBar).getByRole('button', { name: 'Promote' })).toBeVisible();
   },
 };

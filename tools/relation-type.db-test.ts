@@ -49,7 +49,7 @@ const LANDED = `SELECT type, proposed_type, valid_from::text AS valid_from
 // Each statement runs in its own transaction: an act is not decided by the transaction that
 // proposed it. The proposals stay, because the ledger is append-only, and the rows go.
 const promoted = (ask: Ask, id: string): Promise<string> =>
-  idOf(ask, 'SELECT public.promote_proposal($1::uuid, $2::text) AS id', [id, 'a test']);
+  idOf(ask, 'SELECT public.promote_unit($1::uuid, $2::text) AS id', [id, 'a test']);
 
 const deleted = async (ask: Ask, kind: 'entity' | 'relation', target: string): Promise<void> => {
   await promoted(ask, await idOf(ask, DELETE, [`delete_${kind}`, kind, target]));

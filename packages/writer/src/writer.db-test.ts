@@ -119,7 +119,7 @@ test('propose and promote inside one transaction is refused', async () => {
     );
     const id = made.rows[0]?.['id'];
     await expect(
-      client.query('SELECT public.promote_proposal($1::uuid, $2::text)', [id, 'a test']),
+      client.query('SELECT public.promote_unit($1::uuid, $2::text)', [id, 'a test']),
     ).rejects.toMatchObject({ code: '42501' });
   } finally {
     await client.query('ROLLBACK').catch(() => undefined);
@@ -256,7 +256,7 @@ const citedEntity = async (label: string): Promise<string> => {
     );
     await client.query('COMMIT');
     await client.query('BEGIN');
-    await client.query('SELECT public.promote_proposal($1::uuid, $2::text)', [
+    await client.query('SELECT public.promote_unit($1::uuid, $2::text)', [
       made.rows[0]?.['id'],
       'a test',
     ]);
@@ -276,7 +276,10 @@ const settled = async (target: string): Promise<void> => {
     [target],
   );
   for (const { id } of waiting.rows)
-    await one('SELECT public.reject_proposal($1::uuid, $2::text)', [id, 'a test']);
+    await one("SELECT public.reject_unit($1::uuid, 'out_of_scope', NULL, $2::text)", [
+      id,
+      'a test',
+    ]);
 };
 
 const HELD_CLAIM = { coal_stock_t: { v: 41200, src: ['doc_8f2a41'] } };
@@ -335,7 +338,7 @@ test.for(['41200', '41200.0'])(
            ARRAY['doc_3c1104']::text[], 'entity', $1::uuid) AS id`,
         [target, spelling],
       );
-      await one('SELECT public.promote_proposal($1::uuid, $2::text)', [made['id'], 'a test']);
+      await one('SELECT public.promote_unit($1::uuid, $2::text)', [made['id'], 'a test']);
       expect(await heldAttributes(target)).toStrictEqual({
         coal_stock_t: { v: Number(spelling), src: ['doc_8f2a41', 'doc_3c1104'] },
       });
@@ -505,7 +508,7 @@ test('a rename replaces the list of the row, and the prior value keeps the old l
     `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['doc_8f2a41']::text[]) AS id`,
     [JSON.stringify({ type: 'vessel', label: 'Writer test cited rename' })],
   );
-  const promoted = await one('SELECT public.promote_proposal($1::uuid, $2::text) AS id', [
+  const promoted = await one('SELECT public.promote_unit($1::uuid, $2::text) AS id', [
     made['id'],
     'a test',
   ]);
@@ -704,10 +707,11 @@ test('the door states the act, and a body that names another act cannot change i
 
 const TARGET_OF_NO_ACT = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-// ------------------------------------------------------------------------ the decision door --
+// -------------------------------------------------------------------------- the unit doors --
 
-// An act that waits, written through the proposal door alone. `promote_proposal` refuses an act
-// that the calling transaction wrote, so each statement commits on its own.
+// An act that waits, written through the proposal door alone. A unit is not decided by the
+// transaction that proposed it, so each statement commits on its own. A single act is its own
+// unit, so the identifier of the act names its unit.
 const waiting = async (label: string): Promise<string> => {
   const made = await one(
     `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
@@ -716,27 +720,41 @@ const waiting = async (label: string): Promise<string> => {
   return String(made['id']);
 };
 
+const DECISION_OF =
+  'SELECT status, decided_by, decided_as, reject_reason, reject_note' +
+  ' FROM public.proposals WHERE id = $1::uuid';
+
 const decisionOf = async (proposalId: string): Promise<Record<string, unknown>> =>
-  one('SELECT status, decided_by FROM public.proposals WHERE id = $1::uuid', [proposalId]);
+  one(DECISION_OF, [proposalId]);
+
+const STILL_PENDING = {
+  status: 'pending',
+  decided_by: null,
+  decided_as: null,
+  reject_reason: null,
+  reject_note: null,
+};
 
 test('the promotion door writes the row under the identifier of the act that made it', async () => {
-  const proposalId = await waiting('Writer test promotion door');
+  const unitId = await waiting('Writer test promotion door');
   let targetId: string | null | undefined;
   try {
-    const [status, reply] = await post('promote-proposal', { proposalId });
+    const [status, reply] = await post('promote-unit', { unitId });
     targetId = reply.targetId;
     expect([status, reply.state]).toStrictEqual([200, 'decided']);
-    expect(reply.proposalId).toBe(proposalId);
-    // A relation of a batch names an entity before its promotion, by the identifier of its act.
-    expect(targetId).toBe(proposalId);
+    // A relation of a group names an entity before its promotion, by the identifier of its act.
+    expect(targetId).toBe(unitId);
 
     const made = await one('SELECT promoted_from FROM public.entities WHERE id = $1::uuid', [
       targetId,
     ]);
-    expect(made['promoted_from']).toBe(proposalId);
-    expect(await decisionOf(proposalId)).toStrictEqual({
+    expect(made['promoted_from']).toBe(unitId);
+    expect(await decisionOf(unitId)).toStrictEqual({
       status: 'accepted',
       decided_by: 'the writer door',
+      decided_as: 'unit',
+      reject_reason: null,
+      reject_note: null,
     });
   } finally {
     await removed(targetId);
@@ -744,48 +762,93 @@ test('the promotion door writes the row under the identifier of the act that mad
 });
 
 // A rejected act is never deleted: it is the record of what was set aside.
-test('the rejection door decides the act, and it writes no row', async () => {
-  const proposalId = await waiting('Writer test rejection door');
-  const [status, reply] = await post('reject-proposal', { proposalId });
+test('the rejection door keeps the reason and the note, and it writes no row', async () => {
+  const unitId = await waiting('Writer test rejection door');
+  const [status, reply] = await post('reject-unit', {
+    unitId,
+    reason: 'other',
+    note: '  The page names a ferry, not a tanker. ',
+  });
 
   expect([status, reply.state, reply.targetId]).toStrictEqual([200, 'decided', null]);
-  expect(await decisionOf(proposalId)).toStrictEqual({
+  expect(await decisionOf(unitId)).toStrictEqual({
     status: 'rejected',
     decided_by: 'the writer door',
+    decided_as: 'unit',
+    reject_reason: 'other',
+    reject_note: 'The page names a ferry, not a tanker.',
   });
-  expect(
-    Number(
-      (
-        await one('SELECT count(*) AS n FROM public.entities WHERE promoted_from = $1::uuid', [
-          proposalId,
-        ])
-      )['n'],
-    ),
-  ).toBe(0);
+  expect(await liveRows(unitId)).toBe(0);
 
-  // The queue of a second analyst still holds the act. The second decision writes nothing.
-  const [again, reply2] = await post('promote-proposal', { proposalId });
-  expect(again).toBe(422);
-  expect(reply2.refusal).toBe(
-    `the act ${proposalId} is rejected already, and a decided act is frozen`,
-  );
-  // A refusal names no act. The browser reads a name as the doubt, and this answer holds none.
-  expect(reply2.proposalId).toBeUndefined();
+  // The queue of a second analyst still holds the unit. The second decision writes nothing.
+  const [again, reply2] = await post('promote-unit', { unitId });
+  expect([again, reply2.refusal]).toStrictEqual([
+    422,
+    `the unit ${unitId} is decided already, and a decided act is frozen`,
+  ]);
+  // A refusal names no row. The browser reads a row as the decision, and this answer holds none.
+  expect(reply2.targetId).toBeUndefined();
 });
 
-test.for(['promote-proposal', 'reject-proposal'])(
-  'the %s door refuses a decision that names no act of the record',
-  async (door) => {
-    const proposalId = '00000000-0000-4000-8000-000000000000';
-    const [status, reply] = await post(door, { proposalId });
-    expect([status, reply.refusal]).toStrictEqual([422, `the record holds no act ${proposalId}`]);
+const NO_REASON =
+  'a rejection names one reason: wrong value, not in the source, wrong type, duplicate, out of ' +
+  'scope, end rejected, or other';
+
+test.for([
+  ['no reason', '', undefined, NO_REASON],
+  ['a word outside the list', 'looks wrong', undefined, NO_REASON],
+  [
+    '"other" and no note',
+    'other',
+    ' ',
+    'a rejection for another reason says that reason in its note',
+  ],
+  [
+    'a note longer than 500 characters',
+    'duplicate',
+    'x'.repeat(501),
+    'the note of a rejection is 500 characters at most',
+  ],
+] as const)(
+  'the record refuses a rejection with %s, and the unit still waits',
+  async ([, reason, note, sentence]) => {
+    const unitId = await waiting(`Writer test rejection refused ${reason}`);
+    try {
+      const [status, reply] = await post('reject-unit', { unitId, reason, note });
+      expect([status, reply.refusal]).toStrictEqual([422, sentence]);
+      expect(await decisionOf(unitId)).toStrictEqual(STILL_PENDING);
+    } finally {
+      await post('reject-unit', { unitId, reason: 'out_of_scope' });
+    }
   },
 );
 
-test('a decision that names no proposal at all is refused before the record is reached', async () => {
-  const [status, reply] = await post('reject-proposal', { targetId: TARGET_OF_NO_ACT });
+// The writer gives every rejection a reason, so the door of the record is asked without it.
+test('the record refuses a rejection that names no reason', async () => {
+  const unitId = await waiting('Writer test rejection with no reason');
+  try {
+    await expect(
+      one("SELECT public.reject_unit($1::uuid, NULL, NULL, 'a test')", [unitId]),
+    ).rejects.toMatchObject({ constraint: 'rejection_reason' });
+    expect(await decisionOf(unitId)).toStrictEqual(STILL_PENDING);
+  } finally {
+    await post('reject-unit', { unitId, reason: 'out_of_scope' });
+  }
+});
+
+test.for([
+  ['promote-unit', {}],
+  ['reject-unit', { reason: 'duplicate' }],
+] as const)('the %s door refuses a unit that the record does not hold', async ([door, extra]) => {
+  const unitId = '00000000-0000-4000-8000-000000000000';
+  const [status, reply] = await post(door, { unitId, ...extra });
+  expect([status, reply.refusal]).toStrictEqual([422, `the record holds no unit ${unitId}`]);
+});
+
+test('a decision that names no unit at all is refused before the record is reached', async () => {
+  const [status, reply] = await post('promote-unit', { targetId: TARGET_OF_NO_ACT });
   expect(status).toBe(422);
-  expect(reply.refusal).toBe('the body names no act');
+  expect(reply.refusal).toBe('the body names no unit');
 });
 
 // An act that waits on a row, written through the proposal door alone. The row is deleted after
@@ -799,22 +862,25 @@ const waitingDelete = async (targetId: string): Promise<string> => {
   return String(made['id']);
 };
 
-test('a promotion whose target is gone is refused, and the answer names no act', async () => {
+test('a promotion whose target is gone is refused, and the answer names the act', async () => {
   const target = await signedEntity('Writer test target gone');
-  const proposalId = await waitingDelete(target);
+  const unitId = await waitingDelete(target);
   try {
     const [gone] = await post('delete-entity', { targetId: target });
     expect(gone).toBe(200);
 
-    const [status, reply] = await post('promote-proposal', { proposalId });
-    expect(status).toBe(422);
-    expect(reply.refusal).toBe(absent('target', target));
-    // The database raised it, so nothing was written and the act still waits under its name.
-    expect(reply.proposalId).toBeUndefined();
-    expect(await decisionOf(proposalId)).toStrictEqual({ status: 'pending', decided_by: null });
+    const [status, reply] = await post('promote-unit', { unitId });
+    expect([status, reply.refusal]).toStrictEqual([
+      422,
+      `nothing of the unit is promoted, because the record refuses its act ${unitId}: ` +
+        `the target ${target} does not exist, and nothing was applied`,
+    ]);
+    // The database raised it, so nothing was written and the act still waits.
+    expect(reply.targetId).toBeUndefined();
+    expect(await decisionOf(unitId)).toStrictEqual(STILL_PENDING);
   } finally {
     // A proposal is never deleted, so the act that still waits is decided before the test ends.
-    await post('reject-proposal', { proposalId });
+    await post('reject-unit', { unitId, reason: 'out_of_scope' });
     await removed(target);
   }
 });
@@ -977,7 +1043,7 @@ test('the private read refuses a request from another site', async () => {
   expect(answer.status).toBe(403);
 });
 
-// ------------------------------------------------------------------------- the batch door --
+// ---------------------------------------------------------------- the units of a group --
 
 // A research AI proposes a linked batch through its own door, as the MCP server does.
 const research = new Pool({
@@ -1075,14 +1141,14 @@ test('the page of the queue gives the reason why a machine act is disputed', asy
     }
     expect(reasons.sort()).toStrictEqual([null, reason].sort());
   } finally {
-    await post('reject-proposal', { proposalId: disputed });
-    await post('reject-proposal', { proposalId: plain });
+    await post('reject-unit', { unitId: disputed, reason: 'out_of_scope' });
+    await post('reject-unit', { unitId: plain, reason: 'out_of_scope' });
   }
 });
 
-// A company that owns a vessel, both new. The relation stands first, so the door orders the
-// promotion. The name of the test makes each act its own, so no act of an earlier test waits.
-const linkedBatch = (test: string, vessel: string, owner: string, link: string): Item[] => [
+// A company that owns a vessel, both new, in one group. The relation names the company as its
+// source, so it belongs to the unit of the company, and the vessel is a unit of its own.
+const ownedVessel = (test: string, vessel: string, owner: string, link: string): Item[] => [
   {
     id: link,
     op: 'create_relation',
@@ -1093,17 +1159,40 @@ const linkedBatch = (test: string, vessel: string, owner: string, link: string):
   { id: owner, op: 'create_entity', payload: { type: 'company', label: `${test} owner` } },
 ];
 
-test('a linked batch waits as one batch, and one promotion writes every item', async () => {
-  const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
-  const ids = await proposedBatch(linkedBatch('Batch test promotion', vessel, owner, link));
-  try {
-    const batchId = await batchOf(link);
-    expect(batchId).not.toBeNull();
-    expect([await batchOf(vessel), await batchOf(owner)]).toStrictEqual([batchId, batchId]);
+const unitOf = async (proposalId: string): Promise<string> =>
+  z
+    .string()
+    .parse(
+      (await one('SELECT unit_id FROM public.proposals WHERE id = $1::uuid', [proposalId]))[
+        'unit_id'
+      ],
+    );
 
-    const [status, reply] = await post('decide-batch', { batchId, verdict: 'promote' });
-    expect([status, reply.state]).toStrictEqual([200, 'decided']);
+test('one promotion writes the entity and its relations, and each act keeps the mode', async () => {
+  const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const ids = await proposedBatch(ownedVessel('Unit test promotion', vessel, owner, link));
+  try {
+    expect(await batchOf(link)).not.toBeNull();
+    expect([await unitOf(link), await unitOf(owner), await unitOf(vessel)]).toStrictEqual([
+      owner,
+      owner,
+      vessel,
+    ]);
+
+    // The relation needs the vessel, which waits in a unit of its own.
+    const [refused, refusal] = await post('promote-unit', { unitId: owner });
+    expect([refused, refusal.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted, because its relation owns waits for ' +
+        'Unit test promotion vessel, which is not in the record',
+    ]);
+    expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
+
+    expect((await post('promote-unit', { unitId: vessel }))[0]).toBe(200);
+    const [status, reply] = await post('promote-unit', { unitId: owner });
+    expect([status, reply.state, reply.targetId]).toStrictEqual([200, 'decided', owner]);
     expect(await statusesOf(ids)).toStrictEqual(['accepted', 'accepted', 'accepted']);
+    for (const id of ids) expect((await decisionOf(id))['decided_as']).toBe('unit');
     expect([await liveRows(vessel), await liveRows(owner), await liveRows(link)]).toStrictEqual([
       1, 1, 1,
     ]);
@@ -1112,24 +1201,12 @@ test('a linked batch waits as one batch, and one promotion writes every item', a
   }
 });
 
-test('two items that name no other item wait as two single acts', async () => {
-  const ids = await proposedBatch([
-    { id: randomUUID(), op: 'create_entity', payload: { type: 'vessel', label: 'Batch test one' } },
-    { id: randomUUID(), op: 'create_entity', payload: { type: 'vessel', label: 'Batch test two' } },
-  ]);
-  try {
-    expect(await Promise.all(ids.map(batchOf))).toStrictEqual([null, null]);
-  } finally {
-    for (const proposalId of ids) await post('reject-proposal', { proposalId });
-  }
-});
-
-test('a batch with one item that cannot be promoted writes nothing, and the refusal names it', async () => {
-  const end = await signedEntity('Batch test end that goes');
+test('a unit with one act that cannot be written writes nothing, and the refusal names it', async () => {
+  const end = await signedEntity('Unit test end that goes');
   const [owner, link] = [randomUUID(), randomUUID()];
   // The relation links the new company to an end of the record, which goes before the promotion.
   const ids = await proposedBatch([
-    { id: owner, op: 'create_entity', payload: { type: 'company', label: 'Batch test refused' } },
+    { id: owner, op: 'create_entity', payload: { type: 'company', label: 'Unit test refused' } },
     {
       id: link,
       op: 'create_relation',
@@ -1137,65 +1214,128 @@ test('a batch with one item that cannot be promoted writes nothing, and the refu
       names: [owner, end],
     },
   ]);
-  const batchId = await batchOf(link);
   try {
+    expect(await unitOf(link)).toBe(owner);
     await removed(end);
-    const [status, reply] = await post('decide-batch', { batchId, verdict: 'promote' });
-    expect(status).toBe(422);
-    expect(reply.refusal).toBe(
-      'nothing of the batch is promoted, because the record refuses its new relation owns: ' +
-        `the target ${end} does not exist`,
-    );
+    const [status, reply] = await post('promote-unit', { unitId: owner });
+    expect([status, reply.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted, because its relation owns waits for Unit test end ' +
+        'that goes, which is not in the record',
+    ]);
     expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending']);
     expect(await liveRows(owner)).toBe(0);
   } finally {
-    await post('decide-batch', { batchId, verdict: 'reject' });
+    await post('reject-unit', { unitId: owner, reason: 'end_rejected' });
   }
 });
 
-test('one rejection rejects every item of the batch, and writes no row', async () => {
+test('one rejection rejects every act of the unit with one reason, and writes no row', async () => {
   const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
-  const ids = await proposedBatch(linkedBatch('Batch test rejection', vessel, owner, link));
-
-  const [status, reply] = await post('decide-batch', {
-    batchId: await batchOf(vessel),
-    verdict: 'reject',
-  });
-  expect([status, reply.state]).toStrictEqual([200, 'decided']);
+  const ids = await proposedBatch(ownedVessel('Unit test rejection', vessel, owner, link));
+  try {
+    const [status, reply] = await post('reject-unit', { unitId: owner, reason: 'duplicate' });
+    expect([status, reply.state]).toStrictEqual([200, 'decided']);
+    for (const id of [owner, link])
+      expect(await decisionOf(id)).toMatchObject({
+        status: 'rejected',
+        decided_as: 'unit',
+        reject_reason: 'duplicate',
+      });
+    // The vessel is a unit of its own, so it still waits.
+    expect(await decisionOf(vessel)).toStrictEqual(STILL_PENDING);
+    expect([await liveRows(owner), await liveRows(link)]).toStrictEqual([0, 0]);
+  } finally {
+    await post('reject-unit', { unitId: vessel, reason: 'out_of_scope' });
+  }
   expect(await statusesOf(ids)).toStrictEqual(['rejected', 'rejected', 'rejected']);
-  expect([await liveRows(vessel), await liveRows(owner), await liveRows(link)]).toStrictEqual([
-    0, 0, 0,
-  ]);
 });
 
-test.for(['promote-proposal', 'reject-proposal'])(
-  'the door of one act refuses an act of a linked batch, and the batch still waits whole (%s)',
-  async (door) => {
-    const [vessel, owner, link] = [randomUUID(), randomUUID(), randomUUID()];
-    const ids = await proposedBatch(linkedBatch(`Batch test ${door}`, vessel, owner, link));
-    const batchId = await batchOf(vessel);
-    try {
-      const [status, reply] = await post(door, { proposalId: vessel });
-      expect([status, reply.refusal]).toStrictEqual([
-        422,
-        `the act ${vessel} is part of the linked batch ${String(batchId)}, and the operator ` +
-          'decides a batch as one unit: decide the batch',
-      ]);
-      expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
-      expect(await liveRows(vessel)).toBe(0);
-    } finally {
-      await post('decide-batch', { batchId, verdict: 'reject' });
-    }
-  },
-);
-
-test('a decision on a batch that the record does not hold is refused', async () => {
-  const [status, reply] = await post('decide-batch', {
-    batchId: TARGET_OF_NO_ACT,
-    verdict: 'promote',
-  });
-  expect([status, reply.refusal]).toStrictEqual([
-    422,
-    `the record holds no batch ${TARGET_OF_NO_ACT} that waits`,
+test('one relation of a unit is rejected alone, and the rest of the unit is promoted', async () => {
+  const end = await signedEntity('Unit test kept end');
+  const [owner, link, kept] = [randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    { id: owner, op: 'create_entity', payload: { type: 'company', label: 'Unit test one link' } },
+    {
+      id: link,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: owner, dst_id: end },
+      names: [owner, end],
+    },
+    {
+      id: kept,
+      op: 'create_relation',
+      payload: { type: 'operates', src_id: owner, dst_id: end },
+      names: [owner, end],
+    },
   ]);
+  try {
+    const [status, reply] = await post('reject-relation', {
+      proposalId: link,
+      reason: 'not_in_source',
+    });
+    expect([status, reply.state]).toStrictEqual([200, 'decided']);
+    expect(await decisionOf(link)).toStrictEqual({
+      status: 'rejected',
+      decided_by: 'the writer door',
+      decided_as: 'relation',
+      reject_reason: 'not_in_source',
+      reject_note: null,
+    });
+    expect(await decisionOf(owner)).toStrictEqual(STILL_PENDING);
+
+    // An entity is no relation, and it is decided with its unit.
+    const [entity, entityReply] = await post('reject-relation', {
+      proposalId: owner,
+      reason: 'wrong_type',
+    });
+    expect([entity, entityReply.refusal]).toStrictEqual([
+      422,
+      `the act ${owner} is no new relation: reject its unit`,
+    ]);
+
+    expect((await post('promote-unit', { unitId: owner }))[0]).toBe(200);
+    expect([await liveRows(owner), await liveRows(kept), await liveRows(link)]).toStrictEqual([
+      1, 1, 0,
+    ]);
+  } finally {
+    await removed(kept, owner, end);
+  }
+});
+
+// The v1 shape: a relation of one group whose other end waits outside the group is a unit of its
+// own, so no entity waits for it, and it waits until both ends are in the record.
+test('a link unit waits until both ends are in the record, and the refusal names the end', async () => {
+  const [far, vessel, link] = [randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    { id: far, op: 'create_entity', payload: { type: 'company', label: 'Link test far owner' } },
+  ]);
+  await proposedBatch([
+    { id: vessel, op: 'create_entity', payload: { type: 'vessel', label: 'Link test vessel' } },
+    {
+      id: link,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: far, dst_id: vessel },
+      names: [far, vessel],
+    },
+  ]);
+  try {
+    expect(await unitOf(link)).toBe(link);
+
+    // The entity of the group waits for no other unit.
+    expect((await post('promote-unit', { unitId: vessel }))[0]).toBe(200);
+    const [status, reply] = await post('promote-unit', { unitId: link });
+    expect([status, reply.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted, because its relation owns waits for Link test far ' +
+        'owner, which is not in the record',
+    ]);
+    expect(await liveRows(link)).toBe(0);
+
+    expect((await post('promote-unit', { unitId: far }))[0]).toBe(200);
+    expect((await post('promote-unit', { unitId: link }))[0]).toBe(200);
+    expect(await liveRows(link)).toBe(1);
+  } finally {
+    await removed(link, vessel, far);
+  }
 });

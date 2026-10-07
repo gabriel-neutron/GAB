@@ -69,12 +69,13 @@ REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean
 REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION apply_proposal(uuid,text)   FROM PUBLIC;
-REVOKE ALL ON FUNCTION refuse_batch_act(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
-REVOKE ALL ON FUNCTION decide_batch(uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
@@ -113,13 +114,14 @@ GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,d
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_research;
-GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
+-- THE DECISION ON A UNIT, OR ON ONE RELATION OF IT. Only the operator holds it: that grant is
+-- the rule "a machine proposes, only the operator promotes".
+GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
--- The decision on a linked batch is a promotion and a rejection, so the operator alone holds it.
-GRANT EXECUTE ON FUNCTION decide_batch(uuid,text,text) TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
@@ -176,7 +178,7 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 -- bytes.
 --
 -- ONE PROCESS HOLDS ONE SECRET, and that is what carries the claim. A worker that held the
--- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
+-- gabriel_app secret to claim would also hold put_document and the doors that decide a unit,
 -- which is the whole operator surface, inside the one process that runs a model over untrusted
 -- text. So the claim goes to the narrower secret, which is the one that cannot sign as the
 -- operator. The claim door itself signs nothing; a trigger stamps the taker from session_user.
