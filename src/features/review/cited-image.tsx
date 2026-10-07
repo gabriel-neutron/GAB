@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { cn } from '@/shared/lib/utils';
 
 import { useDocumentImage } from './document-image';
@@ -14,8 +16,10 @@ const FOCUS =
  * compares the two before a decision, because OCR can misread a character. */
 export function CitedImage({ document, title }: CitedImageProps) {
   const image = useDocumentImage(document);
+  // The writer can name bytes as an image that the browser does not draw.
+  const [brokenAddress, setBrokenAddress] = useState<string | null>(null);
 
-  if (image.state === 'failed')
+  if (image.state === 'failed' || (image.state === 'shown' && image.address === brokenAddress))
     return (
       <p data-image="failed" className="w-24 shrink-0 text-small/4 text-label">
         The stored image did not load.
@@ -36,6 +40,9 @@ export function CitedImage({ document, title }: CitedImageProps) {
         src={image.address}
         alt={`The stored image of ${title}`}
         className="block size-24 object-contain"
+        onError={() => {
+          setBrokenAddress(image.address);
+        }}
       />
     </a>
   );
