@@ -297,6 +297,26 @@ describe('the served model', () => {
     });
   });
 
+  it.each([`${PINNED}-20250514`, `${PINNED}-2025-05-14`, `${PINNED}:nitro`, PINNED.toUpperCase()])(
+    'accepts the same model under the name %s',
+    async (served) => {
+      replies.push(said('{"claim":"a ship"}', { model: served }));
+      const { ask } = open();
+
+      expect(await ask()).toMatchObject({ ok: true, value: { claim: 'a ship' } });
+    },
+  );
+
+  it.each([`${PINNED}-2`, `${PINNED}-mini`, 'a-family/other-model', 'other-family/a-model'])(
+    'refuses another model that is named %s',
+    async (served) => {
+      replies.push(said('{"claim":"a ship"}', { model: served }));
+      const { ask } = open();
+
+      expect(await ask()).toMatchObject({ ok: false, failure: { kind: 'served_other' } });
+    },
+  );
+
   it('refuses a model that the router does not serve', async () => {
     replies.push(refused(404, { message: 'model not found' }));
     const { ask } = open('no-family/no-model');
