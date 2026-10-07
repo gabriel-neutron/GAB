@@ -73,7 +73,7 @@ const proposalsFor = async (targetId: string): Promise<number> =>
   );
 
 const DECIDED =
-  'SELECT status, author_role, prior_value, dissent' + ' FROM public.proposals WHERE id = $1::uuid';
+  'SELECT status, author_role, prior_value, dissent FROM public.proposals WHERE id = $1::uuid';
 
 const decided = async (proposalId: string | undefined): Promise<Record<string, unknown>> =>
   one(DECIDED, [proposalId]);
