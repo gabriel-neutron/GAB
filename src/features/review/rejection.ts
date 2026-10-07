@@ -4,13 +4,13 @@
 
 /** The seven reasons of a rejection, as the record stores them and as the operator reads them. */
 export const REJECTION_REASONS = [
-  { key: 'wrong_value', words: 'wrong value' },
-  { key: 'not_in_source', words: 'not in the source' },
-  { key: 'wrong_type', words: 'wrong type' },
-  { key: 'duplicate', words: 'duplicate' },
-  { key: 'out_of_scope', words: 'out of scope' },
-  { key: 'end_rejected', words: 'end rejected' },
-  { key: 'other', words: 'other' },
+  { key: 'wrong_value', words: 'Wrong value' },
+  { key: 'not_in_source', words: 'Not in the source' },
+  { key: 'wrong_type', words: 'Wrong type' },
+  { key: 'duplicate', words: 'Duplicate' },
+  { key: 'out_of_scope', words: 'Out of scope' },
+  { key: 'end_rejected', words: 'End rejected' },
+  { key: 'other', words: 'Other' },
 ] as const;
 
 // Origin of the number: decided with the operator. One line explains a rejection.

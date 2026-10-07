@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
 import { DecisionBar } from './decision-bar';
+import { decisionWords } from './decision-words';
 import { unitPageOf } from './unit-page';
 import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
@@ -36,7 +37,7 @@ const onAct = fn();
 
 const meta = {
   component: DecisionBar,
-  args: { unit: army, words: WORDS, aimed: null, state: { step: 'idle' }, onAct },
+  args: { said: decisionWords(army, WORDS, null), aimed: false, state: { step: 'idle' }, onAct },
   render: (args) => (
     <div className="w-[640px] border border-border">
       <DecisionBar {...args} />
@@ -62,11 +63,7 @@ export const EachControlSaysWhatItDoes: Story = {
       canvas.getByText('Rejects 5th Combined Arms Army and its 1 relation.'),
     ).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Promote' }));
-    await expect(onAct).toHaveBeenCalledWith({
-      kind: 'decide',
-      unitId: SAMPLE_UNITS.army,
-      decision: { op: 'promote_unit', unitId: SAMPLE_UNITS.army },
-    });
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'promote' });
   },
 };
 
@@ -82,14 +79,9 @@ export const ARejectionNeedsAReason: Story = {
     await userEvent.type(canvas.getByLabelText('Note'), 'The page names a ferry.');
     await userEvent.click(reject);
     await expect(onAct).toHaveBeenCalledWith({
-      kind: 'decide',
-      unitId: SAMPLE_UNITS.army,
-      decision: {
-        op: 'reject_unit',
-        unitId: SAMPLE_UNITS.army,
-        reason: 'other',
-        note: 'The page names a ferry.',
-      },
+      kind: 'reject',
+      reason: 'other',
+      note: 'The page names a ferry.',
     });
   },
 };

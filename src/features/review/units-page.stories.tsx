@@ -43,10 +43,13 @@ const LONG = Array.from({ length: 30 }, (_, index) =>
 const meta = {
   component: UnitsPage,
   args: {
-    view: { state: 'held', queue: { units, total: 1082, more: 'ready' } },
+    view: {
+      state: 'held',
+      queue: { units, total: 1082, more: 'ready' },
+      decision: { step: 'idle' },
+    },
     selectedId: SAMPLE_UNITS.army,
     words: WORDS,
-    decision: { step: 'idle' },
     onAct,
   },
   parameters: { layout: 'fullscreen' },
@@ -111,7 +114,13 @@ export const TheNextPageIsReadOnRequest: Story = {
 
 /** Each column scrolls on its own, and the page itself does not scroll. */
 export const EachColumnScrollsOnItsOwn: Story = {
-  args: { view: { state: 'held', queue: { units: LONG, total: 1082, more: 'ready' } } },
+  args: {
+    view: {
+      state: 'held',
+      queue: { units: LONG, total: 1082, more: 'ready' },
+      decision: { step: 'idle' },
+    },
+  },
   play: async ({ canvas, canvasElement }) => {
     const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
     const scroller = list.querySelector('ul');

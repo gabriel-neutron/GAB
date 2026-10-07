@@ -1109,6 +1109,34 @@ BEGIN
   RETURN v_left;
 END $$;
 
+-- THE UNITS THAT ONE UNIT WAITS FOR, directly or through a chain. A unit waits for another unit
+-- when one of its relations names an act that waits in that other unit. Two relations of one group
+-- can make a circle: "A to B" belongs to the unit of A and "B to A" to the unit of B, so each unit
+-- waits for the other. A unit that is in its own list waits in a circle, and no promotion ends the
+-- wait. The promotion and the check of the faults read the same list. No role holds this step.
+CREATE OR REPLACE FUNCTION unit_waits_for(p_unit uuid)
+RETURNS SETOF uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH RECURSIVE waits (unit_id) AS (
+    SELECT o.unit_id
+      FROM public.proposals x,
+           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+     WHERE x.unit_id = p_unit AND x.status = 'pending' AND x.op = 'create_relation'
+       AND o.unit_id <> x.unit_id
+    UNION
+    SELECT o.unit_id
+      FROM waits w
+      JOIN public.proposals x ON x.unit_id = w.unit_id AND x.status = 'pending'
+                             AND x.op = 'create_relation',
+           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+     WHERE o.unit_id <> x.unit_id
+  )
+  SELECT unit_id FROM waits
+$$;
+
 -- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
 -- "a machine proposes, only the operator promotes". It writes each act that waits in the unit,
 -- an entity before the relation that names it, or it writes none: the first refusal stops the
@@ -1126,6 +1154,8 @@ DECLARE
   v_id    uuid;
   v_act   text;
   v_end   uuid;
+  v_name  text;
+  v_wait  uuid;
   p       public.proposals%ROWTYPE;
   v_said  text;
   v_rule  text;
@@ -1157,11 +1187,19 @@ BEGIN
    ORDER BY x.id
    LIMIT 1;
   IF FOUND THEN
+    v_name := coalesce(public.element_name(v_end),
+                       (SELECT w.payload->>'label' FROM public.proposals w WHERE w.id = v_end),
+                       v_end::text);
+    SELECT w.unit_id INTO v_wait FROM public.proposals w
+     WHERE w.id = v_end AND w.status = 'pending';
+    IF v_wait IS NOT NULL AND p_unit IN (SELECT public.unit_waits_for(v_wait)) THEN
+      RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, and % '
+                      'waits for this unit: the relations make a circle, so reject one relation '
+                      'of the circle', v_act, v_name, v_name
+        USING CONSTRAINT = 'unit_circle';
+    END IF;
     RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, which '
-                    'is not in the record', v_act,
-      coalesce(public.element_name(v_end),
-               (SELECT w.payload->>'label' FROM public.proposals w WHERE w.id = v_end),
-               v_end::text)
+                    'is not in the record', v_act, v_name
       USING CONSTRAINT = 'unit_end_waits';
   END IF;
 

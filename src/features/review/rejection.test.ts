@@ -4,13 +4,13 @@ import { REJECTION_REASONS, rejectionGap } from './rejection';
 
 it('offers the seven reasons in the words of the operator', () => {
   expect(REJECTION_REASONS.map((reason) => reason.words)).toStrictEqual([
-    'wrong value',
-    'not in the source',
-    'wrong type',
-    'duplicate',
-    'out of scope',
-    'end rejected',
-    'other',
+    'Wrong value',
+    'Not in the source',
+    'Wrong type',
+    'Duplicate',
+    'Out of scope',
+    'End rejected',
+    'Other',
   ]);
 });
 
