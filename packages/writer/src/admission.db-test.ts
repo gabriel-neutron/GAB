@@ -6,9 +6,10 @@ import { openPool } from './pool.ts';
 import { LARGEST_BODY_BYTES, writeRoutes } from './routes.ts';
 
 const pool = openPool();
-// An act door never reaches the raw store, so this one refuses every object.
+// An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
-const app = writeRoutes(pool, NO_STORE);
+const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
+const app = writeRoutes(pool, NO_STORE, NO_READ);
 
 afterAll(async () => {
   await pool.end();
