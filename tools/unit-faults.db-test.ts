@@ -603,3 +603,86 @@ test('a claim that was rejected, then proposed again with new identities, is rej
   ]);
   expect(said(read.get(otherValue))).toStrictEqual([]);
 });
+
+test('an entity rejected under one parent does not mark the same name under another parent', async () => {
+  const [north, south, first, second, firstUp, secondUp] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(north, 'Northern Brigade'),
+      entity(first, '1st Battalion'),
+      relation(firstUp, 'subordinate_to', first, north),
+    ]);
+    await batch(ask, [
+      entity(south, 'Southern Brigade'),
+      // Another wording of the same name, so the door does not return the first act.
+      entity(second, '1st battalion'),
+      relation(secondUp, 'subordinate_to', second, south),
+    ]);
+    await ask("SELECT public.reject_unit($1::uuid, 'wrong_value', NULL, 'a test')", [first]);
+    return faultsOf(ask, [second]);
+  });
+  expect(read.get(second)?.state).toBe('clean');
+  expect(said(read.get(second))).toStrictEqual([]);
+});
+
+test('a relation rejected while its end waited is rejected before after that end is promoted', async () => {
+  const [army, brigade, link, again] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(army, 'Promoted Army'),
+      entity(brigade, 'Waiting Brigade'),
+      relation(link, 'subordinate_to', brigade, army),
+    ]);
+    await ask("SELECT public.reject_relation($1::uuid, 'wrong_type', NULL, 'a test')", [link]);
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id = $1", [army]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    await ask("SELECT public.promote_unit($1::uuid, 'a test')", [army]);
+    await batch(ask, [relation(again, 'subordinate_to', brigade, army)]);
+    return faultsOf(ask, [again]);
+  });
+  expect(said(read.get(again))).toContainEqual([
+    'not_clean',
+    'rejected_before',
+    `Rejected before on ${TODAY}: Wrong type`,
+  ]);
+});
+
+test('a link unit that was rejected, then proposed again with new identities, is rejected before', async () => {
+  const [army, brigade, link, againBrigade, againLink] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [entity(army, 'Linked Army')]);
+    await batch(ask, [
+      entity(brigade, 'Linked Brigade'),
+      relation(link, 'subordinate_to', brigade, army),
+    ]);
+    await ask("SELECT public.reject_unit($1::uuid, 'out_of_scope', NULL, 'a test')", [link]);
+    await batch(ask, [
+      entity(againBrigade, 'Linked Brigade'),
+      relation(againLink, 'subordinate_to', againBrigade, army),
+    ]);
+    return faultsOf(ask, [againLink]);
+  });
+  expect(said(read.get(againLink))).toContainEqual([
+    'not_clean',
+    'rejected_before',
+    `Rejected before on ${TODAY}: Out of scope`,
+  ]);
+});

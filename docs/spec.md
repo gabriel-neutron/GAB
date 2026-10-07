@@ -148,11 +148,12 @@ group action read this check, so the screen and the record agree. Each fault has
 
 A machine can propose again a claim that the operator rejected, from a new run with new
 identities. So each act keeps a frozen key of its claim, with no identity that a run makes: the
-type and the name of a new entity; the type and the two ends of a new relation, where an end that
-waits gives the key of its act; the target and the values of any other act. A unit with the key of
-a rejected act is not clean, and the screen gives the day and the reason of the newest rejection.
-The reason stays private to the operator. The cost: the key of an entity holds no parent, so a
-rejected "1st battalion" marks each other "1st battalion" of the same type.
+type and the name of a new entity; the type and the two ends of a new relation; the target and the
+values of any other act. An element that an act proposed gives the key of that act, also after its
+promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
+the reason of the newest rejection. An entity matches a rejected entity only under the same
+parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
+under the same parent. The reason stays private to the operator.
 
 The v1 import marks a unit whose sources come from a parent. The promotion does not copy the mark
 into the record.

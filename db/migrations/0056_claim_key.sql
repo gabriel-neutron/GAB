@@ -6,20 +6,21 @@
 -- identities, the sources and the role. The claim key holds only what the act claims:
 --
 --   a new entity        its type and its name as the review compares it;
---   a new relation      its type and the key of each end: the identity of an element of the
---                       record, or the claim key of the act that proposes the element;
---   any other act       its operation, its target, and each key with its value (a source of a
---                       value is not part of the claim).
+--   a new relation      its type and the key of each end;
+--   any other act       its operation, the key of its target, and each key with its value (a
+--                       source of a value is not part of the claim).
+--
+-- The key of an element is the claim key of the act that proposed it, in any state, and its
+-- identity only when no act proposed it. So the key of a relation does not change when the
+-- operator promotes one of its ends.
 --
 -- The stamp of the act writes the key at the insert, and the key is frozen with the act. The
 -- function is here and not in the re-runnable files, because the key of an old act and the key
 -- of a new act must come from one rule: a change of the rule needs a new migration that writes
 -- each key again.
 --
--- EACH ACT OF THE RECORD GETS ITS KEY, pending and decided. An end reads its state of today: an
--- element of the record gives its identity, and an act gives its claim key. So a rejected
--- relation whose end the operator promoted later has the key of a new relation to that element.
--- A relation can point to a relation, so the fill repeats until each key is written.
+-- EACH ACT OF THE RECORD GETS ITS KEY, pending and decided, by the rule of the insert. An act
+-- can name an act that is not keyed yet, so the fill repeats until each key is written.
 --
 -- THE FREEZE TRIGGER REFUSES EVERY UPDATE OF AN ACT, so it is off for the fill alone, as in 0052.
 -- =============================================================================================
@@ -28,15 +29,14 @@ SET LOCAL ROLE gabriel_owner;
 
 ALTER TABLE proposals ADD COLUMN claim_key text;
 
--- An end that is not an identifier stays as it is written: the shape check of the act refuses
--- it after the stamp, with its own words.
+-- THE KEY OF AN ELEMENT THAT AN ACT NAMES: the claim key of the act that proposed it, in any
+-- state, so the key does not change when the operator promotes that act. The identity of the
+-- element only when no act proposed it. An end that is not an identifier stays as it is written:
+-- the shape check of the act refuses it after the stamp, with its own words.
 CREATE OR REPLACE FUNCTION claim_end_key(p_end text) RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT CASE
            WHEN p_end IS NULL OR NOT pg_input_is_valid(p_end, 'uuid') THEN p_end
-           WHEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = p_end::uuid)
-             OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id = p_end::uuid)
-             THEN p_end::uuid::text
            ELSE coalesce((SELECT p.claim_key FROM public.proposals p WHERE p.id = p_end::uuid),
                          p_end::uuid::text)
          END
@@ -54,7 +54,7 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
                         public.claim_end_key(p_payload->>'src_id'),
                         public.claim_end_key(p_payload->>'dst_id'))
     ELSE
-      jsonb_build_array(p_op, p_target_kind, p_target_id,
+      jsonb_build_array(p_op, p_target_kind, public.claim_end_key(p_target_id::text),
                         coalesce((SELECT jsonb_object_agg(a.key, a.value->'v')
                                     FROM jsonb_each(p_payload->'attrs') AS a),
                                  '{}'::jsonb),
@@ -71,23 +71,19 @@ BEGIN
   END IF;
 END $$;
 
-UPDATE proposals
-   SET claim_key = claim_key_of(op, target_kind, target_id, payload)
- WHERE op <> 'create_relation';
-
--- A relation waits until the act of each end has its key. A relation is never its own end, so
--- each pass writes at least one relation, until none is left.
+-- An act waits until each act that it names has its key. An act never names itself, so each
+-- pass writes at least one act, until none is left.
 DO $$
 DECLARE v_written int;
 BEGIN
   LOOP
     UPDATE proposals r
        SET claim_key = claim_key_of(r.op, r.target_kind, r.target_id, r.payload)
-     WHERE r.op = 'create_relation' AND r.claim_key IS NULL
+     WHERE r.claim_key IS NULL
        AND NOT EXISTS (SELECT 1 FROM proposals e
                         WHERE e.id IN ((r.payload->>'src_id')::uuid,
-                                       (r.payload->>'dst_id')::uuid)
-                          AND e.claim_key IS NULL);
+                                       (r.payload->>'dst_id')::uuid, r.target_id)
+                          AND e.id <> r.id AND e.claim_key IS NULL);
     GET DIAGNOSTICS v_written = ROW_COUNT;
     EXIT WHEN v_written = 0;
   END LOOP;
