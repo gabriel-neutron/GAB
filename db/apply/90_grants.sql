@@ -154,6 +154,11 @@ GRANT EXECUTE ON FUNCTION start_lead(text)         TO gabriel_app, gabriel_resea
 GRANT EXECUTE ON FUNCTION record_lead_document(uuid,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
+-- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages and the reason of each
+-- dispute, and only the operator reads them.
+REVOKE ALL ON FUNCTION review_units(text[],int)    FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int) TO gabriel_app;
+
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count
 -- of proposals and no row of a model call. The public read holds no door of the queue.

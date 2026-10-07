@@ -911,21 +911,20 @@ test('an act on the name and the type that names neither is refused in the words
   }
 });
 
-const passageShape = z.object({
-  disputes: z.array(z.object({ proposalId: z.string(), reason: z.string() })),
-  passages: z.array(
+const unitPage = z.object({
+  total: z.number(),
+  next: z.array(z.string()).nullable(),
+  units: z.array(
     z.object({
-      proposalId: z.string(),
-      document: z.string(),
-      title: z.string(),
-      page: z.number(),
-      text: z.string(),
+      unit: z.uuid(),
+      acts: z.array(z.object({ id: z.uuid(), dissentReason: z.string().nullable() })),
+      passages: z.array(z.object({ act: z.uuid(), text: z.string() })),
     }),
   ),
 });
 
-const askPassages = (body: unknown, origin?: string) =>
-  app.request('/private/passages', {
+const askUnitsFrom = (body: unknown, origin?: string) =>
+  app.request('/private/review-units', {
     method: 'POST',
     headers: {
       host: '127.0.0.1:5177',
@@ -935,25 +934,46 @@ const askPassages = (body: unknown, origin?: string) =>
     body: JSON.stringify(body),
   });
 
-// The fixture gives each machine act a citation of the whole first page, which holds the title.
-test('the private read gives the passage that a pending act cites, as the page states it', async () => {
-  const cited = await one(
-    `SELECT c.claim_id::text AS id, d.title FROM public.citation c
-       JOIN public.documents d ON d.id = c.doc_id
-      WHERE c.text_extractor = 'fixture@1' AND c.start = 0
-        AND c."end" = char_length(d.title)
-      ORDER BY c.claim_id LIMIT 1`,
+const askUnits = async (after: readonly string[] | null, size: number) => {
+  const answer = await askUnitsFrom({ after, size });
+  expect(answer.status).toBe(200);
+  return unitPage.parse(await answer.json());
+};
+
+test('the queue reaches the review through the writer one page of units at a time', async () => {
+  const pending = await one(
+    "SELECT count(*)::int AS acts FROM public.proposals WHERE status = 'pending'",
     [],
   );
-  const answer = await askPassages({ proposalIds: [cited['id']] });
-  expect(answer.status).toBe(200);
-  const { passages } = passageShape.parse(await answer.json());
-  expect(passages).toHaveLength(1);
-  expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
+  const first = await askUnits(null, 1);
+  expect(first.units).toHaveLength(1);
+
+  const units: string[] = [];
+  let acts = 0;
+  let after: readonly string[] | null = null;
+  for (;;) {
+    const read = await askUnits(after, 2);
+    units.push(...read.units.map((unit) => unit.unit));
+    acts += read.units.reduce((sum, unit) => sum + unit.acts.length, 0);
+    if (read.next === null) break;
+    after = read.next;
+  }
+  expect(units[0]).toBe(first.units[0]?.unit);
+  expect(new Set(units).size).toBe(first.total);
+  expect(acts).toBe(pending['acts']);
+});
+
+test('the read of the queue refuses a page larger than the writer reads', async () => {
+  const answer = await app.request('/private/review-units', {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify({ after: null, size: 201 }),
+  });
+  expect(answer.status).toBe(422);
 });
 
 test('the private read refuses a request from another site', async () => {
-  const answer = await askPassages({ proposalIds: [] }, 'https://elsewhere.example');
+  const answer = await askUnitsFrom({ after: null, size: 1 }, 'https://elsewhere.example');
   expect(answer.status).toBe(403);
 });
 
@@ -1029,7 +1049,7 @@ const statusesOf = async (ids: readonly string[]): Promise<readonly string[]> =>
     )
   ).rows.map((row) => row.status);
 
-test('the private read gives the reason why a machine act is disputed', async () => {
+test('the page of the queue gives the reason why a machine act is disputed', async () => {
   const [disputed, plain] = [randomUUID(), randomUUID()];
   const reason = 'the checker says unclear: the page names two tankers';
   await proposedBatch([
@@ -1043,10 +1063,17 @@ test('the private read gives the reason why a machine act is disputed', async ()
     { id: plain, op: 'create_entity', payload: { type: 'vessel', label: 'Reason test plain' } },
   ]);
   try {
-    const answer = await askPassages({ proposalIds: [disputed, plain] });
-    expect(answer.status).toBe(200);
-    const { disputes } = passageShape.parse(await answer.json());
-    expect(disputes).toStrictEqual([{ proposalId: disputed, reason }]);
+    const reasons: (string | null)[] = [];
+    let after: readonly string[] | null = null;
+    for (;;) {
+      const read = await askUnits(after, 200);
+      for (const unit of read.units)
+        for (const act of unit.acts)
+          if (act.id === disputed || act.id === plain) reasons.push(act.dissentReason);
+      if (read.next === null) break;
+      after = read.next;
+    }
+    expect(reasons.sort()).toStrictEqual([null, reason].sort());
   } finally {
     await post('reject-proposal', { proposalId: disputed });
     await post('reject-proposal', { proposalId: plain });

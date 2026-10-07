@@ -119,5 +119,9 @@ export const row = {
     decided_at: nullableText('proposal.decided_at'),
     decided_by: nullableText('proposal.decided_by'),
     batch_id: nullableText('proposal.batch_id'),
+    proposer: z.enum(
+      ['extractor', 'research_ai', 'v1_import', 'operator'],
+      stated('proposal.proposer'),
+    ),
   }),
 } as const;

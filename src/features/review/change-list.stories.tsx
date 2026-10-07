@@ -1,0 +1,101 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, within } from 'storybook/test';
+
+import { ChangeList } from './change-list';
+import { unitPageOf } from './unit-page';
+import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
+import { unitWords } from './unit-words';
+
+const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
+
+const unitOf = (id: string) => units.find((unit) => unit.id === id) ?? null;
+
+const WORDS = unitWords(
+  [
+    {
+      key: 'subordinate_to',
+      label: 'subordinate to',
+      inverseLabel: 'commands',
+      takesInterval: true,
+      retired: false,
+    },
+  ],
+  [],
+);
+
+const meta = {
+  component: ChangeList,
+  args: { unit: unitOf(SAMPLE_UNITS.army), words: WORDS },
+  render: (args) => (
+    <div className="flex h-[480px] w-[560px] flex-col border border-border">
+      <ChangeList {...args} />
+    </div>
+  ),
+} satisfies Meta<typeof ChangeList>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/** The entity comes first, each attribute as "key: value" in text, and no field. */
+export const TheEntityComesFirstAsText: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { name: '5th Combined Arms Army' })).toBeVisible();
+    await expect(canvas.getByText('echelon:')).toBeVisible();
+    await expect(canvas.getByText('Army')).toBeVisible();
+    await expect(canvas.queryByRole('textbox')).toBeNull();
+  },
+};
+
+/** A long address is one link that names its host. */
+export const ALongAddressIsOneLink: Story = {
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'ru.wikipedia.org' });
+    await expect(link.getAttribute('href')).toMatch(/^https:\/\/ru\.wikipedia\.org\/wiki\//u);
+  },
+};
+
+/** A relation reads "word → name", and a relation to an entity of the record says so. */
+export const ARelationToTheRecordSaysSo: Story = {
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelector('[data-relation]');
+    await expect(line).toHaveTextContent(
+      'subordinate to → Eastern Military District (in the record)',
+    );
+  },
+};
+
+/** A relation whose other end waits in the queue says so. */
+export const ARelationToAWaitingEntitySaysSo: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.brigade) },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelector('[data-relation]');
+    await expect(line).toHaveTextContent(
+      'subordinate to → 5th Combined Arms Army (waits in the queue)',
+    );
+  },
+};
+
+/** A relation between two groups is a unit of its own, read from its source end. */
+export const ALinkUnitReadsFromItsSource: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.link) },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByText(/A relation between two groups/u)).toBeVisible();
+    const line = canvasElement.querySelector('[data-relation]');
+    if (!(line instanceof HTMLElement)) throw new Error('no relation line');
+    await expect(within(line).getByText('1061st Logistics Center')).toBeVisible();
+  },
+};
+
+/** The column scrolls on its own when the unit is long. */
+export const TheColumnScrollsOnItsOwn: Story = {
+  render: (args) => (
+    <div className="flex h-[160px] w-[560px] flex-col border border-border">
+      <ChangeList {...args} />
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    const column = canvas.getByRole('region', { name: 'The changes of the unit' });
+    await expect(column.scrollHeight).toBeGreaterThan(column.clientHeight);
+  },
+};

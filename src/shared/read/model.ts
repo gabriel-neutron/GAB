@@ -200,6 +200,10 @@ export type ProposalStatus = z.output<typeof row.proposal>['status'];
 /** A trigger stamps this from `session_user`. The caller cannot state it. */
 export type AuthorRole = z.output<typeof row.proposal>['author_role'];
 
+/** Who proposed an act: the extractor, the research AI, the v1 import or the operator. The
+ * record derives it from the role and the party that the act names. */
+export type Proposer = z.output<typeof row.proposal>['proposer'];
+
 export interface Proposal {
   readonly id: string;
   readonly op: ProposalOp;
@@ -215,12 +219,13 @@ export interface Proposal {
   readonly priorValue: PriorValue | null;
   readonly dissent: boolean;
   readonly authorRole: AuthorRole;
+  readonly proposer: Proposer;
   readonly status: ProposalStatus;
   readonly createdAt: string;
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
-  /** The linked batch of a machine act, which the operator decides as one unit. A single act
-   * has none. */
+  /** The group of a machine act: the acts of one call that name each other. It is a label and
+   * a filter. A single act has none. */
   readonly batchId: string | null;
 }
 
