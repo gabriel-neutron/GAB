@@ -29,6 +29,13 @@ const secrets = z.object({
   RAW_STORE_SECRET_KEY: z.string().trim().min(1),
 });
 
+// External constraint: the account may read an object in this bucket, and nothing else. Only the
+// writer holds it, to show a stored image to the operator.
+const readSecrets = z.object({
+  RAW_STORE_READ_ACCESS_KEY: z.string().trim().min(1),
+  RAW_STORE_READ_SECRET_KEY: z.string().trim().min(1),
+});
+
 const ABSENT =
   'the credential of the raw store is empty or absent. Set it in the environment file.';
 
@@ -48,23 +55,29 @@ export interface RawStore {
   readonly bucket: string;
 }
 
+const opened = (accessKeyId: string, secretAccessKey: string): RawStore => {
+  const { endpoint, region } = storePlacement();
+  const client = new S3Client({
+    endpoint,
+    region,
+    forcePathStyle: PATH_STYLE,
+    credentials: { accessKeyId, secretAccessKey },
+    requestHandler: { connectionTimeout: CONNECT_MS, requestTimeout: REQUEST_MS },
+  });
+  return { client, bucket: BUCKET };
+};
+
 // Departure: nothing above the bucket knows which S3 store answers. The day the store changes,
 // the environment or this file changes, and no caller does.
 export const openStore = (): RawStore => {
   const held = secrets.safeParse(process.env);
   if (!held.success) throw new Error(ABSENT);
-  const { endpoint, region } = storePlacement();
+  return opened(held.data.RAW_STORE_ACCESS_KEY, held.data.RAW_STORE_SECRET_KEY);
+};
 
-  const client = new S3Client({
-    endpoint,
-    region,
-    forcePathStyle: PATH_STYLE,
-    credentials: {
-      accessKeyId: held.data.RAW_STORE_ACCESS_KEY,
-      secretAccessKey: held.data.RAW_STORE_SECRET_KEY,
-    },
-    requestHandler: { connectionTimeout: CONNECT_MS, requestTimeout: REQUEST_MS },
-  });
-
-  return { client, bucket: BUCKET };
+/** The same bucket, opened with the account that may only read an object. */
+export const openReadStore = (): RawStore => {
+  const held = readSecrets.safeParse(process.env);
+  if (!held.success) throw new Error(ABSENT);
+  return opened(held.data.RAW_STORE_READ_ACCESS_KEY, held.data.RAW_STORE_READ_SECRET_KEY);
 };
