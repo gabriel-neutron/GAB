@@ -29,6 +29,11 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 const EXTRACTOR_NAME = 'extractor';
 const VERSION = 'v4';
 
+// The sentences that the operator reads in the job record when the extractor stops on its own.
+const TURN_CAP = 'the model used all the questions that one job may ask';
+const BUDGET_SPENT = 'the token budget of this job is spent';
+const NO_TEXT = 'the document has no text to read';
+
 /** The tools of the extractor. A test gives a stub for each one. The propose tool names the
  * model call that gave the batch. */
 interface ExtractorTools {
@@ -98,7 +103,7 @@ export const makeExtractor = (
     const ask = async (
       messages: readonly Message[],
     ): Promise<Asked<z.output<typeof chunkAnswer>>> => {
-      if (turns >= config.turnCap) throw new JobStop('turn_cap');
+      if (turns >= config.turnCap) throw new JobStop(TURN_CAP);
       turns += 1;
       // A copy, so the question that was asked keeps the messages it held at that time.
       return withinBudget(
@@ -107,7 +112,7 @@ export const makeExtractor = (
           shape: chunkAnswer,
           tools: offer.forModel,
         }),
-        'usage_cap',
+        BUDGET_SPENT,
       );
     };
 
@@ -223,7 +228,7 @@ export const makeExtractor = (
     };
 
     const newest = await readNewestPages(context.db, job.documentId);
-    if (newest === null) throw new JobStop('no_text');
+    if (newest === null) throw new JobStop(NO_TEXT);
 
     const chunks = chunkPages(newest, config.chunkCap);
     const refused: string[] = [];

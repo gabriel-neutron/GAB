@@ -256,7 +256,7 @@ test('a job whose every part is refused fails with the count and the first refus
   });
 });
 
-test('a model that never stops calling a tool fails the job with turn_cap', async () => {
+test('a model that never stops calling a tool fails the job with the sentence of the turn cap', async () => {
   await inTransaction(async (held) => {
     const lookups = gatewayOf(
       () =>
@@ -290,12 +290,30 @@ test('a model that never stops calling a tool fails the job with turn_cap', asyn
     const step = await held.step(makeExtractor(CONFIG), lookups);
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
-    expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'turn_cap' });
+    expect(await held.read()).toMatchObject({
+      status: 'failed',
+      failure_reason: 'the model used all the questions that one job may ask',
+    });
     expect(lookups.chats()).toBe(CONFIG.turnCap);
   });
 });
 
-test('a spent token cap fails the job with usage_cap', async () => {
+test('a job that fails after a part was proposed keeps that proposal, and its reason does not say that nothing was written', async () => {
+  await inTransaction(async (held) => {
+    const gateway = gatewayOf((call) =>
+      call === 1 ? answerOf([NAYARA]) : new Response('{}', { status: 402 }),
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+      did: 'failed',
+      job: held.job,
+    });
+    expect((await held.read()).failure_reason).not.toContain('nothing was written');
+    expect((await citedOf(held)).map((one) => one.label)).toStrictEqual(['Nayara']);
+  });
+});
+
+test('a spent token cap fails the job with the sentence of the token budget', async () => {
   await inTransaction(async (held) => {
     const step = await held.step(
       makeExtractor({ ...CONFIG, tokenCap: 1 }),
@@ -303,7 +321,10 @@ test('a spent token cap fails the job with usage_cap', async () => {
     );
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
-    expect(await held.read()).toMatchObject({ status: 'failed', failure_reason: 'usage_cap' });
+    expect(await held.read()).toMatchObject({
+      status: 'failed',
+      failure_reason: 'the token budget of this job is spent',
+    });
   });
 });
 

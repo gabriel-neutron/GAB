@@ -15,23 +15,22 @@ export const REASON = {
 
 export type ReasonKind = (typeof REASON)[keyof typeof REASON];
 
-// Every sentence the operator reads is owned here. A message the model service composes names
+// Every sentence the operator reads is owned here. A job of many parts can fail after an earlier part
+// wrote its proposals, so no sentence says that nothing was written. A message the model service composes names
 // the upstream provider and the account, and neither of those two may reach a job record.
 const SENTENCE: Readonly<Record<ReasonKind, string>> = {
-  network: 'the model service did not answer, and nothing was written',
-  unreadable:
-    'the model service answered with something this client cannot read, and nothing was written',
-  rejected: 'the model gave an answer the boundary refuses, and nothing was written',
-  refused: 'the model refused to answer, and nothing was written',
-  credits: 'the model account has no credit left, and nothing was written',
+  network: 'the model service did not answer',
+  unreadable: 'the model service answered with something this client cannot read',
+  rejected: 'the model gave an answer the boundary refuses',
+  refused: 'the model refused to answer',
+  credits: 'the model account has no credit left',
   too_long: 'the document is longer than the window of the model, and no part of it was read',
   truncated: 'the answer stopped at the token limit, and a part answer is not kept',
-  over_cap: 'the token cap of this job is spent, and nothing was written',
+  over_cap: 'the token cap of this job is spent',
   configuration:
     'the model service refused the call. Examine the key, the model name and the account',
-  quota: 'the quota of the model service is spent, and nothing was written',
-  served_other:
-    'the service answered with another model than the one pinned, and nothing was written',
+  quota: 'the quota of the model service is spent',
+  served_other: 'the service answered with another model than the one pinned',
 };
 
 export interface Failure {
