@@ -35,7 +35,7 @@ it. The build decisions are in the ADRs.
 | P2 | A proposal is an operation, not a ghost entity | Pipeline and AI |
 | P3 | Two review surfaces: a marker on the graph, and a queue | Pipeline and AI |
 | P4 | The proposal contract is stable; agents and prompts are free | Pipeline and AI |
-| P5 | Text formats only; OCR only as a second reading | Pipeline and AI |
+| P5 | Text formats and images; OCR is the first reading of an image | Pipeline and AI |
 | P6 | One ingestion door; a structured file is mapped by a proposal | Pipeline and AI |
 | P7 | Live search reads documents, the graph and the internet | Pipeline and AI |
 | P8 | The text of a document goes to the model as it is | Pipeline and AI |
@@ -264,12 +264,15 @@ Agents, models and prompts can change freely.
 **Why.** It is the interface between a changing layer and a database that must last.
 **Cost.** A proposal of the wrong shape is refused, also from an agent.
 
-### P5 — Text formats only
+### P5 — Text formats and images
 
-**Rule.** Text PDF, docx, txt, md, html, csv. No audio, no video. OCR runs only as a second reading
-of a stored image, never as the first.
-**Why.** Each new format is a new pipeline to build and keep.
-**Cost.** A scanned document is converted outside the tool first.
+**Rule.** Text PDF, docx, txt, md, html, csv, and a PNG or JPEG image. No audio, no video. The first
+reading of an image is OCR, and a proposal cites an excerpt of that text. The image bytes stay the
+stored source. The review page shows the image next to the excerpt.
+**Why.** Each new format is a new pipeline to build and keep. An investigative source, for example a
+unit tree of Tochnyi, publishes its facts as an image only.
+**Cost.** OCR can misread a character, so the operator compares the excerpt with the image before a
+promotion. A scanned PDF is converted outside the tool first.
 
 ### P6 — One ingestion door
 

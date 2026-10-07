@@ -1,5 +1,6 @@
-// The requests that change the record. The address, the method, the headers, the status codes
-// and the shape of the answer stay inside; a caller names an act and the body it carries.
+// The requests to the writer: the acts that change the record, and the read of the stored bytes
+// of a document. The address, the method, the headers, the status codes and the shape of the
+// answer stay inside; a caller names an act and the body it carries.
 
 import { type Decision, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
@@ -90,6 +91,21 @@ export async function askWriter<Done extends object>(
   const held = done.safeParse(answer.body);
   if (held.success) return { step: 'done', ...held.data };
   return unwrittenOf(answer.status, answer.body);
+}
+
+/** Read the stored bytes of one document through the writer, or null when it gives none. The raw
+ * store is private, so no browser reads it directly. */
+export async function readDocumentBytes(document: string): Promise<Blob | null> {
+  try {
+    const answer = await fetch('/private/document-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document }),
+    });
+    return answer.ok ? await answer.blob() : null;
+  } catch {
+    return null;
+  }
 }
 
 const doorOf = (op: WriteOp | DecisionOp): string => `/write/${op.replaceAll('_', '-')}`;

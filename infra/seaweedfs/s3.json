@@ -18,6 +18,13 @@
       "policyNames": ["gab-research-put"]
     },
     {
+      "name": "gab-read",
+      "credentials": [
+        { "accessKey": "${RAW_STORE_READ_ACCESS_KEY}", "secretKey": "${RAW_STORE_READ_SECRET_KEY}" }
+      ],
+      "policyNames": ["gab-read-get"]
+    },
+    {
       "name": "gab-admin",
       "credentials": [
         {
@@ -36,6 +43,10 @@
     {
       "name": "gab-research-put",
       "content": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:PutObject\"],\"Resource\":[\"arn:aws:s3:::raw/*\"]}]}"
+    },
+    {
+      "name": "gab-read-get",
+      "content": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::raw/*\"]}]}"
     }
   ]
 }

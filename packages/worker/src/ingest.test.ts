@@ -1,7 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 
 import {
@@ -24,9 +25,14 @@ beforeAll(async () => {
   await writeFile(join(folder, 'copy-of-one.txt'), 'the first page');
   await writeFile(join(folder, 'strange.xyz'), 'bytes of a type nobody reads');
   await mkdir(join(folder, 'inner'));
+  await copyFile(
+    join(import.meta.dirname, '../../text/fixtures/blank.png'),
+    join(folder, 'blank.png'),
+  );
 });
 afterAll(async () => {
   await rm(folder, { recursive: true, force: true });
+  await endOcr();
 });
 
 const parsed = (...argv: string[]) => parseIngestArguments(argv);
@@ -221,4 +227,16 @@ test('a dry run writes nothing, and a second file with the same bytes is known',
   expect(outcomes.map((o) => o.status)).toStrictEqual(['stored', 'known', 'stored']);
   expect(puts).toStrictEqual([]);
   expect(calls.every((c) => c.text.startsWith('SELECT'))).toBe(true);
+});
+
+test.each([
+  ['a real run', false],
+  ['a dry run', true],
+])('an image with no text is refused before any write, in %s', async (_, dryRun) => {
+  const { door, calls, puts } = doorOf();
+  const [outcome] = await ingestFiles(door, [join(folder, 'blank.png')], { ...OPTIONS, dryRun });
+  expect(outcome?.status).toBe('refused');
+  expect(outcome?.reason).toMatch(/no text/);
+  expect(puts).toStrictEqual([]);
+  expect(calls.some((c) => c.text.includes('put_document'))).toBe(false);
 });
