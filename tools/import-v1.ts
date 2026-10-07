@@ -440,8 +440,18 @@ const main = async (): Promise<number> => {
     ]);
     let written = 0;
     const refused: string[] = [];
+    const lost = new Set<string>();
     for (const batch of batches) {
       const name = batch[0]?.line.element.name ?? '';
+      // A link to an entity of a refused batch would wait for an end that no act creates.
+      if (
+        batch.some(({ request }) => request.op === 'create_relation' && lost.has(request.dstId))
+      ) {
+        for (const { id } of batch) lost.add(id);
+        refused.push(name);
+        console.error(`  refused ${name}: the batch of its parent was refused`);
+        continue;
+      }
       const page = pages.rows.find((one) =>
         batch.every(({ line }) => spanOf(one.text, line.text) !== null),
       );
@@ -457,6 +467,7 @@ const main = async (): Promise<number> => {
         written += result.rows[0]?.written ?? 0;
         console.log(`  proposed ${name}`);
       } catch (cause) {
+        for (const { id } of batch) lost.add(id);
         refused.push(name);
         console.error(`  refused ${name}: ${cause instanceof Error ? cause.message : 'no reason'}`);
       }
