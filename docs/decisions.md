@@ -41,7 +41,7 @@ it. The build decisions are in the ADRs.
 | P8 | The text of a document goes to the model as it is | Pipeline and AI |
 | P9 | Each AI claim cites a page and an excerpt that code checks | Pipeline and AI |
 | P10 | A lead agent finds and stores sources, and proposes nothing | Pipeline and AI |
-| P11 | A linked batch is decided as one unit | Pipeline and AI |
+| P11 | One entity with its relations is the unit of decision | Pipeline and AI |
 | P12 | The operator AI proposes the facts of a research layer | Pipeline and AI |
 | PU1 | The app is public, with clear labels | Publication |
 
@@ -315,14 +315,22 @@ lead of its own. A token budget stops each lead. No lead runs on a schedule.
 operator's decision stay the checks.
 **Cost.** A broad lead can store many pages and fill the review queue.
 
-### P11 — A linked batch is decided as one unit
+### P11 — One entity with its relations is the unit of decision
 
-**Rule.** An AI can propose linked facts in one batch: for example a company, its vessels and the
-links between them. The operator promotes or rejects the batch as one unit. If one item cannot be
-promoted, nothing of the batch is written.
-**Why.** A network can be mapped in one session, and the graph never holds a link to a missing
-entity.
-**Cost.** One wrong item makes the operator reject the whole batch.
+**Rule.** An AI can propose linked facts in one group: for example a company, its vessels and the
+links between them. The operator decides one entity together with the relations that depend on it.
+One promotion writes them together, or writes none: if one part cannot be written, nothing of that
+unit is written. The group is a label and a filter, and not a unit. On a group, the operator can
+promote all its clean proposals at once: the entities with no dispute and no fault that the screen
+flags, and their relations. Each unit of the group succeeds or fails on its own, and the screen
+names each unit that fails. The other proposals of the group stay in the queue. A relation is
+never promoted without its two entities. Each end is already in the record, or it is promoted in
+the same click. Where an end is not, the operator cannot promote the relation, and the screen says
+which entity is missing.
+**Why.** The graph never holds a link to a missing entity. One wrong item no longer forces the
+operator to reject a whole group, and the operator can clear a large import in a short time.
+**Cost.** The operator decides each entity of a disputed group on its own. A unit with many
+relations takes long to read. A promotion on a group needs a clear count of what it writes.
 
 ### P12 — The operator AI proposes the facts of a research layer
 
