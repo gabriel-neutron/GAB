@@ -52,6 +52,14 @@ export const IDENTIFIER_KEYS = {
   ],
   person: ['opensanctions_id', 'date_of_birth', 'nationality', 'label_cyrillic', 'aliases'],
   legal_act: ['celex', 'ofac_action_id', 'entry_into_force'],
+  state_body: [
+    'registration_number',
+    'registration_jurisdiction',
+    'tax_id',
+    'opensanctions_id',
+    'label_cyrillic',
+    'aliases',
+  ],
   port: ['unlocode', 'osm_id'],
   facility: ['unlocode', 'osm_id'],
 } as const satisfies Readonly<Record<string, readonly IdentifierKey[]>>;

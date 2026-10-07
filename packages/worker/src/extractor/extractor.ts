@@ -27,7 +27,7 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v5';
+const VERSION = 'v6';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -51,6 +51,26 @@ interface ExtractorOptions {
 }
 
 const DEFAULT_TOOLS: ExtractorTools = { documentText, searchGraph, propose: proposeOf };
+
+// The words of the record that a type of an act takes. The model gets them with each chunk, so it
+// never makes up a type, and a new word of the vocabulary reaches it with no change of the prompt.
+const VOCABULARY = `SELECT
+  (SELECT coalesce(json_agg(key ORDER BY ord, key), '[]') FROM api.entity_type WHERE NOT retired)
+    AS "entityTypes",
+  (SELECT coalesce(json_agg(key ORDER BY key), '[]') FROM api.relation_type WHERE NOT retired)
+    AS "relationTypes"`;
+
+const vocabulary = z.strictObject({
+  entityTypes: z.array(z.string()),
+  relationTypes: z.array(z.string()),
+});
+
+type Vocabulary = z.output<typeof vocabulary>;
+
+const vocabularyOf = async (session: Session): Promise<Vocabulary> => {
+  const { rows } = await session.query(VOCABULARY, []);
+  return vocabulary.parse(rows[0]);
+};
 
 // The answer of the model is the batch that the propose tool takes, so the research AI and the
 // extractor give one shape. An empty list is a chunk that states no claim.
@@ -182,7 +202,7 @@ export const makeExtractor = (
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
     // model once, with the sentence of the tool, and the model gives the whole batch again. The
     // answer is the second refusal, or null.
-    const readChunk = async (chunk: Chunk): Promise<string | null> => {
+    const readChunk = async (chunk: Chunk, words: Vocabulary): Promise<string | null> => {
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
@@ -191,6 +211,7 @@ export const makeExtractor = (
             document: job.documentId,
             page: chunk.page,
             text: chunk.text,
+            ...words,
           }),
         },
       ];
@@ -231,9 +252,10 @@ export const makeExtractor = (
     if (newest === null) throw new JobStop(NO_TEXT);
 
     const chunks = chunkPages(newest, config.chunkCap);
+    const words = await vocabularyOf(session);
     const refused: string[] = [];
     for (const chunk of chunks) {
-      const refusal = await readChunk(chunk);
+      const refusal = await readChunk(chunk, words);
       if (refusal !== null) refused.push(refusal);
     }
     return {
