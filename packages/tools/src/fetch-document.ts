@@ -2,14 +2,14 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { extractText, UnsupportedTypeError } from '@gab/text';
+import { extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
 import { checkedRange, documentText } from './document-text.ts';
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
-import { storeAnswer } from './store-answer.ts';
+import { knownAnswer, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
@@ -46,6 +46,8 @@ const EXTENSION: Readonly<Record<string, string>> = {
   'application/pdf': '.pdf',
   'text/html': '.html',
   'application/xhtml+xml': '.xhtml',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
 };
 
 const textOf = (value: unknown): string | null => {
@@ -86,10 +88,32 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
   }
 };
 
+// External constraint: the signatures that open a PNG and a JPEG file.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+
+const OCR_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg']);
+
+const opensWith = (bytes: Uint8Array, signature: Buffer): boolean =>
+  Buffer.from(bytes.subarray(0, signature.length)).equals(signature);
+
+const sniffedMime = (bytes: Uint8Array): string | undefined => {
+  if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
+  if (opensWith(bytes, PNG_SIGNATURE)) return 'image/png';
+  if (opensWith(bytes, JPEG_SIGNATURE)) return 'image/jpeg';
+  return undefined;
+};
+
+// A server that names no type, or names only "bytes", says nothing of the file, so its first
+// bytes decide.
+const GENERIC = 'application/octet-stream';
+
 const mimeOf = (contentType: string | null, bytes: Uint8Array): string => {
   const given = (contentType?.split(';')[0] ?? '').trim().toLowerCase();
+  if (given !== '' && given !== GENERIC) return given;
+  const sniffed = sniffedMime(bytes);
+  if (sniffed !== undefined) return sniffed;
   if (given !== '') return given;
-  if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
   throw new ToolRefusal('the server named no type for the answer, and no type is read from it');
 };
 
@@ -162,6 +186,28 @@ const renderedOf = async (
   }
 };
 
+// The text is read before any write, so an answer with no text that can be read leaves no object
+// behind.
+const checkedPages = async (bytes: Uint8Array, mime: string): Promise<readonly string[]> => {
+  let pages: readonly string[];
+  try {
+    ({ pages } = await extractText(bytes, mime));
+  } catch (fault) {
+    if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
+      throw new ToolRefusal(fault.message);
+    throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
+  }
+
+  // An image with no text gives nothing to cite, and an excerpt could never be checked on it.
+  if (mime.startsWith('image/') && pages.join('').trim() === '')
+    throw new ToolRefusal('OCR read no text in the image, so it holds nothing to cite');
+
+  // A challenge or a missing page is no record of the source, and it leaves no object behind.
+  const unreadable = unreadablePage(mime, pages);
+  if (unreadable !== null) throw new ToolRefusal(unreadable);
+  return pages;
+};
+
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
@@ -197,7 +243,10 @@ export const fetchDocument = defineTool({
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
-    'refused, and a render of that kind is not stored.',
+    'refused, and a render of that kind is not stored. A PNG or a JPEG image is stored as ' +
+    'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
+    'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
+    'compare it with the image. An image in which OCR reads no text is refused.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -226,30 +275,22 @@ export const fetchDocument = defineTool({
     }
 
     const mime = mimeOf(got.contentType, got.bytes);
-    // The text is read before any write, so an answer with no text that can be read leaves no
-    // object behind.
-    let pages: readonly string[];
-    try {
-      ({ pages } = await extractText(got.bytes, mime));
-    } catch (fault) {
-      if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
-      throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
-    }
-
-    // A challenge or a missing page is no record of the source, and it leaves no object behind.
-    const unreadable = unreadablePage(mime, pages);
-    if (unreadable !== null) throw new ToolRefusal(unreadable);
+    // OCR of an image takes seconds, and bytes that are already stored have their text already.
+    const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
+    const pages = known === undefined ? await checkedPages(got.bytes, mime) : [];
 
     const metadata = await metadataOf(got.bytes, mime);
-    const plain = await storeAnswer(session, reach.store, {
-      kind: 'url',
-      bytes: got.bytes,
-      mime,
-      uri: got.url,
-      title: titleOf(mime, got.bytes, metadata, got.url),
-      pages,
-      day,
-    });
+    const plain =
+      known ??
+      (await storeAnswer(session, reach.store, {
+        kind: 'url',
+        bytes: got.bytes,
+        mime,
+        uri: got.url,
+        title: titleOf(mime, got.bytes, metadata, got.url),
+        pages,
+        day,
+      }));
 
     const notices: string[] = [];
     let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));

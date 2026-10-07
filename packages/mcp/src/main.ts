@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { openStore, putObject } from '@gab/store';
+import { endOcr } from '@gab/text';
 import { endMetadata } from '@gab/tools/fetch-document';
 import type { Reach } from '@gab/tools/tool';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -80,9 +81,10 @@ const reachOf = (): Reach => {
   }
 };
 
-// The fetch tool keeps an exiftool process, and it holds the event loop open until it ends.
+// The fetch tools keep an exiftool process and an OCR worker thread, and each one holds the event
+// loop open until it ends.
 const shutdown = (): void => {
-  void endMetadata().finally(() => process.exit(0));
+  void Promise.all([endMetadata(), endOcr()]).finally(() => process.exit(0));
 };
 
 const start = async (): Promise<void> => {
