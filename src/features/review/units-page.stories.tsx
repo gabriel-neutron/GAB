@@ -215,7 +215,7 @@ export const EachLineMarksItsFaults: Story = {
       'parent first · approximate position · sources from the parent',
     );
     await expect(lineOf(SAMPLE_UNITS.army).querySelector('[data-fault]')).toBeNull();
-    await expect(lineOf(SAMPLE_UNITS.blockedMix).querySelectorAll('[data-fault]')).toHaveLength(11);
+    await expect(lineOf(SAMPLE_UNITS.blockedMix).querySelectorAll('[data-fault]')).toHaveLength(12);
   },
 };
 
