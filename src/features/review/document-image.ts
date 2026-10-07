@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { readDocumentBytes } from '@/shared/write/door';
+
 /** The stored image of one document, as the justification draws it: still on its way, shown from
  * a local address, or not given. */
 export type DocumentImage =
@@ -7,33 +9,20 @@ export type DocumentImage =
   | { readonly state: 'shown'; readonly address: string }
   | { readonly state: 'failed' };
 
-const DOOR = '/private/document-image';
-
 // External constraint: the writer gives only these two types, and an img element draws both.
 const IMAGE_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg']);
 
-// Two exports and one job: the justification asks for the image of a type that the read below
-// accepts.
+// Two exports and one job: the justification asks for the image only of a type that the hook
+// below draws.
 /** Whether the writer gives the stored bytes of a document of this type as an image. */
 export const isImageType = (mime: string | null): boolean => mime !== null && IMAGE_TYPES.has(mime);
 
 const LOADING: DocumentImage = { state: 'loading' };
 const FAILED: DocumentImage = { state: 'failed' };
 
-// The development server proxies the address to the writer, so the browser stays same-origin.
 const load = async (document: string): Promise<Blob | null> => {
-  try {
-    const answer = await fetch(DOOR, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document }),
-    });
-    if (!answer.ok) return null;
-    const bytes = await answer.blob();
-    return isImageType(bytes.type) ? bytes : null;
-  } catch {
-    return null;
-  }
+  const bytes = await readDocumentBytes(document);
+  return bytes !== null && isImageType(bytes.type) ? bytes : null;
 };
 
 /** Read the stored image of one document from the writer. The raw store is private, so the

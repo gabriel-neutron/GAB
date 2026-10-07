@@ -157,6 +157,22 @@ export const AnImageThatDoesNotLoadSaysSoAndThePassagesStay: Story = {
   },
 };
 
+/** Bytes that the writer names as a PNG image, and that no browser draws, give the same sentence
+ * as a fault of the writer. */
+export const AnImageThatDoesNotDrawSaysSo: Story = {
+  args: { unit: IMAGE_UNIT },
+  beforeEach: () => {
+    imageAnswers(() => new Response('not a picture', { headers: { 'Content-Type': 'image/png' } }));
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(async () => {
+      await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
+    });
+    await expect(canvas.queryByRole('img')).toBeNull();
+    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+  },
+};
+
 /** The passages of a text document draw as before: no image, and no request for one. */
 export const ATextDocumentDrawsNoImage: Story = {
   args: { unit: TEXT_UNIT },
