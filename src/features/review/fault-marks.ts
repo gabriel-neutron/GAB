@@ -7,11 +7,7 @@ export interface FaultMark {
   readonly words: string;
 }
 
-// Departure: two exports, one job. The rail of the groups counts the units of each kind of fault
-// in the same short words as the marks of a line.
-
-/** The short words of each kind of fault. */
-export const FAULT_WORDS: Readonly<Record<FaultKind, string>> = {
+const WORDS: Readonly<Record<FaultKind, string>> = {
   end_waits: 'waits',
   circle: 'circle',
   end_relation_waits: 'waits for a relation',
@@ -32,6 +28,12 @@ export const FAULT_WORDS: Readonly<Record<FaultKind, string>> = {
   same_name: 'same name',
 };
 
+// Departure: two exports, one job. The mark on a line, the choice of the fault filter and the
+// counts of the rail of the groups say one kind of fault in the same words.
+
+/** The short words of one kind of fault. */
+export const faultWords = (kind: FaultKind): string => WORDS[kind];
+
 /** One mark for each kind of fault of a unit, in the order of the faults: the blocks first. */
 export function faultMarks(faults: readonly Fault[]): readonly FaultMark[] {
   const marks = new Map<FaultKind, FaultMark>();
@@ -40,7 +42,7 @@ export function faultMarks(faults: readonly Fault[]): readonly FaultMark[] {
       marks.set(fault.kind, {
         kind: fault.kind,
         level: fault.level,
-        words: FAULT_WORDS[fault.kind],
+        words: WORDS[fault.kind],
       });
   return [...marks.values()];
 }
