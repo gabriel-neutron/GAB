@@ -16,6 +16,15 @@ import {
 import { createServer } from './server.ts';
 import { webOf } from '@gab/tools/web';
 
+// The usual faults of a first start, each with the step that corrects it.
+const START_FAULTS: Readonly<Record<string, string>> = {
+  '28P01':
+    'the password in GAB_RESEARCH_DATABASE_URL is wrong; put the value of ' +
+    'GABRIEL_RESEARCH_PASSWORD of infra/.env',
+  '3D000': 'the database in GAB_RESEARCH_DATABASE_URL does not exist; apply the database first',
+  ECONNREFUSED: 'the database does not answer; start the stack (docker compose up -d)',
+};
+
 const stop = (cause: unknown): never => {
   // A refusal is the sentence the operator needs. Any other fault can hold the URL, so only its
   // code goes out.
@@ -23,7 +32,10 @@ const stop = (cause: unknown): never => {
   else {
     const code =
       typeof cause === 'object' && cause !== null && 'code' in cause ? String(cause.code) : '';
-    console.error(`the MCP server did not start${code === '' ? '' : ` (${code})`}`);
+    const reason = START_FAULTS[code];
+    console.error(
+      `the MCP server did not start${code === '' ? '' : ` (${code})`}${reason === undefined ? '' : `: ${reason}`}`,
+    );
   }
   process.exit(1);
 };
