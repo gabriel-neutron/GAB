@@ -6,7 +6,7 @@ The services the project runs on the operator's machine. The decision and its re
 ## First time
 
 1. Start Docker Desktop. Nothing here works until its engine runs.
-2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The four
+2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The
    `RAW_STORE_*_KEY` values are necessary: `docker compose` and `pnpm db:reset` stop without them.
    Use only letters, digits, `.`, `_`, `+` and `-` in each key.
 3. Start the services:
@@ -18,7 +18,7 @@ docker compose -f infra/docker-compose.yml up -d
 ## The raw store
 
 SeaweedFS keeps each source file exactly as it arrived, in the private bucket `raw`. It starts
-with the other services, and it makes the bucket at start. The four accounts and their rights
+with the other services, and it makes the bucket at start. The accounts and their rights
 are in `seaweedfs/s3.json`, and the keys come from `.env`:
 
 - `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`: the application. It may put an object in
