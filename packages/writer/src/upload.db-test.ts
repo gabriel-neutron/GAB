@@ -12,7 +12,9 @@ import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
 const store = openStore();
-const app = writeRoutes(pool, { put: (object) => putObject(store, object) });
+// No door under test reads an object back, so this one refuses every read.
+const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the raw store')) };
+const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_READ);
 
 // Departure: the suite reads the private tables as the owner of the database, because no api
 // view shows the text or the object key.

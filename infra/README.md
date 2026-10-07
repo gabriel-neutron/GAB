@@ -6,7 +6,7 @@ The services the project runs on the operator's machine. The decision and its re
 ## First time
 
 1. Start Docker Desktop. Nothing here works until its engine runs.
-2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The four
+2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The
    `RAW_STORE_*_KEY` values are necessary: `docker compose` and `pnpm db:reset` stop without them.
    Use only letters, digits, `.`, `_`, `+` and `-` in each key.
 3. Start the services:
@@ -18,7 +18,7 @@ docker compose -f infra/docker-compose.yml up -d
 ## The raw store
 
 SeaweedFS keeps each source file exactly as it arrived, in the private bucket `raw`. It starts
-with the other services, and it makes the bucket at start. The three accounts and their rights
+with the other services, and it makes the bucket at start. The accounts and their rights
 are in `seaweedfs/s3.json`, and the keys come from `.env`:
 
 - `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`: the application. It may put an object in
@@ -28,6 +28,8 @@ are in `seaweedfs/s3.json`, and the keys come from `.env`:
 - `RAW_STORE_RESEARCH_ACCESS_KEY` and `RAW_STORE_RESEARCH_SECRET_KEY`: the research workspace. It
   may put an object in `raw`, and nothing else. `research/.env` takes these two values as
   `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`.
+- `RAW_STORE_READ_ACCESS_KEY` and `RAW_STORE_READ_SECRET_KEY`: the writer, to show a stored image
+  on the review page. It may read an object in `raw`, and nothing else.
 
 A caller with no key gets 403. The store keeps its bytes in the named volume `gab-raw-data`.
 Any other S3 provider can hold the bucket: set `RAW_STORE_ENDPOINT` and `RAW_STORE_REGION`.

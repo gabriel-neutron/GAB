@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import { expect, restoreAllMocks, spyOn, waitFor } from 'storybook/test';
 
 import { Justification } from './justification';
 import { unitPageOf } from './unit-page';
@@ -9,9 +9,53 @@ const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
 
 const unitOf = (id: string) => units.find((unit) => unit.id === id) ?? null;
 
+const TEXT_UNIT = unitOf(SAMPLE_UNITS.army);
+
+const IMAGE_TITLE = 'A unit tree of the 47th brigade';
+
+// The file of the operator is a scan here: the same words, read by OCR from a stored PNG.
+const IMAGE_UNIT =
+  TEXT_UNIT === null
+    ? null
+    : {
+        ...TEXT_UNIT,
+        documents: TEXT_UNIT.documents.map((document) => ({
+          ...document,
+          title: IMAGE_TITLE,
+          mime: 'image/png',
+        })),
+      };
+
+const IMAGE_DOCUMENT = IMAGE_UNIT?.documents[0]?.id ?? '';
+
+// Origin: a PNG of one pixel. The justification draws the bytes the writer gives, whatever they
+// show.
+const ONE_PIXEL =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+const asked: unknown[] = [];
+
+// The story has no writer: the door of the image answers from here, before the view mounts.
+const imageAnswers = (answer: () => Response): void => {
+  asked.length = 0;
+  spyOn(globalThis, 'fetch').mockImplementation((address, init) => {
+    asked.push([address, init?.body]);
+    return Promise.resolve(answer());
+  });
+};
+
+const pngAnswer = (): Response =>
+  new Response(
+    Uint8Array.from(atob(ONE_PIXEL), (letter) => letter.charCodeAt(0)),
+    { headers: { 'Content-Type': 'image/png' } },
+  );
+
 const meta = {
   component: Justification,
   args: { unit: unitOf(SAMPLE_UNITS.disputed) },
+  beforeEach: () => () => {
+    restoreAllMocks();
+  },
   render: (args) => (
     <div className="flex h-[480px] w-[416px] flex-col border border-border">
       <Justification {...args} />
@@ -72,5 +116,72 @@ export const AFileWithNoAddressIsNoLink: Story = {
     await expect(canvas.getByText('Page 1')).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'voinskaya-chast-poisk.ru' })).toBeVisible();
     await expect(canvas.getByText('No act of this unit is disputed.')).toBeVisible();
+  },
+};
+
+/** The operator compares the words that OCR read with the stored image, so the image stands
+ * beside the passages of its document, and a link opens it at full size. The image is read once
+ * for the document. */
+export const AnImageDocumentShowsTheStoredImageBesideItsPassages: Story = {
+  args: { unit: IMAGE_UNIT },
+  beforeEach: () => {
+    imageAnswers(pngAnswer);
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const image = await canvas.findByRole('img', { name: `The stored image of ${IMAGE_TITLE}` });
+    await expect(image.getAttribute('src')).toMatch(/^blob:/u);
+    const open = canvas.getByRole('link', { name: `Open the full image of ${IMAGE_TITLE}` });
+    await expect(open.getAttribute('href')).toBe(image.getAttribute('src'));
+    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(asked).toStrictEqual([
+      ['/private/document-image', JSON.stringify({ document: IMAGE_DOCUMENT })],
+    ]);
+  },
+};
+
+/** A fault of the writer or of the store says so in one sentence, and the passages stay, so the
+ * operator can still decide. */
+export const AnImageThatDoesNotLoadSaysSoAndThePassagesStay: Story = {
+  args: { unit: IMAGE_UNIT },
+  beforeEach: () => {
+    imageAnswers(() =>
+      Response.json({ refusal: 'the raw store did not give the image' }, { status: 503 }),
+    );
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(async () => {
+      await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
+    });
+    await expect(canvas.queryByRole('img')).toBeNull();
+    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+  },
+};
+
+/** Bytes that the writer names as a PNG image, and that no browser draws, give the same sentence
+ * as a fault of the writer. */
+export const AnImageThatDoesNotDrawSaysSo: Story = {
+  args: { unit: IMAGE_UNIT },
+  beforeEach: () => {
+    imageAnswers(() => new Response('not a picture', { headers: { 'Content-Type': 'image/png' } }));
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(async () => {
+      await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
+    });
+    await expect(canvas.queryByRole('img')).toBeNull();
+    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+  },
+};
+
+/** The passages of a text document draw as before: no image, and no request for one. */
+export const ATextDocumentDrawsNoImage: Story = {
+  args: { unit: TEXT_UNIT },
+  beforeEach: () => {
+    imageAnswers(pngAnswer);
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(canvas.queryByRole('img')).toBeNull();
+    await expect(asked).toStrictEqual([]);
   },
 };
