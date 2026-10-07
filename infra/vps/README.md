@@ -88,8 +88,8 @@ pnpm check
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
 The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
-The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its three
-accounts take the six `RAW_STORE_*_KEY` test values of `infra/.env`.
+The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its four
+accounts take the eight `RAW_STORE_*_KEY` test values of `infra/.env`.
 
 **Check:** `docker compose -f infra/docker-compose.yml ps` shows `db` and `seaweedfs` healthy, and
 `pnpm check` exits 0.
