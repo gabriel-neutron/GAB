@@ -33,7 +33,7 @@ function RootLayout() {
           document. Without it, a title is computed and never applied. */}
       <HeadContent />
       <ScreenQueryProvider path={path}>
-        <div className="flex h-svh flex-col">
+        <div className="relative flex h-svh flex-col overflow-hidden">
           <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
             <SurfaceNav />
             <div className="flex items-center gap-2">
