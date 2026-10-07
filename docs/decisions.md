@@ -325,9 +325,10 @@ promote all its clean proposals at once: the entities with no dispute and no fau
 flags, and their relations. Each unit of the group succeeds or fails on its own, and the screen
 names each unit that fails. The other proposals of the group stay in the queue. A relation is
 never promoted without its two entities. Each end is already in the record, or it is promoted in
-the same click. One click never promotes an entity of another group. Where an end still waits in
-another group, the operator cannot promote the relation: the screen names the missing entity, and
-the operator promotes that entity first.
+the same click. One click never promotes an entity of another group. Where an end is not in the
+record and not in the same click, the operator cannot promote the relation, and the screen names
+the missing entity. If that entity waits in another group, the operator promotes it first. A
+relation is part of one unit only, so that entity never waits for the relation.
 **Why.** The graph never holds a link to a missing entity. One wrong item no longer forces the
 operator to reject a whole group, and the operator can clear a large import in a short time.
 **Cost.** The operator decides each entity of a disputed group on its own. A unit with many
