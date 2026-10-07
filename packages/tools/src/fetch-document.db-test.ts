@@ -2,7 +2,10 @@
 // The object store is in memory. Each call runs inside a transaction that rolls back.
 
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
+import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -59,11 +62,22 @@ const SHORT = `<html><head><title>An app</title></head><body><div id="root">Run 
 
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
+// Each image holds large English and Cyrillic words, so a check of whole words stays true when OCR
+// misreads one sign.
+const IMAGES = join(import.meta.dirname, '../../text/fixtures');
+let png: Uint8Array;
+let jpeg: Uint8Array;
+
 let fixture: Fixture;
 let base: string;
 
 beforeAll(async () => {
+  png = await readFile(join(IMAGES, 'unit-tree.png'));
+  jpeg = await readFile(join(IMAGES, 'unit-tree.jpg'));
   fixture = await startFixture({
+    // A bare file server names no type, and the type comes from the first bytes.
+    '/tree': { body: png },
+    '/photo.jpg': { headers: { 'content-type': 'image/jpeg' }, body: jpeg },
     '/entry.html': { headers: { 'content-type': 'text/html; charset=utf-8' }, body: HTML },
     '/moved': { status: 301, headers: { location: '/entry.html' } },
     '/app': { headers: { 'content-type': 'text/html' }, body: SHORT },
@@ -74,14 +88,17 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await fixture.close();
-  await endMetadata();
+  await Promise.all([endMetadata(), endOcr()]);
 });
 
-const fetchDocument = ((): Tool => {
-  const found = CATALOGUE.find((tool) => tool.name === 'fetch_document');
-  if (found === undefined) throw new Error('the catalogue holds no tool named fetch_document');
+const toolNamed = (name: string): Tool => {
+  const found = CATALOGUE.find((tool) => tool.name === name);
+  if (found === undefined) throw new Error(`the catalogue holds no tool named ${name}`);
   return found;
-})();
+};
+
+const fetchDocument = toolNamed('fetch_document');
+const propose = toolNamed('propose');
 
 const sessionOf = (ask: Ask): Session => ({
   query: async (text, values) => ({ rows: await ask(text, values) }),
@@ -194,5 +211,72 @@ test('an HTML page with little text is stored, and the answer says that it may n
     const got = await fetched(ask, `${base}/app`, fixtureReach(memoryStore()));
     expect(got.status).toBe('stored');
     expect(got.notice).toMatch(/JavaScript/);
+  });
+});
+
+const proposed = z.object({
+  proposals: z.array(z.object({ ref: z.string(), written: z.boolean(), disputed: z.boolean() })),
+});
+
+test('a PNG image with no type is stored as an image, its OCR text is the page, and a claim cites it', async () => {
+  const store = memoryStore();
+  const reach = fixtureReach(store);
+  const sha = shaOf(png);
+  await rolledBack('research', async (ask) => {
+    const first = await fetched(ask, `${base}/tree`, reach);
+    expect(first.status).toBe('stored');
+    expect(first.mime).toBe('image/png');
+    expect(first.pages).toHaveLength(1);
+    const text = first.pages[0]?.text ?? '';
+    expect(text).toContain('BRIGADE HEADQUARTERS');
+    expect(text).toContain('Бригада');
+    expect(text).toContain('Командування');
+
+    expect(store.puts.map((put) => [put.key, put.mime])).toStrictEqual([
+      [`raw/${sha}`, 'image/png'],
+    ]);
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).equals(Buffer.from(png))).toBe(true);
+    const [row] = z.array(documentRow).parse(await ask(ROW, [sha]));
+    expect(row).toMatchObject({ mime: 'image/png', pages: 1, extractor: 'text-1' });
+
+    const second = await fetched(ask, `${base}/tree`, reach);
+    expect(second.status).toBe('known');
+    expect(second.document).toBe(first.document);
+    expect(second.pages).toStrictEqual(first.pages);
+    expect(store.puts).toHaveLength(1);
+
+    const outcome = await callTool(
+      propose,
+      sessionOf(ask),
+      {
+        items: [
+          {
+            ref: 'brigade',
+            act: { op: 'create_entity', type: 'company', label: 'Brigade Headquarters' },
+            originator: 'The unit tree',
+            modality: 'asserts',
+            evidence: [{ document: first.document, page: 1, excerpt: 'BRIGADE HEADQUARTERS' }],
+          },
+        ],
+      },
+      reach,
+    );
+    if (!outcome.ok) throw new Error(`propose refused: ${outcome.refusal}`);
+    expect(proposed.parse(outcome.output).proposals).toMatchObject([
+      { ref: 'brigade', written: true },
+    ]);
+  });
+});
+
+test('a JPEG image is stored with its OCR text as the page', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/photo.jpg`, fixtureReach(store));
+    expect(got.status).toBe('stored');
+    expect(got.mime).toBe('image/jpeg');
+    const text = got.pages[0]?.text ?? '';
+    expect(text).toContain('ARTILLERY BATTALION');
+    expect(text).toContain('Батальйон');
+    expect(store.puts.map((put) => put.mime)).toStrictEqual(['image/jpeg']);
   });
 });
