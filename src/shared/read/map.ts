@@ -240,8 +240,6 @@ function document(row: unknown): DocumentRow {
     archiveUri: webAddressOf(read.archive_uri),
     sha256: read.sha256,
     retrievedAt: read.retrieved_at,
-    admiralty: read.admiralty,
-    admiraltyOrigin: read.admiralty_origin,
   };
 }
 
@@ -288,7 +286,6 @@ function proposal(row: unknown): Proposal {
     src: read.src,
     names: read.names,
     priorValue: priorValueOf(read.op, read.prior_value),
-    confidence: read.confidence,
     dissent: read.dissent,
     authorRole: read.author_role,
     status: read.status,

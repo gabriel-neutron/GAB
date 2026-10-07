@@ -20,8 +20,6 @@ const DOCUMENT: DocumentRow = {
   archiveUri: null,
   sha256: null,
   retrievedAt: null,
-  admiralty: 'B2',
-  admiraltyOrigin: 'human',
 };
 
 const VESSEL: Entity = {
@@ -137,7 +135,6 @@ const ACT: Proposal = {
   src: ['d1'],
   names: [],
   priorValue: null,
-  confidence: 0.9,
   dissent: false,
   authorRole: 'gabriel_agent',
   status: 'pending',
@@ -172,7 +169,6 @@ test('a pending deletion and a pending attribute act on a relation stand on both
       id: 'a1',
       summary: 'Deletes a relation',
       dissent: false,
-      confidence: '0.90',
       origin: 'machine',
       sources: [SOURCE_1],
     },
@@ -180,7 +176,6 @@ test('a pending deletion and a pending attribute act on a relation stand on both
       id: 'a2',
       summary: 'Changes an attribute',
       dissent: false,
-      confidence: '0.90',
       origin: 'machine',
       sources: [SOURCE_1],
     },
@@ -206,7 +201,6 @@ test('a pending update_relation act stands on both ends of the relation it names
       id: 'a1',
       summary: 'Changes a relation',
       dissent: false,
-      confidence: '0.90',
       origin: 'operator',
       sources: [SOURCE_1],
     },
@@ -232,7 +226,6 @@ test('a pending merge stands on the kept entity and on each absorbed entity', ()
       id: 'a1',
       summary: 'Merges entities',
       dissent: true,
-      confidence: '0.90',
       origin: 'machine',
       sources: [SOURCE_1],
     },
@@ -251,18 +244,6 @@ test('an accepted or a rejected act is not pending', () => {
   );
 
   expect(pendingOf(read, VESSEL.id)).toEqual([]);
-});
-
-test('an act that states no confidence says so in words, and a stated one has two decimals', () => {
-  const read = withActs(
-    { ...ACT, id: 'a1', targetKind: 'entity', targetId: VESSEL.id, confidence: null },
-    { ...ACT, id: 'a2', targetKind: 'entity', targetId: VESSEL.id, confidence: 0.5 },
-  );
-
-  expect(pendingOf(read, VESSEL.id).map((line) => [line.id, line.confidence])).toEqual([
-    ['a1', 'no confidence is stated'],
-    ['a2', '0.50'],
-  ]);
 });
 
 const declared = (key: string, label: string, retired: boolean): EntityTypeDeclaration => ({

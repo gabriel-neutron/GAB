@@ -120,11 +120,11 @@ BEGIN
   END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
-      NEW.confidence, NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
+      NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
       NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
-      OLD.confidence, OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
+      OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
       OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
@@ -319,8 +319,6 @@ BEGIN
   SELECT v_id::doc_id, 'store_only', 'done', now() WHERE p_kind <> 'manual';
 
   RETURN v_id;
-  -- It writes NO rating, and no role can write those columns. The scoring write path is decided,
-  -- a rate_document act, and it is built with the first caller that scores a document.
 END $$;
 
 -- THE SENTENCE OF EACH RULE THAT A TABLE HOLDS. PostgreSQL composes the message of a CHECK, a
@@ -424,6 +422,7 @@ END $$;
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text);
 DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid,text,uuid);
+DROP FUNCTION IF EXISTS propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid);
 CREATE OR REPLACE FUNCTION propose_change(
   p_op              text,
   p_payload         jsonb,
@@ -431,7 +430,6 @@ CREATE OR REPLACE FUNCTION propose_change(
   p_target_kind     text    DEFAULT NULL,
   p_target_id       uuid    DEFAULT NULL,
   p_names           uuid[]  DEFAULT '{}',
-  p_confidence      numeric DEFAULT NULL,
   p_dissent         boolean DEFAULT false,
   p_model_call_id   uuid    DEFAULT NULL)
 RETURNS uuid
@@ -444,11 +442,10 @@ DECLARE
   v_code  text;
 BEGIN
   INSERT INTO public.proposals
-    (op, target_kind, target_id, payload, src, names, confidence, dissent, author_role,
-     model_call_id)
+    (op, target_kind, target_id, payload, src, names, dissent, author_role, model_call_id)
   VALUES
     (p_op, p_target_kind, p_target_id, p_payload, p_src::doc_id[],
-     coalesce(p_names, '{}'::uuid[]), p_confidence, coalesce(p_dissent, false),
+     coalesce(p_names, '{}'::uuid[]), coalesce(p_dissent, false),
      session_user,          -- overwritten by the stamp trigger; a value is needed for NOT NULL
      p_model_call_id)
   RETURNING id INTO v_id;
@@ -653,12 +650,12 @@ BEGIN
     -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
-        (id, op, target_kind, target_id, payload, src, names, confidence, dissent,
-         dissent_reason, author_role, model_call_id, originator, batch_id)
+        (id, op, target_kind, target_id, payload, src, names, dissent, dissent_reason,
+         author_role, model_call_id, originator, batch_id)
       VALUES
         (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
-         v_src::doc_id[], v_names, (v_item->>'confidence')::numeric,
-         coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason',
+         v_src::doc_id[], v_names, coalesce((v_item->>'dissent')::boolean, false),
+         v_item->>'dissent_reason',
          session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
          (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
          v_batch)

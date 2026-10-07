@@ -85,8 +85,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       archiveUri: null,
       sha256: null,
       retrievedAt: null,
-      admiralty: null,
-      admiraltyOrigin: null,
     },
     {
       id: 'doc_8f2a41',
@@ -96,8 +94,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       archiveUri: 'https://web.archive.example.invalid/2026/rotterdam-q2.pdf',
       sha256: '9f2b7c1d4e8a3506b1c9d7e2f4a86035c1d9e7b2f4a8603591c7d2e4f8a60351',
       retrievedAt: '2026-07-14',
-      admiralty: 'B2',
-      admiraltyOrigin: 'machine',
     },
     {
       id: 'doc_3c1104',
@@ -107,8 +103,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       archiveUri: 'https://web.archive.example.invalid/2026/registry-meridian',
       sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
       retrievedAt: '2026-06-02',
-      admiralty: 'A1',
-      admiraltyOrigin: 'human',
     },
     {
       id: 'doc_9b0417',
@@ -118,11 +112,8 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       archiveUri: null,
       sha256: 'c7d2e4f8a60351a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071829',
       retrievedAt: '2026-05-21',
-      admiralty: 'D4',
-      admiraltyOrigin: 'arbitrated',
     },
     {
-      // An unrated document. Invariant 6 pairs the rating with its origin, so both are absent.
       id: 'doc_5e7730',
       kind: 'url',
       title: 'Trade press article, unverified',
@@ -130,8 +121,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       archiveUri: 'https://web.archive.example.invalid/2026/bulk-market-note',
       sha256: '0718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6',
       retrievedAt: '2026-07-30',
-      admiralty: null,
-      admiraltyOrigin: null,
     },
   ],
 
@@ -144,7 +133,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       attrs: {
         registration_number: { v: 'HE 418822', src: ['doc_3c1104'] },
         incorporated_on: { v: '2011-03-09', src: ['doc_3c1104'] },
-        // Two sources on one attribute. S1 makes this the case that matters when a rating moves.
+        // Two sources on one attribute.
         beneficial_owner_count: { v: 3, src: ['doc_3c1104', 'doc_5e7730'] },
       },
       sources: ['doc_3c1104'],
@@ -343,7 +332,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       label: 'MV Sable Transit',
       attrs: {
         imo: { v: '9388206', src: ['doc_9b0417'] },
-        // Two sources on one attribute of a vessel. S1: a rating that moves reaches both.
+        // Two sources on one attribute of a vessel.
         last_port_call: { v: 'Gdansk', src: ['doc_8f2a41', 'doc_9b0417'] },
       },
       sources: ['doc_9b0417', 'doc_8f2a41'],
@@ -666,8 +655,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       dstKind: 'entity',
       dstId: 'e2c3d445-5f60-4c89-9d4a-2a3b4c5d6e7f',
       attrs: {
-        // Two sources on one attribute of a relation, and not of an entity. S1 reaches
-        // both, so a rating that moves must reach a relation as well.
+        // Two sources on one attribute of a relation, and not of an entity.
         observed_on: { v: '2026-05-30', src: ['doc_9b0417', 'doc_8f2a41'] },
       },
       sources: ['doc_9b0417', 'doc_8f2a41'],
@@ -770,7 +758,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
 
   proposals: [
     {
-      // Dissent. S3 sends it to review whatever the confidence is.
+      // A check disputes this act.
       id: 'f0a1b2c3-4d5e-4678-9012-3456789abcde',
       op: 'update_attrs',
       targetKind: 'entity',
@@ -782,7 +770,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['doc_5e7730'],
       names: [],
       priorValue: { kind: 'attrs', attrs: { coal_stock_t: { v: 248000, src: ['doc_3c1104'] } } },
-      confidence: 0.82,
       dissent: true,
       authorRole: 'gabriel_agent',
       status: 'pending',
@@ -792,7 +779,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       batchId: null,
     },
     {
-      // Low confidence, no dissent. S3 sends it to review on the second condition.
+      // No dissent.
       id: '0b1c2d3e-5f60-4789-a012-3456789abcdf',
       op: 'create_relation',
       targetKind: null,
@@ -811,7 +798,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['doc_8f2a41'],
       names: ['3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31', 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8'],
       priorValue: null,
-      confidence: 0.41,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'pending',
@@ -821,7 +807,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       batchId: null,
     },
     {
-      // No dissent, high confidence. S3 does not send it to review. P1 does not let it through.
+      // No check disputes this act.
       id: '1c2d3e4f-6071-489a-b123-456789abcdef',
       op: 'create_entity',
       targetKind: null,
@@ -836,7 +822,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['doc_8f2a41'],
       names: [],
       priorValue: null,
-      confidence: 0.96,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'pending',
@@ -860,7 +845,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['doc_9b0417'],
       names: [],
       priorValue: null,
-      confidence: 0.91,
       dissent: false,
       authorRole: 'gabriel_agent',
       status: 'accepted',
@@ -883,7 +867,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['doc_5e7730'],
       names: ['9a3f28d1-4c67-4b02-85ea-7f1d6c3b9e04', '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31'],
       priorValue: null,
-      confidence: 0.73,
       dissent: true,
       authorRole: 'gabriel_agent',
       status: 'rejected',
@@ -906,7 +889,6 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       src: ['manual'],
       names: [],
       priorValue: { kind: 'attrs', attrs: { hull_note: { v: 'Grey funnel', src: ['manual'] } } },
-      confidence: 1,
       dissent: false,
       authorRole: 'gabriel_app',
       status: 'accepted',

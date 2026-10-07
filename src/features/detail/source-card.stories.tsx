@@ -25,20 +25,13 @@ const sourceIn = (cards: readonly SourceCardModel[], id: DocId): SourceCardModel
 
 const sourceOf = (id: DocId): SourceCardModel => sourceIn(SOURCES, id);
 
-const POOR_ID: DocId = 'doc_9b0417';
+const LOG_ID: DocId = 'doc_9b0417';
 
-// A CHECK pairs the rating with its origin, and a second one holds every cited document to a
-// row, so the committed corpus reaches neither state. Each corpus below is read by `readDossier`.
-const WITHOUT_ORIGIN: Corpus = {
-  ...corpus,
-  documents: corpus.documents.map((row) =>
-    row.id === POOR_ID ? { ...row, admiraltyOrigin: null } : row,
-  ),
-};
-
+// A CHECK holds every cited document to a row, so the committed corpus never reaches this state.
+// The corpus below is read by `readDossier`.
 const WITHOUT_ROW: Corpus = {
   ...corpus,
-  documents: corpus.documents.filter((row) => row.id !== POOR_ID),
+  documents: corpus.documents.filter((row) => row.id !== LOG_ID),
 };
 
 const stated = (value: string | null, what: string): string => {
@@ -46,16 +39,14 @@ const stated = (value: string | null, what: string): string => {
   return value;
 };
 
-const RATED = sourceOf('doc_8f2a41');
-const UNRATED = sourceOf('manual');
-const POOR = sourceOf(POOR_ID);
-const INCOMPLETE = sourceIn(cardsOf(WITHOUT_ORIGIN), POOR_ID);
-const MISSING = sourceIn(cardsOf(WITHOUT_ROW), POOR_ID);
+const REPORT = sourceOf('doc_8f2a41');
+const HAND_ENTRY = sourceOf('manual');
+const MISSING = sourceIn(cardsOf(WITHOUT_ROW), LOG_ID);
 
-const ORIGINAL = stated(RATED.uri, 'original address for doc_8f2a41');
+const ORIGINAL = stated(REPORT.uri, 'original address for doc_8f2a41');
 
 const HASH = stated(
-  corpus.documents.find((row) => row.id === RATED.id)?.sha256 ?? null,
+  corpus.documents.find((row) => row.id === REPORT.id)?.sha256 ?? null,
   'hash for doc_8f2a41',
 );
 
@@ -64,7 +55,7 @@ const DISCLOSURE = /Claims/;
 const NO_WEB_ADDRESS = 'No web address recorded';
 
 const addressed = (uri: string): SourceCardModel => {
-  const held = corpus.documents.find((row) => row.id === RATED.id);
+  const held = corpus.documents.find((row) => row.id === REPORT.id);
   if (held === undefined) throw new Error('The committed corpus carries no doc_8f2a41');
   const read = toDomain.document({
     id: held.id,
@@ -75,8 +66,6 @@ const addressed = (uri: string): SourceCardModel => {
     sha256: held.sha256,
     mime: null,
     retrieved_at: held.retrievedAt,
-    admiralty: held.admiralty,
-    admiralty_origin: held.admiraltyOrigin,
     created_at: null,
     cost_eur: null,
   });
@@ -86,7 +75,7 @@ const addressed = (uri: string): SourceCardModel => {
 
 const meta = {
   component: SourceCard,
-  args: { source: RATED },
+  args: { source: REPORT },
   // The card sits in a 24 rem rail, and the two lines are measured at that width, so every
   // story states it.
   render: (args) => (
@@ -118,7 +107,7 @@ export const TheOriginalAddressIsOnTheCard: Story = {
  * M8: `manual` carries no address at all, and it is still a legitimate source.
  */
 export const AnAbsentAddressSaysSo: Story = {
-  args: { source: UNRATED },
+  args: { source: HAND_ENTRY },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
     await expect(canvas.getByText('No date of retrieval')).toBeInTheDocument();
@@ -160,38 +149,18 @@ export const AHandlerAddressIsNoLink: Story = {
   },
 };
 
-export const AnUnratedDocumentSaysNotRated: Story = {
-  args: { source: UNRATED },
+/** A card names the document, and it draws no rating and no word of a score. */
+export const ACardDrawsNoRating: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('not rated')).toBeInTheDocument();
-    await expect(canvas.queryByText(/^[A-F][1-6]$/)).toBeNull();
-    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'not rated');
-  },
-};
-
-export const ARatedDocumentCarriesItsScore: Story = {
-  args: { source: POOR },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'D4');
-    await expect(canvas.getByText('D4, arbitrated')).toBeInTheDocument();
-  },
-};
-
-export const ARatingWithNoOriginSaysSo: Story = {
-  args: { source: INCOMPLETE },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'rating incomplete');
-    await expect(
-      canvas.getByText('rating incomplete, a rating and its origin are absent together'),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole('article')).not.toHaveAttribute('data-band');
+    await expect(canvas.queryByText(/not rated|rating/)).toBeNull();
+    await expect(canvas.queryByText(/^[A-F][1-6]/)).toBeNull();
   },
 };
 
 export const AMissingDocumentSaysMissing: Story = {
   args: { source: MISSING },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('article')).toHaveAttribute('data-band', 'missing');
-    await expect(canvas.getByText('not rated')).toBeInTheDocument();
     await expect(
       canvas.getByText('This document is cited and it has no row in the record.'),
     ).toBeInTheDocument();
@@ -202,8 +171,8 @@ export const AClaimTheDocumentHoldsUpIsNamed: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getAllByRole('listitem')).toHaveLength(RATED.holdsUp.length);
-    for (const claim of RATED.holdsUp) {
+    await expect(canvas.getAllByRole('listitem')).toHaveLength(REPORT.holdsUp.length);
+    for (const claim of REPORT.holdsUp) {
       await expect(canvas.getByText(claim.label)).toBeInTheDocument();
       await expect(canvas.getByText(claim.text)).toBeInTheDocument();
     }
@@ -220,7 +189,7 @@ export const AStoredDocumentOffersAnExtraction: Story = {
 
 // A hand entry holds no bytes, so nothing can be extracted from it.
 export const AHandEntryOffersNoExtraction: Story = {
-  args: { source: UNRATED },
+  args: { source: HAND_ENTRY },
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
     await expect(canvas.queryByRole('button', { name: 'Extract claims' })).toBeNull();

@@ -1,12 +1,11 @@
 # ADR 0011 — A decision table, not a score, decides the public state of each claim, and a letter rates only the originator
 
-**Status** Accepted · 4 October 2026
+**Status** Superseded · 7 October 2026 · Accepted 4 October 2026
 
-**Not built: the letter of the originator.** The register cards, the track record, the letter,
-the sanction flags and the trust lists are not built. A first build of their tables, doors and
-loaders had no caller, and it was removed on 6 October 2026 (operator decision). The method below
-stays the decision. A later spec builds the rating, and it can start from the stored name of the
-originator of each claim.
+**Superseded by `decisions.md` P4 and P11, and by `prd.md` W4 and W5.** The product removed the
+letter of the originator, the confidence of a proposal and the decision table. No rule promotes a
+claim. The operator decides each proposal on the review screen, and the screen flags the faults
+of each proposal. The text below records the old decision only. No code builds it.
 
 ## Context
 

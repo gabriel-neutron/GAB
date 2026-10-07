@@ -1,16 +1,14 @@
 /** The course of one verdict on the review route, as values. A second verdict waits for the
- * first, a verdict is held only once the record has taken it, and a hold reads nothing again.
- * A refused promotion that drew as held would tell the analyst the record took it. */
+ * first, and a verdict is held only once the record has taken it. A refused promotion that drew
+ * as held would tell the analyst the record took it. */
 
 import { decisionSaid, type DecisionAbout, type DecisionState } from './decision';
 import type { Decision } from './queue';
 
-/** What the pass holds after the answer, and whether the queue is read again. A hold reads
- * nothing again, because it wrote nothing and a read would only cost the analyst the queue. */
-type VerdictSettled =
-  | { readonly held: Decision & { readonly verdict: 'deferred' }; readonly readAgain: false }
-  | { readonly held: Decision; readonly readAgain: true }
-  | { readonly held: null; readonly readAgain: true };
+/** What the pass holds after the answer. The queue is read again after each answer. */
+interface VerdictSettled {
+  readonly held: Decision | null;
+}
 
 /** The state while the verdict goes to the record, or null when a verdict is already on the
  * way. The second one is dropped, and never queued behind the first. */
@@ -24,14 +22,12 @@ export function beginVerdict(decision: DecisionState, about: DecisionAbout): Dec
 export function settleVerdict(answer: DecisionState, act: Decision): VerdictSettled {
   switch (answer.step) {
     case 'done':
-      return act.verdict === 'deferred'
-        ? { held: { verdict: 'deferred', reason: act.reason }, readAgain: false }
-        : { held: { verdict: act.verdict, reason: act.reason }, readAgain: true };
+      return { held: { verdict: act.verdict } };
     case 'refused':
     case 'unknown':
     case 'idle':
     case 'working':
-      return { held: null, readAgain: true };
+      return { held: null };
     default:
       return unreached(answer);
   }

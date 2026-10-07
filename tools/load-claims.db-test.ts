@@ -99,14 +99,13 @@ const reportDocuments = async (ask: Ask) =>
       z.object({
         id: z.string(),
         title: z.string(),
-        admiralty: z.string().nullable(),
         retrieved_at: z.string(),
         jobs: z.number(),
       }),
     )
     .parse(
       await ask(
-        `SELECT d.id, d.title, d.admiralty, d.retrieved_at::text,
+        `SELECT d.id, d.title, d.retrieved_at::text,
                 (SELECT count(*)::int FROM public.jobs j
                   WHERE j.document_id = d.id AND j.kind = 'extract_text') AS jobs
            FROM public.documents d
@@ -142,7 +141,6 @@ test('the fixture load stores one report document and one job for each kept bloc
     'C-BETA-1',
   ]);
   for (const document of outcome.documents) {
-    expect(document.admiralty).toBeNull();
     expect(document.retrieved_at).toBe(DAY);
     expect(document.jobs).toBe(1);
   }

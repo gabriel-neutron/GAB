@@ -14,7 +14,7 @@ import {
 
 const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const actOf = (id: string, confidence: number | null, dissent: boolean): Proposal => ({
+const actOf = (id: string, dissent: boolean, createdAt = '2026-08-03T09:12:00Z'): Proposal => ({
   id,
   op: 'update_attrs',
   targetKind: 'entity',
@@ -23,24 +23,21 @@ const actOf = (id: string, confidence: number | null, dissent: boolean): Proposa
   src: ['doc_5e7730'],
   names: [],
   priorValue: null,
-  confidence,
   dissent,
   authorRole: 'gabriel_agent',
   status: 'pending',
-  createdAt: '2026-08-03T09:12:00Z',
+  createdAt,
   decidedAt: null,
   decidedBy: null,
   batchId: null,
 });
 
-const LOW_AGREED = actOf('bb000001-0000-4000-8000-000000000001', 0.4, false);
-const HIGH_DISSENT = actOf('bb000001-0000-4000-8000-000000000003', 0.9, true);
-const HIGH_AGREED = actOf('bb000001-0000-4000-8000-000000000004', 0.9, false);
-const SILENT_DISSENT = actOf('bb000001-0000-4000-8000-000000000007', null, true);
+const AGREED = actOf('bb000001-0000-4000-8000-000000000001', false);
+const DISPUTED = actOf('bb000001-0000-4000-8000-000000000003', true);
 
 const READ: Corpus = {
   ...corpus,
-  proposals: [LOW_AGREED, HIGH_DISSENT, HIGH_AGREED, SILENT_DISSENT],
+  proposals: [AGREED, DISPUTED],
 };
 
 function changeIn(act: Proposal): Change {
@@ -51,15 +48,13 @@ function changeIn(act: Proposal): Change {
   return found;
 }
 
-describe('why an act stands in the queue', () => {
-  it('names the disagreement, with a confidence or with none', () => {
-    expect(changeIn(HIGH_DISSENT).routing).toBe('dissent');
-    expect(changeIn(SILENT_DISSENT).routing).toBe('dissent');
+describe('a dispute on an act', () => {
+  it('marks an act that a check disputes', () => {
+    expect(changeIn(DISPUTED).disputed).toBe(true);
   });
 
-  it('states no reason for an act the agents agreed on', () => {
-    expect(changeIn(LOW_AGREED).routing).toBe('unstated');
-    expect(changeIn(LOW_AGREED).routingWords).toMatch(/threshold/i);
+  it('marks no dispute on an act that no check disputes', () => {
+    expect(changeIn(AGREED).disputed).toBe(false);
   });
 });
 
@@ -83,7 +78,7 @@ const portBackedBy = (sources: readonly string[]): Corpus => ({
 });
 
 const renameCiting = (src: readonly string[]): Proposal => ({
-  ...actOf('cc000001-0000-4000-8000-000000000002', 0.9, false),
+  ...actOf('cc000001-0000-4000-8000-000000000002', false),
   op: 'update_entity',
   targetId: PORT,
   payload: { kind: 'columns', label: 'New name', type: null },
@@ -111,7 +106,7 @@ describe('the sources of the name, the type and the location on a name change', 
   });
 
   it('shows no line on an act that names attributes', () => {
-    expect(renameIn(portBackedBy(['doc_geo']), actOf(PORT, 0.9, false)).rowSources).toBeNull();
+    expect(renameIn(portBackedBy(['doc_geo']), actOf(PORT, false)).rowSources).toBeNull();
   });
 });
 
@@ -156,7 +151,7 @@ describe('the type a promotion stores', () => {
 
   it('states it on the line of a new entity', () => {
     const created: Proposal = {
-      ...actOf('cc000001-0000-4000-8000-000000000003', 0.9, false),
+      ...actOf('cc000001-0000-4000-8000-000000000003', false),
       op: 'create_entity',
       targetKind: null,
       targetId: null,
@@ -169,7 +164,7 @@ describe('the type a promotion stores', () => {
 });
 
 const NEW_VESSEL: Proposal = {
-  ...actOf('cc000001-0000-4000-8000-000000000004', 0.9, false),
+  ...actOf('cc000001-0000-4000-8000-000000000004', false),
   op: 'create_entity',
   targetKind: null,
   targetId: null,
@@ -185,7 +180,7 @@ const NEW_VESSEL: Proposal = {
 const CONTRADICTION = 'd4e5f60a-1b2c-4234-d567-e8f90a1b2c3d';
 
 const NEW_OWNERSHIP: Proposal = {
-  ...actOf('cc000001-0000-4000-8000-000000000005', 0.9, false),
+  ...actOf('cc000001-0000-4000-8000-000000000005', false),
   op: 'create_relation',
   targetKind: null,
   targetId: null,
@@ -230,7 +225,7 @@ describe('every value the promotion of a creation writes', () => {
     const { change } = onlyAct(NEW_OWNERSHIP);
     expect(change.headline).not.toMatch(/an entity absent from the record/);
     const onContradiction: Proposal = {
-      ...actOf('cc000001-0000-4000-8000-000000000006', 0.9, false),
+      ...actOf('cc000001-0000-4000-8000-000000000006', false),
       op: 'update_relation',
       targetKind: 'relation',
       targetId: CONTRADICTION,
@@ -239,34 +234,12 @@ describe('every value the promotion of a creation writes', () => {
   });
 });
 
-describe('who wrote an act in the queue', () => {
-  const OPERATOR_ACT: Proposal = {
-    ...actOf('bb000001-0000-4000-8000-000000000008', 1, false),
-    authorRole: 'gabriel_app',
-  };
-
-  it('marks an act of the operator as the operator, and never words it as the machine', () => {
-    const [change] = readQueue({ ...corpus, proposals: [OPERATOR_ACT] }).flatMap(
-      (subject) => subject.changes,
-    );
-    expect(change?.origin).toBe('operator');
-    expect(change?.confidenceReport.words).not.toMatch(/The machine reports/);
-    expect(change?.confidenceReport.words).toMatch(/operator/);
-  });
-
-  it('marks an act of an agent as the machine', () => {
-    const change = changeIn(HIGH_AGREED);
-    expect(change.origin).toBe('machine');
-    expect(change.confidenceReport.words).toMatch(/The machine reports/);
-  });
-});
-
 const TERMINAL_LABEL = 'Maasvlakte bulk terminal, berth 7';
 const MERIDIAN = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 const ABSENT = 'ee000001-0000-4000-8000-000000000001';
 
 const onTerminal = (id: string, payload: Proposal['payload']): Proposal => ({
-  ...actOf(id, 0.9, false),
+  ...actOf(id, false),
   payload,
 });
 
@@ -284,7 +257,7 @@ const FILED: readonly Filed[] = [
     act: NEW_VESSEL,
     subject: 'new-node',
     label: 'MV Northern Ledger',
-    holes: ['duplicate'],
+    holes: [],
   },
   {
     name: 'create_relation',
@@ -320,7 +293,7 @@ const FILED: readonly Filed[] = [
   {
     name: 'update_relation',
     act: {
-      ...actOf('dd000001-0000-4000-8000-000000000003', 0.9, false),
+      ...actOf('dd000001-0000-4000-8000-000000000003', false),
       op: 'update_relation',
       targetKind: 'relation',
       targetId: CONTRADICTION,
@@ -342,7 +315,7 @@ const FILED: readonly Filed[] = [
   {
     name: 'delete_relation',
     act: {
-      ...actOf('dd000001-0000-4000-8000-000000000005', 0.9, false),
+      ...actOf('dd000001-0000-4000-8000-000000000005', false),
       op: 'delete_relation',
       targetKind: 'relation',
       targetId: CONTRADICTION,
@@ -355,7 +328,7 @@ const FILED: readonly Filed[] = [
   {
     name: 'merge_entities',
     act: {
-      ...actOf('dd000001-0000-4000-8000-000000000006', 0.9, false),
+      ...actOf('dd000001-0000-4000-8000-000000000006', false),
       op: 'merge_entities',
       targetKind: null,
       targetId: null,
@@ -368,7 +341,7 @@ const FILED: readonly Filed[] = [
   {
     name: 'map_document',
     act: {
-      ...actOf('dd000001-0000-4000-8000-000000000009', null, false),
+      ...actOf('dd000001-0000-4000-8000-000000000009', false),
       op: 'map_document',
       targetKind: null,
       targetId: null,
@@ -380,7 +353,7 @@ const FILED: readonly Filed[] = [
   },
   {
     name: 'update_attrs on an absent entity',
-    act: { ...actOf('dd000001-0000-4000-8000-000000000007', 0.9, false), targetId: ABSENT },
+    act: { ...actOf('dd000001-0000-4000-8000-000000000007', false), targetId: ABSENT },
     subject: 'node',
     label: 'An entity absent from the record, ee000001',
     holes: ['absent-row'],
@@ -388,7 +361,7 @@ const FILED: readonly Filed[] = [
   {
     name: 'delete_entity on an absent entity',
     act: {
-      ...actOf('dd000001-0000-4000-8000-000000000008', 0.9, false),
+      ...actOf('dd000001-0000-4000-8000-000000000008', false),
       op: 'delete_entity',
       targetId: ABSENT,
       payload: { kind: 'delete', reason: null },
@@ -410,15 +383,9 @@ describe('the subject an act is filed under, its label and its holes', () => {
   }
 });
 
-const newEntity = (
-  id: string,
-  label: string,
-  confidence: number | null,
-  createdAt: string,
-): Proposal => ({
+const newEntity = (id: string, label: string, createdAt: string): Proposal => ({
   ...NEW_VESSEL,
   id,
-  confidence,
   createdAt,
   payload: { kind: 'entity', type: 'vessel', label, geom: null, attrs: {} },
 });
@@ -426,18 +393,13 @@ const newEntity = (
 const THREE = readQueue({
   ...corpus,
   proposals: [
-    newEntity('dd000002-0000-4000-8000-000000000001', 'Bravo', 0.4, '2026-08-03T10:00:00Z'),
-    newEntity('dd000002-0000-4000-8000-000000000002', 'Charlie', null, '2026-08-01T10:00:00Z'),
-    newEntity('dd000002-0000-4000-8000-000000000003', 'Alpha', 0.7, '2026-08-02T10:00:00Z'),
+    newEntity('dd000002-0000-4000-8000-000000000001', 'Bravo', '2026-08-03T10:00:00Z'),
+    newEntity('dd000002-0000-4000-8000-000000000002', 'Charlie', '2026-08-01T10:00:00Z'),
+    newEntity('dd000002-0000-4000-8000-000000000003', 'Alpha', '2026-08-02T10:00:00Z'),
   ],
 });
 
 describe('the order of the subjects', () => {
-  it('puts the weakest first, and a subject that states no confidence last', () => {
-    const sorted = sortSubjects(THREE, 'confidence');
-    expect(sorted.map((subject) => subject.changes[0]?.score)).toEqual([0.4, 0.7, null]);
-  });
-
   it('puts the oldest act first', () => {
     const sorted = sortSubjects(THREE, 'oldest');
     expect(sorted.map((subject) => subject.label)).toEqual(['Charlie', 'Alpha', 'Bravo']);
@@ -448,16 +410,16 @@ describe('the order of the subjects', () => {
     expect(sorted.map((subject) => subject.label)).toEqual(['Alpha', 'Bravo', 'Charlie']);
   });
 
-  it('puts the weakest act of one subject first, and an act that states no confidence last', () => {
+  it('puts the oldest act of one subject first', () => {
     const [subject] = readQueue({
       ...corpus,
       proposals: [
-        actOf('dd000003-0000-4000-8000-000000000001', 0.7, false),
-        actOf('dd000003-0000-4000-8000-000000000002', null, false),
-        actOf('dd000003-0000-4000-8000-000000000003', 0.4, false),
+        actOf('dd000003-0000-4000-8000-000000000001', false, '2026-08-02T10:00:00Z'),
+        actOf('dd000003-0000-4000-8000-000000000002', false, '2026-08-03T10:00:00Z'),
+        actOf('dd000003-0000-4000-8000-000000000003', false, '2026-08-01T10:00:00Z'),
       ],
     });
-    expect(subject?.changes.map((change) => change.score)).toEqual([0.4, 0.7, null]);
+    expect(subject?.changes.map((change) => change.id.slice(-1))).toEqual(['3', '1', '2']);
   });
 });
 

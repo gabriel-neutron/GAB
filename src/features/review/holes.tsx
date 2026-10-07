@@ -1,4 +1,4 @@
-import { FileQuestion, GitMerge, MessageSquareDashed, SearchX, Trash2 } from 'lucide-react';
+import { FileQuestion, GitMerge, Trash2 } from 'lucide-react';
 
 import type { Hole, HoleKind } from './queue';
 
@@ -6,9 +6,7 @@ interface HolesProps {
   readonly holes: readonly Hole[];
 }
 
-const GLYPH: Readonly<Record<HoleKind, typeof SearchX>> = {
-  argument: MessageSquareDashed,
-  duplicate: SearchX,
+const GLYPH: Readonly<Record<HoleKind, typeof Trash2>> = {
   'merge-result': GitMerge,
   'destroyed-row': Trash2,
   // A bin would say the act destroys the row. It changes a row that is not there.
