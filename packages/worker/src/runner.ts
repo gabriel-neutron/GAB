@@ -1,6 +1,6 @@
 import {
-  GATEWAY,
-  gatewayModel,
+  openrouterModel,
+  PROVIDER,
   openBudget,
   openModel,
   type CallRecord,
@@ -43,9 +43,8 @@ export interface RunnerDeps {
   readonly sleep: (ms: number) => Promise<void>;
   /** The clock in milliseconds, read to time each call of the model. */
   readonly now: () => number;
-  /** Makes the pinned model of the free-model gateway. The default reads the gateway from the
-   * environment. */
-  readonly open?: (model: string) => ReturnType<typeof gatewayModel>;
+  /** Makes the pinned model of OpenRouter. The default reads the key from the environment. */
+  readonly open?: (model: string) => ReturnType<typeof openrouterModel>;
 }
 
 /** What one step of the runner did. */
@@ -74,9 +73,9 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   const settings = settingsRow.parse((await deps.db.query(SETTINGS)).rows[0]);
   await deps.db.query(REQUEUE);
 
-  // Each model is made at the start, so a gateway that is not set stops the start and claims
+  // Each model is made at the start, so a key that is not set stops the start and claims
   // nothing.
-  const open = deps.open ?? ((model: string) => gatewayModel(model));
+  const open = deps.open ?? ((model: string) => openrouterModel(model));
   const made = new Map(
     deps.agents.flatMap((agent) => agent.models).map((one) => [one, open(one.model)] as const),
   );
@@ -88,7 +87,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         await deps.db.query(RECORD, [
           agent.name,
           agent.version,
-          GATEWAY,
+          PROVIDER,
           call.requested,
           call.promptSha256,
           call.latencyMs,

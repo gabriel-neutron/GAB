@@ -2,7 +2,7 @@ import { checkLine, checkTokenCap, pinnedName, type ModelLine } from '@gab/model
 
 import { checkChunkCap } from './chunk.ts';
 
-/** One pinned model of the free-model gateway, its family, and how the adapter reaches it. */
+/** One pinned model of OpenRouter, its family, and how the adapter reaches it. */
 export interface ModelConfig {
   readonly model: string;
   /** The family of the model. A check by a model of the same family shares its blind spots. */

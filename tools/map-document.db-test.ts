@@ -56,7 +56,7 @@ const seedDocuments = async (ask: Ask): Promise<void> => {
   await ask(PUT_FILE, [UPLOADED, 'raw/map-uploaded.csv', '1'.repeat(64)]);
 };
 
-const CALL = `SELECT public.record_model_call('mapper', 'v1', 'freellmapi', 'a-model', $1, 10, 'ok',
+const CALL = `SELECT public.record_model_call('mapper', 'v1', 'openrouter', 'a-model', $1, 10, 'ok',
   $2::uuid, 'a-model') AS id`;
 
 const PROPOSE = 'SELECT public.propose_mapping($1, $2::jsonb, $3::uuid) AS id';

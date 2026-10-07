@@ -1,14 +1,14 @@
 # infra/vps — the VPS runbook
 
-The VPS does the coding and the tooling. Claude Code runs there. The VPS also runs a **disposable** test stack and two services that hold no record of the
-project: freellmapi and SearXNG. freellmapi keeps the provider keys in its volume. The real database, the writer and the worker stay on the operator's Windows PC. The VPS
-never holds the real data.
+The VPS does the coding and the tooling. Claude Code runs there. The VPS also runs a **disposable** test stack and one service that holds no record of the
+project: SearXNG. The real database, the writer and the worker stay on the operator's Windows PC.
+The VPS never holds the real data.
 
 | File | Use |
 |---|---|
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
-| `.env.example` | Copy to `~/gab-services/.env`, outside the checkout. The Tailscale address, the image tags, two secrets. |
-| `services.compose.yml` | freellmapi and SearXNG, bound to the Tailscale address. |
+| `.env.example` | Copy to `~/gab-services/.env`, outside the checkout. The Tailscale address, the image tag, one secret. |
+| `services.compose.yml` | SearXNG, bound to the Tailscale address. |
 | `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
 
@@ -33,8 +33,8 @@ That user must be in the `docker` group (`sudo usermod -aG docker "$USER"`, then
    A PAT with Contents write can push to every branch. The deny rules in
    `.claude/settings.local.json` are not a control: an agent can push with another spelling of
    the command. The ruleset is the control on `main`.
-4. Only you do these steps: the PAT, the Tailscale login (step 1), the freellmapi provider keys
-   (step 5), and the Claude Code login on the VPS if it is not done (step 6).
+4. Only you do these steps: the PAT, the Tailscale login (step 1), and the Claude Code login on
+   the VPS if it is not done (step 6).
 
 **Check:** `git ls-remote --heads https://github.com/gabriel-neutron/GAB staging` prints one line,
 and the commit holds `infra/vps/`. On GitHub, **Settings > Rules > Rulesets** shows both rulesets
@@ -123,7 +123,7 @@ git push --dry-run origin staging   # must end with: Everything up-to-date
 unset GH_TOKEN
 ```
 
-## 5. freellmapi and SearXNG on the Tailscale address
+## 5. SearXNG on the Tailscale address
 
 The env file stays outside the checkout, in `~/gab-services/`. An agent works in the checkout, and a deny rule does not stop a shell command that reads a file.
 
@@ -132,20 +132,18 @@ mkdir -p ~/gab-services && chmod 700 ~/gab-services
 ENVF=~/gab-services/.env
 cp ~/projects/GAB/infra/vps/.env.example "$ENVF" && chmod 600 "$ENVF"
 sed -i "s/^BIND_IP=.*/BIND_IP=$(tailscale ip -4)/" "$ENVF"
-sed -i "s/^FREELLMAPI_ENCRYPTION_KEY=.*/FREELLMAPI_ENCRYPTION_KEY=$(openssl rand -hex 32)/" "$ENVF"
 sed -i "s/^SEARXNG_SECRET=.*/SEARXNG_SECRET=$(openssl rand -hex 32)/" "$ENVF"
-docker manifest inspect ghcr.io/tashfeenahmed/freellmapi:v0.13.3 >/dev/null && echo tag-ok
+docker manifest inspect "searxng/searxng:$(sed -n 's/^SEARXNG_TAG=//p' "$ENVF")" >/dev/null && echo tag-ok
 cd ~/projects/GAB/infra/vps
 docker compose --env-file "$ENVF" -f services.compose.yml up -d --wait
 ```
 
-If `tag-ok` does not show, find the tag on the package page of the freellmapi repository, and
-set `FREELLMAPI_TAG` in `~/gab-services/.env`. For SearXNG, choose a tag from Docker Hub
-(`searxng/searxng`, format `YYYY.M.D-<commit>`). Never `latest`.
+If `tag-ok` does not show, choose a tag from Docker Hub (`searxng/searxng`, format
+`YYYY.M.D-<commit>`), and set `SEARXNG_TAG` in `~/gab-services/.env`. Never `latest`.
 
 Docker binds a port only when the address exists. After a reboot, `tailscaled` can start before
 it has the address. Let the kernel bind an address that does not exist yet, and make Docker start
-after Tailscale, so that a reboot does not lose the two services:
+after Tailscale, so that a reboot does not lose the service:
 
 ```bash
 # root: every line of this block uses sudo. A plain `>` would run as the non-root user and fail.
@@ -157,18 +155,15 @@ printf '[Unit]\nAfter=tailscaled.service\nWants=tailscaled.service\n' \
 sudo systemctl daemon-reload
 ```
 
-Then, **PC:** open `http://<VPS_TS_IP>:4001` in a browser. Enter the provider keys on the
-**Keys** page. Copy the unified key (`freellmapi-...`) into the `infra/.env` of the PC (step 7).
-
 **Fallback with no Tailscale:** set `BIND_IP=127.0.0.1` in `~/gab-services/.env`, run the
 `up -d` command again, and on the PC run
-`ssh -N -L 4001:127.0.0.1:4001 -L 8888:127.0.0.1:8888 <user>@<VPS public IP>`.
+`ssh -N -L 8888:127.0.0.1:8888 <user>@<VPS public IP>`.
 
-**Check (VPS):** `ss -ltnp | grep -E ':4001|:8888'` shows only the Tailscale address, never
+**Check (VPS):** `ss -ltnp | grep ':8888'` shows only the Tailscale address, never
 `0.0.0.0`. `docker compose --env-file ~/gab-services/.env -f services.compose.yml ps` shows
-both services healthy. `sysctl net.ipv4.ip_nonlocal_bind` prints `= 1`.
+SearXNG healthy. `sysctl net.ipv4.ip_nonlocal_bind` prints `= 1`.
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
-results, and `Invoke-RestMethod http://<VPS_TS_IP>:4001/api/ping` answers.
+results.
 
 ## 6. Claude Code
 
@@ -196,29 +191,24 @@ cd ~/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
 ```
 
-## 7. The PC uses the VPS services
+## 7. The PC uses the VPS service
 
-The real database, the writer and the worker stay on the PC. They reach freellmapi and SearXNG
-through Tailscale. The model adapter in `packages/model` reads the two model names below.
+The real database, the writer and the worker stay on the PC. They reach SearXNG through
+Tailscale. Every model call goes to OpenRouter (ADR 0010), and no VPS service takes part.
 
 | Name | Value on the PC (`infra/.env`) |
 |---|---|
-| `FREELLMAPI_BASE_URL` | `http://<VPS_TS_IP>:4001/v1` |
-| `FREELLMAPI_API_KEY` | the unified `freellmapi-...` key from the dashboard |
 | `SEARXNG_URL` | `http://<VPS_TS_IP>:8888` |
+| `OPENROUTER_API_KEY` | the paid key. Set a credit limit on it in the OpenRouter dashboard. |
 
-Every model call goes to freellmapi, and to no paid router (ADR 0010). The adapter refuses a
-model of any other provider.
-
-**Check (PC):** with the key in `$k`,
-`Invoke-RestMethod http://<VPS_TS_IP>:4001/v1/models -Headers @{Authorization="Bearer $k"}`
-lists the models. Do not paste the key into a chat or a ticket.
+**Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
+results. Do not paste the key into a chat or a ticket.
 
 ## 8. Rollback, and stop everything
 
 | To stop | Command (VPS, in `~/projects/GAB`) |
 |---|---|
-| freellmapi and SearXNG | `docker compose --env-file ~/gab-services/.env -f infra/vps/services.compose.yml down` |
+| SearXNG | `docker compose --env-file ~/gab-services/.env -f infra/vps/services.compose.yml down` |
 | The test stack, keep data | `docker compose -f infra/docker-compose.yml down` |
 | The test stack, delete data | `docker compose -f infra/docker-compose.yml down -v` (test data only) |
 | GitHub access of the VPS | Revoke the VPS PAT on GitHub. The PC PAT stays valid. |
@@ -226,7 +216,7 @@ lists the models. Do not paste the key into a chat or a ticket.
 
 An agent lands its work only as pull requests and branches into `staging`. To undo one, close the
 PR, or `git revert` its merge on `staging`. Never force-push `staging`. Keep `down -v` of
-`services.compose.yml` for a full reset: it deletes the freellmapi volume and its provider keys.
+`services.compose.yml` for a full reset.
 
 **Check:** `docker ps` shows no container you stopped.
 
@@ -234,7 +224,7 @@ PR, or `git revert` its merge on `staging`. Never force-push `staging`. Keep `do
 
 - [ ] `gh pr list --base staging` (PC) shows the open PRs. No PR targets `main`.
 - [ ] `docker ps --format '{{.Names}} {{.Status}}'` shows each container `healthy` or `Up`.
-- [ ] The freellmapi dashboard shows quota left for the day.
+- [ ] The OpenRouter dashboard shows credit left on the key.
 - [ ] `df -h /` shows more than 10 GB free.
 - [ ] The VPS PAT is valid. A `401 Bad credentials` means that it expired: make a new PAT and
       replace it in `.claude/settings.local.json` (step 4).
