@@ -34,6 +34,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same bytes are stored once, so a second store of a saved file writes nothing.
+  store_saved_file: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   // The same post is stored once, so a second read of a post writes nothing.
   telegram_channel: {
     readOnlyHint: false,
