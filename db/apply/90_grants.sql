@@ -51,7 +51,7 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, entiti
 -- an act except these two. A new column of the table needs its own line here.
 GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, dissent,
   author_role, xact, status, created_at, decided_at, decided_by, model_call_id, act_digest,
-  originator, batch_id, dissent_reason, unit_id, proposer, decided_as) ON proposals
+  originator, batch_id, dissent_reason, unit_id, proposer, decided_as, claim_key) ON proposals
   TO gabriel_agent, gabriel_research;
 
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and

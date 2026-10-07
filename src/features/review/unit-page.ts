@@ -37,6 +37,7 @@ export const FAULT_KINDS = [
   'reported_claim',
   'duplicate',
   'unknown_type',
+  'rejected_before',
   'sources_from_parent',
   'approximate_position',
   'note',
