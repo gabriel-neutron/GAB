@@ -17,7 +17,7 @@ const idOf = async (ask: Ask, text: string, values: readonly unknown[]): Promise
 };
 
 const promoted = (ask: Ask, id: string): Promise<string> =>
-  idOf(ask, 'SELECT public.promote_proposal($1::uuid, $2::text) AS id', [id, 'a test']);
+  idOf(ask, 'SELECT public.promote_unit($1::uuid, $2::text) AS id', [id, 'a test']);
 
 const ENTITY = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A relation update test"}'::jsonb, ARRAY['manual']::text[]) AS id`;

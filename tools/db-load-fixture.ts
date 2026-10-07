@@ -45,7 +45,7 @@ const PUT_TEXT = `INSERT INTO public.document_text (document_id, extractor, page
 const TEXT_SET = 'fixture@1';
 const ORIGINATOR_NAME = 'Fixture agency';
 const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
-const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
+const PROMOTE = 'SELECT promote_unit($1, $2) AS id';
 
 interface Act {
   readonly op: string;

@@ -28,7 +28,7 @@ const gaps = z.array(z.object({ rows_that_leave_the_creating_citation: z.coerce.
 // second known gap (an untouched row that omitted a value source from its own list) closed —
 // the row's own list was never meant to hold a value source. `payload.sources` names the row's
 // own citation; a creating act that gives none (no agent proposes a create yet, #25) falls back
-// to `src`, its whole citation set, exactly as promote_proposal does.
+// to `src`, its whole citation set, exactly as the promotion of a unit does.
 const SOURCES = `
   WITH renamed AS (
     SELECT u.target_id AS id, u.src, u.decided_at,

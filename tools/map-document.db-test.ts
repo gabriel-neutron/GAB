@@ -98,7 +98,7 @@ const fromAnEarlierTransaction = async (ask: Ask, id: string): Promise<void> => 
 
 const promote = (ask: Ask, id: string): Promise<string> =>
   asRole(ask, 'gabriel_app', () =>
-    idOf(ask, "SELECT public.promote_proposal($1::uuid, 'a test') AS id", [id]),
+    idOf(ask, "SELECT public.promote_unit($1::uuid, 'a test') AS id", [id]),
   );
 
 /** A map_document proposal for the list, accepted, with its load queued. */

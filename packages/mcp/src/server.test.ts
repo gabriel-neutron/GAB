@@ -143,7 +143,7 @@ test('an unknown tool comes back as a tool error', async () => {
 const HIDDEN = [
   ['28P01', 'password authentication failed for user "gabriel_app" at db.example.org'],
   ['08006', 'connection to db.example.org:5432 failed'],
-  ['42501', 'permission denied for function promote_proposal'],
+  ['42501', 'permission denied for function promote_unit'],
 ] as const;
 
 for (const [code, message] of HIDDEN)

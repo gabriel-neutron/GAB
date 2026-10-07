@@ -77,9 +77,9 @@ test('a lost answer to a signed act is a doubt, and never a 422 refusal', async 
 });
 
 test('a lost decision is a doubt, and never a 422 refusal', async () => {
-  const held = faultyPool([{ on: 'promote_proposal', cause: lostSocket() }]);
+  const held = faultyPool([{ on: 'promote_unit', cause: lostSocket() }]);
 
-  expect(await post(held.pool, 'promote-proposal', { proposalId: held.proposalId })).toStrictEqual([
+  expect(await post(held.pool, 'promote-unit', { unitId: held.proposalId })).toStrictEqual([
     502,
     { doubt: DOUBT },
   ]);
@@ -100,8 +100,9 @@ test('a pool that gives no client answers 503 on both doors', async () => {
     { refusal: UNREACHABLE },
   ]);
   expect(
-    await post(unreachablePool(), 'reject-proposal', {
-      proposalId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+    await post(unreachablePool(), 'reject-unit', {
+      unitId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+      reason: 'duplicate',
     }),
   ).toStrictEqual([503, { refusal: UNREACHABLE }]);
 });
@@ -117,18 +118,18 @@ test.each(['x', '[]', 'null', '"x"'])(
 );
 
 test('a decision door refuses a body that is not JSON with 422', async () => {
-  expect(await postText(unreachablePool(), 'promote-proposal', 'x')).toStrictEqual([
+  expect(await postText(unreachablePool(), 'promote-unit', 'x')).toStrictEqual([
     422,
     { refusal: 'the body is not a JSON object' },
   ]);
 });
 
 test.each(['[]', 'null', '"x"'])(
-  'a decision door refuses the JSON body %s with 422, because it names no act',
+  'a decision door refuses the JSON body %s with 422, because it names no unit',
   async (text) => {
-    expect(await postText(unreachablePool(), 'reject-proposal', text)).toStrictEqual([
+    expect(await postText(unreachablePool(), 'reject-unit', text)).toStrictEqual([
       422,
-      { refusal: 'the body names no act' },
+      { refusal: 'the body names no unit and no reason' },
     ]);
   },
 );

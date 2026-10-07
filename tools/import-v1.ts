@@ -7,7 +7,7 @@
 // The run writes one text document with one line for each unit and organisation, and stores it
 // as gabriel_app. Then it proposes, as gabriel_research, one linked batch for each top formation:
 // each element, its point and its link to its parent. Each act cites its own line, so the
-// operator reads the line on the review card and promotes or rejects the batch as one unit.
+// operator reads the line on the review card and decides each unit: an element with its link.
 //
 // A unit with no source has the sources of its nearest parent with sources (decision of the
 // operator, 7 October 2026). The GeoPackage is private: the run reads it from the path that it is

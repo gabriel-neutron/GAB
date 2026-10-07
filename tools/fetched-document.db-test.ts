@@ -189,7 +189,7 @@ test('gabriel_research cannot store a document of any kind through put_document'
 test('gabriel_research cannot promote a proposal', async () => {
   await expect(
     rolledBack('research', (ask) =>
-      ask("SELECT public.promote_proposal(gen_random_uuid(), 'a research test')"),
+      ask("SELECT public.promote_unit(gen_random_uuid(), 'a research test')"),
     ),
   ).rejects.toMatchObject({ code: '42501' });
 });

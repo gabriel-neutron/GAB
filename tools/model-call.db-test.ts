@@ -124,7 +124,7 @@ test('a proposal that has no call and was written before the door can still be d
     await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_stamp_author');
     if (row === undefined) throw new Error('the legacy act was not written');
     await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
-    await ask("SELECT public.reject_proposal($1, 'a test')", [row.id]);
+    await ask("SELECT public.reject_unit($1, 'out_of_scope', NULL, 'a test')", [row.id]);
     await ask('RESET SESSION AUTHORIZATION');
     return ask('SELECT status FROM public.proposals WHERE id = $1', [row.id]);
   });

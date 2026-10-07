@@ -2,7 +2,7 @@
 // of a document. The address, the method, the headers, the status codes and the shape of the
 // answer stay inside; a caller names an act and the body it carries.
 
-import { type BatchVerdict, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
+import { type Decision, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import type { WriteResult } from './write-state';
@@ -116,15 +116,11 @@ export const sendAct = (
   body: Readonly<Record<string, unknown>>,
 ): Promise<WriteResult<Signed>> => askWriter(doorOf(op), body, signed);
 
-/** Decide one act that already waits in the record. It writes no proposal: it names one, so a
- * doubt about it is a doubt about a verdict. */
-export const sendDecision = (op: DecisionOp, proposalId: string): Promise<WriteResult> =>
-  askWriter(doorOf(op), { proposalId }, decided);
-
-/** Decide every act of one linked batch as one unit. A refusal names the act that the record
- * refused, and nothing of the batch was written. */
-export const sendBatchDecision = (batchId: string, verdict: BatchVerdict): Promise<WriteResult> =>
-  askWriter('/write/decide-batch', { batchId, verdict }, decided);
+/** Decide one unit that waits in the record, or reject one relation of it. It writes no
+ * proposal: it names one, so a doubt about it is a doubt about a verdict. A refused promotion
+ * wrote nothing of the unit, and the sentence names the act that the record refused. */
+export const sendDecision = ({ op, ...body }: Decision): Promise<WriteResult> =>
+  askWriter(doorOf(op), body, decided);
 
 /** One file and the fields its document row records. The content is the file in base64. */
 export interface UploadBody {

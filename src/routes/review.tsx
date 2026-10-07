@@ -1,16 +1,18 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
+import type { DecisionState } from '@/features/review/decision-bar';
 import { readDecided } from '@/features/review/decided';
+import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
-import type { UnitListAct } from '@/features/review/unit-list';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { readUnits } from '@/features/review/units';
-import { UnitsPage, type QueueView } from '@/features/review/units-page';
+import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadDecidedActs } from '@/shared/read/decided-acts';
 import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
+import { sendDecision } from '@/shared/write/door';
 
 export interface ReviewSearch {
   /** The unit under examination. An empty string opens the queue at its first unit. */
@@ -49,29 +51,39 @@ export const Route = createFileRoute('/review')({
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
-/** The pages read after one first page, and whether a read runs now. */
-interface LaterPages {
-  readonly after: UnitPage | null;
+/** The pages read from the first page that the loader gave, the count of the last read, and
+ * whether a read of the next page runs now. A page read again after a decision replaces the page
+ * that it was read for. */
+interface HeldPages {
+  readonly from: UnitPage | null;
   readonly pages: readonly UnitPage[];
+  readonly total: number;
   readonly reading: boolean;
 }
 
-const NONE: LaterPages = { after: null, pages: [], reading: false };
+const startOf = (first: UnitPage | null): HeldPages => ({
+  from: first,
+  pages: first === null ? [] : [first],
+  total: first?.total ?? 0,
+  reading: false,
+});
 
 function ReviewRoute() {
   const { unit, view } = Route.useSearch();
   const navigate = Route.useNavigate();
   const { first, relationTypes, entityTypes, history } = Route.useLoaderData();
 
-  // The pages after the first die with the view: a reload reads the first page again.
-  const [held, setHeld] = useState<LaterPages>(NONE);
+  // The pages and the decision die with the view: a reload reads the first page again.
+  const [held, setHeld] = useState<HeldPages>(startOf(null));
+  const [decision, setDecision] = useState<DecisionState>({ step: 'idle' });
 
   const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
 
-  // A later page extends the first page that it was read after. When the loader reads the first
-  // page again, the later pages no longer follow it, so no unit shows twice.
+  // The held pages follow the first page that they were read after. When the loader reads the
+  // first page again, they no longer follow it, so no unit shows twice.
   const firstPage = first.state === 'held' ? first.page : null;
-  const later = held.after === firstPage ? held : NONE;
+  const now = firstPage !== null && held.from === firstPage ? held : startOf(firstPage);
+  const last = now.pages.at(-1)?.next ?? null;
 
   const queue: QueueView =
     first.state === 'private'
@@ -79,36 +91,64 @@ function ReviewRoute() {
       : {
           state: 'held',
           queue: {
-            units: [first.page, ...later.pages].flatMap((page) => page.units),
-            total: first.page.total,
-            more: later.reading
-              ? 'reading'
-              : (later.pages.at(-1) ?? first.page).next === null
-                ? 'none'
-                : 'ready',
+            units: queueUnits(now.pages),
+            total: now.total,
+            more: now.reading ? 'reading' : last === null ? 'none' : 'ready',
           },
+          decision,
         };
 
-  const onAct = (act: UnitListAct): void => {
+  const select = (unitId: string): void => {
+    void navigate({ search: (search) => ({ ...search, unit: unitId }), replace: true });
+  };
+
+  // Only the page that held the unit is read again, so the rest of the queue keeps its place.
+  const readAgain = async (decided: string, mode: 'unit' | 'relation'): Promise<void> => {
+    const after = afterDecision(now.pages, decided, mode);
+    select(after.next);
+    const read = await readUnits(after.after);
+    if (read.state !== 'held') return;
+    setHeld((before) =>
+      before.from === now.from
+        ? {
+            ...before,
+            pages: before.pages.map((page, index) => (index === after.page ? read.page : page)),
+            total: read.page.total,
+          }
+        : before,
+    );
+  };
+
+  const onAct = (act: ReviewAct): void => {
     switch (act.kind) {
       case 'select':
-        void navigate({ search: (search) => ({ ...search, unit: act.unitId }), replace: true });
+        select(act.unitId);
         return;
-      case 'more': {
-        if (first.state === 'private' || later.reading) return;
-        const after = (later.pages.at(-1) ?? first.page).next;
-        if (after === null) return;
-        setHeld({ after: first.page, pages: later.pages, reading: true });
-        void readUnits(after).then((read) => {
-          setHeld((now) =>
-            now.after === first.page
+      case 'more':
+        if (now.reading || last === null) return;
+        setHeld({ ...now, reading: true });
+        void readUnits(last).then((read) => {
+          setHeld((before) =>
+            before.from === now.from
               ? {
-                  after: first.page,
-                  pages: read.state === 'held' ? [...now.pages, read.page] : now.pages,
+                  ...before,
+                  pages: read.state === 'held' ? [...before.pages, read.page] : before.pages,
+                  total: read.state === 'held' ? read.page.total : before.total,
                   reading: false,
                 }
-              : now,
+              : before,
           );
+        });
+        return;
+      case 'decide': {
+        const { unitId, decision: asked } = act;
+        // The held pages are kept as they stand, so the read after the decision replaces one.
+        setHeld(now);
+        setDecision({ step: 'working', unitId });
+        void sendDecision(asked).then(async (result) => {
+          setDecision({ ...result, unitId });
+          if (result.step === 'done')
+            await readAgain(unitId, asked.op === 'reject_relation' ? 'relation' : 'unit');
         });
         return;
       }
