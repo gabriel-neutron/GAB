@@ -1,5 +1,5 @@
 // The adapter as a caller uses it, against a local server that speaks the OpenAI chat API in place
-// of the free-model gateway.
+// of OpenRouter.
 
 import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
@@ -13,7 +13,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { z } from 'zod';
 
 import { openBudget } from './budget.ts';
-import { gatewayModel } from './gateway.ts';
+import { openrouterModel } from './openrouter.ts';
 import { openModel, type CallRecord, type Message, type ModelLine, type Tool } from './model.ts';
 
 const PINNED = 'a-family/a-model';
@@ -131,7 +131,7 @@ const open = (pinned = PINNED): Opened => {
   const records: CallRecord[] = [];
   const waits: number[] = [];
   const model = openModel(
-    gatewayModel(pinned, { FREELLMAPI_BASE_URL: base, FREELLMAPI_API_KEY: 'a-key' }),
+    openrouterModel(pinned, { OPENROUTER_BASE_URL: base, OPENROUTER_API_KEY: 'a-key' }),
     LINE,
     {
       record: (call) => {
@@ -164,18 +164,54 @@ const sent = z.object({
   messages: z.array(z.object({ role: z.string() }).loose()),
 });
 
-describe('the gateway', () => {
-  it('pins one model, and never the model that the gateway picks', () => {
-    expect(() =>
-      gatewayModel('auto', { FREELLMAPI_BASE_URL: base, FREELLMAPI_API_KEY: 'k' }),
-    ).toThrow(/pinned/u);
+describe('OpenRouter', () => {
+  it('pins one model, and never the model that the router picks', () => {
+    expect(() => openrouterModel('auto', { OPENROUTER_API_KEY: 'k' })).toThrow(/pinned/u);
   });
 
-  it('stops with the name of a variable that is absent', () => {
-    expect(() => gatewayModel(PINNED, { FREELLMAPI_BASE_URL: base })).toThrow(
-      /FREELLMAPI_API_KEY/u,
+  it('stops with the name of the key when it is absent', () => {
+    expect(() => openrouterModel(PINNED, {})).toThrow(/OPENROUTER_API_KEY/u);
+    expect(() => openrouterModel(PINNED, { OPENROUTER_API_KEY: '  ' })).toThrow(
+      /OPENROUTER_API_KEY/u,
     );
-    expect(() => gatewayModel(PINNED, { FREELLMAPI_API_KEY: 'k' })).toThrow(/FREELLMAPI_BASE_URL/u);
+  });
+
+  it('calls OpenRouter by default, with the key, and asks the router to keep the prompt private', async () => {
+    const seen: { url: string; authorization: string | null; body: unknown }[] = [];
+    const send: typeof fetch = (url, init) => {
+      seen.push({
+        url: url instanceof Request ? url.url : url.toString(),
+        authorization: new Headers(init?.headers).get('authorization'),
+        body: JSON.parse(typeof init?.body === 'string' ? init.body : '{}'),
+      });
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            model: PINNED,
+            choices: [
+              {
+                message: { role: 'assistant', content: '{"claim":"a ship"}' },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+          }),
+          { status: 200 },
+        ),
+      );
+    };
+    const model = openModel(openrouterModel(PINNED, { OPENROUTER_API_KEY: 'a-key' }, send), LINE, {
+      record: () => Promise.resolve('call'),
+    });
+
+    await model.ask({ messages: GO, shape: SHAPE, budget: openBudget(1000) });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(seen[0]?.authorization).toBe('Bearer a-key');
+    expect(seen[0]?.body).toMatchObject({
+      provider: { data_collection: 'deny', require_parameters: true },
+    });
   });
 
   it.each([
@@ -185,7 +221,7 @@ describe('the gateway', () => {
     ['maxAnswerTokens', 0],
     ['waitGrowth', 0.5],
   ] as const)('refuses a line with %s of %d', (key, value) => {
-    const model = gatewayModel(PINNED, { FREELLMAPI_BASE_URL: base, FREELLMAPI_API_KEY: 'k' });
+    const model = openrouterModel(PINNED, { OPENROUTER_BASE_URL: base, OPENROUTER_API_KEY: 'k' });
     expect(() =>
       openModel(model, { ...LINE, [key]: value }, { record: () => Promise.resolve('call') }),
     ).toThrow();
@@ -196,7 +232,7 @@ describe('the gateway', () => {
     if (!(elsewhere instanceof OpenAICompatibleChatLanguageModel))
       throw new Error('the provider made no chat model');
     expect(() => openModel(elsewhere, LINE, { record: () => Promise.resolve('call') })).toThrow(
-      /free-model gateway/u,
+      /OpenRouter/u,
     );
   });
 });
@@ -261,7 +297,27 @@ describe('the served model', () => {
     });
   });
 
-  it('refuses a model that the gateway does not serve', async () => {
+  it.each([`${PINNED}-20250514`, `${PINNED}-2025-05-14`, `${PINNED}:nitro`, PINNED.toUpperCase()])(
+    'accepts the same model under the name %s',
+    async (served) => {
+      replies.push(said('{"claim":"a ship"}', { model: served }));
+      const { ask } = open();
+
+      expect(await ask()).toMatchObject({ ok: true, value: { claim: 'a ship' } });
+    },
+  );
+
+  it.each([`${PINNED}-2`, `${PINNED}-mini`, 'a-family/other-model', 'other-family/a-model'])(
+    'refuses another model that is named %s',
+    async (served) => {
+      replies.push(said('{"claim":"a ship"}', { model: served }));
+      const { ask } = open();
+
+      expect(await ask()).toMatchObject({ ok: false, failure: { kind: 'served_other' } });
+    },
+  );
+
+  it('refuses a model that the router does not serve', async () => {
     replies.push(refused(404, { message: 'model not found' }));
     const { ask } = open('no-family/no-model');
 
@@ -279,7 +335,7 @@ describe('a fault that time mends', () => {
     expect(waits).toStrictEqual([100, 200]);
   });
 
-  it('waits as long as the gateway asks, up to the bound', async () => {
+  it('waits as long as the router asks, up to the bound', async () => {
     replies.push(refused(429, { message: 'slow down' }, { 'retry-after': '3' }));
     replies.push(refused(429, { message: 'slow down' }, { 'retry-after': '99' }));
     replies.push(said('{"claim":"a ship"}'));
@@ -363,7 +419,7 @@ describe('the token budget of a job', () => {
     replies.push(said('{"claim":"a ship"}'), said('{"claim":"a ship"}'));
     const records: CallRecord[] = [];
     const model = openModel(
-      gatewayModel(PINNED, { FREELLMAPI_BASE_URL: base, FREELLMAPI_API_KEY: 'k' }),
+      openrouterModel(PINNED, { OPENROUTER_BASE_URL: base, OPENROUTER_API_KEY: 'k' }),
       LINE,
       {
         record: (call) => {

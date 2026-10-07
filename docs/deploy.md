@@ -30,10 +30,14 @@ The worker is one command with four sub-commands: `pnpm worker run` takes the qu
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running.
 
-`pnpm worker run` needs the model gateway and two models. Set `FREELLMAPI_BASE_URL` and
-`FREELLMAPI_API_KEY`, the `EXTRACTOR_` values and the `CHECKER_` values, as `infra/.env.example`
-lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
+`pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
+values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
 worker does not start when they are the same.
+
+Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
+the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
+provider must not keep the prompts or train on them. When the credit is spent, each job fails with
+a clear reason. Add credit, and queue the jobs again.
 
 The lead agent of `pnpm worker run` asks the extractor model. Set `LEAD_TOKEN_CAP`, the token
 budget of one lead, and `SEARXNG_URL`, the address of the search service. The worker stores each

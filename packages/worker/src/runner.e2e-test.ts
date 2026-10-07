@@ -1,5 +1,5 @@
 // The runner as the operator starts it: the real entry point in a child process, the test
-// database, and a local server in place of the model gateway. The rows commit, so this project
+// database, and a local server in place of the model router. The rows commit, so this project
 // runs after each project that counts rows, and at its end it deletes the rows that it wrote.
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -38,7 +38,7 @@ const db = new Client({
   connectionString: `postgresql://gabriel:${encodeURIComponent(held.POSTGRES_PASSWORD)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`,
 });
 
-// The gateway refuses the first question about the flaky document, and answers each other
+// The router refuses the first question about the flaky document, and answers each other
 // question with one claim that the page states. The checker, a model of another family, supports
 // the claim of the recovered document and not the claim of the flaky one.
 let flakyRefused = false;
@@ -102,7 +102,7 @@ const leadAnswerOf = (said: z.infer<typeof asked>): Record<string, unknown> => {
   return { role: 'assistant', content: JSON.stringify({ summary: 'The search gave no page.' }) };
 };
 
-const gateway: Server = createServer((request, response) => {
+const router: Server = createServer((request, response) => {
   void bodyOf(request).then((body) => {
     response.setHeader('content-type', 'application/json');
     const address = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -149,20 +149,20 @@ const gateway: Server = createServer((request, response) => {
 });
 
 const startRunner = (): ChildProcess => {
-  const address = gateway.address();
+  const address = router.address();
   if (address === null || typeof address === 'string')
-    throw new Error('the stub gateway listens on no port');
+    throw new Error('the stub router listens on no port');
   return spawn(process.execPath, [WORKER, 'run'], {
     stdio: ['ignore', 'ignore', 'inherit'],
     env: {
       ...process.env,
       GABRIEL_AGENT_PASSWORD: held.GABRIEL_AGENT_PASSWORD,
       GABRIEL_DATABASE: held.GABRIEL_DATABASE,
-      FREELLMAPI_BASE_URL: `http://127.0.0.1:${String(address.port)}/v1`,
+      OPENROUTER_BASE_URL: `http://127.0.0.1:${String(address.port)}/v1`,
       SEARXNG_URL: `http://127.0.0.1:${String(address.port)}`,
       BRAVE_SEARCH_API_KEY: '',
       LEAD_TOKEN_CAP: '10000',
-      FREELLMAPI_API_KEY: 'a-stub-key',
+      OPENROUTER_API_KEY: 'a-stub-key',
       EXTRACTOR_MODEL: MODEL,
       EXTRACTOR_FAMILY: 'stub-family',
       EXTRACTOR_FIRST_WAIT_MS: '1',
@@ -277,8 +277,8 @@ const ended = async (document: string, count: number): Promise<z.infer<typeof jo
 };
 
 beforeAll(async () => {
-  gateway.listen(0, '127.0.0.1');
-  await once(gateway, 'listening');
+  router.listen(0, '127.0.0.1');
+  await once(router, 'listening');
   await db.connect();
 });
 
@@ -324,7 +324,7 @@ afterAll(async () => {
     await deleteRowsOf([RECOVERED, FLAKY]);
   } finally {
     await db.end();
-    gateway.close();
+    router.close();
   }
 });
 
