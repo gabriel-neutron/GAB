@@ -114,7 +114,9 @@ for (const role of ['agent', 'research'] as const)
   test(`gabriel_${role} reads an act, and not the reason or the note of its rejection`, async () => {
     await expect(
       rolledBack(role, (ask) =>
-        ask('SELECT id, payload, status, unit_id, decided_as FROM public.proposals LIMIT 1'),
+        ask(
+          'SELECT id, payload, status, unit_id, decided_as, claim_key FROM public.proposals LIMIT 1',
+        ),
       ),
     ).resolves.toBeDefined();
     for (const column of ['reject_reason', 'reject_note'])

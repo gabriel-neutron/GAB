@@ -25,6 +25,7 @@ export const FAULT_WORDS: Readonly<Record<FaultKind, string>> = {
   reported_claim: 'reported claim',
   duplicate: 'duplicate',
   unknown_type: 'unknown type',
+  rejected_before: 'rejected before',
   sources_from_parent: 'sources from the parent',
   approximate_position: 'approximate position',
   note: 'note',

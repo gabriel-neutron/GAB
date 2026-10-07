@@ -140,6 +140,16 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- THE CLAIM OF THE ACT, with no identity that a run mints: it finds a claim that the operator
+-- rejected before. An end that waits gives the key of its act, so the stamp reads it at the
+-- insert, and the key is frozen with the act.
+CREATE OR REPLACE FUNCTION stamp_claim_key() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  NEW.claim_key := claim_key_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload);
+  RETURN NEW;
+END $$;
+
 -- THE LOG IS FROZEN AT THE INSERT, AND NOT AT THE DECISION. A pending act is already public
 -- under PU1, so an agent that runs again must not rewrite what it said. Measured on #16: a
 -- table owner ignores a column grant, and only a trigger held.
@@ -166,11 +176,13 @@ BEGIN
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id, NEW.unit_id)
+      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id, NEW.unit_id,
+      NEW.claim_key)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id, OLD.unit_id) THEN
+      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id, OLD.unit_id,
+      OLD.claim_key) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -1973,7 +1985,9 @@ END $$;
 --                clean, because the group action writes the parent before the child.
 --   not_clean    The operator decides the unit alone, and never in a group action: a dispute; two
 --                acts that set one key differently; a source that reports a claim and does not
---                state a fact; the same name and type under the same parent; an unknown type.
+--                state a fact; the same name and type under the same parent; an unknown type; a
+--                claim that the operator rejected before (the newest rejection gives the day and
+--                the reason, which stay private to the operator).
 --   information  The unit stays clean: sources from the parent (a decision of the operator for the
 --                v1 import), an approximate position, a note, the same name under another parent.
 --
@@ -2089,6 +2103,29 @@ BEGIN
               WHERE x.op = 'create_entity' AND x.proposer = 'v1_import'
                 AND NOT x.payload ? 'sources_from')) AS q
       JOIN acts a ON a.id = q.claim_id
+  ), before AS (
+    -- The newest rejection of the same claim, for each unit. The key of an entity holds no
+    -- parent, so that a key never changes, and the match of an entity also compares the claim
+    -- of its parent: the first act that puts it under a parent. No parent matches no parent. So a
+    -- rejected "1st battalion" marks only a "1st battalion" under the same parent.
+    SELECT DISTINCT ON (a.unit_id) a.unit_id, a.id AS act, r.decided_at, r.reject_reason,
+           r.reject_note
+      FROM acts a
+      JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
+                             AND r.id <> a.id
+     WHERE a.op <> 'create_entity'
+        OR (SELECT w.claim_key FROM public.proposals w
+             WHERE w.names @> ARRAY[a.id] AND w.status = 'pending'
+               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
+               AND (w.payload->>'src_id')::uuid = a.id
+             ORDER BY w.created_at, w.id LIMIT 1)
+           IS NOT DISTINCT FROM
+           (SELECT w.claim_key FROM public.proposals w
+             WHERE w.names @> ARRAY[r.id]
+               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
+               AND (w.payload->>'src_id')::uuid = r.id
+             ORDER BY w.created_at, w.id LIMIT 1)
+     ORDER BY a.unit_id, r.decided_at DESC, r.id
   ), found (unit_id, level, kind, act, said) AS (
     -- -------------------------------------------------------------------------------- blocks --
     SELECT w.unit_id, 'blocks', 'end_waits', w.act,
@@ -2171,6 +2208,20 @@ BEGIN
             AND NOT EXISTS (SELECT 1 FROM public.relation_type t
                              WHERE t.key = a.payload->>'type' AND NOT t.retired
                                AND t.key <> 'unknown'))
+    UNION ALL
+    SELECT b.unit_id, 'not_clean', 'rejected_before', b.act,
+           'Rejected before on ' || to_char(b.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || ': '
+           || CASE b.reject_reason
+                WHEN 'wrong_value' THEN 'Wrong value'
+                WHEN 'not_in_source' THEN 'Not in the source'
+                WHEN 'wrong_type' THEN 'Wrong type'
+                WHEN 'duplicate' THEN 'Duplicate'
+                WHEN 'out_of_scope' THEN 'Out of scope'
+                WHEN 'end_rejected' THEN 'End rejected'
+                WHEN 'other' THEN 'Other'
+                ELSE 'No reason was recorded' END
+           || coalesce(' (' || b.reject_note || ')', '')
+      FROM before b
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
