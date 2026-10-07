@@ -14,6 +14,7 @@ const QUEUE = (
     view={{
       state: 'held',
       queue: { units: unitPageOf(UNIT_ANSWER)?.units ?? [], total: 1082, more: 'ready' },
+      decision: { step: 'idle' },
     }}
     selectedId=""
     words={unitWords([], [])}

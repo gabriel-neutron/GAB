@@ -61,7 +61,7 @@ const inserted = (type: string): Promise<unknown> =>
 
 const landed = z.array(z.object({ type: z.string(), proposed_type: z.string().nullable() }));
 
-const PROMOTE = 'SELECT public.promote_proposal($1::uuid, $2::text) AS id';
+const PROMOTE = 'SELECT public.promote_unit($1::uuid, $2::text) AS id';
 
 const DELETE = `SELECT public.propose_change($1::text, '{}'::jsonb, ARRAY['manual']::text[],
   $2::text, $3::uuid) AS id`;

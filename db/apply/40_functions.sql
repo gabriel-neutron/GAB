@@ -155,6 +155,14 @@ BEGIN
   IF NEW.status = 'pending' THEN
     RAISE EXCEPTION 'a proposal leaves pending and never returns to it';
   END IF;
+  -- A rejection keeps why. The door words the refusal; this is the guard of every other path.
+  IF NEW.status = 'rejected' AND NEW.reject_reason IS NULL THEN
+    RAISE EXCEPTION 'a rejection names one reason' USING CONSTRAINT = 'rejection_reason';
+  END IF;
+  IF NEW.status <> 'rejected' AND (NEW.reject_reason, NEW.reject_note) IS DISTINCT FROM
+     (OLD.reject_reason, OLD.reject_note) THEN
+    RAISE EXCEPTION 'only a rejection writes a reason and a note';
+  END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
@@ -513,9 +521,9 @@ END $$;
 -- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
 -- model gets its fault before the write; the promotion holds those two rules too.
 --
--- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH, and the operator decides them as one unit. An
--- item that names no other item, and that no other item names, stays a single act: a faulty claim
--- never blocks a good claim of the same page. A retry joins the batch of the act that waits.
+-- THE ITEMS THAT NAME EACH OTHER ARE ONE BATCH: a group, which is a label and a filter. The
+-- operator decides one unit of it (P11). An item that names no other item, and that no other item
+-- names, stays a single act: a faulty claim never blocks a good claim of the same page. A retry joins the batch of the act that waits.
 CREATE OR REPLACE FUNCTION propose_batch(p_items jsonb)
 RETURNS TABLE (item int, proposal_id uuid, written boolean)
 LANGUAGE plpgsql SECURITY DEFINER
@@ -725,7 +733,7 @@ BEGIN
     IF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
       -- The share lock waits for a decision on that act that runs now. So a retry never joins a
-      -- batch that the operator decides at the same time.
+      -- unit that the operator decides at the same time.
       SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
@@ -836,9 +844,11 @@ BEGIN
   RETURN v_id;
 END $$;
 
--- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the two doors
--- below, which are owned by the same role. It encodes no rule about WHO may decide.
-CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text)
+-- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the doors below,
+-- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
+-- the operator decided: one unit, or a group action. The act that the operator signs is no
+-- decision on the queue, and it has no mode.
+CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text, p_mode text)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1069,58 +1079,247 @@ BEGIN
      SET status      = 'accepted',
          decided_at  = now(),
          decided_by  = p_decided_by,
+         decided_as  = p_mode,
          prior_value = v_prior
    WHERE id = p_id AND status = 'pending';
 
   RETURN v_id;
 END $$;
 
--- A LINKED BATCH IS DECIDED AS ONE UNIT (operator decision). The doors of one act refuse an act
--- that waits in a batch, so no act of a batch is decided alone and a batch is never half decided.
--- No role holds this step: it runs inside the two doors of one act.
-CREATE OR REPLACE FUNCTION refuse_batch_act(p_id uuid)
-RETURNS void
+-- THE PENDING ACTS OF ONE UNIT, LOCKED. The lock closes a second decision on the same unit while
+-- this one runs. No role holds this step: it runs inside the doors of the unit.
+CREATE OR REPLACE FUNCTION pending_unit(p_unit uuid)
+RETURNS uuid[]
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_batch uuid;
+  v_left uuid[];
 BEGIN
-  SELECT batch_id INTO v_batch FROM public.proposals
-   WHERE id = p_id AND status = 'pending' AND batch_id IS NOT NULL;
-  IF FOUND THEN
-    RAISE EXCEPTION 'the act % is part of the linked batch %, and the operator decides a batch '
-                    'as one unit: decide the batch', p_id, v_batch
-      USING CONSTRAINT = 'batch_whole';
+  PERFORM 1 FROM public.proposals
+    WHERE unit_id = p_unit AND status = 'pending' ORDER BY id FOR UPDATE;
+  SELECT array_agg(id ORDER BY id) INTO v_left FROM public.proposals
+   WHERE unit_id = p_unit AND status = 'pending';
+  IF v_left IS NULL THEN
+    IF EXISTS (SELECT 1 FROM public.proposals WHERE unit_id = p_unit) THEN
+      RAISE EXCEPTION 'the unit % is decided already, and a decided act is frozen', p_unit
+        USING CONSTRAINT = 'unit_pending';
+    END IF;
+    RAISE EXCEPTION 'the record holds no unit %', p_unit USING CONSTRAINT = 'unit_exists';
   END IF;
+  RETURN v_left;
 END $$;
 
--- THE DECISION ON AN ACT THAT WAITS. Only the operator role holds it, and that grant is the rule
--- "a machine proposes, only the operator promotes".
-CREATE OR REPLACE FUNCTION promote_proposal(p_id uuid, p_decided_by text)
+-- THE UNITS THAT ONE UNIT WAITS FOR, directly or through a chain. A unit waits for another unit
+-- when one of its relations names an act that waits in that other unit. Two relations of one group
+-- can make a circle: "A to B" belongs to the unit of A and "B to A" to the unit of B, so each unit
+-- waits for the other. A unit that is in its own list waits in a circle, and no promotion ends the
+-- wait. The promotion and the check of the faults read the same list. No role holds this step.
+CREATE OR REPLACE FUNCTION unit_waits_for(p_unit uuid)
+RETURNS SETOF uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH RECURSIVE waits (unit_id) AS (
+    SELECT o.unit_id
+      FROM public.proposals x,
+           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+     WHERE x.unit_id = p_unit AND x.status = 'pending' AND x.op = 'create_relation'
+       AND o.unit_id <> x.unit_id
+    UNION
+    SELECT o.unit_id
+      FROM waits w
+      JOIN public.proposals x ON x.unit_id = w.unit_id AND x.status = 'pending'
+                             AND x.op = 'create_relation',
+           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+     WHERE o.unit_id <> x.unit_id
+  )
+  SELECT unit_id FROM waits
+$$;
+
+-- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
+-- "a machine proposes, only the operator promotes". It writes each act that waits in the unit,
+-- an entity before the relation that names it, or it writes none: the first refusal stops the
+-- whole transaction, and the sentence names the act and the reason.
+--
+-- A RELATION IS WRITTEN ONLY WHEN EACH END IS IN THE RECORD OR COMES WITH THE UNIT. A link unit
+-- waits until both ends are in the record, and the refusal names the end that it waits for.
+CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
+  v_left  uuid[];
+  v_head  uuid;
+  v_id    uuid;
+  v_act   text;
+  v_end   uuid;
+  v_name  text;
+  v_wait  uuid;
+  p       public.proposals%ROWTYPE;
+  v_said  text;
   v_rule  text;
   v_table text;
   v_code  text;
 BEGIN
-  -- An act of a linked batch names another act of it, so it is promoted only with the batch.
-  PERFORM public.refuse_batch_act(p_id);
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+  v_left := public.pending_unit(p_unit);
+
   -- The measured forgery: propose and accept inside one transaction. Refused by a stored
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
   IF EXISTS (SELECT 1 FROM public.proposals
-              WHERE id = p_id AND xact = pg_current_xact_id()) THEN
-    RAISE EXCEPTION 'the act % was written by this transaction, and an act is not decided by '
-                    'the transaction that proposed it', p_id
+              WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_unit
       USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
   END IF;
-  RETURN public.apply_proposal(p_id, p_decided_by);
-EXCEPTION WHEN integrity_constraint_violation THEN
-  GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
-  PERFORM public.raise_rule(v_rule, v_table, v_code);
-  RAISE;
+
+  SELECT x.payload->>'type', e.ref INTO v_act, v_end
+    FROM public.proposals x,
+         LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+   WHERE x.id = ANY (v_left) AND x.op = 'create_relation'
+     AND NOT e.ref = ANY (v_left)
+     AND NOT EXISTS (SELECT 1 FROM public.entities n WHERE n.id = e.ref)
+     AND NOT EXISTS (SELECT 1 FROM public.relations r WHERE r.id = e.ref)
+   ORDER BY x.id
+   LIMIT 1;
+  IF FOUND THEN
+    v_name := coalesce(public.element_name(v_end),
+                       (SELECT w.payload->>'label' FROM public.proposals w WHERE w.id = v_end),
+                       v_end::text);
+    SELECT w.unit_id INTO v_wait FROM public.proposals w
+     WHERE w.id = v_end AND w.status = 'pending';
+    IF v_wait IS NOT NULL AND p_unit IN (SELECT public.unit_waits_for(v_wait)) THEN
+      RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, and % '
+                      'waits for this unit: the relations make a circle, so reject one relation '
+                      'of the circle', v_act, v_name, v_name
+        USING CONSTRAINT = 'unit_circle';
+    END IF;
+    RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, which '
+                    'is not in the record', v_act, v_name
+      USING CONSTRAINT = 'unit_end_waits';
+  END IF;
+
+  WHILE cardinality(v_left) > 0 LOOP
+    -- The next act names no act of the unit that still waits.
+    SELECT * INTO p FROM public.proposals x
+     WHERE x.id = ANY (v_left)
+       AND NOT EXISTS (
+             SELECT 1 FROM unnest(x.names || ARRAY[x.target_id,
+                                                   (x.payload->>'src_id')::uuid,
+                                                   (x.payload->>'dst_id')::uuid]) AS n(id)
+              WHERE n.id = ANY (v_left) AND n.id <> x.id)
+     ORDER BY x.id
+     LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'nothing of the unit is promoted, because its acts name each other in a '
+                      'circle' USING CONSTRAINT = 'unit_order';
+    END IF;
+    BEGIN
+      v_id := public.apply_proposal(p.id, p_decided_by, 'unit');
+    EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+      GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                              v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
+      -- A rule of a table gets its own sentence.
+      BEGIN
+        PERFORM public.raise_rule(v_rule, v_table, v_code);
+      EXCEPTION WHEN OTHERS THEN
+        GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT;
+      END;
+      RAISE EXCEPTION 'nothing of the unit is promoted, because the record refuses its %: %',
+        CASE p.op
+          WHEN 'create_entity'   THEN 'new entity ' || (p.payload->>'label')
+          WHEN 'create_relation' THEN 'new relation ' || (p.payload->>'type')
+          ELSE 'act ' || p.id::text END,
+        v_said
+        USING ERRCODE = v_code, CONSTRAINT = coalesce(nullif(v_rule, ''), 'unit_item');
+    END;
+    IF p.id = p_unit THEN
+      v_head := v_id;
+    END IF;
+    v_left := array_remove(v_left, p.id);
+  END LOOP;
+  RETURN v_head;
+END $$;
+
+-- THE REASON OF A REJECTION, CHECKED. It is one word of a fixed list, and "other" needs a note.
+-- A blank note is no note. The note is private, as the reason is. No role holds this step.
+CREATE OR REPLACE FUNCTION rejection_note(p_reason text, p_note text, p_decided_by text)
+RETURNS text
+LANGUAGE plpgsql IMMUTABLE
+SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+  v_note text := nullif(btrim(coalesce(p_note, ''), E' \t\n\r\f\v'), '');
+BEGIN
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+  IF coalesce(p_reason, '') NOT IN ('wrong_value', 'not_in_source', 'wrong_type', 'duplicate',
+                                    'out_of_scope', 'end_rejected', 'other') THEN
+    RAISE EXCEPTION 'a rejection names one reason: wrong value, not in the source, wrong type, '
+                    'duplicate, out of scope, end rejected, or other'
+      USING CONSTRAINT = 'rejection_reason';
+  END IF;
+  IF p_reason = 'other' AND v_note IS NULL THEN
+    RAISE EXCEPTION 'a rejection for another reason says that reason in its note'
+      USING CONSTRAINT = 'rejection_note';
+  END IF;
+  IF char_length(v_note) > 500 THEN
+    RAISE EXCEPTION 'the note of a rejection is 500 characters at most'
+      USING CONSTRAINT = 'rejection_note';
+  END IF;
+  RETURN v_note;
+END $$;
+
+-- THE REJECTION OF ONE UNIT. Only the operator role holds it. It rejects every act that waits in
+-- the unit, with one reason and one note, and it leaves each row: a rejected act is never
+-- deleted, because it is the record of what was set aside.
+CREATE OR REPLACE FUNCTION reject_unit(p_unit uuid, p_reason text, p_note text,
+                                       p_decided_by text)
+RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
+  v_left uuid[] := public.pending_unit(p_unit);
+BEGIN
+  UPDATE public.proposals
+     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note
+   WHERE id = ANY (v_left);
+  RETURN cardinality(v_left);
+END $$;
+
+-- THE REJECTION OF ONE RELATION OF A UNIT. Only the operator role holds it. One bad link does not
+-- block a correct entity: the rest of the unit waits, and it stays one unit.
+CREATE OR REPLACE FUNCTION reject_relation(p_id uuid, p_reason text, p_note text,
+                                           p_decided_by text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
+  p      public.proposals%ROWTYPE;
+BEGIN
+  SELECT * INTO p FROM public.proposals WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
+  END IF;
+  IF p.status <> 'pending' THEN
+    RAISE EXCEPTION 'the act % is % already, and a decided act is frozen', p_id, p.status
+      USING CONSTRAINT = 'proposal_pending';
+  END IF;
+  IF p.op <> 'create_relation' THEN
+    RAISE EXCEPTION 'the act % is no new relation: reject its unit', p_id
+      USING CONSTRAINT = 'relation_only';
+  END IF;
+  UPDATE public.proposals
+     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+         decided_as = 'relation', reject_reason = p_reason, reject_note = v_note
+   WHERE id = p_id;
 END $$;
 
 -- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
@@ -1144,129 +1343,13 @@ DECLARE
 BEGIN
   proposal_id := public.propose_change(p_op, p_payload, p_src, p_target_kind, p_target_id,
                                        p_names);
-  target_id := public.apply_proposal(proposal_id, p_decided_by);
+  target_id := public.apply_proposal(proposal_id, p_decided_by, NULL);
   RETURN NEXT;
 EXCEPTION WHEN integrity_constraint_violation THEN
   GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
   PERFORM public.raise_rule(v_rule, v_table, v_code);
   RAISE;
 END $$;
-
--- A rejection writes the decision and leaves the row. A rejected act is never deleted: it is
--- the record of what was set aside. It carries NO REASON, and that is decided and not pending:
--- the record keeps the status, the hour and the name of a rejection, and nothing else.
-CREATE OR REPLACE FUNCTION reject_proposal(p_id uuid, p_decided_by text)
-RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
-  END IF;
-  -- An act of a linked batch is rejected only with the batch, as it is promoted only with it.
-  PERFORM public.refuse_batch_act(p_id);
-  UPDATE public.proposals
-     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
-   WHERE id = p_id AND status = 'pending';
-  IF NOT FOUND THEN
-    IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE id = p_id) THEN
-      RAISE EXCEPTION 'the record holds no act %', p_id USING CONSTRAINT = 'proposal_exists';
-    END IF;
-    RAISE EXCEPTION 'the act % is decided already, and a decided act is frozen', p_id
-      USING CONSTRAINT = 'proposal_pending';
-  END IF;
-END $$;
-
--- THE DECISION ON A LINKED BATCH, AS ONE UNIT. Only the operator role holds it, as it holds the
--- promotion of one act. A promotion writes each act that waits in the batch, an entity before the
--- relation that names it, or it writes none: the first refusal stops the whole transaction, and
--- the sentence names the act and the reason. A rejection rejects each act that waits in the batch.
-CREATE OR REPLACE FUNCTION decide_batch(p_batch uuid, p_verdict text, p_decided_by text)
-RETURNS int
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_left  uuid[];
-  v_count int;
-  p       public.proposals%ROWTYPE;
-  v_said  text;
-  v_rule  text;
-  v_table text;
-  v_code  text;
-BEGIN
-  IF coalesce(p_verdict, '') NOT IN ('promote', 'reject') THEN
-    RAISE EXCEPTION 'a decision on a batch is promote or reject' USING CONSTRAINT = 'batch_verdict';
-  END IF;
-  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
-  END IF;
-
-  -- The lock closes a second decision on the same batch while this one runs.
-  PERFORM 1 FROM public.proposals
-    WHERE batch_id = p_batch AND status = 'pending' ORDER BY id FOR UPDATE;
-  SELECT array_agg(id ORDER BY id) INTO v_left FROM public.proposals
-   WHERE batch_id = p_batch AND status = 'pending';
-  v_count := coalesce(cardinality(v_left), 0);
-  IF v_count = 0 THEN
-    RAISE EXCEPTION 'the record holds no batch % that waits', p_batch
-      USING CONSTRAINT = 'batch_pending';
-  END IF;
-
-  IF p_verdict = 'reject' THEN
-    UPDATE public.proposals
-       SET status = 'rejected', decided_at = now(), decided_by = p_decided_by
-     WHERE id = ANY (v_left);
-    RETURN v_count;
-  END IF;
-
-  -- The same guard as the promotion of one act: no act is decided by the transaction that
-  -- proposed it.
-  IF EXISTS (SELECT 1 FROM public.proposals
-              WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
-    RAISE EXCEPTION 'the batch % was written by this transaction, and an act is not decided by '
-                    'the transaction that proposed it', p_batch
-      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
-  END IF;
-
-  WHILE cardinality(v_left) > 0 LOOP
-    -- The next act names no act of the batch that still waits.
-    SELECT * INTO p FROM public.proposals x
-     WHERE x.id = ANY (v_left)
-       AND NOT EXISTS (
-             SELECT 1 FROM unnest(x.names || ARRAY[x.target_id,
-                                                   (x.payload->>'src_id')::uuid,
-                                                   (x.payload->>'dst_id')::uuid]) AS n(id)
-              WHERE n.id = ANY (v_left) AND n.id <> x.id)
-     ORDER BY x.id
-     LIMIT 1;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'nothing of the batch is promoted, because its acts name each other in a '
-                      'circle' USING CONSTRAINT = 'batch_order';
-    END IF;
-    BEGIN
-      PERFORM public.apply_proposal(p.id, p_decided_by);
-    EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
-      GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
-                              v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
-      -- A rule of a table gets its own sentence, as it gets it for one act.
-      BEGIN
-        PERFORM public.raise_rule(v_rule, v_table, v_code);
-      EXCEPTION WHEN OTHERS THEN
-        GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT;
-      END;
-      RAISE EXCEPTION 'nothing of the batch is promoted, because the record refuses its %: %',
-        CASE p.op
-          WHEN 'create_entity'   THEN 'new entity ' || (p.payload->>'label')
-          WHEN 'create_relation' THEN 'new relation ' || (p.payload->>'type')
-          ELSE 'act ' || p.id::text END,
-        v_said
-        USING ERRCODE = v_code, CONSTRAINT = coalesce(nullif(v_rule, ''), 'batch_item');
-    END;
-    v_left := array_remove(v_left, p.id);
-  END LOOP;
-  RETURN v_count;
-END $$;
-
 
 -- THE CLAIM. It is a door and not a table write, because no role holds UPDATE on any table, and
 -- a worker that could write `jobs` directly could also write it into a state no claim produced.

@@ -12,25 +12,27 @@ export const WRITE_OPS = [
   'delete_relation',
 ] as const;
 
-/** The two decisions the operator takes on an act that already stands in the record. A write
- * makes a proposal and signs it; a decision writes no proposal and names one that waits. */
-export const DECISION_OPS = ['promote_proposal', 'reject_proposal'] as const;
+/** The three decisions the operator takes on what waits in the queue. A write makes a proposal
+ * and signs it; a decision writes no proposal and names a unit, or one relation of it. */
+export const DECISION_OPS = ['promote_unit', 'reject_unit', 'reject_relation'] as const;
 
 export type DecisionOp = (typeof DECISION_OPS)[number];
 
-/** The body of one decision. The act is taken from the address, as it is for a write. */
-export const decisionRequest = z.strictObject({ proposalId: z.uuid() });
+// The reason and the note are a shape here. The database holds the list of reasons and the rule
+// on the note, and it words its own refusal.
+const rejection = { reason: z.string(), note: z.string().optional() };
 
-/** The two verdicts on a linked batch, which the operator decides as one unit. */
-export const BATCH_VERDICTS = ['promote', 'reject'] as const;
+/** The body of each decision. */
+export const decisionRequest = {
+  promote_unit: z.strictObject({ unitId: z.uuid() }),
+  reject_unit: z.strictObject({ unitId: z.uuid(), ...rejection }),
+  reject_relation: z.strictObject({ proposalId: z.uuid(), ...rejection }),
+} as const satisfies Readonly<Record<DecisionOp, z.ZodType>>;
 
-export type BatchVerdict = (typeof BATCH_VERDICTS)[number];
-
-/** The body of one decision on a linked batch. */
-export const batchDecisionRequest = z.strictObject({
-  batchId: z.uuid(),
-  verdict: z.enum(BATCH_VERDICTS),
-});
+/** One decision, as the caller states it. */
+export type Decision = {
+  readonly [Op in DecisionOp]: { readonly op: Op } & z.input<(typeof decisionRequest)[Op]>;
+}[DecisionOp];
 
 const endpointKind = z.enum(['entity', 'relation']);
 

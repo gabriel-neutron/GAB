@@ -37,7 +37,11 @@ const decided = async (ask: Ask, decision: 'pending' | 'rejected'): Promise<stri
     );
   if (made === undefined) throw new Error('the act was not written');
   if (decision === 'rejected')
-    await asApp(ask, `SELECT public.reject_proposal($1::uuid, 'a test rejection')`, [made.id]);
+    await asApp(
+      ask,
+      `SELECT public.reject_unit($1::uuid, 'out_of_scope', NULL, 'a test rejection')`,
+      [made.id],
+    );
   return made.id;
 };
 
@@ -90,3 +94,31 @@ test('the public read role cannot read why an act is disputed', async () => {
     rolledBack('read', (ask) => ask('SELECT dissent_reason FROM public.proposals')),
   ).rejects.toHaveProperty('code', '42501');
 });
+
+// The reason and the note of a rejection can name a party or quote a page, so they stay private.
+test('no view of the read API shows the reason or the note of a rejection', async () => {
+  const columns = await rolledBack('superuser', (ask) =>
+    ask(
+      `SELECT table_name, column_name FROM information_schema.columns
+        WHERE table_schema = 'api' AND column_name IN ('reject_reason', 'reject_note')`,
+    ),
+  );
+  expect(columns).toStrictEqual([]);
+  await expect(
+    rolledBack('read', (ask) => ask('SELECT reject_reason, reject_note FROM public.proposals')),
+  ).rejects.toHaveProperty('code', '42501');
+});
+
+// A machine role reads untrusted text, so it reads every column of an act but these two.
+for (const role of ['agent', 'research'] as const)
+  test(`gabriel_${role} reads an act, and not the reason or the note of its rejection`, async () => {
+    await expect(
+      rolledBack(role, (ask) =>
+        ask('SELECT id, payload, status, unit_id, decided_as FROM public.proposals LIMIT 1'),
+      ),
+    ).resolves.toBeDefined();
+    for (const column of ['reject_reason', 'reject_note'])
+      await expect(
+        rolledBack(role, (ask) => ask(`SELECT ${column} FROM public.proposals LIMIT 1`)),
+      ).rejects.toHaveProperty('code', '42501');
+  });
