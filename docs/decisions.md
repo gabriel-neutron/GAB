@@ -325,12 +325,14 @@ promote all its clean proposals at once: the entities with no dispute and no fau
 flags, and their relations. Each unit of the group succeeds or fails on its own, and the screen
 names each unit that fails. The other proposals of the group stay in the queue. A relation is
 never promoted without its two entities. Each end is already in the record, or it is promoted in
-the same click. Where an end is not, the operator cannot promote the relation, and the screen says
-which entity is missing.
+the same click. One click never promotes an entity of another group. Where an end still waits in
+another group, the operator cannot promote the relation: the screen names the missing entity, and
+the operator promotes that entity first.
 **Why.** The graph never holds a link to a missing entity. One wrong item no longer forces the
 operator to reject a whole group, and the operator can clear a large import in a short time.
 **Cost.** The operator decides each entity of a disputed group on its own. A unit with many
-relations takes long to read. A promotion on a group needs a clear count of what it writes.
+relations takes long to read. A promotion on a group needs a clear count of what it writes. A
+relation between two groups needs two steps.
 
 ### P12 — The operator AI proposes the facts of a research layer
 
