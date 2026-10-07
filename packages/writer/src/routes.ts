@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
-import { decide, decideBatch } from './decide.ts';
+import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
 import { readLeads, startLead } from './lead.ts';
 import { readReviewUnits } from './review-units.ts';
@@ -70,19 +70,12 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
       return context.json(act.reply, STATUS[act.outcome]);
     });
 
-  // A decision writes no proposal: it names one that waits, and it opens the promotion door of
-  // the record or the rejection door.
+  // A decision writes no proposal: it names a unit that waits, or one relation of it.
   for (const op of DECISION_OPS)
     app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await decide(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
-
-  // The acts of a linked batch name each other, so the operator decides them as one unit.
-  app.post('/write/decide-batch', capped(LARGEST_BODY_BYTES), async (context) => {
-    const act = await decideBatch(pool, await context.req.text());
-    return context.json(act.reply, STATUS[act.outcome]);
-  });
 
   // A file enters the record as a document and never as an act: it writes no proposal, and each
   // claim it holds is proposed later and cites it.

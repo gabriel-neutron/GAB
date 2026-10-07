@@ -125,7 +125,7 @@ test('a lost socket and a stopped server are doubts, whatever code they name', (
 test('a schema that is missing never reads as an act the record does not hold', () => {
   for (const shape of [
     raisedError('42P01', 'relation "public.proposals" does not exist'),
-    raisedError('42883', 'function public.promote_proposal(uuid) does not exist'),
+    raisedError('42883', 'function public.promote_unit(uuid) does not exist'),
   ]) {
     expect(failureFrom(shape)).toStrictEqual({ raised: true, refusal: GENERIC });
   }

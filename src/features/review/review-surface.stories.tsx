@@ -17,6 +17,7 @@ const QUEUE = (
     }}
     selectedId=""
     words={unitWords([], [])}
+    decision={{ step: 'idle' }}
     onAct={fn()}
   />
 );

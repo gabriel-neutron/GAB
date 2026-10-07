@@ -90,7 +90,8 @@ exists.
 
 - One node in each batch: the entity, its attributes, and its relations to entities that the
   record already holds or that the same batch creates. A batch of 5 to 20 items is a good size.
-  The operator decides a linked batch as one unit, so one wrong item makes the whole batch wrong.
+  The operator decides each entity together with the relations that depend on it. A wrong entity
+  takes its relations with it, so check each entity before you send the batch.
 - One fact in each item. Never two facts in one item.
 - An excerpt is short: the sentence or the line that states the values. Each value of the item
   must be in its excerpts, in the same form or in an equivalent form (a date, a number, a case).

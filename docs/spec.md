@@ -125,8 +125,17 @@ The review queue shows one line for each unit. It reads one page of units at a t
 writer, because the cited passages are private. Each line names who proposed the unit.
 
 The acts of one call that name each other are one linked batch: the group of their units. The
-group is a label and a filter. An act that names no other act of its call stays single, so a
-faulty claim never blocks a good claim of the same page.
+group is a label and a filter, and the operator never decides a group as one block. An act that
+names no other act of its call stays single, so a faulty claim never blocks a good claim of the
+same page.
+
+The operator promotes or rejects one unit. A promotion writes the whole unit in one transaction,
+or nothing, and a refusal names the act that the record refused. A relation is written only when
+each end is in the record or comes with the same unit, so a unit whose end waits elsewhere is
+refused, and the refusal names that end. A rejection keeps one reason from a fixed list, and a
+note when the reason is "other". The reason and the note are private. The operator can reject one
+relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
+relation, or a group action. The public page can then say who decided a fact and how.
 
 ## The lead path
 

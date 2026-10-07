@@ -19,7 +19,7 @@ interface FaultyPool {
 
 const rowsOf = (text: string): Record<string, unknown>[] => {
   if (text.includes('sign_change')) return [{ proposal_id: PROPOSAL, target_id: TARGET }];
-  if (text.includes('promote_proposal')) return [{ id: TARGET }];
+  if (text.includes('promote_unit')) return [{ id: TARGET }];
   return [];
 };
 

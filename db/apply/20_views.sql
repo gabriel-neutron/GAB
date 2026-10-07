@@ -95,7 +95,7 @@ COMMENT ON VIEW api.relation IS
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
          dissent, author_role, model_call_id, status, created_at, decided_at,
-         decided_by, batch_id, proposer
+         decided_by, decided_as, batch_id, proposer
     FROM public.proposals
    -- PU1: a rejected act is not public. The public read role and any role that this list does
    -- not name see no rejected row, so the rule fails closed. current_user in a view is the role
@@ -112,7 +112,9 @@ COMMENT ON VIEW api.proposal IS
   'for an act of the operator and for a machine act older than the call record. batch_id joins '
   'the acts of a machine that name each other: it is a label and a filter, and the operator '
   'decides one entity with its relations. A single act has none. proposer names who proposed '
-  'the act: extractor, research_ai, v1_import or operator. decided_by is '
+  'the act: extractor, research_ai, v1_import or operator. decided_as says how the operator '
+  'decided the act: one unit, one relation, or a group action; an older decision and an act '
+  'that the operator signed have none. The reason of a rejection is private. decided_by is '
   'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
 
