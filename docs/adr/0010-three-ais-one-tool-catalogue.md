@@ -22,8 +22,8 @@ cheap tokens and a hard spend limit. Each tool must be available to the web inte
 **The cost rule.** The spend limit is the token cap of each job and a credit limit that the
 operator sets on the key in the OpenRouter dashboard. Deterministic work is plain code with no model: hash, store, load, text
 extraction, a call to a registry API. Repetitive judgement is the back-end AI. Reasoning is the
-operator AI. The operator AI never ingests with its own tokens: it stores a document and queues its
-extraction.
+operator AI. The operator AI stores each source. In a research layer, it proposes the targeted facts
+itself with checked excerpts (P12); the extraction of a whole document stays the back-end AI's job.
 
 ## One catalogue, and few tools for each back-end agent
 
@@ -117,8 +117,9 @@ proposals of the rows, which the operator reviews.
 ## External sources are reached on demand
 
 - A fetch answers at once and uses no model. It stores the bytes, extracts the text and returns
-  the text in the same turn, because the research needs the page now. An extraction is queued, and
-  the AI follows the job.
+  the text in the same turn, because the research needs the page now. The operator AI proposes the
+  facts of its layer from the stored text, and queues an extraction only when the operator asks
+  for it.
 - **A list of search results is a lead, and it is not stored.** An API answer that lists
   candidates is a search result, also when the query is an identifier. Only the read of one record
   by its identifier, or one page that is fetched, becomes a document.
