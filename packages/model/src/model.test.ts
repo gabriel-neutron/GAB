@@ -264,6 +264,13 @@ describe('a good answer', () => {
     expect(body.messages.map((one) => one.role)).toStrictEqual(['system', 'user']);
   });
 
+  it('reads a JSON answer that the model puts in a code fence', async () => {
+    replies.push(said('```json\n{"claim":"a ship"}\n```'));
+    const { ask } = open();
+
+    expect(await ask()).toMatchObject({ ok: true, value: { claim: 'a ship' } });
+  });
+
   it('gives no event to a telemetry hook of the library', async () => {
     const heard = vi.fn();
     registerTelemetry({ onStart: heard, onEnd: heard, onLanguageModelCallStart: heard });

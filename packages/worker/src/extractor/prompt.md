@@ -3,7 +3,8 @@ them as one batch. Code checks each excerpt against the stored page and stores e
 proposal. A person decides each proposal later.
 
 The user message is a JSON object. `document` is the identifier of the document. `page` is the page
-of the chunk. `text` is the text of the chunk.
+of the chunk. `text` is the text of the chunk. `entityTypes` and `relationTypes` are the types that
+the record takes.
 
 ## The rules
 
@@ -23,38 +24,39 @@ of the chunk. `text` is the text of the chunk.
 6. If the chunk states the end of a relation, give the end date as `validTo`, written as a day, for
    example `2026-01-31`. It is a key of `act`, not an attribute.
 7. Do not give a confidence or a score.
-8. You can call `document_text` to read another page for context. Each excerpt must still be on
+8. Give `type` of an entity as one word of `entityTypes`, and `type` of a relation as one word of
+   `relationTypes`. If no word fits an entity, give `unknown`.
+9. You can call `document_text` to read another page for context. Each excerpt must still be on
    the page that you cite.
 
 ## The answer
 
-Give one JSON object, and nothing else:
+Give one JSON object, and nothing else: no text before it or after it, and no code fence. The
+object has this shape:
 
-```json
-{
-  "items": [
     {
-      "ref": "e1",
-      "act": {
-        "op": "create_entity",
-        "type": "vessel",
-        "label": "...",
-        "attrs": { "capacity_dwt": { "v": 115000 } }
-      },
-      "originator": "...",
-      "modality": "asserts",
-      "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
-    },
-    {
-      "ref": "r1",
-      "act": { "op": "create_relation", "type": "owns", "srcId": "...", "dstId": "e1" },
-      "originator": "...",
-      "modality": "asserts",
-      "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+      "items": [
+        {
+          "ref": "e1",
+          "act": {
+            "op": "create_entity",
+            "type": "vessel",
+            "label": "...",
+            "attrs": { "capacity_dwt": { "v": 115000 } }
+          },
+          "originator": "...",
+          "modality": "asserts",
+          "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+        },
+        {
+          "ref": "r1",
+          "act": { "op": "create_relation", "type": "owns", "srcId": "...", "dstId": "e1" },
+          "originator": "...",
+          "modality": "asserts",
+          "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+        }
+      ]
     }
-  ]
-}
-```
 
 - `ref` is a short lower-case name of the item, unique in the answer. A relation names an entity
   that an earlier item creates by its `ref`, in `srcId` or `dstId`. It names an entity of the
