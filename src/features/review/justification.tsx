@@ -1,16 +1,27 @@
+import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
 
 import { CitedImage } from './cited-image';
 import { isImageType } from './document-image';
 import { LinkedWords } from './linked-words';
 import { pageAddress } from './page-address';
-import type { Passage, SourceDocument, Unit } from './unit-page';
+import type { FaultLevel, Passage, SourceDocument, Unit } from './unit-page';
 
 export interface JustificationProps {
   readonly unit: Unit | null;
 }
 
 const HEADING = 'text-small/4 tracking-caps text-label uppercase';
+
+const LEVELS: readonly {
+  readonly level: FaultLevel;
+  readonly words: string;
+  readonly paint: string;
+}[] = [
+  { level: 'blocks', words: 'Blocks Promote', paint: 'text-destructive' },
+  { level: 'not_clean', words: 'Not clean: decide it alone', paint: 'text-dissent' },
+  { level: 'information', words: 'Information', paint: 'text-foreground' },
+];
 
 const LINK =
   'text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
@@ -24,12 +35,11 @@ const distinct = (passages: readonly Passage[]): readonly Passage[] => {
 };
 
 /** Why the unit stands in the queue: who proposed it, the documents it cites with the exact words
- * of each page and two lines around them, the stored image of a cited PNG or JPEG, and the
- * dispute of each act. The operator compares the words that OCR read with the image, because OCR
- * can misread a character. */
+ * of each page and two lines around them, the stored image of a cited PNG or JPEG, and each fault
+ * that the check found, with its sentence. The operator compares the words that OCR read with the
+ * image, because OCR can misread a character. */
 export function Justification({ unit }: JustificationProps) {
   if (unit === null) return <section aria-label="The justification" className="p-3" />;
-  const disputed = unit.acts.filter((act) => act.disputed);
   // The image of a document is read once, beside every passage that the unit cites from it.
   const passagesOf = (document: SourceDocument) =>
     distinct(unit.passages.filter((passage) => passage.document === document.id)).map((passage) => {
@@ -76,6 +86,31 @@ export function Justification({ unit }: JustificationProps) {
         </p>
       </div>
 
+      <div className="space-y-2" data-faults={unit.state}>
+        <h3 className={HEADING}>Faults</h3>
+        {unit.faults.length === 0 ? <p>No fault. A group action can promote this unit.</p> : null}
+        {LEVELS.map(({ level, words, paint }) => {
+          const held = unit.faults.filter((fault) => fault.level === level);
+          if (held.length === 0) return null;
+          return (
+            <div key={level}>
+              <h4 className={cn('text-small/4', paint)}>{words}</h4>
+              <ul className="space-y-0.5">
+                {held.map((fault) => (
+                  <li
+                    key={`${fault.kind} ${fault.said}`}
+                    data-fault={fault.kind}
+                    className="break-words"
+                  >
+                    {fault.said}.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="space-y-2">
         <h3 className={HEADING}>Source</h3>
         {unit.documents.length === 0 ? <p>No document is cited.</p> : null}
@@ -106,21 +141,6 @@ export function Justification({ unit }: JustificationProps) {
             )}
           </div>
         ))}
-      </div>
-
-      <div>
-        <h3 className={HEADING}>Dispute</h3>
-        {disputed.length === 0 ? (
-          <p>No act of this unit is disputed.</p>
-        ) : (
-          <ul className="space-y-1">
-            {disputed.map((act) => (
-              <li key={act.id} className="text-dissent">
-                {act.dispute ?? 'Disputed. The check recorded no reason.'}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
     </section>
   );

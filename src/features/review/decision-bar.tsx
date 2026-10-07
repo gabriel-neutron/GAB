@@ -47,7 +47,8 @@ const sentenceOf = (state: DecisionState): string | null => {
 };
 
 /** Promote or reject the unit, or reject one relation of it. Each control says what it does
- * before the click, and a rejection needs a reason. */
+ * before the click, and a rejection needs a reason. Promote is off on a blocked unit, and the
+ * sentence says why. */
 export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
@@ -63,13 +64,16 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
     >
       {aimed ? null : (
         <div className="flex items-start gap-2">
-          <p className="min-w-0 flex-1" data-said="promote">
-            {said.promote}
+          <p
+            className={cn('min-w-0 flex-1', said.promote.kind === 'blocked' && 'text-destructive')}
+            data-said="promote"
+          >
+            {said.promote.said}
           </p>
           <Button
             type="button"
             size="xs"
-            disabled={busy}
+            disabled={busy || said.promote.kind === 'blocked'}
             onClick={() => {
               onAct({ kind: 'promote' });
             }}

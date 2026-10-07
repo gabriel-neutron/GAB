@@ -863,7 +863,7 @@ const waitingDelete = async (targetId: string): Promise<string> => {
   return String(made['id']);
 };
 
-test('a promotion whose target is gone is refused, and the answer names the act', async () => {
+test('a promotion whose target is gone is refused, and the answer names the target', async () => {
   const target = await signedEntity('Writer test target gone');
   const unitId = await waitingDelete(target);
   try {
@@ -873,8 +873,8 @@ test('a promotion whose target is gone is refused, and the answer names the act'
     const [status, reply] = await post('promote-unit', { unitId });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      `nothing of the unit is promoted, because the record refuses its act ${unitId}: ` +
-        `the target ${target} does not exist, and nothing was applied`,
+      'nothing of the unit is promoted: The end Writer test target gone is not in the record ' +
+        'and not in the queue',
     ]);
     // The database raised it, so nothing was written and the act still waits.
     expect(reply.targetId).toBeUndefined();
@@ -984,6 +984,7 @@ const unitPage = z.object({
   units: z.array(
     z.object({
       unit: z.uuid(),
+      state: z.enum(['clean', 'not_clean', 'blocked']),
       acts: z.array(z.object({ id: z.uuid(), dissentReason: z.string().nullable() })),
       passages: z.array(z.object({ act: z.uuid(), text: z.string() })),
     }),
@@ -1005,6 +1006,18 @@ const askUnits = async (after: readonly string[] | null, size: number) => {
   const answer = await askUnitsFrom({ after, size });
   expect(answer.status).toBe(200);
   return unitPage.parse(await answer.json());
+};
+
+/** The state that the queue gives one unit, read page by page. */
+const stateOf = async (unitId: string): Promise<string | undefined> => {
+  let after: readonly string[] | null = null;
+  for (;;) {
+    const read = await askUnits(after, 200);
+    const found = read.units.find((unit) => unit.unit === unitId);
+    if (found !== undefined) return found.state;
+    if (read.next === null) return undefined;
+    after = read.next;
+  }
 };
 
 test('the queue reaches the review through the writer one page of units at a time', async () => {
@@ -1221,8 +1234,8 @@ test('a unit with one act that cannot be written writes nothing, and the refusal
     const [status, reply] = await post('promote-unit', { unitId: owner });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Unit test end ' +
-        'that goes, which is not in the record',
+      'nothing of the unit is promoted: The end Unit test end that goes is not in the record ' +
+        'and not in the queue',
     ]);
     expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending']);
     expect(await liveRows(owner)).toBe(0);
@@ -1324,16 +1337,17 @@ test('a link unit waits until both ends are in the record, and the refusal names
     expect(await unitOf(link)).toBe(link);
 
     // The entity of the group waits for no other unit.
+    expect(await stateOf(link)).toBe('blocked');
     expect((await post('promote-unit', { unitId: vessel }))[0]).toBe(200);
     const [status, reply] = await post('promote-unit', { unitId: link });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Link test far ' +
-        'owner, which is not in the record',
+      'nothing of the unit is promoted: Waits for Link test far owner (no group)',
     ]);
     expect(await liveRows(link)).toBe(0);
 
     expect((await post('promote-unit', { unitId: far }))[0]).toBe(200);
+    expect(await stateOf(link)).toBe('clean');
     expect((await post('promote-unit', { unitId: link }))[0]).toBe(200);
     expect(await liveRows(link)).toBe(1);
   } finally {
@@ -1366,9 +1380,8 @@ test('two units that wait for each other are refused as a circle', async () => {
     const [status, reply] = await post('promote-unit', { unitId: first });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Circle test ' +
-        'second, and Circle test second waits for this unit: the relations make a circle, so ' +
-        'reject one relation of the circle',
+      'nothing of the unit is promoted: Waits in a circle with Circle test second, which ' +
+        'waits for this unit: reject one relation of the circle',
     ]);
 
     // One relation rejected ends the circle.
