@@ -146,6 +146,15 @@ group action read this check, so the screen and the record agree. Each fault has
 - A fault that is not clean keeps the unit out of a group action. The operator decides it alone.
 - Information does not change the state of the unit.
 
+A machine can propose again a claim that the operator rejected, from a new run with new
+identities. So each act keeps a frozen key of its claim, with no identity that a run makes: the
+type and the name of a new entity; the type and the two ends of a new relation; the target and the
+values of any other act. An element that an act proposed gives the key of that act, also after its
+promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
+the reason of the newest rejection. An entity matches a rejected entity only under the same
+parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
+under the same parent. The reason stays private to the operator.
+
 The v1 import marks a unit whose sources come from a parent. The promotion does not copy the mark
 into the record.
 
