@@ -156,6 +156,20 @@ const statesWords = (value: string, passage: string): boolean => {
   });
 };
 
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
+// The value stands in the passage as one whole token: no letter and no digit touches it, and no
+// sign that joins it to a letter or a digit. So an identifier with a hyphen, as "30616-4", stands
+// in "(military unit 30616-4)", but not in "30616-45" or in "30616-4-1".
+const statesToken = (value: string, passage: string): boolean => {
+  const wanted = plainText(value).trim();
+  if (wanted === '') return false;
+  return new RegExp(
+    String.raw`(?<![\p{L}\d])(?<![\p{L}\d][-./_,])${escaped(wanted)}(?![\p{L}\d])(?![-./_,][\p{L}\d])`,
+    'u',
+  ).test(plainText(passage));
+};
+
 const stated = (value: Scalar, passage: string): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
@@ -167,6 +181,7 @@ const stated = (value: Scalar, passage: string): boolean => {
     );
   if (DAY.test(value) && daysIn(passage).has(value)) return true;
   if (statesWords(value, passage)) return true;
+  if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
   return (
     /^[\d\s,.'\u00A0\u202F-]+$/u.test(value) &&

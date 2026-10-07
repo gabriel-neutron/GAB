@@ -139,3 +139,29 @@ test.each([
     { name: 'attrs.dwt', value },
   ]);
 });
+
+const unitWith = (number: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'military_unit',
+    label: 'regiment',
+    attrs: { military_unit_number: { v: number } },
+  });
+
+test.each([
+  ['419th Guards Motor Rifle Training Regiment (military unit 30616-4)', '30616-4'],
+  ['the regiment, military unit 30616-4.', '30616-4'],
+])('the passage %j states the identifier %s', (passage, value) => {
+  expect(unstatedValues(unitWith(value), [`regiment ${passage}`])).toStrictEqual([]);
+});
+
+test.each([
+  ['419th Guards Motor Rifle Training Regiment (military unit 30616-45)', '30616-4'],
+  ['419th Guards Motor Rifle Training Regiment (military unit 30616-4-1)', '30616-4'],
+  ['419th Guards Motor Rifle Training Regiment (military unit 130616-4)', '30616-4'],
+  ['419th Guards Motor Rifle Training Regiment (military unit 30616)', '30616-4'],
+])('the passage %j does not state the identifier %s', (passage, value) => {
+  expect(unstatedValues(unitWith(value), [`regiment ${passage}`])).toStrictEqual([
+    { name: 'attrs.military_unit_number', value },
+  ]);
+});
