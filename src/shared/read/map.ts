@@ -288,6 +288,7 @@ function proposal(row: unknown): Proposal {
     priorValue: priorValueOf(read.op, read.prior_value),
     dissent: read.dissent,
     authorRole: read.author_role,
+    proposer: read.proposer,
     status: read.status,
     createdAt: read.created_at,
     decidedAt: read.decided_at,

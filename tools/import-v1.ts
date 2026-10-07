@@ -27,8 +27,10 @@ import { Pool } from 'pg';
 
 import { connectionString } from './db-runtime.ts';
 
-const ORIGINATOR = 'GAB v1 ORBAT (operator)';
-const TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
+/** The party that each act of the v1 import names. The review reads it to name the proposer. */
+export const ORIGINATOR = 'GAB v1 ORBAT (operator)';
+/** The title of the stored v1 ORBAT. The batch door reserves the originator to an item that cites it. */
+export const TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
 const FILE_NAME = 'gab-v1-orbat.txt';
 
 /** One element of the v1 work: a unit or an organisation. */

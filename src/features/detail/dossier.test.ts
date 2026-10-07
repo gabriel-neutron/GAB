@@ -137,6 +137,7 @@ const ACT: Proposal = {
   priorValue: null,
   dissent: false,
   authorRole: 'gabriel_agent',
+  proposer: 'extractor',
   status: 'pending',
   createdAt: '2026-09-01T00:00:00Z',
   decidedAt: null,
@@ -169,14 +170,14 @@ test('a pending deletion and a pending attribute act on a relation stand on both
       id: 'a1',
       summary: 'Deletes a relation',
       dissent: false,
-      origin: 'machine',
+      origin: 'extractor',
       sources: [SOURCE_1],
     },
     {
       id: 'a2',
       summary: 'Changes an attribute',
       dissent: false,
-      origin: 'machine',
+      origin: 'extractor',
       sources: [SOURCE_1],
     },
   ];
@@ -194,7 +195,13 @@ test('a pending act on a relation the record does not hold stands on no page', (
 });
 
 test('a pending update_relation act stands on both ends of the relation it names', () => {
-  const read = withActs({ ...ACT, id: 'a1', op: 'update_relation', authorRole: 'gabriel_app' });
+  const read = withActs({
+    ...ACT,
+    id: 'a1',
+    op: 'update_relation',
+    authorRole: 'gabriel_app',
+    proposer: 'operator',
+  });
 
   const expected: readonly PendingLine[] = [
     {
@@ -226,7 +233,7 @@ test('a pending merge stands on the kept entity and on each absorbed entity', ()
       id: 'a1',
       summary: 'Merges entities',
       dissent: true,
-      origin: 'machine',
+      origin: 'extractor',
       sources: [SOURCE_1],
     },
   ];
