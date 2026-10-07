@@ -124,6 +124,13 @@ another group, or names a relation, is a unit of its own, so no entity waits for
 The review queue shows one line for each unit. It reads one page of units at a time through the
 writer, because the cited passages are private. Each line names who proposed the unit.
 
+The order clears a large import fast. A group that other groups wait for comes before them. In a
+group, the units with a fault come first, then the clean units in tree order, so a parent comes
+before its child. The acts with no group come last. The operator can filter by group, proposer,
+fault, source document and name. The database applies the order and the filters, so a page never
+needs the whole queue. The filter and the place in the queue stay in the browser, and the selected
+unit stays in the address, so a reload keeps all three.
+
 The acts of one call that name each other are one linked batch: the group of their units. The
 group is a label and a filter, and the operator never decides a group as one block. An act that
 names no other act of its call stays single, so a faulty claim never blocks a good claim of the

@@ -980,6 +980,7 @@ test('an act on the name and the type that names neither is refused in the words
 
 const unitPage = z.object({
   total: z.number(),
+  matched: z.number(),
   next: z.array(z.string()).nullable(),
   units: z.array(
     z.object({
@@ -1041,6 +1042,23 @@ test('the queue reaches the review through the writer one page of units at a tim
   expect(units[0]).toBe(first.units[0]?.unit);
   expect(new Set(units).size).toBe(first.total);
   expect(acts).toBe(pending['acts']);
+});
+
+test('the writer passes the filters to the queue, and counts the units they keep', async () => {
+  const whole = await askUnits(null, 1);
+  const [first] = whole.units;
+  if (first === undefined) throw new Error('the test queue is empty');
+  const answer = await askUnitsFrom({
+    after: null,
+    size: 200,
+    filter: { proposer: 'operator', name: 'a name that no unit has' },
+  });
+  expect(answer.status).toBe(200);
+  const none = unitPage.parse(await answer.json());
+  expect(none).toMatchObject({ units: [], matched: 0, total: whole.total });
+
+  const refusedFilter = await askUnitsFrom({ after: null, size: 1, filter: { colour: 'red' } });
+  expect(refusedFilter.status).toBe(422);
 });
 
 test('the read of the queue refuses a page larger than the writer reads', async () => {

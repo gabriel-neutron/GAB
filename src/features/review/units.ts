@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { askWriter } from '@/shared/write/door';
 
+import type { QueueFilter } from './review-workspace';
 import { unitPageOf, type UnitPage } from './unit-page';
 
 /** One page of the queue, or the sentence that says why this page holds none. */
@@ -19,19 +20,36 @@ const NO_WRITER =
   'The queue is private, and the write service on this machine did not give it. Start the ' +
   'write service, then open this page again.';
 
-const page = z.unknown().transform((raw, context) => {
-  const held = unitPageOf(raw);
-  if (held === null) {
-    context.addIssue({ code: 'custom', message: 'the answer is not a page of the queue' });
-    return z.NEVER;
-  }
-  return { page: held };
+const pageAfter = (after: readonly string[] | null) =>
+  z.unknown().transform((raw, context) => {
+    const held = unitPageOf(raw, after);
+    if (held === null) {
+      context.addIssue({ code: 'custom', message: 'the answer is not a page of the queue' });
+      return z.NEVER;
+    }
+    return { page: held };
+  });
+
+// The writer reads an absent filter as "every unit", so only the filters that are on are sent.
+const sentFilter = (filter: QueueFilter) => ({
+  ...(filter.group === null ? {} : { group: filter.group }),
+  ...(filter.proposer === null ? {} : { proposer: filter.proposer }),
+  ...(filter.fault === null ? {} : { fault: filter.fault }),
+  ...(filter.document === null ? {} : { document: filter.document }),
+  ...(filter.name.trim() === '' ? {} : { name: filter.name.trim() }),
 });
 
-/** Reads the page of the queue that starts after the key of the last unit read, or the first
- * page. It raises nothing: the public page has no writer. */
-export async function readUnits(after: readonly string[] | null): Promise<UnitsRead> {
-  const read = await askWriter(DOOR, { after, size: PAGE_SIZE }, page);
+/** Reads the page of the queue that the filter keeps after the key of the last unit read, or the
+ * first page. It raises nothing: the public page has no writer. */
+export async function readUnits(
+  after: readonly string[] | null,
+  filter: QueueFilter,
+): Promise<UnitsRead> {
+  const read = await askWriter(
+    DOOR,
+    { after, size: PAGE_SIZE, filter: sentFilter(filter) },
+    pageAfter(after),
+  );
   return read.step === 'done'
     ? { state: 'held', page: read.page }
     : { state: 'private', why: NO_WRITER };

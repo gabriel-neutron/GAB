@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
 import { ReviewSurface } from './review-surface';
+import { NO_FILTER } from './review-workspace';
 import { unitPageOf } from './unit-page';
 import { UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
@@ -13,7 +14,16 @@ const QUEUE = (
   <UnitsPage
     view={{
       state: 'held',
-      queue: { units: unitPageOf(UNIT_ANSWER)?.units ?? [], total: 1082, more: 'ready' },
+      queue: {
+        units: unitPageOf(UNIT_ANSWER, null)?.units ?? [],
+        total: 1082,
+        matched: 1082,
+        before: 0,
+        filtered: false,
+        more: 'ready',
+      },
+      filter: NO_FILTER,
+      choices: { groups: [], documents: [] },
       decision: { step: 'idle' },
     }}
     selectedId=""

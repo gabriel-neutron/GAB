@@ -28,6 +28,12 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   same_name: 'same name',
 };
 
+// Departure: two exports, one job. The mark on a line and the choice of the fault filter say one
+// kind of fault in the same words.
+
+/** The short words of one kind of fault. */
+export const faultWords = (kind: FaultKind): string => WORDS[kind];
+
 /** One mark for each kind of fault of a unit, in the order of the faults: the blocks first. */
 export function faultMarks(faults: readonly Fault[]): readonly FaultMark[] {
   const marks = new Map<FaultKind, FaultMark>();

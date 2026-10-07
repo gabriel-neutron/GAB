@@ -5,18 +5,30 @@ import { ChangeList, type RelationAct } from './change-list';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
 import { decisionWords } from './decision-words';
 import { Justification } from './justification';
+import { QueueFilterBar } from './queue-filter';
+import type { QueueFilter } from './review-workspace';
 import type { UnitWords } from './unit-changes';
 import { UnitList, type UnitListAct, type UnitQueue } from './unit-list';
+import type { FilterChoices } from './unit-page';
 
-/** The queue as this page holds it with the decision that it stands in, or the sentence that
- * says why it holds none. */
+/** The queue as this page holds it, with the filter that keeps it, the choices of the filter and
+ * the decision that it stands in, or the sentence that says why it holds none. */
 export type QueueView =
-  | { readonly state: 'held'; readonly queue: UnitQueue; readonly decision: DecisionState }
+  | {
+      readonly state: 'held';
+      readonly queue: UnitQueue;
+      readonly filter: QueueFilter;
+      readonly choices: FilterChoices;
+      readonly decision: DecisionState;
+    }
   | { readonly state: 'private'; readonly why: string };
 
-/** What the operator did on the page: open a unit, read the next page, or decide one unit. */
+/** What the operator did on the page: open a unit, read the next page, read from the first unit,
+ * change the filter, or decide one unit. */
 export type ReviewAct =
-  UnitListAct | { readonly kind: 'decide'; readonly unitId: string; readonly decision: Decision };
+  | UnitListAct
+  | { readonly kind: 'filter'; readonly filter: QueueFilter }
+  | { readonly kind: 'decide'; readonly unitId: string; readonly decision: Decision };
 
 export interface UnitsPageProps {
   readonly view: QueueView;
@@ -104,6 +116,14 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
       className="grid h-full min-h-0 grid-cols-[clamp(16rem,26%,22rem)_minmax(0,1fr)_clamp(15rem,28%,26rem)] overflow-hidden"
     >
       <div className="flex min-h-0 flex-col border-r border-border">
+        <QueueFilterBar
+          key={view.filter.name}
+          filter={view.filter}
+          choices={view.choices}
+          onFilter={(filter) => {
+            onAct({ kind: 'filter', filter });
+          }}
+        />
         <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
       </div>
       <div className="flex min-h-0 flex-col">
