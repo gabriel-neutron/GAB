@@ -85,14 +85,43 @@ const readable = (): TurndownService => {
   return turndown;
 };
 
-// An XHTML document of the Publications Office is one act with no navigation, and Readability keeps
-// only one part of it (an annex). Thus the whole document is the text of an XHTML answer.
+// The parts of a page that are no statement of it: code, the head, the frame of a site, and text
+// that the page hides from a reader. The Readability road removes them itself; the whole road
+// removes them here.
+const FRAME = [
+  'head',
+  'script',
+  'style',
+  'noscript',
+  'template',
+  'nav',
+  'header',
+  'footer',
+  'aside',
+  '[role="navigation"]',
+  '[role="banner"]',
+  '[role="contentinfo"]',
+  '[hidden]',
+  '[aria-hidden="true"]',
+  '[style*="display:none" i]',
+  '[style*="display: none" i]',
+  '[style*="visibility:hidden" i]',
+  '[style*="visibility: hidden" i]',
+].join(', ');
+
+// Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
+// alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
+// acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
 const htmlPage = (bytes: Uint8Array, whole: boolean): string => {
   const source = new TextDecoder('utf-8').decode(bytes);
   const { document } = parseHTML(source);
   document.querySelectorAll(COMMENTS).forEach((comment: { remove(): void }) => {
     comment.remove();
   });
+  if (whole)
+    document.querySelectorAll(FRAME).forEach((part: { remove(): void }) => {
+      part.remove();
+    });
   // Readability finds nothing in a page with no article, and the whole body is then the text.
   const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;

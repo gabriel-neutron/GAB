@@ -28,9 +28,13 @@ const MISSING = [
   /no longer (?:available|exists?)/iu,
 ] as const;
 
+/** True for a page of HTML, also when it is written as XML (XHTML). */
+export const isHtml = (mime: string): boolean =>
+  mime === 'text/html' || mime === 'application/xhtml+xml';
+
 /** The sentence that says why an answer is no record of the source, or null when it may be one. */
 export const unreadablePage = (mime: string, pages: readonly string[]): string | null => {
-  if (mime !== 'text/html') return null;
+  if (!isHtml(mime)) return null;
   const text = pages.join('\n').trim();
   if (text.length > SHORT_PAGE) return null;
   if (CHALLENGE.some((word) => word.test(text)))
