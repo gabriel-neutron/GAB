@@ -17,7 +17,7 @@ const PAGE = 'The tanker Nayara left Sikka on 3 May 2026.';
 const PUT = `SELECT public.put_document($1, 'file', 'A test of the batch door', $2, NULL, NULL,
   NULL, 'application/pdf', '2026-10-06'::date)`;
 const TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
-const CALL = `SELECT public.record_model_call('extractor', 'v2', 'freellmapi', 'a-model', $1, 120,
+const CALL = `SELECT public.record_model_call('extractor', 'v2', 'openrouter', 'a-model', $1, 120,
   'ok', NULL, 'a-model', 10, 5) AS id`;
 const BATCH =
   'SELECT item, proposal_id, written FROM public.propose_batch($1::jsonb) ORDER BY item';

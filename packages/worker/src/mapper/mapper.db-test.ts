@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { RunnerAgent } from '../agents.ts';
 import { makeLoader } from '../loader/loader.ts';
 import type { MapperConfig } from '../reader-config.ts';
-import { completionOf, depsOf, gatewayOf, READER, type StubGateway } from '../runner-fixture.ts';
+import { completionOf, depsOf, routerOf, READER, type StubRouter } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
 import { makeMapper } from './mapper.ts';
 
@@ -92,10 +92,10 @@ const DRAFT = {
 
 const answerOf = (draft: unknown): Response => completionOf(JSON.stringify({ mapping: draft }));
 
-const mapperAnswers = (): StubGateway => gatewayOf(() => answerOf(DRAFT));
+const mapperAnswers = (): StubRouter => routerOf(() => answerOf(DRAFT));
 
-const noModel = (): StubGateway =>
-  gatewayOf(() => {
+const noModel = (): StubRouter =>
+  routerOf(() => {
     throw new Error('the model was asked, and this test asks none');
   });
 
@@ -119,7 +119,7 @@ interface Held {
   readonly ask: (text: string, values?: unknown[]) => Promise<unknown[]>;
   readonly idOf: (text: string, values?: unknown[]) => Promise<string>;
   readonly job: (id: string) => Promise<z.infer<typeof jobRow>>;
-  readonly step: (agent: RunnerAgent, gateway: StubGateway) => Promise<Step>;
+  readonly step: (agent: RunnerAgent, router: StubRouter) => Promise<Step>;
   readonly asApp: <T>(work: () => Promise<T>) => Promise<T>;
 }
 
@@ -149,8 +149,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
           ])
         )[0],
       );
-    const step = async (agent: RunnerAgent, gateway: StubGateway): Promise<Step> => {
-      const { deps } = depsOf(client, [agent], gateway);
+    const step = async (agent: RunnerAgent, router: StubRouter): Promise<Step> => {
+      const { deps } = depsOf(client, [agent], router);
       return asRole('gabriel_agent', async () => (await openRunner(deps)).step());
     };
     await work({
@@ -324,7 +324,7 @@ test('a list whose header does not match gives one map_document act from the mod
   await inTransaction(async (held) => {
     const job = await seedDocument(held, LIST, 'https://www.lists.test/a.csv', LIST_TEXT);
     const bodies: string[] = [];
-    const watched = gatewayOf((_call, body) => {
+    const watched = routerOf((_call, body) => {
       bodies.push(body);
       return answerOf(DRAFT);
     });
@@ -350,14 +350,14 @@ test('a mapping that names a column the header lacks goes back to the model once
     const job = await seedDocument(held, LIST, 'https://www.lists.test/a.csv', LIST_TEXT);
     const wrong = { ...DRAFT, rows: { ...DRAFT.rows, label: 'Name of the vessel' } };
     const bodies: string[] = [];
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       return answerOf(call === 1 ? wrong : DRAFT);
     });
 
-    expect(await held.step(makeMapper(CONFIG), gateway)).toStrictEqual({ did: 'done', job });
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'done', job });
 
-    expect(gateway.chats()).toBe(2);
+    expect(router.chats()).toBe(2);
     expect(bodies[1]).toContain('the column \\"Name of the vessel\\" is not in the header');
     expect(await mappingsOf(held, LIST)).toHaveLength(1);
   });
@@ -367,9 +367,9 @@ test('a mapping that the tool refuses two times fails the job with the sentence 
   await inTransaction(async (held) => {
     const job = await seedDocument(held, LIST, 'https://www.lists.test/a.csv', LIST_TEXT);
     const wrong = { ...DRAFT, rows: { ...DRAFT.rows, label: 'Name of the vessel' } };
-    const gateway = gatewayOf(() => answerOf(wrong));
+    const router = routerOf(() => answerOf(wrong));
 
-    expect(await held.step(makeMapper(CONFIG), gateway)).toStrictEqual({ did: 'failed', job });
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
 
     expect((await held.job(job)).failure_reason).toMatch(
       /^the tool refused the mapping: the column "Name of the vessel" is not in the header/u,
@@ -384,11 +384,11 @@ test('a file that is not a csv fails with a sentence and asks no model', async (
     await held.ask("UPDATE public.documents SET mime = 'application/vnd.ms-excel' WHERE id = $1", [
       LIST,
     ]);
-    const gateway = noModel();
+    const router = noModel();
 
-    expect(await held.step(makeMapper(CONFIG), gateway)).toStrictEqual({ did: 'failed', job });
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
     expect((await held.job(job)).failure_reason).toMatch(/reads a CSV table only/u);
-    expect(gateway.chats()).toBe(0);
+    expect(router.chats()).toBe(0);
   });
 });
 
@@ -572,11 +572,11 @@ test('a second file of the same host and header reuses the mapping and asks no m
   await inTransaction(async (held) => {
     const mapped = await mappedList(held);
     const job = await seedDocument(held, SECOND, 'https://lists.test/b.csv', SECOND_TEXT);
-    const gateway = noModel();
+    const router = noModel();
 
-    expect(await held.step(makeMapper(CONFIG), gateway)).toStrictEqual({ did: 'done', job });
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'done', job });
 
-    expect(gateway.chats()).toBe(0);
+    expect(router.chats()).toBe(0);
     expect(await callsOf(held, job)).toBe(0);
     expect(await mappingsOf(held, SECOND)).toStrictEqual([]);
     const queued = await held.ask(
@@ -591,10 +591,10 @@ test('a second file of another host gets a new mapping act', async () => {
   await inTransaction(async (held) => {
     await mappedList(held);
     const job = await seedDocument(held, SECOND, 'https://other.test/b.csv', SECOND_TEXT);
-    const gateway = mapperAnswers();
+    const router = mapperAnswers();
 
-    expect(await held.step(makeMapper(CONFIG), gateway)).toStrictEqual({ did: 'done', job });
-    expect(gateway.chats()).toBe(1);
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'done', job });
+    expect(router.chats()).toBe(1);
     expect(await mappingsOf(held, SECOND)).toHaveLength(1);
   });
 });

@@ -9,10 +9,10 @@ import {
   claimsOf,
   completionOf,
   depsOf,
-  gatewayOf,
+  routerOf,
   READER,
   verdictsOf,
-  type StubGateway,
+  type StubRouter,
 } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
 import { makeExtractor } from './extractor.ts';
@@ -84,7 +84,7 @@ interface Held {
   readonly client: PoolClient;
   readonly job: string;
   readonly read: () => Promise<z.infer<typeof jobRow>>;
-  readonly step: (agent: RunnerAgent, gateway: StubGateway) => Promise<Step>;
+  readonly step: (agent: RunnerAgent, router: StubRouter) => Promise<Step>;
 }
 
 const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
@@ -118,8 +118,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         ).rows[0],
       );
 
-    const step = async (agent: RunnerAgent, gateway: StubGateway): Promise<Step> => {
-      const { deps } = depsOf(client, [agent], gateway);
+    const step = async (agent: RunnerAgent, router: StubRouter): Promise<Step> => {
+      const { deps } = depsOf(client, [agent], router);
       await client.query('SET LOCAL SESSION AUTHORIZATION gabriel_agent');
       try {
         return await (await openRunner(deps)).step();
@@ -173,12 +173,12 @@ const citedOf = async (held: Held) =>
 test('the text goes to the model as it is, and each item becomes a proposal with its passage', async () => {
   await inTransaction(async (held) => {
     const bodies: string[] = [];
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       return answerOf([call === 1 ? NAYARA : ROSNEFT]);
     });
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });
@@ -212,12 +212,12 @@ test('a refused batch goes back to the model once with its fault, and the correc
   await inTransaction(async (held) => {
     const bodies: string[] = [];
     const answers = [[INVENTED], [NAYARA], [ROSNEFT]];
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       return answerOf(answers[call - 1] ?? []);
     });
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });
@@ -229,9 +229,9 @@ test('a refused batch goes back to the model once with its fault, and the correc
 test('a batch that is refused twice proposes nothing, and the done job records the refused part', async () => {
   await inTransaction(async (held) => {
     const answers = [[INVENTED], [INVENTED], [ROSNEFT]];
-    const gateway = gatewayOf((call) => answerOf(answers[call - 1] ?? []));
+    const router = routerOf((call) => answerOf(answers[call - 1] ?? []));
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });
@@ -244,9 +244,9 @@ test('a batch that is refused twice proposes nothing, and the done job records t
 
 test('a job whose every part is refused fails with the count and the first refusal', async () => {
   await inTransaction(async (held) => {
-    const gateway = gatewayOf(() => answerOf([INVENTED]));
+    const router = routerOf(() => answerOf([INVENTED]));
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'failed',
       job: held.job,
     });
@@ -258,7 +258,7 @@ test('a job whose every part is refused fails with the count and the first refus
 
 test('a model that never stops calling a tool fails the job with the sentence of the turn cap', async () => {
   await inTransaction(async (held) => {
-    const lookups = gatewayOf(
+    const lookups = routerOf(
       () =>
         new Response(
           JSON.stringify({
@@ -300,16 +300,16 @@ test('a model that never stops calling a tool fails the job with the sentence of
 
 test('a job that fails after a part was proposed keeps that proposal, and its reason does not say that nothing was written', async () => {
   await inTransaction(async (held) => {
-    const gateway = gatewayOf((call) =>
+    const router = routerOf((call) =>
       call === 1 ? answerOf([NAYARA]) : new Response('{}', { status: 402 }),
     );
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'failed',
       job: held.job,
     });
     expect((await held.read()).failure_reason).toBe('the model account has no credit left');
-    expect(gateway.chats()).toBe(2);
+    expect(router.chats()).toBe(2);
     expect((await citedOf(held)).map((one) => one.label)).toStrictEqual(['Nayara']);
   });
 });
@@ -318,7 +318,7 @@ test('a spent token cap fails the job with the sentence of the token budget', as
   await inTransaction(async (held) => {
     const step = await held.step(
       makeExtractor({ ...CONFIG, tokenCap: 1 }),
-      gatewayOf(() => answerOf([NAYARA])),
+      routerOf(() => answerOf([NAYARA])),
     );
 
     expect(step).toStrictEqual({ did: 'failed', job: held.job });
@@ -348,7 +348,7 @@ const callsOf = async (held: Held) =>
 test('a model of another family checks each item, and an item it does not support is disputed', async () => {
   await inTransaction(async (held) => {
     const checked: string[][] = [];
-    const gateway = gatewayOf(
+    const router = routerOf(
       (call) => answerOf(call === 1 ? [NAYARA_LEFT, SIKKA] : [ROSNEFT]),
       (_call, body) => {
         const refs = claimsOf(body);
@@ -365,7 +365,7 @@ test('a model of another family checks each item, and an item it does not suppor
       },
     );
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });
@@ -383,7 +383,7 @@ test('a model of another family checks each item, and an item it does not suppor
 
 test('a checker that fails drops no item, and marks each one as disputed', async () => {
   await inTransaction(async (held) => {
-    const gateway = gatewayOf(
+    const router = routerOf(
       (call) => answerOf(call === 1 ? [NAYARA] : [ROSNEFT]),
       (call, body) =>
         call === 1
@@ -395,7 +395,7 @@ test('a checker that fails drops no item, and marks each one as disputed', async
             ]),
     );
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });
@@ -405,7 +405,7 @@ test('a checker that fails drops no item, and marks each one as disputed', async
 
 test('a checker that another model answers is refused, and the item is disputed', async () => {
   await inTransaction(async (held) => {
-    const gateway = gatewayOf(
+    const router = routerOf(
       (call) => answerOf(call === 1 ? [NAYARA] : []),
       (_call, body) =>
         completionOf(
@@ -416,7 +416,7 @@ test('a checker that another model answers is refused, and the item is disputed'
         ),
     );
 
-    expect(await held.step(makeExtractor(CONFIG), gateway)).toStrictEqual({
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
       did: 'done',
       job: held.job,
     });

@@ -19,11 +19,11 @@ import {
   CHECKER,
   completionOf,
   depsOf,
-  gatewayOf,
+  routerOf,
   READER,
   toolCallOf,
   toolsOf,
-  type StubGateway,
+  type StubRouter,
 } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
 import type { LeadConfig } from '../reader-config.ts';
@@ -102,8 +102,8 @@ interface Held {
   readonly job: string;
   readonly known: string;
   readonly ask: (text: string, values?: unknown[]) => Promise<unknown[]>;
-  readonly step: (config: LeadConfig, gateway: StubGateway, reach: Reach) => Promise<Step>;
-  readonly stepWith: (agents: readonly RunnerAgent[], gateway: StubGateway) => Promise<Step>;
+  readonly step: (config: LeadConfig, router: StubRouter, reach: Reach) => Promise<Step>;
+  readonly stepWith: (agents: readonly RunnerAgent[], router: StubRouter) => Promise<Step>;
 }
 
 const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
@@ -117,8 +117,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
     const job = one.parse(await ask(START, [LEAD]))[0]?.id ?? '';
     await ask(OLDEST, [job]);
 
-    const stepWith = async (agents: readonly RunnerAgent[], gateway: StubGateway) => {
-      const { deps } = depsOf(client, agents, gateway);
+    const stepWith = async (agents: readonly RunnerAgent[], router: StubRouter) => {
+      const { deps } = depsOf(client, agents, router);
       await client.query('SET LOCAL SESSION AUTHORIZATION gabriel_agent');
       try {
         return await (await openRunner(deps)).step();
@@ -126,8 +126,8 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         await client.query('RESET SESSION AUTHORIZATION');
       }
     };
-    const step = (config: LeadConfig, gateway: StubGateway, reach: Reach) =>
-      stepWith([makeLeadAgent(config, { reach })], gateway);
+    const step = (config: LeadConfig, router: StubRouter, reach: Reach) =>
+      stepWith([makeLeadAgent(config, { reach })], router);
     await work({ client, job, known, ask, step, stepWith });
   } finally {
     await client.query('ROLLBACK');
@@ -159,7 +159,7 @@ const THE_TOOLS = [
 test('a lead stores each new page, queues its extraction, and fetches no stored page again', async () => {
   await inTransaction(async ({ job, known, ask, step }) => {
     const bodies: string[] = [];
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       if (call === 1) return toolCallOf('web_search', { query: LEAD });
       if (call === 2) return toolCallOf('fetch_document', { url: NEW }, 'call_new');
@@ -167,7 +167,7 @@ test('a lead stores each new page, queues its extraction, and fetches no stored 
       return completionOf(JSON.stringify({ summary: 'One new register is stored.' }));
     });
 
-    expect(await step(CONFIG, gateway, reachOf())).toStrictEqual({ did: 'done', job });
+    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'done', job });
 
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
       { status: 'done', failure_reason: null },
@@ -194,14 +194,14 @@ test('a lead stores each new page, queues its extraction, and fetches no stored 
 test('the token budget stops a lead that loops, with that reason', async () => {
   await inTransaction(async ({ job, ask, step }) => {
     // Each answer of the stub costs twelve tokens, so the third question spends the budget.
-    const gateway = gatewayOf(() => toolCallOf('web_search', { query: LEAD }));
+    const router = routerOf(() => toolCallOf('web_search', { query: LEAD }));
 
-    expect(await step({ ...CONFIG, tokenCap: 30 }, gateway, reachOf())).toStrictEqual({
+    expect(await step({ ...CONFIG, tokenCap: 30 }, router, reachOf())).toStrictEqual({
       did: 'failed',
       job,
     });
 
-    expect(gateway.chats()).toBe(3);
+    expect(router.chats()).toBe(3);
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
       { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
     ]);
@@ -218,7 +218,7 @@ test('a lead fetches no address that differs from a stored one only in its form'
       KNOWN.replace(FIXTURE_HOST, FIXTURE_HOST.toUpperCase()),
       `${KNOWN}/`,
     ];
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       const variant = variants[call - 1];
       if (variant !== undefined)
@@ -226,7 +226,7 @@ test('a lead fetches no address that differs from a stored one only in its form'
       return completionOf(JSON.stringify({ summary: 'Nothing new.' }));
     });
 
-    expect(await step(CONFIG, gateway, reachOf())).toStrictEqual({ did: 'done', job });
+    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'done', job });
 
     expect(fixture.requests.filter((path) => path.startsWith('/known.html'))).toStrictEqual([]);
     for (const body of bodies.slice(1)) expect(body).toContain(known);
@@ -235,13 +235,13 @@ test('a lead fetches no address that differs from a stored one only in its form'
 
 test('the pages that a lead stored stay when its token budget stops it', async () => {
   await inTransaction(async ({ job, ask, step }) => {
-    const gateway = gatewayOf((call) =>
+    const router = routerOf((call) =>
       call === 1
         ? toolCallOf('fetch_document', { url: NEW }, 'call_new')
         : toolCallOf('web_search', { query: LEAD }),
     );
 
-    expect(await step({ ...CONFIG, tokenCap: 30 }, gateway, reachOf())).toStrictEqual({
+    expect(await step({ ...CONFIG, tokenCap: 30 }, router, reachOf())).toStrictEqual({
       did: 'failed',
       job,
     });
@@ -272,12 +272,12 @@ test('a worker with no lead settings starts, and each lead fails with the settin
       turnCap: 5,
       chunkCap: 6000,
     });
-    const gateway = gatewayOf(() => completionOf('{}'));
+    const router = routerOf(() => completionOf('{}'));
 
-    expect(await stepWith([extractor, lead], gateway)).toStrictEqual({ did: 'failed', job });
+    expect(await stepWith([extractor, lead], router)).toStrictEqual({ did: 'failed', job });
 
     expect(opened).toBe(false);
-    expect(gateway.chats()).toBe(0);
+    expect(router.chats()).toBe(0);
     const [row] = jobRow.parse(await ask(JOB, [job]));
     expect(row?.failure_reason).toMatch(/^the lead agent is not set up: LEAD_TOKEN_CAP /u);
   });
@@ -287,7 +287,7 @@ test('a lead fetches no address of the machine, even when a page or a result nam
   await inTransaction(async ({ job, step }) => {
     const bodies: string[] = [];
     const inside = `http://127.0.0.1:${String(fixture.port)}/new.html`;
-    const gateway = gatewayOf((call, body) => {
+    const router = routerOf((call, body) => {
       bodies.push(body);
       if (call === 1) return toolCallOf('fetch_document', { url: inside }, 'call_inside');
       return completionOf(JSON.stringify({ summary: 'Nothing stored.' }));
@@ -297,7 +297,7 @@ test('a lead fetches no address of the machine, even when a page or a result nam
     expect([lookup, refuses].every((one) => one !== undefined)).toBe(true);
     const before = fixture.requests.length;
 
-    expect(await step(CONFIG, gateway, reach)).toStrictEqual({ did: 'done', job });
+    expect(await step(CONFIG, router, reach)).toStrictEqual({ did: 'done', job });
 
     expect(fixture.requests.length).toBe(before);
     expect(bodies[1]).toContain('private network');

@@ -291,7 +291,8 @@ a machine is a proposal (P1). One door means no file without a source.
 model call.
 **Why.** The documents are public sources, and the names in them are the data that the extraction
 needs. A minimiser blocked every extraction.
-**Cost.** The free model providers see the full text of each document, contact details included.
+**Cost.** OpenRouter and the providers that it routes to see the full text of each document, contact
+details included. The routing asks each provider to keep no prompt and to train on none.
 
 ### P9 — Each AI claim cites a checked excerpt
 

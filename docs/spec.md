@@ -21,7 +21,7 @@ flowchart LR
         RAW[("S3 raw store<br/>original files")]
     end
 
-    MODEL["Model gateway"]
+    MODEL["OpenRouter"]
     SEARCH["Web search"]
 
     OP --> UI
@@ -45,7 +45,7 @@ flowchart LR
 | Web interface | The graph, the map, the review queue, search and entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
 | MCP server | Gives the research AI its tools, one flat tool for each action: read the record, the proposals and the documents, search, fetch, propose, queue a job, start a lead. Each tool says if it reads or writes. |
-| Model gateway, web search | External services. They hold no record of the project. |
+| OpenRouter, web search | External services. They hold no record of the project. |
 
 ## Who can do what
 
@@ -113,8 +113,8 @@ passage. An act that the check does not support, or that a failed check could no
 written as disputed. An act with a value that no cited passage states is disputed too. The act
 keeps a short reason with the flag: the value that the passage does not state, the verdict of the
 checker and its reason, or that the checker did not answer. The reason is frozen with the act and
-private: the review card shows it, and the public read does not. Every model call goes to the free
-model gateway and is recorded.
+private: the review card shows it, and the public read does not. Every model call goes to OpenRouter and is
+recorded.
 
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,
 the claims of that part are lost, and the job keeps the count of the refused parts and the first

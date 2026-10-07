@@ -81,7 +81,7 @@ const SHA = 'a'.repeat(64);
 // The runner records each call to a model before it proposes, and a proposal names its call.
 const proposedBy = async (jobId: string, documentId: string): Promise<string> => {
   const call = await agent.query<{ id: string }>(
-    `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1, 10, 'ok',
+    `SELECT public.record_model_call('extractor', 'v1', 'openrouter', 'a-model', $1, 10, 'ok',
        $2::uuid, 'a-model') AS id`,
     [SHA, jobId],
   );
