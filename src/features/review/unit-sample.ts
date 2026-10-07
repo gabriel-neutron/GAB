@@ -137,6 +137,7 @@ const BLOCKED_MIX = faultsOf([
   ],
   ['not_clean', 'reported_claim', 'The source reports a claim (alleges) and does not state a fact'],
   ['not_clean', 'unknown_type', 'The entity type is unknown'],
+  ['not_clean', 'rejected_before', 'Rejected before on 2026-10-06: Wrong value'],
   ['information', 'approximate_position', 'The position is approximate'],
   ['information', 'note', 'Note: no clear location'],
   ['information', 'sources_from_parent', 'Sources from the parent Southern Military District'],
