@@ -274,3 +274,64 @@ test('each filter runs on the server, with the keyset pages and the counts', asy
     title: 'A page that a session found',
   });
 });
+
+test('a page of one unit, read to the end with no filter, gives the order of one long page', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    return as(ask, 'gabriel_app', async () => ({
+      single: await everyUnit(ask, 1),
+      long: await everyUnit(ask, 200),
+    }));
+  });
+  expect(read.single).toStrictEqual(read.long);
+});
+
+test('a grandchild comes after its parent, also when its name sorts first', async () => {
+  const [top, middle, bottom] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(bottom, 'Qa Bottom Company'),
+      subordinate(randomUUID(), bottom, middle),
+      entity(middle, 'Qm Middle Battalion'),
+      subordinate(randomUUID(), middle, top),
+      entity(top, 'Qz Top Brigade'),
+    ]);
+    const group = await groupOf(ask, top);
+    return as(ask, 'gabriel_app', () => everyUnit(ask, 200, { group }));
+  });
+  expect(read).toStrictEqual([top, middle, bottom]);
+});
+
+// The limit of the order: the depth and the group never move, but a fault can. A rejected parent
+// blocks its children, and they move to the start of their group, before the place of the screen.
+test('the children of a rejected parent move before the place of the screen', async () => {
+  const [top, a, b, c] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(top, 'Qf Top Brigade'),
+      entity(a, 'Qf A Company'),
+      subordinate(randomUUID(), a, top),
+      entity(b, 'Qf B Company'),
+      subordinate(randomUUID(), b, top),
+      entity(c, 'Qf C Company'),
+      subordinate(randomUUID(), c, top),
+    ]);
+    const group = await groupOf(ask, top);
+    const first = await as(ask, 'gabriel_app', () => readPage(ask, null, 2, { group }));
+    await ask("SELECT public.reject_unit($1::uuid, 'duplicate', NULL, 'a test')", [top]);
+    return as(ask, 'gabriel_app', async () => ({
+      first,
+      next: await readPage(ask, first.next, 2, { group }),
+      again: await readPage(ask, null, 200, { group }),
+    }));
+  });
+  expect(read.first.units.map((unit) => unit.unit)).toStrictEqual([top, a]);
+  // The next page after the place of the screen shows no unit of the group: B and C are now
+  // blocked, so they come before that place.
+  expect(read.next.units).toStrictEqual([]);
+  expect(read.next.matched).toBe(3);
+  // A read from the first unit shows them again, with the faults first.
+  expect(read.again.units.map((unit) => unit.unit)).toStrictEqual([a, b, c]);
+});

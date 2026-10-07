@@ -2036,6 +2036,55 @@ BEGIN
    GROUP BY u.unit_id;
 END $$;
 
+-- THE GROUPS OF THE QUEUE, IN THE ORDER OF THE QUEUE. The queue and the rail of the groups read
+-- this one order. Each group that holds a pending act gives its subject, its sort key and the
+-- count of its pending units.
+--
+-- A group that other groups wait for comes before them. A group waits for another group when one
+-- of its relations names an act of that group. The height of a group is the longest chain of
+-- groups that wait for it, and a larger height comes first. Then the subject, then the
+-- identifier. The sort key is ARRAY['0', 999 - height, subject in lower case, identifier]: the
+-- numbers have a fixed width, because the key compares as text.
+--
+-- THE ORDER READS EVERY ACT OF A GROUP, pending or decided. An act and its group never change, so
+-- a decision never moves a group, and a page read after a decision starts where the screen left.
+-- No role holds this step: the reads of the operator call it.
+CREATE OR REPLACE FUNCTION queue_groups()
+RETURNS TABLE (batch_id uuid, subject text, sort_key text[], pending_units int)
+LANGUAGE sql STABLE
+SET jit = off
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH RECURSIVE every AS (
+    SELECT DISTINCT p.batch_id FROM public.proposals p WHERE p.batch_id IS NOT NULL
+  ), waits AS (
+    -- Group "waiter" waits for group "held".
+    SELECT DISTINCT r.batch_id AS waiter, o.batch_id AS held
+      FROM public.proposals r,
+           LATERAL (VALUES ((r.payload->>'src_id')::uuid), ((r.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref
+     WHERE r.op = 'create_relation' AND r.batch_id IS NOT NULL
+       AND o.batch_id IS NOT NULL AND o.batch_id <> r.batch_id
+  ), climb (root, last, path, height) AS (
+    SELECT g.batch_id, g.batch_id, ARRAY[g.batch_id], 0 FROM every g
+    UNION ALL
+    SELECT c.root, w.waiter, c.path || w.waiter, c.height + 1
+      FROM climb c JOIN waits w ON w.held = c.last
+     WHERE NOT w.waiter = ANY (c.path)
+  ), pending AS (
+    SELECT p.batch_id, count(DISTINCT p.unit_id)::int AS units
+      FROM public.proposals p
+     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
+     GROUP BY p.batch_id
+  )
+  SELECT n.batch_id, n.subject,
+         ARRAY['0', lpad((999 - least(n.height, 999))::text, 3, '0'),
+               lower(coalesce(n.subject, '')), n.batch_id::text],
+         n.units
+    FROM (SELECT g.batch_id, public.group_subject(g.batch_id) AS subject, g.units,
+                 (SELECT max(c.height) FROM climb c WHERE c.root = g.batch_id) AS height
+            FROM pending g) AS n
+$$;
+
 -- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its state and its faults,
 -- its acts, the ends of each act, the proposer, the group, the documents and the cited passages
 -- with two lines of context.
@@ -2047,16 +2096,18 @@ END $$;
 -- another entity of the group.
 --
 -- THE ORDER clears the import fast:
---   1. the groups, and after them the acts with no group;
---   2. a group that other groups wait for, before the groups that wait for it. A group waits for
---      another group when one of its links waits for a unit of that group. The height of a group
---      is the longest chain of groups that wait for it, and a larger height comes first;
---   3. the subject of the group, then its identifier;
---   4. in a group, the units with a fault (not clean or blocked) first, then the clean units;
---   5. the depth in the tree of the group, so a parent comes before its child. A unit that is not
+--   1. the groups in the order of the groups of the queue, and after them the acts with no group;
+--   2. in a group, the units with a fault (not clean or blocked) first, then the clean units;
+--   3. the depth in the tree of the group, so a parent comes before its child. A unit that is not
 --      an entity comes after the tree;
---   6. the name, then the identifier of the unit, so two units never share a key.
--- The numbers of the key have a fixed width, because the key compares as text.
+--   4. the name, then the identifier of the unit, so two units never share a key.
+-- The numbers of the key have a fixed width, because the key compares as text. The depth reads
+-- every act of the group, pending or decided, so a decision never changes it.
+--
+-- THE LIMIT OF THE ORDER: the fault of a unit can change after a decision. When the operator
+-- rejects a parent, its children become blocked and move to the start of their group, before the
+-- place of the screen. The next page then does not show them. They show again when the operator
+-- reads the queue from its first unit, or filters by the fault.
 --
 -- THE FILTERS: the group, the proposer, a kind of fault, a cited document, and a part of the name
 -- in any case. A null filter keeps every unit.
@@ -2069,12 +2120,16 @@ END $$;
 -- The answer also counts every unit of the queue, the units that the filters keep, and the units
 -- of the filters before the page, and it gives the choices of the filters: each group in the order
 -- of the queue, and each document that a pending act cites.
+--
+-- Departure: no compiled plan (jit). Measured on the record on 2026-10-07: the compile of the
+-- check of the faults took longer than the check.
 DROP FUNCTION IF EXISTS review_units(text[], int);
 CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int, p_group uuid DEFAULT NULL,
   p_proposer text DEFAULT NULL, p_fault text DEFAULT NULL, p_document text DEFAULT NULL,
   p_name text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
+SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
   WITH RECURSIVE size AS (
     SELECT greatest(1, least(coalesce(p_size, 50), 200)) AS n
@@ -2085,40 +2140,19 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.proposals p
      WHERE p.status = 'pending'
      ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
-  ), subjects AS (
-    SELECT g.batch_id, public.group_subject(g.batch_id) AS subject
-      FROM (SELECT DISTINCT h.batch_id FROM heads h WHERE h.batch_id IS NOT NULL) AS g
-  ), waits AS (
-    -- Group "waiter" waits for group "held".
-    SELECT DISTINCT h.batch_id AS waiter, w.batch_id AS held
-      FROM heads h
-      CROSS JOIN LATERAL public.unit_waits_for(h.unit_id) AS f(unit_id)
-      JOIN heads w ON w.unit_id = f.unit_id
-     WHERE h.op = 'create_relation' AND h.batch_id IS NOT NULL
-       AND w.batch_id IS NOT NULL AND w.batch_id <> h.batch_id
-  ), climb (root, last, path, height) AS (
-    SELECT s.batch_id, s.batch_id, ARRAY[s.batch_id], 0 FROM subjects s
-    UNION ALL
-    SELECT c.root, w.waiter, c.path || w.waiter, c.height + 1
-      FROM climb c JOIN waits w ON w.held = c.last
-     WHERE NOT w.waiter = ANY (c.path)
   ), groups AS (
-    SELECT s.batch_id, s.subject,
-           ARRAY['0', lpad((999 - least(max(c.height), 999))::text, 3, '0'),
-                 lower(coalesce(s.subject, '')), s.batch_id::text] AS group_key
-      FROM subjects s JOIN climb c ON c.root = s.batch_id
-     GROUP BY s.batch_id, s.subject
+    SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
-    -- The depth of each pending entity in the tree of its own group.
+    -- The depth of each pending entity in the tree of its own group, read on every act.
     SELECT h.unit_id, h.unit_id, ARRAY[h.unit_id], 0
       FROM heads h WHERE h.op = 'create_entity' AND h.batch_id IS NOT NULL
     UNION ALL
     SELECT t.start, d.id, t.path || d.id, t.depth + 1
       FROM tree t
-      JOIN public.proposals r ON r.status = 'pending' AND r.op = 'create_relation'
+      JOIN public.proposals r ON r.op = 'create_relation'
                              AND r.payload->>'type' = 'subordinate_to'
                              AND (r.payload->>'src_id')::uuid = t.at
-      JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid AND d.status = 'pending'
+      JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
                              AND d.op = 'create_entity' AND d.batch_id = r.batch_id
      WHERE NOT d.id = ANY (t.path)
   ), depths AS (
@@ -2129,12 +2163,12 @@ SET search_path = pg_catalog, public, pg_temp AS $$
            coalesce(g.group_key, ARRAY['1', '', '', '']) AS group_key,
            ARRAY[lpad(coalesce(dp.depth, 999)::text, 3, '0'), lower(u.name), u.unit_id::text]
              AS tail_key
-      FROM (SELECT h.unit_id, h.op, h.proposer, h.batch_id, h.payload, s.subject,
+      FROM (SELECT h.unit_id, h.op, h.proposer, h.batch_id, h.payload, gs.subject,
                    coalesce(public.element_name(
                               CASE WHEN h.op IN ('create_entity', 'create_relation')
                                    THEN h.unit_id ELSE h.target_id END), '') AS name
               FROM heads h
-              LEFT JOIN subjects s ON s.batch_id = h.batch_id
+              LEFT JOIN groups gs ON gs.batch_id = h.batch_id
              WHERE (p_group IS NULL OR h.batch_id = p_group)
                AND (p_proposer IS NULL OR h.proposer = p_proposer)
                AND (p_document IS NULL

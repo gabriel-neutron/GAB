@@ -60,13 +60,31 @@ const isFilter = (value: unknown): value is QueueFilter => {
   );
 };
 
+// The sort key of the queue: the flag of no group, the height of the group, its subject, its
+// identifier, the flag of no fault, the depth, the name, and the identifier of the unit. A key of
+// another shape is the key of an older order, and the writer refuses it.
+const NUMBER = /^\d{3}$/u;
+const FLAG = /^[01]$/u;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const SHAPE: readonly RegExp[] = [
+  FLAG,
+  NUMBER,
+  /^/u,
+  /^(|[0-9a-f-]{36})$/u,
+  FLAG,
+  NUMBER,
+  /^/u,
+  UUID,
+];
+const isKey = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) &&
+  value.length === SHAPE.length &&
+  value.every((part, at) => typeof part === 'string' && SHAPE[at]?.test(part) === true);
+
 const isWorkspace = (value: unknown): value is ReviewWorkspace => {
   if (!holdsOnlyDeclaredKeys(value, WORKSPACE_KEYS)) return false;
   const from = value['from'];
-  return (
-    isFilter(value['filter']) &&
-    (from === null || (Array.isArray(from) && from.every((part) => typeof part === 'string')))
-  );
+  return isFilter(value['filter']) && (from === null || isKey(from));
 };
 
 // Departure: four exports, one job. They read and patch one stored record of the filter, the
