@@ -3,11 +3,18 @@
 
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, EndpointKind, ProposalOp, Relation } from '@/shared/read/model';
+import { proposerWords } from '@/shared/proposer-words';
 import { relationWording } from '@/shared/relation-words';
 
 import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './act-words';
-import { originOf, type Origin } from './origin';
-import { VERDICT_WORDS, type Verdict } from './queue';
+
+/** What the operator decided on an act. */
+export type Verdict = 'promoted' | 'rejected';
+
+const VERDICT_WORDS: Readonly<Record<Verdict, string>> = {
+  promoted: 'Promoted into the record',
+  rejected: 'Rejected in the record',
+};
 
 export interface DecidedRow {
   readonly id: string;
@@ -23,7 +30,8 @@ export interface DecidedRow {
   readonly when: string;
   /** The name the verdict was signed with. It proves no person. */
   readonly signedAs: string;
-  readonly author: Origin;
+  /** Who proposed the act: the v1 import, the research AI, the extractor or the operator. */
+  readonly author: string;
 }
 
 const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], Verdict>> = {
@@ -184,7 +192,7 @@ export function readDecided(corpus: Corpus, acts: readonly DecidedAct[]): readon
       decidedAt,
       when: whenOf(decidedAt),
       signedAs: decidedBy,
-      author: originOf(act.authorRole),
+      author: proposerWords(act.proposer),
     };
   });
   return [...rows].sort((a, b) => momentOf(b) - momentOf(a) || a.id.localeCompare(b.id));

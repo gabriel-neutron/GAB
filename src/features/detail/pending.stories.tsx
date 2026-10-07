@@ -39,7 +39,7 @@ const MIXED: readonly PendingLine[] =
           ...corpus,
           proposals: [
             ...corpus.proposals,
-            { ...AGENT_ACT, id: OPERATOR_ACT_ID, authorRole: 'gabriel_app' },
+            { ...AGENT_ACT, id: OPERATOR_ACT_ID, authorRole: 'gabriel_app', proposer: 'operator' },
           ],
         },
         FACILITY,
@@ -144,10 +144,10 @@ export const EachCandidateStatesItsOrigin: Story = {
     const operator = within(row(OPERATOR_ACT_ID));
 
     await expect(agent.getByText('candidate')).toBeInTheDocument();
-    await expect(agent.getByText('machine')).toBeInTheDocument();
+    await expect(agent.getByText('extractor')).toBeInTheDocument();
     await expect(agent.queryByText('operator')).toBeNull();
     await expect(operator.getByText('candidate')).toBeInTheDocument();
     await expect(operator.getByText('operator')).toBeInTheDocument();
-    await expect(operator.queryByText('machine')).toBeNull();
+    await expect(operator.queryByText('extractor')).toBeNull();
   },
 };
