@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('a queue of more than 1,000 acts is read in parts, and every act gets its passage', async () => {
+test('a queue of more than 1,000 acts is read in parts, and every act gets its passage and its type', async () => {
   const sizes: number[] = [];
   vi.stubGlobal(
     'fetch',
@@ -32,6 +32,7 @@ test('a queue of more than 1,000 acts is read in parts, and every act gets its p
             proposalId,
             document: 'doc_0123456789ab',
             title: 'A register',
+            mime: 'image/png',
             page: 1,
             text: `the words of ${proposalId}`,
           })),
@@ -51,6 +52,7 @@ test('a queue of more than 1,000 acts is read in parts, and every act gets its p
       {
         document: 'doc_0123456789ab',
         title: 'A register',
+        mime: 'image/png',
         page: 1,
         text: `the words of ${idOf(2499)}`,
       },

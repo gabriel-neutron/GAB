@@ -16,7 +16,7 @@ const asked = z.strictObject({ proposalIds: z.array(z.uuid()).max(MOST_ACTS) });
 const PASSAGES = `SELECT
   (SELECT coalesce(jsonb_agg(jsonb_build_object(
             'proposalId', c.claim_id::text, 'document', c.doc_id::text, 'title', d.title,
-            'page', c.page, 'text', substr(t.text, c.start + 1, c."end" - c.start))
+            'mime', d.mime, 'page', c.page, 'text', substr(t.text, c.start + 1, c."end" - c.start))
           ORDER BY c.claim_id, c.doc_id, c.page, c.start), '[]'::jsonb)
      FROM public.citation c
      JOIN public.documents d ON d.id = c.doc_id
@@ -35,6 +35,7 @@ const read = z.object({
       proposalId: z.string(),
       document: z.string(),
       title: z.string(),
+      mime: z.string().nullable(),
       page: z.number().int(),
       text: z.string(),
     }),
