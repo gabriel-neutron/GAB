@@ -16,13 +16,20 @@ import {
 import { createServer } from './server.ts';
 import { webOf } from '@gab/tools/web';
 
+const STOPPED =
+  'the database does not answer; start the stack (docker compose -f infra/docker-compose.yml up -d)';
+
 // The usual faults of a first start, each with the step that corrects it.
 const START_FAULTS: Readonly<Record<string, string>> = {
   '28P01':
     'the password in GAB_RESEARCH_DATABASE_URL is wrong; put the value of ' +
     'GABRIEL_RESEARCH_PASSWORD of infra/.env',
-  '3D000': 'the database in GAB_RESEARCH_DATABASE_URL does not exist; apply the database first',
-  ECONNREFUSED: 'the database does not answer; start the stack (docker compose up -d)',
+  '3D000':
+    'the database in GAB_RESEARCH_DATABASE_URL does not exist; name the database gabriel, as in ' +
+    'research/.env.example',
+  ECONNREFUSED: STOPPED,
+  ETIMEDOUT: STOPPED,
+  ENOTFOUND: 'the host in GAB_RESEARCH_DATABASE_URL does not exist; use 127.0.0.1',
 };
 
 const stop = (cause: unknown): never => {
