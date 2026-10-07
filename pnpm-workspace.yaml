@@ -16,8 +16,11 @@ packages:
 # `esbuild` arrives with Storybook — `@storybook/csf-plugin` and `@storybook/builder-vite` both
 # depend on it (#60). Vite 8 itself uses rolldown and does not. Without the script the binary
 # is absent and every Storybook command fails at startup.
+#
+# `tesseract.js` is refused: its script only prints a request for donations.
 allowBuilds:
   esbuild: true
+  tesseract.js: false
   unrs-resolver: true
 
 # `minimumReleaseAgeExclude` records the packages installed before the age gate would have
