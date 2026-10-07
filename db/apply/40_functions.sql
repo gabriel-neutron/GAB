@@ -103,6 +103,42 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- THE UNIT OF DECISION (P11). The operator decides one entity with the relations that depend on
+-- it. A relation whose end is a pending act outside its group is a unit of its own, so that no
+-- entity waits for another group. If not, a relation belongs to its source end when that end is a
+-- pending entity of the same group, then to its target end. Every other act is its own unit. An
+-- entity act has the identifier of the entity it creates, so the unit of an entity is that
+-- identifier. The unit is frozen with the act.
+CREATE OR REPLACE FUNCTION stamp_unit() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_src uuid;
+  v_dst uuid;
+BEGIN
+  NEW.unit_id := NEW.id;
+  IF NEW.op <> 'create_relation' OR NEW.batch_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  v_src := (NEW.payload->>'src_id')::uuid;
+  v_dst := (NEW.payload->>'dst_id')::uuid;
+  IF EXISTS (SELECT 1 FROM public.proposals o
+              WHERE o.id IN (v_src, v_dst) AND o.status = 'pending'
+                AND NOT (o.op = 'create_entity'
+                         AND o.batch_id IS NOT DISTINCT FROM NEW.batch_id)) THEN
+    RETURN NEW;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals o
+              WHERE o.id = v_src AND o.status = 'pending' AND o.op = 'create_entity'
+                AND o.batch_id = NEW.batch_id) THEN
+    NEW.unit_id := v_src;
+  ELSIF EXISTS (SELECT 1 FROM public.proposals o
+                 WHERE o.id = v_dst AND o.status = 'pending' AND o.op = 'create_entity'
+                   AND o.batch_id = NEW.batch_id) THEN
+    NEW.unit_id := v_dst;
+  END IF;
+  RETURN NEW;
+END $$;
+
 -- THE LOG IS FROZEN AT THE INSERT, AND NOT AT THE DECISION. A pending act is already public
 -- under PU1, so an agent that runs again must not rewrite what it said. Measured on #16: a
 -- table owner ignores a column grant, and only a trigger held.
@@ -121,11 +157,11 @@ BEGIN
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
-      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id)
+      NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id, NEW.unit_id)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
-      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id) THEN
+      OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id, OLD.unit_id) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -535,8 +571,11 @@ BEGIN
     END IF;
   END LOOP;
 
+  -- The entities go first, so that the unit stamp of each relation finds the entity acts of its
+  -- batch in any order of the items. Each answer keeps the number of its item.
   FOR v_item, v_no IN SELECT e.value, e.ordinality::int FROM jsonb_array_elements(p_items)
-                         WITH ORDINALITY AS e(value, ordinality) LOOP
+                         WITH ORDINALITY AS e(value, ordinality)
+                       ORDER BY e.value->>'op' IS DISTINCT FROM 'create_entity', e.ordinality LOOP
     v_minted  := (v_item->>'id')::uuid;
     -- The promotion gives the new row this identifier, so it must not be the identifier of a
     -- row that the record already holds.
@@ -1416,6 +1455,145 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     FROM public.jobs j
    WHERE j.kind = 'research_lead'
    ORDER BY j.created_at DESC, j.id
+$$;
+
+-- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its acts, the ends of each
+-- relation, the proposer, the group, the documents and the cited passages with two lines of
+-- context. The passages and the reason of a dispute are private, so only the operator role holds
+-- this read. The page starts after the sort key of the last unit of the page before, so a long
+-- queue is never read whole.
+--
+-- THE GROUP IS NAMED BY ITS SUBJECT: the entity of the group that is the source of no relation to
+-- another entity of the group. The sort key is the group, the name of the unit, then its
+-- identifier, so two units never share a key.
+DROP FUNCTION IF EXISTS review_units(text[], int);
+CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH pending AS (
+    SELECT * FROM public.proposals WHERE status = 'pending'
+  ), ends AS (
+    -- The name and the state of each element that a pending act names.
+    SELECT n.id,
+           CASE WHEN w.id IS NOT NULL THEN 'pending'
+                WHEN e.id IS NOT NULL OR r.id IS NOT NULL THEN 'record'
+                ELSE 'missing' END AS state,
+           coalesce(w.payload->>'label', e.label) AS name,
+           w.batch_id AS group_id
+      FROM (SELECT DISTINCT x.ref::uuid AS id
+              FROM pending p,
+                   LATERAL (VALUES (p.payload->>'src_id'), (p.payload->>'dst_id'),
+                                   (p.target_id::text)) AS x(ref)
+             WHERE x.ref IS NOT NULL) AS n
+      LEFT JOIN pending w ON w.id = n.id
+      LEFT JOIN public.entities e ON e.id = n.id
+      LEFT JOIN public.relations r ON r.id = n.id
+  ), said AS (
+    SELECT x.id, jsonb_build_object('name', x.name, 'state', x.state, 'group', x.group_id) AS said
+      FROM ends x
+  ), subjects AS (
+    SELECT DISTINCT ON (g.batch_id) g.batch_id, g.payload->>'label' AS subject
+      FROM public.proposals g
+     WHERE g.op = 'create_entity' AND g.batch_id IN (SELECT batch_id FROM pending)
+       AND NOT EXISTS (
+             SELECT 1 FROM public.proposals r
+               JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
+              WHERE r.op = 'create_relation' AND r.batch_id = g.batch_id
+                AND (r.payload->>'src_id')::uuid = g.id
+                AND d.op = 'create_entity' AND d.batch_id = g.batch_id)
+     ORDER BY g.batch_id, g.created_at, g.id
+  ), heads AS (
+    -- The head act of each unit: the entity of an entity unit, or the one act of any other unit.
+    SELECT DISTINCT ON (p.unit_id) p.unit_id, p.op, p.payload, p.proposer, p.batch_id,
+           p.target_id
+      FROM pending p
+     ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
+  ), units AS (
+    SELECT h.unit_id, h.op, h.proposer, h.batch_id, s.subject,
+           CASE h.op
+             WHEN 'create_entity' THEN h.payload->>'label'
+             WHEN 'create_relation' THEN
+               coalesce(es.name, '?') || ' → ' || coalesce(ed.name, '?')
+             ELSE coalesce(et.name, '')
+           END AS name,
+           CASE h.op WHEN 'create_entity' THEN h.payload->>'type'
+                     WHEN 'create_relation' THEN h.payload->>'type'
+                     ELSE NULL END AS type
+      FROM heads h
+      LEFT JOIN subjects s ON s.batch_id = h.batch_id
+      LEFT JOIN ends es ON es.id = (h.payload->>'src_id')::uuid
+      LEFT JOIN ends ed ON ed.id = (h.payload->>'dst_id')::uuid
+      LEFT JOIN ends et ON et.id = h.target_id
+  ), keyed AS (
+    SELECT u.*,
+           ARRAY[CASE WHEN u.batch_id IS NULL THEN '1' ELSE '0' END,
+                 lower(coalesce(u.subject, '')), coalesce(u.batch_id::text, ''),
+                 lower(u.name), u.unit_id::text] AS sort_key
+      FROM units u
+  ), page AS (
+    SELECT k.*
+      FROM keyed k
+     WHERE p_after IS NULL OR k.sort_key > p_after
+     ORDER BY k.sort_key
+     LIMIT greatest(1, least(coalesce(p_size, 50), 200)) + 1
+  ), shown AS (
+    SELECT p.*, row_number() OVER (ORDER BY p.sort_key) AS no FROM page p
+  )
+  SELECT jsonb_build_object(
+    'total', (SELECT count(*) FROM units),
+    'next', (SELECT s.sort_key FROM shown s
+              WHERE s.no = greatest(1, least(coalesce(p_size, 50), 200))
+                AND EXISTS (SELECT 1 FROM shown t
+                             WHERE t.no > greatest(1, least(coalesce(p_size, 50), 200)))),
+    'units', coalesce((
+      SELECT jsonb_agg(jsonb_build_object(
+               'unit', s.unit_id,
+               'kind', CASE s.op WHEN 'create_entity' THEN 'entity'
+                                 WHEN 'create_relation' THEN 'link' ELSE 'change' END,
+               'name', s.name,
+               'type', s.type,
+               'proposer', s.proposer,
+               'group', CASE WHEN s.batch_id IS NULL THEN NULL
+                             ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
+               'acts', (
+                 SELECT jsonb_agg(jsonb_build_object(
+                          'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
+                          'createdAt', a.created_at, 'dissent', a.dissent,
+                          'dissentReason', a.dissent_reason,
+                          'target', (SELECT x.said FROM said x
+                                      WHERE x.id = a.target_id),
+                          'src', (SELECT x.said FROM said x
+                                   WHERE x.id = (a.payload->>'src_id')::uuid),
+                          'dst', (SELECT x.said FROM said x
+                                   WHERE x.id = (a.payload->>'dst_id')::uuid))
+                          ORDER BY (a.op <> 'create_entity'), a.created_at, a.id)
+                   FROM pending a WHERE a.unit_id = s.unit_id),
+               'documents', (
+                 SELECT coalesce(jsonb_agg(jsonb_build_object(
+                          'id', d.id, 'title', d.title, 'uri', d.uri, 'mime', d.mime)
+                          ORDER BY d.id), '[]'::jsonb)
+                   FROM public.documents d
+                  WHERE d.id IN (SELECT unnest(a.src) FROM pending a
+                                  WHERE a.unit_id = s.unit_id)),
+               -- substr counts code points, as the offsets of a citation.
+               'passages', (
+                 SELECT coalesce(jsonb_agg(jsonb_build_object(
+                          'act', c.claim_id, 'document', c.doc_id, 'page', c.page,
+                          'before', substring(
+                             substr(t.text, greatest(1, c.start - 1999), least(c.start, 2000))
+                             FROM '(?:[^\n]*\n){0,2}[^\n]*$'),
+                          'text', substr(t.text, c.start + 1, c."end" - c.start),
+                          'after', substring(substr(t.text, c."end" + 1, 2000)
+                                             FROM '^[^\n]*(?:\n[^\n]*){0,2}'))
+                          ORDER BY c.claim_id, c.doc_id, c.page, c.start), '[]'::jsonb)
+                   FROM public.citation c
+                   JOIN public.document_text t
+                     ON t.document_id = c.doc_id AND t.extractor = c.text_extractor
+                    AND t.page = c.page
+                  WHERE c.claim_id IN (SELECT a.id FROM pending a WHERE a.unit_id = s.unit_id)))
+             ORDER BY s.sort_key)
+        FROM shown s WHERE s.no <= greatest(1, least(coalesce(p_size, 50), 200))), '[]'::jsonb))
 $$;
 
 -- THE WORDS OF THE PARTS THAT A JOB COULD NOT PROPOSE. The status of a done job and the reason of

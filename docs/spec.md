@@ -118,8 +118,15 @@ and its status shows them to the operator and to the research AI. A job with eve
 fails, with the same words as its reason. While a job waits or runs, the interface reads its status
 again by itself.
 
-The acts of one call that name each other are one linked batch. The review queue shows it as one
-card, and the operator promotes or rejects it as one unit, in one transaction. A promotion writes
+Each act gets a unit of decision when the door writes it, and the unit never changes (P11). An
+entity is a unit with the relations that depend on it. A relation that names an act that waits in
+another group is a unit of its own, so no entity waits for another group. The review queue shows
+one line for each unit, in three columns: the units, the changes of one unit, and its source. It
+reads one page of units at a time through the writer, because the cited passages are private. Each
+line names who proposed it: the v1 import, the research AI or the extractor.
+
+The acts of one call that name each other are one linked batch, which the queue shows as the group
+of a unit. The operator promotes or rejects a batch as one unit, in one transaction. A promotion writes
 each entity before the relation that names it. One refused act refuses the whole batch: the
 refusal names the act and the reason, and nothing is written. An act that names no other act of
 its call stays single, so a faulty claim never blocks a good claim of the same page. The door for

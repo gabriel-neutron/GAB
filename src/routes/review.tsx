@@ -1,126 +1,103 @@
-import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
+import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
 import { readDecided } from '@/features/review/decided';
-import { sendBatchVerdict, sendVerdict, type DecisionState } from '@/features/review/decision';
-import { ReviewPage, type ReviewAct } from '@/features/review/review-page';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
-import { readPassages } from '@/features/review/passages';
-import { readQueue, type SortKey, type Verdicts } from '@/features/review/queue';
-import { subjectsNamed } from '@/features/review/subjects-named';
-import { beginVerdict, decisionAfterMove, settleVerdict } from '@/features/review/verdict-flow';
-import { patchSort, readSort } from '@/features/review/workspace';
-import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
+import type { UnitListAct } from '@/features/review/unit-list';
+import type { UnitPage } from '@/features/review/unit-page';
+import { unitWords } from '@/features/review/unit-words';
+import { readUnits } from '@/features/review/units';
+import { UnitsPage, type QueueView } from '@/features/review/units-page';
+import { loadCorpus } from '@/shared/read/corpus';
 import { loadDecidedActs } from '@/shared/read/decided-acts';
-import { loadEntityTypes } from '@/shared/read/vocabulary';
-import { useScreenQuery } from '@/shared/screen-query';
+import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
 
 export interface ReviewSearch {
-  /** What is under examination. An empty string opens the queue at its first subject. */
-  readonly subject: string;
+  /** The unit under examination. An empty string opens the queue at its first unit. */
+  readonly unit: string;
   readonly view: ReviewView;
 }
 
-const IDLE: DecisionState = { step: 'idle' };
-
 export const Route = createFileRoute('/review')({
   // The address comes from outside, so it is validated before its first use. A stale identifier
-  // opens the queue at its first subject, and it never takes the surface off the screen.
+  // opens the queue at its first unit, and it never takes the surface off the screen.
   validateSearch: (search: Record<string, unknown>): ReviewSearch => {
-    const subject = search['subject'];
+    const unit = search['unit'];
     return {
-      subject: typeof subject === 'string' ? subject : '',
+      unit: typeof unit === 'string' ? unit : '',
       view: search['view'] === 'decided' ? 'decided' : 'queue',
     };
   },
 
-  search: { middlewares: [stripSearchParams({ subject: '', view: 'queue' })] },
+  search: { middlewares: [stripSearchParams({ unit: '', view: 'queue' })] },
 
-  // The router draws no component until these answers arrive, so the queue and the history below
-  // are read from answers that are already held. The view is no dependency of the loader: a
-  // reload keyed on it draws the pending screen, and that screen would end the pass.
-  loader: async () => {
-    const [corpus, decided, types] = await Promise.all([
-      loadCorpus(),
-      loadDecidedActs(),
+  // The queue reads one page of units. The history reads the whole corpus, so it is read only
+  // when the history is open.
+  loaderDeps: ({ search }) => ({ view: search.view }),
+  loader: async ({ deps }) => {
+    const [first, relationTypes, entityTypes] = await Promise.all([
+      readUnits(null),
+      loadRelationTypes(),
       loadEntityTypes(),
     ]);
-    const passages = await readPassages(corpus.proposals.map((proposal) => proposal.id));
-    return { corpus, decided, types, passages };
+    if (deps.view !== 'decided') return { first, relationTypes, entityTypes, history: [] };
+    const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
+    return { first, relationTypes, entityTypes, history: readDecided(corpus, decided) };
   },
 
   component: ReviewRoute,
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
+/** The pages read after the first one, and whether a read runs now. */
+interface LaterPages {
+  readonly pages: readonly UnitPage[];
+  readonly reading: boolean;
+}
+
+const NONE: LaterPages = { pages: [], reading: false };
+
 function ReviewRoute() {
-  const { subject, view } = Route.useSearch();
+  const { unit, view } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { corpus, decided, types, passages } = Route.useLoaderData();
-  const router = useRouter();
+  const { first, relationTypes, entityTypes, history } = Route.useLoaderData();
 
-  const [sort, setSort] = useState<SortKey>(readSort);
+  // The pages after the first die with the view: a reload reads the first page again.
+  const [later, setLater] = useState<LaterPages>(NONE);
 
-  // The verdicts of one pass. A promotion and a rejection also stand in the record, and the act
-  // then leaves the queue on the next read; a hold stands here alone and a reload loses it.
-  const [verdicts, setVerdicts] = useState<Verdicts>({});
+  const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
 
-  const [decision, setDecision] = useState<DecisionState>(IDLE);
+  const queue: QueueView =
+    first.state === 'private'
+      ? first
+      : {
+          state: 'held',
+          queue: {
+            units: [first.page, ...later.pages].flatMap((page) => page.units),
+            total: first.page.total,
+            more: later.reading
+              ? 'reading'
+              : (later.pages.at(-1) ?? first.page).next === null
+                ? 'none'
+                : 'ready',
+          },
+        };
 
-  // Without this memory every render of this route walks the whole corpus again.
-  const queued = useMemo(() => readQueue(corpus, types), [corpus, types]);
-  const query = useScreenQuery({
-    named: queued,
-    choose: (subjectId) => {
-      onAct({ kind: 'select', subjectId });
-    },
-  });
-  const subjects = useMemo(() => subjectsNamed(queued, query), [queued, query]);
-  const history = useMemo(() => readDecided(corpus, decided), [corpus, decided]);
-
-  const forgetTheSentence = (): void => {
-    setDecision(decisionAfterMove(decision));
-  };
-
-  const onAct = (act: ReviewAct): void => {
+  const onAct = (act: UnitListAct): void => {
     switch (act.kind) {
       case 'select':
-        forgetTheSentence();
-        void navigate({ search: (held) => ({ ...held, subject: act.subjectId }), replace: true });
+        void navigate({ search: (held) => ({ ...held, unit: act.unitId }), replace: true });
         return;
-      case 'sort':
-        setSort(act.sort);
-        patchSort(act.sort);
-        return;
-      case 'decide': {
-        // A decision is an event handler and never an effect.
-        const deciding = beginVerdict(decision, {
-          changeId: act.changeId,
-          verdict: act.verdict,
-        });
-        if (deciding === null) return;
-        setDecision(deciding);
-        void sendVerdict(act.changeId, act.verdict).then(async (answer) => {
-          const { held } = settleVerdict(answer, act);
-          setDecision(answer);
-          if (held !== null) setVerdicts((all) => ({ ...all, [act.changeId]: held }));
-          await refreshCorpus(() => router.invalidate());
-        });
-        return;
-      }
-      case 'decide-batch': {
-        const deciding = beginVerdict(decision, { batchId: act.batchId, verdict: act.verdict });
-        if (deciding === null) return;
-        setDecision(deciding);
-        void sendBatchVerdict(act.batchId, act.verdict).then(async (answer) => {
-          const { held } = settleVerdict(answer, act);
-          setDecision(answer);
-          if (held !== null)
-            setVerdicts((all) => ({
-              ...all,
-              ...Object.fromEntries([act.batchId, ...act.changeIds].map((id) => [id, held])),
-            }));
-          await refreshCorpus(() => router.invalidate());
+      case 'more': {
+        if (first.state === 'private' || later.reading) return;
+        const after = (later.pages.at(-1) ?? first.page).next;
+        if (after === null) return;
+        setLater({ ...later, reading: true });
+        void readUnits(after).then((read) => {
+          setLater((held) => ({
+            pages: read.state === 'held' ? [...held.pages, read.page] : held.pages,
+            reading: false,
+          }));
         });
         return;
       }
@@ -134,15 +111,7 @@ function ReviewRoute() {
         void navigate({ search: (held) => ({ ...held, view: next }), replace: true });
       }}
       decided={history}
-      queue={
-        <ReviewPage
-          queue={{ subjects, verdicts }}
-          examination={{ subjectId: subject === '' ? null : subject, sort }}
-          decision={decision}
-          passages={passages}
-          onAct={onAct}
-        />
-      }
+      queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
     />
   );
 }
