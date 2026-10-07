@@ -1882,12 +1882,27 @@ BEGIN
                 AND NOT x.payload ? 'sources_from')) AS q
       JOIN acts a ON a.id = q.claim_id
   ), before AS (
-    -- The newest rejection of the same claim, for each unit.
+    -- The newest rejection of the same claim, for each unit. The key of an entity holds no
+    -- parent, so that a key never changes, and the match of an entity also compares the claim
+    -- of its parent: the first act that puts it under a parent. No parent matches no parent. So a
+    -- rejected "1st battalion" marks only a "1st battalion" under the same parent.
     SELECT DISTINCT ON (a.unit_id) a.unit_id, a.id AS act, r.decided_at, r.reject_reason,
            r.reject_note
       FROM acts a
       JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
                              AND r.id <> a.id
+     WHERE a.op <> 'create_entity'
+        OR (SELECT w.claim_key FROM public.proposals w
+             WHERE w.names @> ARRAY[a.id] AND w.status = 'pending'
+               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
+               AND (w.payload->>'src_id')::uuid = a.id
+             ORDER BY w.created_at, w.id LIMIT 1)
+           IS NOT DISTINCT FROM
+           (SELECT w.claim_key FROM public.proposals w
+             WHERE w.names @> ARRAY[r.id]
+               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
+               AND (w.payload->>'src_id')::uuid = r.id
+             ORDER BY w.created_at, w.id LIMIT 1)
      ORDER BY a.unit_id, r.decided_at DESC, r.id
   ), found (unit_id, level, kind, act, said) AS (
     -- -------------------------------------------------------------------------------- blocks --
@@ -1982,7 +1997,7 @@ BEGIN
                 WHEN 'out_of_scope' THEN 'Out of scope'
                 WHEN 'end_rejected' THEN 'End rejected'
                 WHEN 'other' THEN 'Other'
-                ELSE 'no reason was recorded' END
+                ELSE 'No reason was recorded' END
            || coalesce(' (' || b.reject_note || ')', '')
       FROM before b
     -- --------------------------------------------------------------------------- information --
