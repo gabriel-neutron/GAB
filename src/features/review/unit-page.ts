@@ -22,8 +22,11 @@ export interface UnitEnd {
  * information only. */
 export type FaultLevel = 'blocks' | 'waits' | 'not_clean' | 'information';
 
+// Departure: two exports, one job. The closed set of the faults is part of the shape of the page,
+// and the filter of the queue offers the same set.
+
 /** Each fault that the check of the database finds. */
-const FAULT_KINDS = [
+export const FAULT_KINDS = [
   'end_waits',
   'circle',
   'end_relation_waits',
@@ -119,11 +122,30 @@ export interface Unit {
   readonly passages: readonly Passage[];
 }
 
-/** One page of the queue, the key that opens the next page, and the count of every unit. */
+/** A group that the filter can choose, named by its subject. */
+export interface GroupChoice {
+  readonly id: string;
+  readonly subject: string | null;
+}
+
+/** What the filters of the queue can choose: each group in the order of the queue, and each
+ * document that a pending act cites. */
+export interface FilterChoices {
+  readonly groups: readonly GroupChoice[];
+  readonly documents: readonly { readonly id: string; readonly title: string }[];
+}
+
+/** One page of the queue: the key it starts after, the key that opens the next page, the count
+ * of every unit, the count of the units that the filter keeps, and how many of them come before
+ * the page. */
 export interface UnitPage {
   readonly units: readonly Unit[];
+  readonly after: readonly string[] | null;
   readonly next: readonly string[] | null;
   readonly total: number;
+  readonly matched: number;
+  readonly before: number;
+  readonly choices: FilterChoices;
 }
 
 const end = z
@@ -159,7 +181,13 @@ const act = z.object({
 
 const answer = z.object({
   total: z.number().int(),
+  matched: z.number().int(),
+  before: z.number().int(),
   next: z.array(z.string()).nullable(),
+  choices: z.object({
+    groups: z.array(z.object({ id: z.string(), subject: z.string().nullable() })),
+    documents: z.array(z.object({ id: z.string(), title: z.string() })),
+  }),
   units: z.array(
     z.object({
       unit: z.string(),
@@ -280,13 +308,17 @@ const actOf = (read: ReadAct): UnitAct => {
   };
 };
 
-/** The page of the queue that the writer gave, checked at the edge. Null where the answer is not
- * a page. */
-export function unitPageOf(raw: unknown): UnitPage | null {
+/** The page of the queue that the writer gave after the key `after`, checked at the edge. Null
+ * where the answer is not a page. */
+export function unitPageOf(raw: unknown, after: readonly string[] | null): UnitPage | null {
   const read = answer.safeParse(raw);
   if (!read.success) return null;
   return {
+    after,
     total: read.data.total,
+    matched: read.data.matched,
+    before: read.data.before,
+    choices: read.data.choices,
     next: read.data.next,
     units: read.data.units.map((unit) => ({
       id: unit.unit,

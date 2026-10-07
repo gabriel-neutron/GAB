@@ -17,13 +17,25 @@ const unitOf = (id: string): Unit => ({
   passages: [],
 });
 
-const pageOf = (ids: readonly string[], next: readonly string[] | null): UnitPage => ({
+const pageOf = (
+  ids: readonly string[],
+  after: readonly string[] | null,
+  next: readonly string[] | null,
+): UnitPage => ({
   units: ids.map(unitOf),
+  after,
   next,
   total: 5,
+  matched: 5,
+  before: 0,
+  choices: { groups: [], documents: [] },
 });
 
-const PAGES = [pageOf(['a', 'b'], ['key b']), pageOf(['c', 'd'], ['key d']), pageOf(['e'], null)];
+const PAGES = [
+  pageOf(['a', 'b'], null, ['key b']),
+  pageOf(['c', 'd'], ['key b'], ['key d']),
+  pageOf(['e'], ['key d'], null),
+];
 
 it('selects the next unit, and reads again the page that held the decided unit', () => {
   expect(afterDecision(PAGES, 'c', 'unit')).toStrictEqual({ page: 1, after: ['key b'], next: 'd' });
@@ -32,7 +44,7 @@ it('selects the next unit, and reads again the page that held the decided unit',
 
 it('selects the unit before the last unit of the queue', () => {
   expect(afterDecision(PAGES, 'e', 'unit')).toStrictEqual({ page: 2, after: ['key d'], next: 'd' });
-  expect(afterDecision([pageOf(['a'], null)], 'a', 'unit')).toStrictEqual({
+  expect(afterDecision([pageOf(['a'], null, null)], 'a', 'unit')).toStrictEqual({
     page: 0,
     after: null,
     next: '',
@@ -48,8 +60,17 @@ it('keeps the unit selected when one relation of it was rejected', () => {
 });
 
 it('shows a unit once when a page read again reaches into the next page', () => {
-  const again = [PAGES[0], pageOf(['d', 'e'], ['key e']), PAGES[2]].filter(
+  const again = [PAGES[0], pageOf(['d', 'e'], ['key b'], ['key e']), PAGES[2]].filter(
     (page): page is UnitPage => page !== undefined,
   );
   expect(queueUnits(again).map((unit) => unit.id)).toStrictEqual(['a', 'b', 'd', 'e']);
+});
+
+it('reads again from the place where the first held page starts, after a reload', () => {
+  const resumed = [pageOf(['k', 'l'], ['key j'], ['key l'])];
+  expect(afterDecision(resumed, 'k', 'unit')).toStrictEqual({
+    page: 0,
+    after: ['key j'],
+    next: 'l',
+  });
 });

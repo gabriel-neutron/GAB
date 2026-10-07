@@ -1993,14 +1993,39 @@ END $$;
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
 --
 -- THE GROUP IS NAMED BY ITS SUBJECT: the entity of the group that is the source of no relation to
--- another entity of the group. The sort key is the group, the name of the unit, then its
--- identifier, so two units never share a key.
+-- another entity of the group.
+--
+-- THE ORDER clears the import fast:
+--   1. the groups, and after them the acts with no group;
+--   2. a group that other groups wait for, before the groups that wait for it. A group waits for
+--      another group when one of its links waits for a unit of that group. The height of a group
+--      is the longest chain of groups that wait for it, and a larger height comes first;
+--   3. the subject of the group, then its identifier;
+--   4. in a group, the units with a fault (not clean or blocked) first, then the clean units;
+--   5. the depth in the tree of the group, so a parent comes before its child. A unit that is not
+--      an entity comes after the tree;
+--   6. the name, then the identifier of the unit, so two units never share a key.
+-- The numbers of the key have a fixed width, because the key compares as text.
+--
+-- THE FILTERS: the group, the proposer, a kind of fault, a cited document, and a part of the name
+-- in any case. A null filter keeps every unit.
+--
+-- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so a page with no fault filter checks only the
+-- groups that the page can reach: the group of the key that the page starts after, and the next
+-- groups until they hold one unit more than the page. A fault filter checks every unit that the
+-- other filters keep.
+--
+-- The answer also counts every unit of the queue, the units that the filters keep, and the units
+-- of the filters before the page, and it gives the choices of the filters: each group in the order
+-- of the queue, and each document that a pending act cites.
 DROP FUNCTION IF EXISTS review_units(text[], int);
-CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int)
+CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int, p_group uuid DEFAULT NULL,
+  p_proposer text DEFAULT NULL, p_fault text DEFAULT NULL, p_document text DEFAULT NULL,
+  p_name text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-  WITH size AS (
+  WITH RECURSIVE size AS (
     SELECT greatest(1, least(coalesce(p_size, 50), 200)) AS n
   ), heads AS (
     -- The head act of each unit: the entity of an entity unit, or the one act of any other unit.
@@ -2012,17 +2037,90 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   ), subjects AS (
     SELECT g.batch_id, public.group_subject(g.batch_id) AS subject
       FROM (SELECT DISTINCT h.batch_id FROM heads h WHERE h.batch_id IS NOT NULL) AS g
-  ), keyed AS (
+  ), waits AS (
+    -- Group "waiter" waits for group "held".
+    SELECT DISTINCT h.batch_id AS waiter, w.batch_id AS held
+      FROM heads h
+      CROSS JOIN LATERAL public.unit_waits_for(h.unit_id) AS f(unit_id)
+      JOIN heads w ON w.unit_id = f.unit_id
+     WHERE h.op = 'create_relation' AND h.batch_id IS NOT NULL
+       AND w.batch_id IS NOT NULL AND w.batch_id <> h.batch_id
+  ), climb (root, last, path, height) AS (
+    SELECT s.batch_id, s.batch_id, ARRAY[s.batch_id], 0 FROM subjects s
+    UNION ALL
+    SELECT c.root, w.waiter, c.path || w.waiter, c.height + 1
+      FROM climb c JOIN waits w ON w.held = c.last
+     WHERE NOT w.waiter = ANY (c.path)
+  ), groups AS (
+    SELECT s.batch_id, s.subject,
+           ARRAY['0', lpad((999 - least(max(c.height), 999))::text, 3, '0'),
+                 lower(coalesce(s.subject, '')), s.batch_id::text] AS group_key
+      FROM subjects s JOIN climb c ON c.root = s.batch_id
+     GROUP BY s.batch_id, s.subject
+  ), tree (start, at, path, depth) AS (
+    -- The depth of each pending entity in the tree of its own group.
+    SELECT h.unit_id, h.unit_id, ARRAY[h.unit_id], 0
+      FROM heads h WHERE h.op = 'create_entity' AND h.batch_id IS NOT NULL
+    UNION ALL
+    SELECT t.start, d.id, t.path || d.id, t.depth + 1
+      FROM tree t
+      JOIN public.proposals r ON r.status = 'pending' AND r.op = 'create_relation'
+                             AND r.payload->>'type' = 'subordinate_to'
+                             AND (r.payload->>'src_id')::uuid = t.at
+      JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid AND d.status = 'pending'
+                             AND d.op = 'create_entity' AND d.batch_id = r.batch_id
+     WHERE NOT d.id = ANY (t.path)
+  ), depths AS (
+    SELECT t.start AS unit_id, max(t.depth) AS depth FROM tree t GROUP BY t.start
+  ), kept AS (
+    -- Each unit that the filters other than the fault keep, with its key up to the fault.
     SELECT u.*,
-           ARRAY[CASE WHEN u.batch_id IS NULL THEN '1' ELSE '0' END,
-                 lower(coalesce(u.subject, '')), coalesce(u.batch_id::text, ''),
-                 lower(u.name), u.unit_id::text] AS sort_key
+           coalesce(g.group_key, ARRAY['1', '', '', '']) AS group_key,
+           ARRAY[lpad(coalesce(dp.depth, 999)::text, 3, '0'), lower(u.name), u.unit_id::text]
+             AS tail_key
       FROM (SELECT h.unit_id, h.op, h.proposer, h.batch_id, h.payload, s.subject,
                    coalesce(public.element_name(
                               CASE WHEN h.op IN ('create_entity', 'create_relation')
                                    THEN h.unit_id ELSE h.target_id END), '') AS name
               FROM heads h
-              LEFT JOIN subjects s ON s.batch_id = h.batch_id) AS u
+              LEFT JOIN subjects s ON s.batch_id = h.batch_id
+             WHERE (p_group IS NULL OR h.batch_id = p_group)
+               AND (p_proposer IS NULL OR h.proposer = p_proposer)
+               AND (p_document IS NULL
+                    OR EXISTS (SELECT 1 FROM public.proposals a
+                                WHERE a.unit_id = h.unit_id AND a.status = 'pending'
+                                  AND p_document = ANY (a.src)))) AS u
+      LEFT JOIN groups g ON g.batch_id = u.batch_id
+      LEFT JOIN depths dp ON dp.unit_id = u.unit_id
+     WHERE p_name IS NULL OR strpos(lower(u.name), lower(p_name)) > 0
+  ), counted AS (
+    SELECT k.group_key, count(*) AS units FROM kept k GROUP BY k.group_key
+  ), reached AS (
+    -- The groups that the page can reach, when no fault filter asks to check every unit.
+    SELECT c.group_key FROM counted c
+     WHERE p_after IS NOT NULL AND c.group_key = p_after[1:4]
+    UNION ALL
+    SELECT r.group_key
+      FROM (SELECT c.group_key,
+                   coalesce(sum(c.units) OVER (ORDER BY c.group_key
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS earlier
+              FROM counted c
+             WHERE p_after IS NULL OR c.group_key > p_after[1:4]) AS r
+     WHERE r.earlier < (SELECT n FROM size) + 1
+  ), checked AS (
+    SELECT fa.unit_id, fa.state, fa.faults,
+           p_fault IS NULL OR fa.faults @> jsonb_build_array(jsonb_build_object('kind', p_fault))
+             AS hit
+      FROM public.unit_faults(ARRAY(
+             SELECT k.unit_id FROM kept k
+              WHERE p_fault IS NOT NULL OR k.group_key IN (SELECT group_key FROM reached)))
+           AS fa
+  ), keyed AS (
+    SELECT k.*, ch.state, ch.faults,
+           k.group_key || CASE WHEN ch.state = 'clean' THEN '1' ELSE '0' END || k.tail_key
+             AS sort_key
+      FROM kept k JOIN checked ch ON ch.unit_id = k.unit_id
+     WHERE ch.hit
   ), page AS (
     SELECT k.*, row_number() OVER (ORDER BY k.sort_key) AS no
       FROM (SELECT * FROM keyed
@@ -2090,9 +2188,28 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   )
   SELECT jsonb_build_object(
     'total', (SELECT count(*) FROM heads),
+    'matched', CASE WHEN p_fault IS NULL THEN (SELECT count(*) FROM kept)
+                    ELSE (SELECT count(*) FROM keyed) END,
+    -- A unit of a group before the groups that the page reaches was not checked, and comes
+    -- before the page whatever its faults.
+    'before', CASE WHEN p_after IS NULL THEN 0
+                   ELSE (SELECT count(*) FROM keyed WHERE sort_key <= p_after)
+                        + (SELECT count(*) FROM kept k
+                            WHERE k.unit_id NOT IN (SELECT unit_id FROM checked)
+                              AND k.group_key < p_after[1:4]) END,
     'next', (SELECT p.sort_key FROM page p
               WHERE p.no = (SELECT n FROM size)
                 AND EXISTS (SELECT 1 FROM page q WHERE q.no > (SELECT n FROM size))),
+    'choices', jsonb_build_object(
+      'groups', coalesce((SELECT jsonb_agg(jsonb_build_object('id', g.batch_id,
+                                                              'subject', g.subject)
+                                           ORDER BY g.group_key)
+                            FROM groups g), '[]'::jsonb),
+      'documents', coalesce((
+        SELECT jsonb_agg(jsonb_build_object('id', d.id, 'title', d.title) ORDER BY d.title, d.id)
+          FROM public.documents d
+         WHERE d.id IN (SELECT s.doc FROM public.proposals a, unnest(a.src) AS s(doc)
+                         WHERE a.status = 'pending')), '[]'::jsonb)),
     'units', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
                'unit', s.unit_id,
@@ -2107,14 +2224,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                'proposer', s.proposer,
                'group', CASE WHEN s.batch_id IS NULL THEN NULL
                              ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
-               'state', fa.state,
-               'faults', fa.faults,
+               'state', s.state,
+               'faults', s.faults,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
                'passages', coalesce(qu.passages, '[]'::jsonb))
              ORDER BY s.sort_key)
         FROM shown s
-        JOIN public.unit_faults(ARRAY(SELECT unit_id FROM shown)) AS fa ON fa.unit_id = s.unit_id
         LEFT JOIN acted ac ON ac.unit_id = s.unit_id
         LEFT JOIN cited ci ON ci.unit_id = s.unit_id
         LEFT JOIN quoted qu ON qu.unit_id = s.unit_id), '[]'::jsonb))

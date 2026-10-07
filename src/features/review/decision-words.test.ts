@@ -21,7 +21,7 @@ const WORDS = {
 };
 
 const unit = (id: string) => {
-  const found = unitPageOf(UNIT_ANSWER)?.units.find((held) => held.id === id);
+  const found = unitPageOf(UNIT_ANSWER, null)?.units.find((held) => held.id === id);
   if (found === undefined) throw new Error(`the sample holds no unit ${id}`);
   return found;
 };
