@@ -35,7 +35,6 @@ export type ReviewAct =
       readonly kind: 'decide';
       readonly changeId: string;
       readonly verdict: Verdict;
-      readonly reason: string;
     }
   | {
       readonly kind: 'decide-batch';
@@ -43,9 +42,7 @@ export type ReviewAct =
       /** Every act of the batch, so the pass marks each one with the verdict. */
       readonly changeIds: readonly string[];
       readonly verdict: Verdict;
-      readonly reason: string;
-    }
-  | { readonly kind: 'undo'; readonly changeId: string };
+    };
 
 /** Everything that waits for a decision, and what this pass decided of it. A decided act leaves
  * the queue when the record is read again, so a verdict here outlives its act by one read. */
@@ -229,7 +226,7 @@ export function ReviewPage({ queue, examination, decision, passages, onAct }: Re
             kind={batch ? 'batch' : current.kind}
             decision={verdictOf(verdicts, decidedId ?? current.id)}
             busy={said.busy}
-            onDecide={(verdict, reason) => {
+            onDecide={(verdict) => {
               onAct(
                 batch
                   ? {
@@ -237,15 +234,9 @@ export function ReviewPage({ queue, examination, decision, passages, onAct }: Re
                       batchId: subject.id,
                       changeIds: actIdsOf(subject),
                       verdict,
-                      reason,
                     }
-                  : { kind: 'decide', changeId: current.id, verdict, reason },
+                  : { kind: 'decide', changeId: current.id, verdict },
               );
-            }}
-            onUndo={() => {
-              // A hold of a batch marks the batch and each of its acts, so all are taken back.
-              for (const changeId of batch ? [subject.id, ...actIdsOf(subject)] : [current.id])
-                onAct({ kind: 'undo', changeId });
             }}
           />
         </footer>

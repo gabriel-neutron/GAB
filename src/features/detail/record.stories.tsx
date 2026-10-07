@@ -109,8 +109,6 @@ const document_ = (id: DocId, title: string): DocumentRow => ({
   archiveUri: null,
   sha256: null,
   retrievedAt: '2026-02-11',
-  admiralty: 'B2',
-  admiraltyOrigin: 'machine',
 });
 
 const CORPUS: Corpus = {

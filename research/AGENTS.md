@@ -66,8 +66,7 @@ session: each proposal waits in the review queue, and the operator decides it th
    identifier with the lookup tool, and cite the document that it stores.
 5. **Use the words of the record.** Call `list_vocabulary` for the entity types, the relation
    types and the identifier keys. Do not make up a type or a key.
-6. **ADR 0011 is the authority for ratings and wording.** Do not make a rating table of your own.
-   A rating rates the originator only, never a type of claim. For a sanctions status, write only
+6. **Do not rate a source, an originator or a claim.** For a sanctions status, write only
    the status: "listed by the EU on <date> under Regulation <n>; status checked on <snapshot
    date>". GAB voice never uses "evader", "shadow fleet vessel" or "fraudulent registry" unless an
    issuer text uses the word, with that text cited.

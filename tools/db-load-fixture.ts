@@ -54,7 +54,6 @@ interface Act {
   readonly targetKind: EndpointKind | null;
   readonly targetId: string | null;
   readonly names: readonly string[];
-  readonly confidence: number | null;
   readonly dissent: boolean;
 }
 
@@ -109,7 +108,6 @@ const proposeCandidate = (client: Client, act: Act, modelCallId: string): Promis
         target_kind: act.targetKind,
         target_id: act.targetId,
         names: act.names,
-        confidence: act.confidence,
         dissent: act.dissent,
         model_call_id: modelCallId,
         originator: ORIGINATOR_NAME,
@@ -182,7 +180,6 @@ const loadEntities = async (client: Client): Promise<Translation> => {
         targetKind: null,
         targetId: null,
         names: [],
-        confidence: null,
         dissent: false,
       });
       ids.set(entity.id, await promote(client, proposalId));
@@ -224,7 +221,6 @@ const loadRelation = async (
     targetKind: null,
     targetId: null,
     names: [srcId, dstId],
-    confidence: null,
     dissent: false,
   });
   return promote(client, proposalId);
@@ -349,7 +345,6 @@ const loadCandidates = async (
           targetKind: targetId === null ? null : proposal.targetKind,
           targetId,
           names: candidateNames(payload),
-          confidence: proposal.confidence,
           dissent: proposal.dissent,
         },
         modelCallId,

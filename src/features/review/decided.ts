@@ -1,18 +1,17 @@
-/** The history of the record, one row per decided act, in the words of the queue. It lists no
- * hold, because the record holds none, and it offers no way back: a decided act is frozen. */
+/** The history of the record, one row per decided act, in the words of the queue. It offers no
+ * way back: a decided act is frozen. */
 
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, EndpointKind, ProposalOp, Relation } from '@/shared/read/model';
 import { relationWording } from '@/shared/relation-words';
 
 import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './act-words';
-import type { DoorVerdict } from './decision';
 import { originOf, type Origin } from './origin';
-import { VERDICT_WORDS } from './queue';
+import { VERDICT_WORDS, type Verdict } from './queue';
 
 export interface DecidedRow {
   readonly id: string;
-  readonly verdict: DoorVerdict;
+  readonly verdict: Verdict;
   readonly verdictWords: string;
   readonly actWords: string;
   /** What the act changed, named as the record names it today. */
@@ -27,7 +26,7 @@ export interface DecidedRow {
   readonly author: Origin;
 }
 
-const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], DoorVerdict>> = {
+const VERDICT_OF: Readonly<Record<DecidedAct['verdict'], Verdict>> = {
   accepted: 'promoted',
 };
 

@@ -16,8 +16,6 @@ const DOCUMENT_ROW = {
   sha256: null,
   mime: null,
   retrieved_at: null,
-  admiralty: 'B2',
-  admiralty_origin: 'machine',
   created_at: '2026-08-25T03:25:13.270163+00:00',
   cost_eur: null,
 };
@@ -86,7 +84,6 @@ const PROPOSAL_ROW = {
   src: ['doc_8f2a41'],
   names: [],
   prior_value: null,
-  confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
   model_call_id: null,

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type { Corpus } from '@/shared/read/model';
 
@@ -12,7 +12,7 @@ const SUBJECT = sampleSubject(SAMPLE.contestedRow);
 const LINES = changeLines(SUBJECT, {});
 
 const SETTLED = changeLines(SUBJECT, {
-  [sampleChange(SAMPLE.contestedRow).id]: { verdict: 'promoted', reason: '' },
+  [sampleChange(SAMPLE.contestedRow).id]: { verdict: 'promoted' },
 });
 
 const onFocus = fn();
@@ -94,7 +94,7 @@ export const EveryActOfTheSubjectDrawsOneLine: Story = {
 };
 
 /** The verdict is the output of the screen, so it is a mark and not the quietest text on it. */
-export const ASettledActCarriesAMarkInPlaceOfItsConfidence: Story = {
+export const ASettledActCarriesAMark: Story = {
   args: { lines: SETTLED },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
@@ -123,9 +123,11 @@ function unheldSubject(): Subject {
 export const AStandingValueOnAnUnheldDocumentShowsItMissing: Story = {
   args: { subject: unheldSubject() },
   play: async ({ canvasElement }) => {
-    const row = canvasElement.querySelector('[data-standing="berth_count"]');
-    const badge = row?.querySelector('[data-band]');
-    await expect(badge).toHaveAttribute('data-band', 'missing');
+    const row = canvasElement.querySelector<HTMLElement>('[data-standing="berth_count"]');
+    if (row === null) throw new Error('the pane draws no line for berth_count');
+    await expect(
+      within(row).getByRole('button', { name: /^Cited document doc_0000ff, absent/ }),
+    ).toBeInTheDocument();
   },
 };
 

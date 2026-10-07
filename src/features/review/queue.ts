@@ -1,7 +1,6 @@
 /** The queue, in domain words. It groups what waits by what is changed, and it decides nothing:
  * where the record cannot answer, it returns the hole as a sentence and the view prints it. */
 
-import { readBand, readRating } from '@/shared/read/rating';
 import type {
   AttributeValue,
   Attributes,
@@ -18,7 +17,6 @@ import type {
 import { relationWording } from '@/shared/relation-words';
 
 import { payloadHeadline, relationPhrase, shortId, type TypeWordsOf } from './act-words';
-import { originOf, type Origin } from './origin';
 
 /** What an act does to the graph. The operation alone does not say which risk it carries. */
 export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge' | 'map';
@@ -27,18 +25,15 @@ export type ChangeKind = 'add' | 'edit' | 'delete' | 'merge' | 'map';
  * acts of a machine that name each other, and the operator decides them as one unit. */
 export type SubjectKind = 'node' | 'new-node' | 'link' | 'merge' | 'batch' | 'mapping';
 
-/** A verdict on one act. A promotion and a rejection are written to the record and cannot be
- * taken back; a hold is a state of this pass, because nothing in the record holds one. */
-export type Verdict = 'promoted' | 'rejected' | 'deferred';
+/** A verdict on one act. Both are written to the record and cannot be taken back. */
+export type Verdict = 'promoted' | 'rejected';
 
 export interface Decision {
   readonly verdict: Verdict;
-  /** Written on a hold, and empty on the other two. It is collected, so it is drawn. */
-  readonly reason: string;
 }
 
 /** Keyed on the identifier of the act, which is the identifier of the proposal. A pass holds
- * this map, and a reload loses it: a decided act leaves the queue, and a hold is forgotten. */
+ * this map, and a reload loses it: a decided act leaves the queue. */
 export type Verdicts = Readonly<Record<string, Decision>>;
 
 /** The key is an identifier the record supplies, and the record admits any text. An inherited
@@ -46,11 +41,8 @@ export type Verdicts = Readonly<Record<string, Decision>>;
 export const verdictOf = (verdicts: Verdicts, id: string): Decision | null =>
   Object.hasOwn(verdicts, id) ? (verdicts[id] ?? null) : null;
 
-/** Why this act stands in front of the analyst. */
-export type Routing = 'dissent' | 'unstated';
-
 /** What the screen cannot show. The kind chooses the mark, and the sentence stays on the mark. */
-export type HoleKind = 'argument' | 'duplicate' | 'merge-result' | 'destroyed-row' | 'absent-row';
+export type HoleKind = 'merge-result' | 'destroyed-row' | 'absent-row';
 
 export interface Hole {
   readonly kind: HoleKind;
@@ -71,18 +63,9 @@ export interface CitedDocument {
   readonly title: string;
   /** The copy taken at ingest first. Null where the record holds no address. */
   readonly address: SourceAddress | null;
-  readonly rated: boolean;
-  /** `not rated` where it is not rated. Never a dash, and never a zero. */
-  readonly score: string;
-  readonly scoreOrigin: string;
-  /** A low letter or a high figure. The hue marks this, and never the absence of a rating. */
-  readonly poor: boolean;
-  /** What the badge stands for, in one word: `missing`, a rating, `not rated`, or
-   * `rating incomplete`. A check reads this, and the hue alone never says it. */
-  readonly band: string;
   /** Cited, and with no row in the record. It is drawn, because dropped evidence is worse. */
   readonly missing: boolean;
-  /** The whole line, for the badge that draws the rating alone. */
+  /** The whole line, for the badge that draws a glyph alone. */
   readonly name: string;
 }
 
@@ -110,19 +93,6 @@ export interface StandingRow {
   readonly sources: readonly CitedDocument[];
 }
 
-/** The self-report of the author, as one value. An act states a confidence, or it states none,
- * and the two cases carry different fields: a figure with no track cannot be built. */
-export type ConfidenceReport =
-  | { readonly stated: false; readonly words: string }
-  | {
-      readonly stated: true;
-      /** Already formatted. A drawing file of this surface calls no `toFixed`. */
-      readonly figure: string;
-      /** 0 to 100, for the track. */
-      readonly fill: number;
-      readonly words: string;
-    };
-
 export interface Change {
   readonly id: string;
   readonly kind: ChangeKind;
@@ -138,14 +108,8 @@ export interface Change {
     readonly before: readonly CitedDocument[];
     readonly after: readonly CitedDocument[];
   } | null;
-  readonly origin: Origin;
-  readonly confidenceReport: ConfidenceReport;
-  /** The confidence as the record states it. The sort reads this, and never the printed figure. */
-  readonly score: number | null;
-  readonly routing: Routing;
-  readonly routingWords: string;
-  /** Two or three words beside the mark of the routing. Blank where no mark is drawn. */
-  readonly routingShort: string;
+  /** A check disputes the act. */
+  readonly disputed: boolean;
   readonly sources: readonly CitedDocument[];
   readonly holes: readonly Hole[];
   readonly createdAt: string;
@@ -165,15 +129,14 @@ export interface Subject {
   readonly contestedKeys: readonly string[];
 }
 
-export type SortKey = 'confidence' | 'oldest' | 'name';
+export type SortKey = 'oldest' | 'name';
 
 export const SORT_WORDS: Readonly<Record<SortKey, string>> = {
-  confidence: 'weakest first',
   oldest: 'oldest first',
   name: 'name',
 };
 
-export const SORT_KEYS: readonly SortKey[] = ['confidence', 'oldest', 'name'];
+export const SORT_KEYS: readonly SortKey[] = ['oldest', 'name'];
 
 export const isSortKey = (value: unknown): value is SortKey => SORT_KEYS.includes(value as SortKey);
 
@@ -253,23 +216,8 @@ function addressOf(row: DocumentRow | undefined): SourceAddress | null {
 function citedDocuments(index: Index, ids: readonly DocId[]): readonly CitedDocument[] {
   return ids.map((id) => {
     const row = index.documentById.get(id);
-    const held = readRating(row);
     const title = row?.title ?? `Cited document ${id}, absent from the record`;
-    // A state that is neither a rating nor an absence carries a sentence as its origin, and a
-    // name is all a screen reader gets, so the clause is written for a rating only.
-    const origin = held.rated ? `, rated by the ${held.scoreOrigin}` : '';
-    return {
-      id,
-      title,
-      address: addressOf(row),
-      rated: held.rated,
-      score: held.score,
-      scoreOrigin: held.scoreOrigin,
-      poor: held.poor,
-      band: readBand(row),
-      missing: row === undefined,
-      name: `${title}. ${held.score}${origin}.`,
-    };
+    return { id, title, address: addressOf(row), missing: row === undefined, name: title };
   });
 }
 
@@ -425,28 +373,7 @@ function destroyed(index: Index, attrs: Attributes): readonly DifferenceRow[] {
   }));
 }
 
-const ROUTING_WORDS: Readonly<Record<Routing, string>> = {
-  dissent: 'Here because a check disputes it.',
-  unstated:
-    'No disagreement is recorded, and no confidence is compared with a threshold here, so this screen cannot say why the act is in front of you.',
-};
-
-const ROUTING_SHORT: Readonly<Record<Routing, string>> = {
-  dissent: 'disputed',
-  unstated: 'reason unstated',
-};
-
 const HOLE: Readonly<Record<HoleKind, Hole>> = {
-  argument: {
-    kind: 'argument',
-    short: 'the dispute is not recorded',
-    long: 'The record holds that a check disputes the act, and not which one: a value that no cited passage states, or a model of another family that did not support it. Read the passage.',
-  },
-  duplicate: {
-    kind: 'duplicate',
-    short: 'a duplicate row',
-    long: 'The act cannot say whether the record already holds this row under another label.',
-  },
   'merge-result': {
     kind: 'merge-result',
     short: 'the merged row',
@@ -499,28 +426,11 @@ function targetOf(index: Index, proposal: Proposal): Entity | Relation | null {
   return null;
 }
 
-const REPORTER: Readonly<Record<Origin, string>> = {
-  machine: 'The machine reports',
-  operator: 'The operator states',
-};
-
-function confidenceOf(self: number | null, origin: Origin): ConfidenceReport {
-  if (self === null) return { stated: false, words: 'The act states no confidence.' };
-  const figure = self.toFixed(2);
-  return {
-    stated: true,
-    figure,
-    fill: Math.round(self * 100),
-    words: `${REPORTER[origin]} a confidence of ${figure}.`,
-  };
-}
-
 function changeOf(index: Index, proposal: Proposal): Change {
   const target = targetOf(index, proposal);
   const payload = proposal.payload;
   // A hole that every act carries is not a hole a reader can act on. Only what this act lacks.
   const holes: Hole[] = [];
-  if (proposal.dissent) holes.push(HOLE.argument);
 
   let headline = '';
   let rows: readonly DifferenceRow[] = [];
@@ -544,7 +454,6 @@ function changeOf(index: Index, proposal: Proposal): Change {
     case 'entity':
       headline = `A new ${payload.type}`;
       rows = entityCreation(index, payload, proposal.src);
-      holes.push(HOLE.duplicate);
       break;
     case 'relation':
       headline = payloadHeadline(labelIn(index), index.typeWordsOf, payload);
@@ -564,10 +473,7 @@ function changeOf(index: Index, proposal: Proposal): Change {
       break;
   }
 
-  const routing: Routing = proposal.dissent ? 'dissent' : 'unstated';
   const kind = kindOf(proposal.op, rows);
-  const origin = originOf(proposal.authorRole);
-  const report = confidenceOf(proposal.confidence, origin);
   return {
     id: proposal.id,
     kind,
@@ -576,12 +482,7 @@ function changeOf(index: Index, proposal: Proposal): Change {
     keysWords: rows.map((row) => row.key).join(', '),
     rows,
     rowSources,
-    origin,
-    confidenceReport: report,
-    score: proposal.confidence,
-    routing,
-    routingWords: ROUTING_WORDS[routing],
-    routingShort: ROUTING_SHORT[routing],
+    disputed: proposal.dissent,
     sources: citedDocuments(index, proposal.src),
     holes,
     createdAt: proposal.createdAt,
@@ -626,12 +527,7 @@ function labelOf(
   }
 }
 
-/** An act that states no confidence sorts as the strongest: an absence is not a low score. The
- * number the record states is read, and never the printed figure: two figures round to one. */
-const scoreOf = (change: Change): number => change.score ?? 1;
-
-/** The weakest act is read first inside a subject: it is the one that costs attention. */
-const weakestFirst = (a: Change, b: Change): number => scoreOf(a) - scoreOf(b);
+const oldestFirst = (a: Change, b: Change): number => a.createdAt.localeCompare(b.createdAt);
 
 function contestedKeysOf(changes: readonly Change[]): readonly string[] {
   const counted = new Map<string, number>();
@@ -673,7 +569,7 @@ export function readQueue(read: Corpus, types?: TypeVocabulary): readonly Subjec
   }
 
   return [...filed].flatMap(([key, held]) => {
-    const changes = [...held.changes].sort(weakestFirst);
+    const changes = [...held.changes].sort(oldestFirst);
     const [first, ...rest] = changes;
     // A key exists because an act was filed under it. This narrows the type, and guards nothing.
     if (first === undefined) return [];
@@ -706,17 +602,12 @@ export const batchName = (subject: Subject): string =>
 export const actIdsOf = (subject: Subject): readonly string[] =>
   subject.changes.map((change) => change.id);
 
-/** The lowest confidence of a subject. A subject is only as sound as its weakest act. */
-const weakestOf = (subject: Subject): number => Math.min(...subject.changes.map(scoreOf));
-
 const oldestOf = (subject: Subject): string =>
   [...subject.changes].map((change) => change.createdAt).sort()[0] ?? '';
 
 export function sortSubjects(subjects: readonly Subject[], key: SortKey): readonly Subject[] {
   const sorted = [...subjects];
   switch (key) {
-    case 'confidence':
-      return sorted.sort((a, b) => weakestOf(a) - weakestOf(b));
     case 'oldest':
       return sorted.sort((a, b) => oldestOf(a).localeCompare(oldestOf(b)));
     case 'name':
@@ -817,17 +708,14 @@ export interface ChangeLine {
   readonly kind: ChangeKind;
   readonly kindWords: string;
   readonly words: string;
-  readonly confidenceReport: ConfidenceReport;
   readonly verdict: LineVerdict;
   readonly contested: boolean;
 }
 
-/** The one vocabulary of the three acts. Two of them stand in the record and the third stands
- * on this pass alone, so each word says where the verdict is held. */
+/** The one vocabulary of the two verdicts. */
 export const VERDICT_WORDS: Readonly<Record<Verdict, string>> = {
   promoted: 'Promoted into the record',
   rejected: 'Rejected in the record',
-  deferred: 'Held on this pass',
 };
 
 export function changeLines(subject: Subject, verdicts: Verdicts): readonly ChangeLine[] {
@@ -838,7 +726,6 @@ export function changeLines(subject: Subject, verdicts: Verdicts): readonly Chan
       kind: change.kind,
       kindWords: change.kindWords,
       words: change.keysWords === '' ? change.headline : change.keysWords,
-      confidenceReport: change.confidenceReport,
       verdict:
         held === null
           ? { state: 'waiting' as const }

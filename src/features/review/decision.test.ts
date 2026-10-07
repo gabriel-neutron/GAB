@@ -52,17 +52,6 @@ test('a rejection goes to the reject door, and only there', async () => {
   expect(asked).toStrictEqual(['/write/reject-proposal']);
 });
 
-test('a hold reaches no door', async () => {
-  said({ proposalId: ACT, targetId: null, state: 'decided' });
-
-  expect(await sendVerdict(ACT, 'deferred')).toStrictEqual({
-    step: 'done',
-    changeId: ACT,
-    verdict: 'deferred',
-  });
-  expect(asked).toStrictEqual([]);
-});
-
 test('a decision whose result is unknown is a doubt, and never a refusal', async () => {
   said({ doubt: 'the record gave no answer to read' }, 500);
 

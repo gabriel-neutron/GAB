@@ -13,19 +13,16 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 
-import { readBand, readRating } from '@/shared/read/rating';
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
 
-/** One cited document, at the position it was first met. The badge is a number and not a score:
- * one score repeated on twenty claims reads as a score for each claim. */
+/** One cited document, at the position it was first met. The badge is a number. */
 export interface SourceRef {
   readonly id: DocId;
   /** 1-based, and the position in the page order. */
   readonly number: number;
-  /** The accessible name of the mark: `Source 7 — <title>`. It says which document (M8) and no
-   * more: a score here repeats once for each claim the document holds up. */
+  /** The accessible name of the mark: `Source 7 — <title>`. It says which document (M8). */
   readonly name: string;
 }
 
@@ -39,16 +36,6 @@ export interface SourceCardModel {
   readonly id: DocId;
   readonly number: number;
   readonly title: string;
-  /** Invariant 6: false only when the rating and its origin are both absent. */
-  readonly rated: boolean;
-  /** `not rated` when it is not rated. Never a dash, never `0`. */
-  readonly score: string;
-  readonly scoreOrigin: string;
-  /** A low letter or a high figure. The hue marks this, and never the absence of a rating. */
-  readonly poor: boolean;
-  /** What the card stands for, in one word: `missing`, a rating, `not rated`, or
-   * `rating incomplete`. A check reads this, and the hue alone never says it. */
-  readonly band: string;
   readonly uri: string | null;
   readonly uriShort: string | null;
   readonly retrievedAt: string | null;
@@ -79,9 +66,6 @@ export interface PendingLine {
   readonly id: string;
   readonly summary: string;
   readonly dissent: boolean;
-  /** Already formatted, and a sentence where the act states none. A `.tsx` here calls no
-   * `toFixed`. */
-  readonly confidence: string;
   readonly origin: 'machine' | 'operator';
   readonly sources: readonly SourceRef[];
 }
@@ -186,16 +170,10 @@ function cardOf(
   row: DocumentRow | undefined,
   holdsUp: readonly ClaimLine[],
 ): SourceCardModel {
-  const rating = readRating(row);
   return {
     id: ref.id,
     number: ref.number,
     title: titleOf(ref.id, row),
-    rated: rating.rated,
-    score: rating.score,
-    scoreOrigin: rating.scoreOrigin,
-    poor: rating.poor,
-    band: readBand(row),
     uri: row?.uri ?? null,
     uriShort: shorten(row?.uri ?? null),
     retrievedAt: row?.retrievedAt ?? null,
@@ -371,10 +349,6 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
-      // THIS LINE STATES NO VERDICT ON WHY THE ACT WAITS. The threshold that sends an act to
-      // review is calibrated on real data, and no path carries one to the browser, so a figure
-      // written here would settle an open question in code.
-      const stated = proposal.confidence;
       const head = OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
@@ -382,7 +356,6 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
         id: proposal.id,
         summary: body,
         dissent: proposal.dissent,
-        confidence: stated === null ? 'no confidence is stated' : stated.toFixed(2),
         origin: ORIGIN_WORDS[proposal.authorRole],
         sources: refsOf(proposal.src),
       };

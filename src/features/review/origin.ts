@@ -1,5 +1,5 @@
 /** Who wrote an act. An agent writes as one role and the operator as the other, and the record
- * keeps the role. A confidence of the operator is not a self-report of the machine. */
+ * keeps the role. */
 
 import type { AuthorRole } from '@/shared/read/model';
 

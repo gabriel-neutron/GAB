@@ -61,7 +61,7 @@ that state it.
   stores the OpenSanctions entity and gives the address of each official entry: fetch that
   address with `fetch_document`, and cite the document of the official entry.
 - A match list is a lead, and not a source. Fetch the official entry and cite that.
-- Write the status as ADR 0011 says: "listed by the EU on <date> under Regulation <n>; status
+- Write the status in this form: "listed by the EU on <date> under Regulation <n>; status
   checked on <snapshot date>".
 
 ## A vessel event

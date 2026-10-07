@@ -43,7 +43,7 @@ const batchOf = (call: string | null): string =>
 
 const APP_WITH_CALL = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A model call test"}'::jsonb, ARRAY['doc_8f2a41']::text[],
-  NULL, NULL, '{}', NULL, false, $1::uuid) AS id`;
+  NULL, NULL, '{}', false, $1::uuid) AS id`;
 
 const NO_CALL = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A model call test"}'::jsonb, ARRAY['doc_8f2a41']::text[]) AS id`;

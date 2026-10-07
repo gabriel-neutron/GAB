@@ -11,7 +11,7 @@ const onView = fn();
 const QUEUE = (
   <ReviewPage
     queue={{ subjects: readQueue(reviewSample), verdicts: {} }}
-    examination={{ subjectId: SAMPLE.contestedRow, sort: 'confidence' }}
+    examination={{ subjectId: SAMPLE.contestedRow, sort: 'oldest' }}
     decision={{ step: 'idle' }}
     passages={{ state: 'held', byAct: {}, disputes: {} }}
     onAct={fn()}

@@ -17,8 +17,6 @@ export default interface Proposal {
 
   prior_value: unknown;
 
-  confidence: number | null;
-
   dissent: boolean | null;
 
   author_role: string | null;
@@ -45,7 +43,6 @@ export const proposal = z.object({
   src: z.string().array().nullable(),
   names: z.uuid().array().nullable(),
   prior_value: z.unknown(),
-  confidence: z.number().nullable(),
   dissent: z.boolean().nullable(),
   author_role: z.string().nullable(),
   model_call_id: z.uuid().nullable(),

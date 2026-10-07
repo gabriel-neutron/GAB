@@ -17,10 +17,6 @@ export default interface Document {
 
   retrieved_at: string | null;
 
-  admiralty: string | null;
-
-  admiralty_origin: string | null;
-
   created_at: string | null;
 
   cost_eur: number | null;
@@ -35,8 +31,6 @@ export const document = z.object({
   sha256: z.string().nullable(),
   mime: z.string().nullable(),
   retrieved_at: z.string().nullable(),
-  admiralty: z.string().nullable(),
-  admiralty_origin: z.string().nullable(),
   created_at: z.string().nullable(),
   cost_eur: z.number().nullable(),
 });
