@@ -34,31 +34,29 @@ the record takes.
 Give one JSON object, and nothing else: no text before it or after it, and no code fence. The
 object has this shape:
 
-```json
-{
-  "items": [
     {
-      "ref": "e1",
-      "act": {
-        "op": "create_entity",
-        "type": "vessel",
-        "label": "...",
-        "attrs": { "capacity_dwt": { "v": 115000 } }
-      },
-      "originator": "...",
-      "modality": "asserts",
-      "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
-    },
-    {
-      "ref": "r1",
-      "act": { "op": "create_relation", "type": "owns", "srcId": "...", "dstId": "e1" },
-      "originator": "...",
-      "modality": "asserts",
-      "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+      "items": [
+        {
+          "ref": "e1",
+          "act": {
+            "op": "create_entity",
+            "type": "vessel",
+            "label": "...",
+            "attrs": { "capacity_dwt": { "v": 115000 } }
+          },
+          "originator": "...",
+          "modality": "asserts",
+          "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+        },
+        {
+          "ref": "r1",
+          "act": { "op": "create_relation", "type": "owns", "srcId": "...", "dstId": "e1" },
+          "originator": "...",
+          "modality": "asserts",
+          "evidence": [{ "document": "...", "page": 1, "excerpt": "..." }]
+        }
+      ]
     }
-  ]
-}
-```
 
 - `ref` is a short lower-case name of the item, unique in the answer. A relation names an entity
   that an earlier item creates by its `ref`, in `srcId` or `dstId`. It names an entity of the

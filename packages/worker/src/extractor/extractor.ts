@@ -27,7 +27,7 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v5';
+const VERSION = 'v6';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';

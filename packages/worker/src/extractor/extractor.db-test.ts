@@ -183,6 +183,16 @@ test('the text goes to the model as it is, and each item becomes a proposal with
       job: held.job,
     });
     expect(bodies[0]).toContain(JSON.stringify(FIRST_CHUNK).slice(1, -1));
+    const asked = z
+      .object({ messages: z.array(z.object({ role: z.string(), content: z.string() }).loose()) })
+      .parse(JSON.parse(bodies[0] ?? '{}'))
+      .messages.at(-1);
+    const words = z
+      .object({ entityTypes: z.array(z.string()), relationTypes: z.array(z.string()) })
+      .parse(JSON.parse(asked?.content ?? '{}'));
+    expect(words.entityTypes).toEqual(expect.arrayContaining(['vessel', 'state_body']));
+    expect(words.entityTypes.at(-1)).toBe('unknown');
+    expect(words.relationTypes).toContain('owns');
     expect(await citedOf(held)).toStrictEqual([
       {
         label: 'Nayara',

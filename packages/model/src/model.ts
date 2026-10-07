@@ -353,7 +353,7 @@ type Settled<T> =
 // The model answers with JSON text, and the shape of the caller judges the value.
 // Some models put a JSON answer in a Markdown code fence although the request asks for JSON. The
 // fence is not part of the answer, so code removes it before the read.
-const FENCED = /^```[a-z]*\s*\n([\s\S]*?)\n?```$/u;
+const FENCED = /^```[a-z]*[^\S\n]*\n([\s\S]*?)\n?```$/iu;
 
 const judged = <T>(shape: z.ZodType<T>, text: string): Judged<T> => {
   const read = asJson(FENCED.exec(text.trim())?.[1] ?? text);
