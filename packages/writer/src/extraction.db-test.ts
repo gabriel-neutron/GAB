@@ -10,7 +10,9 @@ import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
 const store = openStore();
-const app = writeRoutes(pool, { put: (object) => putObject(store, object) });
+// No door under test reads an object back, so this one refuses every read.
+const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the raw store')) };
+const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_READ);
 
 // Departure: the runner is not part of this suite, so the owner moves a job to `running` and the
 // worker role ends it through its own doors, as the runner does.
