@@ -85,14 +85,45 @@ const readable = (): TurndownService => {
   return turndown;
 };
 
-const htmlPage = (bytes: Uint8Array): string => {
+// The parts of a page that are no statement of it: code, the head, the frame of a site, and text
+// that the page hides from a reader. The Readability road removes them itself; the whole road
+// removes them here.
+const FRAME = [
+  'head',
+  'script',
+  'style',
+  'noscript',
+  'template',
+  'nav',
+  'header',
+  'footer',
+  'aside',
+  '[role="navigation"]',
+  '[role="banner"]',
+  '[role="contentinfo"]',
+  '[hidden]',
+  '[aria-hidden="true"]',
+  '[style*="display:none" i]',
+  '[style*="display: none" i]',
+  '[style*="visibility:hidden" i]',
+  '[style*="visibility: hidden" i]',
+].join(', ');
+
+// Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
+// alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
+// acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
+const htmlPage = (bytes: Uint8Array, whole: boolean): string => {
   const source = new TextDecoder('utf-8').decode(bytes);
   const { document } = parseHTML(source);
   document.querySelectorAll(COMMENTS).forEach((comment: { remove(): void }) => {
     comment.remove();
   });
+  if (whole)
+    document.querySelectorAll(FRAME).forEach((part: { remove(): void }) => {
+      part.remove();
+    });
   // Readability finds nothing in a page with no article, and the whole body is then the text.
-  const article = new Readability(document).parse();
+  const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
   return withoutNul(readable().turndown(html).trim());
 };
@@ -100,7 +131,10 @@ const htmlPage = (bytes: Uint8Array): string => {
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
   if (type === 'application/pdf') return { pages: await pdfPages(bytes) };
-  if (type === 'text/html') return { pages: [htmlPage(bytes)] };
+  if (type === 'text/html') return { pages: [htmlPage(bytes, false)] };
+  // XHTML is HTML written as XML. The Publications Office of the EU gives the official text of an
+  // act in it.
+  if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
   throw new UnsupportedTypeError(mime);
 };
