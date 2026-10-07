@@ -758,7 +758,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
 
   proposals: [
     {
-      // Dissent. S3 sends it to review.
+      // A check disputes this act.
       id: 'f0a1b2c3-4d5e-4678-9012-3456789abcde',
       op: 'update_attrs',
       targetKind: 'entity',
@@ -807,7 +807,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       batchId: null,
     },
     {
-      // No dissent. P1 does not let it through.
+      // No check disputes this act.
       id: '1c2d3e4f-6071-489a-b123-456789abcdef',
       op: 'create_entity',
       targetKind: null,
