@@ -1,7 +1,7 @@
 import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
-import { FAULT_WORDS } from './fault-marks';
+import { faultWords } from './fault-marks';
 import type { GroupLine } from './groups';
 
 export interface GroupRailProps {
@@ -31,7 +31,7 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
             const subject = group.subject ?? 'Group with no subject';
             const source = group.document?.title ?? 'no document';
             const faults = group.faults
-              .map((fault) => `${FAULT_WORDS[fault.kind]}: ${String(fault.units)}`)
+              .map((fault) => `${faultWords(fault.kind)}: ${String(fault.units)}`)
               .join(' · ');
             return (
               <li key={group.id}>

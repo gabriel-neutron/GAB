@@ -13,6 +13,8 @@ import {
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
+import { openQueue } from '@/features/review/queue-start';
+import { filterIsOn, patchReviewWorkspace } from '@/features/review/review-workspace';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { sendGroupAction } from '@/features/review/send-group-action';
@@ -45,18 +47,19 @@ export const Route = createFileRoute('/review')({
 
   search: { middlewares: [stripSearchParams({ unit: '', view: 'queue', group: '' })] },
 
-  // The queue reads one page of units. The history reads the whole corpus, and the rail reads the
+  // The queue reads one page of units, with the filter and from the place that the workspace
+  // holds, so a reload keeps both. The history reads the whole corpus, and the rail reads the
   // faults of every unit that waits, so each is read only when its page is open. The rail is read
   // when its page opens and after a group action, and never at the choice of a group: the group
   // in the address is read here once, and each later choice reads its own group alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps, location }) => {
-    const [first, relationTypes, entityTypes] = await Promise.all([
-      readUnits(null),
+    const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
+      openQueue(),
       loadRelationTypes(),
       loadEntityTypes(),
     ]);
-    const held = { first, relationTypes, entityTypes, history: [], groups: null };
+    const held = { first, filter, relationTypes, entityTypes, history: [], groups: null };
     if (deps.view === 'groups') {
       const asked: unknown = Reflect.get(location.search, 'group');
       const groupId = typeof asked === 'string' ? asked : '';
@@ -75,13 +78,14 @@ export const Route = createFileRoute('/review')({
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
-/** The pages read from the first page that the loader gave, the count of the last read, and
+/** The pages read from the first page that the loader gave, the counts of the last read, and
  * whether a read of the next page runs now. A page read again after a decision replaces the page
  * that it was read for. */
 interface HeldPages {
   readonly from: UnitPage | null;
   readonly pages: readonly UnitPage[];
   readonly total: number;
+  readonly matched: number;
   readonly reading: boolean;
 }
 
@@ -89,14 +93,17 @@ const startOf = (first: UnitPage | null): HeldPages => ({
   from: first,
   pages: first === null ? [] : [first],
   total: first?.total ?? 0,
+  matched: first?.matched ?? 0,
   reading: false,
 });
+
+const NO_CHOICES = { groups: [], documents: [] };
 
 function ReviewRoute() {
   const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { first, filter, relationTypes, entityTypes, history, groups } = Route.useLoaderData();
   const router = useRouter();
-  const { first, relationTypes, entityTypes, history, groups } = Route.useLoaderData();
 
   // The pages and the decision die with the view: a reload reads the first page again.
   const [held, setHeld] = useState<HeldPages>(startOf(null));
@@ -124,20 +131,35 @@ function ReviewRoute() {
           queue: {
             units: queueUnits(now.pages),
             total: now.total,
+            matched: now.matched,
+            before: now.pages[0]?.before ?? 0,
+            filtered: filterIsOn(filter),
             more: now.reading ? 'reading' : last === null ? 'none' : 'ready',
           },
+          filter,
+          choices: now.pages.at(-1)?.choices ?? NO_CHOICES,
           decision,
         };
 
+  // The place in the queue is the key that the page of the selected unit starts after, so a
+  // reload reads that page first.
   const select = (unitId: string): void => {
+    const page = now.pages.find((held) => held.units.some((one) => one.id === unitId));
+    if (page !== undefined) patchReviewWorkspace({ from: page.after });
     void navigate({ search: (search) => ({ ...search, unit: unitId }), replace: true });
+  };
+
+  // A new filter or a read from the first unit asks the loader for its first page again.
+  const readFrom = (patch: Parameters<typeof patchReviewWorkspace>[0]): void => {
+    patchReviewWorkspace({ ...patch, from: null });
+    void router.invalidate();
   };
 
   // Only the page that held the unit is read again, so the rest of the queue keeps its place.
   const readAgain = async (decided: string, mode: 'unit' | 'relation'): Promise<void> => {
     const after = afterDecision(now.pages, decided, mode);
     select(after.next);
-    const read = await readUnits(after.after);
+    const read = await readUnits(after.after, filter);
     if (read.state !== 'held') return;
     setHeld((before) =>
       before.from === now.from
@@ -145,6 +167,7 @@ function ReviewRoute() {
             ...before,
             pages: before.pages.map((page, index) => (index === after.page ? read.page : page)),
             total: read.page.total,
+            matched: read.page.matched,
           }
         : before,
     );
@@ -155,16 +178,24 @@ function ReviewRoute() {
       case 'select':
         select(act.unitId);
         return;
+      case 'start':
+        readFrom({});
+        return;
+      case 'filter':
+        void navigate({ search: (search) => ({ ...search, unit: '' }), replace: true });
+        readFrom({ filter: act.filter });
+        return;
       case 'more':
         if (now.reading || last === null) return;
         setHeld({ ...now, reading: true });
-        void readUnits(last).then((read) => {
+        void readUnits(last, filter).then((read) => {
           setHeld((before) =>
             before.from === now.from
               ? {
                   ...before,
                   pages: read.state === 'held' ? [...before.pages, read.page] : before.pages,
                   total: read.state === 'held' ? read.page.total : before.total,
+                  matched: read.state === 'held' ? read.page.matched : before.matched,
                   reading: false,
                 }
               : before,

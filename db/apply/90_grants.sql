@@ -83,6 +83,7 @@ REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
+REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
@@ -173,8 +174,8 @@ GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
 -- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages and the reason of each
 -- dispute, and only the operator reads them.
-REVOKE ALL ON FUNCTION review_units(text[],int)    FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_units(text[],int) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text) TO gabriel_app;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
