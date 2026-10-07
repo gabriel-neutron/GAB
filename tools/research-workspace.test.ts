@@ -43,7 +43,7 @@ test('the Claude Code file names the GAB server and no other', () => {
   expect(script && path.resolve(WORKSPACE, script)).toBe(SERVER_SCRIPT);
 });
 
-test('the research environment names its connection, the store, the two search settings and three register keys, and nothing else', () => {
+test('the research environment names its connection, the store, the two search settings, three register keys and the inbox, and nothing else', () => {
   expect(namesSet(read('research', '.env.example'))).toEqual(
     new Set([
       'GAB_RESEARCH_DATABASE_URL',
@@ -56,6 +56,7 @@ test('the research environment names its connection, the store, the two search s
       'COMPANIES_HOUSE_API_KEY',
       'OPENSANCTIONS_API_KEY',
       'GFW_API_TOKEN',
+      'GAB_INBOX',
     ]),
   );
 });

@@ -16,6 +16,7 @@ import { readEntity } from './read-entity.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
 import { startLead } from './start-lead.ts';
+import { storeSavedFile } from './store-saved-file.ts';
 import { telegramChannel } from './telegram-channel.ts';
 import { vesselEvents } from './vessel-events.ts';
 import { webSearch } from './web-search.ts';
@@ -36,6 +37,7 @@ export const CATALOGUE = [
   newsSearch,
   archiveSnapshot,
   fetchDocument,
+  storeSavedFile,
   telegramChannel,
   gleifLookup,
   companiesHouse,

@@ -20,8 +20,8 @@ session: each proposal waits in the review queue, and the operator decides it th
   as a document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
-- Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`,
-  `start_lead`, `propose`. Each write runs with no question, except `enqueue_extract` and
+- Write: `archive_snapshot`, `fetch_document`, `store_saved_file`, `telegram_channel`,
+  `enqueue_extract`, `start_lead`, `propose`. Each write runs with no question, except `enqueue_extract` and
   `start_lead`: they spend model credit, so Claude Code asks the operator first.
 
 ## Who proposes what
