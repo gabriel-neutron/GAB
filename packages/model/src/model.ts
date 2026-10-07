@@ -351,8 +351,12 @@ type Settled<T> =
   { readonly kind: 'value'; readonly value: T } | { readonly kind: 'call'; readonly call: ToolUse };
 
 // The model answers with JSON text, and the shape of the caller judges the value.
+// Some models put a JSON answer in a Markdown code fence although the request asks for JSON. The
+// fence is not part of the answer, so code removes it before the read.
+const FENCED = /^```[a-z]*\s*\n([\s\S]*?)\n?```$/u;
+
 const judged = <T>(shape: z.ZodType<T>, text: string): Judged<T> => {
-  const read = asJson(text);
+  const read = asJson(FENCED.exec(text.trim())?.[1] ?? text);
   if (!read.ok) return { ok: false, issues: 'the answer is not JSON text' };
   const held = shape.safeParse(read.value);
   return held.success
