@@ -258,8 +258,8 @@ copy of the graph.
 
 ### P4 — The proposal contract is stable
 
-**Rule.** The shape of a proposal is fixed: target, operation, value, sources, confidence, author,
-and the readings that disagree.
+**Rule.** The shape of a proposal is fixed: target, operation, value, sources, author, and the
+readings that disagree.
 Agents, models and prompts can change freely.
 **Why.** It is the interface between a changing layer and a database that must last.
 **Cost.** A proposal of the wrong shape is refused, also from an agent.
