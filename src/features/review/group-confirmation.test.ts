@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import { groupConfirmation } from './group-confirmation';
 import type { GroupUnit, GroupUnits } from './groups';
 
+// A unit needs the unit of its parent when the parent waits in the queue, as the read gives it.
 const unit = (id: string, extra: Partial<GroupUnit> = {}): GroupUnit => ({
   id,
   kind: 'entity',
@@ -13,6 +14,7 @@ const unit = (id: string, extra: Partial<GroupUnit> = {}): GroupUnit => ({
   entities: 1,
   relations: 1,
   parent: null,
+  needs: extra.parent?.unit ? [extra.parent.unit] : [],
   ...extra,
 });
 
@@ -54,7 +56,9 @@ test('the sentence counts what the action writes and why each other unit stays',
 });
 
 test('one entity and one relation are named in the singular', () => {
-  const read = groupConfirmation(group([BRIGADE]));
+  const read = groupConfirmation(
+    group([unit('Lone brigade', { parent: { unit: null, name: 'Southern District' } })]),
+  );
   expect(read.said).toBe(
     'Writes 1 entity and 1 relation of group 58th Combined Arms Army. 0 stay in the queue: ' +
       '0 disputed, 0 with a fault, 0 waiting for another group. You cannot undo this.',
@@ -72,16 +76,28 @@ test('the tree puts each clean unit under its clean parent, and the action sends
   expect(read.unitIds).toStrictEqual(['58th Army', '19th Brigade', '1st Battalion']);
 });
 
-test('a clean unit whose parent is not written by the action names that parent', () => {
+test('a clean unit below a unit that stays in the queue stays too, with each unit below it', () => {
   const orphan = unit('2nd Battalion', {
     parent: { unit: 'Disputed regiment', name: 'Disputed regiment' },
   });
+  const company = unit('1st Company', {
+    parent: { unit: '2nd Battalion', name: '2nd Battalion' },
+  });
   const held = unit('3rd Battalion', { parent: { unit: null, name: 'Southern District' } });
-  const read = groupConfirmation(group([DISPUTED, orphan, held]));
+  const read = groupConfirmation(group([DISPUTED, company, orphan, held]));
   expect(read.tree.map(({ id, depth, under }) => [id, depth, under])).toStrictEqual([
-    ['2nd Battalion', 0, 'Disputed regiment'],
     ['3rd Battalion', 0, 'Southern District'],
   ]);
+  expect(read.unitIds).toStrictEqual(['3rd Battalion']);
+  expect(read.said).toBe(
+    'Writes 1 entity and 1 relation of group 58th Combined Arms Army. 3 stay in the queue: ' +
+      '1 disputed, 2 with a fault, 0 waiting for another group. You cannot undo this.',
+  );
+});
+
+test('a clean unit that needs a unit outside the list stays in the queue', () => {
+  const read = groupConfirmation(group([BRIGADE]));
+  expect(read.unitIds).toStrictEqual([]);
 });
 
 test('a group with no clean unit writes nothing, and the sentence says so', () => {

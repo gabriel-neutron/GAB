@@ -265,6 +265,33 @@ test('a unit decided before the action, or of another group, is refused and writ
   }
 });
 
+test('a child whose parent is in the group but not in the list is refused, and the refusal names the parent', async () => {
+  const [army, brigade, toArmy] = [randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    unit(army, 'Group test unlisted army'),
+    unit(brigade, 'Group test listed brigade'),
+    under(toArmy, brigade, army),
+  ]);
+  try {
+    const read = await promoteGroup(await batchOf(army), [brigade]);
+    expect(read).toStrictEqual([
+      {
+        unit: brigade,
+        name: 'Group test listed brigade',
+        outcome: 'refused',
+        said:
+          'nothing of the unit is promoted, because its relation subordinate_to waits for ' +
+          'Group test unlisted army, which is not in the record',
+      },
+    ]);
+    for (const id of [army, brigade, toArmy])
+      expect(await decisionOf(id)).toStrictEqual({ status: 'pending', decided_as: null });
+    expect([await liveRows(brigade), await liveRows(toArmy)]).toStrictEqual([0, 0]);
+  } finally {
+    await undone([], [brigade, army]);
+  }
+});
+
 test('a group action that names no unit is refused before the record is reached', async () => {
   const [status, reply] = await ask('/write/promote-group', {
     groupId: randomUUID(),
@@ -295,11 +322,14 @@ const groupUnit = z.object({
   faults: z.array(z.object({ kind: z.string(), level: z.string() })),
   entities: z.number().int(),
   relations: z.number().int(),
+  needs: z.array(z.uuid()),
   parent: z.object({ unit: z.uuid().nullable(), name: z.string() }).nullable(),
 });
 
 test('the rail counts the units of each group, and the read of one group gives its tree', async () => {
-  const [army, brigade, toArmy, disputed, toDisputed] = [
+  const [army, brigade, toArmy, disputed, toDisputed, below, toBelow] = [
+    randomUUID(),
+    randomUUID(),
     randomUUID(),
     randomUUID(),
     randomUUID(),
@@ -312,6 +342,8 @@ test('the rail counts the units of each group, and the read of one group gives i
     under(toArmy, brigade, army),
     unit(disputed, 'Rail test disputed', { dissent: true, dissent_reason: 'unclear' }),
     under(toDisputed, disputed, army),
+    unit(below, 'Rail test below the disputed'),
+    under(toBelow, below, disputed),
   ]);
   const group = await batchOf(army);
   try {
@@ -324,7 +356,8 @@ test('the rail counts the units of each group, and the read of one group gives i
     expect(line).toMatchObject({
       subject: 'Rail test army',
       proposer: 'research_ai',
-      units: 3,
+      // The unit below the disputed one is clean, but the action cannot write it.
+      units: 4,
       clean: 2,
       faults: { dispute: 1 },
     });
@@ -343,12 +376,14 @@ test('the rail counts the units of each group, and the read of one group gives i
       state: 'clean',
       entities: 1,
       relations: 1,
+      needs: [army],
       parent: { unit: army, name: 'Rail test army' },
     });
+    expect(byId.get(below)).toMatchObject({ state: 'clean', needs: [disputed] });
     expect(byId.get(army)).toMatchObject({ entities: 1, relations: 0, parent: null });
     expect(byId.get(disputed)?.faults).toContainEqual({ kind: 'dispute', level: 'not_clean' });
   } finally {
-    await undone([], [brigade, army, disputed]);
+    await undone([], [brigade, below, disputed, army]);
   }
 });
 

@@ -1462,8 +1462,10 @@ END $$;
 
 -- THE RAIL OF THE GROUPS, FOR THE OPERATOR. For each group that holds a unit that waits: its
 -- subject, its proposer, its document, the count of its units and of its clean units, and for each
--- fault that keeps a unit out of the group action, the count of the units that have it. The faults
--- read private data, so only the operator role holds this read.
+-- fault that keeps a unit out of the group action, the count of the units that have it. A clean
+-- unit that needs a unit that is not clean, directly or through a chain, is not counted clean:
+-- the group action cannot write it. The faults read private data, so only the operator role holds
+-- this read.
 CREATE OR REPLACE FUNCTION review_groups()
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -1471,7 +1473,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_rail jsonb;
 BEGIN
-  WITH waiting AS (
+  WITH RECURSIVE waiting AS (
     SELECT p.unit_id, p.batch_id, p.proposer, p.src
       FROM public.proposals p
      WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
@@ -1481,8 +1483,20 @@ BEGIN
     SELECT u.batch_id, u.unit_id, f.state, f.faults
       FROM units u
       JOIN public.unit_faults(ARRAY(SELECT unit_id FROM units)) AS f ON f.unit_id = u.unit_id
+  ), needs AS (
+    SELECT DISTINCT x.unit_id, o.unit_id AS needed
+      FROM public.proposals x,
+           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+     WHERE x.status = 'pending' AND x.op = 'create_relation' AND x.batch_id IS NOT NULL
+       AND o.unit_id <> x.unit_id
+  ), spoiled AS (
+    SELECT c.unit_id FROM checked c WHERE c.state <> 'clean'
+    UNION
+    SELECT n.unit_id FROM needs n JOIN spoiled s ON s.unit_id = n.needed
   ), counted AS (
-    SELECT c.batch_id, count(*) AS units, count(*) FILTER (WHERE c.state = 'clean') AS clean
+    SELECT c.batch_id, count(*) AS units,
+           count(*) FILTER (WHERE c.unit_id NOT IN (SELECT s.unit_id FROM spoiled s)) AS clean
       FROM checked c GROUP BY c.batch_id
   ), kinds AS (
     SELECT k.batch_id, jsonb_object_agg(k.kind, k.n) AS faults
@@ -1519,8 +1533,9 @@ END $$;
 -- THE UNITS OF ONE GROUP THAT WAIT, FOR THE CONFIRMATION OF THE GROUP ACTION. Each unit comes with
 -- its state, the kind and the level of each fault, the count of its entities and relations, and
 -- the parent of its entity: the other end of its relation "subordinate to", with the unit of that
--- end when it waits in the queue. The screen draws the tree of the clean units from it, and it
--- sends back the units that it showed. Only the operator role holds this read, as for the queue.
+-- end when it waits in the queue, and the other units that its relations need. The screen draws
+-- the tree of the units that the action can write from it, and it sends back the units that it
+-- showed. Only the operator role holds this read, as for the queue.
 CREATE OR REPLACE FUNCTION review_group(p_group uuid)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -1568,6 +1583,13 @@ BEGIN
                                       '[]'::jsonb)
                         FROM jsonb_array_elements(f.faults) AS x),
            'entities', s.entities, 'relations', s.relations,
+           'needs', (SELECT coalesce(jsonb_agg(DISTINCT o.unit_id), '[]'::jsonb)
+                       FROM acts x,
+                            LATERAL (VALUES ((x.payload->>'src_id')::uuid),
+                                            ((x.payload->>'dst_id')::uuid)) AS e(ref)
+                       JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+                      WHERE x.unit_id = h.unit_id AND x.op = 'create_relation'
+                        AND o.unit_id <> h.unit_id),
            'parent', CASE WHEN pa.parent IS NULL THEN NULL
                           ELSE jsonb_build_object(
                                  'unit', (SELECT w.unit_id FROM public.proposals w
