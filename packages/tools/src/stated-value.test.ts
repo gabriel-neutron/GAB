@@ -165,3 +165,17 @@ test.each([
     { name: 'attrs.military_unit_number', value },
   ]);
 });
+
+test.each([
+  ['A tanker of 1 000 000 dwt.', '1 000'],
+  ['A tanker of 1 200 000 dwt.', '200 000'],
+  ["A tanker of 1'000'000 dwt.", "1'000"],
+  ['A tanker - of 1000 dwt.', '-'],
+  ['Unit 30616-4:1 of the regiment.', '30616-4'],
+  ['Unit 30616-4+1 of the regiment.', '30616-4'],
+  ['Unit A 1 000 000 of the regiment.', 'A 1 000'],
+])('the passage %j does not state the text %s', (passage, value) => {
+  expect(unstatedValues(unitWith(value), [`regiment ${passage}`])).toStrictEqual([
+    { name: 'attrs.military_unit_number', value },
+  ]);
+});
