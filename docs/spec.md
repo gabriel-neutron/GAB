@@ -1,6 +1,6 @@
 # Gabriel: technical overview
 
-How the parts connect, and which rules hold on every path. Read the code for a table, a type or a
+This file tells how the parts connect and which rules hold on every path. Read the code for a table, a type or a
 function. The product rules are in `decisions.md`; this file cites them by identifier (M8, P1).
 
 ## The parts
@@ -41,9 +41,9 @@ flowchart LR
 | S3 raw store | Keeps each original file unchanged. Any S3 server can hold it. |
 | Writer | The only write service of the operator: upload, edit, promote, reject, queue an extraction, start a lead. It also shows the operator the job status of a document and the leads, which the public read never shows. |
 | Read API | Read-only HTTP over a fixed set of public views. |
-| Web interface | Graph, map, review queue, search and entity pages. |
+| Web interface | The graph, the map, the review queue, search and the entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
-| MCP server | Gives the research AI one flat tool for each action: read the record, the proposals and the documents; search; fetch; propose; queue a job; start a lead. Each tool declares if it reads or writes. |
+| MCP server | Gives the research AI one flat tool for each action: read the record, the proposals and the documents; search; fetch; propose; queue a job; start a lead. Each tool says if it reads or writes. |
 | OpenRouter, web search | External services. They hold no record of the project. |
 
 ## Who can do what
@@ -107,15 +107,15 @@ operator shows it.
 
 Before the extractor writes its acts, a model of another family checks each act against its
 passage. The act is written as disputed when the check does not support it, when a failed check
-could not read it, or when no cited passage states its value. The flag keeps a short reason,
-frozen with the act: the value that no passage states, the verdict and reason of the checker, or
-that the checker did not answer. The review card shows the reason; the public read does not.
+could not read it, or when no cited passage states its value. The flag keeps a short reason. The
+reason is frozen with the act: the value that no passage states, the verdict and reason of the checker, or
+that the checker did not answer. The reason is private: the review card shows it, and the public read does not.
 Every model call goes to OpenRouter and is recorded.
 
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,
 the claims of that part are lost. The job keeps the count of refused parts and the first refusal,
 and its status shows them to the operator and to the research AI. A job with every part refused
-fails, with that refusal as its reason. While a job waits or runs, the interface reads its status
+fails, with the same words as its reason. While a job waits or runs, the interface reads its status
 again by itself.
 
 The acts of one call that name each other are one linked batch. The review queue shows it as one
