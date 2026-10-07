@@ -1,12 +1,12 @@
 ---
 name: cite-claim
-description: Turn facts that the extractor missed into proposals that cite a stored document. Find the excerpt in the stored text, then propose a batch with the page and the excerpt of each fact. Use it each time you add a fact to Gabriel.
+description: Turn facts into proposals that cite a stored document. Find the excerpt in the stored text, then propose a batch with the page and the excerpt of each fact. Use it each time you add a fact to Gabriel.
 ---
 
 # Cite a claim
 
-The extractor proposes the claims of each document that you queue. Use this skill for a fact that
-it missed. One fact gives one item of a batch. A batch can hold linked facts, for example a
+Use this skill for each fact that you add to Gabriel. The skill `research-method` says which facts
+to propose and which to leave out. One fact gives one item of a batch. A batch can hold linked facts, for example a
 company, its vessels and the relations between them. Each item cites the page and the excerpt
 that state it.
 
@@ -27,11 +27,12 @@ that state it.
 ## Steps
 
 1. Find the document that holds the fact with `find_document`. If Gabriel does not store it,
-   fetch it with `fetch_document` and queue its extraction (skill `ingest-batch`).
+   fetch it with `fetch_document`. If the fetch fails, follow "A blocked source" in the skill
+   `research-method`.
 2. Find the excerpt that states the fact in the stored text. Use `document_text` for the page.
    If the excerpt is not in the stored text, stop. The fact has no source in Gabriel.
-3. Call `list_proposals` with the document id. If a proposal holds the fact, stop: the extractor
-   or another session proposed it.
+3. Call `list_proposals` with the document id. If a proposal holds the fact, stop: another session
+   or the extractor proposed it.
 4. Before you propose a new entity, call `search_graph` with each identifier of that entity. If
    an entity matches, propose attributes or a relation on it. Do not propose a second entity.
 5. Use the types and the keys of `list_vocabulary`. Put the unit in the key of an attribute, for

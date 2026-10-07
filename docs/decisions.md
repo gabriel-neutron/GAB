@@ -323,6 +323,20 @@ promoted, nothing of the batch is written.
 entity.
 **Cost.** One wrong item makes the operator reject the whole batch.
 
+### P12 — The operator AI proposes the facts of a research layer
+
+**Rule.** In a research session, Claude or Codex finds the sources of its layer, stores each one,
+and proposes each fact of the layer itself, with the page and a checked excerpt (P9). Each source
+is a stored document before it is cited. The back-end extractor and the lead agent run only when
+the operator asks for them. The session writes with no approval of each write: each proposal waits
+in the review queue, and the operator decides it there. A source that the session cannot store goes
+on a list of needs that tells the operator what to get.
+**Why.** A research layer needs a few targeted facts, and the extractor proposes each claim of a
+document, also the claims outside the layer. A method skill tells the operator AI what to propose
+and what to leave out, so that the queue holds facts that are ready to promote.
+**Cost.** The research uses the tokens of the operator's own subscription. A wrong fact reaches the
+queue with no question first, and the operator rejects it there.
+
 ---
 
 ## Publication
