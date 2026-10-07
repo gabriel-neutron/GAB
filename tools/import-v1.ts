@@ -57,18 +57,25 @@ const oneLine = (text: string): string => text.replace(/\s+/gu, ' ').trim();
 const urlsOf = (cell: unknown): string[] =>
   typeof cell === 'string' ? cell.split(/\s+/u).filter((part) => part !== '') : [];
 
-// External constraint: a GeoPackage geometry is a header of eight bytes, an envelope that bits 1
-// to 3 of the flags size, then the WKB. The v1 file holds points only, in EPSG:4326 (x = lon).
+// External constraint: a GeoPackage geometry is a header of eight bytes (magic, version, flags,
+// SRS id), an envelope that bits 1 to 3 of the flags size, then the WKB. Bit 0 of the flags gives
+// the byte order of the header. The v1 file holds points only, in EPSG:4326 (x = lon).
 const ENVELOPE_BYTES = [0, 32, 48, 48, 64] as const;
+const WGS84 = 4326;
 
-/** The longitude and latitude of a GeoPackage point, or null for any other blob. */
+/** The longitude and latitude of a GeoPackage point in EPSG:4326, or null for any other blob. */
 export const pointOf = (blob: Uint8Array): readonly [number, number] | null => {
   if (blob.length < 8 || blob[0] !== 0x47 || blob[1] !== 0x50) return null;
   const flags = blob[3] ?? 0;
+  const header = new DataView(blob.buffer, blob.byteOffset, 8);
+  if (header.getInt32(4, (flags & 1) === 1) !== WGS84) return null;
   const envelope = ENVELOPE_BYTES[(flags >> 1) & 0b111];
-  if (envelope === undefined) return null;
-  const view = new DataView(blob.buffer, blob.byteOffset + 8 + envelope);
-  if (view.byteLength < 21) return null;
+  if (envelope === undefined || blob.length - 8 - envelope < 21) return null;
+  const view = new DataView(
+    blob.buffer,
+    blob.byteOffset + 8 + envelope,
+    blob.length - 8 - envelope,
+  );
   const little = view.getUint8(0) === 1;
   if (view.getUint32(1, little) !== 1) return null;
   const lon = view.getFloat64(5, little);
@@ -77,71 +84,117 @@ export const pointOf = (blob: Uint8Array): readonly [number, number] | null => {
   return [lon, lat];
 };
 
-const text = (value: unknown): string => (typeof value === 'string' ? oneLine(value) : '');
+// SQLite gives an INTEGER column as a number, so a number is text of the line too.
+const text = (value: unknown): string =>
+  typeof value === 'string'
+    ? oneLine(value)
+    : typeof value === 'number' || typeof value === 'bigint'
+      ? String(value)
+      : '';
+
+const placeOf = (point: readonly [number, number]): string =>
+  `${point[1].toFixed(6)} N, ${point[0].toFixed(6)} E`;
+
+type Point = readonly [number, number];
+
+/** The point of an element and the other points that the file gives it. The point on the layer of
+ * the element comes first, then the points in the order of the file. */
+const placesOf = (
+  stored: readonly { layer: unknown; point: Point }[],
+  layer: unknown,
+): { point: Point | null; others: Point[] } => {
+  const distinct: { layer: unknown; point: Point }[] = [];
+  for (const one of stored)
+    if (!distinct.some((seen) => placeOf(seen.point) === placeOf(one.point))) distinct.push(one);
+  const own = distinct.filter((one) => one.layer === layer);
+  const ordered =
+    own.length === 1 ? [...own, ...distinct.filter((one) => one.layer !== layer)] : distinct;
+  const [first, ...rest] = ordered;
+  return { point: first?.point ?? null, others: rest.map((one) => one.point) };
+};
+
+// The precision of a position, in the attribute that the map reads: a unit with the position of
+// its parent has `inherited` and no point of its own (api.full_map).
+const precisionOf = (mode: unknown, exact: unknown, point: Point | null): string => {
+  if (mode === 'parent') return 'inherited';
+  if (point === null) return '';
+  return exact === 1 ? 'exact' : 'approximate';
+};
+
+const osmOf = (value: unknown): string => (text(value) === '' ? '' : `relation/${text(value)}`);
 
 /** The units and the organisations of a v1 GeoPackage, in the order of the file. */
 export const readV1 = (path: string): readonly V1Element[] => {
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    const points = new Map<string, readonly [number, number]>();
-    for (const row of db.prepare('SELECT entity_id, geometry FROM geometries').all()) {
+    const stored = new Map<string, { layer: unknown; point: Point }[]>();
+    for (const row of db
+      .prepare('SELECT entity_id, layer_id, geometry FROM geometries ORDER BY rowid')
+      .all()) {
       const point = row['geometry'] instanceof Uint8Array ? pointOf(row['geometry']) : null;
       if (point !== null && typeof row['entity_id'] === 'string')
-        points.set(row['entity_id'], point);
+        stored.set(row['entity_id'], [
+          ...(stored.get(row['entity_id']) ?? []),
+          { layer: row['layer_id'], point },
+        ]);
     }
+    const elementOf = (
+      row: Record<string, unknown>,
+      kind: V1Element['kind'],
+      fields: readonly (readonly [string, string])[],
+    ): V1Element => {
+      const id = String(row['id']);
+      const { point, others } =
+        row['position_mode'] === 'parent'
+          ? { point: null, others: [] }
+          : placesOf(stored.get(id) ?? [], row['layer_id']);
+      return {
+        id,
+        kind,
+        name: text(row['name']),
+        parentId: typeof row['parent_id'] === 'string' ? row['parent_id'] : null,
+        fields: [
+          ...fields,
+          ['note', text(row['notes'])],
+          [
+            'position_precision',
+            precisionOf(row['position_mode'], row['is_exact_position'], point),
+          ],
+          ['other_positions', others.map(placeOf).join('; ')],
+        ],
+        ownSources: urlsOf(row['sources']),
+        point,
+      };
+    };
     const units = db
       .prepare(
-        `SELECT id, name, parent_id, type, echelon, affiliation, domain, military_unit_id,
-                osm_relation_id, notes, sources FROM units ORDER BY rowid`,
+        `SELECT id, name, layer_id, parent_id, type, echelon, affiliation, domain,
+                military_unit_id, osm_relation_id, notes, sources, position_mode,
+                is_exact_position FROM units ORDER BY rowid`,
       )
       .all()
-      .map((row): V1Element => {
-        const id = String(row['id']);
-        return {
-          id,
-          kind: 'unit',
-          name: text(row['name']),
-          parentId: typeof row['parent_id'] === 'string' ? row['parent_id'] : null,
-          fields: [
-            ['branch', text(row['type'])],
-            ['echelon', text(row['echelon'])],
-            ['affiliation', text(row['affiliation'])],
-            ['domain', text(row['domain'])],
-            ['military_unit_number', text(row['military_unit_id'])],
-            [
-              'osm_id',
-              text(row['osm_relation_id']) === '' ? '' : `relation/${text(row['osm_relation_id'])}`,
-            ],
-            ['note', text(row['notes'])],
-          ],
-          ownSources: urlsOf(row['sources']),
-          point: points.get(id) ?? null,
-        };
-      });
+      .map((row) =>
+        elementOf(row, 'unit', [
+          ['branch', text(row['type'])],
+          ['echelon', text(row['echelon'])],
+          ['affiliation', text(row['affiliation'])],
+          ['domain', text(row['domain'])],
+          ['military_unit_number', text(row['military_unit_id'])],
+          ['osm_id', osmOf(row['osm_relation_id'])],
+        ]),
+      );
     const organisations = db
       .prepare(
-        'SELECT id, name, parent_id, type, osm_relation_id, notes, sources FROM organisations ORDER BY rowid',
+        `SELECT id, name, parent_id, type, osm_relation_id, notes, sources, position_mode,
+                is_exact_position FROM organisations ORDER BY rowid`,
       )
       .all()
-      .map((row): V1Element => {
-        const id = String(row['id']);
-        return {
-          id,
-          kind: 'organisation',
-          name: text(row['name']),
-          parentId: typeof row['parent_id'] === 'string' ? row['parent_id'] : null,
-          fields: [
-            ['organisation_kind', text(row['type'])],
-            [
-              'osm_id',
-              text(row['osm_relation_id']) === '' ? '' : `relation/${text(row['osm_relation_id'])}`,
-            ],
-            ['note', text(row['notes'])],
-          ],
-          ownSources: urlsOf(row['sources']),
-          point: points.get(id) ?? null,
-        };
-      });
+      .map((row) =>
+        elementOf(row, 'organisation', [
+          ['organisation_kind', text(row['type'])],
+          ['osm_id', osmOf(row['osm_relation_id'])],
+        ]),
+      );
     return [...units, ...organisations];
   } finally {
     db.close();
@@ -149,9 +202,6 @@ export const readV1 = (path: string): readonly V1Element[] => {
 };
 
 // ------------------------------------------------------------------------------ the lines ------
-
-const placeOf = (point: readonly [number, number]): string =>
-  `${point[1].toFixed(6)} N, ${point[0].toFixed(6)} E`;
 
 /** The elements in tree order, each with its sources and its line. A unit with no source takes
  * the sources of its nearest parent with sources. It throws on an element with no source after
@@ -223,18 +273,23 @@ const attrsOf = (line: V1Line): Record<string, { v: string | string[] }> => ({
   source_urls: { v: [...line.sources] },
 });
 
-// A v1 identifier is a uuid, unique in the file, so the new entity keeps it, and the link of an
-// element gets a uuid made from it. A second run then names the same acts, and the door returns
-// the acts that wait in place of new ones.
-const linkIdOf = (element: string): string => {
-  const hex = createHash('sha256').update(`v1 subordinate_to ${element}`).digest('hex');
+// The identifier of an act is made from the bytes of the document and the v1 identifier. A second
+// run of the same document names the same acts, and the door returns the acts that wait. A
+// corrected document is a new document, so its acts get new identifiers and never meet a
+// proposal of an earlier run. The v1 identifier stays in the attribute v1_id.
+const actIdOf = (document: string, what: string): string => {
+  const hex = createHash('sha256').update(`${document} ${what}`).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 };
 
 /** One batch for each top element with its units that have no sub-unit, and one for each tree
  * under it (an army, a division or a holding): each element, then its link to its parent. A link to the top element
  * names an act of another batch, so the operator promotes the batch of the top element first. */
-export const batchesOf = (lines: readonly V1Line[]): readonly (readonly PlannedItem[])[] => {
+export const batchesOf = (
+  lines: readonly V1Line[],
+  document: string,
+): readonly (readonly PlannedItem[])[] => {
+  const entityOf = (element: string): string => actIdOf(document, `entity ${element}`);
   const tops = new Set(
     lines.filter((line) => line.element.parentId === null).map((line) => line.element.id),
   );
@@ -252,7 +307,7 @@ export const batchesOf = (lines: readonly V1Line[]): readonly (readonly PlannedI
         : batches.at(-1);
     if (batch === undefined) throw new Error('the lines are not in tree order');
     batch.push({
-      id: element.id,
+      id: entityOf(element.id),
       line,
       request: writeRequest.parse({
         op: 'create_entity',
@@ -266,13 +321,13 @@ export const batchesOf = (lines: readonly V1Line[]): readonly (readonly PlannedI
     });
     if (element.parentId !== null)
       batch.push({
-        id: linkIdOf(element.id),
+        id: actIdOf(document, `subordinate_to ${element.id}`),
         line,
         request: writeRequest.parse({
           op: 'create_relation',
           type: 'subordinate_to',
-          srcId: element.id,
-          dstId: element.parentId,
+          srcId: entityOf(element.id),
+          dstId: entityOf(element.parentId),
         }),
       });
   }
@@ -341,7 +396,8 @@ const main = async (): Promise<number> => {
   }
   const retrievedAt = checkedDay(values['retrieved-at']);
   const lines = linesOf(readV1(path));
-  const batches = batchesOf(lines);
+  const bytes = new TextEncoder().encode(documentOf(lines));
+  const batches = batchesOf(lines, createHash('sha256').update(bytes).digest('hex'));
   const inherited = lines.filter((line) => line.sourcesFrom !== null).length;
   console.log(
     `${lines.length} elements (${inherited} with inherited sources), ${batches.length} batches, ` +
@@ -366,7 +422,7 @@ const main = async (): Promise<number> => {
     let stored;
     try {
       stored = await storeBytes({ put: (object) => putObject(raw, object) }, session, {
-        bytes: new TextEncoder().encode(documentOf(lines)),
+        bytes,
         fileName: FILE_NAME,
         title: TITLE,
         kind: 'file',
@@ -383,24 +439,34 @@ const main = async (): Promise<number> => {
       stored.id,
     ]);
     let written = 0;
+    const refused: string[] = [];
     for (const batch of batches) {
+      const name = batch[0]?.line.element.name ?? '';
       const page = pages.rows.find((one) =>
         batch.every(({ line }) => spanOf(one.text, line.text) !== null),
       );
-      if (page === undefined) throw new Error('no stored page holds each line of a batch');
+      if (page === undefined) throw new Error(`no stored page holds each line of ${name}`);
       const items = doorItems(batch, stored.id, {
         extractor: page.extractor,
         number: page.page,
         text: page.text,
       });
-      const result = await research.query<{ written: number }>(BATCH, [JSON.stringify(items)]);
-      written += result.rows[0]?.written ?? 0;
-      console.log(`  proposed ${batch[0]?.line.element.name ?? ''}`);
+      // A refusal ends this batch only. The run names it and goes on with the next batch.
+      try {
+        const result = await research.query<{ written: number }>(BATCH, [JSON.stringify(items)]);
+        written += result.rows[0]?.written ?? 0;
+        console.log(`  proposed ${name}`);
+      } catch (cause) {
+        refused.push(name);
+        console.error(`  refused ${name}: ${cause instanceof Error ? cause.message : 'no reason'}`);
+      }
     }
+    const acts = batches.reduce((sum, batch) => sum + batch.length, 0);
     console.log(
-      `${written} acts written, ${batches.reduce((s, b) => s + b.length, 0) - written} already waited`,
+      `${batches.length - refused.length} of ${batches.length} batches sent, ${written} acts ` +
+        `written, ${acts - written} not written`,
     );
-    return 0;
+    return refused.length === 0 ? 0 : 1;
   } finally {
     await Promise.all([app.end(), research.end()]);
   }
