@@ -308,7 +308,8 @@ test('a job that fails after a part was proposed keeps that proposal, and its re
       did: 'failed',
       job: held.job,
     });
-    expect((await held.read()).failure_reason).not.toContain('nothing was written');
+    expect((await held.read()).failure_reason).toBe('the model account has no credit left');
+    expect(gateway.chats()).toBe(2);
     expect((await citedOf(held)).map((one) => one.label)).toStrictEqual(['Nayara']);
   });
 });
