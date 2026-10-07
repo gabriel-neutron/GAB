@@ -71,7 +71,7 @@ test('each tool of the catalogue is listed once, flat, with a read or write hint
   }
 });
 
-test('the tools that are not marked as reads are the eleven writes', async () => {
+test('the tools that are not marked as reads are the twelve writes', async () => {
   const client = await connected(fakePool(() => []).pool);
   const writes = (await client.listTools()).tools
     .filter((tool) => tool.annotations?.readOnlyHint !== true)
@@ -79,6 +79,7 @@ test('the tools that are not marked as reads are the eleven writes', async () =>
   expect(writes).toStrictEqual([
     'archive_snapshot',
     'fetch_document',
+    'store_saved_file',
     'telegram_channel',
     'gleif_lookup',
     'companies_house',

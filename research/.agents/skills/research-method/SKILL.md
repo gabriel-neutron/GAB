@@ -119,7 +119,13 @@ and stop at the first that stores the full text:
    the EU for an EU act (`publications.europa.eu/resource/celex/<CELEX>`), a repository of the
    paper (EconStor, RePEc, SSRN), the page of the institution itself. Find it with `web_search`.
    It must be the same text from the same issuer.
-4. If nothing works, add the source to `research/out/needs.md`, and continue with the next fact.
+4. The browser. Open the page in the browser of the session (Claude in Chrome, or the browser of
+   the app). It runs on the operator's machine, with a home address and real cookies, so most
+   filters let it pass. Save the page into `research/inbox/`: the PDF when the page offers one,
+   or else the HTML of the page (`document.documentElement.outerHTML`) in a `.html` file, with
+   no change. Then call `store_saved_file` with the file name and the address of the page, and
+   cite the document that it gives.
+5. If nothing works, add the source to `research/out/needs.md`, and continue with the next fact.
 
 Each line of `research/out/needs.md` gives what the operator needs to store it:
 
