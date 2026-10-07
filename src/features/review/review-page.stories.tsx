@@ -263,6 +263,7 @@ export const ASentenceOfAnotherActSaysThatItIsOfAnotherAct: Story = {
 const PASSAGE = {
   document: 'doc_8f2a41',
   title: 'A port report of 12 March 2024',
+  mime: 'application/pdf',
   page: 3,
   text: 'The tanker left the quay on 12 March 2024, and Rosneft owns it.',
 };
