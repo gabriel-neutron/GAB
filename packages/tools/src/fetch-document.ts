@@ -11,7 +11,7 @@ import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-gua
 import { renderPage } from './render-page.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
-import { unreadablePage } from './unreadable-page.ts';
+import { isHtml, unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -45,6 +45,7 @@ export const endMetadata = async (): Promise<void> => {
 const EXTENSION: Readonly<Record<string, string>> = {
   'application/pdf': '.pdf',
   'text/html': '.html',
+  'application/xhtml+xml': '.xhtml',
 };
 
 const textOf = (value: unknown): string | null => {
@@ -118,7 +119,7 @@ const MAX_TITLE = 500;
 const titleOf = (mime: string, bytes: Uint8Array, metadata: Metadata, url: string): string => {
   const { hostname, pathname } = new URL(url);
   const chosen =
-    (mime === 'text/html' ? htmlTitle(bytes) : null) ??
+    (isHtml(mime) ? htmlTitle(bytes) : null) ??
     metadata.title ??
     `${hostname}${decodeURI(pathname)}`;
   return chosen.slice(0, MAX_TITLE);
@@ -250,7 +251,7 @@ export const fetchDocument = defineTool({
     });
 
     const notices: string[] = [];
-    let captcha = mime === 'text/html' && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
+    let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
     const allText = pages.join('').trim().length;
     if (mime === 'text/html' && allText < RENDER_BELOW) {

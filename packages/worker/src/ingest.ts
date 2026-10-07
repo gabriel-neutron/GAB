@@ -19,6 +19,7 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.pdf': 'application/pdf',
   '.html': 'text/html',
   '.htm': 'text/html',
+  '.xhtml': 'application/xhtml+xml',
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
