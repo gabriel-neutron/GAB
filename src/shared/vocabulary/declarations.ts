@@ -36,7 +36,7 @@ export const seededVocabulary: {
     entityType('bank', 'Bank', '#b53c7f', '#e887b6', 70),
     // A ministry, an agency, a regulator or a council of a state or of a union of states. A central
     // bank stays `bank`.
-    entityType('state_body', 'State body', '#b2432a', '#f28c6c', 75),
+    entityType('state_body', 'State body', '#bb4530', '#fa8c7a', 75),
     entityType('legal_act', 'Legal act', '#8b598e', '#e889ed', 80),
     // `unknown` takes the grey and sorts last: a grey says that no type was recognised.
     entityType('unknown', 'Unknown', '#6b7280', '#9ca3af', 900),
