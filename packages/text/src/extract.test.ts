@@ -77,6 +77,20 @@ describe('extractText', () => {
     expect(pages[0]).not.toContain('Home page link');
   });
 
+  test('an XHTML act gives its whole text, with each article and each annex', async () => {
+    const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
+      <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Regulation</title></head><body>
+      <p class="oj-doc-ti">COUNCIL REGULATION (EU) 2022/879 of 3 June 2022</p>
+      <div><p>${'In Annex IV the following entities are added: Almaz JSC, Temp Avia, Etalon JSC. '.repeat(20)}</p></div>
+      <p>${'Article 3m prohibits the purchase of crude oil that originates in Russia. '.repeat(6)}</p>
+      </body></html>`;
+    const { pages } = await extractText(bytesOf(xhtml), 'application/xhtml+xml;charset=UTF-8');
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toContain('COUNCIL REGULATION (EU) 2022/879');
+    expect(pages[0]).toContain('Article 3m prohibits the purchase of crude oil');
+    expect(pages[0]).toContain('Almaz JSC');
+  });
+
   test.each(['text/plain', 'text/markdown', 'text/csv'])(
     '%s is returned as it is',
     async (mime) => {

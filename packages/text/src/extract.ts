@@ -85,14 +85,16 @@ const readable = (): TurndownService => {
   return turndown;
 };
 
-const htmlPage = (bytes: Uint8Array): string => {
+// An XHTML document of the Publications Office is one act with no navigation, and Readability keeps
+// only one part of it (an annex). Thus the whole document is the text of an XHTML answer.
+const htmlPage = (bytes: Uint8Array, whole: boolean): string => {
   const source = new TextDecoder('utf-8').decode(bytes);
   const { document } = parseHTML(source);
   document.querySelectorAll(COMMENTS).forEach((comment: { remove(): void }) => {
     comment.remove();
   });
   // Readability finds nothing in a page with no article, and the whole body is then the text.
-  const article = new Readability(document).parse();
+  const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
   return withoutNul(readable().turndown(html).trim());
 };
@@ -100,7 +102,10 @@ const htmlPage = (bytes: Uint8Array): string => {
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
   if (type === 'application/pdf') return { pages: await pdfPages(bytes) };
-  if (type === 'text/html') return { pages: [htmlPage(bytes)] };
+  if (type === 'text/html') return { pages: [htmlPage(bytes, false)] };
+  // XHTML is HTML written as XML. The Publications Office of the EU gives the official text of an
+  // act in it.
+  if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
   throw new UnsupportedTypeError(mime);
 };
