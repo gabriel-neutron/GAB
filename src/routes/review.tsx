@@ -1,12 +1,16 @@
-import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
+import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
 import type { DecisionState } from '@/features/review/decision-bar';
 import { readDecided } from '@/features/review/decided';
+import type { GroupActionState, GroupView } from '@/features/review/group-panel';
+import { readGroupUnits, readGroups } from '@/features/review/groups';
+import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
+import { sendGroupAction } from '@/features/review/send-group-action';
 import { readUnits } from '@/features/review/units';
 import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
 import { loadCorpus } from '@/shared/read/corpus';
@@ -18,33 +22,44 @@ export interface ReviewSearch {
   /** The unit under examination. An empty string opens the queue at its first unit. */
   readonly unit: string;
   readonly view: ReviewView;
+  /** The group open on the page of the groups. An empty string opens none. */
+  readonly group: string;
 }
 
 export const Route = createFileRoute('/review')({
   // The address comes from outside, so it is validated before its first use. A stale identifier
   // opens the queue at its first unit, and it never takes the surface off the screen.
   validateSearch: (search: Record<string, unknown>): ReviewSearch => {
-    const unit = search['unit'];
+    const { unit, view, group } = search;
     return {
       unit: typeof unit === 'string' ? unit : '',
-      view: search['view'] === 'decided' ? 'decided' : 'queue',
+      view: view === 'decided' || view === 'groups' ? view : 'queue',
+      group: typeof group === 'string' ? group : '',
     };
   },
 
-  search: { middlewares: [stripSearchParams({ unit: '', view: 'queue' })] },
+  search: { middlewares: [stripSearchParams({ unit: '', view: 'queue', group: '' })] },
 
-  // The queue reads one page of units. The history reads the whole corpus, so it is read only
-  // when the history is open.
-  loaderDeps: ({ search }) => ({ view: search.view }),
+  // The queue reads one page of units. The history reads the whole corpus, and the rail reads the
+  // faults of every unit that waits, so each is read only when its page is open.
+  loaderDeps: ({ search }) => ({ view: search.view, group: search.group }),
   loader: async ({ deps }) => {
     const [first, relationTypes, entityTypes] = await Promise.all([
       readUnits(null),
       loadRelationTypes(),
       loadEntityTypes(),
     ]);
-    if (deps.view !== 'decided') return { first, relationTypes, entityTypes, history: [] };
+    const held = { first, relationTypes, entityTypes, history: [], groups: null };
+    if (deps.view === 'groups') {
+      const [rail, group] = await Promise.all([
+        readGroups(),
+        deps.group === '' ? null : readGroupUnits(deps.group),
+      ]);
+      return { ...held, groups: { rail, group } };
+    }
+    if (deps.view !== 'decided') return held;
     const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
-    return { first, relationTypes, entityTypes, history: readDecided(corpus, decided) };
+    return { ...held, history: readDecided(corpus, decided) };
   },
 
   component: ReviewRoute,
@@ -69,13 +84,15 @@ const startOf = (first: UnitPage | null): HeldPages => ({
 });
 
 function ReviewRoute() {
-  const { unit, view } = Route.useSearch();
+  const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { first, relationTypes, entityTypes, history } = Route.useLoaderData();
+  const router = useRouter();
+  const { first, relationTypes, entityTypes, history, groups } = Route.useLoaderData();
 
   // The pages and the decision die with the view: a reload reads the first page again.
   const [held, setHeld] = useState<HeldPages>(startOf(null));
   const [decision, setDecision] = useState<DecisionState>({ step: 'idle' });
+  const [groupAction, setGroupAction] = useState<GroupActionState>({ step: 'idle' });
 
   const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
 
@@ -155,6 +172,33 @@ function ReviewRoute() {
     }
   };
 
+  // A group whose every unit the action wrote waits no more, so its read is refused: the result
+  // of the action stays on the screen with the sentence of that read.
+  const groupRead = groups?.group ?? null;
+  const action: GroupActionState =
+    groupAction.step !== 'idle' && groupAction.groupId === group ? groupAction : { step: 'idle' };
+  const groupView: GroupView =
+    group === '' || groupRead === null
+      ? { state: 'none' }
+      : groupRead.state === 'private'
+        ? { state: 'private', groupId: group, why: groupRead.why, action }
+        : { state: 'held', group: groupRead.read, action };
+
+  // The rail, the group and the queue are read again after the action, so each count is the
+  // count of the record.
+  const onGroupAct = (act: GroupsAct): void => {
+    if (act.kind === 'select') {
+      void navigate({ search: (search) => ({ ...search, group: act.groupId }), replace: true });
+      return;
+    }
+    const { groupId, unitIds } = act;
+    setGroupAction({ step: 'working', groupId });
+    void sendGroupAction(groupId, unitIds).then(async (result) => {
+      setGroupAction({ ...result, groupId });
+      if (result.step === 'done') await router.invalidate();
+    });
+  };
+
   return (
     <ReviewSurface
       view={view}
@@ -163,6 +207,11 @@ function ReviewRoute() {
       }}
       decided={history}
       queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
+      groups={
+        groups === null ? null : (
+          <GroupsPage rail={groups.rail} group={groupView} words={words} onAct={onGroupAct} />
+        )
+      }
     />
   );
 }
