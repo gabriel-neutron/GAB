@@ -168,6 +168,9 @@ importers:
       '@gab/store':
         specifier: workspace:*
         version: link:../store
+      '@gab/text':
+        specifier: workspace:*
+        version: link:../text
       '@gab/tools':
         specifier: workspace:*
         version: link:../tools
