@@ -8,7 +8,7 @@ import { open, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
-import { extractText, mimeOfFileName, UnsupportedTypeError } from '@gab/text';
+import { extractText, mimeOfFileName, RefusedImageError, UnsupportedTypeError } from '@gab/text';
 import { z } from 'zod';
 
 import { htmlTitle } from './fetch-document.ts';
@@ -141,7 +141,8 @@ export const storeSavedFile = defineTool({
     try {
       ({ pages } = await extractText(bytes, mime));
     } catch (fault) {
-      if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
+      if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
+        throw new ToolRefusal(fault.message);
       throw new ToolRefusal(`no text is read from ${input.file}`);
     }
     if (pages.join('').trim() === '') throw new ToolRefusal(`${input.file} holds no text`);
