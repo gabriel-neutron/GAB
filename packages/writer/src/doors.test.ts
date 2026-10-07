@@ -56,6 +56,8 @@ const privateRead = async (
 
 const DOCUMENT = { documentId: 'doc_0123456789ab' };
 
+const PROPOSAL = 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12';
+
 const ENTITY = { type: 'vessel', label: 'MV Northern Ledger' };
 
 // Departure: each failure is logged whole for the operator, and the log is not under test.
@@ -141,6 +143,9 @@ test.each([
   ['/write/start-lead', 'start_lead', { lead: 'a company and its vessels' }],
   ['/private/leads', 'lead_jobs', {}],
   ['/private/review-units', 'review_units', { after: null, size: 1 }],
+  ['/private/review-groups', 'review_groups', {}],
+  ['/private/review-group', 'review_group', { groupId: PROPOSAL }],
+  ['/write/promote-group', 'promote_group', { groupId: PROPOSAL, unitIds: [PROPOSAL] }],
 ])('a lost answer on %s is a doubt, and the client goes back', async (door, on, body) => {
   const held = faultyPool([{ on, cause: lostSocket() }]);
 

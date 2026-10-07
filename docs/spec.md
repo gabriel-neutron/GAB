@@ -144,6 +144,13 @@ note when the reason is "other". The reason and the note are private. The operat
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
 relation, or a group action. The public page can then say who decided a fact and how.
 
+A rail lists the groups that wait, with the counts of their units, of their clean units and of
+each fault. The group action promotes the clean units of one group after one confirmation, which
+shows the counts and the tree of the clean units. The screen sends the exact units that it showed,
+so a unit that came after the view is never written. The database checks the list again, writes
+only the units that are still pending and clean, and writes a parent before its child. Each unit
+succeeds or fails on its own, and the answer names each unit that failed and why.
+
 One check in the database finds the faults of a list of units. The queue, the promotion and the
 group action read this check, so the screen and the record agree. Each fault has one level:
 

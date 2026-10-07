@@ -34,7 +34,7 @@ const QUEUE = (
 
 const meta = {
   component: ReviewSurface,
-  args: { view: 'queue', onView, queue: QUEUE, decided: [] },
+  args: { view: 'queue', onView, queue: QUEUE, groups: null, decided: [] },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-[720px] w-[1280px]">
