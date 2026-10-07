@@ -46,6 +46,8 @@ const EXTENSION: Readonly<Record<string, string>> = {
   'application/pdf': '.pdf',
   'text/html': '.html',
   'application/xhtml+xml': '.xhtml',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
 };
 
 const textOf = (value: unknown): string | null => {
@@ -86,10 +88,19 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
   }
 };
 
+// External constraint: the signatures that open a PNG and a JPEG file.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+
+const opensWith = (bytes: Uint8Array, signature: Buffer): boolean =>
+  Buffer.from(bytes.subarray(0, signature.length)).equals(signature);
+
 const mimeOf = (contentType: string | null, bytes: Uint8Array): string => {
   const given = (contentType?.split(';')[0] ?? '').trim().toLowerCase();
   if (given !== '') return given;
   if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
+  if (opensWith(bytes, PNG_SIGNATURE)) return 'image/png';
+  if (opensWith(bytes, JPEG_SIGNATURE)) return 'image/jpeg';
   throw new ToolRefusal('the server named no type for the answer, and no type is read from it');
 };
 
@@ -197,7 +208,10 @@ export const fetchDocument = defineTool({
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
-    'refused, and a render of that kind is not stored.',
+    'refused, and a render of that kind is not stored. A PNG or a JPEG image is stored as ' +
+    'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
+    'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
+    'compare it with the image. An image in which OCR reads no text is refused.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -235,6 +249,10 @@ export const fetchDocument = defineTool({
       if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
       throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
     }
+
+    // An image with no text gives nothing to cite, and an excerpt could never be checked on it.
+    if (mime.startsWith('image/') && pages.join('').trim() === '')
+      throw new ToolRefusal('OCR read no text in the image, so it holds nothing to cite');
 
     // A challenge or a missing page is no record of the source, and it leaves no object behind.
     const unreadable = unreadablePage(mime, pages);

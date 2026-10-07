@@ -2,11 +2,20 @@
 // with a store in memory and an inbox in a temporary folder. Each call runs inside a transaction
 // that rolls back.
 
-import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { endOcr } from '@gab/text';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -39,11 +48,15 @@ writeFileSync(join(inbox, 'challenge.html'), '<html><body>Just a moment...</body
 writeFileSync(join(inbox, 'empty.html'), '<html><body></body></html>');
 writeFileSync(join(inbox, 'notes.txt'), 'A note that the AI wrote.');
 writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
+const IMAGES = join(import.meta.dirname, '../../text/fixtures');
+copyFileSync(join(IMAGES, 'unit-tree.png'), join(inbox, 'unit-tree.png'));
+copyFileSync(join(IMAGES, 'blank.png'), join(inbox, 'blank.png'));
 const outside = join(root, 'secret.html');
 writeFileSync(outside, page('<p>A private page of the operator, outside the inbox.</p>'));
 
-afterAll(() => {
+afterAll(async () => {
   rmSync(root, { recursive: true, force: true });
+  await endOcr();
 });
 
 const reachOf = (store = memoryStore(), folder = inbox) => ({
@@ -87,6 +100,20 @@ test('a saved page is stored once, under the address of its source, as saved by 
   expect(store.puts).toHaveLength(1);
 });
 
+test('a saved PNG image is stored as an image, with its OCR text as the page', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'unit-tree.png', url: `https://tochnyi.info/tree-${RUN}.png` },
+      reachOf(store),
+    );
+    expect(got).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
+  });
+  expect(store.puts.map((put) => put.mime)).toStrictEqual(['image/png']);
+});
+
 // The refusal of one call, and the number of objects that the call put in the store.
 const refusalOf = async (
   file: string,
@@ -110,6 +137,7 @@ const refusalOf = async (
 test.each([
   ['a challenge page', 'challenge.html', 'bot filter'],
   ['a page with no text', 'empty.html', 'holds no text'],
+  ['an image with no text', 'blank.png', 'holds no text'],
   ['a text file, which is no saved page', 'notes.txt', 'is not a saved page'],
   ['a file larger than the upload limit', 'big.html', 'larger than'],
   ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
