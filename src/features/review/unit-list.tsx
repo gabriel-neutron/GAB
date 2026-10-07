@@ -29,7 +29,7 @@ const CONTROL = cn(
 
 const typeOf = (unit: Unit, words: UnitWords): string => {
   if (unit.type === null) return 'change';
-  return unit.kind === 'link' ? words.relation(unit.type).label : words.entityType(unit.type);
+  return unit.kind === 'entity' ? words.entityType(unit.type) : words.relation(unit.type).label;
 };
 
 const groupOf = (unit: Unit): string =>

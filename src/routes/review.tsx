@@ -49,13 +49,14 @@ export const Route = createFileRoute('/review')({
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
-/** The pages read after the first one, and whether a read runs now. */
+/** The pages read after one first page, and whether a read runs now. */
 interface LaterPages {
+  readonly after: UnitPage | null;
   readonly pages: readonly UnitPage[];
   readonly reading: boolean;
 }
 
-const NONE: LaterPages = { pages: [], reading: false };
+const NONE: LaterPages = { after: null, pages: [], reading: false };
 
 function ReviewRoute() {
   const { unit, view } = Route.useSearch();
@@ -63,9 +64,14 @@ function ReviewRoute() {
   const { first, relationTypes, entityTypes, history } = Route.useLoaderData();
 
   // The pages after the first die with the view: a reload reads the first page again.
-  const [later, setLater] = useState<LaterPages>(NONE);
+  const [held, setHeld] = useState<LaterPages>(NONE);
 
   const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
+
+  // A later page extends the first page that it was read after. When the loader reads the first
+  // page again, the later pages no longer follow it, so no unit shows twice.
+  const firstPage = first.state === 'held' ? first.page : null;
+  const later = held.after === firstPage ? held : NONE;
 
   const queue: QueueView =
     first.state === 'private'
@@ -86,18 +92,23 @@ function ReviewRoute() {
   const onAct = (act: UnitListAct): void => {
     switch (act.kind) {
       case 'select':
-        void navigate({ search: (held) => ({ ...held, unit: act.unitId }), replace: true });
+        void navigate({ search: (search) => ({ ...search, unit: act.unitId }), replace: true });
         return;
       case 'more': {
         if (first.state === 'private' || later.reading) return;
         const after = (later.pages.at(-1) ?? first.page).next;
         if (after === null) return;
-        setLater({ ...later, reading: true });
+        setHeld({ after: first.page, pages: later.pages, reading: true });
         void readUnits(after).then((read) => {
-          setLater((held) => ({
-            pages: read.state === 'held' ? [...held.pages, read.page] : held.pages,
-            reading: false,
-          }));
+          setHeld((now) =>
+            now.after === first.page
+              ? {
+                  after: first.page,
+                  pages: read.state === 'held' ? [...now.pages, read.page] : now.pages,
+                  reading: false,
+                }
+              : now,
+          );
         });
         return;
       }
@@ -108,7 +119,7 @@ function ReviewRoute() {
     <ReviewSurface
       view={view}
       onView={(next) => {
-        void navigate({ search: (held) => ({ ...held, view: next }), replace: true });
+        void navigate({ search: (search) => ({ ...search, view: next }), replace: true });
       }}
       decided={history}
       queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}

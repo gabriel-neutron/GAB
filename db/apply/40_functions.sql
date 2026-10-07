@@ -104,8 +104,8 @@ BEGIN
 END $$;
 
 -- THE UNIT OF DECISION (P11). The operator decides one entity with the relations that depend on
--- it. A relation whose end is a pending act outside its group is a unit of its own, so that no
--- entity waits for another group. If not, a relation belongs to its source end when that end is a
+-- it. A relation whose end is a pending act outside its group, or a relation, is a unit of its
+-- own, so that no entity waits for another group or for a relation. If not, a relation belongs to its source end when that end is a
 -- pending entity of the same group, then to its target end. Every other act is its own unit. An
 -- entity act has the identifier of the entity it creates, so the unit of an entity is that
 -- identifier. The unit is frozen with the act.
@@ -124,7 +124,8 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.proposals o
               WHERE o.id IN (v_src, v_dst) AND o.status = 'pending'
                 AND NOT (o.op = 'create_entity'
-                         AND o.batch_id IS NOT DISTINCT FROM NEW.batch_id)) THEN
+                         AND o.batch_id IS NOT DISTINCT FROM NEW.batch_id))
+     OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id IN (v_src, v_dst)) THEN
     RETURN NEW;
   END IF;
   IF EXISTS (SELECT 1 FROM public.proposals o
@@ -600,6 +601,20 @@ BEGIN
 
     IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
       RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    -- THE ORIGINATOR OF THE V1 IMPORT IS RESERVED. The review names an act with it "v1 import",
+    -- so only an item that cites the stored v1 ORBAT alone may name it.
+    IF btrim(v_item->>'originator', E' \t\n\r\f\v') = 'GAB v1 ORBAT (operator)'
+       AND (cardinality(v_src) = 0
+            OR EXISTS (SELECT 1 FROM unnest(v_src) AS s(doc)
+                        WHERE NOT EXISTS (
+                                SELECT 1 FROM public.documents d
+                                 WHERE d.id = s.doc AND d.title =
+                                   'GAB v1 ORBAT: military units and organisations of the v1 '
+                                   'GeoPackage'))) THEN
+      RAISE EXCEPTION 'item %: the originator "GAB v1 ORBAT (operator)" belongs to the import of '
+                      'the v1 work, and the item cites a document that is not the v1 ORBAT', v_no
         USING ERRCODE = 'invalid_parameter_value';
     END IF;
     -- A change of a name or a type and a deletion rewrite what the operator already decided.
@@ -1457,11 +1472,125 @@ SET search_path = pg_catalog, public, pg_temp AS $$
    ORDER BY j.created_at DESC, j.id
 $$;
 
+-- THE NAME OF AN ELEMENT FOR THE REVIEW: the label of an entity, in the record or in a pending
+-- act, and for a relation its source, the words of its type and its target. A relation names its
+-- ends by their labels only, so a name never walks a chain of relations.
+--
+-- Departure: PL/pgSQL and not SQL. The page names about a thousand units, and a SQL function
+-- that cannot be inlined is planned again at each call. Measured on 7 October 2026: 2.8 s for one
+-- page of the v1 import, against 0.2 s with the plans that PL/pgSQL keeps.
+CREATE OR REPLACE FUNCTION entity_label(p_id uuid) RETURNS text
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_label text;
+BEGIN
+  SELECT e.label INTO v_label FROM public.entities e WHERE e.id = p_id;
+  IF v_label IS NULL THEN
+    SELECT w.payload->>'label' INTO v_label FROM public.proposals w
+     WHERE w.id = p_id AND w.status = 'pending' AND w.op = 'create_entity';
+  END IF;
+  RETURN v_label;
+END $$;
+
+CREATE OR REPLACE FUNCTION relation_name(p_src uuid, p_type text, p_dst uuid) RETURNS text
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_words text;
+BEGIN
+  SELECT t.label INTO v_words FROM public.relation_type t WHERE t.key = p_type;
+  RETURN coalesce(public.entity_label(p_src), 'an element') || ' ' || coalesce(v_words, p_type)
+         || ' ' || coalesce(public.entity_label(p_dst), 'an element');
+END $$;
+
+CREATE OR REPLACE FUNCTION element_name(p_id uuid) RETURNS text
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_name text := public.entity_label(p_id);
+  v_src  uuid;
+  v_type text;
+  v_dst  uuid;
+BEGIN
+  IF v_name IS NOT NULL THEN RETURN v_name; END IF;
+  SELECT r.src_id, r.type, r.dst_id INTO v_src, v_type, v_dst
+    FROM public.relations r WHERE r.id = p_id;
+  IF NOT FOUND THEN
+    SELECT (w.payload->>'src_id')::uuid, w.payload->>'type', (w.payload->>'dst_id')::uuid
+      INTO v_src, v_type, v_dst
+      FROM public.proposals w
+     WHERE w.id = p_id AND w.status = 'pending' AND w.op = 'create_relation';
+    IF NOT FOUND THEN RETURN NULL; END IF;
+  END IF;
+  RETURN public.relation_name(v_src, v_type, v_dst);
+END $$;
+
+-- THE CITED WORDS OF THE NAMED ACTS, each with the two lines before and after them. The offsets
+-- of a citation count code points.
+--
+-- Departure: each cited page is cut into lines once, and each citation is placed by the start of
+-- its line. A substr of a long page counts the code points from its start at each call. Measured
+-- on 7 October 2026: the one page of the v1 import holds about 500,000 characters, and a substr
+-- for each citation took 2.7 s for a page of 200 units.
+CREATE OR REPLACE FUNCTION cited_passages(p_claims uuid[])
+RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text)
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_page  record;
+  v_cite  record;
+  v_lines text[];
+  v_at    int[];
+  v_first int;
+  v_last  int;
+  v_count int;
+BEGIN
+  FOR v_page IN SELECT DISTINCT c.doc_id, c.text_extractor, c.page FROM public.citation c
+                 WHERE c.claim_id = ANY (p_claims) LOOP
+    SELECT string_to_array(t.text, E'\n') INTO v_lines FROM public.document_text t
+     WHERE t.document_id = v_page.doc_id AND t.extractor = v_page.text_extractor
+       AND t.page = v_page.page;
+    CONTINUE WHEN v_lines IS NULL;
+    v_count := cardinality(v_lines);
+    -- v_at[i] is the offset of the first code point of line i; one more entry closes the page.
+    v_at := ARRAY[0];
+    FOR i IN 1 .. v_count LOOP
+      v_at := v_at || (v_at[i] + char_length(v_lines[i]) + 1);
+    END LOOP;
+    v_first := 1;
+    FOR v_cite IN SELECT c.claim_id, c.start, c."end" FROM public.citation c
+                   WHERE c.claim_id = ANY (p_claims) AND c.doc_id = v_page.doc_id
+                     AND c.text_extractor = v_page.text_extractor AND c.page = v_page.page
+                   ORDER BY c.start, c.claim_id LOOP
+      WHILE v_first < v_count AND v_at[v_first + 1] <= v_cite.start LOOP
+        v_first := v_first + 1;
+      END LOOP;
+      v_last := v_first;
+      WHILE v_last < v_count AND v_at[v_last + 1] < v_cite."end" LOOP
+        v_last := v_last + 1;
+      END LOOP;
+      claim_id := v_cite.claim_id;
+      doc_id := v_page.doc_id;
+      page := v_page.page;
+      before := array_to_string(
+        v_lines[greatest(1, v_first - 2):v_first - 1]
+          || substr(v_lines[v_first], 1, v_cite.start - v_at[v_first]), E'\n');
+      cited := CASE WHEN v_first = v_last
+                    THEN substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1,
+                                v_cite."end" - v_cite.start)
+                    ELSE array_to_string(
+                           substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1)
+                           || v_lines[v_first + 1:v_last - 1]
+                           || substr(v_lines[v_last], 1, v_cite."end" - v_at[v_last]), E'\n')
+               END;
+      after := array_to_string(
+        substr(v_lines[v_last], v_cite."end" - v_at[v_last] + 1)
+          || v_lines[v_last + 1:v_last + 2], E'\n');
+      RETURN NEXT;
+    END LOOP;
+  END LOOP;
+END $$;
+
 -- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its acts, the ends of each
--- relation, the proposer, the group, the documents and the cited passages with two lines of
--- context. The passages and the reason of a dispute are private, so only the operator role holds
--- this read. The page starts after the sort key of the last unit of the page before, so a long
--- queue is never read whole.
+-- act, the proposer, the group, the documents and the cited passages with two lines of context.
+-- The passages and the reason of a dispute are private, so only the operator role holds this
+-- read. The page starts after the sort key of the last unit of the page before, so a long queue
+-- is never read whole. Only the units of the page read their acts, their ends and their passages.
 --
 -- THE GROUP IS NAMED BY ITS SUBJECT: the entity of the group that is the source of no relation to
 -- another entity of the group. The sort key is the group, the name of the unit, then its
@@ -1471,31 +1600,19 @@ CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-  WITH pending AS (
-    SELECT * FROM public.proposals WHERE status = 'pending'
-  ), ends AS (
-    -- The name and the state of each element that a pending act names.
-    SELECT n.id,
-           CASE WHEN w.id IS NOT NULL THEN 'pending'
-                WHEN e.id IS NOT NULL OR r.id IS NOT NULL THEN 'record'
-                ELSE 'missing' END AS state,
-           coalesce(w.payload->>'label', e.label) AS name,
-           w.batch_id AS group_id
-      FROM (SELECT DISTINCT x.ref::uuid AS id
-              FROM pending p,
-                   LATERAL (VALUES (p.payload->>'src_id'), (p.payload->>'dst_id'),
-                                   (p.target_id::text)) AS x(ref)
-             WHERE x.ref IS NOT NULL) AS n
-      LEFT JOIN pending w ON w.id = n.id
-      LEFT JOIN public.entities e ON e.id = n.id
-      LEFT JOIN public.relations r ON r.id = n.id
-  ), said AS (
-    SELECT x.id, jsonb_build_object('name', x.name, 'state', x.state, 'group', x.group_id) AS said
-      FROM ends x
+  WITH size AS (
+    SELECT greatest(1, least(coalesce(p_size, 50), 200)) AS n
+  ), heads AS (
+    -- The head act of each unit: the entity of an entity unit, or the one act of any other unit.
+    SELECT DISTINCT ON (p.unit_id) p.unit_id, p.op, p.payload, p.proposer, p.batch_id,
+           p.target_id
+      FROM public.proposals p
+     WHERE p.status = 'pending'
+     ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
   ), subjects AS (
     SELECT DISTINCT ON (g.batch_id) g.batch_id, g.payload->>'label' AS subject
       FROM public.proposals g
-     WHERE g.op = 'create_entity' AND g.batch_id IN (SELECT batch_id FROM pending)
+     WHERE g.op = 'create_entity' AND g.batch_id IN (SELECT batch_id FROM heads)
        AND NOT EXISTS (
              SELECT 1 FROM public.proposals r
                JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
@@ -1503,97 +1620,103 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                 AND (r.payload->>'src_id')::uuid = g.id
                 AND d.op = 'create_entity' AND d.batch_id = g.batch_id)
      ORDER BY g.batch_id, g.created_at, g.id
-  ), heads AS (
-    -- The head act of each unit: the entity of an entity unit, or the one act of any other unit.
-    SELECT DISTINCT ON (p.unit_id) p.unit_id, p.op, p.payload, p.proposer, p.batch_id,
-           p.target_id
-      FROM pending p
-     ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
-  ), units AS (
-    SELECT h.unit_id, h.op, h.proposer, h.batch_id, s.subject,
-           CASE h.op
-             WHEN 'create_entity' THEN h.payload->>'label'
-             WHEN 'create_relation' THEN
-               coalesce(es.name, '?') || ' → ' || coalesce(ed.name, '?')
-             ELSE coalesce(et.name, '')
-           END AS name,
-           CASE h.op WHEN 'create_entity' THEN h.payload->>'type'
-                     WHEN 'create_relation' THEN h.payload->>'type'
-                     ELSE NULL END AS type
-      FROM heads h
-      LEFT JOIN subjects s ON s.batch_id = h.batch_id
-      LEFT JOIN ends es ON es.id = (h.payload->>'src_id')::uuid
-      LEFT JOIN ends ed ON ed.id = (h.payload->>'dst_id')::uuid
-      LEFT JOIN ends et ON et.id = h.target_id
   ), keyed AS (
     SELECT u.*,
            ARRAY[CASE WHEN u.batch_id IS NULL THEN '1' ELSE '0' END,
                  lower(coalesce(u.subject, '')), coalesce(u.batch_id::text, ''),
                  lower(u.name), u.unit_id::text] AS sort_key
-      FROM units u
+      FROM (SELECT h.unit_id, h.op, h.proposer, h.batch_id, h.payload, s.subject,
+                   coalesce(public.element_name(
+                              CASE WHEN h.op IN ('create_entity', 'create_relation')
+                                   THEN h.unit_id ELSE h.target_id END), '') AS name
+              FROM heads h
+              LEFT JOIN subjects s ON s.batch_id = h.batch_id) AS u
   ), page AS (
-    SELECT k.*
-      FROM keyed k
-     WHERE p_after IS NULL OR k.sort_key > p_after
-     ORDER BY k.sort_key
-     LIMIT greatest(1, least(coalesce(p_size, 50), 200)) + 1
+    SELECT k.*, row_number() OVER (ORDER BY k.sort_key) AS no
+      FROM (SELECT * FROM keyed
+             WHERE p_after IS NULL OR sort_key > p_after
+             ORDER BY sort_key
+             LIMIT (SELECT n FROM size) + 1) AS k
   ), shown AS (
-    SELECT p.*, row_number() OVER (ORDER BY p.sort_key) AS no FROM page p
+    SELECT * FROM page WHERE no <= (SELECT n FROM size)
+  ), acts AS (
+    SELECT a.*
+      FROM shown s
+      JOIN public.proposals a ON a.unit_id = s.unit_id AND a.status = 'pending'
+  ), ends AS (
+    SELECT x.id,
+           jsonb_build_object(
+             'name', public.element_name(x.id),
+             'state', CASE
+                        WHEN EXISTS (SELECT 1 FROM public.proposals w
+                                      WHERE w.id = x.id AND w.status = 'pending') THEN 'pending'
+                        WHEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = x.id)
+                          OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id = x.id)
+                          THEN 'record'
+                        ELSE 'missing' END,
+             'group', (SELECT w.batch_id FROM public.proposals w
+                        WHERE w.id = x.id AND w.status = 'pending')) AS said
+      FROM (SELECT DISTINCT e.ref AS id
+              FROM acts a,
+                   LATERAL (VALUES ((a.payload->>'src_id')::uuid), ((a.payload->>'dst_id')::uuid),
+                                   (a.target_id)) AS e(ref)
+             WHERE e.ref IS NOT NULL) AS x
+  ), acted AS (
+    SELECT a.unit_id,
+           jsonb_agg(jsonb_build_object(
+             'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
+             'createdAt', a.created_at, 'dissent', a.dissent, 'dissentReason', a.dissent_reason,
+             'target', et.said, 'src', es.said, 'dst', ed.said)
+             ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts
+      FROM acts a
+      LEFT JOIN ends et ON et.id = a.target_id
+      LEFT JOIN ends es ON es.id = (a.payload->>'src_id')::uuid
+      LEFT JOIN ends ed ON ed.id = (a.payload->>'dst_id')::uuid
+     GROUP BY a.unit_id
+  ), cited AS (
+    SELECT c.unit_id,
+           jsonb_agg(jsonb_build_object('id', d.id, 'title', d.title, 'uri', d.uri,
+                                        'mime', d.mime) ORDER BY d.id) AS documents
+      FROM (SELECT DISTINCT a.unit_id, s.doc FROM acts a, unnest(a.src) AS s(doc)) AS c
+      JOIN public.documents d ON d.id = c.doc
+     GROUP BY c.unit_id
+  ), quoted AS (
+    SELECT a.unit_id,
+           jsonb_agg(jsonb_build_object(
+             'act', q.claim_id, 'document', q.doc_id, 'page', q.page, 'before', q.before,
+             'text', q.cited, 'after', q.after)
+             ORDER BY q.claim_id, q.doc_id, q.page) AS passages
+      FROM public.cited_passages(ARRAY(SELECT id FROM acts)) AS q
+      JOIN acts a ON a.id = q.claim_id
+     GROUP BY a.unit_id
   )
   SELECT jsonb_build_object(
-    'total', (SELECT count(*) FROM units),
-    'next', (SELECT s.sort_key FROM shown s
-              WHERE s.no = greatest(1, least(coalesce(p_size, 50), 200))
-                AND EXISTS (SELECT 1 FROM shown t
-                             WHERE t.no > greatest(1, least(coalesce(p_size, 50), 200)))),
+    'total', (SELECT count(*) FROM heads),
+    'next', (SELECT p.sort_key FROM page p
+              WHERE p.no = (SELECT n FROM size)
+                AND EXISTS (SELECT 1 FROM page q WHERE q.no > (SELECT n FROM size))),
     'units', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
                'unit', s.unit_id,
-               'kind', CASE s.op WHEN 'create_entity' THEN 'entity'
-                                 WHEN 'create_relation' THEN 'link' ELSE 'change' END,
+               'kind', CASE
+                         WHEN s.op = 'create_entity' THEN 'entity'
+                         WHEN s.op = 'create_relation' AND s.batch_id IS NOT NULL THEN 'link'
+                         WHEN s.op = 'create_relation' THEN 'relation'
+                         ELSE 'change' END,
                'name', s.name,
-               'type', s.type,
+               'type', CASE WHEN s.op IN ('create_entity', 'create_relation')
+                            THEN s.payload->>'type' END,
                'proposer', s.proposer,
                'group', CASE WHEN s.batch_id IS NULL THEN NULL
                              ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
-               'acts', (
-                 SELECT jsonb_agg(jsonb_build_object(
-                          'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
-                          'createdAt', a.created_at, 'dissent', a.dissent,
-                          'dissentReason', a.dissent_reason,
-                          'target', (SELECT x.said FROM said x
-                                      WHERE x.id = a.target_id),
-                          'src', (SELECT x.said FROM said x
-                                   WHERE x.id = (a.payload->>'src_id')::uuid),
-                          'dst', (SELECT x.said FROM said x
-                                   WHERE x.id = (a.payload->>'dst_id')::uuid))
-                          ORDER BY (a.op <> 'create_entity'), a.created_at, a.id)
-                   FROM pending a WHERE a.unit_id = s.unit_id),
-               'documents', (
-                 SELECT coalesce(jsonb_agg(jsonb_build_object(
-                          'id', d.id, 'title', d.title, 'uri', d.uri, 'mime', d.mime)
-                          ORDER BY d.id), '[]'::jsonb)
-                   FROM public.documents d
-                  WHERE d.id IN (SELECT unnest(a.src) FROM pending a
-                                  WHERE a.unit_id = s.unit_id)),
-               -- substr counts code points, as the offsets of a citation.
-               'passages', (
-                 SELECT coalesce(jsonb_agg(jsonb_build_object(
-                          'act', c.claim_id, 'document', c.doc_id, 'page', c.page,
-                          'before', substring(
-                             substr(t.text, greatest(1, c.start - 1999), least(c.start, 2000))
-                             FROM '(?:[^\n]*\n){0,2}[^\n]*$'),
-                          'text', substr(t.text, c.start + 1, c."end" - c.start),
-                          'after', substring(substr(t.text, c."end" + 1, 2000)
-                                             FROM '^[^\n]*(?:\n[^\n]*){0,2}'))
-                          ORDER BY c.claim_id, c.doc_id, c.page, c.start), '[]'::jsonb)
-                   FROM public.citation c
-                   JOIN public.document_text t
-                     ON t.document_id = c.doc_id AND t.extractor = c.text_extractor
-                    AND t.page = c.page
-                  WHERE c.claim_id IN (SELECT a.id FROM pending a WHERE a.unit_id = s.unit_id)))
+               'acts', coalesce(ac.acts, '[]'::jsonb),
+               'documents', coalesce(ci.documents, '[]'::jsonb),
+               'passages', coalesce(qu.passages, '[]'::jsonb))
              ORDER BY s.sort_key)
-        FROM shown s WHERE s.no <= greatest(1, least(coalesce(p_size, 50), 200))), '[]'::jsonb))
+        FROM shown s
+        LEFT JOIN acted ac ON ac.unit_id = s.unit_id
+        LEFT JOIN cited ci ON ci.unit_id = s.unit_id
+        LEFT JOIN quoted qu ON qu.unit_id = s.unit_id), '[]'::jsonb))
 $$;
 
 -- THE WORDS OF THE PARTS THAT A JOB COULD NOT PROPOSE. The status of a done job and the reason of

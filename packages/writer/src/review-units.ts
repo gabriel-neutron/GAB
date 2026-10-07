@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { readBody } from './body.ts';
 import type { Sessions } from './pool.ts';
-import { runStatement, type DoorAct } from './statement.ts';
+import { refused, runStatement, type DoorAct } from './statement.ts';
 
 const READ = 'SELECT public.review_units($1::text[], $2::int) AS page';
 
@@ -39,5 +39,8 @@ export const readReviewUnits = async (
   if (given.outcome !== 'read') return given;
   const answer = await runStatement(pool, READ, [given.body.after, given.body.size]);
   if (answer.outcome !== 'answered') return answer;
-  return { outcome: 'done', reply: pageRow.parse(answer.rows[0]).page };
+  const held = pageRow.safeParse(answer.rows[0]);
+  if (!held.success)
+    return refused('the record gave a page of the queue that this writer cannot read');
+  return { outcome: 'done', reply: held.data.page };
 };

@@ -7,9 +7,10 @@
 -- each act of the record its unit by the same rule.
 --
 -- THE RULE. An act that creates an entity is its own unit. A relation whose end is a pending act
--- outside its group is a unit of its own (a link unit), so that no entity waits for another
--- group. If not, a relation belongs to the unit of its source end when that end is a pending
--- entity of the same group, then to the unit of its target end. Every other act is its own unit.
+-- outside its group, or a relation, is a unit of its own (a link unit), so that no entity waits
+-- for another group or for a relation. If not, a relation belongs to the unit of its source end
+-- when that end is a pending entity of the same group, then to the unit of its target end. Every
+-- other act is its own unit.
 --
 -- A DECIDED ACT GETS ITS UNIT TOO. Its ends were pending when the door wrote it, so the rule
 -- reads the ends with no status. A pending act reads only the ends that still wait.
@@ -19,8 +20,9 @@
 -- WHO PROPOSED AN ACT, IN THE WORDS OF THE REVIEW: the extractor of the worker, the research AI,
 -- the import of the v1 work, or the operator. The connection role separates the first two from
 -- the operator. The research role writes both the research and the v1 import, and the importer
--- of the v1 work names one fixed originator on each act it writes. A generated column holds the
--- rule once, for the view of the read API and for the read of the queue.
+-- of the v1 work names one reserved originator on each act it writes: the batch door refuses
+-- that name on an item that does not cite the stored v1 ORBAT alone. A generated column holds
+-- the rule once, for the view of the read API and for the read of the queue.
 --
 -- THE FREEZE TRIGGER REFUSES EVERY UPDATE OF AN ACT, so it is off for the fill alone. The
 -- re-runnable files create it again with ENABLE ALWAYS. A new database has no trigger yet.
@@ -65,12 +67,15 @@ WITH ends AS (
                            AND NOT (o.op = 'create_entity'
                                     AND o.batch_id IS NOT DISTINCT FROM e.batch_id))
              THEN e.id
+           WHEN EXISTS (SELECT 1 FROM relations r WHERE r.id IN (e.src, e.dst)) THEN e.id
            WHEN EXISTS (SELECT 1 FROM proposals o
                          WHERE o.id = e.src AND o.op = 'create_entity'
+                           AND (e.status <> 'pending' OR o.status = 'pending')
                            AND o.batch_id = e.batch_id)
              THEN e.src
            WHEN EXISTS (SELECT 1 FROM proposals o
                          WHERE o.id = e.dst AND o.op = 'create_entity'
+                           AND (e.status <> 'pending' OR o.status = 'pending')
                            AND o.batch_id = e.batch_id)
              THEN e.dst
            ELSE e.id

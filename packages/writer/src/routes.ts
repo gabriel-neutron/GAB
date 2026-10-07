@@ -7,7 +7,6 @@ import { admitOwnSiteJson } from './admission.ts';
 import { decide, decideBatch } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
 import { readLeads, startLead } from './lead.ts';
-import { readPassages } from './passages.ts';
 import { readReviewUnits } from './review-units.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
@@ -38,20 +37,13 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The doors of the operator, and four private reads: the status of the jobs of a document,
- * the passages that the acts cite, the page of the review queue, and the leads. The public read
- * never shows any of them. */
+/** The doors of the operator, and three private reads: the status of the jobs of a document,
+ * the page of the review queue with its cited passages, and the leads. The public read never
+ * shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
   app.use('/private/*', admitOwnSiteJson());
-
-  // The text of a document is private, so the passage that an act cites reaches the review card
-  // through the writer and never through the public read API.
-  app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
-    const read = await readPassages(pool, await context.req.text());
-    return context.json(read.reply, STATUS[read.outcome]);
-  });
 
   // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
   // reaches the review page through the writer, one page at a time.
