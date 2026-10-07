@@ -1,7 +1,7 @@
-// The stubs of the extractor tests: a gateway that answers from a script, and the deps with a
+// The stubs of the extractor tests: a router that answers from a script, and the deps with a
 // clock and a sleep that cost no time. No code outside a test imports this file.
 
-import { gatewayModel } from '@gab/model';
+import { openrouterModel } from '@gab/model';
 import { z } from 'zod';
 
 import type { RunnerAgent } from './agents.ts';
@@ -23,9 +23,9 @@ export const CHECKER: ModelConfig = {
   line: LINE,
 };
 
-const ENV = { FREELLMAPI_API_KEY: 'a-stub-key', FREELLMAPI_BASE_URL: 'http://100.64.0.1:4001/v1' };
+const ENV = { OPENROUTER_API_KEY: 'a-stub-key' };
 
-/** A completion as the gateway words it. */
+/** A completion as the router words it. */
 export const completionOf = (content: string, model = READER.model): Response =>
   new Response(
     JSON.stringify({
@@ -36,7 +36,7 @@ export const completionOf = (content: string, model = READER.model): Response =>
     { status: 200 },
   );
 
-/** One tool call as the gateway words it. */
+/** One tool call as the router words it. */
 export const toolCallOf = (name: string, input: unknown, id = `call_${name}`): Response =>
   new Response(
     JSON.stringify({
@@ -91,7 +91,7 @@ export const verdictsOf = (verdicts: readonly (readonly [string, string])[]): Re
 const supportsAll = (body: string): Response =>
   verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const));
 
-export interface StubGateway {
+export interface StubRouter {
   readonly send: typeof fetch;
   /** The questions to the reader. */
   readonly chats: () => number;
@@ -102,12 +102,12 @@ export interface StubGateway {
 const bodyOf = (init: RequestInit | undefined): string =>
   typeof init?.body === 'string' ? init.body : '';
 
-/** A gateway that answers each question to the reader from `chat`, and each question to the
+/** A router that answers each question to the reader from `chat`, and each question to the
  * checker from `check`. The default checker supports every claim. */
-export const gatewayOf = (
+export const routerOf = (
   chat: (call: number, body: string) => Response,
   check: (call: number, body: string) => Response = (_call, body) => supportsAll(body),
-): StubGateway => {
+): StubRouter => {
   let chats = 0;
   let checks = 0;
   return {
@@ -130,12 +130,12 @@ interface Stubs {
   readonly slept: number[];
 }
 
-/** The deps with the stub gateway, a clock that moves five milliseconds at each read and a sleep
+/** The deps with the stub router, a clock that moves five milliseconds at each read and a sleep
  * that records its wait and costs nothing. */
 export const depsOf = (
   db: Queryable,
   agents: readonly RunnerAgent[],
-  gateway: StubGateway,
+  router: StubRouter,
 ): Stubs => {
   const slept: number[] = [];
   let clock = 0;
@@ -152,7 +152,7 @@ export const depsOf = (
         clock += 5;
         return clock;
       },
-      open: (model) => gatewayModel(model, ENV, gateway.send),
+      open: (model) => openrouterModel(model, ENV, router.send),
     },
   };
 };

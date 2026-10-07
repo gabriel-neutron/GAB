@@ -1,6 +1,6 @@
 export { checkTokenCap, openBudget, type Budget } from './budget.ts';
 export { REASON, type Failure, type ReasonKind } from './failure.ts';
-export { GATEWAY, gatewayModel, pinnedName } from './gateway.ts';
+export { openrouterModel, PROVIDER, pinnedName } from './openrouter.ts';
 export {
   checkLine,
   openModel,

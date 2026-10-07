@@ -3,22 +3,24 @@
 **Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
 table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
 2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
-check by a second model family. · The lead agent added 6 October 2026.
+check by a second model family. · The lead agent added 6 October 2026. · Model transport changed
+again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone.
 
 ## Context
 
-The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work on
-free tokens. Each tool must be available to the web interface and to each AI. This ADR decides how.
+The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work with
+cheap tokens and a hard spend limit. Each tool must be available to the web interface and to each AI. This ADR decides how.
 
 ## Three AIs, and each one has one job
 
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Free, through a model gateway |
-| Front-end AI | A chat route on the local writer | A question in the interface | Free, through a model gateway |
+| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Paid, through OpenRouter |
+| Front-end AI | A chat route on the local writer | A question in the interface | Paid, through OpenRouter |
 
-**The cost rule.** Deterministic work is plain code with no model: hash, store, load, text
+**The cost rule.** The spend limit is the token cap of each job and a credit limit that the
+operator sets on the key in the OpenRouter dashboard. Deterministic work is plain code with no model: hash, store, load, text
 extraction, a call to a registry API. Repetitive judgement is the back-end AI. Reasoning is the
 operator AI. The operator AI never ingests with its own tokens: it stores a document and queues its
 extraction.
@@ -125,17 +127,23 @@ proposals of the rows, which the operator reviews.
 
 ## The model transport
 
-- **Every model call goes to the free model gateway.** No paid router is a switch any more.
+- **Every model call goes to OpenRouter, with one paid key.** No other service takes a model call,
+  and no local gateway runs. The code reads one variable, `OPENROUTER_API_KEY`.
 - **A maintained library makes the calls.** The Vercel AI SDK, with its OpenAI-compatible
   provider, replaces a custom client. Both are free and under the Apache 2.0 licence, and the
   versions are pinned exactly. One small adapter holds the rules of the project: the token budget
-  of each job, the network retries with a wait that grows and the wait that the gateway asks for,
+  of each job, the network retries with a wait that grows and the wait that OpenRouter asks for,
   one retry with the fault for an answer of a bad shape, and the stops for credits and for a text
   that is too long. **Cost:** a new dependency that changes often, and a library error that the
   adapter does not know stops the job.
-- **The adapter takes only a model of the free gateway.** The library sends a bare model name to
-  a paid router of its vendor. So the adapter takes no name: it takes only a chat model that the
-  OpenAI-compatible provider made for the gateway, and it refuses a model of any other provider.
+- **The adapter sends the routing rules of the project.** Each call asks OpenRouter for
+  `data_collection` set to `deny`, so a provider must not keep the prompts or train on them. Each
+  call also sets `require_parameters`, so the router picks only a provider that accepts tools and
+  the JSON answer format. **Cost:** fewer providers can serve a model, so a call can fail or cost
+  more.
+- **The adapter takes only a model of OpenRouter.** It takes a chat model that the
+  OpenAI-compatible provider made for OpenRouter, and it refuses a model of any other provider. A
+  model name is a pinned slug such as vendor/model, and never `auto`.
 - **A back-end agent pins one model.** A middleware reads the served model of each answer before
   any tool runs. If it differs from the requested model, the answer is refused. Two models in one
   job make the extraction inconsistent.
@@ -151,7 +159,7 @@ proposals of the rows, which the operator reviews.
   drops an item. The two families are set in the configuration, and the worker does not start
   when they are the same. This check replaces the blind second reading, which wrote rows that
   nothing read. **Cost:** one more call for each passage, from the same token budget, and the
-  operator must keep two models of two families available on the gateway.
+  operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
   left running. The operator queues a failed document again by hand. A job that runs again writes
@@ -202,8 +210,8 @@ on 6 October 2026. The chat feature builds its store again.
   audit sample.
 - The rule is only as good as the checks and the audit of ADR 0011. A change that lets a model
   write a rating, a state or an audit label reopens ADR 0011.
-- The free gateway has no service level. The pinned model and a failure that shows its reason
-  contain this risk. They do not remove it. A spent quota fails each job until the gateway has
-  quota again, and the operator queues the documents again.
-- Two support services are added: the model gateway and a metasearch engine. They hold no record of
-  the project and listen on a private address only.
+- OpenRouter has no service level of its own. A provider can fail, and the pinned model and a
+  failure that shows its reason contain this risk. They do not remove it. A spent credit balance
+  fails each job with a clear reason. The operator adds credit and queues the documents again.
+- One support service is added: a metasearch engine. It holds no record of the project and listens
+  on a private address only. The model service is external, and it sees the text of each document.
