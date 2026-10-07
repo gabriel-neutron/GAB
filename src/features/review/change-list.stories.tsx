@@ -6,7 +6,7 @@ import { unitPageOf } from './unit-page';
 import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
 
-const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
+const units = unitPageOf(UNIT_ANSWER, null)?.units ?? [];
 
 const unitOf = (id: string) => units.find((unit) => unit.id === id) ?? null;
 

@@ -2,13 +2,18 @@ import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
 import { faultMarks } from './fault-marks';
+import { queueWords } from './queue-words';
 import type { UnitWords } from './unit-changes';
 import type { FaultLevel, Unit, UnitState } from './unit-page';
 
-/** The units read so far, the count of every unit, and whether a next page waits. */
+/** The units read so far, the count of every unit, the count of the units that the filter keeps
+ * and of those before the first unit read, and whether a next page waits. */
 export interface UnitQueue {
   readonly units: readonly Unit[];
   readonly total: number;
+  readonly matched: number;
+  readonly before: number;
+  readonly filtered: boolean;
   readonly more: 'none' | 'ready' | 'reading';
 }
 
@@ -19,9 +24,12 @@ export interface UnitListProps {
   readonly onAct: (act: UnitListAct) => void;
 }
 
-/** What the operator did in the left column: open one unit, or read the next page. */
+/** What the operator did in the left column: open one unit, read the next page, or read the
+ * queue again from its first unit. */
 export type UnitListAct =
-  { readonly kind: 'select'; readonly unitId: string } | { readonly kind: 'more' };
+  | { readonly kind: 'select'; readonly unitId: string }
+  | { readonly kind: 'more' }
+  | { readonly kind: 'start' };
 
 const CONTROL = cn(
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
@@ -78,17 +86,28 @@ function Marks({ unit }: { readonly unit: Unit }) {
 }
 
 export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
-  const { units, total, more } = queue;
+  const { units, total, matched, before, filtered, more } = queue;
+  const said = queueWords({ read: units.length, before, matched, total, filtered });
   return (
-    <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-col">
-      <p className="h-6 shrink-0 border-b border-border px-2 text-small/4 leading-6 text-label">
-        {units.length === total
-          ? `${String(total)} units wait`
-          : `${String(units.length)} of ${String(total)} units read`}
+    <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
+      <p className="shrink-0 border-b border-border px-2 py-1 text-small/4 text-label">
+        {said.count}
       </p>
-      {units.length === 0 ? (
-        <p className="p-2 text-xs text-label">The queue is empty.</p>
-      ) : (
+      {before === 0 ? null : (
+        <div className="shrink-0 border-b border-border p-1">
+          <button
+            type="button"
+            onClick={() => {
+              onAct({ kind: 'start' });
+            }}
+            className={cn(CONTROL, 'h-6 w-full border border-input px-2 text-xs')}
+          >
+            Read from the first unit
+          </button>
+        </div>
+      )}
+      {said.empty === null ? null : <p className="p-2 text-xs text-label">{said.empty}</p>}
+      {units.length === 0 ? null : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {units.map((unit) => (
             <li key={unit.id}>
