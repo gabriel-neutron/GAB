@@ -4,7 +4,7 @@ import { relationWording } from '@/shared/relation-words';
 
 import { unitChanges } from './unit-changes';
 import { unitPageOf } from './unit-page';
-import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
+import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 
 const page = unitPageOf(UNIT_ANSWER);
 
@@ -33,6 +33,8 @@ it('reads the answer of the writer into one unit for each line', () => {
     'entity',
     'link',
     'entity',
+    'entity',
+    'entity',
   ]);
   expect(page?.total).toBe(1082);
 });
@@ -56,6 +58,7 @@ it('words each relation from the entity of the unit, and says where the other en
       word: 'subordinate to',
       other: 'Eastern Military District',
       state: 'record',
+      rejectedOn: null,
       disputed: false,
     },
   ]);
@@ -77,6 +80,7 @@ it('reads a relation of its own from its source end', () => {
       word: 'subordinate to',
       other: 'Southern Military District',
       state: 'pending',
+      rejectedOn: null,
       disputed: false,
     },
   ]);
@@ -91,4 +95,18 @@ it('words the far end of a relation that points at the entity of the unit', () =
     word: 'commands',
     other: '57th Separate Motor Rifle Brigade',
   });
+});
+
+it('names the other end that the operator rejected, with the day', () => {
+  expect(unitChanges(unit(SAMPLE_UNITS.orphan), WORDS).relations).toStrictEqual([
+    {
+      id: ORPHAN_RELATION,
+      from: null,
+      word: 'subordinate to',
+      other: '1061st Logistics Center',
+      state: 'rejected',
+      rejectedOn: '2026-10-07',
+      disputed: false,
+    },
+  ]);
 });

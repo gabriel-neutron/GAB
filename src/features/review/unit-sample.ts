@@ -27,7 +27,14 @@ export const SAMPLE_UNITS = {
   brigade: BRIGADE,
   link: '62b37efd-316f-4ea8-8e8d-b253355757d6',
   disputed: 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e',
+  orphan: 'c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f',
+  everyFault: 'd7e8f9a0-b1c2-4d3e-8f4a-5b6c7d8e9f0a',
 } as const;
+
+/** The relation of the orphan unit, whose other end the operator rejected. */
+export const ORPHAN_RELATION = 'e0f1a2b3-c4d5-4e6f-9a7b-8c9d0e1f2a3b';
+
+const REJECTED_PARENT = 'f3a4b5c6-d7e8-4f9a-8b0c-1d2e3f4a5b6c';
 
 const v1Line = (name: string, more: string): string =>
   `v1 unit ${name.length.toString(16).padStart(8, '0')}-0000-4000-8000-000000000000 | ${name} | ` +
@@ -97,6 +104,51 @@ const relation = (
   ...ends,
 });
 
+// One fault of each kind, with the sentences of the check of the database, so that one unit shows
+// each mark and each sentence.
+const EVERY_FAULT = [
+  [
+    'blocks',
+    'end_waits',
+    'Waits for Southern Military District (group Southern Military District)',
+  ],
+  [
+    'blocks',
+    'circle',
+    'Waits in a circle with 19th Separate EW Brigade, which waits for this unit: reject one relation of the circle',
+  ],
+  [
+    'blocks',
+    'end_relation_waits',
+    'Points to the relation 19th Separate EW Brigade subordinate to 5th Combined Arms Army, which is not in the record yet',
+  ],
+  ['blocks', 'end_rejected', 'The other end 1061st Logistics Center was rejected on 2026-10-07'],
+  [
+    'blocks',
+    'end_missing',
+    'The end 1061st Logistics Center is not in the record and not in the queue',
+  ],
+  [
+    'blocks',
+    'self',
+    'The relation 68th GRAU arsenal subordinate to 68th GRAU arsenal has the same element at its two ends',
+  ],
+  ['blocks', 'no_source', 'The act 68th GRAU arsenal cites no passage of a source'],
+  ['not_clean', 'dispute', 'Disputed: the checker says unclear'],
+  ['not_clean', 'contradiction', 'Two acts set echelon differently: Army and Brigade'],
+  ['not_clean', 'reported_claim', 'The source reports a claim (alleges) and does not state a fact'],
+  [
+    'not_clean',
+    'duplicate',
+    'Same name and type under the same parent: 68th GRAU Arsenal is in the record',
+  ],
+  ['not_clean', 'unknown_type', 'The entity type is unknown'],
+  ['information', 'sources_from_parent', 'Sources from the parent Southern Military District'],
+  ['information', 'approximate_position', 'The position is approximate'],
+  ['information', 'note', 'Note: no clear location'],
+  ['information', 'same_name', 'Same name under 1st Guards Tank Army, 20th Combined Arms Army'],
+].map(([level, kind, said]) => ({ kind, level, act: null, said }));
+
 /** The answer of the writer for the first page of the queue. */
 export const UNIT_ANSWER = {
   total: 1082,
@@ -109,6 +161,8 @@ export const UNIT_ANSWER = {
       type: 'military_unit',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'clean',
+      faults: [],
       acts: [
         entity(ARMY, '5th Combined Arms Army', {
           echelon: 'Army',
@@ -134,6 +188,21 @@ export const UNIT_ANSWER = {
       type: 'military_unit',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'clean',
+      faults: [
+        {
+          kind: 'approximate_position',
+          level: 'information',
+          act: BRIGADE,
+          said: 'The position is approximate',
+        },
+        {
+          kind: 'sources_from_parent',
+          level: 'information',
+          act: null,
+          said: 'Sources from the parent 5th Combined Arms Army',
+        },
+      ],
       acts: [
         entity(BRIGADE, '57th Separate Motor Rifle Brigade', {
           echelon: 'Brigade',
@@ -154,6 +223,15 @@ export const UNIT_ANSWER = {
       type: 'subordinate_to',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: [
+        {
+          kind: 'end_waits',
+          level: 'blocks',
+          act: SAMPLE_UNITS.link,
+          said: 'Waits for Southern Military District (group Southern Military District)',
+        },
+      ],
       acts: [
         relation(SAMPLE_UNITS.link, BRIGADE, DISTRICT, {
           src: { name: '1061st Logistics Center', state: 'pending', group: GROUP },
@@ -170,6 +248,15 @@ export const UNIT_ANSWER = {
       type: 'state_body',
       proposer: 'extractor',
       group: null,
+      state: 'not_clean',
+      faults: [
+        {
+          kind: 'dispute',
+          level: 'not_clean',
+          act: SAMPLE_UNITS.disputed,
+          said: 'Disputed: no cited passage states label "North American countries"',
+        },
+      ],
       acts: [
         {
           id: SAMPLE_UNITS.disputed,
@@ -195,6 +282,55 @@ export const UNIT_ANSWER = {
           after: ' kept their imports.\nThe next section turns to the prices.',
         },
       ],
+    },
+    {
+      unit: SAMPLE_UNITS.orphan,
+      kind: 'entity',
+      name: '117th GRAU arsenal',
+      type: 'military_unit',
+      proposer: 'v1_import',
+      group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: [
+        {
+          kind: 'end_rejected',
+          level: 'blocks',
+          act: ORPHAN_RELATION,
+          said: 'The other end 1061st Logistics Center was rejected on 2026-10-07',
+        },
+      ],
+      acts: [
+        entity(SAMPLE_UNITS.orphan, '117th GRAU arsenal', { military_unit_number: '57229-51' }),
+        relation(ORPHAN_RELATION, SAMPLE_UNITS.orphan, REJECTED_PARENT, {
+          src: { name: '117th GRAU arsenal', state: 'pending', group: GROUP },
+          dst: {
+            name: '1061st Logistics Center',
+            state: 'rejected',
+            group: null,
+            rejectedOn: '2026-10-07',
+          },
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.orphan, 3)],
+    },
+    {
+      unit: SAMPLE_UNITS.everyFault,
+      kind: 'entity',
+      name: '68th GRAU arsenal',
+      type: 'military_unit',
+      proposer: 'v1_import',
+      group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: EVERY_FAULT,
+      acts: [
+        entity(SAMPLE_UNITS.everyFault, '68th GRAU arsenal', {
+          position_precision: 'approximate',
+          note: 'no clear location',
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.everyFault, 4)],
     },
   ],
 };

@@ -273,6 +273,10 @@ const attrsOf = (line: V1Line): Record<string, { v: string | string[] }> => ({
       .map(([key, value]) => [key, { v: value }]),
   ),
   source_urls: { v: [...line.sources] },
+  // The review shows "sources from the parent" from this attribute, and not from the line.
+  ...(line.sourcesFrom === null
+    ? {}
+    : { sources_from: { v: `${line.sourcesFrom.name} (v1 ${line.sourcesFrom.id})` } }),
 });
 
 // The identifier of an act is made from the bytes of the document and the v1 identifier. A second

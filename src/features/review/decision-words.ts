@@ -1,9 +1,10 @@
 import { unitChanges, type RelationLine, type UnitWords } from './unit-changes';
 import type { Unit } from './unit-page';
 
-/** What each control says before the click: what Promote writes, and what Reject rejects. */
+/** What each control says before the click: what Promote writes, or why it cannot write the
+ * unit, and what Reject rejects. */
 export interface DecisionWords {
-  readonly promote: string;
+  readonly promote: { readonly kind: 'writes' | 'blocked'; readonly said: string };
   readonly reject: string;
 }
 
@@ -26,8 +27,15 @@ export function decisionWords(unit: Unit, words: UnitWords, aimed: string | null
         ? `the relation ${relation}`
         : unit.name;
   const aimedLine = lines.find((line) => line.id === aimed);
+  const blocks = unit.faults.filter((fault) => fault.level === 'blocks');
   return {
-    promote: `Writes ${subject}. Source: ${source}. You cannot undo this.`,
+    promote:
+      blocks.length === 0
+        ? { kind: 'writes', said: `Writes ${subject}. Source: ${source}. You cannot undo this.` }
+        : {
+            kind: 'blocked',
+            said: `Promote is not possible. ${blocks.map((fault) => `${fault.said}.`).join(' ')}`,
+          },
     reject:
       aimedLine !== undefined
         ? `Rejects the relation ${lineWords(aimedLine)}. The rest of the unit stays in the queue.`

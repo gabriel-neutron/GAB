@@ -1113,7 +1113,8 @@ END $$;
 -- when one of its relations names an act that waits in that other unit. Two relations of one group
 -- can make a circle: "A to B" belongs to the unit of A and "B to A" to the unit of B, so each unit
 -- waits for the other. A unit that is in its own list waits in a circle, and no promotion ends the
--- wait. The promotion and the check of the faults read the same list. No role holds this step.
+-- wait. The check of the faults reads this list, and the promotion reads that check. No role
+-- holds this step.
 CREATE OR REPLACE FUNCTION unit_waits_for(p_unit uuid)
 RETURNS SETOF uuid
 LANGUAGE sql STABLE
@@ -1142,6 +1143,7 @@ $$;
 -- an entity before the relation that names it, or it writes none: the first refusal stops the
 -- whole transaction, and the sentence names the act and the reason.
 --
+-- A BLOCKED UNIT IS REFUSED with the words of each fault that blocks it, as the screen shows them.
 -- A RELATION IS WRITTEN ONLY WHEN EACH END IS IN THE RECORD OR COMES WITH THE UNIT. A link unit
 -- waits until both ends are in the record, and the refusal names the end that it waits for.
 CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
@@ -1155,7 +1157,7 @@ DECLARE
   v_act   text;
   v_end   uuid;
   v_name  text;
-  v_wait  uuid;
+  v_said_blocked text;
   p       public.proposals%ROWTYPE;
   v_said  text;
   v_rule  text;
@@ -1177,6 +1179,18 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
   END IF;
 
+  -- The check of the faults that the screen reads, so a blocked unit is refused with the words
+  -- that the screen showed.
+  SELECT string_agg(x->>'said', '; ') INTO v_said_blocked
+    FROM public.unit_faults(ARRAY[p_unit]) AS f, jsonb_array_elements(f.faults) AS x
+   WHERE x->>'level' = 'blocks';
+  IF v_said_blocked IS NOT NULL THEN
+    RAISE EXCEPTION 'nothing of the unit is promoted: %', v_said_blocked
+      USING CONSTRAINT = 'unit_blocked';
+  END IF;
+
+  -- An entity that waits for an entity of its own group is not blocked: the group action writes
+  -- the parent first. A promotion of the child alone waits for it.
   SELECT x.payload->>'type', e.ref INTO v_act, v_end
     FROM public.proposals x,
          LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
@@ -1187,17 +1201,7 @@ BEGIN
    ORDER BY x.id
    LIMIT 1;
   IF FOUND THEN
-    v_name := coalesce(public.element_name(v_end),
-                       (SELECT w.payload->>'label' FROM public.proposals w WHERE w.id = v_end),
-                       v_end::text);
-    SELECT w.unit_id INTO v_wait FROM public.proposals w
-     WHERE w.id = v_end AND w.status = 'pending';
-    IF v_wait IS NOT NULL AND p_unit IN (SELECT public.unit_waits_for(v_wait)) THEN
-      RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, and % '
-                      'waits for this unit: the relations make a circle, so reject one relation '
-                      'of the circle', v_act, v_name, v_name
-        USING CONSTRAINT = 'unit_circle';
-    END IF;
+    v_name := coalesce(public.element_name(v_end), v_end::text);
     RAISE EXCEPTION 'nothing of the unit is promoted, because its relation % waits for %, which '
                     'is not in the record', v_act, v_name
       USING CONSTRAINT = 'unit_end_waits';
@@ -1555,8 +1559,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
    ORDER BY j.created_at DESC, j.id
 $$;
 
--- THE NAME OF AN ELEMENT FOR THE REVIEW: the label of an entity, in the record or in a pending
--- act, and for a relation its source, the words of its type and its target. A relation names its
+-- THE NAME OF AN ELEMENT FOR THE REVIEW: the label of an entity, in the record or in its act, and
+-- for a relation its source, the words of its type and its target. The act gives the name also
+-- when the operator rejected it, so the review names an end that was rejected. A relation names its
 -- ends by their labels only, so a name never walks a chain of relations.
 --
 -- Departure: PL/pgSQL and not SQL. The page names about a thousand units, and a SQL function
@@ -1569,7 +1574,7 @@ BEGIN
   SELECT e.label INTO v_label FROM public.entities e WHERE e.id = p_id;
   IF v_label IS NULL THEN
     SELECT w.payload->>'label' INTO v_label FROM public.proposals w
-     WHERE w.id = p_id AND w.status = 'pending' AND w.op = 'create_entity';
+     WHERE w.id = p_id AND w.op = 'create_entity';
   END IF;
   RETURN v_label;
 END $$;
@@ -1598,7 +1603,7 @@ BEGIN
     SELECT (w.payload->>'src_id')::uuid, w.payload->>'type', (w.payload->>'dst_id')::uuid
       INTO v_src, v_type, v_dst
       FROM public.proposals w
-     WHERE w.id = p_id AND w.status = 'pending' AND w.op = 'create_relation';
+     WHERE w.id = p_id AND w.op = 'create_relation';
     IF NOT FOUND THEN RETURN NULL; END IF;
   END IF;
   RETURN public.relation_name(v_src, v_type, v_dst);
@@ -1669,8 +1674,294 @@ BEGIN
   END LOOP;
 END $$;
 
--- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its acts, the ends of each
--- act, the proposer, the group, the documents and the cited passages with two lines of context.
+-- THE NAME OF AN ENTITY AS THE REVIEW COMPARES TWO NAMES: lower case, and one space between two
+-- words, so "5th  Army" and "5th army" are the same name.
+CREATE OR REPLACE FUNCTION name_key(p_name text) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT lower(btrim(regexp_replace(p_name, '\s+', ' ', 'g')))
+$$;
+
+-- THE PARENT OF AN ENTITY OF THE RECORD: the target of its relation "subordinate to", in the queue
+-- or in the record. A pending act comes first, because it is the newest claim.
+CREATE OR REPLACE FUNCTION parent_of(p_id uuid) RETURNS uuid
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_parent uuid;
+BEGIN
+  SELECT (w.payload->>'dst_id')::uuid INTO v_parent FROM public.proposals w
+   WHERE w.names @> ARRAY[p_id] AND w.status = 'pending' AND w.op = 'create_relation'
+     AND w.payload->>'type' = 'subordinate_to' AND (w.payload->>'src_id')::uuid = p_id
+   ORDER BY w.created_at, w.id
+   LIMIT 1;
+  IF v_parent IS NULL THEN
+    SELECT r.dst_id INTO v_parent FROM public.relations r
+     WHERE r.src_id = p_id AND r.src_kind = 'entity' AND r.type = 'subordinate_to'
+     ORDER BY r.valid_to DESC NULLS FIRST, r.id
+     LIMIT 1;
+  END IF;
+  RETURN v_parent;
+END $$;
+
+-- THE SUBJECT OF A GROUP: its entity that is the source of no relation to another entity of the
+-- group, so the top of its tree. An act keeps its group after the decision, so the subject stays
+-- the same while the operator decides the group.
+CREATE OR REPLACE FUNCTION group_subject(p_batch uuid) RETURNS text
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_subject text;
+BEGIN
+  SELECT g.payload->>'label' INTO v_subject
+    FROM public.proposals g
+   WHERE g.batch_id = p_batch AND g.op = 'create_entity'
+     AND NOT EXISTS (
+           SELECT 1 FROM public.proposals r
+             JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
+            WHERE r.op = 'create_relation' AND r.batch_id = p_batch
+              AND (r.payload->>'src_id')::uuid = g.id
+              AND d.op = 'create_entity' AND d.batch_id = p_batch)
+   ORDER BY g.created_at, g.id
+   LIMIT 1;
+  RETURN v_subject;
+END $$;
+
+-- THE FAULTS OF EACH UNIT, AND ITS STATE. The queue, the promotion and the group action read this
+-- one check, so the screen and the record always agree on "clean". Each fault has a level:
+--
+--   blocks       Promote cannot write the unit: an end waits in another group or in a circle, was
+--                rejected or does not exist; a relation points to itself or to a relation that is
+--                not in the record; an act of a machine cites no passage. The operator names the
+--                documents of an own act, and a mapping names its whole document: they cite no
+--                passage.
+--   not_clean    The operator decides the unit alone, and never in a group action: a dispute; two
+--                acts that set one key differently; a source that reports a claim and does not
+--                state a fact; the same name and type under the same parent; an unknown type.
+--   information  The unit stays clean: sources from the parent (a decision of the operator for the
+--                v1 import), an approximate position, a note, the same name under another parent.
+--
+-- AN ENTITY THAT WAITS FOR AN ENTITY OF ITS OWN GROUP IS NOT BLOCKED, because the group action
+-- writes the parent before the child. A relation alone (a link, or a relation with no group) waits
+-- until each end is in the record.
+--
+-- THE V1 IMPORT SAYS "SOURCES FROM THE PARENT" in two places. A new import keeps the parent that
+-- gave the sources in an attribute. The acts of the first import have it only in the cited line,
+-- where the importer ends the line with "| sources of <name> (v1 <id>): <addresses>".
+--
+-- Departure: PL/pgSQL and not SQL, for the plans that it keeps (see the name of an element).
+CREATE OR REPLACE FUNCTION unit_faults(p_units uuid[])
+RETURNS TABLE (unit_id uuid, state text, faults jsonb)
+LANGUAGE plpgsql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RETURN QUERY
+  WITH acts AS (
+    SELECT a.* FROM public.proposals a
+     WHERE a.unit_id = ANY (p_units) AND a.status = 'pending'
+  ), units AS (
+    SELECT a.unit_id, (array_agg(a.batch_id))[1] AS batch_id,
+           bool_or(a.op = 'create_entity' AND a.id = a.unit_id) AS entity_unit
+      FROM acts a GROUP BY a.unit_id
+  ), ends AS (
+    SELECT a.id AS act, a.unit_id, e.ref,
+           CASE WHEN e.kind = 'relation'
+                THEN EXISTS (SELECT 1 FROM public.relations r WHERE r.id = e.ref)
+                ELSE EXISTS (SELECT 1 FROM public.entities x WHERE x.id = e.ref) END AS held
+      FROM acts a,
+           LATERAL (VALUES ((a.payload->>'src_id')::uuid,
+                            coalesce(a.payload->>'src_kind', 'entity')),
+                           ((a.payload->>'dst_id')::uuid,
+                            coalesce(a.payload->>'dst_kind', 'entity')),
+                           (a.target_id, a.target_kind)) AS e(ref, kind)
+     WHERE e.ref IS NOT NULL AND e.ref <> a.id
+  ), placed AS (
+    SELECT DISTINCT ON (n.act, n.ref) n.*, u.entity_unit, u.batch_id, w.status AS end_status,
+           w.op AS end_op, w.unit_id AS end_unit, w.batch_id AS end_batch,
+           w.decided_at AS end_decided, coalesce(public.element_name(n.ref), n.ref::text) AS name
+      FROM ends n
+      JOIN units u ON u.unit_id = n.unit_id
+      LEFT JOIN public.proposals w ON w.id = n.ref
+     WHERE NOT n.held
+       AND w.unit_id IS DISTINCT FROM n.unit_id
+     ORDER BY n.act, n.ref
+  ), circles AS (
+    SELECT DISTINCT ON (p.unit_id) p.unit_id, p.act, p.name
+      FROM placed p
+     WHERE p.end_status = 'pending'
+       AND p.unit_id IN (SELECT public.unit_waits_for(p.end_unit))
+     ORDER BY p.unit_id, p.name
+  ), waits AS (
+    SELECT p.* FROM placed p
+     WHERE p.end_status = 'pending' AND p.end_op = 'create_entity'
+       AND NOT (p.entity_unit AND p.end_batch = p.batch_id)
+       AND p.unit_id NOT IN (SELECT c.unit_id FROM circles c)
+  ), sets AS (
+    SELECT a.unit_id,
+           CASE a.op WHEN 'create_entity' THEN a.id::text
+                     WHEN 'create_relation'
+                       THEN concat_ws(' ', a.payload->>'type', a.payload->>'src_id',
+                                      a.payload->>'dst_id')
+                     ELSE a.target_id::text END AS element,
+           s.key, s.value
+      FROM acts a,
+           LATERAL (SELECT t.k, t.v->'v'
+                      FROM jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS t(k, v)
+                    UNION ALL
+                    SELECT f.k, a.payload->f.k FROM unnest(ARRAY['valid_from', 'valid_to']) AS f(k)
+                     WHERE a.payload ? f.k) AS s(key, value)
+  ), subjects AS (
+    SELECT b.batch_id, coalesce(public.group_subject(b.batch_id), 'with no subject') AS subject
+      FROM (SELECT DISTINCT w.batch_id FROM public.proposals w
+             WHERE w.status = 'pending' AND w.batch_id IS NOT NULL) AS b
+  ), parents AS (
+    -- A pending entity is not in the record, so its parent is in a pending act.
+    SELECT DISTINCT ON ((r.payload->>'src_id')::uuid) (r.payload->>'src_id')::uuid AS child,
+           (r.payload->>'dst_id')::uuid AS parent
+      FROM public.proposals r
+     WHERE r.status = 'pending' AND r.op = 'create_relation'
+       AND r.payload->>'type' = 'subordinate_to'
+     ORDER BY (r.payload->>'src_id')::uuid, r.created_at, r.id
+  ), named AS (
+    SELECT a.unit_id, a.id, public.name_key(a.payload->>'label') AS key,
+           a.payload->>'type' AS type, pa.parent
+      FROM acts a LEFT JOIN parents pa ON pa.child = a.id
+     WHERE a.op = 'create_entity'
+  ), twins AS (
+    SELECT n.unit_id, n.parent, o.payload->>'label' AS label, pa.parent AS other_parent,
+           CASE WHEN o.batch_id IS NULL THEN 'waits in the queue (no group)'
+                ELSE 'waits in the queue (group ' || sb.subject || ')' END AS place
+      FROM named n
+      JOIN public.proposals o ON o.status = 'pending' AND o.op = 'create_entity' AND o.id <> n.id
+                             AND o.payload->>'type' = n.type
+                             AND public.name_key(o.payload->>'label') = n.key
+      LEFT JOIN parents pa ON pa.child = o.id
+      LEFT JOIN subjects sb ON sb.batch_id = o.batch_id
+    UNION ALL
+    SELECT n.unit_id, n.parent, e.label, public.parent_of(e.id), 'is in the record'
+      FROM named n
+      JOIN public.entities e ON e.type = n.type AND public.name_key(e.label) = n.key
+  ), inherited AS (
+    SELECT a.unit_id,
+           coalesce(substring(a.payload#>>'{attrs,sources_from,v}' FROM '^(.+) \(v1 [^)]*\)$'),
+                    a.payload#>>'{attrs,sources_from,v}') AS holder
+      FROM acts a
+     WHERE a.op = 'create_entity' AND a.payload->'attrs' ? 'sources_from'
+    UNION ALL
+    SELECT a.unit_id, substring(q.cited FROM '\| sources of (.+) \(v1 [^)]*\):[^|]*$')
+      FROM public.cited_passages(ARRAY(
+             SELECT x.id FROM acts x
+              WHERE x.op = 'create_entity' AND x.proposer = 'v1_import'
+                AND NOT x.payload->'attrs' ? 'sources_from')) AS q
+      JOIN acts a ON a.id = q.claim_id
+  ), found (unit_id, level, kind, act, said) AS (
+    -- -------------------------------------------------------------------------------- blocks --
+    SELECT w.unit_id, 'blocks', 'end_waits', w.act,
+           'Waits for ' || w.name
+           || CASE WHEN w.end_batch IS NULL THEN ' (no group)'
+                   ELSE ' (group ' || sb.subject || ')' END
+      FROM waits w LEFT JOIN subjects sb ON sb.batch_id = w.end_batch
+    UNION ALL
+    SELECT c.unit_id, 'blocks', 'circle', c.act,
+           'Waits in a circle with ' || c.name || ', which waits for this unit: reject one '
+           || 'relation of the circle'
+      FROM circles c
+    UNION ALL
+    SELECT p.unit_id, 'blocks', 'end_relation_waits', p.act,
+           'Points to the relation ' || p.name || ', which is not in the record yet'
+      FROM placed p WHERE p.end_status = 'pending' AND p.end_op = 'create_relation'
+    UNION ALL
+    SELECT p.unit_id, 'blocks', 'end_rejected', p.act,
+           'The other end ' || p.name || ' was rejected on '
+           || to_char(p.end_decided AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+      FROM placed p WHERE p.end_status = 'rejected'
+    UNION ALL
+    SELECT p.unit_id, 'blocks', 'end_missing', p.act,
+           'The end ' || p.name || ' is not in the record and not in the queue'
+      FROM placed p WHERE p.end_status IS NULL OR p.end_status = 'accepted'
+    UNION ALL
+    SELECT a.unit_id, 'blocks', 'self', a.id,
+           'The relation ' || coalesce(public.element_name(a.id), a.payload->>'type')
+           || ' has the same element at its two ends'
+      FROM acts a
+     WHERE a.op = 'create_relation' AND a.payload->>'src_id' = a.payload->>'dst_id'
+    UNION ALL
+    SELECT a.unit_id, 'blocks', 'no_source', a.id,
+           'The act ' || coalesce(public.element_name(coalesce(a.target_id, a.id)), a.op)
+           || ' cites no passage of a source'
+      FROM acts a
+     WHERE a.author_role <> 'gabriel_app' AND a.op <> 'map_document'
+       AND NOT EXISTS (SELECT 1 FROM public.citation c WHERE c.claim_id = a.id)
+    -- ----------------------------------------------------------------------------- not clean --
+    UNION ALL
+    SELECT a.unit_id, 'not_clean', 'dispute', a.id,
+           coalesce('Disputed: ' || a.dissent_reason, 'Disputed. The check recorded no reason')
+      FROM acts a WHERE a.dissent
+    UNION ALL
+    SELECT s.unit_id, 'not_clean', 'contradiction', NULL::uuid,
+           'Two acts set ' || s.key || ' differently: '
+           || string_agg(DISTINCT coalesce(s.value #>> '{}', s.value::text), ' and ')
+      FROM sets s
+     GROUP BY s.unit_id, s.element, s.key
+    HAVING count(DISTINCT s.value) > 1
+    UNION ALL
+    SELECT DISTINCT ON (a.id) a.unit_id, 'not_clean', 'reported_claim', a.id,
+           'The source reports a claim (' || c.modality || ') and does not state a fact'
+      FROM acts a JOIN public.citation c ON c.claim_id = a.id
+     WHERE c.modality IN ('alleges', 'attributes', 'denies')
+    UNION ALL
+    SELECT t.unit_id, 'not_clean', 'duplicate', NULL::uuid,
+           'Same name and type under the same parent: '
+           || string_agg(t.label || ' ' || t.place, '; ' ORDER BY t.place, t.label)
+      FROM twins t WHERE t.other_parent IS NOT DISTINCT FROM t.parent
+     GROUP BY t.unit_id
+    UNION ALL
+    SELECT a.unit_id, 'not_clean', 'unknown_type', a.id,
+           CASE WHEN a.op = 'create_entity' THEN 'The entity type ' ELSE 'The relation type ' END
+           || CASE WHEN a.payload->>'type' = 'unknown' THEN 'is unknown'
+                   ELSE (a.payload->>'type') || ' is not a type of the record' END
+      FROM acts a
+     WHERE (a.op = 'create_entity'
+            AND NOT EXISTS (SELECT 1 FROM public.entity_type t
+                             WHERE t.key = a.payload->>'type' AND NOT t.retired
+                               AND t.key <> 'unknown'))
+        OR (a.op = 'create_relation'
+            AND NOT EXISTS (SELECT 1 FROM public.relation_type t
+                             WHERE t.key = a.payload->>'type' AND NOT t.retired
+                               AND t.key <> 'unknown'))
+    -- --------------------------------------------------------------------------- information --
+    UNION ALL
+    SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
+           'Sources from the parent ' || i.holder
+      FROM inherited i WHERE i.holder IS NOT NULL
+    UNION ALL
+    SELECT a.unit_id, 'information', 'approximate_position', a.id, 'The position is approximate'
+      FROM acts a WHERE a.payload#>>'{attrs,position_precision,v}' = 'approximate'
+    UNION ALL
+    SELECT a.unit_id, 'information', 'note', a.id, 'Note: ' || (a.payload#>>'{attrs,note,v}')
+      FROM acts a WHERE a.payload->'attrs' ? 'note'
+    UNION ALL
+    -- Origin of the number: three names fit on one line of the right column.
+    SELECT o.unit_id, 'information', 'same_name', NULL::uuid,
+           'Same name under ' || array_to_string((array_agg(o.parent ORDER BY o.parent))[1:3], ', ')
+           || CASE WHEN count(*) > 3 THEN ' and ' || (count(*) - 3)::text || ' more' ELSE '' END
+      FROM (SELECT DISTINCT t.unit_id,
+                   coalesce(public.element_name(t.other_parent), 'no parent') AS parent
+              FROM twins t WHERE t.other_parent IS DISTINCT FROM t.parent) AS o
+     GROUP BY o.unit_id
+  )
+  SELECT u.unit_id,
+         CASE WHEN bool_or(f.level = 'blocks') THEN 'blocked'
+              WHEN bool_or(f.level = 'not_clean') THEN 'not_clean'
+              ELSE 'clean' END,
+         coalesce(jsonb_agg(jsonb_build_object('kind', f.kind, 'level', f.level, 'act', f.act,
+                                               'said', f.said)
+                            ORDER BY array_position(ARRAY['blocks', 'not_clean', 'information'],
+                                                    f.level), f.kind, f.said)
+                    FILTER (WHERE f.kind IS NOT NULL), '[]'::jsonb)
+    FROM units u
+    LEFT JOIN found f ON f.unit_id = u.unit_id
+   GROUP BY u.unit_id;
+END $$;
+
+-- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its state and its faults,
+-- its acts, the ends of each act, the proposer, the group, the documents and the cited passages
+-- with two lines of context.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -1693,16 +1984,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
      WHERE p.status = 'pending'
      ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
   ), subjects AS (
-    SELECT DISTINCT ON (g.batch_id) g.batch_id, g.payload->>'label' AS subject
-      FROM public.proposals g
-     WHERE g.op = 'create_entity' AND g.batch_id IN (SELECT batch_id FROM heads)
-       AND NOT EXISTS (
-             SELECT 1 FROM public.proposals r
-               JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
-              WHERE r.op = 'create_relation' AND r.batch_id = g.batch_id
-                AND (r.payload->>'src_id')::uuid = g.id
-                AND d.op = 'create_entity' AND d.batch_id = g.batch_id)
-     ORDER BY g.batch_id, g.created_at, g.id
+    SELECT g.batch_id, public.group_subject(g.batch_id) AS subject
+      FROM (SELECT DISTINCT h.batch_id FROM heads h WHERE h.batch_id IS NOT NULL) AS g
   ), keyed AS (
     SELECT u.*,
            ARRAY[CASE WHEN u.batch_id IS NULL THEN '1' ELSE '0' END,
@@ -1736,9 +2019,15 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                         WHEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = x.id)
                           OR EXISTS (SELECT 1 FROM public.relations r WHERE r.id = x.id)
                           THEN 'record'
+                        WHEN EXISTS (SELECT 1 FROM public.proposals w
+                                      WHERE w.id = x.id AND w.status = 'rejected')
+                          THEN 'rejected'
                         ELSE 'missing' END,
              'group', (SELECT w.batch_id FROM public.proposals w
-                        WHERE w.id = x.id AND w.status = 'pending')) AS said
+                        WHERE w.id = x.id AND w.status = 'pending'),
+             'rejectedOn', (SELECT to_char(w.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+                              FROM public.proposals w
+                             WHERE w.id = x.id AND w.status = 'rejected')) AS said
       FROM (SELECT DISTINCT e.ref AS id
               FROM acts a,
                    LATERAL (VALUES ((a.payload->>'src_id')::uuid), ((a.payload->>'dst_id')::uuid),
@@ -1792,11 +2081,14 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                'proposer', s.proposer,
                'group', CASE WHEN s.batch_id IS NULL THEN NULL
                              ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
+               'state', fa.state,
+               'faults', fa.faults,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
                'passages', coalesce(qu.passages, '[]'::jsonb))
              ORDER BY s.sort_key)
         FROM shown s
+        JOIN public.unit_faults(ARRAY(SELECT unit_id FROM shown)) AS fa ON fa.unit_id = s.unit_id
         LEFT JOIN acted ac ON ac.unit_id = s.unit_id
         LEFT JOIN cited ci ON ci.unit_id = s.unit_id
         LEFT JOIN quoted qu ON qu.unit_id = s.unit_id), '[]'::jsonb))

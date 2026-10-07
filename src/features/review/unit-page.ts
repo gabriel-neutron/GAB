@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 import type { Proposer } from '@/shared/read/model';
 
-/** Where an element that an act names stands: it waits in the queue, the record holds it, or
- * neither holds it. */
-export type EndState = 'pending' | 'record' | 'missing';
+/** Where an element that an act names stands: it waits in the queue, the record holds it, the
+ * operator rejected it, or neither holds it. */
+export type EndState = 'pending' | 'record' | 'rejected' | 'missing';
 
 /** One element that an act names, with its name where one is known. */
 export interface UnitEnd {
@@ -13,7 +13,48 @@ export interface UnitEnd {
   readonly state: EndState;
   /** The group of the act that waits, when the element waits in the queue. */
   readonly group: string | null;
+  /** The day of the rejection, as YYYY-MM-DD, when the operator rejected the element. */
+  readonly rejectedOn: string | null;
 }
+
+/** What one fault does to a unit: it blocks Promote, it keeps the unit out of a group action, or
+ * it is information only. */
+export type FaultLevel = 'blocks' | 'not_clean' | 'information';
+
+/** Each fault that the check of the database finds. */
+const FAULT_KINDS = [
+  'end_waits',
+  'circle',
+  'end_relation_waits',
+  'end_rejected',
+  'end_missing',
+  'self',
+  'no_source',
+  'dispute',
+  'contradiction',
+  'reported_claim',
+  'duplicate',
+  'unknown_type',
+  'sources_from_parent',
+  'approximate_position',
+  'note',
+  'same_name',
+] as const;
+
+export type FaultKind = (typeof FAULT_KINDS)[number];
+
+/** One fault of a unit, with the sentence of the database. `act` names the act at fault, where
+ * the fault is about one act. */
+export interface Fault {
+  readonly kind: FaultKind;
+  readonly level: FaultLevel;
+  readonly act: string | null;
+  readonly said: string;
+}
+
+/** Clean: a group action can promote it. Not clean: the operator decides it alone. Blocked:
+ * Promote cannot write it. */
+export type UnitState = 'clean' | 'not_clean' | 'blocked';
 
 /** One attribute of an act, each value as text. A list keeps each of its values. */
 export interface Attribute {
@@ -24,8 +65,7 @@ export interface Attribute {
 interface ActBase {
   readonly id: string;
   readonly attributes: readonly Attribute[];
-  /** Why a check disputes the act. Null where no check disputes it. */
-  readonly dispute: string | null;
+  /** A check disputes the act. The fault of the dispute gives its reason. */
   readonly disputed: boolean;
 }
 
@@ -68,6 +108,9 @@ export interface Unit {
   readonly type: string | null;
   readonly proposer: Proposer;
   readonly group: { readonly id: string; readonly subject: string | null } | null;
+  readonly state: UnitState;
+  /** The blocks first, then the faults that are not clean, then the information. */
+  readonly faults: readonly Fault[];
   readonly acts: readonly UnitAct[];
   readonly documents: readonly SourceDocument[];
   readonly passages: readonly Passage[];
@@ -83,8 +126,9 @@ export interface UnitPage {
 const end = z
   .object({
     name: z.string().nullable(),
-    state: z.enum(['pending', 'record', 'missing']),
+    state: z.enum(['pending', 'record', 'rejected', 'missing']),
     group: z.string().nullable(),
+    rejectedOn: z.string().nullable().optional(),
   })
   .nullable();
 
@@ -105,7 +149,6 @@ const act = z.object({
   payload,
   targetId: z.string().nullable(),
   dissent: z.boolean(),
-  dissentReason: z.string().nullable(),
   target: end,
   src: end,
   dst: end,
@@ -122,6 +165,15 @@ const answer = z.object({
       type: z.string().nullable(),
       proposer: z.enum(['extractor', 'research_ai', 'v1_import', 'operator']),
       group: z.object({ id: z.string(), subject: z.string().nullable() }).nullable(),
+      state: z.enum(['clean', 'not_clean', 'blocked']),
+      faults: z.array(
+        z.object({
+          kind: z.enum(FAULT_KINDS),
+          level: z.enum(['blocks', 'not_clean', 'information']),
+          act: z.string().nullable(),
+          said: z.string(),
+        }),
+      ),
       acts: z.array(act),
       documents: z.array(
         z.object({
@@ -193,13 +245,13 @@ const endOf = (id: string, read: z.output<typeof end>): UnitEnd => ({
   name: read?.name ?? null,
   state: read?.state ?? 'missing',
   group: read?.group ?? null,
+  rejectedOn: read?.rejectedOn ?? null,
 });
 
 const actOf = (read: ReadAct): UnitAct => {
   const base = {
     id: read.id,
     attributes: attributesOf(read.payload),
-    dispute: read.dissentReason,
     disputed: read.dissent,
   };
   if (read.op === 'create_entity')
@@ -240,6 +292,8 @@ export function unitPageOf(raw: unknown): UnitPage | null {
       type: unit.type,
       proposer: unit.proposer,
       group: unit.group,
+      state: unit.state,
+      faults: unit.faults,
       acts: unit.acts.map(actOf),
       documents: unit.documents,
       passages: unit.passages,

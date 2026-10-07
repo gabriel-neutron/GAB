@@ -229,6 +229,16 @@ test('a top element and its units with no sub-unit are one batch, and each tree 
   });
 });
 
+test('an element with the sources of a parent keeps that parent in an attribute', () => {
+  const batches = batchesOf(linesOf(readV1(fixture())), DOCUMENT).flat();
+  const entityOf = (id: string) =>
+    batches.find((item) => item.line.element.id === id && item.request.op === 'create_entity');
+  expect(entityOf(BATTALION)?.request).toMatchObject({
+    attrs: { sources_from: { v: `1st Army (v1 ${ARMY})` } },
+  });
+  expect(entityOf(ARMY)?.request).not.toHaveProperty('attrs.sources_from');
+});
+
 test('the same document gives the same acts, and another document gives other acts', () => {
   const ids = (document: string) =>
     batchesOf(linesOf(readV1(fixture())), document)

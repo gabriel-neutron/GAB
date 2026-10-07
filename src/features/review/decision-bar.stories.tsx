@@ -11,6 +11,8 @@ const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
 
 const army = units.find((unit) => unit.id === SAMPLE_UNITS.army);
 if (army === undefined) throw new Error('the sample holds no army');
+const link = units.find((unit) => unit.id === SAMPLE_UNITS.link);
+if (link === undefined) throw new Error('the sample holds no link');
 
 const WORDS = unitWords(
   [
@@ -64,6 +66,21 @@ export const EachControlSaysWhatItDoes: Story = {
     ).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Promote' }));
     await expect(onAct).toHaveBeenCalledWith({ kind: 'promote' });
+  },
+};
+
+/** A blocked unit cannot be promoted, and the sentence says why. Reject stays open. */
+export const ABlockedUnitSaysWhyPromoteIsOff: Story = {
+  args: { said: decisionWords(link, WORDS, null) },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Promote' })).toBeDisabled();
+    await expect(
+      canvas.getByText(
+        'Promote is not possible. Waits for Southern Military District (group Southern ' +
+          'Military District).',
+      ),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText('Reason')).toBeEnabled();
   },
 };
 

@@ -17,6 +17,8 @@ export interface RelationLine {
   readonly word: string;
   readonly other: string;
   readonly state: EndState;
+  /** The day the operator rejected the other end, or null. */
+  readonly rejectedOn: string | null;
   readonly disputed: boolean;
 }
 
@@ -71,6 +73,7 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
           word: typed.inverseLabel,
           other: nameOf(act.src),
           state: act.src.state,
+          rejectedOn: act.src.rejectedOn,
         },
       ];
     return [
@@ -80,6 +83,7 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
         word: typed.label,
         other: nameOf(act.dst),
         state: act.dst.state,
+        rejectedOn: act.dst.rejectedOn,
       },
     ];
   });

@@ -10,6 +10,8 @@ const unitOf = (id: string): Unit => ({
   type: 'military_unit',
   proposer: 'v1_import',
   group: null,
+  state: 'clean',
+  faults: [],
   acts: [],
   documents: [],
   passages: [],
