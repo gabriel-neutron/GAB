@@ -6,6 +6,8 @@ import { askWriter } from '@/shared/write/door';
 export interface Passage {
   readonly document: string;
   readonly title: string;
+  /** The type of the stored document. A row with no stored bytes records none. */
+  readonly mime: string | null;
   readonly page: number;
   readonly text: string;
 }
@@ -46,6 +48,7 @@ const answered = z.object({
       proposalId: z.string(),
       document: z.string(),
       title: z.string(),
+      mime: z.string().nullable(),
       page: z.number(),
       text: z.string(),
     }),
