@@ -31,6 +31,8 @@ export interface GroupUnit {
   readonly faults: readonly { readonly kind: FaultKind; readonly level: FaultLevel }[];
   readonly entities: number;
   readonly relations: number;
+  /** The other units of the queue that the relations of this unit need. */
+  readonly needs: readonly string[];
   /** The parent of the entity, with its unit when the parent waits in the queue. */
   readonly parent: { readonly unit: string | null; readonly name: string } | null;
 }
@@ -79,6 +81,7 @@ const group = z.object({
       ),
       entities: z.number().int(),
       relations: z.number().int(),
+      needs: z.array(z.string()),
       parent: z.object({ unit: z.string().nullable(), name: z.string() }).nullable(),
     }),
   ),

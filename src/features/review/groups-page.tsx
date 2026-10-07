@@ -20,6 +20,7 @@ const selectedOf = (view: GroupView): string | null => {
   switch (view.state) {
     case 'none':
       return null;
+    case 'reading':
     case 'private':
       return view.groupId;
     case 'held':

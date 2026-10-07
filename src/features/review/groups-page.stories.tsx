@@ -64,6 +64,7 @@ const unit = (id: string, name: string, extra: Partial<GroupUnit> = {}): GroupUn
   entities: 1,
   relations: 1,
   parent: null,
+  needs: extra.parent?.unit ? [extra.parent.unit] : [],
   ...extra,
 });
 
@@ -82,6 +83,10 @@ const DISPUTED = unit('u-disputed', '19th Motor Rifle Division', {
   faults: [{ kind: 'dispute', level: 'not_clean' }],
   parent: { unit: 'u-army', name: '58th Combined Arms Army' },
 });
+// Clean, but below a disputed unit that stays in the queue, so it stays too.
+const BELOW = unit('u-below', '1st Motor Rifle Battalion', {
+  parent: { unit: 'u-disputed', name: '19th Motor Rifle Division' },
+});
 const LINK = unit('u-link', 'Army subordinate to the district', {
   kind: 'link',
   type: 'subordinate_to',
@@ -93,7 +98,7 @@ const LINK = unit('u-link', 'Army subordinate to the district', {
 const GROUP: GroupUnits = {
   id: ARMY_GROUP,
   subject: '58th Combined Arms Army',
-  units: [REGIMENT, DIVISION, ARMY, DISPUTED, LINK],
+  units: [REGIMENT, DIVISION, ARMY, DISPUTED, BELOW, LINK],
 };
 
 const onAct = fn();
@@ -148,8 +153,8 @@ export const TheConfirmationShowsTheCountsAndTheTree: Story = {
     const confirm = canvas.getByRole('region', { name: 'Confirm the group action' });
     await expect(
       within(confirm).getByText(
-        'Writes 3 entities and 2 relations of group 58th Combined Arms Army. 2 stay in the ' +
-          'queue: 1 disputed, 0 with a fault, 1 waiting for another group. You cannot undo this.',
+        'Writes 3 entities and 2 relations of group 58th Combined Arms Army. 3 stay in the ' +
+          'queue: 1 disputed, 1 with a fault, 1 waiting for another group. You cannot undo this.',
       ),
     ).toBeVisible();
     const tree = within(confirm).getByRole('list', { name: 'The tree of the clean units' });

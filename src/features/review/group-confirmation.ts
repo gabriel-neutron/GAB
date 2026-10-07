@@ -23,7 +23,7 @@ const counted = (count: number, one: string, many: string): string =>
   `${String(count)} ${count === 1 ? one : many}`;
 
 /** Why a unit stays in the queue: a dispute first, then a wait for another group, then any other
- * fault. Each unit counts once. */
+ * fault. A clean unit that needs a unit that stays counts with a fault. Each unit counts once. */
 const stayOf = (unit: GroupUnit): 'disputed' | 'waiting' | 'faulty' => {
   if (unit.faults.some((fault) => fault.kind === 'dispute')) return 'disputed';
   if (unit.faults.some((fault) => fault.kind === 'end_waits')) return 'waiting';
@@ -33,6 +33,18 @@ const stayOf = (unit: GroupUnit): 'disputed' | 'waiting' | 'faulty' => {
 // Origin of the number: the deepest tree of the v1 import has six levels. The guard stops a
 // circle of parents, which the check of the faults blocks before it reaches this screen.
 const DEEPEST = 40;
+
+/** The clean units that the action can write: each unit that it needs is written by the same
+ * action. A unit below a unit that stays in the queue stays too, as the database refuses it. */
+const writableOf = (units: readonly GroupUnit[]): readonly GroupUnit[] => {
+  let held = units.filter((unit) => unit.state === 'clean');
+  for (;;) {
+    const ids = new Set(held.map((unit) => unit.id));
+    const next = held.filter((unit) => unit.needs.every((need) => ids.has(need)));
+    if (next.length === held.length) return held;
+    held = next;
+  }
+};
 
 const treeOf = (clean: readonly GroupUnit[]): readonly TreeRow[] => {
   const ids = new Set(clean.map((unit) => unit.id));
@@ -69,8 +81,9 @@ const treeOf = (clean: readonly GroupUnit[]): readonly TreeRow[] => {
 /** The sentence, the tree and the list of the group action, from the units of the group that the
  * screen shows. Only a clean unit is sent. */
 export function groupConfirmation(group: GroupUnits): GroupConfirmation {
-  const clean = group.units.filter((unit) => unit.state === 'clean');
-  const stays = group.units.filter((unit) => unit.state !== 'clean').map(stayOf);
+  const clean = writableOf(group.units);
+  const written = new Set(clean.map((unit) => unit.id));
+  const stays = group.units.filter((unit) => !written.has(unit.id)).map(stayOf);
   const subject = group.subject ?? 'with no subject';
   const stay =
     `${String(stays.length)} stay in the queue: ` +

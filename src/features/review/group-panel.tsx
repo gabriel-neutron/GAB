@@ -15,10 +15,11 @@ export type GroupActionState = WriteState<
   { readonly groupId: string }
 >;
 
-/** The group on the screen: none chosen, one that this page cannot read, or its units. Each
- * chosen group carries the group action that the screen stands in. */
+/** The group on the screen: none chosen, one that is being read, one that this page cannot read,
+ * or its units. Each group that is read carries the group action that the screen stands in. */
 export type GroupView =
   | { readonly state: 'none' }
+  | { readonly state: 'reading'; readonly groupId: string }
   | {
       readonly state: 'private';
       readonly groupId: string;
@@ -86,6 +87,8 @@ export function GroupPanel({ view, words, onPromote }: GroupPanelProps) {
   const [confirming, setConfirming] = useState(false);
   if (view.state === 'none')
     return <p className="p-3 text-xs text-label">Choose a group in the list.</p>;
+  if (view.state === 'reading')
+    return <p className="p-3 text-xs text-label">Reading the units of the group.</p>;
   if (view.state === 'private')
     return (
       <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-xs">

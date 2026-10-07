@@ -4,7 +4,12 @@ import { useMemo, useState } from 'react';
 import type { DecisionState } from '@/features/review/decision-bar';
 import { readDecided } from '@/features/review/decided';
 import type { GroupActionState, GroupView } from '@/features/review/group-panel';
-import { readGroupUnits, readGroups } from '@/features/review/groups';
+import {
+  readGroupUnits,
+  readGroups,
+  type GroupUnits,
+  type GroupsRead,
+} from '@/features/review/groups';
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
@@ -41,9 +46,11 @@ export const Route = createFileRoute('/review')({
   search: { middlewares: [stripSearchParams({ unit: '', view: 'queue', group: '' })] },
 
   // The queue reads one page of units. The history reads the whole corpus, and the rail reads the
-  // faults of every unit that waits, so each is read only when its page is open.
-  loaderDeps: ({ search }) => ({ view: search.view, group: search.group }),
-  loader: async ({ deps }) => {
+  // faults of every unit that waits, so each is read only when its page is open. The rail is read
+  // when its page opens and after a group action, and never at the choice of a group: the group
+  // in the address is read here once, and each later choice reads its own group alone.
+  loaderDeps: ({ search }) => ({ view: search.view }),
+  loader: async ({ deps, location }) => {
     const [first, relationTypes, entityTypes] = await Promise.all([
       readUnits(null),
       loadRelationTypes(),
@@ -51,11 +58,13 @@ export const Route = createFileRoute('/review')({
     ]);
     const held = { first, relationTypes, entityTypes, history: [], groups: null };
     if (deps.view === 'groups') {
-      const [rail, group] = await Promise.all([
+      const asked: unknown = Reflect.get(location.search, 'group');
+      const groupId = typeof asked === 'string' ? asked : '';
+      const [rail, read] = await Promise.all([
         readGroups(),
-        deps.group === '' ? null : readGroupUnits(deps.group),
+        groupId === '' ? null : readGroupUnits(groupId),
       ]);
-      return { ...held, groups: { rail, group } };
+      return { ...held, groups: { rail, group: read === null ? null : { groupId, read } } };
     }
     if (deps.view !== 'decided') return held;
     const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
@@ -93,6 +102,11 @@ function ReviewRoute() {
   const [held, setHeld] = useState<HeldPages>(startOf(null));
   const [decision, setDecision] = useState<DecisionState>({ step: 'idle' });
   const [groupAction, setGroupAction] = useState<GroupActionState>({ step: 'idle' });
+  // The group read at the last choice, or after the last group action. Null while it is read.
+  const [picked, setPicked] = useState<{
+    readonly groupId: string;
+    readonly read: GroupsRead<GroupUnits> | null;
+  } | null>(null);
 
   const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
 
@@ -174,28 +188,46 @@ function ReviewRoute() {
 
   // A group whose every unit the action wrote waits no more, so its read is refused: the result
   // of the action stays on the screen with the sentence of that read.
-  const groupRead = groups?.group ?? null;
+  const entered = groups?.group ?? null;
+  const groupRead =
+    picked !== null && picked.groupId === group
+      ? picked.read
+      : entered !== null && entered.groupId === group
+        ? entered.read
+        : null;
   const action: GroupActionState =
     groupAction.step !== 'idle' && groupAction.groupId === group ? groupAction : { step: 'idle' };
   const groupView: GroupView =
-    group === '' || groupRead === null
+    group === ''
       ? { state: 'none' }
-      : groupRead.state === 'private'
-        ? { state: 'private', groupId: group, why: groupRead.why, action }
-        : { state: 'held', group: groupRead.read, action };
+      : groupRead === null
+        ? { state: 'reading', groupId: group }
+        : groupRead.state === 'private'
+          ? { state: 'private', groupId: group, why: groupRead.why, action }
+          : { state: 'held', group: groupRead.read, action };
+
+  const readGroup = async (groupId: string): Promise<void> => {
+    const read = await readGroupUnits(groupId);
+    setPicked((before) => (before?.groupId === groupId ? { groupId, read } : before));
+  };
 
   // The rail, the group and the queue are read again after the action, so each count is the
   // count of the record.
   const onGroupAct = (act: GroupsAct): void => {
     if (act.kind === 'select') {
-      void navigate({ search: (search) => ({ ...search, group: act.groupId }), replace: true });
+      const { groupId } = act;
+      setPicked({ groupId, read: null });
+      void navigate({ search: (search) => ({ ...search, group: groupId }), replace: true });
+      void readGroup(groupId);
       return;
     }
     const { groupId, unitIds } = act;
     setGroupAction({ step: 'working', groupId });
     void sendGroupAction(groupId, unitIds).then(async (result) => {
       setGroupAction({ ...result, groupId });
-      if (result.step === 'done') await router.invalidate();
+      if (result.step !== 'done') return;
+      await readGroup(groupId);
+      await router.invalidate();
     });
   };
 
