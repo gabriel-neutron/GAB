@@ -39,8 +39,8 @@ document always name an entry in `decisions.md`, never a step.
 | W1 | Scouting and collection of raw material | Out |
 | W2 | Ingestion of documents into the corpus | **In** |
 | W3 | Extraction: the system reads and proposes nodes and links | **In** |
-| W4 | Automated checks: the rating of the originator, the confidence of the proposal | **In** |
-| W5 | Review by exception: dissent between agents or low confidence | **In** |
+| W4 | Automated checks: the faults that the review screen flags on each proposal | **In** |
+| W5 | Review by exception: dissent between agents, or a fault that the screen flags | **In** |
 | W6 | Promotion of a proposal to the evidentiary layer | **In** |
 | W7 | Manual creation and editing of entities and relations | **In** |
 | W8 | Conversational drill-down from a graph element | **In** |
@@ -86,7 +86,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 | Layer | Who writes | Guarantee | Destination |
 |---|---|---|---|
 | Candidate | The machine, freely | None | Exploration, correlation, hypotheses |
-| Evidentiary | The analyst, by promotion | Source cited, rating origin tracked | Report, dataset, public map |
+| Evidentiary | The analyst, by promotion | Source cited, origin of the decision tracked | Report, dataset, public map |
 
 **Dual review surface (P3)**: a marker on the graph, and a dedicated queue.
 
