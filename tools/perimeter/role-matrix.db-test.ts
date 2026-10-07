@@ -57,6 +57,7 @@ test('the role matrix of the doors', async () => {
       "public.record_model_call": "agent",
       "public.reject_proposal": "app",
       "public.requeue_running_jobs": "agent",
+      "public.review_units": "app",
       "public.runner_settings": "agent",
       "public.set_entity_layout": "agent",
       "public.sign_change": "app",

@@ -5,7 +5,6 @@ import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Entity, Proposal } from '@/shared/read/model';
 
 import { readDecided } from './decided';
-import { readQueue } from './queue';
 
 const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
@@ -33,6 +32,7 @@ const retyped: Proposal = {
   priorValue: null,
   dissent: false,
   authorRole: 'gabriel_app',
+  proposer: 'operator',
   status: 'pending',
   createdAt: '2026-08-02T00:00:00Z',
   decidedAt: null,
@@ -73,6 +73,7 @@ describe('the history of the record', () => {
         priorValue: { kind: 'row', row: { label: 'MV Broken Hull' } },
         dissent: false,
         authorRole: 'gabriel_agent',
+        proposer: 'extractor',
         createdAt: '2026-08-01T00:00:00Z',
         batchId: null,
       },
@@ -100,6 +101,7 @@ describe('the history of the record', () => {
             priorValue: { kind: 'row', row },
             dissent: false,
             authorRole: 'gabriel_app',
+            proposer: 'operator',
             createdAt: '2026-08-01T00:00:00Z',
             batchId: null,
           },
@@ -157,32 +159,6 @@ describe('an act on the name and the type', () => {
     expect(row?.keys).toBe('Name, Type');
     expect(row?.actWords).toBe('Change of the name or the type');
   });
-
-  it('waits under its entity, as a change of the name and the type against the stored row', () => {
-    const subjects = readQueue({ ...corpus, proposals: [retyped] });
-    expect(subjects.map((subject) => [subject.id, subject.kind])).toStrictEqual([[VESSEL, 'node']]);
-    const [change] = subjects[0]?.changes ?? [];
-    expect(change?.kind).toBe('edit');
-    expect(
-      change?.rows.map(({ key, op, standing, proposed }) => ({ key, op, standing, proposed })),
-    ).toStrictEqual([
-      { key: 'Name', op: 'edit', standing: 'MV Northern Ledger', proposed: 'MV Southern Ledger' },
-      { key: 'Type', op: 'edit', standing: 'vessel', proposed: 'company' },
-    ]);
-  });
-});
-
-describe('the working queue', () => {
-  it('holds no decided act, whatever the corpus carries', () => {
-    const decidedIds = FIXTURE.map(({ act }) => act.id);
-    const waiting = readQueue(corpus).flatMap((subject) =>
-      subject.changes.map((change) => change.id),
-    );
-    expect(decidedIds.length).toBeGreaterThan(0);
-    expect(waiting.filter((id) => decidedIds.includes(id))).toStrictEqual([]);
-    expect(waiting).toContain('f0a1b2c3-4d5e-4678-9012-3456789abcde');
-    expect(readQueue(corpus).map((subject) => subject.id)).toContain(TERMINAL);
-  });
 });
 
 const BERTH = 'c3d4e5f6-9a0b-4123-c456-d7e8f90a1b2c';
@@ -215,11 +191,6 @@ const retagged: Proposal = {
   payload: { kind: 'attrs', attrs: { observed_on: { v: '2026-06-01', src: ['doc_9b0417'] } } },
 };
 
-const queued = (act: Proposal): { readonly label: string; readonly headline: string } => {
-  const [subject] = readQueue({ ...corpus, proposals: [act] });
-  return { label: subject?.label ?? '', headline: subject?.changes[0]?.headline ?? '' };
-};
-
 const history = (act: Proposal): string => {
   const decided: Proposal = {
     ...act,
@@ -230,27 +201,24 @@ const history = (act: Proposal): string => {
   return readDecided(corpus, decidedOf([decided]))[0]?.subject ?? '';
 };
 
-describe('one act, named on the queue and in the history', () => {
+describe('one act, named in the history', () => {
   const BERTHED = 'MV Northern Ledger berthed at Maasvlakte bulk terminal, berth 7';
 
-  it('words a proposed relation the same on both pages, and never with the raw type', () => {
-    expect(queued(linked).headline).toBe(BERTHED);
+  it('words a proposed relation with the words of its type, and never with the raw type', () => {
     expect(history(linked)).toBe(BERTHED);
   });
 
-  it('words a relation that stands in the record the same on both pages', () => {
-    expect(queued(retagged).label).toBe(BERTHED);
+  it('words a relation that stands in the record by its type and its ends', () => {
     expect(history(retagged)).toBe(BERTHED);
   });
 
-  it('words a merge the same on both pages', () => {
+  it('words a merge by the entity it keeps', () => {
     const merge: Proposal = {
       ...linked,
       op: 'merge_entities',
       payload: { kind: 'merge', keep_id: VESSEL, merge_ids: [TERMINAL] },
     };
     const words = 'Maasvlakte bulk terminal, berth 7 into MV Northern Ledger';
-    expect(queued(merge).headline).toBe(words);
     expect(history(merge)).toBe(words);
   });
 });
@@ -295,7 +263,7 @@ describe('the keys a promoted creation wrote', () => {
 });
 
 describe('who wrote a decided act', () => {
-  it('carries the author of the act on its row', () => {
+  it('names the proposer of the act on its row, and never a machine', () => {
     const decided: Pick<Proposal, 'status' | 'decidedAt' | 'decidedBy'> = {
       status: 'accepted',
       decidedAt: '2026-08-02T00:05:00Z',
@@ -306,10 +274,10 @@ describe('who wrote a decided act', () => {
       corpus,
       decidedOf([
         { ...retyped, ...decided },
-        { ...retyped, ...decided, id: agentId, authorRole: 'gabriel_agent' },
+        { ...retyped, ...decided, id: agentId, authorRole: 'gabriel_agent', proposer: 'extractor' },
       ]),
     );
     expect(rows.find((row) => row.id === retyped.id)?.author).toBe('operator');
-    expect(rows.find((row) => row.id === agentId)?.author).toBe('machine');
+    expect(rows.find((row) => row.id === agentId)?.author).toBe('extractor');
   });
 });

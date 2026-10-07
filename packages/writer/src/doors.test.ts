@@ -139,7 +139,7 @@ test.each([
   ['/write/document-jobs', 'document_jobs', DOCUMENT],
   ['/write/start-lead', 'start_lead', { lead: 'a company and its vessels' }],
   ['/private/leads', 'lead_jobs', {}],
-  ['/private/passages', 'citation', { proposalIds: [] }],
+  ['/private/review-units', 'review_units', { after: null, size: 1 }],
 ])('a lost answer on %s is a doubt, and the client goes back', async (door, on, body) => {
   const held = faultyPool([{ on, cause: lostSocket() }]);
 
@@ -150,7 +150,7 @@ test.each([
 test.each([
   ['/write/queue-extraction', DOCUMENT],
   ['/write/start-lead', { lead: 'a company and its vessels' }],
-  ['/private/passages', { proposalIds: [] }],
+  ['/private/review-units', { after: null, size: 1 }],
 ])('a pool that gives no client answers 503 on %s', async (door, body) => {
   expect(await privateRead(unreachablePool(), door, body)).toStrictEqual([
     503,

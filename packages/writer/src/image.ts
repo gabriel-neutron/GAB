@@ -33,7 +33,7 @@ const NOT_IMAGE = 'the document is not a png or a jpeg image';
 const NOT_GIVEN = 'the raw store did not give the image';
 
 /** The bytes of one stored png or jpeg document, read as the operator. The raw store is private,
- * so an image reaches the review card through the writer and never through the public read. */
+ * so an image reaches the review page through the writer and never through the public read. */
 export const readDocumentImage = async (
   pool: Sessions,
   reader: ObjectReader,

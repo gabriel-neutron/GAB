@@ -2,7 +2,7 @@ import { Check, X } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 
-import type { Verdict } from './queue';
+import type { Verdict } from './decided';
 
 interface VerdictMarkProps {
   readonly verdict: Verdict;

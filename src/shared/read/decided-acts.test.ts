@@ -11,6 +11,7 @@ const DECIDED_ROW = {
   prior_value: null,
   dissent: false,
   author_role: 'gabriel_agent',
+  proposer: 'extractor',
   model_call_id: null,
   status: 'accepted',
   created_at: '2026-08-25T03:25:13.734752+00:00',

@@ -56,7 +56,7 @@ export function DecidedPage({ rows }: DecidedPageProps) {
                   Keys
                 </th>
                 <th scope="col" className={HEAD}>
-                  Written by
+                  Proposed by
                 </th>
                 <th scope="col" className={HEAD}>
                   Signed as

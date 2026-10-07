@@ -1,8 +1,8 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
+import { proposerWords } from '@/shared/proposer-words';
 import type {
-  AuthorRole,
   Corpus,
   DocId,
   DocumentRow,
@@ -12,7 +12,6 @@ import type {
   Relation,
   TypeVocabulary,
 } from '@/shared/read/model';
-
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
@@ -66,7 +65,8 @@ export interface PendingLine {
   readonly id: string;
   readonly summary: string;
   readonly dissent: boolean;
-  readonly origin: 'machine' | 'operator';
+  /** Who proposed the act, in the words of the review. */
+  readonly origin: string;
   readonly sources: readonly SourceRef[];
 }
 
@@ -128,12 +128,6 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   delete_relation: 'Deletes a relation',
   merge_entities: 'Merges entities',
   map_document: 'Maps the columns of a table',
-};
-
-const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
-  gabriel_agent: 'machine',
-  gabriel_research: 'machine',
-  gabriel_app: 'operator',
 };
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
@@ -356,7 +350,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
         id: proposal.id,
         summary: body,
         dissent: proposal.dissent,
-        origin: ORIGIN_WORDS[proposal.authorRole],
+        origin: proposerWords(proposal.proposer),
         sources: refsOf(proposal.src),
       };
     });
