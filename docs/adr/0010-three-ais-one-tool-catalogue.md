@@ -77,20 +77,20 @@ whole batch, and the refusal names the item, so the model can correct it once. A
 excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
 such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. A yes or no
 needs a word of yes or no, and a negative number needs its minus sign or a word for it. Code mints
-the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The items
-that name each other stay one linked batch. The batch is a group: a label and a filter. The operator
-decides one unit of it at a time: an entity with the relations that depend on it. The door
-writes each act with its citations in one transaction, and it holds the rules of the data: a
-machine proposes a new entity, a new relation or new attributes and never a change of a name or a
-type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
+the identifier of each item, so a relation names an entity that an earlier item of the same batch
+creates. The items that name each other stay one linked batch. The batch is a group: a label and
+a filter. The operator decides one unit of it at a time: an entity with the relations that depend
+on it. The door writes each act with its citations in one transaction, and it holds the rules of the
+data: a machine proposes a new entity, a new relation or new attributes and never a change of a name
+or a type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
 page. A pending act with the same operation, target, payload, sources and role is returned and not
 written again, so a retry or a second run writes no duplicate. The door adds to that act each
-citation that it does not hold yet. Another role is another witness, and its act stays separate.
-The originator does not make a second act, because a model words one party in more than one way:
-the act that waits keeps the originator that it was written with. The cited passage is private:
-the review card reads it through the
-writer, and the public read never shows it. **Cost:** a model that cannot copy a quote word for
-word loses its claim, and an excerpt proves only that the page holds the words.
+citation that it does not hold yet. Another role is another witness, and its act stays separate. The
+originator does not make a second act, because a model words one party in more than one way: the act
+that waits keeps the originator that it was written with. The cited passage is private: the review
+card reads it through the writer, and the public read never shows it. **Cost:** a model that cannot
+copy a quote word for word loses its claim, and an excerpt proves only that the page holds the
+words.
 
 **The MCP server never calls the writer.** The writer signs each act as the operator. A call from an
 AI through the writer would enter the evidence as an operator act that nothing tells apart.
@@ -105,7 +105,8 @@ can run on another machine.
 A model reads the header and the first rows of a table, and proposes one mapping of its columns.
 The operator promotes it. The promotion writes nothing to the graph: it queues the load. Code
 then reads every row with no model. Each row is a proposal cited by the span of the row, and a
-row and its links are one linked batch, which the operator decides one unit at a time. A row that does not fit is left out, and one report
+row and its links are one linked batch, which the operator decides one unit at a time. A row that
+does not fit is left out, and one report
 document keeps the reason for each. The rows carry the model call of the mapping, because that
 call is the origin of the way the row is read. A new file from the same host with the same header
 takes the accepted mapping, and no model reads it.

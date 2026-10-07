@@ -32,8 +32,8 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
   relations, jobs TO gabriel_app;
-GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
-  relations TO gabriel_agent;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, entities, relations
+  TO gabriel_agent;
 -- THE TEXT OF A LEAD IS PRIVATE, ALSO FROM THE WORKER. The worker reads the text of the lead that it
 -- claims through the claim door, so its read of the queue leaves out the text and its author. A
 -- process that reads untrusted web content then cannot read the other leads of the operator.
@@ -43,8 +43,16 @@ GRANT SELECT (id, document_id, kind, status, failure_reason, claimed_by, claimed
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
 -- column that a tool has no use for.
-GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
-  relations TO gabriel_research;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, entities, relations
+  TO gabriel_research;
+
+-- THE REASON AND THE NOTE OF A REJECTION ARE THE OPERATOR'S. They can name a party or quote a
+-- page, and a machine role reads untrusted text, so the two machine roles read every column of
+-- an act except these two. A new column of the table needs its own line here.
+GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, dissent,
+  author_role, xact, status, created_at, decided_at, decided_by, model_call_id, act_digest,
+  originator, batch_id, dissent_reason, unit_id, proposer, decided_as) ON proposals
+  TO gabriel_agent, gabriel_research;
 
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
@@ -71,6 +79,7 @@ REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;

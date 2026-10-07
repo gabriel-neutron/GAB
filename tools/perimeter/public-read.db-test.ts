@@ -108,3 +108,17 @@ test('no view of the read API shows the reason or the note of a rejection', asyn
     rolledBack('read', (ask) => ask('SELECT reject_reason, reject_note FROM public.proposals')),
   ).rejects.toHaveProperty('code', '42501');
 });
+
+// A machine role reads untrusted text, so it reads every column of an act but these two.
+for (const role of ['agent', 'research'] as const)
+  test(`gabriel_${role} reads an act, and not the reason or the note of its rejection`, async () => {
+    await expect(
+      rolledBack(role, (ask) =>
+        ask('SELECT id, payload, status, unit_id, decided_as FROM public.proposals LIMIT 1'),
+      ),
+    ).resolves.toBeDefined();
+    for (const column of ['reject_reason', 'reject_note'])
+      await expect(
+        rolledBack(role, (ask) => ask(`SELECT ${column} FROM public.proposals LIMIT 1`)),
+      ).rejects.toHaveProperty('code', '42501');
+  });

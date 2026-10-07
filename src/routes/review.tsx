@@ -95,6 +95,7 @@ function ReviewRoute() {
             total: now.total,
             more: now.reading ? 'reading' : last === null ? 'none' : 'ready',
           },
+          decision,
         };
 
   const select = (unitId: string): void => {
@@ -161,9 +162,7 @@ function ReviewRoute() {
         void navigate({ search: (search) => ({ ...search, view: next }), replace: true });
       }}
       decided={history}
-      queue={
-        <UnitsPage view={queue} selectedId={unit} words={words} decision={decision} onAct={onAct} />
-      }
+      queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
     />
   );
 }

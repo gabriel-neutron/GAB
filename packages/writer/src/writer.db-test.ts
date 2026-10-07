@@ -1339,3 +1339,73 @@ test('a link unit waits until both ends are in the record, and the refusal names
     await removed(link, vessel, far);
   }
 });
+
+// "A to B" belongs to the unit of A and "B to A" to the unit of B, so each unit waits for the
+// other, and no promotion can end the wait.
+test('two units that wait for each other are refused as a circle', async () => {
+  const [first, second, there, back] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    { id: first, op: 'create_entity', payload: { type: 'company', label: 'Circle test first' } },
+    { id: second, op: 'create_entity', payload: { type: 'company', label: 'Circle test second' } },
+    {
+      id: there,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: first, dst_id: second },
+      names: [first, second],
+    },
+    {
+      id: back,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: second, dst_id: first },
+      names: [second, first],
+    },
+  ]);
+  try {
+    expect([await unitOf(there), await unitOf(back)]).toStrictEqual([first, second]);
+    const [status, reply] = await post('promote-unit', { unitId: first });
+    expect([status, reply.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted, because its relation owns waits for Circle test ' +
+        'second, and Circle test second waits for this unit: the relations make a circle, so ' +
+        'reject one relation of the circle',
+    ]);
+
+    // One relation rejected ends the circle.
+    const [rejected] = await post('reject-relation', { proposalId: back, reason: 'wrong_value' });
+    expect(rejected).toBe(200);
+    expect((await post('promote-unit', { unitId: second }))[0]).toBe(200);
+    expect((await post('promote-unit', { unitId: first }))[0]).toBe(200);
+  } finally {
+    await removed(there, first, second);
+  }
+});
+
+// The first decision holds the lock of the unit. The second waits for it, then finds the unit
+// decided, so one unit is never decided twice.
+test.for([
+  ['promote-unit', {}],
+  ['reject-unit', { reason: 'duplicate' }],
+] as const)(
+  'a second decision on a unit that a first one holds is refused (%s)',
+  async ([door, extra]) => {
+    const unitId = await waiting(`Writer test two decisions ${door}`);
+    const first = await pool.connect();
+    try {
+      await first.query('BEGIN');
+      await first.query("SELECT public.promote_unit($1::uuid, 'a test')", [unitId]);
+      const second = post(door, { unitId, ...extra });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await first.query('COMMIT');
+      const [status, reply] = await second;
+      expect([status, reply.refusal]).toStrictEqual([
+        422,
+        `the unit ${unitId} is decided already, and a decided act is frozen`,
+      ]);
+      expect((await decisionOf(unitId))['status']).toBe('accepted');
+    } finally {
+      await first.query('ROLLBACK').catch(() => undefined);
+      first.release();
+      await removed(unitId);
+    }
+  },
+);

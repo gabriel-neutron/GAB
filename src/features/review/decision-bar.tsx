@@ -1,4 +1,3 @@
-import type { Decision } from '@gab/proposal/request';
 import { useId, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -6,34 +5,36 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import type { WriteState } from '@/shared/write/write-state';
 
-import { decisionWords } from './decision-words';
+import type { DecisionWords } from './decision-words';
 import { REJECTION_REASONS, rejectionGap } from './rejection';
-import type { UnitWords } from './unit-changes';
-import type { Unit } from './unit-page';
 
 /** The decision that the screen stands in, and the unit it is about. */
 export type DecisionState = WriteState<object, { readonly unitId: string }>;
 
-/** What the operator did in the decision bar: send a decision, or stop aiming at one relation. */
-export type DecisionAct =
-  | { readonly kind: 'decide'; readonly unitId: string; readonly decision: Decision }
-  | { readonly kind: 'aim'; readonly relationId: string | null };
+/** What the operator did in the decision bar: promote, reject with a reason, or stop aiming at
+ * one relation. */
+export type BarAct =
+  | { readonly kind: 'promote' }
+  | { readonly kind: 'reject'; readonly reason: string; readonly note?: string }
+  | { readonly kind: 'unaim' };
 
 export interface DecisionBarProps {
-  readonly unit: Unit;
-  readonly words: UnitWords;
-  /** The one relation that Reject rejects alone, or null for the whole unit. */
-  readonly aimed: string | null;
+  /** What Promote writes and what Reject rejects, for the unit on the screen. */
+  readonly said: DecisionWords;
+  /** True when Reject rejects one relation alone, and not the whole unit. */
+  readonly aimed: boolean;
+  /** The decision on this unit. Idle when the screen decides no other act on it. */
   readonly state: DecisionState;
-  readonly onAct: (act: DecisionAct) => void;
+  readonly onAct: (act: BarAct) => void;
 }
 
 const CHOOSER =
   'h-6 min-w-0 rounded-none border border-input bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50';
 
-const sentenceOf = (state: DecisionState, unitId: string): string | null => {
-  if (state.step === 'idle' || state.unitId !== unitId) return null;
+const sentenceOf = (state: DecisionState): string | null => {
   switch (state.step) {
+    case 'idle':
+      return null;
     case 'working':
       return 'The decision is on the way to the record.';
     case 'done':
@@ -47,34 +48,20 @@ const sentenceOf = (state: DecisionState, unitId: string): string | null => {
 
 /** Promote or reject the unit, or reject one relation of it. Each control says what it does
  * before the click, and a rejection needs a reason. */
-export function DecisionBar({ unit, words, aimed, state, onAct }: DecisionBarProps) {
+export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const ids = useId();
-  const said = decisionWords(unit, words, aimed);
   const gap = rejectionGap(reason, note);
   const busy = state.step === 'working';
-  const sentence = sentenceOf(state, unit.id);
-  const written = note.trim() === '' ? {} : { note: note.trim() };
-
-  const reject = (): void => {
-    if (gap !== null) return;
-    onAct({
-      kind: 'decide',
-      unitId: unit.id,
-      decision:
-        aimed === null
-          ? { op: 'reject_unit', unitId: unit.id, reason, ...written }
-          : { op: 'reject_relation', proposalId: aimed, reason, ...written },
-    });
-  };
+  const sentence = sentenceOf(state);
 
   return (
     <section
       aria-label="The decision"
       className="shrink-0 space-y-2 border-t border-border p-3 text-xs"
     >
-      {aimed === null ? (
+      {aimed ? null : (
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1" data-said="promote">
             {said.promote}
@@ -84,17 +71,13 @@ export function DecisionBar({ unit, words, aimed, state, onAct }: DecisionBarPro
             size="xs"
             disabled={busy}
             onClick={() => {
-              onAct({
-                kind: 'decide',
-                unitId: unit.id,
-                decision: { op: 'promote_unit', unitId: unit.id },
-              });
+              onAct({ kind: 'promote' });
             }}
           >
             Promote
           </Button>
         </div>
-      ) : null}
+      )}
 
       <p data-said="reject">{said.reject}</p>
       <div className="flex flex-wrap items-center gap-2">
@@ -135,23 +118,30 @@ export function DecisionBar({ unit, words, aimed, state, onAct }: DecisionBarPro
           size="xs"
           variant="destructive"
           disabled={busy || gap !== null}
-          onClick={reject}
+          onClick={() => {
+            if (gap === null)
+              onAct({
+                kind: 'reject',
+                reason,
+                ...(note.trim() === '' ? {} : { note: note.trim() }),
+              });
+          }}
         >
-          {aimed === null ? 'Reject' : 'Reject the relation'}
+          {aimed ? 'Reject the relation' : 'Reject'}
         </Button>
-        {aimed === null ? null : (
+        {aimed ? (
           <Button
             type="button"
             size="xs"
             variant="ghost"
             disabled={busy}
             onClick={() => {
-              onAct({ kind: 'aim', relationId: null });
+              onAct({ kind: 'unaim' });
             }}
           >
             Back to the unit
           </Button>
-        )}
+        ) : null}
       </div>
       {gap === null || reason === '' ? null : <p className="text-label">{gap}</p>}
       {sentence === null ? null : (
