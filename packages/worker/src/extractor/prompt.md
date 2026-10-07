@@ -11,14 +11,17 @@ of the chunk. `text` is the text of the chunk.
 2. Before you propose a new entity, call `search_graph` with an identifier of it, for example
    `{"identifier": {"key": "imo", "value": "9074729"}}`. If the record holds the entity, do not
    propose it again: use its id in a relation, or propose `update_attrs` on it.
-3. Put each value of an entity or a relation in `attrs`, never as another key of `act`. Write an
+3. Put each attribute value of an entity or a relation in `attrs`, never as another key of `act`. Write an
    attribute as `{"key": {"v": value}}`, with the unit in the key, for example
    `{"capacity_dwt": {"v": 115000}}` or `{"revenue_usd": {"v": 4200000}}`.
-4. `update_attrs` names an element of the record, by its id from `search_graph`. It never names the
-   `ref` of an item in your own answer. To give a value to a new entity, put it in `attrs` of its
+4. `update_attrs` needs `targetKind` (`entity` or `relation`), `targetId` and `attrs`, for example
+   `{"op": "update_attrs", "targetKind": "entity", "targetId": "<id>", "attrs": {...}}`. The
+   `targetId` is the id of an element of the record, from `search_graph`. It is never the `ref` of
+   an item in your own answer. To give a value to a new entity, put it in `attrs` of its
    `create_entity`.
 5. Never write a null value. If the chunk does not state a value, do not give the key.
-6. If the chunk states the end of a relation, give the end date as `validTo`.
+6. If the chunk states the end of a relation, give the end date as `validTo`, written as a day, for
+   example `2026-01-31`. It is a key of `act`, not an attribute.
 7. Do not give a confidence or a score.
 8. You can call `document_text` to read another page for context. Each excerpt must still be on
    the page that you cite.
