@@ -1,12 +1,27 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
+import { NO_FILTER } from './review-workspace';
 import { unitPageOf } from './unit-page';
 import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
 import { UnitsPage } from './units-page';
 
-const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
+const page = unitPageOf(UNIT_ANSWER, null);
+const units = page?.units ?? [];
+const choices = page?.choices ?? { groups: [], documents: [] };
+
+const queueOf = (
+  held: typeof units,
+  counts: { matched?: number; before?: number; total?: number; filtered?: boolean } = {},
+) => ({
+  units: held,
+  total: counts.total ?? 1082,
+  matched: counts.matched ?? 1082,
+  before: counts.before ?? 0,
+  filtered: counts.filtered ?? false,
+  more: 'ready' as const,
+});
 
 // The rows the database declares for the one relation type of the sample.
 const WORDS = unitWords(
@@ -45,7 +60,9 @@ const meta = {
   args: {
     view: {
       state: 'held',
-      queue: { units, total: 1082, more: 'ready' },
+      queue: queueOf(units),
+      filter: NO_FILTER,
+      choices,
       decision: { step: 'idle' },
     },
     selectedId: SAMPLE_UNITS.army,
@@ -117,7 +134,9 @@ export const EachColumnScrollsOnItsOwn: Story = {
   args: {
     view: {
       state: 'held',
-      queue: { units: LONG, total: 1082, more: 'ready' },
+      queue: queueOf(LONG),
+      filter: NO_FILTER,
+      choices,
       decision: { step: 'idle' },
     },
   },
@@ -136,18 +155,140 @@ export const EachColumnScrollsOnItsOwn: Story = {
   },
 };
 
-/** At 900 px the three columns stay, and the names stay readable. */
+/** At 900 px the three columns stay, the names and the filters stay readable, and the list of
+ * units still scrolls on its own. */
 export const TheNamesStayAt900Pixels: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(LONG),
+      filter: NO_FILTER,
+      choices,
+      decision: { step: 'idle' },
+    },
+  },
   render: (args) => (
     <div className="h-[720px] w-[900px]">
       <UnitsPage {...args} />
     </div>
   ),
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
     await expect(changes.getBoundingClientRect().width).toBeGreaterThan(300);
-    const line = canvas.getByRole('button', { name: /^5th Combined Arms Army/u });
+    const [line] = canvas.getAllByRole('button', { name: /^5th Combined Arms Army/u });
+    if (line === undefined) throw new Error('no line for the army');
     await expect(line.getBoundingClientRect().width).toBeGreaterThan(200);
+    const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await expect(
+      within(filter).getByLabelText('Fault').getBoundingClientRect().width,
+    ).toBeGreaterThan(100);
+    const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
+    const scroller = list.querySelector('ul');
+    if (scroller === null) throw new Error('the list has no scroller');
+    await expect(getComputedStyle(scroller).overflowY).toBe('auto');
+    await expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
+    const page = canvasElement.querySelector('[data-units-page]');
+    if (!(page instanceof HTMLElement)) throw new Error('no page');
+    await expect(page.scrollHeight).toBe(page.clientHeight);
+  },
+};
+
+/** Each filter is a plain control at the head of the list, and a change asks for the queue
+ * again with the new filter. The name applies on Enter. */
+export const EachFilterAsksForTheQueueAgain: Story = {
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.selectOptions(within(filter).getByLabelText('Proposer'), 'extractor');
+    await expect(onAct).toHaveBeenLastCalledWith({
+      kind: 'filter',
+      filter: { ...NO_FILTER, proposer: 'extractor' },
+    });
+    await userEvent.selectOptions(within(filter).getByLabelText('Fault'), 'dispute');
+    await expect(onAct).toHaveBeenLastCalledWith({
+      kind: 'filter',
+      filter: { ...NO_FILTER, fault: 'dispute' },
+    });
+    await userEvent.selectOptions(
+      within(filter).getByLabelText('Group'),
+      'Southern Military District',
+    );
+    await expect(onAct).toHaveBeenLastCalledWith({
+      kind: 'filter',
+      filter: { ...NO_FILTER, group: '9a0c3c1e-5b7d-4e2f-8a61-2d4f6b8c0e13' },
+    });
+    await userEvent.selectOptions(
+      within(filter).getByLabelText('Source document'),
+      'Financial sanctions and the trade of Russia',
+    );
+    await expect(onAct).toHaveBeenLastCalledWith({
+      kind: 'filter',
+      filter: { ...NO_FILTER, document: 'doc_2852b6ae9b28' },
+    });
+    await userEvent.type(within(filter).getByLabelText('Name'), 'brigade{Enter}');
+    await expect(onAct).toHaveBeenLastCalledWith({
+      kind: 'filter',
+      filter: { ...NO_FILTER, name: 'brigade' },
+    });
+  },
+};
+
+/** A filter that finds nothing says so, and does not say that the queue is empty. One click shows
+ * every unit again. */
+export const AFilterThatFindsNothingSaysSo: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: { ...queueOf([], { matched: 0, filtered: true }), more: 'none' },
+      filter: { ...NO_FILTER, fault: 'circle' },
+      choices,
+      decision: { step: 'idle' },
+    },
+  },
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    await expect(canvas.getByText('No unit matches this filter.')).toBeVisible();
+    await expect(canvas.queryByText('The queue is empty.')).toBeNull();
+    await expect(canvas.getByText('0 of 1082 units match the filter')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Show every unit' }));
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'filter', filter: NO_FILTER });
+  },
+};
+
+/** An empty queue says that it is empty. */
+export const AnEmptyQueueSaysSo: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: { ...queueOf([], { matched: 0, total: 0 }), more: 'none' },
+      filter: NO_FILTER,
+      choices: { groups: [], documents: [] },
+      decision: { step: 'idle' },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('The queue is empty.')).toBeVisible();
+    await expect(canvas.queryByText('No unit matches this filter.')).toBeNull();
+  },
+};
+
+/** After a reload the list starts at the place of the operator, says where it is, and can read
+ * the queue again from its first unit. */
+export const TheListStartsAtThePlaceOfTheOperator: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units, { before: 100 }),
+      filter: NO_FILTER,
+      choices,
+      decision: { step: 'idle' },
+    },
+  },
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    await expect(canvas.getByText('Units 101 to 109 of 1082')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Read from the first unit' }));
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'start' });
   },
 };
 

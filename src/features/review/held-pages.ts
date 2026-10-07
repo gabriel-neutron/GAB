@@ -33,7 +33,7 @@ export function afterDecision(
     0,
     pages.findIndex((held) => held.units.some((unit) => unit.id === decided)),
   );
-  const after = page === 0 ? null : (pages[page - 1]?.next ?? null);
+  const after = pages[page]?.after ?? null;
   if (mode === 'relation') return { page, after, next: decided };
   const units = queueUnits(pages);
   const at = units.findIndex((unit) => unit.id === decided);

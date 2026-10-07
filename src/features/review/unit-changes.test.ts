@@ -6,7 +6,7 @@ import { unitChanges } from './unit-changes';
 import { unitPageOf } from './unit-page';
 import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 
-const page = unitPageOf(UNIT_ANSWER);
+const page = unitPageOf(UNIT_ANSWER, null);
 
 const WORDS = {
   relation: relationWording([

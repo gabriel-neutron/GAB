@@ -145,7 +145,28 @@ const BLOCKED_MIX = faultsOf([
 /** The answer of the writer for the first page of the queue. */
 export const UNIT_ANSWER = {
   total: 1082,
-  next: ['0', '5th combined arms army', GROUP, 'trade of russia', SAMPLE_UNITS.disputed],
+  matched: 1082,
+  before: 0,
+  next: [
+    '0',
+    '999',
+    '5th combined arms army',
+    GROUP,
+    '1',
+    '999',
+    'trade of russia',
+    SAMPLE_UNITS.disputed,
+  ],
+  choices: {
+    groups: [
+      { id: OTHER_GROUP, subject: 'Southern Military District' },
+      { id: GROUP, subject: '5th Combined Arms Army' },
+    ],
+    documents: [
+      { id: REPORT.id, title: REPORT.title },
+      { id: V1.id, title: V1.title },
+    ],
+  },
   units: [
     {
       unit: ARMY,

@@ -5,7 +5,7 @@ import { Justification } from './justification';
 import { unitPageOf } from './unit-page';
 import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 
-const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
+const units = unitPageOf(UNIT_ANSWER, null)?.units ?? [];
 
 const unitOf = (id: string) => units.find((unit) => unit.id === id) ?? null;
 
