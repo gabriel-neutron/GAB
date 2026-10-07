@@ -952,6 +952,54 @@ test('the private read gives the passage that a pending act cites, as the page s
   expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
 });
 
+const unitPage = z.object({
+  total: z.number(),
+  next: z.array(z.string()).nullable(),
+  units: z.array(z.object({ unit: z.uuid(), acts: z.array(z.object({ id: z.uuid() })) })),
+});
+
+const askUnits = async (after: readonly string[] | null, size: number) => {
+  const answer = await app.request('/private/review-units', {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify({ after, size }),
+  });
+  expect(answer.status).toBe(200);
+  return unitPage.parse(await answer.json());
+};
+
+test('the queue reaches the review through the writer one page of units at a time', async () => {
+  const pending = await one(
+    "SELECT count(*)::int AS acts FROM public.proposals WHERE status = 'pending'",
+    [],
+  );
+  const first = await askUnits(null, 1);
+  expect(first.units).toHaveLength(1);
+
+  const units: string[] = [];
+  let acts = 0;
+  let after: readonly string[] | null = null;
+  for (;;) {
+    const read = await askUnits(after, 2);
+    units.push(...read.units.map((unit) => unit.unit));
+    acts += read.units.reduce((sum, unit) => sum + unit.acts.length, 0);
+    if (read.next === null) break;
+    after = read.next;
+  }
+  expect(units[0]).toBe(first.units[0]?.unit);
+  expect(new Set(units).size).toBe(first.total);
+  expect(acts).toBe(pending['acts']);
+});
+
+test('the read of the queue refuses a page larger than the writer reads', async () => {
+  const answer = await app.request('/private/review-units', {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify({ after: null, size: 201 }),
+  });
+  expect(answer.status).toBe(422);
+});
+
 test('the private read refuses a request from another site', async () => {
   const answer = await askPassages({ proposalIds: [] }, 'https://elsewhere.example');
   expect(answer.status).toBe(403);

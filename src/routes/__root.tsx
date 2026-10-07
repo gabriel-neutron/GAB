@@ -23,7 +23,7 @@ export const Route = createRootRoute({
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
 // and a screen that reads no filter shows no field.
-const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph', '/review']);
+const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph']);
 
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
@@ -90,7 +90,7 @@ function SurfaceNav() {
       </Link>
       <Link
         to="/review"
-        search={{ subject: '', view: 'queue' }}
+        search={{ unit: '', view: 'queue' }}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >

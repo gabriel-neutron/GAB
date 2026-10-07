@@ -29,6 +29,11 @@ CREATE OR REPLACE TRIGGER proposals_src_exists
   BEFORE INSERT ON proposals
   FOR EACH ROW EXECUTE FUNCTION proposals_src_exists_fn();
 
+-- The unit of decision of each act, read from the acts that wait at the insert.
+CREATE OR REPLACE TRIGGER proposals_stamp_unit
+  BEFORE INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION stamp_unit();
+
 -- The log is append-only.
 CREATE OR REPLACE TRIGGER proposals_append_only
   BEFORE UPDATE OR DELETE ON proposals
@@ -69,6 +74,7 @@ CREATE OR REPLACE TRIGGER relation_type_interval
 
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_unit;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
