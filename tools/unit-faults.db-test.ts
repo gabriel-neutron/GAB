@@ -544,3 +544,62 @@ test('an entity under a parent of the record, with the name and type of its chil
     `Same name and type under the same parent: ${read.held.label} is in the record`,
   ]);
 });
+
+test('a claim that was rejected, then proposed again with new identities, is rejected before', async () => {
+  const [army, brigade, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const [againArmy, againBrigade, againLink] = [randomUUID(), randomUUID(), randomUUID()];
+  const [changed, changedAgain, otherValue] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [record] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask("SELECT id FROM public.entities WHERE type <> 'unknown' ORDER BY id LIMIT 1"),
+      );
+    if (record === undefined) throw new Error('the fixture holds no entity');
+    const strength = (id: string, value: string) =>
+      cited({
+        id,
+        op: 'update_attrs',
+        target_kind: 'entity',
+        target_id: record.id,
+        payload: { attrs: { strength: attribute(value) } },
+        names: [record.id],
+      });
+    await batch(ask, [
+      entity(army, 'Rejected Army'),
+      entity(brigade, 'Rejected Brigade'),
+      relation(link, 'subordinate_to', brigade, army),
+    ]);
+    await batch(ask, [strength(changed, '4000')]);
+    await ask("SELECT public.reject_unit($1::uuid, 'other', 'The page names a ferry.', 'a test')", [
+      brigade,
+    ]);
+    await ask("SELECT public.reject_unit($1::uuid, 'wrong_value', NULL, 'a test')", [army]);
+    await ask("SELECT public.reject_unit($1::uuid, 'not_in_source', NULL, 'a test')", [changed]);
+    await batch(ask, [
+      entity(againArmy, '  rejected   ARMY '),
+      entity(againBrigade, 'Rejected Brigade'),
+      relation(againLink, 'subordinate_to', againBrigade, againArmy),
+    ]);
+    await batch(ask, [strength(changedAgain, '4000')]);
+    // Another value is another claim.
+    await batch(ask, [strength(otherValue, '5000')]);
+    return faultsOf(ask, [againArmy, againBrigade, changedAgain, otherValue]);
+  });
+  expect(read.get(againArmy)?.state).toBe('not_clean');
+  expect(said(read.get(againArmy))).toStrictEqual([
+    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}: Wrong value`],
+  ]);
+  expect(said(read.get(againBrigade))).toStrictEqual([
+    [
+      'not_clean',
+      'rejected_before',
+      `Rejected before on ${TODAY}: Other (The page names a ferry.)`,
+    ],
+  ]);
+  expect(said(read.get(changedAgain))).toStrictEqual([
+    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}: Not in the source`],
+  ]);
+  expect(said(read.get(otherValue))).toStrictEqual([]);
+});

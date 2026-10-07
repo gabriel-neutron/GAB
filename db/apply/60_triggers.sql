@@ -34,6 +34,11 @@ CREATE OR REPLACE TRIGGER proposals_stamp_unit
   BEFORE INSERT ON proposals
   FOR EACH ROW EXECUTE FUNCTION stamp_unit();
 
+-- The key of the claim of each act, to find a claim that was rejected before.
+CREATE OR REPLACE TRIGGER proposals_stamp_claim
+  BEFORE INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION stamp_claim_key();
+
 -- The log is append-only.
 CREATE OR REPLACE TRIGGER proposals_append_only
   BEFORE UPDATE OR DELETE ON proposals
@@ -75,6 +80,7 @@ CREATE OR REPLACE TRIGGER relation_type_interval
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_unit;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_claim;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
