@@ -1,4 +1,6 @@
-import { openReadStore, openStore, putObject, readObject } from '@gab/store';
+import { openReadStore, openStore } from '@gab/store/bucket';
+import { putObject } from '@gab/store/object';
+import { readObject } from '@gab/store/reading';
 import { serve } from '@hono/node-server';
 
 import { openPool } from './pool.ts';

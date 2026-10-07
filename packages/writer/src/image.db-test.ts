@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import { openReadStore, openStore, putObject, readObject } from '@gab/store';
+import { openReadStore, openStore } from '@gab/store/bucket';
+import { putObject } from '@gab/store/object';
+import { readObject } from '@gab/store/reading';
 import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
