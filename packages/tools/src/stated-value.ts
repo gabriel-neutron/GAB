@@ -158,14 +158,21 @@ const statesWords = (value: string, passage: string): boolean => {
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
+const NUMERIC_TEXT = /^-?[\d\s,.'\u00A0\u202F]+$/u;
+
 // The value stands in the passage as one whole token: no letter and no digit touches it, and no
 // sign that joins it to a letter or a digit. So an identifier with a hyphen, as "30616-4", stands
-// in "(military unit 30616-4)", but not in "30616-45" or in "30616-4-1".
+// in "(military unit 30616-4)", but not in "30616-45", "30616-4-1" or "30616-4:1". A space or an
+// apostrophe before or after a digit can group the digits of one number, so "A 1 000" does not
+// stand in "A 1 000 000". A value of digits and marks only is a number, and the check of a number
+// reads it. A value with no letter and no digit states nothing.
 const statesToken = (value: string, passage: string): boolean => {
   const wanted = plainText(value).trim();
-  if (wanted === '') return false;
+  if (!/[\p{L}\d]/u.test(wanted) || NUMERIC_TEXT.test(wanted)) return false;
+  const before = /^\d/u.test(wanted) ? String.raw`(?<!\d[\s'])` : '';
+  const after = /\d$/u.test(wanted) ? String.raw`(?![\s']\d)` : '';
   return new RegExp(
-    String.raw`(?<![\p{L}\d])(?<![\p{L}\d][-./_,])${escaped(wanted)}(?![\p{L}\d])(?![-./_,][\p{L}\d])`,
+    String.raw`(?<![\p{L}\d])(?<![\p{L}\d][^\s\p{L}\d])${before}${escaped(wanted)}(?![\p{L}\d])(?![^\s\p{L}\d][\p{L}\d])${after}`,
     'u',
   ).test(plainText(passage));
 };
