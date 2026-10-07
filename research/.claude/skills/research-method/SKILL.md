@@ -13,9 +13,10 @@ on the subject of its layer, each one with the best source that exists, and each
 promote. A proposal that the operator must reject costs more than a fact that you leave out.
 
 The app is strict. Code refuses a batch when an excerpt is not on its page, when a type is not a
-word of the vocabulary, or when a relation names an entity that does not exist. A model of a second
-family reads each fact with its excerpt and marks it as disputed when the excerpt does not
-support it. Propose only what passes these checks with no correction.
+word of the vocabulary, or when a relation names an entity that does not exist. Code marks an item
+as disputed when a value of the item is not in its excerpts. No model reads your facts after you,
+so read each excerpt again against its item before you send the batch. Propose only what passes
+these checks with no correction.
 
 ## What a fact is
 
@@ -58,15 +59,17 @@ exists.
 | A register record | GLEIF, Companies House, a state company register | `asserts` |
 | A filing or a page of the entity itself | An annual report, the site of the company | `asserts` |
 | A report of a public body, a court, a regulator | A central bank report, a court decision | `asserts` |
-| An academic paper, a think tank, the press | A working paper, a news article | `attributes` |
-| A social post, a forum, a channel | A Telegram post | `attributes`, or a lead only |
+| An academic paper, a think tank, the press | A working paper, a news article | `asserts` or `attributes` |
+| A social post, a forum, a channel | A Telegram post | `asserts` or `attributes`, or a lead only |
 
-- An academic paper or a news article is a valid source for the facts that it states. Its
-  `originator` is the paper or the outlet, and the modality is `attributes`, because it reports
-  what other sources say. When it cites a primary source (an act, a register, a filing), fetch
-  that source too and cite it in the same item.
 - `originator` is the party that first stated the fact: the issuer of the act, the register, the
-  company, the authors of the paper.
+  company, the authors of the paper, the channel. A platform or a host is never the originator.
+- An academic paper, a news article or a post is a valid source for the facts that it states.
+  When it states the fact itself, the originator is its authors (or the outlet, or the channel),
+  and the modality is `asserts`. When it reports what another party says, the originator is that
+  party, and the modality is `attributes`.
+- When a paper or an article cites a primary source (an act, a register, a filing), fetch that
+  source too and cite it in the same item.
 - `alleges` is for an accusation that is not proved. `denies` is for a source that says a fact is
   not true.
 - A sanctions status cites the official act or the official entry, never OpenSanctions and never a
@@ -109,7 +112,9 @@ and stop at the first that stores the full text:
 
 1. `fetch_document` on the address. The tool renders a page with JavaScript when its text is
    short. Check that the stored text holds the content, and not a challenge or an empty page.
-2. `archive_snapshot` on the address.
+2. `archive_snapshot` on the address lists the captures of the web archive. It stores nothing.
+   Call `fetch_document` on the address of the newest capture, and cite that document. An address
+   with a query string has no capture.
 3. Another official copy of the same text: the PDF of the publisher, the Publications Office of
    the EU for an EU act (`publications.europa.eu/resource/celex/<CELEX>`), a repository of the
    paper (EconStor, RePEc, SSRN), the page of the institution itself. Find it with `web_search`.

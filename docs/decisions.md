@@ -42,6 +42,7 @@ it. The build decisions are in the ADRs.
 | P9 | Each AI claim cites a page and an excerpt that code checks | Pipeline and AI |
 | P10 | A lead agent finds and stores sources, and proposes nothing | Pipeline and AI |
 | P11 | A linked batch is decided as one unit | Pipeline and AI |
+| P12 | The operator AI proposes the facts of a research layer | Pipeline and AI |
 | PU1 | The app is public, with clear labels | Publication |
 
 ---
@@ -328,8 +329,8 @@ entity.
 **Rule.** In a research session, Claude or Codex finds the sources of its layer, stores each one,
 and proposes each fact of the layer itself, with the page and a checked excerpt (P9). Each source
 is a stored document before it is cited. The back-end extractor and the lead agent run only when
-the operator asks for them. The session writes with no approval of each write: each proposal waits
-in the review queue, and the operator decides it there. A source that the session cannot store goes
+the operator asks for them. The session writes with no approval of each write, except a write that
+spends model credit: each proposal waits in the review queue, and the operator decides it there. A source that the session cannot store goes
 on a list of needs that tells the operator what to get.
 **Why.** A research layer needs a few targeted facts, and the extractor proposes each claim of a
 document, also the claims outside the layer. A method skill tells the operator AI what to propose

@@ -117,8 +117,9 @@ proposals of the rows, which the operator reviews.
 ## External sources are reached on demand
 
 - A fetch answers at once and uses no model. It stores the bytes, extracts the text and returns
-  the text in the same turn, because the research needs the page now. An extraction is queued, and
-  the AI follows the job.
+  the text in the same turn, because the research needs the page now. The operator AI proposes the
+  facts of its layer from the stored text, and queues an extraction only when the operator asks
+  for it.
 - **A list of search results is a lead, and it is not stored.** An API answer that lists
   candidates is a search result, also when the query is an identifier. Only the read of one record
   by its identifier, or one page that is fetched, becomes a document.

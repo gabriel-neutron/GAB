@@ -94,14 +94,19 @@ test('the rules of the workspace name each tool of the server', () => {
 });
 
 // The research session writes with no question (P12): each proposal waits in the review queue,
-// and the operator decides it there. The settings allow the tools of the GAB server and nothing
-// else. The schema is strict, so a second key (a permission mode, a hook, an extra directory) fails
-// here.
-test('the Claude Code settings allow the tools of the GAB server, and nothing else', () => {
+// and the operator decides it there. The two tools that spend model credit still ask the operator
+// first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
+// fails here.
+const ASKS_FIRST = new Set(['enqueue_extract', 'start_lead']);
+
+test('the Claude Code settings allow each tool of the server, except the two that spend credit', () => {
   const settings = z
     .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
-  expect(settings.permissions.allow).toStrictEqual(['mcp__gab']);
+  const allowed = [...RESEARCH]
+    .filter((name) => !ASKS_FIRST.has(name))
+    .map((name) => `mcp__gab__${name}`);
+  expect([...settings.permissions.allow].sort()).toStrictEqual(allowed.sort());
 });
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {

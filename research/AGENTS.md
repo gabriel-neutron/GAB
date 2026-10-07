@@ -21,7 +21,8 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`,
-  `start_lead`, `propose`.
+  `start_lead`, `propose`. Each write runs with no question, except `enqueue_extract` and
+  `start_lead`: they spend model credit, so Claude Code asks the operator first.
 
 ## Who proposes what
 
@@ -72,6 +73,7 @@ session: each proposal waits in the review queue, and the operator decides it th
    issuer text uses the word, with that text cited.
 7. **Work in ASD-STE100 Simplified Technical English. Write the deliverables in French** (the
    CARTO plan). Your messages, your notes and your comments on a ticket are in ASD-STE100
-   English. The text that goes into Gabriel is in French.
+   English. A name, a label, an identifier and an excerpt stay as the source writes them, because
+   code finds each value in its excerpt. Free text that you write into Gabriel is in French.
 8. **A refusal tells you what to correct.** It names the field, or the item of a batch, and the
    reason. Correct that part and call the tool again once.
