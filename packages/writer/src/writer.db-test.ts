@@ -8,9 +8,10 @@ import { openPool } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
-// An act door never reaches the raw store, so this one refuses every object.
+// An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
-const app = writeRoutes(pool, NO_STORE);
+const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
+const app = writeRoutes(pool, NO_STORE, NO_READ);
 
 interface Held {
   readonly entities: number;
@@ -918,6 +919,7 @@ const passageShape = z.object({
       proposalId: z.string(),
       document: z.string(),
       title: z.string(),
+      mime: z.string().nullable(),
       page: z.number(),
       text: z.string(),
     }),
@@ -938,7 +940,7 @@ const askPassages = (body: unknown, origin?: string) =>
 // The fixture gives each machine act a citation of the whole first page, which holds the title.
 test('the private read gives the passage that a pending act cites, as the page states it', async () => {
   const cited = await one(
-    `SELECT c.claim_id::text AS id, d.title FROM public.citation c
+    `SELECT c.claim_id::text AS id, d.title, d.mime FROM public.citation c
        JOIN public.documents d ON d.id = c.doc_id
       WHERE c.text_extractor = 'fixture@1' AND c.start = 0
         AND c."end" = char_length(d.title)
@@ -949,7 +951,12 @@ test('the private read gives the passage that a pending act cites, as the page s
   expect(answer.status).toBe(200);
   const { passages } = passageShape.parse(await answer.json());
   expect(passages).toHaveLength(1);
-  expect(passages[0]).toMatchObject({ proposalId: cited['id'], page: 1, text: cited['title'] });
+  expect(passages[0]).toMatchObject({
+    proposalId: cited['id'],
+    page: 1,
+    text: cited['title'],
+    mime: cited['mime'],
+  });
 });
 
 test('the private read refuses a request from another site', async () => {

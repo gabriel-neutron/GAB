@@ -6,6 +6,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { admitOwnSiteJson } from './admission.ts';
 import { decide, decideBatch } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
+import { readDocumentImage, type ObjectReader } from './image.ts';
 import { readLeads, startLead } from './lead.ts';
 import { readPassages } from './passages.ts';
 import type { Sessions } from './pool.ts';
@@ -37,9 +38,10 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The doors of the operator, and three private reads: the status of the jobs of a document,
- * the passages that the acts cite, and the leads. The public read never shows any of them. */
-export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
+/** The doors of the operator, and four private reads: the status of the jobs of a document,
+ * the passages that the acts cite, the image of a cited document, and the leads. The public read
+ * never shows any of them. */
+export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
   app.use('/private/*', admitOwnSiteJson());
@@ -49,6 +51,18 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
   app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readPassages(pool, await context.req.text());
     return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // The raw store is private, so a cited image reaches the review card through the writer. The
+  // browser must draw the bytes as the image type of the row and never sniff another type.
+  app.post('/private/document-image', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readDocumentImage(pool, reader, await context.req.text());
+    if (read.outcome !== 'done') return context.json(read.reply, STATUS[read.outcome]);
+    return context.body(read.image.bytes, STATUS.done, {
+      'Content-Type': read.image.mime,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store',
+    });
   });
 
   // The text of a lead can name a party before any source supports it, so it stays private.

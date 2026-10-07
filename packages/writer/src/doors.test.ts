@@ -16,8 +16,9 @@ const replyShape = z.strictObject({
   state: z.string().optional(),
 });
 
-// An act door never reaches the raw store, so this one refuses every object.
+// An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
+const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
 
 const lostSocket = (): Error => Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
 
@@ -26,7 +27,7 @@ const postText = async (
   door: string,
   text: string,
 ): Promise<[number, z.infer<typeof replyShape>]> => {
-  const answer = await writeRoutes(pool, NO_STORE).request(`/write/${door}`, {
+  const answer = await writeRoutes(pool, NO_STORE, NO_READ).request(`/write/${door}`, {
     method: 'POST',
     headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: text,
@@ -45,7 +46,7 @@ const privateRead = async (
   door: string,
   body: unknown,
 ): Promise<[number, unknown]> => {
-  const answer = await writeRoutes(pool, NO_STORE).request(door, {
+  const answer = await writeRoutes(pool, NO_STORE, NO_READ).request(door, {
     method: 'POST',
     headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
