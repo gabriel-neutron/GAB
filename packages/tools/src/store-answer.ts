@@ -55,6 +55,15 @@ const knownOf = async (session: Session, sha256: string) => {
   return row;
 };
 
+const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+/** The stored document that holds these bytes, as a known answer, or undefined. It writes
+ * nothing. */
+export const knownAnswer = async (session: Session, bytes: Uint8Array) => {
+  const known = await knownOf(session, hashOf(bytes));
+  return known === undefined ? undefined : { ...known, status: 'known' as const };
+};
+
 /** Stores the answer once. Bytes that are already stored are known by their hash, and nothing is
  * written for them. */
 export const storeAnswer = async (
@@ -62,7 +71,7 @@ export const storeAnswer = async (
   store: NonNullable<Reach['store']>,
   answer: Answer,
 ) => {
-  const sha256 = createHash('sha256').update(answer.bytes).digest('hex');
+  const sha256 = hashOf(answer.bytes);
   let status: 'known' | 'stored' = 'known';
   let known = await knownOf(session, sha256);
   if (known === undefined) {

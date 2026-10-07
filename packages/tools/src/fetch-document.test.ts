@@ -26,11 +26,25 @@ const noSql: Session = {
   },
 };
 
+// An image is first looked up by its hash, and only that read is answered: no row holds it.
+const unknownBytes: Session = {
+  query: (text) => {
+    if (text.includes('WHERE d.sha256')) return Promise.resolve({ rows: [] });
+    throw new Error('the tool reached the database past the hash lookup, and it had to refuse');
+  },
+};
+
 const fetchDocument = ((): Tool => {
   const found = CATALOGUE.find((tool) => tool.name === 'fetch_document');
   if (found === undefined) throw new Error('the catalogue holds no tool named fetch_document');
   return found;
 })();
+
+// The signature and the header chunk of a PNG image of 10,000 by 10,000 pixels, with no picture.
+const HUGE_PNG = Buffer.alloc(33);
+HUGE_PNG.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+HUGE_PNG.writeUInt32BE(10_000, 16);
+HUGE_PNG.writeUInt32BE(10_000, 20);
 
 const HTML = '<html><head><title>A page</title></head><body><p>Text</p></body></html>';
 
@@ -38,6 +52,7 @@ let fixture: Fixture;
 let base: string;
 
 beforeAll(async () => {
+  const blank = await readFile(join(import.meta.dirname, '../../text/fixtures/blank.png'));
   const big = new Uint8Array(MAX_BYTES + 1).fill(0x41);
   fixture = await startFixture({
     '/page.html': { headers: { 'content-type': 'text/html' }, body: HTML },
@@ -51,8 +66,11 @@ beforeAll(async () => {
     '/loop': { status: 302, headers: { location: '/loop' } },
     '/image': { headers: { 'content-type': 'image/gif' }, body: 'GIF89a' },
     '/broken.png': { headers: { 'content-type': 'image/png' }, body: 'not a picture' },
+    '/huge.png': { headers: { 'content-type': 'image/png' }, body: HUGE_PNG },
     // A white image with no word, served with no type, so the type comes from its first bytes.
-    '/blank': { body: await readFile(join(import.meta.dirname, '../../text/fixtures/blank.png')) },
+    '/blank': { body: blank },
+    '/blank-bytes': { headers: { 'content-type': 'application/octet-stream' }, body: blank },
+    '/octet': { headers: { 'content-type': 'application/octet-stream' }, body: 'no signature' },
     '/gone': { status: 410, headers: { 'content-type': 'text/plain' }, body: 'gone' },
     '/challenge': {
       headers: { 'content-type': 'text/html' },
@@ -78,8 +96,12 @@ const strictReach = (store: NonNullable<Reach['store']>): Reach => ({
   lookup: fixtureLookup,
 });
 
-const refusalOf = async (url: string, reach: Reach | undefined): Promise<string> => {
-  const outcome = await callTool(fetchDocument, noSql, { url }, reach);
+const refusalOf = async (
+  url: string,
+  reach: Reach | undefined,
+  session: Session = noSql,
+): Promise<string> => {
+  const outcome = await callTool(fetchDocument, session, { url }, reach);
   if (outcome.ok) throw new Error(`the tool took ${url}, and it had to refuse it`);
   return outcome.refusal;
 };
@@ -183,13 +205,39 @@ describe('the other refusals store nothing', () => {
 
   test('an image whose OCR reads no text', async () => {
     const store = memoryStore();
-    expect(await refusalOf(`${base}/blank`, fixtureReach(store))).toMatch(/no text/);
+    expect(await refusalOf(`${base}/blank`, fixtureReach(store), unknownBytes)).toMatch(/no text/);
     expect(store.puts).toStrictEqual([]);
   });
 
   test('bytes named as an image that no image reader reads', async () => {
     const store = memoryStore();
-    expect(await refusalOf(`${base}/broken.png`, fixtureReach(store))).toMatch(/image\/png/);
+    expect(await refusalOf(`${base}/broken.png`, fixtureReach(store), unknownBytes)).toMatch(
+      /width and height/,
+    );
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('an image above the pixel cap, before any OCR', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/huge.png`, fixtureReach(store), unknownBytes)).toMatch(
+      /pixels/,
+    );
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('an image named only as bytes is read as an image from its first bytes', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/blank-bytes`, fixtureReach(store), unknownBytes)).toMatch(
+      /OCR read no text/,
+    );
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('bytes with no known signature keep the type the server named', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/octet`, fixtureReach(store))).toMatch(
+      /application\/octet-stream/,
+    );
     expect(store.puts).toStrictEqual([]);
   });
 
@@ -245,4 +293,35 @@ test('a second caller that stored the same bytes at the same instant makes the a
     ok: true,
     output: { document: stored.id, status: 'known', retrievedAt: '2026-10-04' },
   });
+});
+
+test('an image whose bytes are already stored is known, and OCR never reads it', async () => {
+  const stored = {
+    id: 'doc_ba5eba11c0de',
+    title: 'A unit tree',
+    mime: 'image/png',
+    retrieved_at: '2026-10-01',
+  };
+  const knownImage: Session = {
+    query: (text) => {
+      if (text.includes('put_fetched_document'))
+        return Promise.reject(new Error('the tool wrote a document that was already stored'));
+      if (text.includes('WHERE d.sha256')) return Promise.resolve({ rows: [stored] });
+      if (text.includes('FROM api.document'))
+        return Promise.resolve({ rows: [{ title: stored.title, uri: `${base}/broken.png` }] });
+      return Promise.resolve({
+        rows: [{ extractor: 'text-1', page: 1, text: 'BRIGADE', last_page: 1 }],
+      });
+    },
+  };
+  const store = memoryStore();
+  // The bytes are no image, so an OCR read of them would refuse the call.
+  const outcome = await callTool(
+    fetchDocument,
+    knownImage,
+    { url: `${base}/broken.png` },
+    fixtureReach(store),
+  );
+  expect(outcome).toMatchObject({ ok: true, output: { document: stored.id, status: 'known' } });
+  expect(store.puts).toStrictEqual([]);
 });

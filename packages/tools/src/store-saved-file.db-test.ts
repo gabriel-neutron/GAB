@@ -51,6 +51,12 @@ writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20)
 const IMAGES = join(import.meta.dirname, '../../text/fixtures');
 copyFileSync(join(IMAGES, 'unit-tree.png'), join(inbox, 'unit-tree.png'));
 copyFileSync(join(IMAGES, 'blank.png'), join(inbox, 'blank.png'));
+// The signature and the header chunk of a PNG image of 10,000 by 10,000 pixels, with no picture.
+const hugeHead = Buffer.alloc(33);
+hugeHead.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+hugeHead.writeUInt32BE(10_000, 16);
+hugeHead.writeUInt32BE(10_000, 20);
+writeFileSync(join(inbox, 'huge.png'), hugeHead);
 const outside = join(root, 'secret.html');
 writeFileSync(outside, page('<p>A private page of the operator, outside the inbox.</p>'));
 
@@ -138,6 +144,7 @@ test.each([
   ['a challenge page', 'challenge.html', 'bot filter'],
   ['a page with no text', 'empty.html', 'holds no text'],
   ['an image with no text', 'blank.png', 'holds no text'],
+  ['an image above the pixel cap', 'huge.png', 'pixels'],
   ['a text file, which is no saved page', 'notes.txt', 'is not a saved page'],
   ['a file larger than the upload limit', 'big.html', 'larger than'],
   ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
