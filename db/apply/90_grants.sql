@@ -88,6 +88,7 @@ REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
@@ -132,6 +133,7 @@ GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_researc
 GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
@@ -173,6 +175,10 @@ GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 -- dispute, and only the operator reads them.
 REVOKE ALL ON FUNCTION review_units(text[],int)    FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_units(text[],int) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
+REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app;
 
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count

@@ -1350,6 +1350,228 @@ BEGIN
    WHERE id = p_id;
 END $$;
 
+-- THE GROUP ACTION (P11): "promote the clean proposals of this group". Only the operator role
+-- holds it. It takes the group and the exact list of units that the screen showed, so a unit that
+-- came after the view is never written. It locks the acts of the list, runs the check of the
+-- faults once for the whole list, and writes only the units that are still pending, still in the
+-- group and still clean. A unit that others need is written first: a parent before its child, so
+-- a child whose parent is in the list can be written. Each unit runs in its own savepoint, so a
+-- unit that fails rolls back only itself, and a unit whose end failed before it is refused with
+-- the name of that end. It gives one result for each unit of the list: the refused units first,
+-- in the order of the list, then the units in the order of the writes.
+CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_units   uuid[];
+  v_clean   uuid[] := '{}';
+  v_ready   uuid[];
+  v_unit    uuid;
+  v_name    text;
+  v_said    text;
+  v_out     jsonb := '[]'::jsonb;
+  r         record;
+BEGIN
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+  IF p_group IS NULL OR coalesce(cardinality(p_units), 0) = 0 THEN
+    RAISE EXCEPTION 'a group action names its group and the units of it that the screen showed'
+      USING CONSTRAINT = 'group_named';
+  END IF;
+  SELECT array_agg(u.id ORDER BY u.at) INTO v_units
+    FROM (SELECT l.id, min(l.at) AS at FROM unnest(p_units) WITH ORDINALITY AS l(id, at)
+           WHERE l.id IS NOT NULL GROUP BY l.id) AS u;
+
+  -- The lock comes before the check, so the check reads the acts that the writes write.
+  PERFORM 1 FROM public.proposals
+    WHERE unit_id = ANY (v_units) AND status = 'pending' ORDER BY id FOR UPDATE;
+
+  FOR r IN
+    SELECT u.id, f.state,
+           (SELECT string_agg(x->>'said', '; ') FROM jsonb_array_elements(f.faults) AS x
+             WHERE x->>'level' IN ('blocks', 'not_clean')) AS stops,
+           EXISTS (SELECT 1 FROM public.proposals p
+                    WHERE p.unit_id = u.id AND p.status = 'pending'
+                      AND p.batch_id = p_group) AS in_group,
+           EXISTS (SELECT 1 FROM public.proposals p WHERE p.unit_id = u.id) AS known
+      FROM unnest(v_units) WITH ORDINALITY AS u(id, at)
+      LEFT JOIN public.unit_faults(v_units) AS f ON f.unit_id = u.id
+     ORDER BY u.at
+  LOOP
+    v_said := CASE
+      WHEN NOT r.known THEN 'The record holds no such unit'
+      WHEN r.state IS NULL THEN 'The unit is decided already'
+      WHEN NOT r.in_group THEN 'The unit is not in this group'
+      WHEN r.state = 'blocked' THEN 'Blocked: ' || r.stops
+      WHEN r.state = 'not_clean' THEN 'Not clean: ' || r.stops END;
+    IF v_said IS NULL THEN
+      v_clean := v_clean || r.id;
+    ELSE
+      v_out := v_out || jsonb_build_object(
+        'unit', r.id, 'name', coalesce(public.element_name(r.id), r.id::text),
+        'outcome', 'refused', 'said', v_said);
+    END IF;
+  END LOOP;
+
+  WHILE cardinality(v_clean) > 0 LOOP
+    -- The units of the list that wait for no unit of the list that is still to write.
+    SELECT array_agg(c.id ORDER BY c.at) INTO v_ready
+      FROM unnest(v_clean) WITH ORDINALITY AS c(id, at)
+     WHERE NOT EXISTS (
+             SELECT 1
+               FROM public.proposals x,
+                    LATERAL (VALUES ((x.payload->>'src_id')::uuid),
+                                    ((x.payload->>'dst_id')::uuid)) AS e(ref)
+               JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+              WHERE x.unit_id = c.id AND x.status = 'pending' AND x.op = 'create_relation'
+                AND o.unit_id <> c.id AND o.unit_id = ANY (v_clean));
+    -- A circle has no first unit. The check blocks it, so this is a guard: each unit of it is
+    -- tried, and the write refuses it with the name of the end that waits.
+    v_ready := coalesce(v_ready, v_clean);
+    FOREACH v_unit IN ARRAY v_ready LOOP
+      v_name := coalesce(public.element_name(v_unit), v_unit::text);
+      BEGIN
+        PERFORM public.write_unit(v_unit, p_decided_by, 'group');
+        v_out := v_out || jsonb_build_object(
+          'unit', v_unit, 'name', v_name, 'outcome', 'promoted', 'said', NULL);
+      EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+                  OR insufficient_privilege THEN
+        GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT;
+        v_out := v_out || jsonb_build_object(
+          'unit', v_unit, 'name', v_name, 'outcome', 'refused', 'said', v_said);
+      END;
+    END LOOP;
+    v_clean := ARRAY(SELECT c FROM unnest(v_clean) AS c WHERE NOT c = ANY (v_ready));
+  END LOOP;
+  RETURN v_out;
+END $$;
+
+-- THE RAIL OF THE GROUPS, FOR THE OPERATOR. For each group that holds a unit that waits: its
+-- subject, its proposer, its document, the count of its units and of its clean units, and for each
+-- fault that keeps a unit out of the group action, the count of the units that have it. The faults
+-- read private data, so only the operator role holds this read.
+CREATE OR REPLACE FUNCTION review_groups()
+RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rail jsonb;
+BEGIN
+  WITH waiting AS (
+    SELECT p.unit_id, p.batch_id, p.proposer, p.src
+      FROM public.proposals p
+     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
+  ), units AS (
+    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w
+  ), checked AS (
+    SELECT u.batch_id, u.unit_id, f.state, f.faults
+      FROM units u
+      JOIN public.unit_faults(ARRAY(SELECT unit_id FROM units)) AS f ON f.unit_id = u.unit_id
+  ), counted AS (
+    SELECT c.batch_id, count(*) AS units, count(*) FILTER (WHERE c.state = 'clean') AS clean
+      FROM checked c GROUP BY c.batch_id
+  ), kinds AS (
+    SELECT k.batch_id, jsonb_object_agg(k.kind, k.n) AS faults
+      FROM (SELECT c.batch_id, x->>'kind' AS kind, count(DISTINCT c.unit_id) AS n
+              FROM checked c, jsonb_array_elements(c.faults) AS x
+             WHERE x->>'level' IN ('blocks', 'not_clean')
+             GROUP BY c.batch_id, x->>'kind') AS k
+     GROUP BY k.batch_id
+  ), heads AS (
+    SELECT w.batch_id, mode() WITHIN GROUP (ORDER BY w.proposer) AS proposer,
+           mode() WITHIN GROUP (ORDER BY s.doc) AS document
+      FROM waiting w LEFT JOIN LATERAL unnest(w.src) AS s(doc) ON true
+     GROUP BY w.batch_id
+  ), lines AS (
+    SELECT n.batch_id, public.group_subject(n.batch_id) AS subject, h.proposer, d.id AS doc,
+           d.title, d.uri, n.units, n.clean, coalesce(k.faults, '{}'::jsonb) AS faults
+      FROM counted n
+      JOIN heads h ON h.batch_id = n.batch_id
+      LEFT JOIN kinds k ON k.batch_id = n.batch_id
+      LEFT JOIN public.documents d ON d.id = h.document
+  )
+  SELECT jsonb_build_object('groups', coalesce(jsonb_agg(jsonb_build_object(
+           'id', l.batch_id, 'subject', l.subject, 'proposer', l.proposer,
+           'document', CASE WHEN l.doc IS NULL THEN NULL
+                            ELSE jsonb_build_object('id', l.doc, 'title', l.title, 'uri', l.uri)
+                       END,
+           'units', l.units, 'clean', l.clean, 'faults', l.faults)
+           ORDER BY lower(coalesce(l.subject, '')), l.batch_id), '[]'::jsonb))
+    INTO v_rail
+    FROM lines l;
+  RETURN v_rail;
+END $$;
+
+-- THE UNITS OF ONE GROUP THAT WAIT, FOR THE CONFIRMATION OF THE GROUP ACTION. Each unit comes with
+-- its state, the kind and the level of each fault, the count of its entities and relations, and
+-- the parent of its entity: the other end of its relation "subordinate to", with the unit of that
+-- end when it waits in the queue. The screen draws the tree of the clean units from it, and it
+-- sends back the units that it showed. Only the operator role holds this read, as for the queue.
+CREATE OR REPLACE FUNCTION review_group(p_group uuid)
+RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_units uuid[] := ARRAY(SELECT DISTINCT p.unit_id FROM public.proposals p
+                           WHERE p.batch_id = p_group AND p.status = 'pending');
+  v_read  jsonb;
+BEGIN
+  IF cardinality(v_units) = 0 THEN
+    RAISE EXCEPTION 'no unit of this group waits' USING CONSTRAINT = 'group_waits';
+  END IF;
+  WITH acts AS (
+    SELECT a.* FROM public.proposals a WHERE a.unit_id = ANY (v_units) AND a.status = 'pending'
+  ), heads AS (
+    SELECT DISTINCT ON (a.unit_id) a.unit_id, a.op, a.payload, a.target_id
+      FROM acts a ORDER BY a.unit_id, (a.id <> a.unit_id), a.created_at, a.id
+  ), sizes AS (
+    SELECT a.unit_id, count(*) FILTER (WHERE a.op = 'create_entity') AS entities,
+           count(*) FILTER (WHERE a.op = 'create_relation') AS relations
+      FROM acts a GROUP BY a.unit_id
+  ), parents AS (
+    SELECT DISTINCT ON (a.unit_id) a.unit_id, (a.payload->>'dst_id')::uuid AS parent
+      FROM acts a
+     WHERE a.op = 'create_relation' AND a.payload->>'type' = 'subordinate_to'
+       AND (a.payload->>'src_id')::uuid = a.unit_id
+     ORDER BY a.unit_id, a.created_at, a.id
+  ), named AS (
+    SELECT h.*, coalesce(public.element_name(
+                  CASE WHEN h.op IN ('create_entity', 'create_relation')
+                       THEN h.unit_id ELSE h.target_id END), '') AS name
+      FROM heads h
+  )
+  SELECT jsonb_agg(jsonb_build_object(
+           'unit', h.unit_id,
+           'kind', CASE WHEN h.op = 'create_entity' THEN 'entity'
+                        WHEN h.op = 'create_relation' THEN 'link'
+                        ELSE 'change' END,
+           'name', h.name,
+           'type', CASE WHEN h.op IN ('create_entity', 'create_relation')
+                        THEN h.payload->>'type' END,
+           'state', f.state,
+           'faults', (SELECT coalesce(jsonb_agg(jsonb_build_object('kind', x->>'kind',
+                                                                   'level', x->>'level')),
+                                      '[]'::jsonb)
+                        FROM jsonb_array_elements(f.faults) AS x),
+           'entities', s.entities, 'relations', s.relations,
+           'parent', CASE WHEN pa.parent IS NULL THEN NULL
+                          ELSE jsonb_build_object(
+                                 'unit', (SELECT w.unit_id FROM public.proposals w
+                                           WHERE w.id = pa.parent AND w.status = 'pending'),
+                                 'name', coalesce(public.element_name(pa.parent),
+                                                  pa.parent::text)) END)
+           ORDER BY lower(h.name), h.unit_id)
+    INTO v_read
+    FROM named h
+    JOIN sizes s ON s.unit_id = h.unit_id
+    JOIN public.unit_faults(v_units) AS f ON f.unit_id = h.unit_id
+    LEFT JOIN parents pa ON pa.unit_id = h.unit_id;
+  RETURN jsonb_build_object('id', p_group, 'subject', public.group_subject(p_group),
+                            'units', v_read);
+END $$;
+
 -- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
 -- role holds it, so a machine still proposes and never decides. The act is written whole or not
 -- at all: a refusal at the promotion rolls the proposal back with it.

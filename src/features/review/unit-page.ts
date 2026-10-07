@@ -23,7 +23,7 @@ export interface UnitEnd {
 export type FaultLevel = 'blocks' | 'waits' | 'not_clean' | 'information';
 
 /** Each fault that the check of the database finds. */
-const FAULT_KINDS = [
+export const FAULT_KINDS = [
   'end_waits',
   'circle',
   'end_relation_waits',
