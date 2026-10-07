@@ -12,8 +12,6 @@ const document = (id: string, title: string, uri: string | null): DocumentRow =>
   archiveUri: null,
   sha256: null,
   retrievedAt: null,
-  admiralty: null,
-  admiraltyOrigin: null,
 });
 
 const CORPUS: readonly DocumentRow[] = [

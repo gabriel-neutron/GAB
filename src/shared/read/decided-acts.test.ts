@@ -9,7 +9,6 @@ const DECIDED_ROW = {
   src: ['doc_8f2a41'],
   names: [],
   prior_value: null,
-  confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
   model_call_id: null,

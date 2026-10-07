@@ -51,7 +51,6 @@ export interface RelationTypeDeclaration {
 export type RelationTypeVocabulary = readonly RelationTypeDeclaration[];
 
 export type DocumentKind = z.output<typeof row.document>['kind'];
-export type AdmiraltyOrigin = NonNullable<z.output<typeof row.document>['admiralty_origin']>;
 
 export interface DocumentRow {
   readonly id: DocId;
@@ -61,9 +60,6 @@ export interface DocumentRow {
   readonly archiveUri: string | null;
   readonly sha256: string | null;
   readonly retrievedAt: string | null;
-  /** An ADMIRALTY rating, `A1` to `F6`. */
-  readonly admiralty: string | null;
-  readonly admiraltyOrigin: AdmiraltyOrigin | null;
 }
 
 /** A provider that distributes the bytes of a document, and the licence it gives them. */
@@ -217,8 +213,6 @@ export interface Proposal {
   /** What the act replaced, so a surface draws a before beside an after. A creation and a merge
    * replace nothing, and an act that stated no snapshot carries `null`. */
   readonly priorValue: PriorValue | null;
-  /** An act may state no confidence at all, and an absence is never a low score. */
-  readonly confidence: number | null;
   readonly dissent: boolean;
   readonly authorRole: AuthorRole;
   readonly status: ProposalStatus;

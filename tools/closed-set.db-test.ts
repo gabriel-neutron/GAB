@@ -53,7 +53,6 @@ const named = (at: string): { table: string; column: string } => {
 // Each closed set the rows of the read API state, named by the table and the column of the CHECK.
 const CLOSED_SET: Readonly<Record<string, readonly string[]>> = {
   'documents.kind': row.document.shape.kind.options,
-  'documents.admiralty_origin': row.document.shape.admiralty_origin.unwrap().options,
   'relations.src_kind': row.relation.shape.src_kind.options,
   'relations.dst_kind': row.relation.shape.dst_kind.options,
   'proposals.op': row.proposal.shape.op.options,

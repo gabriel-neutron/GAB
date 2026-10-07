@@ -1,4 +1,4 @@
-import { CircleDashed, FileX } from 'lucide-react';
+import { FileX } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { ExtractionControl } from '@/shared/extraction-control';
@@ -19,14 +19,10 @@ export function SourceCard({ source }: SourceCardProps) {
   const [open, setOpen] = useState<boolean>(false);
   const panelId = useId();
 
-  const scoreWords =
-    source.scoreOrigin === '' ? source.score : `${source.score}, ${source.scoreOrigin}`;
-
   return (
     <article
       aria-label={`Source ${source.number} — ${source.title}`}
       data-source={source.id}
-      data-band={source.band}
       className="rounded-none border-b border-border px-2 py-1.5"
     >
       <div className="flex items-baseline gap-2">
@@ -37,21 +33,9 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
           {source.title}
         </span>
-        <span
-          className={cn(
-            'flex max-w-40 shrink-0 items-center gap-1 font-mono text-small/4',
-            source.poor || source.missing ? 'text-dissent' : 'text-label',
-          )}
-          title={scoreWords}
-        >
-          {/* A row the record does not hold and a row with no rating are two absences, so each
-           * one takes its own mark and the hue alone never tells them apart. */}
-          {source.missing ? <FileX size={14} aria-hidden="true" className="shrink-0" /> : null}
-          {source.rated || source.missing ? null : (
-            <CircleDashed size={14} aria-hidden="true" className="shrink-0" />
-          )}
-          <span className="truncate min-w-0">{scoreWords}</span>
-        </span>
+        {source.missing ? (
+          <FileX size={14} aria-hidden="true" className="shrink-0 text-dissent" />
+        ) : null}
       </div>
 
       <div className="mt-1 flex items-center gap-2 text-small/4">

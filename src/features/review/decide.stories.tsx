@@ -5,11 +5,9 @@ import { Decide } from './decide';
 
 const onDecide = fn();
 
-const onUndo = fn();
-
 const meta = {
   component: Decide,
-  args: { kind: 'edit', decision: null, busy: false, onDecide, onUndo },
+  args: { kind: 'edit', decision: null, busy: false, onDecide },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="w-[560px] border-t border-border p-2">
@@ -22,22 +20,13 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** One act, one decision. No control on this surface accepts a group. */
-export const TheThreeActsStandAndNoneTakesAGroup: Story = {
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole('button', { name: /Promote/ })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Reject/ })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Not yet/ })).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /all|every|selected/i })).toBeNull();
-  },
-};
-
-/** The hold is read first and the promotion last, so the act of this pass and the act that cannot
- * be reversed stand at the two ends of the row. */
-export const TheHoldIsReadFirstAndThePromotionLast: Story = {
+/** One act, one decision, and two verdicts. No control on this surface accepts a group, and no
+ * control holds an act on this pass. */
+export const TheTwoActsStandAndNoneTakesAGroup: Story = {
   play: async ({ canvas }) => {
     const acts = canvas.getAllByRole('button').map((act) => act.textContent);
-    await expect(acts).toEqual(['Not yet', 'Reject', 'Promote']);
+    await expect(acts).toEqual(['Reject', 'Promote']);
+    await expect(canvas.queryByRole('button', { name: /all|every|selected/i })).toBeNull();
   },
 };
 
@@ -51,7 +40,7 @@ export const APromotionIsAskedBeforeItIsWritten: Story = {
     await expect(args.onDecide).not.toHaveBeenCalled();
     await expect(canvas.getByText(/no door takes it back/)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Promote it' }));
-    await expect(args.onDecide).toHaveBeenCalledWith('promoted', '');
+    await expect(args.onDecide).toHaveBeenCalledWith('promoted');
   },
 };
 
@@ -62,7 +51,7 @@ export const ARejectionIsAskedAndThenSent: Story = {
     await expect(args.onDecide).not.toHaveBeenCalled();
     await userEvent.click(canvas.getByRole('button', { name: 'Reject it' }));
     await expect(args.onDecide).toHaveBeenCalledOnce();
-    await expect(args.onDecide).toHaveBeenCalledWith('rejected', '');
+    await expect(args.onDecide).toHaveBeenCalledWith('rejected');
   },
 };
 
@@ -136,22 +125,9 @@ export const TheQuestionInterruptsTheReader: Story = {
   },
 };
 
-/** The rule the box waits for is the description of the box, and not a sentence beside it. */
-export const TheBlankHoldNoteDescribesTheBox: Story = {
-  play: async ({ canvas }) => {
-    await userEvent.click(canvas.getByRole('button', { name: /Not yet/ }));
-    const box = canvas.getByLabelText('Why not yet');
-    await expect(box).toHaveAccessibleDescription('A hold takes a written reason.');
-    // The box is empty, and an empty box holds no value the vocabulary refused.
-    await expect(box).not.toHaveAttribute('aria-invalid');
-    await userEvent.type(box, 'The second reading is not in yet');
-    await expect(box).toHaveAccessibleDescription('');
-  },
-};
-
 /** A promotion stands in the record, and no door takes it back. The screen offers none. */
 export const APromotionThatStandsOffersNoWayBack: Story = {
-  args: { decision: { verdict: 'promoted', reason: '' } },
+  args: { decision: { verdict: 'promoted' } },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Promoted into the record')).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /Undo/ })).toBeNull();
@@ -196,59 +172,6 @@ export const NoActIsTakenWhileOneIsGoing: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('button', { name: /Promote/ })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: /Reject/ })).toBeDisabled();
-    await expect(canvas.getByRole('button', { name: /Not yet/ })).toBeDisabled();
-  },
-};
-
-/** A hold writes nothing, so it is the one verdict that is taken back while the pass lasts. The
- * reason is collected, so the same row draws it. */
-export const AHoldDrawsItsReasonAndIsTakenBack: Story = {
-  args: { decision: { verdict: 'deferred', reason: 'The second reading is not in yet' } },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText('Held on this pass')).toBeInTheDocument();
-    await expect(canvas.getByText('The second reading is not in yet')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
-  },
-};
-
-export const UndoTakesBackAHoldOnce: Story = {
-  args: {
-    decision: { verdict: 'deferred', reason: 'The second reading is not in yet' },
-    onUndo: fn(),
-  },
-  play: async ({ args, canvas }) => {
-    await userEvent.click(canvas.getByRole('button', { name: /Undo/ }));
-    await expect(args.onUndo).toHaveBeenCalledOnce();
-  },
-};
-
-/** A hold takes a written reason. Spaces state nothing, so the control waits, and the screen says
- * what it waits for. */
-export const AHoldWithABlankReasonIsRefusedAndSaidWhy: Story = {
-  // Its own mock: the one above is shared by every story of this file, and a call counted here
-  // must be a call this story made.
-  args: { onDecide: fn() },
-  play: async ({ args, canvas }) => {
-    await userEvent.click(canvas.getByRole('button', { name: /Not yet/ }));
-    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeDisabled();
-    await expect(canvas.getByText('A hold takes a written reason.')).toBeInTheDocument();
-    await userEvent.type(canvas.getByLabelText('Why not yet'), '   ');
-    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeDisabled();
-    await userEvent.type(canvas.getByLabelText('Why not yet'), 'The second reading is not in yet');
-    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeEnabled();
-    await userEvent.click(canvas.getByRole('button', { name: 'Hold' }));
-    await expect(args.onDecide).toHaveBeenCalledWith(
-      'deferred',
-      '   The second reading is not in yet',
-    );
-  },
-};
-
-export const AHoldAsksWhyNotYet: Story = {
-  play: async ({ canvas }) => {
-    await userEvent.click(canvas.getByRole('button', { name: /Not yet/ }));
-    await expect(canvas.getByLabelText('Why not yet')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Hold' })).toBeInTheDocument();
   },
 };
 

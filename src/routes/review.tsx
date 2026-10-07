@@ -101,10 +101,10 @@ function ReviewRoute() {
         if (deciding === null) return;
         setDecision(deciding);
         void sendVerdict(act.changeId, act.verdict).then(async (answer) => {
-          const { held, readAgain } = settleVerdict(answer, act);
+          const { held } = settleVerdict(answer, act);
           setDecision(answer);
           if (held !== null) setVerdicts((all) => ({ ...all, [act.changeId]: held }));
-          if (readAgain) await refreshCorpus(() => router.invalidate());
+          await refreshCorpus(() => router.invalidate());
         });
         return;
       }
@@ -113,25 +113,17 @@ function ReviewRoute() {
         if (deciding === null) return;
         setDecision(deciding);
         void sendBatchVerdict(act.batchId, act.verdict).then(async (answer) => {
-          const { held, readAgain } = settleVerdict(answer, act);
+          const { held } = settleVerdict(answer, act);
           setDecision(answer);
           if (held !== null)
             setVerdicts((all) => ({
               ...all,
               ...Object.fromEntries([act.batchId, ...act.changeIds].map((id) => [id, held])),
             }));
-          if (readAgain) await refreshCorpus(() => router.invalidate());
+          await refreshCorpus(() => router.invalidate());
         });
         return;
       }
-      case 'undo':
-        // Rebuilt and not destructured: a discarded binding is an unused variable, and this
-        // repository permits no suppression of one.
-        setVerdicts((held) =>
-          Object.fromEntries(Object.entries(held).filter(([key]) => key !== act.changeId)),
-        );
-        forgetTheSentence();
-        return;
     }
   };
 

@@ -39,14 +39,14 @@ describe('the two writers of the review workspace', () => {
 });
 
 describe('the fallbacks of the review workspace', () => {
-  it('gives the weakest first and an open record when nothing is stored', () => {
-    expect(readSort()).toBe('confidence');
+  it('gives the oldest first and an open record when nothing is stored', () => {
+    expect(readSort()).toBe('oldest');
     expect(readOpenRecord()).toBe(true);
   });
 
-  it('gives the weakest first for an order the code does not know', () => {
-    writeWorkspace('review', { sort: 'bogus' });
-    expect(readSort()).toBe('confidence');
+  it('gives the oldest first for an order the code does not know', () => {
+    writeWorkspace('review', { sort: 'confidence' });
+    expect(readSort()).toBe('oldest');
   });
 
   it('gives an open record for a fold that is not a boolean', () => {
@@ -56,7 +56,7 @@ describe('the fallbacks of the review workspace', () => {
 
   it('gives both fallbacks for a record that carries an undeclared key', () => {
     writeWorkspace('review', { sort: 'name', openRecord: false, dead: 1 });
-    expect(readSort()).toBe('confidence');
+    expect(readSort()).toBe('oldest');
     expect(readOpenRecord()).toBe(true);
   });
 });

@@ -22,7 +22,7 @@ const meta = {
   component: ReviewPage,
   args: {
     queue: { subjects: SUBJECTS, verdicts: {} },
-    examination: { subjectId: CONTESTED, sort: 'confidence' },
+    examination: { subjectId: CONTESTED, sort: 'oldest' },
     decision: { step: 'idle' },
     passages: { state: 'held', byAct: {}, disputes: {} },
     onAct,
@@ -89,7 +89,7 @@ export const NoCardHidesEvidenceWhenTwoStandOpen: Story = {
 /** A verdict reaches the line of the act, and the line says where the verdict stands. */
 export const AVerdictReachesTheLineOfTheAct: Story = {
   args: {
-    queue: { subjects: SUBJECTS, verdicts: { [FIRST_ACT]: { verdict: 'promoted', reason: '' } } },
+    queue: { subjects: SUBJECTS, verdicts: { [FIRST_ACT]: { verdict: 'promoted' } } },
   },
   play: async ({ canvas, canvasElement }) => {
     const line = canvasElement.querySelector(`[data-line="${FIRST_ACT}"]`);
@@ -117,7 +117,6 @@ export const AVerdictNamesTheActTheHandIsOn: Story = {
       kind: 'decide',
       changeId: SECOND_ACT,
       verdict: 'promoted',
-      reason: '',
     });
   },
 };
@@ -175,20 +174,6 @@ export const APromotionThatLandedSaysOnlyWhatIsTrueOfEveryAct: Story = {
   },
 };
 
-/** A hold reaches no door and no column. The one place that ruling is told to the analyst is
- * this sentence, so the sentence is read here and it is read in no other story. */
-export const AHoldThatLandedSaysTheRecordKeepsNoHold: Story = {
-  args: { decision: { step: 'done', changeId: FIRST_ACT, verdict: 'deferred' } },
-  play: async ({ canvas }) => {
-    const said = canvas.getByRole('status', { name: 'The record' });
-    await expect(said).toHaveTextContent(
-      'The act is held on this pass. The record holds no hold, so a reload loses it.',
-    );
-    // A closed ruling is not a failure, so it never interrupts.
-    await expect(canvas.queryByRole('alert', { name: 'The record' })).toBeNull();
-  },
-};
-
 /** A rejection freezes the act, and it deletes nothing. The sentence says what stands, because
  * an analyst who reads "rejected" as "gone" looks for the act in the wrong place. */
 export const ARejectionThatLandedSaysTheActStaysAsWhatWasSetAside: Story = {
@@ -218,7 +203,7 @@ export const NoSecondVerdictIsTakenWhileOneIsGoing: Story = {
 /** The page gives the controls the kind of the act under them, so a merge reaches them as one
  * and the record is not asked for a promotion it always refuses. */
 export const AMergeUnderTheControlsCannotBePromoted: Story = {
-  args: { examination: { subjectId: MERGE, sort: 'confidence' } },
+  args: { examination: { subjectId: MERGE, sort: 'oldest' } },
   play: async ({ canvas }) => {
     const promote = canvas.getByRole('button', { name: /Promote/ });
     await expect(promote).toBeDisabled();
@@ -231,14 +216,14 @@ export const AMergeUnderTheControlsCannotBePromoted: Story = {
 export const AnEmptyQueueIsSaidOnce: Story = {
   args: {
     queue: { subjects: [], verdicts: {} },
-    examination: { subjectId: null, sort: 'confidence' },
+    examination: { subjectId: null, sort: 'oldest' },
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(0);
     await expect(canvasElement.querySelectorAll('[data-change]')).toHaveLength(0);
     await expect(canvas.getAllByText(/Nothing waits for a decision/)).toHaveLength(1);
     // A control that orders nothing is not drawn.
-    await expect(canvas.queryByRole('button', { name: 'weakest first' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'oldest first' })).toBeNull();
   },
 };
 
@@ -309,7 +294,7 @@ const BATCH_ACTS = sampleSubject(BATCH).changes.map((change) => change.id);
 /** A linked batch is one card: every act of it stands open, each with the passage it cites. */
 export const ALinkedBatchIsOneCardWithEveryActAndItsPassages: Story = {
   args: {
-    examination: { subjectId: BATCH, sort: 'confidence' },
+    examination: { subjectId: BATCH, sort: 'oldest' },
     passages: {
       state: 'held',
       byAct: Object.fromEntries(BATCH_ACTS.map((id) => [id, [PASSAGE]])),
@@ -327,7 +312,7 @@ export const ALinkedBatchIsOneCardWithEveryActAndItsPassages: Story = {
 
 /** One verdict decides the whole batch, and the question says so before it sends. */
 export const OneVerdictDecidesTheWholeBatch: Story = {
-  args: { examination: { subjectId: BATCH, sort: 'confidence' } },
+  args: { examination: { subjectId: BATCH, sort: 'oldest' } },
   play: async ({ args, canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: /Promote/ }));
     await expect(canvas.getByRole('alert')).toHaveTextContent('Promote every act of this batch?');
@@ -337,7 +322,6 @@ export const OneVerdictDecidesTheWholeBatch: Story = {
       batchId: BATCH,
       changeIds: BATCH_ACTS,
       verdict: 'promoted',
-      reason: '',
     });
   },
 };
@@ -345,7 +329,7 @@ export const OneVerdictDecidesTheWholeBatch: Story = {
 /** A refused batch says that nothing of it was written, and it names the act and the reason. */
 export const ARefusedBatchNamesTheActAndTheReason: Story = {
   args: {
-    examination: { subjectId: BATCH, sort: 'confidence' },
+    examination: { subjectId: BATCH, sort: 'oldest' },
     decision: {
       step: 'refused',
       batchId: BATCH,

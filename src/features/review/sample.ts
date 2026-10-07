@@ -1,5 +1,5 @@
-/** The acts this surface needs: two that contest one key, a deletion, one that states no
- * confidence, and one that cites a document the record does not hold. Every row they name is a
+/** The acts this surface needs: two that contest one key, a deletion, and one that cites a
+ * document the record does not hold. Every row they name is a
  * row of the shared corpus, because a second copy is a second description of one record. */
 
 import { corpus } from '@/shared/committed-fixture/corpus';
@@ -41,7 +41,6 @@ const batchAct = (
   src: ['doc_8f2a41'],
   names,
   priorValue: null,
-  confidence: null,
   dissent: false,
   authorRole: 'gabriel_research',
   status: 'pending',
@@ -57,7 +56,7 @@ const NO_GEOMETRY = { geom: null, attrs: {} } as const;
 // corpus reach no screen a story reads. The link of the batch is filed under its batch.
 const proposals: readonly Proposal[] = [
   {
-    // Dissent. S3 sends it to review whatever the confidence is.
+    // Dissent. S3 sends it to review.
     id: 'f0a1b2c3-4d5e-4678-9012-3456789abcde',
     op: 'update_attrs',
     targetKind: 'entity',
@@ -69,7 +68,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_5e7730'],
     names: [],
     priorValue: { kind: 'attrs', attrs: { coal_stock_t: { v: 248000, src: ['doc_3c1104'] } } },
-    confidence: 0.82,
     dissent: true,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -88,7 +86,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_8f2a41'],
     names: [],
     priorValue: null,
-    confidence: 0.55,
     dissent: true,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -107,7 +104,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_3c1104'],
     names: [],
     priorValue: null,
-    confidence: 0.94,
     dissent: false,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -117,8 +113,7 @@ const proposals: readonly Proposal[] = [
     batchId: null,
   },
   {
-    // The fourth act of the node, and the only one that states no confidence. A card must say
-    // that the machine reported none, and never draw it as a low score.
+    // The fourth act of the node, on a key that does not stand. It is not contested.
     id: 'aa000001-0000-4000-8000-000000000004',
     op: 'update_attrs',
     targetKind: 'entity',
@@ -127,7 +122,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_3c1104'],
     names: [],
     priorValue: null,
-    confidence: null,
     dissent: false,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -149,7 +143,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_9b0417'],
     names: [],
     priorValue: null,
-    confidence: 0.38,
     dissent: false,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -172,7 +165,6 @@ const proposals: readonly Proposal[] = [
     src: ['doc_0000ff'],
     names: [],
     priorValue: null,
-    confidence: 0.71,
     dissent: false,
     authorRole: 'gabriel_agent',
     status: 'pending',
@@ -220,7 +212,7 @@ export function sampleSubject(id: string): Subject {
   return held;
 }
 
-/** The weakest act of a subject, which is the one the queue opens on. */
+/** The oldest act of a subject, which is the one the queue opens on. */
 export function sampleChange(id: string): Change {
   const [held] = sampleSubject(id).changes;
   if (held === undefined) throw new Error(`The subject ${id} stands with no act under it.`);

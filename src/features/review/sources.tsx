@@ -1,4 +1,4 @@
-import { CircleDashed, ExternalLink, FileX } from 'lucide-react';
+import { ExternalLink, FileText, FileX } from 'lucide-react';
 
 import { SourceMark } from '@/shared/source-mark';
 
@@ -8,31 +8,23 @@ export interface SourceBadgeProps {
   readonly source: CitedDocument;
 }
 
-/** The rating is the badge, and not a position in a list: it is what outranks the self-report of
- * the machine, so the glance reads it and the document is one press away. */
+/** One cited document, one press away. A document the record does not hold takes its own mark
+ * and hue, so the hue alone never tells it apart. */
 export function SourceBadge({ source }: SourceBadgeProps) {
   return (
     <SourceMark
       name={source.name}
-      band={source.band}
-      className={source.poor || source.missing ? 'border-dissent text-dissent' : undefined}
+      className={source.missing ? 'border-dissent text-dissent' : undefined}
       label={
         source.missing ? (
           <FileX size={14} aria-hidden="true" />
-        ) : source.rated ? (
-          source.score
         ) : (
-          // An absence is not a low score, so it is grey and it is never a dash.
-          <CircleDashed size={14} aria-hidden="true" />
+          <FileText size={14} aria-hidden="true" />
         )
       }
     >
       <span data-source={source.id} className="block space-y-1">
         <span className="block text-xs">{source.title}</span>
-        <span className="block font-mono text-small/4 text-label">
-          {source.score}
-          {source.scoreOrigin === '' ? null : ` · ${source.scoreOrigin}`}
-        </span>
         {source.missing ? (
           <span className="block text-small/4 text-dissent">
             This document is cited, and the record holds no row for it.
