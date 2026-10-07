@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { unitPageOf } from './unit-page';
-import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
+import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
 import { UnitsPage } from './units-page';
 
@@ -69,7 +69,7 @@ type Story = StoryObj<typeof meta>;
 export const OneUnitIsReadInThreeColumns: Story = {
   play: async ({ canvas }) => {
     const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
-    await expect(within(list).getAllByRole('button', { name: /group/u }).length).toBe(4);
+    await expect(within(list).getAllByRole('button', { name: /group/u }).length).toBe(9);
     const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
     await expect(
       within(changes).getByRole('heading', { name: '5th Combined Arms Army' }),
@@ -106,7 +106,7 @@ export const AClickOpensTheUnit: Story = {
 /** The next page is read on request, and the count says how much of the queue is read. */
 export const TheNextPageIsReadOnRequest: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('4 of 1082 units read')).toBeVisible();
+    await expect(canvas.getByText('9 of 1082 units read')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Read the next units' }));
     await expect(onAct).toHaveBeenCalledWith({ kind: 'more' });
   },
@@ -197,5 +197,91 @@ export const OneRelationIsRejectedAlone: Story = {
     await userEvent.click(within(bar).getByRole('button', { name: 'Back to the unit' }));
     const unitBar = canvas.getByRole('region', { name: 'The decision' });
     await expect(within(unitBar).getByRole('button', { name: 'Promote' })).toBeVisible();
+  },
+};
+
+/** Each line marks the faults of its unit in words: the state first, then one mark for each kind
+ * of fault. A clean unit shows its information only. */
+export const EachLineMarksItsFaults: Story = {
+  play: async ({ canvasElement }) => {
+    const lineOf = (id: string) => {
+      const line = canvasElement.querySelector(`[data-unit="${id}"]`);
+      if (!(line instanceof HTMLElement)) throw new Error(`no line for ${id}`);
+      return line;
+    };
+    await expect(lineOf(SAMPLE_UNITS.link)).toHaveTextContent('blocked: waits');
+    await expect(lineOf(SAMPLE_UNITS.disputed)).toHaveTextContent('not clean: disputed');
+    await expect(lineOf(SAMPLE_UNITS.brigade)).toHaveTextContent(
+      'parent first · approximate position · sources from the parent',
+    );
+    await expect(lineOf(SAMPLE_UNITS.army).querySelector('[data-fault]')).toBeNull();
+    await expect(lineOf(SAMPLE_UNITS.blockedMix).querySelectorAll('[data-fault]')).toHaveLength(11);
+  },
+};
+
+/** Promote is off on a blocked unit, and the right column says why. */
+export const ABlockedUnitCannotBePromoted: Story = {
+  args: { selectedId: SAMPLE_UNITS.link },
+  play: async ({ canvas }) => {
+    const bar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(within(bar).getByRole('button', { name: 'Promote' })).toBeDisabled();
+    const why = canvas.getByRole('region', { name: 'The justification' });
+    await expect(
+      within(why).getByText(
+        'Waits for Southern Military District (group Southern Military District).',
+      ),
+    ).toBeVisible();
+  },
+};
+
+/** A relation whose other end was rejected is rejected in one click, with the reason "end
+ * rejected". */
+export const ARelationToARejectedEndIsRejectedInOneClick: Story = {
+  args: { selectedId: SAMPLE_UNITS.orphan },
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Reject this relation: end rejected' }),
+    );
+    await expect(onAct).toHaveBeenCalledWith({
+      kind: 'decide',
+      unitId: SAMPLE_UNITS.orphan,
+      decision: { op: 'reject_relation', proposalId: ORPHAN_RELATION, reason: 'end_rejected' },
+    });
+  },
+};
+
+/** A link whose source end was rejected names that end, and one click rejects the link, which is
+ * its whole unit. */
+export const ALinkToARejectedSourceIsRejectedInOneClick: Story = {
+  args: { selectedId: SAMPLE_UNITS.rejectedSource },
+  play: async ({ canvas, canvasElement }) => {
+    onAct.mockClear();
+    await expect(canvasElement.querySelector('[data-relation]')).toHaveTextContent(
+      '(1061st Logistics Center was rejected on 2026-10-07)',
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Reject this relation: end rejected' }),
+    );
+    await expect(onAct).toHaveBeenCalledWith({
+      kind: 'decide',
+      unitId: SAMPLE_UNITS.rejectedSource,
+      decision: { op: 'reject_unit', unitId: SAMPLE_UNITS.rejectedSource, reason: 'end_rejected' },
+    });
+  },
+};
+
+/** Promote of a child alone waits for its parent in the same group, and the bar says so. */
+export const PromoteOfAChildAloneWaitsForItsParent: Story = {
+  args: { selectedId: SAMPLE_UNITS.brigade },
+  play: async ({ canvas }) => {
+    const bar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(within(bar).getByRole('button', { name: 'Promote' })).toBeDisabled();
+    await expect(
+      within(bar).getByText(
+        'Promote is not possible. Waits for 5th Combined Arms Army in this group: promote it ' +
+          'first.',
+      ),
+    ).toBeVisible();
   },
 };

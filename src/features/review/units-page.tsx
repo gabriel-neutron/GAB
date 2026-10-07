@@ -1,7 +1,7 @@
 import type { Decision } from '@gab/proposal/request';
 import { useState } from 'react';
 
-import { ChangeList } from './change-list';
+import { ChangeList, type RelationAct } from './change-list';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
 import { decisionWords } from './decision-words';
 import { Justification } from './justification';
@@ -80,6 +80,24 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
     }
   };
 
+  // A relation whose other end was rejected is rejected at once, with the reason that says so. A
+  // relation that is its whole unit goes with its unit.
+  const onRelation = (act: RelationAct): void => {
+    if (unit === null) return;
+    if (act.kind === 'aim') {
+      setAim({ unitId: unit.id, relationId: act.relationId });
+      return;
+    }
+    onAct({
+      kind: 'decide',
+      unitId: unit.id,
+      decision:
+        act.relationId === unit.id
+          ? { op: 'reject_unit', unitId: unit.id, reason: 'end_rejected' }
+          : { op: 'reject_relation', proposalId: act.relationId, reason: 'end_rejected' },
+    });
+  };
+
   return (
     <div
       data-units-page
@@ -89,14 +107,7 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
         <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
       </div>
       <div className="flex min-h-0 flex-col">
-        <ChangeList
-          unit={unit}
-          words={words}
-          aimed={aimed}
-          onAim={(relationId) => {
-            if (unit !== null) setAim({ unitId: unit.id, relationId });
-          }}
-        />
+        <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
         {unit === null ? null : (
           <DecisionBar
             key={`${unit.id} ${aimed ?? ''}`}

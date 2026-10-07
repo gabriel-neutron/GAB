@@ -1,8 +1,9 @@
 import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
+import { faultMarks } from './fault-marks';
 import type { UnitWords } from './unit-changes';
-import type { Unit } from './unit-page';
+import type { FaultLevel, Unit, UnitState } from './unit-page';
 
 /** The units read so far, the count of every unit, and whether a next page waits. */
 export interface UnitQueue {
@@ -34,6 +35,47 @@ const typeOf = (unit: Unit, words: UnitWords): string => {
 
 const groupOf = (unit: Unit): string =>
   unit.group === null ? 'no group' : `group ${unit.group.subject ?? 'with no subject'}`;
+
+// The words say the state, and the hue only points the eye at it.
+const STATE_WORDS: Readonly<Record<Exclude<UnitState, 'clean'>, string>> = {
+  blocked: 'blocked',
+  not_clean: 'not clean',
+};
+
+const LEVEL_PAINT: Readonly<Record<FaultLevel, string>> = {
+  blocks: 'text-destructive',
+  waits: 'text-label',
+  not_clean: 'text-dissent',
+  information: 'text-label',
+};
+
+function Marks({ unit }: { readonly unit: Unit }) {
+  const marks = faultMarks(unit.faults);
+  if (marks.length === 0) return null;
+  return (
+    <span
+      className="w-full min-w-0 text-small/4"
+      title={unit.faults.map((fault) => fault.said).join('\n')}
+    >
+      {unit.state === 'clean' ? null : (
+        <span
+          data-state={unit.state}
+          className={LEVEL_PAINT[unit.state === 'blocked' ? 'blocks' : 'not_clean']}
+        >
+          {STATE_WORDS[unit.state]}:{' '}
+        </span>
+      )}
+      {marks.map((mark, at) => (
+        <span key={mark.kind}>
+          {at === 0 ? null : <span className="text-label"> · </span>}
+          <span data-fault={mark.kind} className={LEVEL_PAINT[mark.level]}>
+            {mark.words}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
   const { units, total, more } = queue;
@@ -73,6 +115,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                 >
                   {proposerWords(unit.proposer)} · {typeOf(unit, words)} · {groupOf(unit)}
                 </span>
+                <Marks unit={unit} />
               </button>
             </li>
           ))}

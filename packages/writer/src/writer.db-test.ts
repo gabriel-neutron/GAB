@@ -863,7 +863,7 @@ const waitingDelete = async (targetId: string): Promise<string> => {
   return String(made['id']);
 };
 
-test('a promotion whose target is gone is refused, and the answer names the act', async () => {
+test('a promotion whose target is gone is refused, and the answer names the target', async () => {
   const target = await signedEntity('Writer test target gone');
   const unitId = await waitingDelete(target);
   try {
@@ -873,8 +873,8 @@ test('a promotion whose target is gone is refused, and the answer names the act'
     const [status, reply] = await post('promote-unit', { unitId });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      `nothing of the unit is promoted, because the record refuses its act ${unitId}: ` +
-        `the target ${target} does not exist, and nothing was applied`,
+      'nothing of the unit is promoted: The end Writer test target gone is not in the record ' +
+        'and not in the queue',
     ]);
     // The database raised it, so nothing was written and the act still waits.
     expect(reply.targetId).toBeUndefined();
@@ -984,6 +984,7 @@ const unitPage = z.object({
   units: z.array(
     z.object({
       unit: z.uuid(),
+      state: z.enum(['clean', 'not_clean', 'blocked']),
       acts: z.array(z.object({ id: z.uuid(), dissentReason: z.string().nullable() })),
       passages: z.array(z.object({ act: z.uuid(), text: z.string() })),
     }),
@@ -1005,6 +1006,18 @@ const askUnits = async (after: readonly string[] | null, size: number) => {
   const answer = await askUnitsFrom({ after, size });
   expect(answer.status).toBe(200);
   return unitPage.parse(await answer.json());
+};
+
+/** The state that the queue gives one unit, read page by page. */
+const stateOf = async (unitId: string): Promise<string | undefined> => {
+  let after: readonly string[] | null = null;
+  for (;;) {
+    const read = await askUnits(after, 200);
+    const found = read.units.find((unit) => unit.unit === unitId);
+    if (found !== undefined) return found.state;
+    if (read.next === null) return undefined;
+    after = read.next;
+  }
 };
 
 test('the queue reaches the review through the writer one page of units at a time', async () => {
@@ -1180,12 +1193,12 @@ test('one promotion writes the entity and its relations, and each act keeps the 
       vessel,
     ]);
 
-    // The relation needs the vessel, which waits in a unit of its own.
+    // The relation needs the vessel, which waits in a unit of its own in the same group.
     const [refused, refusal] = await post('promote-unit', { unitId: owner });
     expect([refused, refusal.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for ' +
-        'Unit test promotion vessel, which is not in the record',
+      'nothing of the unit is promoted: Waits for Unit test promotion vessel in this group: ' +
+        'promote it first',
     ]);
     expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending', 'pending']);
 
@@ -1221,8 +1234,8 @@ test('a unit with one act that cannot be written writes nothing, and the refusal
     const [status, reply] = await post('promote-unit', { unitId: owner });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Unit test end ' +
-        'that goes, which is not in the record',
+      'nothing of the unit is promoted: The end Unit test end that goes is not in the record ' +
+        'and not in the queue',
     ]);
     expect(await statusesOf(ids)).toStrictEqual(['pending', 'pending']);
     expect(await liveRows(owner)).toBe(0);
@@ -1324,16 +1337,17 @@ test('a link unit waits until both ends are in the record, and the refusal names
     expect(await unitOf(link)).toBe(link);
 
     // The entity of the group waits for no other unit.
+    expect(await stateOf(link)).toBe('blocked');
     expect((await post('promote-unit', { unitId: vessel }))[0]).toBe(200);
     const [status, reply] = await post('promote-unit', { unitId: link });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Link test far ' +
-        'owner, which is not in the record',
+      'nothing of the unit is promoted: Waits for Link test far owner (no group)',
     ]);
     expect(await liveRows(link)).toBe(0);
 
     expect((await post('promote-unit', { unitId: far }))[0]).toBe(200);
+    expect(await stateOf(link)).toBe('clean');
     expect((await post('promote-unit', { unitId: link }))[0]).toBe(200);
     expect(await liveRows(link)).toBe(1);
   } finally {
@@ -1366,9 +1380,8 @@ test('two units that wait for each other are refused as a circle', async () => {
     const [status, reply] = await post('promote-unit', { unitId: first });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'nothing of the unit is promoted, because its relation owns waits for Circle test ' +
-        'second, and Circle test second waits for this unit: the relations make a circle, so ' +
-        'reject one relation of the circle',
+      'nothing of the unit is promoted: Waits in a circle with Circle test second, which ' +
+        'waits for this unit: reject one relation of the circle',
     ]);
 
     // One relation rejected ends the circle.
@@ -1378,6 +1391,94 @@ test('two units that wait for each other are refused as a circle', async () => {
     expect((await post('promote-unit', { unitId: first }))[0]).toBe(200);
   } finally {
     await removed(there, first, second);
+  }
+});
+
+// The superuser lends the research role the door of the operator for one transaction, because no
+// door of a machine writes an act with no passage today, and older acts can hold none.
+const superuser = new Pool({
+  connectionString:
+    `postgresql://gabriel:${encodeURIComponent(z.string().parse(process.env['POSTGRES_PASSWORD']))}` +
+    '@127.0.0.1:5432/gabriel_test',
+});
+
+afterAll(async () => {
+  await superuser.end();
+});
+
+const PROPOSE_CHANGE = 'public.propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)';
+
+const unsourced = async (label: string): Promise<string> => {
+  const client = await superuser.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`GRANT EXECUTE ON FUNCTION ${PROPOSE_CHANGE} TO gabriel_research`);
+    await client.query('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const made = await client.query<{ id: string }>(
+      `SELECT public.propose_change('create_entity', $1::jsonb,
+         ARRAY[(SELECT document_id FROM public.document_text WHERE page = 1 LIMIT 1)]) AS id`,
+      [JSON.stringify({ type: 'vessel', label })],
+    );
+    await client.query('RESET SESSION AUTHORIZATION');
+    await client.query(`REVOKE EXECUTE ON FUNCTION ${PROPOSE_CHANGE} FROM gabriel_research`);
+    await client.query('COMMIT');
+    return z.string().parse(made.rows[0]?.id);
+  } finally {
+    client.release();
+  }
+};
+
+// The promotion reads the check of the faults that the screen reads, and refuses with its words.
+test('a promotion refuses a rejected end, a relation to itself and an act with no passage', async () => {
+  const [parent, child, link, self] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const end = await signedEntity('Fault test end');
+  await proposedBatch([
+    { id: parent, op: 'create_entity', payload: { type: 'company', label: 'Fault test parent' } },
+    { id: child, op: 'create_entity', payload: { type: 'company', label: 'Fault test child' } },
+    {
+      id: link,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: parent, dst_id: child },
+      names: [parent, child],
+    },
+  ]);
+  await proposedBatch([
+    {
+      id: self,
+      op: 'create_relation',
+      payload: { type: 'owns', src_id: end, dst_id: end },
+      names: [end],
+    },
+  ]);
+  let bare = '';
+  try {
+    bare = await unsourced('Fault test bare');
+    expect((await post('reject-unit', { unitId: child, reason: 'wrong_value' }))[0]).toBe(200);
+    const day = new Date().toISOString().slice(0, 10);
+    const [rejected, rejectedReply] = await post('promote-unit', { unitId: parent });
+    expect([rejected, rejectedReply.refusal]).toStrictEqual([
+      422,
+      `nothing of the unit is promoted: The other end Fault test child was rejected on ${day}`,
+    ]);
+    const [itself, itselfReply] = await post('promote-unit', { unitId: self });
+    expect(itself).toBe(422);
+    expect(itselfReply.refusal).toMatch(/has the same element at its two ends$/u);
+    const [unsourcedStatus, unsourcedReply] = await post('promote-unit', { unitId: bare });
+    expect([unsourcedStatus, unsourcedReply.refusal]).toStrictEqual([
+      422,
+      'nothing of the unit is promoted: The act Fault test bare cites no passage of a source',
+    ]);
+    expect(await statusesOf([parent, link, self, bare])).toStrictEqual([
+      'pending',
+      'pending',
+      'pending',
+      'pending',
+    ]);
+  } finally {
+    await post('reject-unit', { unitId: parent, reason: 'end_rejected' });
+    await post('reject-unit', { unitId: self, reason: 'wrong_value' });
+    if (bare !== '') await post('reject-unit', { unitId: bare, reason: 'out_of_scope' });
+    await removed(end);
   }
 });
 

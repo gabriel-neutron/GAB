@@ -28,28 +28,36 @@ const unit = (id: string) => {
 
 it('says what Promote writes and what Reject rejects for an entity with its relations', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.army), WORDS, null)).toStrictEqual({
-    promote:
-      'Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB v1 ORBAT: ' +
-      'military units and organisations of the v1 GeoPackage. You cannot undo this.',
+    promote: {
+      kind: 'writes',
+      said:
+        'Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB v1 ORBAT: ' +
+        'military units and organisations of the v1 GeoPackage. You cannot undo this.',
+    },
     reject: 'Rejects 5th Combined Arms Army and its 1 relation.',
   });
 });
 
 it('counts no relation of an entity that has none', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.disputed), WORDS, null)).toStrictEqual({
-    promote:
-      'Writes North American countries (State body) and 0 relations. Source: Financial ' +
-      'sanctions and the trade of Russia. You cannot undo this.',
+    promote: {
+      kind: 'writes',
+      said:
+        'Writes North American countries (State body) and 0 relations. Source: Financial ' +
+        'sanctions and the trade of Russia. You cannot undo this.',
+    },
     reject: 'Rejects North American countries and its 0 relations.',
   });
 });
 
-it('names the relation of a link unit by its two ends', () => {
+it('says why Promote cannot write a blocked unit, with each fault that blocks it', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.link), WORDS, null)).toStrictEqual({
-    promote:
-      'Writes the relation 1061st Logistics Center subordinate to → Southern Military ' +
-      'District. Source: GAB v1 ORBAT: military units and organisations of the v1 GeoPackage. ' +
-      'You cannot undo this.',
+    promote: {
+      kind: 'blocked',
+      said:
+        'Promote is not possible. Waits for Southern Military District (group Southern ' +
+        'Military District).',
+    },
     reject:
       'Rejects the relation 1061st Logistics Center subordinate to → Southern Military District.',
   });
