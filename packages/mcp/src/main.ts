@@ -1,6 +1,10 @@
 // The start of the server. The client talks over stdin and stdout, so every line of the log goes
 // to stderr. The credentials come from the environment of the research workspace alone.
 
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { openStore, putObject } from '@gab/store';
 import { endMetadata } from '@gab/tools/fetch-document';
 import type { Reach } from '@gab/tools/tool';
@@ -49,11 +53,25 @@ const stop = (cause: unknown): never => {
 
 // The read tools need no object store, so a workspace with no store credential still starts, and
 // only the tools that store refuse. The sentence of the store names no secret. The web needs no store.
+// A browser saves a page into the inbox for the research AI. GAB_INBOX can name the download
+// folder of the browser; with no value, the inbox is the folder inbox of the research workspace.
+const GIVEN_INBOX = process.env['GAB_INBOX']?.trim() ?? '';
+const INBOX = resolve(
+  GIVEN_INBOX === ''
+    ? fileURLToPath(new URL('../../../research/inbox', import.meta.url))
+    : GIVEN_INBOX,
+);
+
 const reachOf = (): Reach => {
   const web = webOf(process.env);
   try {
     const store = openStore();
-    return { store: { put: (object) => putObject(store, object) }, web, now: () => new Date() };
+    return {
+      store: { put: (object) => putObject(store, object) },
+      web,
+      inbox: INBOX,
+      now: () => new Date(),
+    };
   } catch (cause) {
     console.error(
       `the tools that store are off: ${cause instanceof Error ? cause.message : 'no object store'}`,
@@ -74,6 +92,7 @@ const start = async (): Promise<void> => {
     console.error(fault);
   });
   await assertSessionRole(pool);
+  await mkdir(INBOX, { recursive: true });
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
   process.stdin.once('end', shutdown);

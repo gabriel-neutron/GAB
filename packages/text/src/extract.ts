@@ -128,6 +128,24 @@ const htmlPage = (bytes: Uint8Array, whole: boolean): string => {
   return withoutNul(readable().turndown(html).trim());
 };
 
+// External constraint: the types that extractText reads, by the extension that a file name holds.
+// A name with another extension names no type, and the file is refused before any write.
+const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  '.pdf': 'application/pdf',
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.xhtml': 'application/xhtml+xml',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.csv': 'text/csv',
+};
+
+/** The type that the extension of a file name names, or undefined when extractText reads none. */
+export const mimeOfFileName = (name: string): string | undefined => {
+  const dot = name.lastIndexOf('.');
+  return dot === -1 ? undefined : MIME_BY_EXTENSION[name.slice(dot).toLowerCase()];
+};
+
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
   if (type === 'application/pdf') return { pages: await pdfPages(bytes) };

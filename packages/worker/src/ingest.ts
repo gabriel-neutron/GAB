@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { RawObject } from '@gab/store';
-import { extractText } from '@gab/text';
+import { extractText, mimeOfFileName } from '@gab/text';
 
 import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
 
@@ -12,18 +12,6 @@ import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
 // better extractor writes a new set beside the old one under a new word. This word names the
 // extractor of today.
 const EXTRACTOR = 'text-1';
-
-// External constraint: the types that extractText reads, by the extension that a file name holds.
-// A name with another extension names no type, and the file is refused before any write.
-const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
-  '.pdf': 'application/pdf',
-  '.html': 'text/html',
-  '.htm': 'text/html',
-  '.xhtml': 'application/xhtml+xml',
-  '.txt': 'text/plain',
-  '.md': 'text/markdown',
-  '.csv': 'text/csv',
-};
 
 const KINDS = ['file', 'report'] as const;
 type Kind = (typeof KINDS)[number];
@@ -218,8 +206,7 @@ const writeRow = async (
 };
 
 /** The type that a file name names, or nothing. */
-const mimeOf = (fileName: string): string | undefined =>
-  MIME_BY_EXTENSION[extname(fileName).toLowerCase()];
+const mimeOf = (fileName: string): string | undefined => mimeOfFileName(basename(fileName));
 
 const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 

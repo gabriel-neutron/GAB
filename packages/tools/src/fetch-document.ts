@@ -103,7 +103,8 @@ const ENTITIES: Readonly<Record<string, string>> = {
   nbsp: ' ',
 };
 
-const htmlTitle = (bytes: Uint8Array): string | null => {
+/** The title of an HTML page, from its title element, or null. */
+export const htmlTitle = (bytes: Uint8Array): string | null => {
   const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 65_536));
   const found = /<title[^>]*>([\s\S]*?)<\/title>/iu.exec(head)?.[1];
   if (found === undefined) return null;

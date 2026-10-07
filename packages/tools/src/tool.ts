@@ -65,6 +65,8 @@ export interface Reach {
   readonly store?: { put(object: RawObject): Promise<string> };
   readonly web?: Web;
   readonly now: () => Date;
+  /** The folder where a browser saves a page for the research AI to store. */
+  readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */
