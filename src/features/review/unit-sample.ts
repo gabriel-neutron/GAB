@@ -150,7 +150,7 @@ export const UNIT_ANSWER = {
     {
       unit: SAMPLE_UNITS.link,
       kind: 'link',
-      name: '1061st Logistics Center → Southern Military District',
+      name: '1061st Logistics Center subordinate to Southern Military District',
       type: 'subordinate_to',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },

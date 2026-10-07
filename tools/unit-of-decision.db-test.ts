@@ -3,21 +3,24 @@
 // tests count the same rows before and after.
 
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { ORIGINATOR } from './import-v1.ts';
+import { ORIGINATOR, TITLE } from './import-v1.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_unit_of_decision';
+const OTHER = 'doc_unit_of_decision_other';
 const EXTRACTOR = 'unit-of-decision-test@1';
 const PAGE =
   'line one\nline two\nline three: the 5th Army holds Chita\nline four\nline five\nline six';
 const CITED = { start: PAGE.indexOf('the 5th'), end: PAGE.indexOf(' holds') };
 
-const PUT = `SELECT public.put_document($1, 'file', 'A test of the unit of decision', $2, NULL, NULL,
-  NULL, 'text/plain', '2026-10-07'::date)`;
+const PUT = `SELECT public.put_document($1, 'file', $3, $2, NULL, NULL, NULL, 'text/plain',
+  '2026-10-07'::date)`;
 const TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
 const CALL = `SELECT public.record_model_call('extractor', 'v2', 'openrouter', 'a-model', $1, 120,
   'ok', NULL, 'a-model', 10, 5) AS id`;
@@ -31,8 +34,10 @@ const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T>
 };
 
 const seed = async (ask: Ask): Promise<string> => {
-  await ask(PUT, [DOC, 'raw/unit-of-decision.txt']);
+  await ask(PUT, [DOC, 'raw/unit-of-decision.txt', TITLE]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
+  await ask(PUT, [OTHER, 'raw/unit-of-decision-other.txt', 'A page that a session found']);
+  await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);
   const [call] = z
     .array(z.object({ id: z.uuid() }))
     .parse(await as(ask, 'gabriel_agent', () => ask(CALL, ['e'.repeat(64)])));
@@ -247,7 +252,10 @@ test('the queue comes in pages of units, each with its acts, its group and its p
   });
 
   const link = read.paged.find((unit) => unit.unit === armyToTop);
-  expect(link).toMatchObject({ kind: 'link', name: '5th Army → Eastern Military District' });
+  expect(link).toMatchObject({
+    kind: 'link',
+    name: '5th Army subordinate to Eastern Military District',
+  });
 });
 
 test('only the operator reads the page of the queue', async () => {
@@ -255,4 +263,110 @@ test('only the operator reads the page of the queue', async () => {
     await expect(rolledBack(identity, (ask) => ask(READ, [null, 1]))).rejects.toMatchObject({
       code: '42501',
     });
+});
+
+test('only an item that cites the stored v1 ORBAT may name the originator of the v1 import', async () => {
+  const cause = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    return batch(ask, 'gabriel_research', [
+      {
+        ...entity(randomUUID(), 'A unit that a session found'),
+        src: [OTHER],
+        citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, ...CITED }],
+      },
+    ]);
+  }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(cause).toMatchObject({
+    code: '22023',
+    message: expect.stringMatching(/belongs to the import of the v1 work/u) as string,
+  });
+});
+
+test('a relation whose end is a relation of the record is a unit of its own', async () => {
+  const army = randomUUID();
+  const link = randomUUID();
+  const stamps = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [row] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(await ask('SELECT id FROM public.relations ORDER BY id LIMIT 1'));
+    if (row === undefined) throw new Error('the fixture holds no relation');
+    await batch(ask, 'gabriel_research', [
+      entity(army, '7th Army'),
+      cited({
+        id: link,
+        op: 'create_relation',
+        payload: {
+          type: 'contradicts',
+          src_id: army,
+          dst_id: row.id,
+          dst_kind: 'relation',
+          sources: [DOC],
+        },
+        names: [army, row.id],
+      }),
+    ]);
+    return stampsOf(ask, [link]);
+  });
+  expect(stamps.get(link)?.unit_id).toBe(link);
+});
+
+const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0052_unit_of_decision.sql');
+
+// The state before 0052: no proposer and no unit. The proposer reads the originator, and the view
+// reads the proposer, so the view goes with it inside the transaction that rolls back.
+const BEFORE_0052 = `
+  SET LOCAL ROLE gabriel_owner;
+  ALTER TABLE proposals DROP COLUMN proposer CASCADE;
+  ALTER TABLE proposals DROP COLUMN unit_id;
+  RESET ROLE;`;
+
+const REJECTED = `
+  ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only;
+  UPDATE public.proposals SET status = 'rejected', decided_at = now(), decided_by = 'a test'
+   WHERE id = $1::uuid;
+  ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only;`;
+
+test('the migration gives the acts of the record their unit by the rule of the door', async () => {
+  const top = randomUUID();
+  const corps = randomUUID();
+  const corpsToTop = randomUUID();
+  const army = randomUUID();
+  const armyToTop = randomUUID();
+  const brigade = randomUUID();
+  const brigadeToArmy = randomUUID();
+  const gone = randomUUID();
+  const goneToArmy = randomUUID();
+  const stamps = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, 'gabriel_research', [
+      entity(top, 'Eastern Military District'),
+      entity(corps, '68th Army Corps'),
+      subordinate(corpsToTop, corps, top),
+    ]);
+    await batch(ask, 'gabriel_research', [
+      entity(army, '5th Army'),
+      subordinate(armyToTop, army, top),
+      entity(brigade, '57th Brigade'),
+      subordinate(brigadeToArmy, brigade, army),
+      entity(gone, '58th Brigade'),
+      subordinate(goneToArmy, gone, army),
+    ]);
+    // A source end that the operator rejected no longer owns its relation, which then goes to
+    // its target end in the group.
+    for (const statement of REJECTED.split(';').filter((part) => part.trim() !== ''))
+      await ask(statement, statement.includes('$1') ? [gone] : undefined);
+    await ask(BEFORE_0052);
+    await ask(await readFile(MIGRATION, 'utf8'));
+    return stampsOf(ask, [corpsToTop, armyToTop, brigadeToArmy, goneToArmy, top, brigade]);
+  });
+  expect(stamps.get(corpsToTop)?.unit_id).toBe(corps);
+  expect(stamps.get(armyToTop)?.unit_id).toBe(armyToTop);
+  expect(stamps.get(brigadeToArmy)?.unit_id).toBe(brigade);
+  expect(stamps.get(goneToArmy)?.unit_id).toBe(army);
+  expect(stamps.get(top)?.unit_id).toBe(top);
+  expect(stamps.get(brigade)?.proposer).toBe('v1_import');
 });

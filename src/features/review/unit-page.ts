@@ -61,7 +61,9 @@ export interface SourceDocument {
  * groups, or one other act. */
 export interface Unit {
   readonly id: string;
-  readonly kind: 'entity' | 'link' | 'change';
+  /** A link is a relation of a group whose end waits in another group; a relation is a single
+   * relation with no group. */
+  readonly kind: 'entity' | 'link' | 'relation' | 'change';
   readonly name: string;
   readonly type: string | null;
   readonly proposer: Proposer;
@@ -115,7 +117,7 @@ const answer = z.object({
   units: z.array(
     z.object({
       unit: z.string(),
-      kind: z.enum(['entity', 'link', 'change']),
+      kind: z.enum(['entity', 'link', 'relation', 'change']),
       name: z.string(),
       type: z.string().nullable(),
       proposer: z.enum(['extractor', 'research_ai', 'v1_import', 'operator']),

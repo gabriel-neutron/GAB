@@ -41,7 +41,8 @@ export interface UnitChanges {
   readonly others: readonly OtherChange[];
 }
 
-const NO_NAME = 'an element that neither the record nor the queue holds';
+// The state of the end says where it stands, so the name stays short.
+const NO_NAME = 'an element';
 
 const nameOf = (end: UnitEnd): string => end.name ?? NO_NAME;
 
