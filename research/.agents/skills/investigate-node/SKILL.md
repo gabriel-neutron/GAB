@@ -64,5 +64,4 @@ pages to fetch next.
 - Never treat a name match as the same node without an identifier or a document that connects
   them.
 - Never write a fact into the result that no stored document holds. Write it as a gap.
-- Never read a long document with your own tokens to extract facts. Use the skill
-  `ingest-batch`.
+- Never read a whole long document to find a fact. Read the pages that can hold it.

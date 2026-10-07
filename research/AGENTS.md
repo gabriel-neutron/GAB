@@ -8,8 +8,8 @@ This file is the one source of the research rules. Codex reads it, and `CLAUDE.m
 
 ## The tools
 
-The MCP server `gab` gives each tool. A read changes nothing. A write waits for the approval of
-the operator.
+The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
+session: each proposal waits in the review queue, and the operator decides it there (P12).
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
   `list_proposals`.
@@ -21,21 +21,22 @@ the operator.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Write: `archive_snapshot`, `fetch_document`, `telegram_channel`, `enqueue_extract`,
-  `start_lead`, `propose`.
+  `start_lead`, `propose`. Each write runs with no question, except `enqueue_extract` and
+  `start_lead`: they spend model credit, so Claude Code asks the operator first.
 
 ## Who proposes what
 
-- **The extractor proposes the claims of a document.** The extractor is the back-end AI. When
-  you fetch a document, you queue its extraction with `enqueue_extract`. The extractor reads the
-  whole text and proposes each claim that it finds.
-- **You propose only what the extractor missed.** When the job is done (`job_status`), read its
-  proposals with `list_proposals` for the document. Propose a fact only if no pending proposal
-  holds it, through `propose`, with the page and the excerpt.
+- **You propose the facts of your research layer** (P12). Store each source first, then propose
+  each fact with the page and the verbatim excerpt of the stored text. Follow the skill
+  `research-method`: it says what to propose, what to leave out, and how to build a batch.
+- **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
+  that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
+  operator asks for it.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
   vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
   stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,
-  find the stored pages with `find_document` and their proposals with `list_proposals`. Start a
-  lead only for the lead of your ticket.
+  find the stored pages with `find_document` and their proposals with `list_proposals`. The lead
+  queues the extraction of each page, so start a lead only when the operator asks for it.
 - **A register lookup gives a document to cite.** When you hold an LEI, a UK company number or a
   Wikidata item id, call `gleif_lookup`, `companies_house` or `wikidata_ids`. Read the stored
   text with `document_text`, and call `propose` with the document id and the excerpt.
@@ -56,8 +57,9 @@ the operator.
 2. **Fetch first. Cite a stored document id, and never a bare URL.** Before you fetch a page,
    call `find_document`: Gabriel can hold it already. Fetch a new page with `fetch_document`. The
    tool stores the page and gives you its document id. Each citation names that id.
-3. **Store the document and queue the extraction. Never extract with your own tokens** (ADR
-   0010). After the fetch, call `enqueue_extract` with the document id.
+3. **Store each source before you cite it.** Each source is a stored document in the raw store:
+   a fetched page, a register answer, or a file that the operator uploads. A source that you
+   cannot store goes on the list of needs of the skill `research-method`, and you do not cite it.
 4. **A search result is a lead, and not a source** (ADR 0010). A list of search results is not
    stored, and you must not cite it. Fetch the page that the result points to. Only a fetched
    page is a document. A name search in a register is also a lead: read the record by its
@@ -71,6 +73,7 @@ the operator.
    issuer text uses the word, with that text cited.
 7. **Work in ASD-STE100 Simplified Technical English. Write the deliverables in French** (the
    CARTO plan). Your messages, your notes and your comments on a ticket are in ASD-STE100
-   English. The text that goes into Gabriel is in French.
+   English. A name, a label, an identifier and an excerpt stay as the source writes them, because
+   code finds each value in its excerpt. Free text that you write into Gabriel is in French.
 8. **A refusal tells you what to correct.** It names the field, or the item of a batch, and the
    reason. Correct that part and call the tool again once.
