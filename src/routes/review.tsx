@@ -5,11 +5,8 @@ import type { DecisionState } from '@/features/review/decision-bar';
 import { readDecided } from '@/features/review/decided';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
-import {
-  filterIsOn,
-  patchReviewWorkspace,
-  readReviewWorkspace,
-} from '@/features/review/review-workspace';
+import { openQueue } from '@/features/review/queue-start';
+import { filterIsOn, patchReviewWorkspace } from '@/features/review/review-workspace';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { readUnits } from '@/features/review/units';
@@ -43,9 +40,8 @@ export const Route = createFileRoute('/review')({
   // the history is open.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps }) => {
-    const { filter, from } = readReviewWorkspace();
-    const [first, relationTypes, entityTypes] = await Promise.all([
-      readUnits(from, filter),
+    const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
+      openQueue(),
       loadRelationTypes(),
       loadEntityTypes(),
     ]);
