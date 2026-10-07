@@ -34,6 +34,9 @@ it('reads the answer of the writer into one unit for each line', () => {
     'link',
     'entity',
     'entity',
+    'link',
+    'relation',
+    'entity',
     'entity',
   ]);
   expect(page?.total).toBe(1082);
@@ -58,7 +61,7 @@ it('words each relation from the entity of the unit, and says where the other en
       word: 'subordinate to',
       other: 'Eastern Military District',
       state: 'record',
-      rejectedOn: null,
+      rejected: null,
       disputed: false,
     },
   ]);
@@ -80,7 +83,7 @@ it('reads a relation of its own from its source end', () => {
       word: 'subordinate to',
       other: 'Southern Military District',
       state: 'pending',
-      rejectedOn: null,
+      rejected: null,
       disputed: false,
     },
   ]);
@@ -105,8 +108,17 @@ it('names the other end that the operator rejected, with the day', () => {
       word: 'subordinate to',
       other: '1061st Logistics Center',
       state: 'rejected',
-      rejectedOn: '2026-10-07',
+      rejected: { name: '1061st Logistics Center', on: '2026-10-07' },
       disputed: false,
     },
   ]);
+});
+
+it('names the source end of a link that the operator rejected', () => {
+  expect(unitChanges(unit(SAMPLE_UNITS.rejectedSource), WORDS).relations[0]).toMatchObject({
+    from: '1061st Logistics Center',
+    other: 'Eastern Military District',
+    state: 'record',
+    rejected: { name: '1061st Logistics Center', on: '2026-10-07' },
+  });
 });

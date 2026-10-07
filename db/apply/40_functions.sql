@@ -1138,17 +1138,15 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT unit_id FROM waits
 $$;
 
--- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
--- "a machine proposes, only the operator promotes". It writes each act that waits in the unit,
--- an entity before the relation that names it, or it writes none: the first refusal stops the
--- whole transaction, and the sentence names the act and the reason.
---
--- A BLOCKED UNIT IS REFUSED with the words of each fault that blocks it, as the screen shows them.
--- A RELATION IS WRITTEN ONLY WHEN EACH END IS IN THE RECORD OR COMES WITH THE UNIT. A link unit
--- waits until both ends are in the record, and the refusal names the end that it waits for.
-CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+-- THE WRITE OF ONE UNIT, WITH NO CHECK OF ITS FAULTS. No role holds this step. The promotion of one
+-- unit runs the check first, and the group action runs the check once for its whole list and then
+-- writes each clean unit here. It writes each act that waits in the unit, an entity before the
+-- relation that names it, or it writes none: the first refusal stops the whole unit, and the
+-- sentence names the act and the reason. A relation is written only when each end is in the
+-- record or comes with the unit.
+CREATE OR REPLACE FUNCTION write_unit(p_unit uuid, p_decided_by text, p_mode text)
 RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_left  uuid[];
@@ -1157,7 +1155,6 @@ DECLARE
   v_act   text;
   v_end   uuid;
   v_name  text;
-  v_said_blocked text;
   p       public.proposals%ROWTYPE;
   v_said  text;
   v_rule  text;
@@ -1179,18 +1176,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
   END IF;
 
-  -- The check of the faults that the screen reads, so a blocked unit is refused with the words
-  -- that the screen showed.
-  SELECT string_agg(x->>'said', '; ') INTO v_said_blocked
-    FROM public.unit_faults(ARRAY[p_unit]) AS f, jsonb_array_elements(f.faults) AS x
-   WHERE x->>'level' = 'blocks';
-  IF v_said_blocked IS NOT NULL THEN
-    RAISE EXCEPTION 'nothing of the unit is promoted: %', v_said_blocked
-      USING CONSTRAINT = 'unit_blocked';
-  END IF;
-
-  -- An entity that waits for an entity of its own group is not blocked: the group action writes
-  -- the parent first. A promotion of the child alone waits for it.
+  -- In a group action, an end that an earlier unit of the list failed to write is named here.
   SELECT x.payload->>'type', e.ref INTO v_act, v_end
     FROM public.proposals x,
          LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
@@ -1223,7 +1209,7 @@ BEGIN
                       'circle' USING CONSTRAINT = 'unit_order';
     END IF;
     BEGIN
-      v_id := public.apply_proposal(p.id, p_decided_by, 'unit');
+      v_id := public.apply_proposal(p.id, p_decided_by, p_mode);
     EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
       GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
                               v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
@@ -1247,6 +1233,44 @@ BEGIN
     v_left := array_remove(v_left, p.id);
   END LOOP;
   RETURN v_head;
+END $$;
+
+-- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
+-- "a machine proposes, only the operator promotes". It runs the check of the faults that the
+-- screen reads, and refuses a unit that the check blocks, or that waits for an entity of its own
+-- group, with the words of each such fault. Then it writes the unit whole, or nothing.
+CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_left  uuid[];
+  v_stops text;
+BEGIN
+  IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
+  END IF;
+  -- The lock comes before the check, so the check reads the acts that the write writes.
+  v_left := public.pending_unit(p_unit);
+
+  -- The measured forgery: propose and accept inside one transaction. Refused by a stored
+  -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
+  -- signs an act of its own in one transaction through sign_change, which proposes it there.
+  IF EXISTS (SELECT 1 FROM public.proposals
+              WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
+    RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
+                    'the transaction that proposed it', p_unit
+      USING ERRCODE = 'insufficient_privilege', CONSTRAINT = 'decided_later';
+  END IF;
+
+  SELECT string_agg(x->>'said', '; ') INTO v_stops
+    FROM public.unit_faults(ARRAY[p_unit]) AS f, jsonb_array_elements(f.faults) AS x
+   WHERE x->>'level' IN ('blocks', 'waits');
+  IF v_stops IS NOT NULL THEN
+    RAISE EXCEPTION 'nothing of the unit is promoted: %', v_stops
+      USING CONSTRAINT = 'unit_blocked';
+  END IF;
+  RETURN public.write_unit(p_unit, p_decided_by, 'unit');
 END $$;
 
 -- THE REASON OF A REJECTION, CHECKED. It is one word of a fixed list, and "other" needs a note.
@@ -1674,13 +1698,6 @@ BEGIN
   END LOOP;
 END $$;
 
--- THE NAME OF AN ENTITY AS THE REVIEW COMPARES TWO NAMES: lower case, and one space between two
--- words, so "5th  Army" and "5th army" are the same name.
-CREATE OR REPLACE FUNCTION name_key(p_name text) RETURNS text
-LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
-  SELECT lower(btrim(regexp_replace(p_name, '\s+', ' ', 'g')))
-$$;
-
 -- THE PARENT OF AN ENTITY OF THE RECORD: the target of its relation "subordinate to", in the queue
 -- or in the record. A pending act comes first, because it is the newest claim.
 CREATE OR REPLACE FUNCTION parent_of(p_id uuid) RETURNS uuid
@@ -1730,19 +1747,22 @@ END $$;
 --                not in the record; an act of a machine cites no passage. The operator names the
 --                documents of an own act, and a mapping names its whole document: they cite no
 --                passage.
+--   waits        Promote of this unit alone waits for an entity of its own group. The unit stays
+--                clean, because the group action writes the parent before the child.
 --   not_clean    The operator decides the unit alone, and never in a group action: a dispute; two
 --                acts that set one key differently; a source that reports a claim and does not
 --                state a fact; the same name and type under the same parent; an unknown type.
 --   information  The unit stays clean: sources from the parent (a decision of the operator for the
 --                v1 import), an approximate position, a note, the same name under another parent.
 --
--- AN ENTITY THAT WAITS FOR AN ENTITY OF ITS OWN GROUP IS NOT BLOCKED, because the group action
--- writes the parent before the child. A relation alone (a link, or a relation with no group) waits
--- until each end is in the record.
+-- A relation alone (a link, or a relation with no group) waits until each end is in the record.
 --
--- THE V1 IMPORT SAYS "SOURCES FROM THE PARENT" in two places. A new import keeps the parent that
--- gave the sources in an attribute. The acts of the first import have it only in the cited line,
--- where the importer ends the line with "| sources of <name> (v1 <id>): <addresses>".
+-- THE V1 IMPORT SAYS "SOURCES FROM THE PARENT" in two places, and only an act of the v1 import is
+-- read for it. A new import writes the parent in the payload, where the promotion does not copy
+-- it. The acts of the first import have it only in the cited line, which the importer ends with
+-- "| sources of <name> (v1 <id>): <addresses>".
+--
+-- THE CHECK READS A LIST OF UNITS AT ONCE, so a group action checks its whole list in one call.
 --
 -- Departure: PL/pgSQL and not SQL, for the plans that it keeps (see the name of an element).
 CREATE OR REPLACE FUNCTION unit_faults(p_units uuid[])
@@ -1787,9 +1807,9 @@ BEGIN
        AND p.unit_id IN (SELECT public.unit_waits_for(p.end_unit))
      ORDER BY p.unit_id, p.name
   ), waits AS (
-    SELECT p.* FROM placed p
+    SELECT p.*, coalesce(p.entity_unit AND p.end_batch = p.batch_id, false) AS own_group
+      FROM placed p
      WHERE p.end_status = 'pending' AND p.end_op = 'create_entity'
-       AND NOT (p.entity_unit AND p.end_batch = p.batch_id)
        AND p.unit_id NOT IN (SELECT c.unit_id FROM circles c)
   ), sets AS (
     SELECT a.unit_id,
@@ -1837,17 +1857,15 @@ BEGIN
       FROM named n
       JOIN public.entities e ON e.type = n.type AND public.name_key(e.label) = n.key
   ), inherited AS (
-    SELECT a.unit_id,
-           coalesce(substring(a.payload#>>'{attrs,sources_from,v}' FROM '^(.+) \(v1 [^)]*\)$'),
-                    a.payload#>>'{attrs,sources_from,v}') AS holder
+    SELECT a.unit_id, a.payload->>'sources_from' AS holder
       FROM acts a
-     WHERE a.op = 'create_entity' AND a.payload->'attrs' ? 'sources_from'
+     WHERE a.op = 'create_entity' AND a.proposer = 'v1_import' AND a.payload ? 'sources_from'
     UNION ALL
     SELECT a.unit_id, substring(q.cited FROM '\| sources of (.+) \(v1 [^)]*\):[^|]*$')
       FROM public.cited_passages(ARRAY(
              SELECT x.id FROM acts x
               WHERE x.op = 'create_entity' AND x.proposer = 'v1_import'
-                AND NOT x.payload->'attrs' ? 'sources_from')) AS q
+                AND NOT x.payload ? 'sources_from')) AS q
       JOIN acts a ON a.id = q.claim_id
   ), found (unit_id, level, kind, act, said) AS (
     -- -------------------------------------------------------------------------------- blocks --
@@ -1856,6 +1874,7 @@ BEGIN
            || CASE WHEN w.end_batch IS NULL THEN ' (no group)'
                    ELSE ' (group ' || sb.subject || ')' END
       FROM waits w LEFT JOIN subjects sb ON sb.batch_id = w.end_batch
+     WHERE NOT w.own_group
     UNION ALL
     SELECT c.unit_id, 'blocks', 'circle', c.act,
            'Waits in a circle with ' || c.name || ', which waits for this unit: reject one '
@@ -1867,7 +1886,8 @@ BEGIN
       FROM placed p WHERE p.end_status = 'pending' AND p.end_op = 'create_relation'
     UNION ALL
     SELECT p.unit_id, 'blocks', 'end_rejected', p.act,
-           'The other end ' || p.name || ' was rejected on '
+           CASE WHEN p.entity_unit THEN 'The other end ' ELSE 'The end ' END || p.name
+           || ' was rejected on '
            || to_char(p.end_decided AT TIME ZONE 'UTC', 'YYYY-MM-DD')
       FROM placed p WHERE p.end_status = 'rejected'
     UNION ALL
@@ -1887,6 +1907,11 @@ BEGIN
       FROM acts a
      WHERE a.author_role <> 'gabriel_app' AND a.op <> 'map_document'
        AND NOT EXISTS (SELECT 1 FROM public.citation c WHERE c.claim_id = a.id)
+    -- --------------------------------------------------------------------------------- waits --
+    UNION ALL
+    SELECT w.unit_id, 'waits', 'end_waits_in_group', w.act,
+           'Waits for ' || w.name || ' in this group: promote it first'
+      FROM waits w WHERE w.own_group
     -- ----------------------------------------------------------------------------- not clean --
     UNION ALL
     SELECT a.unit_id, 'not_clean', 'dispute', a.id,
@@ -1951,7 +1976,8 @@ BEGIN
               ELSE 'clean' END,
          coalesce(jsonb_agg(jsonb_build_object('kind', f.kind, 'level', f.level, 'act', f.act,
                                                'said', f.said)
-                            ORDER BY array_position(ARRAY['blocks', 'not_clean', 'information'],
+                            ORDER BY array_position(ARRAY['blocks', 'waits', 'not_clean',
+                                                          'information'],
                                                     f.level), f.kind, f.said)
                     FILTER (WHERE f.kind IS NOT NULL), '[]'::jsonb)
     FROM units u

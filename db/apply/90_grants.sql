@@ -84,6 +84,7 @@ REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;

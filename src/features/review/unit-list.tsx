@@ -44,6 +44,7 @@ const STATE_WORDS: Readonly<Record<Exclude<UnitState, 'clean'>, string>> = {
 
 const LEVEL_PAINT: Readonly<Record<FaultLevel, string>> = {
   blocks: 'text-destructive',
+  waits: 'text-label',
   not_clean: 'text-dissent',
   information: 'text-label',
 };

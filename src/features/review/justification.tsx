@@ -19,6 +19,7 @@ const LEVELS: readonly {
   readonly paint: string;
 }[] = [
   { level: 'blocks', words: 'Blocks Promote', paint: 'text-destructive' },
+  { level: 'waits', words: 'Promote of this unit alone waits', paint: 'text-label' },
   { level: 'not_clean', words: 'Not clean: decide it alone', paint: 'text-dissent' },
   { level: 'information', words: 'Information', paint: 'text-foreground' },
 ];

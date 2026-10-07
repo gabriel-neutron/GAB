@@ -11,6 +11,7 @@ import { ORIGINATOR, TITLE } from './import-v1.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_unit_faults';
+const OTHER = 'doc_unit_faults_other';
 const EXTRACTOR = 'unit-faults-test@1';
 const OWN = 'v1 unit u2 | 57th Brigade | parent: 5th Army (v1 u1) | sources: https://a.example';
 const INHERITED =
@@ -38,7 +39,22 @@ const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T>
 const seed = async (ask: Ask): Promise<void> => {
   await ask(PUT, [DOC, 'raw/unit-faults.txt', TITLE]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
+  await ask(PUT, [OTHER, 'raw/unit-faults-other.txt', 'A page that a session found']);
+  await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);
 };
+
+// An act of the research AI that cites the same words from another document.
+const researched = (id: string, label: string, payload: Item = {}): Item => ({
+  id,
+  op: 'create_entity',
+  payload: { type: 'military_unit', label, sources: [OTHER], ...payload },
+  src: [OTHER],
+  names: [],
+  model_call_id: null,
+  originator: 'A ministry',
+  modality: 'asserts',
+  citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, ...spanOf(INHERITED) }],
+});
 
 type Item = Record<string, unknown>;
 
@@ -76,7 +92,7 @@ const batch = (ask: Ask, items: readonly Item[]) =>
 
 const fault = z.object({
   kind: z.string(),
-  level: z.enum(['blocks', 'not_clean', 'information']),
+  level: z.enum(['blocks', 'waits', 'not_clean', 'information']),
   act: z.uuid().nullable(),
   said: z.string(),
 });
@@ -92,12 +108,14 @@ type Checked = z.output<typeof checked>[number];
 const faultsOf = async (ask: Ask, units: readonly string[]): Promise<Map<string, Checked>> =>
   new Map(checked.parse(await ask(FAULTS, [units])).map((row) => [row.unit_id, row] as const));
 
+// The wait for a parent of the same group is on most units, so each case that is about another
+// fault leaves it out. The first case reads it.
 const said = (row: Checked | undefined) =>
-  row?.faults.map((one) => [one.level, one.kind, one.said]);
+  row?.faults.filter((one) => one.level !== 'waits').map((one) => [one.level, one.kind, one.said]);
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
-test('a unit with no fault is clean, also when it waits for its parent in its own group', async () => {
+test('a unit that waits for its parent in its own group is clean, and Promote alone waits', async () => {
   const [top, army, brigade, armyToTop, brigadeToArmy] = [
     randomUUID(),
     randomUUID(),
@@ -116,7 +134,17 @@ test('a unit with no fault is clean, also when it waits for its parent in its ow
     ]);
     return faultsOf(ask, [top, army, brigade, armyToTop]);
   });
-  expect(read.get(brigade)).toMatchObject({ state: 'clean', faults: [] });
+  expect(read.get(brigade)).toMatchObject({
+    state: 'clean',
+    faults: [
+      {
+        level: 'waits',
+        kind: 'end_waits_in_group',
+        act: brigadeToArmy,
+        said: 'Waits for 5th Army in this group: promote it first',
+      },
+    ],
+  });
   expect(read.get(army)).toMatchObject({ state: 'clean', faults: [] });
   // The relation that crosses two groups waits until each end is in the record.
   expect(read.get(armyToTop)?.state).toBe('blocked');
@@ -128,7 +156,8 @@ test('a unit with no fault is clean, also when it waits for its parent in its ow
 });
 
 test('a dispute, a reported claim and an unknown type make a unit not clean', async () => {
-  const [disputed, alleged, unknown, foreign] = [
+  const [disputed, alleged, unknown, foreign, link] = [
+    randomUUID(),
     randomUUID(),
     randomUUID(),
     randomUUID(),
@@ -157,8 +186,16 @@ test('a dispute, a reported claim and an unknown type make a unit not clean', as
         payload: { type: 'spaceship', label: 'A ship', sources: [DOC] },
       }),
     ]);
-    return faultsOf(ask, [disputed, alleged, unknown, foreign]);
+    const [held, other] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(await ask('SELECT id FROM public.entities ORDER BY id LIMIT 2'));
+    if (held === undefined || other === undefined) throw new Error('the fixture holds no entity');
+    await batch(ask, [relation(link, 'unknown', held.id, other.id)]);
+    return faultsOf(ask, [disputed, alleged, unknown, foreign, link]);
   });
+  expect(said(read.get(link))).toStrictEqual([
+    ['not_clean', 'unknown_type', 'The relation type is unknown'],
+  ]);
   expect(read.get(disputed)?.state).toBe('not_clean');
   expect(said(read.get(disputed))).toStrictEqual([
     ['not_clean', 'dispute', 'Disputed: the checker says unclear'],
@@ -431,7 +468,7 @@ test('sources from the parent, an approximate position and a note are informatio
       ),
       relation(link, 'subordinate_to', child, parent),
     ]);
-    // A new import keeps the parent that gave the sources in an attribute.
+    // A new import names the parent that gave the sources in the payload.
     await batch(ask, [
       cited({
         id: flagged,
@@ -440,7 +477,7 @@ test('sources from the parent, an approximate position and a note are informatio
           type: 'military_unit',
           label: '59th Brigade',
           sources: [DOC],
-          attrs: { sources_from: attribute('6th Army (v1 u9)') },
+          sources_from: '6th Army',
         },
       }),
     ]);
@@ -456,4 +493,54 @@ test('sources from the parent, an approximate position and a note are informatio
     ['information', 'sources_from_parent', 'Sources from the parent 6th Army'],
   ]);
   expect(read.get(parent)).toMatchObject({ state: 'clean', faults: [] });
+});
+
+test('an act that is not of the v1 import gets no label from the line, and cannot hold the marker', async () => {
+  const [plain, marked] = [randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [researched(plain, 'A brigade that a session found')]);
+    const refusal = await ask('SAVEPOINT marker')
+      .then(() => batch(ask, [researched(marked, 'A marked brigade', { sources_from: 'X' })]))
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    await ask('ROLLBACK TO SAVEPOINT marker');
+    return { faults: await faultsOf(ask, [plain]), refusal };
+  });
+  expect(read.faults.get(plain)).toMatchObject({ state: 'clean', faults: [] });
+  // The door words the rule of the shape of a new entity.
+  expect(read.refusal).toMatchObject({ code: '22023' });
+});
+
+test('an entity under a parent of the record, with the name and type of its child, is a duplicate', async () => {
+  const [fresh, link] = [randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [held] = z
+      .array(z.object({ label: z.string(), type: z.string(), parent: z.uuid() }))
+      .parse(
+        await ask(`SELECT e.label, e.type, r.dst_id AS parent FROM public.entities e
+                     JOIN public.relations r ON r.src_id = e.id AND r.type = 'subordinate_to'
+                    WHERE e.type <> 'unknown'
+                    ORDER BY e.id LIMIT 1`),
+      );
+    if (held === undefined) throw new Error('the fixture holds no entity with a parent');
+    await batch(ask, [
+      cited({
+        id: fresh,
+        op: 'create_entity',
+        payload: { type: held.type, label: ` ${held.label.toLowerCase()} `, sources: [DOC] },
+      }),
+      relation(link, 'subordinate_to', fresh, held.parent),
+    ]);
+    return { held, read: await faultsOf(ask, [fresh]) };
+  });
+  expect(read.read.get(fresh)?.state).toBe('not_clean');
+  expect(said(read.read.get(fresh))).toContainEqual([
+    'not_clean',
+    'duplicate',
+    `Same name and type under the same parent: ${read.held.label} is in the record`,
+  ]);
 });

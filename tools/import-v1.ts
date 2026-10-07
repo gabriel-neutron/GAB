@@ -273,10 +273,6 @@ const attrsOf = (line: V1Line): Record<string, { v: string | string[] }> => ({
       .map(([key, value]) => [key, { v: value }]),
   ),
   source_urls: { v: [...line.sources] },
-  // The review shows "sources from the parent" from this attribute, and not from the line.
-  ...(line.sourcesFrom === null
-    ? {}
-    : { sources_from: { v: `${line.sourcesFrom.name} (v1 ${line.sourcesFrom.id})` } }),
 });
 
 // The identifier of an act is made from the bytes of the document and the v1 identifier. A second
@@ -359,10 +355,17 @@ export const doorItems = (
     if (span === null)
       throw new Error(`the stored page does not hold the line of v1 ${line.element.id} once`);
     const act = machineAct(request, [document]);
+    // The review reads "sources from the parent" from this key. The promotion copies no key of the
+    // payload outside the name, the type, the location, the attributes and the sources, so the
+    // key stays out of the public record.
+    const marked =
+      act.op === 'create_entity' && line.sourcesFrom !== null
+        ? { ...act.payload, sources_from: line.sourcesFrom.name }
+        : act.payload;
     return {
       id,
       op: act.op,
-      payload: act.payload,
+      payload: marked,
       src: act.src,
       target_kind: act.targetKind,
       target_id: act.targetId,
