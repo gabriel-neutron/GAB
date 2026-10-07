@@ -187,6 +187,18 @@ const again = (kind: ReasonKind, why: string, afterMs?: number): Step => ({
 type Tried<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly failure: Failure };
 
+// OpenRouter can name the served model with a date or a variant, such as `-20250514` or `:nitro`,
+// where the pinned name has none. Those two names are one model. Any other difference is another
+// model, and the answer is refused.
+const baseName = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/:[^/:]+$/u, '')
+    .replace(/-(?:\d{8}|\d{4}-\d{2}-\d{2})$/u, '');
+
+const sameModel = (served: string | undefined, pinned: string): boolean =>
+  served !== undefined && baseName(served) === baseName(pinned);
+
 // The middleware sees each answer before the library reads it. It counts the tokens first,
 // because a refused answer costs tokens too. It judges the served model next: another model made
 // the answer, and nothing of it is kept, so no tool runs on it.
@@ -203,7 +215,8 @@ const middlewareOf = (pinned: string, run: Run, heard: Heard): LanguageModelMidd
     run.budget.add((input ?? 0) + (output ?? 0));
 
     run.served = result.response?.modelId;
-    if (run.served !== pinned) throw new Stopped(REASON.servedOther, run.served ?? 'no model');
+    if (!sameModel(run.served, pinned))
+      throw new Stopped(REASON.servedOther, run.served ?? 'no model');
     if (result.finishReason.unified === 'length') throw new Stopped(REASON.truncated);
     if (result.finishReason.unified === 'content-filter') throw new Stopped(REASON.refused);
 
