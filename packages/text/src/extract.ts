@@ -1,9 +1,16 @@
 // The text of a stored file, as a list of pages. The function is pure: it reads no database and no
 // object store, and it calls no model. A reader must treat an empty page as a page, because a PDF
-// page with no text layer is empty and nothing here reads an image of it.
+// page with no text layer is empty and nothing here reads an image of it. A PNG or a JPEG image is
+// read by OCR, and its text is one page.
+
+import { copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
+import { createWorker, type Worker } from 'tesseract.js';
 import TurndownService from 'turndown';
 import { extractText as readPdf, getDocumentProxy } from 'unpdf';
 
@@ -138,6 +145,9 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
 };
 
 /** The type that the extension of a file name names, or undefined when extractText reads none. */
@@ -145,6 +155,75 @@ export const mimeOfFileName = (name: string): string | undefined => {
   const dot = name.lastIndexOf('.');
   return dot === -1 ? undefined : MIME_BY_EXTENSION[name.slice(dot).toLowerCase()];
 };
+
+// Ukrainian and Russian unit names stand next to English words in the same image.
+const OCR_LANGUAGES = ['eng', 'ukr', 'rus'] as const;
+
+// External constraint: tesseract.js reads every language from one folder, and each npm package of
+// language data holds its file in a folder of its own. The files are copied into one temporary
+// folder, so no language file comes from the network. A list of language objects would avoid the
+// copy, but tesseract.js 7 then gives the bytes of the data in place of the language code.
+const languageFolder = async (): Promise<string> => {
+  const require = createRequire(import.meta.url);
+  const folder = await mkdtemp(join(tmpdir(), 'gab-ocr-'));
+  await Promise.all(
+    OCR_LANGUAGES.map((code) => {
+      const file = `${code}.traineddata.gz`;
+      // The integer model is the one that tesseract.js itself takes for its LSTM engine.
+      const source = join(dirname(require.resolve(`@tesseract.js-data/${code}`)), '4.0.0_best_int');
+      return copyFile(join(source, file), join(folder, file));
+    }),
+  );
+  return folder;
+};
+
+interface Ocr {
+  readonly worker: Worker;
+  readonly folder: string;
+}
+
+// The OCR worker thread lives as long as the module uses it, because the language data takes a
+// second to load. A caller that ends ends it too, or the thread holds the event loop open.
+let ocr: Promise<Ocr> | undefined;
+
+const openOcr = async (): Promise<Ocr> => {
+  const folder = await languageFolder();
+  try {
+    const worker = await createWorker([...OCR_LANGUAGES], undefined, {
+      langPath: folder,
+      cacheMethod: 'none',
+      // External constraint: with no handler, tesseract.js throws a failed job a second time,
+      // outside the promise that the job already rejects.
+      errorHandler: () => undefined,
+    });
+    return { worker, folder };
+  } catch (fault) {
+    await rm(folder, { recursive: true, force: true });
+    throw fault;
+  }
+};
+
+/** Ends the OCR worker thread. A later call starts a new one. */
+export const endOcr = async (): Promise<void> => {
+  const held = ocr;
+  ocr = undefined;
+  const opened = await held?.catch(() => undefined);
+  if (opened === undefined) return;
+  await opened.worker.terminate();
+  await rm(opened.folder, { recursive: true, force: true });
+};
+
+const imagePage = async (bytes: Uint8Array): Promise<string> => {
+  ocr ??= openOcr().catch((fault: unknown) => {
+    ocr = undefined;
+    throw fault;
+  });
+  const { worker } = await ocr;
+  const { data } = await worker.recognize(Buffer.from(bytes));
+  return withoutNul(data.text.trim());
+};
+
+const IMAGE = new Set(['image/png', 'image/jpeg']);
 
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
@@ -154,5 +233,6 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   // act in it.
   if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
+  if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);
 };

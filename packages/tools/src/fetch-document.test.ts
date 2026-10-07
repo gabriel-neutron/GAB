@@ -1,6 +1,10 @@
 // The refusals of the fetch tool. Each one must come before any write, and the address refusals
 // must come before any request. The session fails the test when a tool reaches it.
 
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
@@ -45,7 +49,10 @@ beforeAll(async () => {
     },
     '/to-ftp': { status: 302, headers: { location: 'ftp://example.org/file' } },
     '/loop': { status: 302, headers: { location: '/loop' } },
-    '/image': { headers: { 'content-type': 'image/png' }, body: 'not a picture' },
+    '/image': { headers: { 'content-type': 'image/gif' }, body: 'GIF89a' },
+    '/broken.png': { headers: { 'content-type': 'image/png' }, body: 'not a picture' },
+    // A white image with no word, served with no type, so the type comes from its first bytes.
+    '/blank': { body: await readFile(join(import.meta.dirname, '../../text/fixtures/blank.png')) },
     '/gone': { status: 410, headers: { 'content-type': 'text/plain' }, body: 'gone' },
     '/challenge': {
       headers: { 'content-type': 'text/html' },
@@ -61,7 +68,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await fixture.close();
-  await endMetadata();
+  await Promise.all([endMetadata(), endOcr()]);
 });
 
 // The real range check, with no address of the machine admitted.
@@ -170,7 +177,19 @@ describe('the other refusals store nothing', () => {
 
   test('a type from which no text is read', async () => {
     const store = memoryStore();
-    expect(await refusalOf(`${base}/image`, fixtureReach(store))).toMatch(/image\/png/);
+    expect(await refusalOf(`${base}/image`, fixtureReach(store))).toMatch(/image\/gif/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('an image whose OCR reads no text', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/blank`, fixtureReach(store))).toMatch(/no text/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('bytes named as an image that no image reader reads', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/broken.png`, fixtureReach(store))).toMatch(/image\/png/);
     expect(store.puts).toStrictEqual([]);
   });
 
