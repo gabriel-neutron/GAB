@@ -3,12 +3,21 @@ import { useMemo, useState } from 'react';
 
 import type { DecisionState } from '@/features/review/decision-bar';
 import { readDecided } from '@/features/review/decided';
+import type { GroupActionState, GroupView } from '@/features/review/group-panel';
+import {
+  readGroupUnits,
+  readGroups,
+  type GroupUnits,
+  type GroupsRead,
+} from '@/features/review/groups';
+import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { openQueue } from '@/features/review/queue-start';
 import { filterIsOn, patchReviewWorkspace } from '@/features/review/review-workspace';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
+import { sendGroupAction } from '@/features/review/send-group-action';
 import { readUnits } from '@/features/review/units';
 import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
 import { loadCorpus } from '@/shared/read/corpus';
@@ -20,34 +29,49 @@ export interface ReviewSearch {
   /** The unit under examination. An empty string opens the queue at its first unit. */
   readonly unit: string;
   readonly view: ReviewView;
+  /** The group open on the page of the groups. An empty string opens none. */
+  readonly group: string;
 }
 
 export const Route = createFileRoute('/review')({
   // The address comes from outside, so it is validated before its first use. A stale identifier
   // opens the queue at its first unit, and it never takes the surface off the screen.
   validateSearch: (search: Record<string, unknown>): ReviewSearch => {
-    const unit = search['unit'];
+    const { unit, view, group } = search;
     return {
       unit: typeof unit === 'string' ? unit : '',
-      view: search['view'] === 'decided' ? 'decided' : 'queue',
+      view: view === 'decided' || view === 'groups' ? view : 'queue',
+      group: typeof group === 'string' ? group : '',
     };
   },
 
-  search: { middlewares: [stripSearchParams({ unit: '', view: 'queue' })] },
+  search: { middlewares: [stripSearchParams({ unit: '', view: 'queue', group: '' })] },
 
   // The queue reads one page of units, with the filter and from the place that the workspace
-  // holds, so a reload keeps both. The history reads the whole corpus, so it is read only when
-  // the history is open.
+  // holds, so a reload keeps both. The history reads the whole corpus, and the rail reads the
+  // faults of every unit that waits, so each is read only when its page is open. The rail is read
+  // when its page opens and after a group action, and never at the choice of a group: the group
+  // in the address is read here once, and each later choice reads its own group alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
-  loader: async ({ deps }) => {
+  loader: async ({ deps, location }) => {
     const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
       openQueue(),
       loadRelationTypes(),
       loadEntityTypes(),
     ]);
-    if (deps.view !== 'decided') return { first, filter, relationTypes, entityTypes, history: [] };
+    const held = { first, filter, relationTypes, entityTypes, history: [], groups: null };
+    if (deps.view === 'groups') {
+      const asked: unknown = Reflect.get(location.search, 'group');
+      const groupId = typeof asked === 'string' ? asked : '';
+      const [rail, read] = await Promise.all([
+        readGroups(),
+        groupId === '' ? null : readGroupUnits(groupId),
+      ]);
+      return { ...held, groups: { rail, group: read === null ? null : { groupId, read } } };
+    }
+    if (deps.view !== 'decided') return held;
     const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
-    return { first, filter, relationTypes, entityTypes, history: readDecided(corpus, decided) };
+    return { ...held, history: readDecided(corpus, decided) };
   },
 
   component: ReviewRoute,
@@ -76,14 +100,20 @@ const startOf = (first: UnitPage | null): HeldPages => ({
 const NO_CHOICES = { groups: [], documents: [] };
 
 function ReviewRoute() {
-  const { unit, view } = Route.useSearch();
+  const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { first, filter, relationTypes, entityTypes, history } = Route.useLoaderData();
+  const { first, filter, relationTypes, entityTypes, history, groups } = Route.useLoaderData();
   const router = useRouter();
 
   // The pages and the decision die with the view: a reload reads the first page again.
   const [held, setHeld] = useState<HeldPages>(startOf(null));
   const [decision, setDecision] = useState<DecisionState>({ step: 'idle' });
+  const [groupAction, setGroupAction] = useState<GroupActionState>({ step: 'idle' });
+  // The group read at the last choice, or after the last group action. Null while it is read.
+  const [picked, setPicked] = useState<{
+    readonly groupId: string;
+    readonly read: GroupsRead<GroupUnits> | null;
+  } | null>(null);
 
   const words = useMemo(() => unitWords(relationTypes, entityTypes), [relationTypes, entityTypes]);
 
@@ -187,6 +217,51 @@ function ReviewRoute() {
     }
   };
 
+  // A group whose every unit the action wrote waits no more, so its read is refused: the result
+  // of the action stays on the screen with the sentence of that read.
+  const entered = groups?.group ?? null;
+  const groupRead =
+    picked !== null && picked.groupId === group
+      ? picked.read
+      : entered !== null && entered.groupId === group
+        ? entered.read
+        : null;
+  const action: GroupActionState =
+    groupAction.step !== 'idle' && groupAction.groupId === group ? groupAction : { step: 'idle' };
+  const groupView: GroupView =
+    group === ''
+      ? { state: 'none' }
+      : groupRead === null
+        ? { state: 'reading', groupId: group }
+        : groupRead.state === 'private'
+          ? { state: 'private', groupId: group, why: groupRead.why, action }
+          : { state: 'held', group: groupRead.read, action };
+
+  const readGroup = async (groupId: string): Promise<void> => {
+    const read = await readGroupUnits(groupId);
+    setPicked((before) => (before?.groupId === groupId ? { groupId, read } : before));
+  };
+
+  // The rail, the group and the queue are read again after the action, so each count is the
+  // count of the record.
+  const onGroupAct = (act: GroupsAct): void => {
+    if (act.kind === 'select') {
+      const { groupId } = act;
+      setPicked({ groupId, read: null });
+      void navigate({ search: (search) => ({ ...search, group: groupId }), replace: true });
+      void readGroup(groupId);
+      return;
+    }
+    const { groupId, unitIds } = act;
+    setGroupAction({ step: 'working', groupId });
+    void sendGroupAction(groupId, unitIds).then(async (result) => {
+      setGroupAction({ ...result, groupId });
+      if (result.step !== 'done') return;
+      await readGroup(groupId);
+      await router.invalidate();
+    });
+  };
+
   return (
     <ReviewSurface
       view={view}
@@ -195,6 +270,11 @@ function ReviewRoute() {
       }}
       decided={history}
       queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
+      groups={
+        groups === null ? null : (
+          <GroupsPage rail={groups.rail} group={groupView} words={words} onAct={onGroupAct} />
+        )
+      }
     />
   );
 }

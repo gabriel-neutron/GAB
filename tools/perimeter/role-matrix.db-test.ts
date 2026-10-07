@@ -44,6 +44,7 @@ test('the role matrix of the doors', async () => {
       "public.enqueue_mapped_load": "agent",
       "public.fail_job": "agent",
       "public.lead_jobs": "app",
+      "public.promote_group": "app",
       "public.promote_unit": "app",
       "public.propose_batch": "agent research",
       "public.propose_change": "app",
@@ -57,6 +58,8 @@ test('the role matrix of the doors', async () => {
       "public.reject_relation": "app",
       "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
+      "public.review_group": "app",
+      "public.review_groups": "app",
       "public.review_units": "app",
       "public.runner_settings": "agent",
       "public.set_entity_layout": "agent",
@@ -113,6 +116,7 @@ test('a machine role holds no door that promotes or rejects', async () => {
 
 const DECISIONS = [
   "public.promote_unit(gen_random_uuid(), 'a perimeter test')",
+  "public.promote_group(gen_random_uuid(), ARRAY[gen_random_uuid()], 'a perimeter test')",
   "public.reject_unit(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
   "public.reject_relation(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
 ] as const;
@@ -140,9 +144,10 @@ test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
 });
 
-test('only the operator promotes a unit, rejects a unit and rejects one relation', async () => {
+test('only the operator promotes a unit or a group, rejects a unit and rejects one relation', async () => {
   const held = await matrix();
   expect(held['public.promote_unit']).toBe('app');
+  expect(held['public.promote_group']).toBe('app');
   expect(held['public.reject_unit']).toBe('app');
   expect(held['public.reject_relation']).toBe('app');
 });

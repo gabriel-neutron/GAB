@@ -29,6 +29,16 @@ export const decisionRequest = {
   reject_relation: z.strictObject({ proposalId: z.uuid(), ...rejection }),
 } as const satisfies Readonly<Record<DecisionOp, z.ZodType>>;
 
+// Origin of the number: the largest group of the v1 import holds 104 units, and a group of more
+// than 1,000 units is no screen that the operator reads before one confirmation.
+const MOST_GROUP_UNITS = 1000;
+
+/** The body of the group action: the group, and the units of it that the screen showed. */
+export const groupActionRequest = z.strictObject({
+  groupId: z.uuid(),
+  unitIds: z.array(z.uuid()).min(1).max(MOST_GROUP_UNITS),
+});
+
 /** One decision, as the caller states it. */
 export type Decision = {
   readonly [Op in DecisionOp]: { readonly op: Op } & z.input<(typeof decisionRequest)[Op]>;
