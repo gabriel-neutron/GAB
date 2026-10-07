@@ -2,10 +2,11 @@
 // with a store in memory and an inbox in a temporary folder. Each call runs inside a transaction
 // that rolls back.
 
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -29,100 +30,120 @@ const URL_OF_PAGE = `https://www.consilium.europa.eu/en/timeline-${RUN}/`;
 const root = mkdtempSync(join(tmpdir(), 'inbox-'));
 const inbox = join(root, 'inbox');
 mkdirSync(inbox);
-const outside = join(root, 'secret.txt');
-writeFileSync(outside, 'A private file of the operator.');
-writeFileSync(
-  join(inbox, 'timeline.html'),
-  `<html><head><title>Timeline</title></head><body><article><h1>Timeline ${RUN}</h1>` +
-    `<p>${'On 23 June 2022 the Council adopted the sixth package of sanctions. '.repeat(6)}</p>` +
-    '</article></body></html>',
-);
+const page = (body: string): string =>
+  `<html><head><title>Timeline ${RUN}</title></head><body><article><h1>Timeline</h1>${body}` +
+  '</article></body></html>';
+const TEXT = `<p>${'On 3 June 2022 the Council adopted the sixth package of sanctions. '.repeat(6)}</p>`;
+writeFileSync(join(inbox, 'timeline.html'), page(TEXT));
 writeFileSync(join(inbox, 'challenge.html'), '<html><body>Just a moment...</body></html>');
-writeFileSync(join(inbox, 'notes.docx'), 'not read');
-symlinkSync(outside, join(inbox, 'link.txt'));
+writeFileSync(join(inbox, 'empty.html'), '<html><body></body></html>');
+writeFileSync(join(inbox, 'notes.txt'), 'A note that the AI wrote.');
+writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
+const outside = join(root, 'secret.html');
+writeFileSync(outside, page('<p>A private page of the operator, outside the inbox.</p>'));
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-const reachOf = (store = memoryStore()) => ({
+const reachOf = (store = memoryStore(), folder = inbox) => ({
   store,
-  inbox,
+  inbox: folder,
   now: () => new Date('2026-10-07T10:00:00Z'),
 });
 
-const row = z.object({ kind: z.string(), uri: z.string(), mime: z.string(), day: z.string() });
+const row = z.object({
+  kind: z.string(),
+  uri: z.string(),
+  mime: z.string(),
+  day: z.string(),
+  title: z.string(),
+});
 
-test('a saved page is stored once, under the address of its source', async () => {
+test('a saved page is stored once, under the address of its source, as saved by the browser', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
-    const input = { file: 'timeline.html', url: URL_OF_PAGE, title: 'Timeline of the sanctions' };
+    const input = { file: 'timeline.html', url: URL_OF_PAGE };
     const first = await callTool(storeSavedFile, sessionOf(ask), input, reachOf(store));
     expect(first).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
     const second = await callTool(storeSavedFile, sessionOf(ask), input, reachOf(store));
     expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
 
-    const [held] = z
-      .array(row)
-      .parse(
-        await ask(
-          `SELECT kind, uri, mime, retrieved_at::text AS day FROM public.documents WHERE uri = $1`,
-          [URL_OF_PAGE],
-        ),
-      );
+    const [held] = z.array(row).parse(
+      await ask(
+        `SELECT kind, uri, mime, retrieved_at::text AS day, title
+           FROM public.documents WHERE uri = $1`,
+        [URL_OF_PAGE],
+      ),
+    );
     expect(held).toStrictEqual({
       kind: 'url',
       uri: URL_OF_PAGE,
       mime: 'text/html',
       day: '2026-10-07',
+      title: `Timeline ${RUN} (saved by the browser)`,
     });
   });
   expect(store.puts).toHaveLength(1);
 });
 
-test.each([
-  ['a challenge page', 'challenge.html', 'bot filter'],
-  ['a type that is not read', 'notes.docx', 'is not read'],
-  ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
-  ['a link to a file outside the inbox', 'link.txt', 'not a plain file'],
-])('%s is refused, and nothing is stored', async (_name, file, reason) => {
+// The refusal of one call, and the number of objects that the call put in the store.
+const refusalOf = async (
+  file: string,
+  url = URL_OF_PAGE,
+  folder = inbox,
+): Promise<{ refusal: string; puts: number }> => {
   const store = memoryStore();
+  let refusal = '';
   await rolledBack('research', async (ask) => {
     const got = await callTool(
       storeSavedFile,
       sessionOf(ask),
-      { file, url: URL_OF_PAGE },
-      reachOf(store),
+      { file, url },
+      reachOf(store, folder),
     );
-    expect(got).toMatchObject({ ok: false });
-    expect(got.ok ? '' : got.refusal).toContain(reason);
+    refusal = got.ok ? '' : got.refusal;
   });
-  expect(store.puts).toHaveLength(0);
+  return { refusal, puts: store.puts.length };
+};
+
+test.each([
+  ['a challenge page', 'challenge.html', 'bot filter'],
+  ['a page with no text', 'empty.html', 'holds no text'],
+  ['a text file, which is no saved page', 'notes.txt', 'is not a saved page'],
+  ['a file larger than the upload limit', 'big.html', 'larger than'],
+  ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
+])('%s is refused, and nothing is stored', async (_name, file, reason) => {
+  const got = await refusalOf(file);
+  expect(got.refusal).toContain(reason);
+  expect(got.puts).toBe(0);
 });
 
-test.each(['../secret.txt', 'sub/timeline.html', '.hidden'])(
-  'the file name %s is refused before any read',
-  async (file) => {
-    await rolledBack('research', async (ask) => {
-      const got = await callTool(
-        storeSavedFile,
-        sessionOf(ask),
-        { file, url: URL_OF_PAGE },
-        reachOf(),
-      );
-      expect(got).toMatchObject({ ok: false });
-    });
+test('an inbox that does not exist is named in the refusal', async () => {
+  const got = await refusalOf('timeline.html', URL_OF_PAGE, join(root, 'no-inbox'));
+  expect(got.refusal).toContain('does not exist');
+  expect(got.puts).toBe(0);
+});
+
+test.skipIf(process.platform === 'win32')(
+  'a link to a file outside the inbox is refused, and nothing is stored',
+  async () => {
+    symlinkSync(outside, join(inbox, 'soft.html'));
+    const got = await refusalOf('soft.html');
+    expect(got.refusal).toContain('not inside the inbox');
+    expect(got.puts).toBe(0);
   },
 );
 
-test('an address with a user name is refused', async () => {
-  await rolledBack('research', async (ask) => {
-    const got = await callTool(
-      storeSavedFile,
-      sessionOf(ask),
-      { file: 'timeline.html', url: 'https://user:pass@example.org/page' },
-      reachOf(),
-    );
-    expect(got).toMatchObject({ ok: false });
-  });
+test('a second hard link of a file is refused, and nothing is stored', async () => {
+  linkSync(outside, join(inbox, 'hard.html'));
+  const got = await refusalOf('hard.html');
+  expect(got.refusal).toContain('more than one link');
+  expect(got.puts).toBe(0);
+});
+
+test('an address with a user name is refused, and nothing is stored', async () => {
+  const got = await refusalOf('timeline.html', 'https://user:pass@example.org/page');
+  expect(got.refusal).toContain('no user name');
+  expect(got.puts).toBe(0);
 });

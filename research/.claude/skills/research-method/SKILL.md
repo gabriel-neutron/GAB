@@ -121,10 +121,19 @@ and stop at the first that stores the full text:
    It must be the same text from the same issuer.
 4. The browser. Open the page in the browser of the session (Claude in Chrome, or the browser of
    the app). It runs on the operator's machine, with a home address and real cookies, so most
-   filters let it pass. Save the page into `research/inbox/`: the PDF when the page offers one,
-   or else the HTML of the page (`document.documentElement.outerHTML`) in a `.html` file, with
-   no change. Then call `store_saved_file` with the file name and the address of the page, and
-   cite the document that it gives.
+   filters let it pass. The browser downloads into its download folder, and `GAB_INBOX` in
+   `research/.env` names that folder (or the operator sets the download folder of the browser to
+   `research/inbox`).
+   - Before you save, read the page. If it shows an account of the operator (a name, "signed
+     in", a basket, a private message), do not save it: put the source on the list of needs.
+   - A PDF: click its link, so that the browser downloads the file.
+   - An HTML page: run this in the page with the JavaScript tool of the browser, with a file name
+     of your choice:
+     `const b = new Blob(['<!doctype html>\n' + document.documentElement.outerHTML], {type: 'text/html'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'name.html'; a.click();`
+   - Never write the file yourself with a file tool, and never change it. The bytes must be what
+     the browser held.
+   - Call `store_saved_file` with the file name and the address of the page, and cite the
+     document that it gives. Its title says "saved by the browser".
 5. If nothing works, add the source to `research/out/needs.md`, and continue with the next fact.
 
 Each line of `research/out/needs.md` gives what the operator needs to store it:

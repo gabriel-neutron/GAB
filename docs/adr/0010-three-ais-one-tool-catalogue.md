@@ -123,6 +123,11 @@ proposals of the rows, which the operator reviews.
 - **A list of search results is a lead, and it is not stored.** An API answer that lists
   candidates is a search result, also when the query is an identifier. Only the read of one record
   by its identifier, or one page that is fetched, becomes a document.
+- **A page that refuses the server can come from the browser of the operator.** The research AI
+  opens it in the browser on the operator's machine, saves it, and stores the saved file under the
+  address of the page. Its bytes are what the browser held after the scripts of the page ran, not
+  the answer of the server, so its title says that the browser saved it. A page that shows an
+  account of the operator is not saved.
 - The same bytes are stored once.
 - One fetch reads one address. No crawl and no schedule: a person or an AI asks for each fetch.
 
