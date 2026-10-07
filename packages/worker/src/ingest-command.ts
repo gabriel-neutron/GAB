@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 
 import { openStore, putObject } from '@gab/store';
+import { endOcr } from '@gab/text';
 import { Pool } from 'pg';
 
 import { appAddress } from './address.ts';
@@ -42,7 +43,8 @@ export const ingestCommand: SubCommand = async (args) => {
       parsed.options,
     );
   } finally {
-    await pool.end();
+    // The OCR thread of an image holds the event loop open until it ends.
+    await Promise.all([pool.end(), endOcr()]);
   }
 
   for (const outcome of outcomes) console.log(reportLine(outcome));

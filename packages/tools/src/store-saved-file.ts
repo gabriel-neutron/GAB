@@ -16,8 +16,15 @@ import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
-// A browser saves a page as a PDF or as HTML. A text file in the inbox is no copy of a page.
-const SAVED_TYPES = new Set(['application/pdf', 'text/html', 'application/xhtml+xml']);
+// A browser saves a page as a PDF or as HTML, and an image as a PNG or a JPEG file. A text file in
+// the inbox is no copy of a page.
+const SAVED_TYPES = new Set([
+  'application/pdf',
+  'text/html',
+  'application/xhtml+xml',
+  'image/png',
+  'image/jpeg',
+]);
 
 const MAX_TITLE = 500;
 const SAVED_MARK = ' (saved by the browser)';
@@ -100,12 +107,13 @@ const titleOf = (given: string | undefined, mime: string, bytes: Uint8Array, url
 export const storeSavedFile = defineTool({
   name: 'store_saved_file',
   description:
-    'Stores a PDF or an HTML page that the browser of the session saved into the inbox folder, as ' +
-    'the document of the page that it came from. Use it only when fetch_document cannot read a ' +
-    'page (a bot filter, an empty page, a site that refuses the server). The bytes are what the ' +
-    'browser held after the scripts of the page ran, not the answer of the server, and the title ' +
-    'of the document says "saved by the browser". The text is checked as a fetch checks it. The ' +
-    'same file twice is one document. The tool returns the document id to cite.',
+    'Stores a PDF, an HTML page or a PNG or JPEG image that the browser of the session saved ' +
+    'into the inbox folder, as the document of the page that it came from. Use it only when ' +
+    'fetch_document cannot read a page (a bot filter, an empty page, a site that refuses the ' +
+    'server). The bytes are what the browser held after the scripts of the page ran, not the ' +
+    'answer of the server, and the title of the document says "saved by the browser". The text ' +
+    'is checked as a fetch checks it. The text of an image is what OCR read in it. The same ' +
+    'file twice is one document. The tool returns the document id to cite.',
   input: z.strictObject({
     file: fileName.describe('the name of the file in the inbox, for example eu-timeline.html'),
     url: sourceAddress.describe('the address of the page in the browser'),
@@ -124,7 +132,9 @@ export const storeSavedFile = defineTool({
       throw new ToolRefusal('this surface gives no inbox folder, so it stores no saved file');
     const mime = mimeOfFileName(input.file);
     if (mime === undefined || !SAVED_TYPES.has(mime))
-      throw new ToolRefusal(`${input.file} is not a saved page: give a .pdf, .html or .xhtml file`);
+      throw new ToolRefusal(
+        `${input.file} is not a saved page: give a .pdf, .html, .xhtml, .png, .jpg or .jpeg file`,
+      );
     const bytes = await readInboxFile(reach.inbox, input.file);
 
     let pages: readonly string[];

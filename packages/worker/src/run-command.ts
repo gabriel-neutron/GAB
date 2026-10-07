@@ -1,6 +1,7 @@
 import { setTimeout as sleepFor } from 'node:timers/promises';
 
 import { openStore, putObject, type RawStore } from '@gab/store';
+import { endOcr } from '@gab/text';
 import { endMetadata } from '@gab/tools/fetch-document';
 import { webOf } from '@gab/tools/web';
 import { Pool } from 'pg';
@@ -65,8 +66,9 @@ export const runCommand: SubCommand = async () => {
     });
     await runner.run(stop.signal);
   } finally {
-    // The fetch tool keeps an exiftool process, and it holds the event loop open until it ends.
-    await Promise.all([pool.end(), endMetadata()]);
+    // The fetch tool keeps an exiftool process and an OCR thread, and each one holds the event
+    // loop open until it ends.
+    await Promise.all([pool.end(), endMetadata(), endOcr()]);
     for (const store of stores) store.client.destroy();
   }
   return 0;
