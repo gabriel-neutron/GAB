@@ -4,7 +4,8 @@
 table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
 2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
 check by a second model family. · The lead agent added 6 October 2026. · Model transport changed
-again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone.
+again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone. · ADR 0011
+superseded 7 October 2026: no rule promotes, and the operator decides each proposal.
 
 ## Context
 
@@ -50,7 +51,7 @@ tools.
   refusal of the record gives the sentence of the rule and its field. A fault of the connection
   or of a role gives its code alone, because its text can name a host or a role.
 
-## Machine roles propose, and only the operator or the rule promotes
+## Machine roles propose, and only the operator promotes
 
 Each consumer has its own database role.
 
@@ -60,8 +61,6 @@ Each consumer has its own database role.
   document and propose. It cannot promote.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
   outputs and propose. They cannot promote, and they cannot start a lead.
-- **The promotion rule** runs as the agent role and does only the rule decision. ADR 0011 now holds
-  that rule.
 - **The chat** reads through the read role and can queue an extraction. It never proposes, because
   a live answer must never become a proposal directly.
 
@@ -211,11 +210,8 @@ on 6 October 2026. The chat feature builds its store again.
 
 ## Consequences
 
-- **A claim that the rule promotes is a claim that no person read.** The dataset must tell this for
-  each claim, and the agents share their blind spots. No accuracy rate is defensible without an
-  audit sample.
-- The rule is only as good as the checks and the audit of ADR 0011. A change that lets a model
-  write a rating, a state or an audit label reopens ADR 0011.
+- **The operator reads each proposal before it is promoted.** The speed of the review screen
+  sets the speed of the record. No model writes a state or a verdict.
 - OpenRouter has no service level of its own. A provider can fail, and the pinned model and a
   failure that shows its reason contain this risk. They do not remove it. A spent credit balance
   fails each job with a clear reason. The operator adds credit and queues the documents again.

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 
 import { KindGlyph } from './change-mark';
-import { Confidence } from './confidence';
 import { ContestedGlyph } from './contested-mark';
 import type { ChangeLine, Subject } from './queue';
 import { SourceBadge } from './sources';
@@ -130,9 +129,7 @@ export function NodePane({ subject, lines, currentChangeId, onFocus }: NodePaneP
                     <span className="sr-only">contested</span>
                   </span>
                 ) : null}
-                {verdict.state === 'waiting' ? (
-                  <Confidence report={line.confidenceReport} />
-                ) : (
+                {verdict.state === 'waiting' ? null : (
                   <>
                     <VerdictMark verdict={verdict.verdict} words={verdict.words} />
                     {/* The line has no room for the word, so only a reader who hears it has it. */}

@@ -33,14 +33,16 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Only what THIS act lacks is drawn. A hole every act carries tells the reader nothing; the
- * dispute with no reason is real, and it is drawn. */
-export const OnlyWhatThisActLacksIsDrawn: Story = {
+/** The card draws no confidence, no rating and no badge of the author: the product removed
+ * them, and a mark with no meaning misleads the reader. */
+export const TheCardDrawsNoConfidenceNoRatingAndNoAuthorBadge: Story = {
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-hole="argument"]')).not.toBeNull();
-    await expect(canvas.queryByText(/quoted text/)).toBeNull();
-    // The whole reason survives for a reader, and the card holds no paragraph of it.
-    await expect(canvas.getByText(/not which one/)).toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-confidence]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-origin]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-band]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-hole]')).toBeNull();
+    await expect(canvas.queryByText(/^machine$/)).toBeNull();
+    await expect(canvas.queryByText(/not rated|threshold/)).toBeNull();
   },
 };
 
@@ -63,10 +65,9 @@ export const AnActThatOnlyAddsKeysReadsAsAnAddition: Story = {
 /** A disputed act says so on its card, in one word beside the mark. */
 export const ADisputedActSaysDisputed: Story = {
   play: async ({ canvas, canvasElement }) => {
-    const routing = canvasElement.querySelector('[data-routing="dissent"]');
-    await expect(routing).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-disputed]')).not.toBeNull();
     await expect(canvas.getByText('disputed')).toBeInTheDocument();
-    await expect(canvas.getByText('Here because a check disputes it.')).toBeInTheDocument();
+    await expect(canvas.getByText('A check disputes this act.')).toBeInTheDocument();
   },
 };
 
@@ -97,18 +98,12 @@ export const ADisputeWithNoRecordedReasonStatesNone: Story = {
   },
 };
 
-/** The reason the act is here is a mark, and it is stated once and not twice. */
-export const TheRoutingIsAMarkAndItIsStatedOnce: Story = {
-  play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelectorAll('[data-routing]')).toHaveLength(1);
-  },
-};
-
-/** The self-report of the machine is a track and a figure, and never the word `confidence`. */
-export const TheConfidenceIsATrackAndAFigure: Story = {
+/** An act that no check disputes draws no mark of a dispute. */
+export const AnUndisputedActDrawsNoDisputeMark: Story = {
+  args: { change: ADDITION },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-confidence]')).not.toBeNull();
-    await expect(canvas.queryByText(/^Confidence /)).toBeNull();
+    await expect(canvasElement.querySelector('[data-disputed]')).toBeNull();
+    await expect(canvas.queryByText('disputed')).toBeNull();
   },
 };
 
@@ -148,10 +143,9 @@ export const ADeletionNamesTheRowItDestroys: Story = {
     await expect(canvasElement.querySelectorAll('[data-op="edit"]')).toHaveLength(0);
     const cited = canvas.getByText('The documents this act stands on').parentElement;
     await expect(cited).not.toBeNull();
-    const badge = within(cited ?? canvasElement).getByRole('button', {
-      name: /^Vessel movement log, scanned\. D4/,
-    });
-    await expect(badge).toHaveTextContent('D4');
+    await expect(
+      within(cited ?? canvasElement).getByRole('button', { name: 'Vessel movement log, scanned' }),
+    ).toBeInTheDocument();
   },
 };
 
@@ -165,8 +159,8 @@ export const TheCardHoldsInTheDarkTheme: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const routing = canvasElement.querySelector<HTMLElement>('[data-routing]');
-    if (routing === null) throw new Error('the card draws no routing');
-    await expect(getComputedStyle(routing).color).toBe(DARK_DISSENT);
+    const disputed = canvasElement.querySelector<HTMLElement>('[data-disputed]');
+    if (disputed === null) throw new Error('the card draws no mark of a dispute');
+    await expect(getComputedStyle(disputed).color).toBe(DARK_DISSENT);
   },
 };

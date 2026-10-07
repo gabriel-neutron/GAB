@@ -4,14 +4,12 @@ import { cn } from '@/shared/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 
 interface SourceMarkProps {
-  /** What the badge shows: a position on one surface, a rating on the other. */
+  /** What the badge shows: a glyph of the document. */
   readonly label: ReactNode;
   /** The accessible name. The badge is small, so the whole line reaches a reader here. */
   readonly name: string;
   /** The panel. The caller owns it, because two surfaces hold two different cards. */
   readonly children: ReactNode;
-  /** What the badge stands for, in one word, where the hue also says it. A check reads this. */
-  readonly band?: string | undefined;
   readonly className?: string | undefined;
 }
 
@@ -23,15 +21,10 @@ const MARK = cn(
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
-export function SourceMark({ label, name, children, band, className }: SourceMarkProps) {
+export function SourceMark({ label, name, children, className }: SourceMarkProps) {
   return (
     <Popover>
-      <PopoverTrigger
-        aria-label={name}
-        title={name}
-        data-band={band}
-        className={cn(MARK, className)}
-      >
+      <PopoverTrigger aria-label={name} title={name} className={cn(MARK, className)}>
         {label}
       </PopoverTrigger>
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale, and a vendored file is closed,

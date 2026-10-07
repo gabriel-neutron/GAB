@@ -29,7 +29,7 @@ const patch = (part: Partial<ReviewWorkspace>): void => {
 
 export function readSort(): SortKey {
   const held = readWorkspace(FEATURE, isHeld, {})['sort'];
-  return isSortKey(held) ? held : 'confidence';
+  return isSortKey(held) ? held : 'oldest';
 }
 
 export function patchSort(sort: SortKey): void {

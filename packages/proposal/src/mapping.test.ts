@@ -54,7 +54,7 @@ const REFUSED: readonly (readonly [string, unknown])[] = [
     'a relation with no side for the row',
     { ...DRAFT, relations: [{ type: 'owned_by', other: { key: 'lei', column: 'Owner' } }] },
   ],
-  ['a key the schema does not know', { ...DRAFT, confidence: 0.9 }],
+  ['a key the schema does not know', { ...DRAFT, weight: 0.9 }],
 ];
 
 for (const [name, given] of REFUSED)

@@ -1,6 +1,5 @@
 /** One verdict on the screen, and what the record does with it. The send and the sentence are
- * one job, because one state answers both. A hold has no home in the record, so it stays on
- * this pass alone, and it goes through no door. */
+ * one job, because one state answers both. */
 
 import type { BatchVerdict, DecisionOp } from '@gab/proposal/request';
 
@@ -9,9 +8,6 @@ import { sendBatchDecision, sendDecision } from '@/shared/write/door';
 import { writeSaid, type WriteState, type WriteWords } from '@/shared/write/write-state';
 
 import type { Verdict } from './queue';
-
-/** The two verdicts a door takes. A hold reaches no door, so no answer of a door names one. */
-export type DoorVerdict = Exclude<Verdict, 'deferred'>;
 
 /** Every state that is not idle names the act or the linked batch it is about. A sentence that
  * names no act reads as the sentence of whatever act stands under the controls, and the two are
@@ -31,15 +27,11 @@ interface DecisionSaid extends Said {
 const GOING: Readonly<Record<Verdict, string>> = {
   promoted: 'The promotion is going to the record.',
   rejected: 'The rejection is going to the record.',
-  deferred: 'The hold is taken on this pass.',
 };
 
 const DONE: Readonly<Record<Verdict, string>> = {
   promoted: 'The act is promoted. The record took it, and no door takes it back.',
   rejected: 'The act is rejected. It stays in the record as what was set aside.',
-  // The hold is the one verdict the record cannot take. A reader must not learn that from a
-  // reload that has already lost the reason.
-  deferred: 'The act is held on this pass. The record holds no hold, so a reload loses it.',
 };
 
 // The record moved under the analyst, or the answer never came. Both end at one read of the
@@ -47,8 +39,7 @@ const DONE: Readonly<Record<Verdict, string>> = {
 // finishes: an urgent sentence never waits behind a network read.
 const READ_AGAIN = 'The queue is read again.';
 
-// A hold reaches no door, so it is never unknown.
-const UNSURE: Readonly<Record<DoorVerdict, string>> = {
+const UNSURE: Readonly<Record<Verdict, string>> = {
   promoted: 'It is not known whether the act was promoted.',
   rejected: 'It is not known whether the act was rejected.',
 };
@@ -57,17 +48,15 @@ const UNSURE: Readonly<Record<DoorVerdict, string>> = {
 const BATCH_GOING: Readonly<Record<Verdict, string>> = {
   promoted: 'The promotion of the batch is going to the record.',
   rejected: 'The rejection of the batch is going to the record.',
-  deferred: 'The hold of the batch is taken on this pass.',
 };
 
 const BATCH_DONE: Readonly<Record<Verdict, string>> = {
   promoted:
     'Every act of the batch is promoted. The record took them, and no door takes them back.',
   rejected: 'Every act of the batch is rejected. They stay in the record as what was set aside.',
-  deferred: 'The batch is held on this pass. The record holds no hold, so a reload loses it.',
 };
 
-const BATCH_UNSURE: Readonly<Record<DoorVerdict, string>> = {
+const BATCH_UNSURE: Readonly<Record<Verdict, string>> = {
   promoted: 'It is not known whether the batch was promoted.',
   rejected: 'It is not known whether the batch was rejected.',
 };
@@ -82,20 +71,17 @@ const WORDS: WriteWords<object, DecisionAbout> = {
   idle: '',
   working: (about) => (isBatch(about) ? BATCH_GOING : GOING)[about.verdict],
   done: (about) => (isBatch(about) ? BATCH_DONE : DONE)[about.verdict],
-  unknown: (about) =>
-    about.verdict === 'deferred'
-      ? DONE.deferred
-      : (isBatch(about) ? BATCH_UNSURE : UNSURE)[about.verdict],
+  unknown: (about) => (isBatch(about) ? BATCH_UNSURE : UNSURE)[about.verdict],
 };
 
-/** The door of each verdict. The lookup is total, so a verdict that the record can take reaches
- * its own door, and a verdict that reaches no door refuses to compile here and not at the door. */
-const DOOR: Readonly<Record<DoorVerdict, DecisionOp>> = {
+/** The door of each verdict. The lookup is total, so a new verdict refuses to compile here and
+ * not at the door. */
+const DOOR: Readonly<Record<Verdict, DecisionOp>> = {
   promoted: 'promote_proposal',
   rejected: 'reject_proposal',
 };
 
-const BATCH_DOOR: Readonly<Record<DoorVerdict, BatchVerdict>> = {
+const BATCH_DOOR: Readonly<Record<Verdict, BatchVerdict>> = {
   promoted: 'promote',
   rejected: 'reject',
 };
@@ -122,18 +108,12 @@ export function decisionSaid(state: DecisionState, currentId: string | null): De
   return { ...said, sentence, busy: state.step === 'working' };
 }
 
-/** Take one verdict, and answer with the state the surface stands in. It raises nothing. A hold
- * reaches no door: nothing in the record holds a reason, and this file writes none. */
+/** Take one verdict, and answer with the state the surface stands in. It raises nothing. */
 export async function sendVerdict(changeId: string, verdict: Verdict): Promise<DecisionState> {
-  if (verdict === 'deferred') return { step: 'done', changeId, verdict };
-
   return { ...(await sendDecision(DOOR[verdict], changeId)), changeId, verdict };
 }
 
-/** Take one verdict on a linked batch: every act of it, in one transaction. A hold reaches no
- * door, as the hold of one act reaches none. */
+/** Take one verdict on a linked batch: every act of it, in one transaction. */
 export async function sendBatchVerdict(batchId: string, verdict: Verdict): Promise<DecisionState> {
-  if (verdict === 'deferred') return { step: 'done', batchId, verdict };
-
   return { ...(await sendBatchDecision(batchId, BATCH_DOOR[verdict])), batchId, verdict };
 }

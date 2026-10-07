@@ -64,7 +64,7 @@ GRANT SELECT ON citation TO gabriel_app;
 -- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
@@ -110,7 +110,7 @@ GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,d
   TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;

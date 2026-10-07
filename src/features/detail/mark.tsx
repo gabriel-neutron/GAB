@@ -1,7 +1,3 @@
-/**
- * A mark and its accessible name carry no score, and the source card alone shows it: one score
- * repeated on twenty claims is the presentation S1 calls false. */
-
 import { cn } from '@/shared/lib/utils';
 import type { DocId } from '@/shared/read/model';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
@@ -59,7 +55,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
           key={source.id}
           type="button"
           // The visible text is the number alone. The accessible name adds the title of the
-          // document, and no score.
+          // document.
           aria-label={source.name}
           aria-pressed={activeSource === source.id}
           onClick={() => {

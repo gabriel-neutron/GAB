@@ -124,12 +124,11 @@ export const ACandidateIsNeverMixedIntoTheRecord: Story = {
   },
 };
 
-export const DissentAndConfidenceAreWritten: Story = {
+export const DissentIsWrittenAndNoConfidence: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('disputed')).toBeInTheDocument();
     await expect(canvas.getByText('not disputed')).toBeInTheDocument();
-    await expect(canvas.getByText('0.82')).toBeInTheDocument();
-    await expect(canvas.getByText('0.41')).toBeInTheDocument();
+    await expect(canvas.queryByText(/^\d\.\d\d$/)).toBeNull();
   },
 };
 

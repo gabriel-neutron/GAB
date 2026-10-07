@@ -42,10 +42,6 @@ export const row = {
     archive_uri: nullableText('document.archive_uri'),
     sha256: nullableText('document.sha256'),
     retrieved_at: nullableText('document.retrieved_at'),
-    admiralty: nullableText('document.admiralty'),
-    admiralty_origin: z
-      .enum(['machine', 'arbitrated', 'human'], stated('document.admiralty_origin'))
-      .nullable(),
   }),
 
   entity: z.object({
@@ -113,7 +109,6 @@ export const row = {
     src: docIds('proposal.src'),
     names: docIds('proposal.names'),
     prior_value: z.unknown(),
-    confidence: z.number(stated('proposal.confidence')).nullable(),
     dissent: z.boolean(stated('proposal.dissent')),
     author_role: z.enum(
       ['gabriel_agent', 'gabriel_app', 'gabriel_research'],

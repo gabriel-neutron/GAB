@@ -4,7 +4,6 @@ import { cn } from '@/shared/lib/utils';
 
 import { ChangeMark } from './change-mark';
 import { CitedPassages } from './cited-passages';
-import { Confidence } from './confidence';
 import { Difference } from './difference';
 import { Holes } from './holes';
 import type { ActPassages } from './passages';
@@ -17,6 +16,8 @@ export interface ChangeCardProps {
   readonly current: boolean;
   readonly passages: ActPassages;
 }
+
+const DISPUTED = 'A check disputes this act.';
 
 export function ChangeCard({ change, current, passages }: ChangeCardProps) {
   // A row of an update carries the documents of the act. A row of a deletion carries the documents
@@ -42,32 +43,18 @@ export function ChangeCard({ change, current, passages }: ChangeCardProps) {
 
       <div className="flex h-6 shrink-0 items-center gap-2">
         <ChangeMark kind={change.kind} kindWords={change.kindWords} />
-        <span data-origin={change.origin} className="shrink-0 text-small/4 text-label">
-          {change.origin}
-        </span>
-        <Confidence report={change.confidenceReport} />
-        {/* A disagreement is a mark and never a sentence. An act with no recorded reason draws
-            the words and no mark: almost every act carries it, and a mark on every card marks
-            nothing. */}
-        {change.routing === 'unstated' ? (
+        {/* A disagreement is a mark and never a sentence. */}
+        {change.disputed ? (
           <span
-            data-routing={change.routing}
-            title={change.routingWords}
-            className="min-w-0 truncate text-small/4 text-label"
-          >
-            {change.routingWords}
-          </span>
-        ) : (
-          <span
-            data-routing={change.routing}
-            title={change.routingWords}
+            data-disputed
+            title={DISPUTED}
             className="inline-flex shrink-0 items-center gap-1 text-small/4 text-dissent"
           >
             <Split size={14} aria-hidden="true" />
-            {change.routingShort}
-            <span className="sr-only">{change.routingWords}</span>
+            disputed
+            <span className="sr-only">{DISPUTED}</span>
           </span>
-        )}
+        ) : null}
       </div>
 
       {passages.state === 'held' && passages.dispute !== null ? (

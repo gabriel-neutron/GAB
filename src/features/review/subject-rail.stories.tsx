@@ -20,7 +20,7 @@ const CUT: SubjectRow = {
   contested: true,
 };
 
-const SUBJECTS = sortSubjects(readQueue(reviewSample), 'confidence');
+const SUBJECTS = sortSubjects(readQueue(reviewSample), 'oldest');
 
 const ROWS = railRows(SUBJECTS, {});
 
@@ -33,7 +33,7 @@ const onSort = fn();
 const meta = {
   component: SubjectRail,
   args: {
-    queue: { rows: ROWS, currentId: ROWS[0]?.id ?? null, sort: 'confidence' },
+    queue: { rows: ROWS, currentId: ROWS[0]?.id ?? null, sort: 'oldest' },
     onSelect,
     onSort,
   },
@@ -79,10 +79,10 @@ export const ASettledActFillsTheTrackOfItsSubject: Story = {
   args: {
     queue: {
       rows: railRows(SUBJECTS, {
-        [SETTLED_TERMINAL_ACT]: { verdict: 'deferred', reason: 'The second reading is not in yet' },
+        [SETTLED_TERMINAL_ACT]: { verdict: 'rejected' },
       }),
       currentId: null,
-      sort: 'confidence',
+      sort: 'oldest',
     },
   },
   play: async ({ canvasElement }) => {
@@ -115,7 +115,7 @@ export const AContestedSubjectIsMarkedAndItsNameSaysSo: Story = {
 /** A label the rail cuts never drops the value: the whole name is under the pointer, and the
  * accessible name of the row carries it too. */
 export const ALabelThatIsCutKeepsItsWholeValue: Story = {
-  args: { queue: { rows: [CUT], currentId: CUT.id, sort: 'confidence' } },
+  args: { queue: { rows: [CUT], currentId: CUT.id, sort: 'oldest' } },
   play: async ({ canvas }) => {
     await expect(canvas.getByTitle(LONG_LABEL)).toHaveTextContent(LONG_LABEL);
     await expect(canvas.getByRole('button', { name: CUT.name })).toBeInTheDocument();
@@ -124,24 +124,25 @@ export const ALabelThatIsCutKeepsItsWholeValue: Story = {
 
 /** An empty queue says the count and the reason once, and it draws no control that sorts it. */
 export const AnEmptyQueueSaysTheCountAndTheReason: Story = {
-  args: { queue: { rows: [], currentId: null, sort: 'confidence' } },
+  args: { queue: { rows: [], currentId: null, sort: 'oldest' } },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelectorAll('[data-subject]')).toHaveLength(0);
     await expect(canvas.getByText(/Nothing waits for a decision/)).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: 'weakest first' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'oldest first' })).toBeNull();
   },
 };
 
 export const TheOrderOfTheQueueIsAControl: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('button', { name: 'weakest first' })).toHaveAttribute(
+    await expect(canvas.getByRole('button', { name: 'oldest first' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    const oldest = canvas.getByRole('button', { name: 'oldest first' });
-    await expect(oldest).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(oldest);
-    await expect(onSort).toHaveBeenCalledWith('oldest');
+    await expect(canvas.queryByRole('button', { name: 'weakest first' })).toBeNull();
+    const name = canvas.getByRole('button', { name: 'name' });
+    await expect(name).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(name);
+    await expect(onSort).toHaveBeenCalledWith('name');
   },
 };
 

@@ -26,54 +26,34 @@ describe('beginVerdict', () => {
 });
 
 describe('settleVerdict', () => {
-  it('holds no verdict after a refused promotion, and reads the queue again', () => {
+  it('holds no verdict after a refused promotion', () => {
     const refused: DecisionState = {
       step: 'refused',
       changeId: ACT,
       verdict: 'promoted',
       refusal: 'The act is no longer pending',
     };
-    expect(settleVerdict(refused, { verdict: 'promoted', reason: '' })).toEqual({
-      held: null,
-      readAgain: true,
-    });
+    expect(settleVerdict(refused, { verdict: 'promoted' })).toEqual({ held: null });
   });
 
-  it('holds no verdict after an unknown answer, and reads the queue again', () => {
+  it('holds no verdict after an unknown answer', () => {
     const unknown: DecisionState = {
       step: 'unknown',
       changeId: ACT,
       verdict: 'rejected',
       doubt: 'No answer came.',
     };
-    expect(settleVerdict(unknown, { verdict: 'rejected', reason: '' })).toEqual({
-      held: null,
-      readAgain: true,
-    });
+    expect(settleVerdict(unknown, { verdict: 'rejected' })).toEqual({ held: null });
   });
 
-  it('holds a deferred verdict and its reason, and reads nothing again', () => {
-    const decided: DecisionState = { step: 'done', changeId: ACT, verdict: 'deferred' };
-    expect(
-      settleVerdict(decided, { verdict: 'deferred', reason: 'Wait for the registry.' }),
-    ).toEqual({
-      held: { verdict: 'deferred', reason: 'Wait for the registry.' },
-      readAgain: false,
-    });
-  });
-
-  it('holds a landed promotion without the rest of the act, and reads the queue again', () => {
+  it('holds a landed promotion without the rest of the act', () => {
     const decided: DecisionState = { step: 'done', changeId: ACT, verdict: 'promoted' };
     const act: Decision & { readonly kind: 'decide'; readonly changeId: string } = {
       kind: 'decide',
       changeId: ACT,
       verdict: 'promoted',
-      reason: '',
     };
-    expect(settleVerdict(decided, act)).toStrictEqual({
-      held: { verdict: 'promoted', reason: '' },
-      readAgain: true,
-    });
+    expect(settleVerdict(decided, act)).toStrictEqual({ held: { verdict: 'promoted' } });
   });
 });
 
