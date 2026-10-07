@@ -81,14 +81,16 @@ const removed = async (ask: Ask, kind: 'entity' | 'relation', target: string): P
   await idOf(ask, PROMOTE, [await idOf(ask, DELETE, [`delete_${kind}`, kind, target]), 'a test']);
 };
 
-const endsPayload = (type: string, end: string): string =>
-  JSON.stringify({ type, src_kind: 'entity', src_id: end, dst_kind: 'entity', dst_id: end });
+const endsPayload = (type: string, src: string, dst: string): string =>
+  JSON.stringify({ type, src_kind: 'entity', src_id: src, dst_kind: 'entity', dst_id: dst });
 
+// Two ends, because a relation from an element to itself is blocked at the promotion.
 const promotedOf = (type: string): Promise<z.infer<typeof landed>> =>
   probe('app', async (ask) => {
-    const end = await promotedIn(ask, 'create_entity', ENTITY_PAYLOAD);
+    const src = await promotedIn(ask, 'create_entity', ENTITY_PAYLOAD);
+    const dst = await promotedIn(ask, 'create_entity', ENTITY_PAYLOAD);
     try {
-      const relation = await promotedIn(ask, 'create_relation', endsPayload(type, end));
+      const relation = await promotedIn(ask, 'create_relation', endsPayload(type, src, dst));
       try {
         return landed.parse(
           await ask('SELECT type, proposed_type FROM public.relations WHERE id = $1::uuid', [
@@ -99,7 +101,8 @@ const promotedOf = (type: string): Promise<z.infer<typeof landed>> =>
         await removed(ask, 'relation', relation);
       }
     } finally {
-      await removed(ask, 'entity', end);
+      await removed(ask, 'entity', dst);
+      await removed(ask, 'entity', src);
     }
   });
 

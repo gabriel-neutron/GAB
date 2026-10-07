@@ -27,7 +27,17 @@ export const SAMPLE_UNITS = {
   brigade: BRIGADE,
   link: '62b37efd-316f-4ea8-8e8d-b253355757d6',
   disputed: 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e',
+  orphan: 'c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f',
+  rejectedSource: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+  pointer: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',
+  twin: 'c3d4e5f6-a7b8-4c9d-8e0f-2a3b4c5d6e7f',
+  blockedMix: 'd7e8f9a0-b1c2-4d3e-8f4a-5b6c7d8e9f0a',
 } as const;
+
+/** The relation of the orphan unit, whose other end the operator rejected. */
+export const ORPHAN_RELATION = 'e0f1a2b3-c4d5-4e6f-9a7b-8c9d0e1f2a3b';
+
+const REJECTED_PARENT = 'f3a4b5c6-d7e8-4f9a-8b0c-1d2e3f4a5b6c';
 
 const v1Line = (name: string, more: string): string =>
   `v1 unit ${name.length.toString(16).padStart(8, '0')}-0000-4000-8000-000000000000 | ${name} | ` +
@@ -97,6 +107,41 @@ const relation = (
   ...ends,
 });
 
+type Level = 'blocks' | 'waits' | 'not_clean' | 'information';
+
+const faultsOf = (said: readonly (readonly [Level, string, string])[]) =>
+  said.map(([level, kind, words]) => ({ kind, level, act: null, said: words }));
+
+// Each sample unit holds a set of faults that the check of the database can give together. A
+// unit in a circle does not show the wait of the same end, and one relation has two ends only.
+const BLOCKED_MIX = faultsOf([
+  [
+    'blocks',
+    'circle',
+    'Waits in a circle with 19th Separate EW Brigade, which waits for this unit: reject one ' +
+      'relation of the circle',
+  ],
+  ['blocks', 'no_source', 'The act 68th GRAU arsenal cites no passage of a source'],
+  [
+    'blocks',
+    'self',
+    'The relation 68th GRAU arsenal subordinate to 68th GRAU arsenal has the same element at ' +
+      'its two ends',
+  ],
+  ['not_clean', 'contradiction', 'Two acts set echelon differently: Army and Brigade'],
+  ['not_clean', 'dispute', 'Disputed: the checker says unclear'],
+  [
+    'not_clean',
+    'duplicate',
+    'Same name and type under the same parent: 68th GRAU Arsenal is in the record',
+  ],
+  ['not_clean', 'reported_claim', 'The source reports a claim (alleges) and does not state a fact'],
+  ['not_clean', 'unknown_type', 'The entity type is unknown'],
+  ['information', 'approximate_position', 'The position is approximate'],
+  ['information', 'note', 'Note: no clear location'],
+  ['information', 'sources_from_parent', 'Sources from the parent Southern Military District'],
+]);
+
 /** The answer of the writer for the first page of the queue. */
 export const UNIT_ANSWER = {
   total: 1082,
@@ -109,6 +154,8 @@ export const UNIT_ANSWER = {
       type: 'military_unit',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'clean',
+      faults: [],
       acts: [
         entity(ARMY, '5th Combined Arms Army', {
           echelon: 'Army',
@@ -134,6 +181,27 @@ export const UNIT_ANSWER = {
       type: 'military_unit',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'clean',
+      faults: [
+        {
+          kind: 'end_waits_in_group',
+          level: 'waits',
+          act: '4a7b2d3f-1c0e-4f8a-b2d4-6e8f0a2b4c6d',
+          said: 'Waits for 5th Combined Arms Army in this group: promote it first',
+        },
+        {
+          kind: 'approximate_position',
+          level: 'information',
+          act: BRIGADE,
+          said: 'The position is approximate',
+        },
+        {
+          kind: 'sources_from_parent',
+          level: 'information',
+          act: null,
+          said: 'Sources from the parent 5th Combined Arms Army',
+        },
+      ],
       acts: [
         entity(BRIGADE, '57th Separate Motor Rifle Brigade', {
           echelon: 'Brigade',
@@ -154,6 +222,15 @@ export const UNIT_ANSWER = {
       type: 'subordinate_to',
       proposer: 'v1_import',
       group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: [
+        {
+          kind: 'end_waits',
+          level: 'blocks',
+          act: SAMPLE_UNITS.link,
+          said: 'Waits for Southern Military District (group Southern Military District)',
+        },
+      ],
       acts: [
         relation(SAMPLE_UNITS.link, BRIGADE, DISTRICT, {
           src: { name: '1061st Logistics Center', state: 'pending', group: GROUP },
@@ -170,6 +247,15 @@ export const UNIT_ANSWER = {
       type: 'state_body',
       proposer: 'extractor',
       group: null,
+      state: 'not_clean',
+      faults: [
+        {
+          kind: 'dispute',
+          level: 'not_clean',
+          act: SAMPLE_UNITS.disputed,
+          said: 'Disputed: no cited passage states label "North American countries"',
+        },
+      ],
       acts: [
         {
           id: SAMPLE_UNITS.disputed,
@@ -195,6 +281,157 @@ export const UNIT_ANSWER = {
           after: ' kept their imports.\nThe next section turns to the prices.',
         },
       ],
+    },
+    {
+      unit: SAMPLE_UNITS.orphan,
+      kind: 'entity',
+      name: '117th GRAU arsenal',
+      type: 'military_unit',
+      proposer: 'v1_import',
+      group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: [
+        {
+          kind: 'end_rejected',
+          level: 'blocks',
+          act: ORPHAN_RELATION,
+          said: 'The other end 1061st Logistics Center was rejected on 2026-10-07',
+        },
+        {
+          kind: 'same_name',
+          level: 'information',
+          act: null,
+          said: 'Same name under 20th Combined Arms Army',
+        },
+      ],
+      acts: [
+        entity(SAMPLE_UNITS.orphan, '117th GRAU arsenal', { military_unit_number: '57229-51' }),
+        relation(ORPHAN_RELATION, SAMPLE_UNITS.orphan, REJECTED_PARENT, {
+          src: { name: '117th GRAU arsenal', state: 'pending', group: GROUP },
+          dst: {
+            name: '1061st Logistics Center',
+            state: 'rejected',
+            group: null,
+            rejectedOn: '2026-10-07',
+          },
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.orphan, 3)],
+    },
+    {
+      unit: SAMPLE_UNITS.rejectedSource,
+      kind: 'link',
+      name: '1061st Logistics Center subordinate to Eastern Military District',
+      type: 'subordinate_to',
+      proposer: 'v1_import',
+      group: { id: OTHER_GROUP, subject: '1061st Logistics Center' },
+      state: 'blocked',
+      faults: [
+        {
+          kind: 'end_rejected',
+          level: 'blocks',
+          act: SAMPLE_UNITS.rejectedSource,
+          said: 'The end 1061st Logistics Center was rejected on 2026-10-07',
+        },
+      ],
+      acts: [
+        relation(SAMPLE_UNITS.rejectedSource, REJECTED_PARENT, RECORD_UNIT, {
+          src: {
+            name: '1061st Logistics Center',
+            state: 'rejected',
+            group: null,
+            rejectedOn: '2026-10-07',
+          },
+          dst: { name: 'Eastern Military District', state: 'record', group: null },
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.rejectedSource, 3)],
+    },
+    {
+      unit: SAMPLE_UNITS.pointer,
+      kind: 'relation',
+      name: '19th Separate EW Brigade contradicts a relation',
+      type: 'contradicts',
+      proposer: 'extractor',
+      group: null,
+      state: 'blocked',
+      faults: faultsOf([
+        [
+          'blocks',
+          'end_missing',
+          'The end 19th Separate EW Brigade is not in the record and not in the queue',
+        ],
+        [
+          'blocks',
+          'end_relation_waits',
+          'Points to the relation 5th Combined Arms Army subordinate to Eastern Military ' +
+            'District, which is not in the record yet',
+        ],
+      ]),
+      acts: [
+        relation(SAMPLE_UNITS.pointer, DISTRICT, '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c', {
+          src: { name: '19th Separate EW Brigade', state: 'missing', group: null },
+          dst: {
+            name: '5th Combined Arms Army subordinate to Eastern Military District',
+            state: 'pending',
+            group: GROUP,
+          },
+        }),
+      ],
+      documents: [REPORT],
+      passages: [],
+    },
+    {
+      unit: SAMPLE_UNITS.twin,
+      kind: 'entity',
+      name: '439th Guards Rocket Artillery Brigade',
+      type: 'military_unit',
+      proposer: 'v1_import',
+      group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'not_clean',
+      faults: faultsOf([
+        [
+          'waits',
+          'end_waits_in_group',
+          'Waits for 5th Combined Arms Army in this group: promote it first',
+        ],
+        [
+          'not_clean',
+          'duplicate',
+          'Same name and type under the same parent: 439th Guards Rocket Artillery Brigade ' +
+            'waits in the queue (group 5th Combined Arms Army)',
+        ],
+        ['information', 'sources_from_parent', 'Sources from the parent 5th Combined Arms Army'],
+      ]),
+      acts: [
+        entity(SAMPLE_UNITS.twin, '439th Guards Rocket Artillery Brigade', { echelon: 'Brigade' }),
+        relation('5b8c3e4a-2d1f-4a9b-c3e5-7f9a1b3c5d7e', SAMPLE_UNITS.twin, ARMY, {
+          src: { name: '439th Guards Rocket Artillery Brigade', state: 'pending', group: GROUP },
+          dst: { name: '5th Combined Arms Army', state: 'pending', group: GROUP },
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.twin, 1)],
+    },
+    {
+      unit: SAMPLE_UNITS.blockedMix,
+      kind: 'entity',
+      name: '68th GRAU arsenal',
+      type: 'unknown',
+      proposer: 'v1_import',
+      group: { id: GROUP, subject: '5th Combined Arms Army' },
+      state: 'blocked',
+      faults: BLOCKED_MIX,
+      acts: [
+        entity(SAMPLE_UNITS.blockedMix, '68th GRAU arsenal', {
+          position_precision: 'approximate',
+          note: 'no clear location',
+        }),
+      ],
+      documents: [V1],
+      passages: [passage(SAMPLE_UNITS.blockedMix, 4)],
     },
   ],
 };

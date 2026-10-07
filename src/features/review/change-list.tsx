@@ -4,13 +4,18 @@ import { LinkedWords } from './linked-words';
 import { unitChanges, type RelationLine, type UnitWords } from './unit-changes';
 import type { Attribute, EndState, Unit } from './unit-page';
 
+/** What the operator did to one relation: aim the rejection at it, or reject it at once because
+ * its other end was rejected. */
+export type RelationAct =
+  | { readonly kind: 'aim'; readonly relationId: string }
+  | { readonly kind: 'end_rejected'; readonly relationId: string };
+
 export interface ChangeListProps {
   readonly unit: Unit | null;
   readonly words: UnitWords;
   /** The relation that the operator aims to reject alone, or null. */
   readonly aimed: string | null;
-  /** The operator aims the rejection at one relation of the unit. */
-  readonly onAim: (relationId: string) => void;
+  readonly onRelation: (act: RelationAct) => void;
 }
 
 const AIM = cn(
@@ -18,10 +23,19 @@ const AIM = cn(
   'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 hover:text-foreground',
 );
 
-const STATE_WORDS: Readonly<Record<EndState, string>> = {
+const STATE_WORDS: Readonly<Record<Exclude<EndState, 'rejected'>, string>> = {
   record: 'in the record',
   pending: 'waits in the queue',
   missing: 'not in the record and not in the queue',
+};
+
+// A relation alone names the end that was rejected, because either end can be the one.
+const stateWords = (line: RelationLine): string => {
+  if (line.rejected === null)
+    return line.state === 'rejected' ? STATE_WORDS.missing : STATE_WORDS[line.state];
+  return line.from === null
+    ? `the other end was rejected on ${line.rejected.on}`
+    : `${line.rejected.name} was rejected on ${line.rejected.on}`;
 };
 
 const HEADING = 'mt-3 text-small/4 tracking-caps text-label uppercase';
@@ -44,12 +58,13 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
 
 interface RelationProps {
   readonly line: RelationLine;
-  /** Null where the relation is the whole unit, so it is rejected with its unit. */
-  readonly onAim: (() => void) | null;
+  /** False where the relation is the whole unit, so it is rejected with its unit. */
+  readonly alone: boolean;
   readonly aimed: boolean;
+  readonly onRelation: (act: RelationAct) => void;
 }
 
-function Relation({ line, onAim, aimed }: RelationProps) {
+function Relation({ line, alone, aimed, onRelation }: RelationProps) {
   return (
     <li
       data-relation={line.id}
@@ -58,10 +73,30 @@ function Relation({ line, onAim, aimed }: RelationProps) {
     >
       {line.from === null ? null : <span>{line.from} </span>}
       <span className="text-label">{line.word} →</span> <span>{line.other}</span>{' '}
-      <span className="text-small/4 text-label">({STATE_WORDS[line.state]})</span>
+      <span
+        className={cn('text-small/4', line.rejected === null ? 'text-label' : 'text-destructive')}
+      >
+        ({stateWords(line)})
+      </span>
       {line.disputed ? <span className="text-small/4 text-dissent"> disputed</span> : null}
-      {onAim === null || aimed ? null : (
-        <button type="button" className={AIM} onClick={onAim}>
+      {line.rejected !== null ? (
+        <button
+          type="button"
+          className={AIM}
+          onClick={() => {
+            onRelation({ kind: 'end_rejected', relationId: line.id });
+          }}
+        >
+          Reject this relation: end rejected
+        </button>
+      ) : !alone || aimed ? null : (
+        <button
+          type="button"
+          className={AIM}
+          onClick={() => {
+            onRelation({ kind: 'aim', relationId: line.id });
+          }}
+        >
           Reject this relation
         </button>
       )}
@@ -71,7 +106,7 @@ function Relation({ line, onAim, aimed }: RelationProps) {
 
 /** What one unit proposes, as read-only text: the entity first, then its relations, then any other
  * act. Nothing here is a field, because nothing here can be changed. */
-export function ChangeList({ unit, words, aimed, onAim }: ChangeListProps) {
+export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) {
   if (unit === null)
     return (
       <section aria-label="The changes of the unit" className="p-3 text-xs text-label">
@@ -112,14 +147,9 @@ export function ChangeList({ unit, words, aimed, onAim }: ChangeListProps) {
               <Relation
                 key={line.id}
                 line={line}
+                alone={entity !== null}
                 aimed={line.id === aimed}
-                onAim={
-                  entity === null
-                    ? null
-                    : () => {
-                        onAim(line.id);
-                      }
-                }
+                onRelation={onRelation}
               />
             ))}
           </ul>

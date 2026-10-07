@@ -99,11 +99,41 @@ export const ThePassageHasTwoLinesAroundIt: Story = {
   },
 };
 
-/** A dispute shows its reason. */
+/** A dispute shows its reason, under the faults that keep the unit out of a group action. */
 export const ADisputeShowsItsReason: Story = {
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByText('no cited passage states label "North American countries"'),
+      canvas.getByText('Disputed: no cited passage states label "North American countries".'),
+    ).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: 'Not clean: decide it alone' })).toBeVisible();
+  },
+};
+
+/** Each kind of fault has its sentence, under the level that says what it does to the unit. */
+export const EachFaultIsListedWithItsText: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.blockedMix) },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelectorAll('li[data-fault]')).toHaveLength(11);
+    for (const name of ['Blocks Promote', 'Not clean: decide it alone', 'Information'])
+      await expect(canvas.getByRole('heading', { name })).toBeVisible();
+    await expect(
+      canvas.getByText('The act 68th GRAU arsenal cites no passage of a source.'),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText('Sources from the parent Southern Military District.'),
+    ).toBeVisible();
+  },
+};
+
+/** A wait for an entity of the same group has its own heading, and the unit stays clean. */
+export const AWaitInTheGroupIsNoFaultOfTheUnit: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.brigade) },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('heading', { name: 'Promote of this unit alone waits' }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText('Waits for 5th Combined Arms Army in this group: promote it first.'),
     ).toBeVisible();
   },
 };
@@ -115,7 +145,7 @@ export const AFileWithNoAddressIsNoLink: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Page 1')).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'voinskaya-chast-poisk.ru' })).toBeVisible();
-    await expect(canvas.getByText('No act of this unit is disputed.')).toBeVisible();
+    await expect(canvas.getByText('No fault. A group action can promote this unit.')).toBeVisible();
   },
 };
 

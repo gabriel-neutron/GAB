@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { ChangeList } from './change-list';
 import { unitPageOf } from './unit-page';
-import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
+import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 import { unitWords } from './unit-words';
 
 const units = unitPageOf(UNIT_ANSWER)?.units ?? [];
@@ -23,9 +23,11 @@ const WORDS = unitWords(
   [],
 );
 
+const onRelation = fn();
+
 const meta = {
   component: ChangeList,
-  args: { unit: unitOf(SAMPLE_UNITS.army), words: WORDS, aimed: null, onAim: fn() },
+  args: { unit: unitOf(SAMPLE_UNITS.army), words: WORDS, aimed: null, onRelation },
   render: (args) => (
     <div className="flex h-[480px] w-[560px] flex-col border border-border">
       <ChangeList {...args} />
@@ -73,6 +75,26 @@ export const ARelationToAWaitingEntitySaysSo: Story = {
     await expect(line).toHaveTextContent(
       'subordinate to → 5th Combined Arms Army (waits in the queue)',
     );
+  },
+};
+
+/** A relation whose other end was rejected names that end and the day, and one action rejects
+ * the relation with the reason "end rejected". */
+export const ARelationToARejectedEndNamesItAndRejects: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.orphan) },
+  play: async ({ canvas, canvasElement }) => {
+    onRelation.mockClear();
+    const line = canvasElement.querySelector('[data-relation]');
+    await expect(line).toHaveTextContent(
+      'subordinate to → 1061st Logistics Center (the other end was rejected on 2026-10-07)',
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Reject this relation: end rejected' }),
+    );
+    await expect(onRelation).toHaveBeenCalledWith({
+      kind: 'end_rejected',
+      relationId: ORPHAN_RELATION,
+    });
   },
 };
 
