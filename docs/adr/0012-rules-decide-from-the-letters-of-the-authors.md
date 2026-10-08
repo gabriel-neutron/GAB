@@ -30,7 +30,8 @@ on 7 October 2026.
 ### The rules
 
 - The rules of S3 run **in the database**, as one function. Every writer gets the same decision,
-  and no machine role can decide in place of a rule.
+  and no machine role can call this function in place of a rule. An AI reviewer decides through the
+  MCP server as a separate act, with its own origin "decided by an AI reviewer" (ADR 0010, #376).
 - The function runs on a unit when its acts are written, when one of its authors gets a letter,
   and when a new act cites a new source for one of its facts.
 - The **first rule that matches** decides: impossible, doubt, strong sources, weak sources.
@@ -39,7 +40,7 @@ on 7 October 2026.
   check today, so it waits until that check exists.
 - The **threshold** is a row of configuration, not a code constant. It starts strict.
 - A decision records the rule name and its version in the origin of the decision (S4). A decision
-  of the operator records "validated manually by the operator".
+  of the operator records "validated manually by the operator". A decision of an AI reviewer records "decided by an AI reviewer".
 - Code computes the **digit** of each fact when it reads the fact. The digit is not stored, so it
   never goes stale.
 - **Weak sources:** the unit waits. A unit whose only sources are D or E is rejected only after a
