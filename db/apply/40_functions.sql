@@ -2679,13 +2679,15 @@ $$;
 -- comes first, because nothing else can help while it is missing. The letters come from the
 -- configuration of the strong rule, so a new threshold changes the sentence. NULL when the unit
 -- has no act that waits. The conflict of an author F that waits is told before the need. No role
--- holds this step: only the read of the operator calls it.
-CREATE OR REPLACE FUNCTION unit_said(p_unit uuid, p_rule text)
+-- holds this step: only the read of the operator calls it. The read gives the faults that it
+-- checked already, so the costly check runs once for each unit.
+DROP FUNCTION IF EXISTS unit_said(uuid, text);
+CREATE OR REPLACE FUNCTION unit_said(p_unit uuid, p_rule text, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_faults jsonb;
+  v_faults jsonb := p_faults;
   v_said   text;
   v_conflict text;
   v_need   text;
@@ -2693,7 +2695,6 @@ DECLARE
   v_pair   text;
   v_other  text;
 BEGIN
-  SELECT f.faults INTO v_faults FROM public.unit_faults(ARRAY[p_unit]) AS f;
   IF v_faults IS NULL THEN
     RETURN NULL;
   END IF;
@@ -2780,10 +2781,11 @@ END $$;
 -- unit opens a link to a unit that is not on the first page; a unit that waits no more gives no
 -- unit.
 --
--- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so a page with no fault filter checks only the
--- groups that the page can reach: the group of the key that the page starts after, and the next
--- groups until they hold one unit more than the page. A fault filter checks every unit that the
--- other filters keep.
+-- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so it runs once for each unit that waits, in one
+-- call, and the lanes, the filters and the sentences read its result. A page with no fault filter
+-- sorts only the groups that the page can reach: the group of the key that the page starts after,
+-- and the next groups until they hold one unit more than the page. A fault filter sorts every
+-- unit that the other filters keep.
 --
 -- The answer also counts every unit of the queue, the units that the filters keep, and the units
 -- of the filters before the page, and it gives the choices of the filters: each group in the order
@@ -2810,12 +2812,17 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.proposals p
      WHERE p.status = 'pending'
      ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
+  ), faulted AS (
+    -- The faults of every unit that waits, from one call. The lanes, the fault filter and the
+    -- sentence of each unit read them here, so the costly check runs once for each unit.
+    SELECT f.unit_id, f.state, f.faults
+      FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
     -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting". The faults of every unit come from one call.
+    -- other result is the lane "waiting".
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
       FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
-              FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f) AS r
+              FROM faulted f) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
@@ -2873,11 +2880,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT fa.unit_id, fa.state, fa.faults,
            p_fault IS NULL OR fa.faults @> jsonb_build_array(jsonb_build_object('kind', p_fault))
              AS hit
-      FROM public.unit_faults(ARRAY(
-             SELECT k.unit_id FROM kept k
-              WHERE p_fault IS NOT NULL OR p_lane IS NOT NULL
-                 OR k.group_key IN (SELECT group_key FROM reached)))
-           AS fa
+      FROM faulted fa
+     WHERE fa.unit_id IN (SELECT k.unit_id FROM kept k
+                           WHERE p_fault IS NOT NULL OR p_lane IS NOT NULL
+                              OR k.group_key IN (SELECT group_key FROM reached))
   ), keyed AS (
     SELECT k.*, ch.state, ch.faults, ru.rule, ru.lane,
            k.group_key || CASE WHEN ch.state = 'clean' THEN '1' ELSE '0' END || k.tail_key
@@ -3005,7 +3011,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                'state', s.state,
                'faults', s.faults,
                'lane', s.lane,
-               'said', public.unit_said(s.unit_id, s.rule),
+               'said', public.unit_said(s.unit_id, s.rule, s.faults),
                'endRejected', ac.end_rejected,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
