@@ -85,9 +85,9 @@ const offlineProject = nodeProject('offline', [
 // Departure: the store test reaches the object store and no database, so it gets no live target.
 const liveProjects = [
   nodeProject('store', ['packages/store/src/**/*.db-test.ts']),
-// Departure: the group action test commits about a hundred pending acts and undoes them, while the
-// queue test of the writer counts the pending acts. The files of the writer project run one after
-// the other, so no file sees the rows of another file.
+  // Departure: the group action test commits about a hundred pending acts and undoes them, while the
+  // queue test of the writer counts the pending acts. The files of the writer project run one after
+  // the other, so no file sees the rows of another file.
   nodeProject('writer', ['packages/writer/src/**/*.db-test.ts'], LIVE_TARGET, WRITER_GROUP, false),
   nodeProject('worker', ['packages/worker/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('tools', ['packages/tools/src/**/*.db-test.ts'], LIVE_TARGET),
