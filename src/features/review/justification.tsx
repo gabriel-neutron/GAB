@@ -1,6 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
 
+import { checkLines } from './check-words';
 import { CitedImage } from './cited-image';
 import { isImageType } from './document-image';
 import { documentName } from './document-name';
@@ -104,12 +105,13 @@ function Quote({ passage }: { readonly passage: Passage }) {
   );
 }
 
-/** Why the unit stands in the queue: who proposed it, the documents it cites with the exact words
- * of each page and two lines around them, the stored image of a cited PNG or JPEG, and each fault
- * that the check found, with its sentence. The operator compares the words that OCR read with the
+/** Why the unit stands in the queue: who proposed it, which check ran on each act, the documents it
+ * cites with the exact words of each page and two lines around them, the stored image of a cited
+ * PNG or JPEG, and each fault that the check found, with its sentence. The operator compares the words that OCR read with the
  * image, because OCR can misread a character. */
 export function Justification({ unit }: JustificationProps) {
   if (unit === null) return <section aria-label="The justification" className="p-3" />;
+  const checks = checkLines(unit.acts);
   // The image of a document is read once, beside every passage that the unit cites from it.
   const passagesOf = (document: SourceDocument) =>
     distinct(unit.passages.filter((passage) => passage.document === document.id)).map((passage) => {
@@ -171,6 +173,22 @@ export function Justification({ unit }: JustificationProps) {
           <p className="break-words">{withFullStop(unit.said)}</p>
         </div>
       )}
+
+      <div className="space-y-0.5">
+        <h3 className={HEADING}>Check</h3>
+        <ul className="space-y-0.5">
+          {checks.map((line) => (
+            <li
+              key={line.act}
+              data-check={line.state}
+              className={cn('break-words', line.state === 'disputed' && 'text-dissent')}
+            >
+              {checks.length > 1 ? `${line.name}: ` : ''}
+              {withFullStop(line.words)}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div className="space-y-2" data-faults={unit.state}>
         <h3 className={HEADING}>Faults</h3>

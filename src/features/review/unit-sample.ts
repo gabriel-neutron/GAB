@@ -86,6 +86,7 @@ const entity = (
   dissent: false,
   endRejected: false,
   dissentReason: null,
+  check: null,
   target: null,
   src: null,
   dst: null,
@@ -113,6 +114,7 @@ const relation = (
   dissent: false,
   endRejected,
   dissentReason: null,
+  check: null,
   target: null,
   ...ends,
 });
@@ -312,6 +314,7 @@ const BASE = {
           dissent: true,
           endRejected: false,
           dissentReason: 'no cited passage states label "North American countries"',
+          check: null,
           target: null,
           src: null,
           dst: null,

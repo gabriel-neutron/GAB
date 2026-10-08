@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, restoreAllMocks, spyOn, userEvent, waitFor } from 'storybook/test';
 
 import { Justification } from './justification';
-import { unitPageOf } from './unit-page';
+import { unitPageOf, type ActCheck, type Unit } from './unit-page';
 import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 
 const units = unitPageOf(UNIT_ANSWER, null)?.units ?? [];
@@ -286,5 +286,86 @@ export const ATextDocumentDrawsNoImage: Story = {
     await expect(canvasElement.querySelector('[data-passage]')).toBeVisible();
     await expect(canvas.queryByRole('img')).toBeNull();
     await expect(asked).toStrictEqual([]);
+  },
+};
+
+const CHECKER = 'other-family/check-model';
+
+// A fact of the research AI, as the writer gives it after the check by a second model.
+const researchFact = (check: ActCheck | null, dispute: string | null): Unit | null => {
+  const held = unitOf(SAMPLE_UNITS.disputed);
+  if (held === null) return null;
+  return {
+    ...held,
+    proposer: 'research_ai',
+    state: dispute === null ? 'clean' : 'not_clean',
+    faults:
+      dispute === null
+        ? []
+        : [{ kind: 'dispute', level: 'not_clean', act: SAMPLE_UNITS.disputed, said: dispute }],
+    acts: held.acts.map((act) => ({ ...act, disputed: dispute !== null, check })),
+  };
+};
+
+/** A research fact that a second model found in its passage says which check ran. */
+export const AResearchFactSaysThatASecondModelCheckedIt: Story = {
+  args: { unit: researchFact({ model: CHECKER, verdict: 'supported', passed: true }, null) },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByText('research AI')).toBeVisible();
+    await expect(
+      canvas.getByText(`Checked by a second model, ${CHECKER}: the passage supports it.`),
+    ).toBeVisible();
+    await expect(canvasElement.querySelector('[data-check="passed"]')).not.toBeNull();
+  },
+};
+
+/** A research fact that its passage does not support is disputed, and the card gives the check
+ * and the reason of the checker. */
+export const ADisputedResearchFactGivesTheReasonOfTheChecker: Story = {
+  args: {
+    unit: researchFact(
+      { model: CHECKER, verdict: 'not_supported', passed: false },
+      'Disputed: the checker finds that the passage does not support the act: The passage ' +
+        'names European and Asian countries',
+    ),
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(
+      canvas.getByText(`Checked by a second model, ${CHECKER}: the passage does not support it.`),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText(/the passage does not support the act: The passage names European/u),
+    ).toBeVisible();
+    await expect(canvasElement.querySelector('[data-check="disputed"]')).not.toBeNull();
+  },
+};
+
+/** A research fact that no model could check says that code alone checked it, and the dispute
+ * gives the reason of the failure. */
+export const AFailedCheckSaysThatCodeAloneCheckedTheFact: Story = {
+  args: {
+    unit: researchFact(
+      null,
+      'Disputed: no model checked it: the checker failed: the model service did not answer',
+    ),
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(
+      canvas.getByText('Checked by code only: no second model checked it.'),
+    ).toBeVisible();
+    await expect(canvas.getByText(/no model checked it: the checker failed/u)).toBeVisible();
+    await expect(canvasElement.querySelector('[data-check="passed"]')).toBeNull();
+  },
+};
+
+/** A unit of more than one act names the act of each check. */
+export const EachActOfAUnitNamesItsCheck: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.army) },
+  play: async ({ canvasElement }) => {
+    const lines = canvasElement.querySelectorAll('li[data-check]');
+    await expect(lines).toHaveLength(2);
+    await expect(lines[0]).toHaveTextContent(
+      '5th Combined Arms Army: Checked by code only: no second model checked it.',
+    );
   },
 };

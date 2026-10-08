@@ -56,6 +56,52 @@ const check = (ask: Ask, act: string): Promise<unknown> =>
 
 const name = () => `Author ${randomUUID()}`;
 
+const checkedPage = z.object({
+  units: z.array(
+    z.object({
+      acts: z.array(
+        z.object({
+          id: z.uuid(),
+          check: z
+            .object({ model: z.string(), verdict: z.string(), passed: z.boolean() })
+            .nullable(),
+        }),
+      ),
+    }),
+  ),
+});
+
+test('each act of the review read gives the check of a second model on it, or null', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'C');
+    const checked = await cited(ask, { author, label: label() });
+    const unchecked = await cited(ask, { author, label: label() });
+    await check(ask, checked.act);
+    const actsOf = async (act: string) => {
+      const unit = await unitOf(ask, act);
+      const [row] = z
+        .array(z.object({ page: checkedPage }))
+        .parse(
+          await as(ask, 'gabriel_app', () =>
+            ask(
+              'SELECT public.review_units(NULL, 50, NULL, NULL, NULL, NULL, NULL, $1::uuid) AS page',
+              [unit],
+            ),
+          ),
+        );
+      return row?.page.units[0]?.acts;
+    };
+    return { checked: await actsOf(checked.act), unchecked: await actsOf(unchecked.act) };
+  });
+  expect(seen.checked?.[0]?.check).toStrictEqual({
+    model: 'a-checker',
+    verdict: 'supported',
+    passed: true,
+  });
+  expect(seen.unchecked?.[0]?.check).toBeNull();
+});
+
 test('a disputed unit is in the lane of the doubts with its reason, and not in the other lane', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     const author = name();
