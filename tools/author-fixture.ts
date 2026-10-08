@@ -130,7 +130,7 @@ export const cited = async (ask: Ask, source: Source): Promise<Cited> => {
       ? {}
       : { dissent: true, dissent_reason: source.dissentReason }),
     citations: [
-      { document: doc, text_extractor: EXTRACTOR, page: 1, start: 0, end: [...text].length },
+      { document: doc, text_extractor: EXTRACTOR, page: 1, start: 0, end: Array.from(text).length },
     ],
   };
   const written = z
@@ -142,15 +142,13 @@ export const cited = async (ask: Ask, source: Source): Promise<Cited> => {
     );
   const act = written[0]?.proposal_id;
   if (act === undefined) throw new Error('the door wrote no act');
-  const [row] = z
-    .array(z.object({ claim_key: z.string(), citation: z.uuid() }))
-    .parse(
-      await ask(
-        `SELECT p.claim_key, c.id AS citation FROM public.proposals p
+  const [row] = z.array(z.object({ claim_key: z.string(), citation: z.uuid() })).parse(
+    await ask(
+      `SELECT p.claim_key, c.id AS citation FROM public.proposals p
            JOIN public.citation c ON c.claim_id = p.id WHERE p.id = $1::uuid`,
-        [act],
-      ),
-    );
+      [act],
+    ),
+  );
   if (row === undefined) throw new Error('the act has no citation');
   return { act, citation: row.citation, claimKey: row.claim_key };
 };

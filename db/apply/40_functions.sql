@@ -3390,4 +3390,115 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.citation_source(p_one) one, public.citation_source(p_two) two), false)
 $$;
 
+-- ================================================================== THE CHECK AND THE DIGIT ==
+-- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
+-- and never that the fact is true. The row names the family of the reader and the family of the
+-- checker: a check by the same family does not pass. A check is written once for an act.
+CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
+                                            p_checker_family text, p_reader_family text,
+                                            p_verdict text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.proposals p WHERE p.id = p_act AND p.originator IS NOT NULL)
+  THEN
+    RAISE EXCEPTION 'a check belongs to an act of a machine' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
+  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict);
+END $$;
+
+-- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
+-- attributes is about. Two acts with one target and one key with two values disagree. An act of
+-- another operation gives no value.
+CREATE OR REPLACE FUNCTION value_target(p_op text, p_claim_key text, p_target_id uuid) RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE p_op
+           WHEN 'create_entity' THEN p_claim_key
+           WHEN 'update_attrs' THEN public.claim_end_key(p_target_id::text)
+         END
+$$;
+
+-- THE DIGIT OF A FACT, FROM ITS CITATIONS, ON EACH READ. A fact is a claim: the acts of a machine
+-- with one claim key. A rejected act is no source. THE DIGIT READS NO LETTER (decisions.md S1):
+-- it comes from the citations, the independence of their authors, controllers, sites and passages,
+-- the conflicts between values, and the checks of the second model family. Code tries 5, 4, 1, 2,
+-- 3 and 6.
+--
+--   none  no act of the fact has a passed check of a second model family;
+--   5     a checker disputed an act of the fact, or a party to the conflict denies it;
+--   4     another pending act gives a different value for the same attribute of the same target;
+--   1     two citations are independent, and no conflict stands;
+--   2     two citations or more, and no pair is proved independent;
+--   3     one citation with a known author;
+--   6     no citation has a known author.
+--
+-- Departure from ADR 0012: the check gates the digit before the rule 5, because a fact that no
+-- check passed has no digit. A fact whose only check disputes it shows no digit, and its act is
+-- disputed in the review queue already. The digit is not stored, so it never goes stale.
+CREATE OR REPLACE FUNCTION fact_digit(p_claim_key text) RETURNS smallint
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_acts uuid[];
+  v_stating uuid[];
+  v_known int;
+BEGIN
+  SELECT array_agg(p.id) INTO v_acts
+    FROM public.proposals p
+   WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL;
+  IF v_acts IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = ANY (v_acts) AND k.passed)
+  THEN
+    RETURN NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.act_check k
+              WHERE k.proposal_id = ANY (v_acts) AND k.verdict <> 'supported')
+     OR EXISTS (SELECT 1
+                  FROM public.citation c
+                  JOIN public.proposals p ON p.id = c.claim_id
+                  JOIN public.author a ON a.id = public.author_of(p.originator)
+                 WHERE c.claim_id = ANY (v_acts) AND c.modality = 'denies' AND a.party)
+  THEN
+    RETURN 5;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+      FROM public.proposals a
+      JOIN public.proposals q
+        ON q.status = 'pending' AND q.id <> a.id
+       AND public.value_target(a.op, a.claim_key, a.target_id) =
+           public.value_target(q.op, q.claim_key, q.target_id)
+      CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS av
+      CROSS JOIN LATERAL jsonb_each(coalesce(q.payload->'attrs', '{}'::jsonb)) AS qv
+     WHERE a.id = ANY (v_acts) AND av.key = qv.key
+       AND av.value->'v' IS DISTINCT FROM qv.value->'v')
+  THEN
+    RETURN 4;
+  END IF;
+
+  SELECT array_agg(c.id) INTO v_stating
+    FROM public.citation c
+   WHERE c.claim_id = ANY (v_acts) AND c.modality IN ('enacts', 'asserts');
+  v_stating := coalesce(v_stating, '{}'::uuid[]);
+  SELECT count(*) INTO v_known
+    FROM unnest(v_stating) AS s(id)
+   WHERE (SELECT x.author FROM public.citation_source(s.id) x) IS NOT NULL;
+
+  IF EXISTS (SELECT 1 FROM unnest(v_stating) AS one(id), unnest(v_stating) AS two(id)
+              WHERE one.id < two.id AND public.citations_independent(one.id, two.id)) THEN
+    RETURN 1;
+  END IF;
+  IF cardinality(v_stating) >= 2 AND v_known >= 1 THEN
+    RETURN 2;
+  END IF;
+  IF v_known >= 1 THEN
+    RETURN 3;
+  END IF;
+  RETURN 6;
+END $$;
+
 RESET ROLE;

@@ -5,7 +5,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { as, MODEL, rate, refusal, reference } from './author-fixture.ts';
+import { as, MODEL, rate, refusal, reference, type Options } from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const JOIN = 'SELECT public.join_author_name($1, $2)';
@@ -15,7 +15,9 @@ const letterOf = async (ask: Ask, name: string): Promise<string | undefined> =>
   z
     .array(z.object({ letter: z.string() }))
     .parse(
-      await as(ask, 'gabriel_app', () => ask('SELECT public.letter_of($1)::text AS letter', [name])),
+      await as(ask, 'gabriel_app', () =>
+        ask('SELECT public.letter_of($1)::text AS letter', [name]),
+      ),
     )[0]?.letter;
 
 test('an author with no letter reads as F, and a name with no author is no author', async () => {
@@ -116,7 +118,9 @@ test('a name that has an author cannot be rated twice', async () => {
 test('the agent role joins a new name to a known author', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     await rate(ask, 'Regional Daily', 'D');
-    await as(ask, 'gabriel_agent', () => ask(JOIN, ['The Regional Daily Online', 'regional daily']));
+    await as(ask, 'gabriel_agent', () =>
+      ask(JOIN, ['The Regional Daily Online', 'regional daily']),
+    );
     return letterOf(ask, 'the regional daily online');
   });
   expect(read).toBe('D');
@@ -127,8 +131,12 @@ test('a join into an unknown author, or of a known name, is refused', async () =
     await rate(ask, 'Known One', 'D');
     await rate(ask, 'Known Two', 'D');
     return [
-      await refusal(ask, () => as(ask, 'gabriel_agent', () => ask(JOIN, ['New Name', 'No Such Author']))),
-      await refusal(ask, () => as(ask, 'gabriel_agent', () => ask(JOIN, ['Known One', 'Known Two']))),
+      await refusal(ask, () =>
+        as(ask, 'gabriel_agent', () => ask(JOIN, ['New Name', 'No Such Author'])),
+      ),
+      await refusal(ask, () =>
+        as(ask, 'gabriel_agent', () => ask(JOIN, ['Known One', 'Known Two'])),
+      ),
     ];
   });
   expect(said[0]).toMatch(/no known author/u);
@@ -202,20 +210,16 @@ test('the agent role holds a door for a letter and none for a decision', async (
 
 test('the public read shows no letter and no digit', async () => {
   const read = await rolledBack('superuser', async (ask) => {
-    const columns = z
-      .array(z.object({ column_name: z.string() }))
-      .parse(
-        await ask(
-          `SELECT column_name FROM information_schema.columns
+    const columns = z.array(z.object({ column_name: z.string() })).parse(
+      await ask(
+        `SELECT column_name FROM information_schema.columns
             WHERE table_schema = 'api'
               AND (column_name ~* '(letter|digit|reliab|credib|controller)')`,
-        ),
-      );
-    const views = z
-      .array(z.object({ name: z.string() }))
-      .parse(
-        await ask(
-          `SELECT DISTINCT c.relname AS name
+      ),
+    );
+    const views = z.array(z.object({ name: z.string() })).parse(
+      await ask(
+        `SELECT DISTINCT c.relname AS name
              FROM pg_catalog.pg_depend d
              JOIN pg_catalog.pg_rewrite r ON r.oid = d.objid
              JOIN pg_catalog.pg_class c ON c.oid = r.ev_class
@@ -223,8 +227,8 @@ test('the public read shows no letter and no digit', async () => {
             WHERE n.nspname = 'api'
               AND d.refobjid IN ('public.author'::regclass, 'public.author_name'::regclass,
                                  'public.act_check'::regclass)`,
-        ),
-      );
+      ),
+    );
     const denied: (string | null)[] = [];
     for (const statement of [
       'SELECT * FROM public.author',
