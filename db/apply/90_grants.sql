@@ -46,9 +46,10 @@ GRANT SELECT (id, document_id, kind, status, failure_reason, claimed_by, claimed
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, entities, relations
   TO gabriel_research;
 
--- THE REASON AND THE NOTE OF A REJECTION ARE THE OPERATOR'S. They can name a party or quote a
--- page, and a machine role reads untrusted text, so the two machine roles read every column of
--- an act except these two. A new column of the table needs its own line here.
+-- THE REASON AND THE NOTE OF A REJECTION, AND THE REASON OF AN AI REVIEWER, ARE PRIVATE. They can
+-- name a party or quote a page, and a machine role reads untrusted text, so the two machine roles
+-- read every column of an act except these three. The research AI reads them only through the
+-- read of the review, as an AI reviewer. A new column of the table needs its own line here.
 GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, dissent,
   author_role, xact, status, created_at, decided_at, decided_by, model_call_id, act_digest,
   originator, batch_id, dissent_reason, unit_id, proposer, decided_as, claim_key,
@@ -79,7 +80,7 @@ REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION apply_proposal_as(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_proposal_as(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
@@ -92,11 +93,18 @@ REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
-REVOKE ALL ON FUNCTION write_unit_as(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION write_unit_as(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_unit_as(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_unit_as(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_relation_as(uuid,text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_decision(text,uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_promote_unit(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
@@ -178,6 +186,13 @@ GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
+-- THE DECISIONS OF AN AI REVIEWER. The research role holds three doors of its own, and no door of
+-- the operator. Each one records the origin "decided by an AI reviewer" and the reason that the AI
+-- gives, so a decision of the AI never reads as a rule or as a decision of the operator. The
+-- research role holds no step of the rules, so it cannot decide in place of a rule.
+GRANT EXECUTE ON FUNCTION ai_promote_unit(uuid,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_reject_unit(uuid,text,text,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_reject_relation(uuid,text,text,text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
@@ -212,21 +227,25 @@ GRANT EXECUTE ON FUNCTION complete_job(uuid,int,int,text) TO gabriel_agent;
 
 -- A LEAD IS STARTED BY THE OPERATOR OR BY THE RESEARCH AI, AND NEVER BY THE WORKER. The agent that
 -- runs a lead starts no lead of its own, so the worker role holds no grant on the start. It
--- records the documents of the lead that it runs, and the operator alone reads the leads.
+-- records the documents of the lead that it runs. The operator and the research AI read the
+-- leads, and the worker does not.
 GRANT EXECUTE ON FUNCTION start_lead(text)         TO gabriel_app, gabriel_research;
 GRANT EXECUTE ON FUNCTION record_lead_document(uuid,text) TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
+GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app, gabriel_research;
 
--- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
--- dispute and the reason and the note of each rejection, and only the operator reads them.
+-- THE QUEUE OF THE REVIEW IS gabriel_app AND gabriel_research. It holds the cited passages, the
+-- reason of each dispute and the reason and the note of each rejection. The operator reads them in
+-- the review page, and the research AI reads them as an AI reviewer. The worker does not, because
+-- it runs a model over untrusted text with no person to ask.
 REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text)
+  TO gabriel_app, gabriel_research;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
+GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app, gabriel_research;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app, gabriel_research;
 REVOKE ALL ON FUNCTION review_decided(timestamptz,uuid,int) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_decided(timestamptz,uuid,int) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION review_decided(timestamptz,uuid,int) TO gabriel_app, gabriel_research;
 
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count
