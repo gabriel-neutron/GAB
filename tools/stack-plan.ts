@@ -2,7 +2,8 @@
 // stacks it must remove first, and the processes it must stop. Nothing here reaches Docker, the
 // disk or a process, so an offline test holds each rule.
 
-import { basename, isAbsolute, relative, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { z } from 'zod';
 
@@ -39,11 +40,17 @@ const BLOCK_END = '# <<< session stack';
 export const slotPorts = (slot: number): readonly number[] =>
   Object.values(MAIN_PORTS).map((port) => port + slot * PORT_STEP);
 
-/** The compose project name of the stack of one checkout, from the name of its folder. */
-export const projectOf = (root: string): string =>
-  `${SESSION_PREFIX}${basename(root)
+// Origin of the number: six hex digits of the full path keep two folders of the same name apart.
+const PATH_HASH_LENGTH = 6;
+
+/** The compose project name of the stack of one checkout: its folder name and a hash of its path. */
+export const projectOf = (root: string): string => {
+  const name = basename(root)
     .toLowerCase()
-    .replaceAll(/[^a-z0-9_-]/gu, '-')}`;
+    .replaceAll(/[^a-z0-9_-]/gu, '-');
+  const hash = createHash('sha256').update(root).digest('hex').slice(0, PATH_HASH_LENGTH);
+  return `${SESSION_PREFIX}${name}-${hash}`;
+};
 
 /** The variables that point the tools, the tests and compose at the stack of one slot. */
 export const stackValues = (project: string, slot: number): Readonly<Record<string, string>> => {
@@ -69,7 +76,9 @@ export const stackValues = (project: string, slot: number): Readonly<Record<stri
 const withoutBlock = (text: string): string => {
   const start = text.indexOf(BLOCK_START);
   const end = text.indexOf(BLOCK_END);
-  if (start === -1 || end === -1) return text;
+  if (start === -1) return text;
+  // A block with no end mark was cut, so everything after its start goes.
+  if (end === -1) return text.slice(0, start);
   return text.slice(0, start) + text.slice(end + BLOCK_END.length);
 };
 
@@ -115,11 +124,26 @@ export const sessionStacks = (json: string): readonly SessionStack[] =>
       configFiles: stack.ConfigFiles.split(',').filter((file) => file !== ''),
     }));
 
-/** The session stacks whose checkout is gone: no compose file of the stack exists any more. */
+const isWorktreeComposeFile = (main: string, file: string): boolean =>
+  basename(file) === 'docker-compose.yml' &&
+  basename(dirname(file)) === 'infra' &&
+  isInside(join(main, '.claude', 'worktrees'), file);
+
+/**
+ * The session stacks whose worktree is gone. Each compose file of the stack is the one of a
+ * worktree of the main checkout, and none of them exists any more. A stack of another place stays.
+ */
 export const orphanStacks = (
   stacks: readonly SessionStack[],
+  main: string,
   exists: (file: string) => boolean,
-): readonly SessionStack[] => stacks.filter((stack) => !stack.configFiles.some(exists));
+): readonly SessionStack[] =>
+  stacks.filter(
+    ({ configFiles }) =>
+      configFiles.length > 0 &&
+      configFiles.every((file) => isWorktreeComposeFile(main, file)) &&
+      !configFiles.some(exists),
+  );
 
 export interface SeenProcess {
   readonly pid: number;
@@ -134,24 +158,51 @@ const isInside = (root: string, path: string): boolean => {
 
 const NODE_PROGRAMS = new Set(['node', 'node.exe']);
 
+// External constraint: these flags of node take the next argument as their value, so that
+// argument is not the script.
+const FLAGS_WITH_VALUE = new Set([
+  '-r',
+  '--require',
+  '--import',
+  '--loader',
+  '--experimental-loader',
+  '-C',
+  '--conditions',
+  '--env-file',
+  '--input-type',
+]);
+
+// The script of a node command line: the first argument after the flags of node. A command with
+// no script (`node -e`, a prompt) has none.
+const scriptOf = (args: readonly string[]): string | null => {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? '';
+    if (arg === '-e' || arg === '--eval' || arg === '-p' || arg === '--print') return null;
+    if (FLAGS_WITH_VALUE.has(arg)) index += 1;
+    else if (!arg.startsWith('-')) return arg;
+  }
+  return null;
+};
+
 /**
- * The node processes that this checkout started: each one works in the checkout and runs a file of
- * it. A process in `kept` (this process and its parents) never stops, and neither does a node
- * program that runs from outside the checkout, such as a tool server of the agent.
+ * The node processes that this checkout started: each one works in the checkout and its script is
+ * a file of the checkout. A process in `kept` (this process and its parents) never stops, and
+ * neither does a program that runs from outside the checkout, such as a tool server of the agent.
  */
 export const strayProcesses = (
   seen: readonly SeenProcess[],
   root: string,
   kept: ReadonlySet<number>,
+  exists: (file: string) => boolean,
 ): readonly number[] =>
   seen
     .filter(({ pid, cwd, argv }) => {
       const [program = '', ...args] = argv;
-      return (
-        !kept.has(pid) &&
-        NODE_PROGRAMS.has(basename(program)) &&
-        isInside(root, cwd) &&
-        args.some((arg) => !arg.startsWith('-') && isInside(root, resolve(cwd, arg)))
-      );
+      const script = scriptOf(args);
+      if (kept.has(pid) || !NODE_PROGRAMS.has(basename(program)) || !isInside(root, cwd))
+        return false;
+      if (script === null) return false;
+      const file = resolve(cwd, script);
+      return isInside(root, file) && exists(file);
     })
     .map(({ pid }) => pid);

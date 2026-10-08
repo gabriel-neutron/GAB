@@ -157,8 +157,12 @@ export const runScriptAsSuperuser = async (
 
   // Departure: a host with no psql uses the one in the local database container. That psql reaches
   // the configured host over the network, so a remote target then needs the local stack to run.
-  // Inside the container, the local database listens on its own port, not on the published one.
-  const inside = LOCAL_HOSTS.has(variables['PGHOST'] ?? '') ? { PGPORT: CONTAINER_PORT } : {};
+  // When the target is the database of this stack, psql inside the container reaches it on the
+  // port inside the container, not on the published one.
+  const published = process.env['GAB_DB_PORT'] ?? CONTAINER_PORT;
+  const isThisStack =
+    LOCAL_HOSTS.has(variables['PGHOST'] ?? '') && variables['PGPORT'] === published;
+  const inside = isThisStack ? { PGPORT: CONTAINER_PORT } : {};
   const passed = Object.keys(variables).flatMap((name) => ['-e', name]);
   const inContainer = await feedScript(
     'docker',

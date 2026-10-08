@@ -5,7 +5,7 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
+import { roleAddress } from './address.ts';
 
 const secrets = z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') });
 
@@ -16,7 +16,7 @@ const ownerClient = (): Client => {
       'GABRIEL_DATABASE is not gabriel_test. Run the suite through its configuration.',
     );
   return new Client({
-    connectionString: connectionString('superuser', held.data.GABRIEL_DATABASE),
+    connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   });
 };
 

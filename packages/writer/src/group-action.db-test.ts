@@ -8,8 +8,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -18,7 +17,9 @@ const NO_READ = { read: () => Promise.reject(new Error('no act door reads the ra
 const app = writeRoutes(pool, NO_STORE, NO_READ);
 
 // A research AI proposes a linked batch through its own door, as the MCP server does.
-const research = new Pool({ connectionString: connectionString('research', 'gabriel_test') });
+const research = new Pool({
+  connectionString: roleAddress('gabriel_research', 'GABRIEL_RESEARCH_PASSWORD'),
+});
 
 afterAll(async () => {
   await research.end();
