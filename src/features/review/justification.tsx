@@ -55,7 +55,7 @@ const distinct = (passages: readonly Passage[]): readonly Passage[] => {
   return [...held.values()];
 };
 
-// The reason of a doubt that a fault states is read in the list of the faults, and not twice.
+// A fault that states the reason of a doubt is in the list of faults. Do not say it twice.
 const saysMore = (unit: Unit): boolean =>
   unit.said !== '' &&
   (unit.lane === 'waiting' || !unit.faults.some((fault) => unit.said.includes(fault.said)));

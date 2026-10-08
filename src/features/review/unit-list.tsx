@@ -4,6 +4,7 @@ import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
 import { faultMarks } from './fault-marks';
+import { SAID_LABEL } from './lane-words';
 import { queueWords } from './queue-words';
 import type { UnitWords } from './unit-changes';
 import type { FaultLevel, Lane, Unit, UnitState } from './unit-page';
@@ -46,9 +47,6 @@ const typeOf = (unit: Unit, words: UnitWords): string => {
   if (unit.type === null) return 'change';
   return unit.kind === 'entity' ? words.entityType(unit.type) : words.relation(unit.type).label;
 };
-
-// The line says the reason of a doubt, or the source that a waiting unit needs.
-const SAID_LABEL: Readonly<Record<Lane, string>> = { doubt: 'Doubt', waiting: 'Needs' };
 
 const groupOf = (unit: Unit): string =>
   unit.group === null ? 'no group' : `group ${unit.group.subject ?? 'with no subject'}`;
@@ -104,11 +102,11 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
     shown.current = selectedId;
     line.scrollIntoView({ block: 'nearest' });
   };
-  const said = queueWords({ read: units.length, before, matched, total, filtered, lane });
+  const sentence = queueWords({ read: units.length, before, matched, total, filtered, lane });
   return (
     <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
       <p className="shrink-0 border-b border-border px-2 py-1 text-small/4 text-label">
-        {said.count}
+        {sentence.count}
       </p>
       {before === 0 ? null : (
         <div className="shrink-0 border-b border-border p-1">
@@ -123,7 +121,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
           </button>
         </div>
       )}
-      {said.empty === null ? null : <p className="p-2 text-xs text-label">{said.empty}</p>}
+      {sentence.empty === null ? null : <p className="p-2 text-xs text-label">{sentence.empty}</p>}
       {units.length === 0 ? null : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {units.map((unit) => (

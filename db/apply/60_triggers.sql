@@ -70,6 +70,13 @@ CREATE OR REPLACE TRIGGER proposals_rate_author
   AFTER INSERT ON proposals
   FOR EACH ROW EXECUTE FUNCTION enqueue_author_rating();
 
+-- A budget of the deepening search that rises from zero sends the units that wait through the
+-- rules again.
+CREATE OR REPLACE TRIGGER rule_config_budget_rises
+  AFTER UPDATE OF settings ON rule_config
+  FOR EACH ROW WHEN (NEW.rule = 'weak_sources')
+  EXECUTE FUNCTION rerun_on_budget();
+
 -- The approval of a reference author is written once.
 CREATE OR REPLACE TRIGGER reference_approval_append_only
   BEFORE UPDATE OR DELETE ON reference_approval
@@ -110,6 +117,7 @@ ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
 ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
 ALTER TABLE reference_approval ENABLE ALWAYS TRIGGER reference_approval_append_only;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_rate_author;
+ALTER TABLE rule_config ENABLE ALWAYS TRIGGER rule_config_budget_rises;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
