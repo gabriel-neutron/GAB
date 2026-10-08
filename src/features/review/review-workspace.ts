@@ -39,6 +39,7 @@ const DEFAULT_REVIEW_WORKSPACE: ReviewWorkspace = { filter: NO_FILTER, from: nul
 
 const PROPOSER_KEYS: readonly string[] = PROPOSERS;
 const KINDS: readonly string[] = FAULT_KINDS;
+const LANE_KEYS: readonly string[] = LANES;
 
 // The compiler holds these lists closed: a key added to an interface and forgotten here fails the
 // type check.
@@ -59,8 +60,8 @@ const textOrNull = (value: unknown, allowed?: readonly string[]): boolean =>
 const isFilter = (value: unknown): value is QueueFilter => {
   if (!holdsOnlyDeclaredKeys(value, FILTER_KEYS)) return false;
   return (
-    textOrNull(value['lane'], LANES) &&
-    value['lane'] !== null &&
+    typeof value['lane'] === 'string' &&
+    LANE_KEYS.includes(value['lane']) &&
     textOrNull(value['group']) &&
     textOrNull(value['proposer'], PROPOSER_KEYS) &&
     textOrNull(value['fault'], KINDS) &&

@@ -162,7 +162,7 @@ test.each([
     if (search === undefined) throw new Error('the search did not start');
     await run(ask, search.id);
     const running = (await statusOf(ask, one.act)).status;
-    await ends(ask, search.id, 'failed');
+    await ends(ask, search.id, 'done');
     return { before, running, after: await statusOf(ask, one.act) };
   });
   expect(read.before).toBe('pending');
@@ -175,17 +175,63 @@ test.each([
   }
 });
 
-test('a search that ends well also lets the rule reject', async () => {
+test('a search that failed or stopped at its budget rejects nothing', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     await budgeted(ask, BUDGET);
     const one = await weak(ask, 'D');
     const [search] = await deepeningOf(ask, one.act);
     if (search === undefined) throw new Error('the search did not start');
     await run(ask, search.id);
+    await ends(ask, search.id, 'failed');
+    return { state: await statusOf(ask, one.act), again: await deepeningOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.again).toHaveLength(1);
+});
+
+test('a source whose check did not pass does not keep the unit', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const fact = label();
+    const first = await weak(ask, 'D', fact);
+    const [search] = await deepeningOf(ask, first.act);
+    if (search === undefined) throw new Error('the search did not start');
+    await run(ask, search.id);
+    // A better author gives the fact, and the check finds the passage unclear: no source.
+    const better = author();
+    await rate(ask, better, 'C');
+    const second = await cited(ask, { author: better, label: fact });
+    // The act waits no more, so that it is no duplicate of the first one.
+    await ask(
+      `UPDATE public.proposals SET status = 'accepted', decided_at = now(), decided_by = 'a test',
+         decided_as = 'unit' WHERE id = $1`,
+      [second.act],
+    );
+    await as(ask, 'gabriel_agent', () =>
+      ask(
+        "SELECT public.record_act_check($1::uuid, 'a-checker', 'openai', 'anthropic', 'unclear')",
+        [second.act],
+      ),
+    );
     await ends(ask, search.id, 'done');
-    return statusOf(ask, one.act);
+    return statusOf(ask, first.act);
   });
   expect(read.status).toBe('rejected');
+});
+
+test('a budget that rises from zero starts the search of the units that wait', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const one = await weak(ask, 'D');
+    const before = await deepeningOf(ask, one.act);
+    await budgeted(ask, BUDGET);
+    const after = await deepeningOf(ask, one.act);
+    await budgeted(ask, BUDGET * 2);
+    return { before, after, later: await deepeningOf(ask, one.act) };
+  });
+  expect(read.before).toHaveLength(0);
+  expect(read.after).toHaveLength(1);
+  expect(read.after[0]).toMatchObject({ token_budget: BUDGET });
+  expect(read.later).toHaveLength(1);
 });
 
 test('the unit waits while an extraction of a page of the search is open', async () => {

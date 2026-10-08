@@ -1,4 +1,5 @@
 import type { Lane } from './unit-page';
+import { NO_UNIT, WHOLE } from './lane-words';
 
 /** The counts of the units that the left column holds. */
 export interface QueueCounts {
@@ -19,16 +20,6 @@ export interface QueueWords {
   readonly count: string;
   readonly empty: string | null;
 }
-
-const NO_UNIT: Readonly<Record<Lane, string>> = {
-  doubt: 'No doubt needs a decision of the operator.',
-  waiting: 'No unit waits for a source.',
-};
-
-const WHOLE: Readonly<Record<Lane, string>> = {
-  doubt: 'doubts',
-  waiting: 'units wait for a source',
-};
 
 const emptyOf = ({ read, matched, total, lane }: QueueCounts): string | null => {
   if (total === 0) return NO_UNIT[lane];

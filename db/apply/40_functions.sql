@@ -2600,10 +2600,11 @@ END $$;
 --
 --   impossible      a link to an element that was rejected, or from an element to itself;
 --   doubt           any fault of the check that the review page reads at the level "not clean",
+--                   except a contradiction or a reported claim from an author F (the unit waits);
 --                   a check that disputes a fact, a denial by a party to the conflict, or a
 --                   source whose name joined an author A or B;
 --   strong_sources  no fault stops the unit, and each fact is strong (see fact_is_strong). A fact
---                   of the research AI has no second check yet, so it never passes;
+--                   with no passed second check never passes, a research fact included;
 --   weak_sources    every other unit. It waits.
 --
 -- The function reads and writes nothing. NULL when the unit has no act that waits.
@@ -2613,6 +2614,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_faults jsonb;
+  v_all_f  boolean;
   v_single text;
   v_pair   text;
   v_other  text;
@@ -2625,7 +2627,19 @@ BEGIN
               WHERE x->>'kind' IN ('self', 'end_rejected')) THEN
     RETURN 'impossible';
   END IF;
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x WHERE x->>'level' = 'not_clean')
+  -- A contradiction or a reported claim from an author F is no doubt: the unit waits, and the card
+  -- shows the conflict. A reported claim reads the author of its act. A contradiction has no
+  -- single act, so it reads every act of the unit: it waits only when each one is from an author F.
+  v_all_f := NOT EXISTS (SELECT 1 FROM public.proposals a
+                          WHERE a.unit_id = p_unit AND a.status = 'pending'
+                            AND (a.originator IS NULL OR public.letter_of(a.originator) <> 'F'));
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+              WHERE x->>'level' = 'not_clean'
+                AND NOT (x->>'kind' = 'contradiction' AND v_all_f)
+                AND NOT (x->>'kind' = 'reported_claim'
+                         AND EXISTS (SELECT 1 FROM public.proposals r
+                                      WHERE r.id = (x->>'act')::uuid AND r.originator IS NOT NULL
+                                        AND public.letter_of(r.originator) = 'F')))
      OR public.unit_doubt_cause(p_unit) IS NOT NULL
   THEN
     RETURN 'doubt';
@@ -2654,7 +2668,8 @@ END $$;
 -- A unit that waits gives the source that it needs. The sentence of the missing check or letter
 -- comes first, because nothing else can help while it is missing. The letters come from the
 -- configuration of the strong rule, so a new threshold changes the sentence. NULL when the unit
--- has no act that waits. No role holds this step: only the read of the operator calls it.
+-- has no act that waits. The conflict of an author F that waits is told before the need. No role
+-- holds this step: only the read of the operator calls it.
 CREATE OR REPLACE FUNCTION unit_said(p_unit uuid, p_rule text)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -2662,6 +2677,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_faults jsonb;
   v_said   text;
+  v_conflict text;
+  v_need   text;
   v_single text;
   v_pair   text;
   v_other  text;
@@ -2684,32 +2701,35 @@ BEGIN
   IF v_said IS NOT NULL THEN
     RETURN v_said;
   END IF;
+  -- A conflict that waits is a fault of an author F: the card shows it before the need.
+  SELECT string_agg(x->>'said', '; ') INTO v_conflict
+    FROM jsonb_array_elements(v_faults) AS x WHERE x->>'level' = 'not_clean';
   SELECT c.settings->>'single', c.settings->>'pair', c.settings->>'other'
     INTO v_single, v_pair, v_other
     FROM public.rule_config c WHERE c.rule = 'strong_sources';
   IF EXISTS (SELECT 1 FROM public.proposals a
               WHERE a.unit_id = p_unit AND a.status = 'pending'
                 AND (a.claim_key IS NULL OR a.originator IS NULL)) THEN
-    RETURN 'A cited source with a known author for each act';
+    v_need := 'A cited source with a known author for each act';
+  ELSIF EXISTS (SELECT 1 FROM public.proposals a
+                 WHERE a.unit_id = p_unit AND a.status = 'pending'
+                   AND NOT EXISTS (SELECT 1 FROM public.act_check k
+                                    WHERE k.proposal_id = a.id AND k.passed)) THEN
+    v_need := 'A passed check by a second model family for each fact';
+  ELSIF EXISTS (SELECT 1 FROM public.proposals a
+                  JOIN public.proposals p ON p.claim_key = a.claim_key AND p.status <> 'rejected'
+                                         AND p.originator IS NOT NULL
+                 WHERE a.unit_id = p_unit AND a.status = 'pending'
+                   AND public.author_of(p.originator) IS NOT NULL
+                   AND public.letter_of(p.originator) <= v_pair
+                   AND EXISTS (SELECT 1 FROM public.act_check k
+                                WHERE k.proposal_id = p.id AND k.passed)) THEN
+    v_need := 'A second independent author, ' || v_other || ' or better';
+  ELSE
+    v_need := 'One source ' || v_single || ' on its own record, or two independent authors, '
+              || v_pair || ' or better and ' || v_other || ' or better';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.proposals a
-              WHERE a.unit_id = p_unit AND a.status = 'pending'
-                AND NOT EXISTS (SELECT 1 FROM public.act_check k
-                                 WHERE k.proposal_id = a.id AND k.passed)) THEN
-    RETURN 'A passed check by a second model family for each fact';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.proposals a
-              JOIN public.proposals p ON p.claim_key = a.claim_key AND p.status <> 'rejected'
-                                     AND p.originator IS NOT NULL
-             WHERE a.unit_id = p_unit AND a.status = 'pending'
-               AND public.author_of(p.originator) IS NOT NULL
-               AND public.letter_of(p.originator) <= v_pair
-               AND EXISTS (SELECT 1 FROM public.act_check k
-                            WHERE k.proposal_id = p.id AND k.passed)) THEN
-    RETURN 'A second independent author, ' || v_other || ' or better';
-  END IF;
-  RETURN 'One source ' || v_single || ' on its own record, or two independent authors, '
-         || v_pair || ' or better and ' || v_other || ' or better';
+  RETURN CASE WHEN v_conflict IS NULL THEN v_need ELSE v_conflict || '; ' || v_need END;
 END $$;
 
 -- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its state and its faults,
@@ -3860,7 +3880,9 @@ $$;
 -- independent (citations_independent), one with a letter as good as "pair" and the other as good
 -- as "other". A letter is as good as another when it comes before it in the alphabet. The
 -- independence is the proof of the digit: this function never compares two authors by itself. A
--- source that only denies the fact is no support. No role holds this step.
+-- source counts only when it states or enacts the fact: one that denies it, or only reports what
+-- another party says, is no support. The author of a source is the issuer of the record that it
+-- cites, so a source A is a source A on its own record. No role holds this step.
 CREATE OR REPLACE FUNCTION fact_is_strong(p_claim_key text, p_single text, p_pair text,
                                           p_other text)
 RETURNS boolean
@@ -3870,9 +3892,8 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.proposals p
      WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL
        AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
-       AND NOT (EXISTS (SELECT 1 FROM public.citation c WHERE c.claim_id = p.id)
-                AND NOT EXISTS (SELECT 1 FROM public.citation c
-                                 WHERE c.claim_id = p.id AND c.modality <> 'denies'))
+       AND EXISTS (SELECT 1 FROM public.citation c
+                    WHERE c.claim_id = p.id AND c.modality IN ('enacts', 'asserts'))
   ), cited AS (
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
@@ -3930,14 +3951,16 @@ BEGIN
   INSERT INTO public.deepening (unit_id, job_id) VALUES (p_unit, v_job);
 END $$;
 
--- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead has ended and no
--- extraction of a page that it stored is open. The unit is weak when it has sources, and each one
--- has a letter D or E. An author with no letter counts as F, so such a unit is kept, because a
--- letter can come later. No role holds this step.
+-- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead ended well (done)
+-- and no extraction of a page that it stored is open. A lead that failed, or that stopped at its
+-- budget, did not finish its search, so it never rejects. The unit is weak when it has sources,
+-- and each one has a letter D or E. A source whose check did not pass is no source here. An
+-- author with no letter counts as F, so such a unit is kept, because a letter can come later. No
+-- role holds this step.
 CREATE OR REPLACE FUNCTION rejected_after_search(p_unit uuid) RETURNS boolean
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM public.deepening d JOIN public.jobs j ON j.id = d.job_id
-                  WHERE d.unit_id = p_unit AND j.status IN ('done', 'failed'))
+                  WHERE d.unit_id = p_unit AND j.status = 'done')
      AND NOT EXISTS (SELECT 1 FROM public.deepening d
                        JOIN public.lead_document l ON l.job_id = d.job_id
                        JOIN public.jobs e ON e.document_id = l.document_id
@@ -3948,7 +3971,9 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
                  FROM public.proposals a
                  JOIN public.proposals f ON f.claim_key = a.claim_key AND f.status <> 'rejected'
                                         AND f.originator IS NOT NULL
-                WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL) AS s),
+                WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM public.act_check k
+                               WHERE k.proposal_id = f.id AND k.passed)) AS s),
        false)
 $$;
 
@@ -4041,6 +4066,24 @@ BEGIN
          AND q.batch_id IN (SELECT w.batch_id FROM public.proposals w
                              WHERE w.unit_id = ANY (v_done) AND w.batch_id IS NOT NULL));
   END LOOP;
+END $$;
+
+-- A BUDGET THAT RISES FROM ZERO FREES THE UNITS THAT WAIT. At zero no search ran, so every unit with
+-- weak sources waited without one. When the operator sets a budget, each pending unit goes
+-- through the rules again, and a weak one starts its search. A change from one budget to another
+-- starts nothing by itself: the searches that ran stay, and a new unit uses the new budget. No
+-- role holds this step: the update of the setting fires it.
+CREATE OR REPLACE FUNCTION rerun_on_budget() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce((OLD.settings->>'deepening_tokens')::integer, 0) <= 0
+     AND coalesce((NEW.settings->>'deepening_tokens')::integer, 0) > 0
+  THEN
+    PERFORM public.run_rules(ARRAY(
+      SELECT DISTINCT q.unit_id FROM public.proposals q WHERE q.status = 'pending'));
+  END IF;
+  RETURN NULL;
 END $$;
 
 RESET ROLE;

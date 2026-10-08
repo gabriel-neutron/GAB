@@ -213,6 +213,63 @@ const linked = async (
   return { act, citation: '', claimKey: '' };
 };
 
+// One act of the research AI, with its own citation of one document. The caller sets the rest.
+const acted = (doc: string, author: string, extra: Record<string, unknown>) => ({
+  id: randomUUID(),
+  src: [doc],
+  names: [],
+  model_call_id: null,
+  originator: author,
+  modality: 'asserts',
+  citations: [{ document: doc, text_extractor: EXTRACTOR, page: 1, start: 0, end: PAGE.length }],
+  ...extra,
+});
+
+const researched = (ask: Ask, items: readonly unknown[]): Promise<readonly unknown[]> =>
+  as(ask, 'gabriel_research', () =>
+    ask('SELECT proposal_id FROM public.propose_batch($1::jsonb)', [JSON.stringify(items)]),
+  );
+
+// One new entity under a parent of the record, with two relations that set its role differently.
+// The entity and the first relation come from the first author, the second relation from the
+// second. The identifier of the entity is the identifier of its unit.
+const contested = async (ask: Ask, authors: readonly [string, string]): Promise<string> => {
+  const { parent } = await ends(ask);
+  const doc = await document(ask);
+  const child = randomUUID();
+  const role = (author: string, value: string) =>
+    acted(doc, author, {
+      op: 'create_relation',
+      payload: {
+        type: 'subordinate_to',
+        src_id: child,
+        dst_id: parent,
+        sources: [doc],
+        attrs: { role: { v: value, src: [doc] } },
+      },
+      names: [child, parent],
+    });
+  await researched(ask, [
+    acted(doc, authors[0], {
+      id: child,
+      op: 'create_entity',
+      payload: { type: 'military_unit', label: `Child ${child}`, sources: [doc] },
+    }),
+    role(authors[0], 'reserve'),
+    role(authors[1], 'line'),
+  ]);
+  return child;
+};
+
+const unitRule = async (ask: Ask, unit: string): Promise<string | null> => {
+  const [row] = z
+    .array(z.object({ rule: z.string().nullable() }))
+    .parse(
+      await as(ask, 'gabriel_app', () => ask('SELECT public.unit_rule($1::uuid) AS rule', [unit])),
+    );
+  return row?.rule ?? null;
+};
+
 const STRONG = /^rule strong_sources v\d+ \(fact digits: [0-9, ]+\)$/u;
 
 test('a fact with one source A is accepted when the check passes, with its origin and inputs', async () => {
@@ -570,3 +627,118 @@ test.each(['gabriel_agent', 'gabriel_research', 'gabriel_app', 'gabriel_read'])(
     expect(await refused('SELECT public.run_rules(ARRAY[$1::uuid])')).toMatch(/permission denied/u);
   },
 );
+
+test('a contradiction from authors F makes the unit wait, and one from another author is a doubt', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const waiting = await contested(ask, [name(), name()]);
+    const [known, unrated] = [name(), name()];
+    await rate(ask, known, 'C');
+    const doubted = await contested(ask, [known, unrated]);
+    return { waiting: await unitRule(ask, waiting), doubted: await unitRule(ask, doubted) };
+  });
+  expect(read.waiting).toBe('weak_sources');
+  expect(read.doubted).toBe('doubt');
+});
+
+test('a reported claim from an author F makes the unit wait, and one from another author is a doubt', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const known = name();
+    await rate(ask, known, 'C');
+    const waiting = await cited(ask, {
+      author: name(),
+      label: label(),
+      modality: 'alleges',
+      ...ONE,
+    });
+    const doubted = await cited(ask, {
+      author: known,
+      label: label(),
+      modality: 'alleges',
+      ...TWO,
+    });
+    return { waiting: await unitRule(ask, waiting.act), doubted: await unitRule(ask, doubted.act) };
+  });
+  expect(read.waiting).toBe('weak_sources');
+  expect(read.doubted).toBe('doubt');
+});
+
+test('an allegation about a named person goes to the operator, even from a source A with a check', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const doc = await document(ask);
+    const act = acted(doc, author, {
+      op: 'create_entity',
+      modality: 'alleges',
+      payload: { type: 'person', label: `Person ${randomUUID()}`, sources: [doc] },
+    });
+    await researched(ask, [act]);
+    await check(ask, { act: act.id, citation: '', claimKey: '' });
+    return { state: await stateOf(ask, act.id), rule: await ruleOf(ask, act.id) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('doubt');
+});
+
+test('an unknown type goes to the operator, even from a source A with a check', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const doc = await document(ask);
+    const act = acted(doc, author, {
+      op: 'create_entity',
+      payload: { type: 'spaceship', label: `Ship ${randomUUID()}`, sources: [doc] },
+    });
+    await researched(ask, [act]);
+    await check(ask, { act: act.id, citation: '', claimKey: '' });
+    return { state: await stateOf(ask, act.id), rule: await ruleOf(ask, act.id) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('doubt');
+});
+
+test('a duplicate goes to the operator, even from a source A with a check', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const fact = label();
+    const one = await cited(ask, { author, label: fact, ...ONE });
+    const two = await cited(ask, { author, label: fact, ...TWO });
+    await check(ask, one);
+    await check(ask, two);
+    return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('doubt');
+});
+
+test('a research fact waits until its second check ends', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const one = await cited(ask, { author, label: label(), ...ONE });
+    const before = { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+    await check(ask, one);
+    return { before, after: await stateOf(ask, one.act) };
+  });
+  expect(read.before.state.status).toBe('pending');
+  expect(read.before.rule).toBe('weak_sources');
+  expect(read.after.status).toBe('accepted');
+});
+
+test('a source that only reports what another party says is no source A on its own record', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const [reporter, other] = [name(), name()];
+    await rate(ask, reporter, 'A');
+    await rate(ask, other, 'C');
+    const end = await ends(ask);
+    // The reporter is a unit of its own, which goes to the operator. It is no source of the fact.
+    const reported = await linked(ask, end, { author: reporter, modality: 'attributes', ...ONE });
+    const stated = await linked(ask, end, { author: other, ...TWO });
+    await check(ask, reported);
+    await check(ask, stated);
+    return { state: await stateOf(ask, stated.act), rule: await ruleOf(ask, stated.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('weak_sources');
+});
