@@ -34,9 +34,7 @@ it('says what Promote writes and what Reject rejects for an entity with its rela
     reasons: WITHOUT_END,
     promote: {
       kind: 'writes',
-      said:
-        'Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB v1 ORBAT: ' +
-        'military units and organisations of the v1 GeoPackage. You cannot undo this.',
+      said: 'Writes 5th Combined Arms Army (Military unit) and 1 relation. You cannot undo this.',
     },
     reject: 'Rejects 5th Combined Arms Army and its 1 relation.',
   });
@@ -47,9 +45,7 @@ it('names no relation of an entity that has none', () => {
     reasons: WITHOUT_END,
     promote: {
       kind: 'writes',
-      said:
-        'Writes North American countries (State body). Source: Financial sanctions and the ' +
-        'trade of Russia. You cannot undo this.',
+      said: 'Writes North American countries (State body). You cannot undo this.',
     },
     reject: 'Rejects North American countries.',
   });
@@ -123,8 +119,8 @@ it('says that a second entity will be written when the record holds one of the s
     kind: 'writes',
     said:
       'A second 5th Combined Arms Army will be written; 5th Combined Arms Army is already in ' +
-      'the record. Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB ' +
-      'v1 ORBAT: military units and organisations of the v1 GeoPackage. You cannot undo this.',
+      'the record. Writes 5th Combined Arms Army (Military unit) and 1 relation. You cannot ' +
+      'undo this.',
   });
 });
 

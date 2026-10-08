@@ -13,6 +13,14 @@ export interface JustificationProps {
   readonly unit: Unit | null;
 }
 
+const BADGE = 'border border-border px-1 text-small/4';
+
+const STATE_WORDS: Readonly<Record<Unit['state'], string>> = {
+  clean: 'Clean',
+  not_clean: 'Not clean',
+  blocked: 'Blocked',
+};
+
 const HEADING = 'text-small/4 tracking-caps text-label uppercase';
 
 // A wait for a unit of the same group is not listed: a group action writes the unit, and the
@@ -55,23 +63,26 @@ const listed = (faults: readonly Fault[]): readonly Fault[] =>
 function Quote({ passage }: { readonly passage: Passage }) {
   if (passage.ownLine)
     return (
-      <div className="space-y-0.5">
-        <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
-          <mark className="bg-muted text-foreground">
-            <LinkedWords text={passage.text} />
-          </mark>
-        </blockquote>
-        {passage.before.trim() === '' && passage.after.trim() === '' ? null : (
-          <details className="text-label">
-            <summary className="cursor-default">The lines of other units around it</summary>
-            <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
-              <LinkedWords text={passage.before} />
-              <span className="text-foreground">[this line]</span>
-              <LinkedWords text={passage.after} />
-            </blockquote>
-          </details>
-        )}
-      </div>
+      <details className="text-label">
+        <summary className="cursor-default">The v1 record of this unit</summary>
+        <div className="mt-1 space-y-1">
+          <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+            <mark className="bg-muted text-foreground">
+              <LinkedWords text={passage.text} />
+            </mark>
+          </blockquote>
+          {passage.before.trim() === '' && passage.after.trim() === '' ? null : (
+            <details>
+              <summary className="cursor-default">The lines of other units around it</summary>
+              <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+                <LinkedWords text={passage.before} />
+                <span className="text-foreground">[this line]</span>
+                <LinkedWords text={passage.after} />
+              </blockquote>
+            </details>
+          )}
+        </div>
+      </details>
     );
   return (
     <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
@@ -106,7 +117,7 @@ export function Justification({ unit }: JustificationProps) {
         >
           <figcaption className="text-small/4 text-label">
             <span data-supports>
-              {'Supports '}
+              {'Evidence for '}
               <span className="text-foreground">{passage.supports}</span>
             </span>
             {' · '}
@@ -125,18 +136,22 @@ export function Justification({ unit }: JustificationProps) {
   return (
     <section
       aria-label="The justification"
-      className="min-h-0 space-y-3 overflow-y-auto overscroll-contain p-3 text-xs"
+      className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-3 text-xs"
     >
-      <div>
-        <h3 className={HEADING}>Proposed by</h3>
-        <p>{proposerWords(unit.proposer)}</p>
-      </div>
-
-      <div>
-        <h3 className={HEADING}>Group</h3>
-        <p>
+      <div className="flex flex-wrap items-center gap-1" data-strip>
+        <span
+          data-badge="state"
+          className={cn(BADGE, unit.state === 'blocked' && 'text-destructive')}
+          data-state={unit.state}
+        >
+          {STATE_WORDS[unit.state]}
+        </span>
+        <span data-badge="proposer" className={BADGE}>
+          {proposerWords(unit.proposer)}
+        </span>
+        <span data-badge="group" className={cn(BADGE, 'min-w-0 truncate')}>
           {unit.group === null ? 'No group' : (unit.group.subject ?? 'A group with no subject')}
-        </p>
+        </span>
       </div>
 
       <div className="space-y-2" data-faults={unit.state}>
@@ -168,8 +183,12 @@ export function Justification({ unit }: JustificationProps) {
         <h3 className={HEADING}>Source</h3>
         {unit.documents.length === 0 ? <p>No document is cited.</p> : null}
         {unit.documents.map((document) => (
-          <div key={document.id} data-document={document.id} className="space-y-1">
-            <p className="break-words">
+          <div
+            key={document.id}
+            data-document={document.id}
+            className="space-y-1 border border-border p-2"
+          >
+            <p className="font-medium break-words">
               {document.uri === null ? (
                 documentName(document)
               ) : (
