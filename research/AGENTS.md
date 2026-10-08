@@ -26,7 +26,8 @@ session: each proposal waits in the review queue, and the operator decides it th
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question,
   except `enqueue_extract`, `enqueue_mapping` and `start_lead`: they spend model credit, so Claude
   Code asks the operator first.
-- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`. Claude Code asks
+- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
+  `promote_clean_proposals`. Claude Code asks
   the operator before each decision. Follow the skill `review-unit`.
 
 ## Who proposes what

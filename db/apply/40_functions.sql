@@ -1551,8 +1551,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.ai_decision('relation', p_id, p_reason, p_note, p_why)
 $$;
 
--- THE GROUP ACTION (P11): "promote the clean proposals of this group". Only the operator role
--- holds it. It takes the group and the exact list of units that the screen showed, so a unit that
+-- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
+-- the door of the operator and the door of an AI reviewer run it. It takes the group and the exact list of units that the screen showed, so a unit that
 -- came after the view is never written. It locks the acts of the list, runs the check of the
 -- faults once for the whole list, and writes only the units that are still pending, still in the
 -- group and still clean. A unit that others need is written first: a parent before its child, so
@@ -1560,9 +1560,10 @@ $$;
 -- unit that fails rolls back only itself, and a unit whose end failed before it is refused with
 -- the name of that end. It gives one result for each unit of the list: the refused units first,
 -- in the order of the list, then the units in the order of the writes.
-CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+CREATE OR REPLACE FUNCTION promote_group_as(p_group uuid, p_units uuid[], p_decided_by text,
+                                            p_origin text, p_reason text)
 RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_units   uuid[];
@@ -1628,7 +1629,7 @@ BEGIN
     FOREACH v_unit IN ARRAY v_ready LOOP
       v_name := coalesce(public.element_name(v_unit), v_unit::text);
       BEGIN
-        PERFORM public.write_unit(v_unit, p_decided_by, 'group');
+        PERFORM public.write_unit_as(v_unit, p_decided_by, 'group', p_origin, p_reason);
         v_out := v_out || jsonb_build_object(
           'unit', v_unit, 'name', v_name, 'outcome', 'promoted', 'said', NULL);
       EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
@@ -1641,6 +1642,43 @@ BEGIN
     v_clean := ARRAY(SELECT c FROM unnest(v_clean) AS c WHERE NOT c = ANY (v_ready));
   END LOOP;
   RETURN v_out;
+END $$;
+
+-- THE GROUP ACTION, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.promote_group_as(p_group, p_units, p_decided_by, NULL, NULL)
+$$;
+
+-- THE GROUP ACTION OF AN AI REVIEWER. Only the research role holds it. It is the group action of
+-- the page, with the same check of the faults: each clean unit of the list is written as its own
+-- decision, with the origin "decided by an AI reviewer" and the one reason that the AI gives, and
+-- each other unit is refused with the reason. A refusal of the whole call names its field.
+CREATE OR REPLACE FUNCTION ai_promote_group(p_group uuid, p_units uuid[], p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why  text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_text text;
+  v_rule text;
+  v_code text;
+BEGIN
+  IF v_why = '' OR char_length(v_why) > 1000 THEN
+    RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+      USING CONSTRAINT = 'review_reason', HINT = 'why';
+  END IF;
+  RETURN public.promote_group_as(p_group, p_units, 'an AI reviewer, through the MCP server',
+                                 'decided by an AI reviewer', v_why);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'group_named' THEN 'unitIds'
+                ELSE 'groupId' END;
 END $$;
 
 -- THE RAIL OF THE GROUPS, FOR THE OPERATOR. The groups come in the order of the queue, with the

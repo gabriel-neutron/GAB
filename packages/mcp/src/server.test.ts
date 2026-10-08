@@ -114,6 +114,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "promote_unit: write",
       "reject_unit: write",
       "reject_relation: write",
+      "promote_clean_proposals: write",
     ]
   `);
 });

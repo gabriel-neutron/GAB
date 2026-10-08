@@ -106,6 +106,8 @@ REVOKE ALL ON FUNCTION ai_promote_unit(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
@@ -186,13 +188,14 @@ GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
--- THE DECISIONS OF AN AI REVIEWER. The research role holds three doors of its own, and no door of
+-- THE DECISIONS OF AN AI REVIEWER. The research role holds four doors of its own, and no door of
 -- the operator. Each one records the origin "decided by an AI reviewer" and the reason that the AI
 -- gives, so a decision of the AI never reads as a rule or as a decision of the operator. The
 -- research role holds no step of the rules, so it cannot decide in place of a rule.
 GRANT EXECUTE ON FUNCTION ai_promote_unit(uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_unit(uuid,text,text,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_relation(uuid,text,text,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;

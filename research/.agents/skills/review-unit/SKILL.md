@@ -34,8 +34,9 @@ decide the unit.
 - `read_groups`, `read_group`: the groups of the queue and the units of one group.
 - `read_decided`: the decided acts, with the origin and the reason of each decision.
 - `read_leads`: the leads and the documents that each one stored.
-- `promote_unit`, `reject_unit`, `reject_relation`: the three decisions of the review page. Each
-  one asks the operator before it runs.
+- `promote_unit`, `reject_unit`, `reject_relation`: the decisions of the review page on one
+  unit. `promote_clean_proposals`: the group action, which promotes the clean units of one group,
+  each as its own decision with your reason. Each one asks the operator before it runs.
 - `document_text`: the whole page of a cited document, when the passage is not enough.
 
 ## Steps
@@ -51,6 +52,9 @@ decide the unit.
    - The unit is wrong as a whole: call `reject_unit` with the reason and, if necessary, a note.
    - Only one relation is wrong: call `reject_relation` with the id of its act. The rest of the
      unit stays in the queue.
+   - Each clean unit of one group is correct: call `promote_clean_proposals` with the group and
+     the units that you read. Give only the units whose passages you read. The database refuses
+     each unit that is not clean, and writes the others.
    - You are not sure: do nothing, and tell the operator why.
 5. Give `why` for each decision: one or two sentences that name the passage and say how it
    supports the decision. The operator reads it beside the origin.
