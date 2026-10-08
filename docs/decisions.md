@@ -190,12 +190,12 @@ reliability of the author: the person or the body that first gives the informati
 rates the site or the medium that carries it. A copy of a text counts as its first author. A digit
 from 1 to 6 rates the credibility of one fact, never of a document. NATO judges the two apart, so
 the digit never reads a letter: it comes from the number of independent authors that give the fact
-and from the conflicts with what GAB already holds. A rule can read both marks after they are
+and from the conflicts between the values that its sources give. A rule can read both marks after they are
 judged. Each citation shows its pair to the operator, for example "B1".
 
 - **A** is only for the issuer of an official record, on its own record: a register, a gazette, a
   court, a sanctions act.
-- **B** comes only from the reference set.
+- **A and B** come only from the reference set, which the operator approves.
 - **A party to the conflict**, of either side, is B at most, and only about its own side. About the
   other side it counts as C at most, so it never passes without an independent source B.
 - **A new author** is F. A model rates it against the reference set, gives C to F, and names the
@@ -230,8 +230,9 @@ order to each unit, and the first rule that matches decides:
 1. **Impossible.** The unit cannot be written: a link to a rejected element, or a link to itself.
    The rule rejects it.
 2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that
-   the operator rejected before, or an adverse claim about a named person or company (S6). The unit
-   goes to the operator, with the reason.
+   the operator rejected before, a check by the second model that disputes a fact, a denial by the
+   subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
+   (S6). The unit goes to the operator, with the reason.
 3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
    has either one source A on its own record, or two independent sources: one B or better and one
    C or better. Two sources are independent only when they have different authors, different
@@ -246,8 +247,8 @@ order to each unit, and the first rule that matches decides:
    come later.
 
 The threshold starts strict. The operator relaxes it later, from real data. No model decides the
-state of a unit: a model gives a letter (S1), and code applies the rules. A denial by the subject
-of a fact is a doubt. A contradiction from an author F is not a doubt: the unit waits.
+state of a unit: a model gives a letter (S1), and code applies the rules. A contradiction from an
+author F is not a doubt: the unit waits.
 **Why.** A queue of every claim makes one person the bottleneck and cancels the gain. A rule on
 the sources is simple, and anyone can audit it.
 **Cost.** At the start few units pass, because most facts have one source. Two models can share a
