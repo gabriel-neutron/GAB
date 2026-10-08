@@ -12,8 +12,9 @@ const replyShape = z.strictObject({
   refusal: z.string().optional(),
   doubt: z.string().optional(),
   proposalId: z.string().optional(),
-  targetId: z.string().optional(),
+  targetId: z.string().nullable().optional(),
   state: z.string().optional(),
+  written: z.record(z.string(), z.unknown()).optional(),
 });
 
 // An act door never reaches the raw store, so these two doors refuse every object.
@@ -85,6 +86,36 @@ test('a lost decision is a doubt, and never a 422 refusal', async () => {
     502,
     { doubt: DOUBT },
   ]);
+});
+
+test('a decision answers what it wrote or rejected, as the record gave it', async () => {
+  const held = faultyPool([]);
+  const written = { name: 'MV Northern Ledger', entities: 1, relations: 0, others: 0 };
+
+  expect(await post(held.pool, 'promote-unit', { unitId: held.proposalId })).toStrictEqual([
+    200,
+    { targetId: held.targetId, state: 'decided', written },
+  ]);
+  expect(
+    await post(held.pool, 'reject-relation', { proposalId: held.proposalId, reason: 'duplicate' }),
+  ).toStrictEqual([200, { targetId: null, state: 'decided', written }]);
+});
+
+test('a decision whose answer this writer cannot read is a doubt, because it stands', async () => {
+  const pool = {
+    connect: () =>
+      Promise.resolve({
+        query: () => Promise.resolve({ rows: [{ id: null, said: 'not a summary' }] }),
+        release: () => undefined,
+      }),
+  };
+
+  const [status, reply] = await post(pool, 'reject-unit', {
+    unitId: 'a3f1c8de-5b20-4a71-9c34-7e0d81f65b12',
+    reason: 'duplicate',
+  });
+  expect(status).toBe(502);
+  expect(reply).toHaveProperty('doubt');
 });
 
 test('a signed act answers the proposal and the row it wrote', async () => {

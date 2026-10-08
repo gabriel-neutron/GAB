@@ -29,8 +29,26 @@ const UNCONFIRMED = 'The write service did not confirm the act, and the act may 
 
 const signed = z.object({ proposalId: z.string(), targetId: z.string() });
 
-// A decision answers no row that the screen reads, so its done step carries nothing.
-const decided = z.object({ state: z.literal('decided') }).transform(() => ({}));
+/** What a decision wrote or rejected, as the record names it: the unit, or the one relation, and
+ * the count of its entities, relations and other acts. */
+export interface Written {
+  readonly name: string;
+  readonly entities: number;
+  readonly relations: number;
+  readonly others: number;
+}
+
+const decided = z
+  .object({
+    state: z.literal('decided'),
+    written: z.object({
+      name: z.string(),
+      entities: z.number().int(),
+      relations: z.number().int(),
+      others: z.number().int(),
+    }),
+  })
+  .transform(({ written }): { readonly written: Written } => ({ written }));
 
 const refused = z.object({ refusal: z.string() });
 
@@ -119,7 +137,10 @@ export const sendAct = (
 /** Decide one unit that waits in the record, or reject one relation of it. It writes no
  * proposal: it names one, so a doubt about it is a doubt about a verdict. A refused promotion
  * wrote nothing of the unit, and the sentence names the act that the record refused. */
-export const sendDecision = ({ op, ...body }: Decision): Promise<WriteResult> =>
+export const sendDecision = ({
+  op,
+  ...body
+}: Decision): Promise<WriteResult<{ readonly written: Written }>> =>
   askWriter(doorOf(op), body, decided);
 
 /** One file and the fields its document row records. The content is the file in base64. */

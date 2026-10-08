@@ -58,13 +58,31 @@ export async function readUnits(
     : { state: 'private', why: NO_WRITER };
 }
 
-/** One unit that waits, read by its identifier, or null where it waits no more. A unit that the
- * page cannot read is null too: the queue then says why. It raises nothing. */
-export async function readUnit(unitId: string): Promise<Unit | null> {
+/** One unit read by its identifier: the unit that waits, no unit when it waits no more, or the
+ * sentence of a read that failed. It raises nothing. */
+export type UnitRead =
+  | { readonly state: 'held'; readonly unit: Unit }
+  | { readonly state: 'gone' }
+  | { readonly state: 'failed'; readonly why: string };
+
+// An address that is no identifier names no unit, so the page asks the writer nothing.
+const IDENTIFIER = z.uuid();
+
+export async function readUnit(unitId: string): Promise<UnitRead> {
+  if (!IDENTIFIER.safeParse(unitId).success) return { state: 'gone' };
   const read = await askWriter(
     DOOR,
     { after: null, size: 1, filter: { unit: unitId } },
     pageAfter(null),
   );
-  return read.step === 'done' ? (read.page.units[0] ?? null) : null;
+  switch (read.step) {
+    case 'done': {
+      const [unit] = read.page.units;
+      return unit === undefined ? { state: 'gone' } : { state: 'held', unit };
+    }
+    case 'refused':
+      return { state: 'failed', why: `The unit cannot be read: ${read.refusal}` };
+    case 'unknown':
+      return { state: 'failed', why: NO_WRITER };
+  }
 }

@@ -12,7 +12,9 @@ import { FAULT_KINDS, type FaultKind, type FilterChoices } from './unit-page';
 export interface QueueFilterProps {
   readonly filter: QueueFilter;
   readonly choices: FilterChoices;
-  readonly onFilter: (filter: QueueFilter) => void;
+  /** A part of the filter that changed. The page merges it into the newest filter, so a late
+   * name never undoes a choice that came after it. */
+  readonly onFilter: (patch: Partial<QueueFilter>) => void;
 }
 
 const CHOOSER = cn(
@@ -42,7 +44,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
   const [name, setName] = useState(filter.name);
   const pause = useRef<ReturnType<typeof setTimeout> | null>(null);
   const on = (patch: Partial<QueueFilter>): void => {
-    onFilter({ ...filter, ...patch });
+    onFilter(patch);
   };
   const stopPause = (): void => {
     if (pause.current !== null) clearTimeout(pause.current);

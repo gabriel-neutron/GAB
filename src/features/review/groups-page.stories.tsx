@@ -295,3 +295,40 @@ export const TheGroupShowsItsDocumentAndTreeBeforeTheConfirmation: Story = {
     await expect(canvas.getByRole('list', { name: 'The tree of the clean units' })).toBeVisible();
   },
 };
+
+/** A group that cites no document says so. */
+export const AGroupWithNoDocumentSaysSo: Story = {
+  args: {
+    rail: { state: 'held', read: LINES.map((line) => ({ ...line, document: null })) },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('region', { name: 'The group' })).toHaveTextContent(
+      'Source: no document',
+    );
+  },
+};
+
+/** After the action on the last group, no group is open, and the result stays on the screen. */
+export const TheResultStaysAfterTheLastGroup: Story = {
+  args: {
+    group: {
+      state: 'none',
+      action: {
+        step: 'done',
+        groupId: ARMY_GROUP,
+        name: '58th Combined Arms Army',
+        results: [
+          { unit: 'u-army', name: '58th Combined Arms Army', outcome: 'promoted', said: null },
+        ],
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole('region', { name: 'The result of the group action' }),
+    ).toHaveTextContent(
+      'Group 58th Combined Arms Army: the record holds 1 unit of the group action.',
+    );
+    await expect(canvas.getByText('Choose a group in the list.')).toBeVisible();
+  },
+};

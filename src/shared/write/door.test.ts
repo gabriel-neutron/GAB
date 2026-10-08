@@ -110,8 +110,10 @@ test('a request that never arrived is unknown, and the sentence states the act m
 
 // ------------------------------------------------------------------------ the decision door --
 
+const WRITTEN = { name: 'MV Southern Ledger', entities: 1, relations: 2, others: 0 };
+
 test('a decision names its door, and the body carries the unit, the reason and the note', async () => {
-  said({ targetId: null, state: 'decided' });
+  said({ targetId: null, state: 'decided', written: WRITTEN });
 
   await sendDecision({ op: 'reject_unit', unitId: PROPOSAL, reason: 'other', note: 'a ferry' });
   await sendDecision({ op: 'reject_relation', proposalId: PROPOSAL, reason: 'duplicate' });
@@ -130,11 +132,12 @@ test('a decision names its door, and the body carries the unit, the reason and t
   ]);
 });
 
-test('a promotion that landed is done', async () => {
-  said({ targetId: TARGET, state: 'decided' });
+test('a promotion that landed is done, with what the record wrote', async () => {
+  said({ targetId: TARGET, state: 'decided', written: WRITTEN });
 
   expect(await sendDecision({ op: 'promote_unit', unitId: PROPOSAL })).toStrictEqual({
     step: 'done',
+    written: WRITTEN,
   });
 });
 

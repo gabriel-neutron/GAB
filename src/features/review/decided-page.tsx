@@ -3,12 +3,15 @@ import { cn } from '@/shared/lib/utils';
 import type { DecidedRow } from './decided';
 import { VerdictMark } from './verdict-mark';
 
-/** The decided acts that the page read so far, and whether a next page waits, or the sentence
- * that says why the page holds none. */
+/** The decided acts that the page read so far, the count of the acts that it cannot read, the
+ * sentence of a later page that failed, and whether a next page waits, or the sentence that says
+ * why the page holds none. */
 export type DecidedView =
   | {
       readonly state: 'held';
       readonly rows: readonly DecidedRow[];
+      readonly unread: number;
+      readonly why: string | null;
       readonly more: 'none' | 'ready' | 'reading';
     }
   | { readonly state: 'private'; readonly why: string };
@@ -31,7 +34,7 @@ const CONTROL = cn(
  * rejection shows its reason and its note, which only the operator reads. */
 export function DecidedPage({ view, onMore }: DecidedPageProps) {
   if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
-  const { rows, more } = view;
+  const { rows, unread, why, more } = view;
   return (
     <section
       aria-label="What the operator decided"
@@ -41,6 +44,13 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
         Each act that the operator promoted or rejected, the latest decision first. A decided act is
         frozen. The reason and the note of a rejection are private to the operator.
       </p>
+
+      {unread === 0 ? null : (
+        <p data-said="unread" className="shrink-0 text-xs text-destructive">
+          {unread === 1 ? '1 decided act' : `${String(unread)} decided acts`} cannot be read by this
+          page, and the table does not show {unread === 1 ? 'it' : 'them'}.
+        </p>
+      )}
 
       {rows.length === 0 ? (
         <p className="text-xs text-label">The operator decided no act yet.</p>
@@ -76,7 +86,7 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} data-decided={row.id} className="border-t border-border">
-                  <td className={`${CELL} font-mono whitespace-nowrap tabular-nums`}>
+                  <td className={cn(CELL, 'font-mono whitespace-nowrap tabular-nums')}>
                     <time dateTime={row.decidedAt}>{row.when}</time>
                   </td>
                   <td className={CELL}>
@@ -85,17 +95,18 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
                       {row.verdictWords}
                     </span>
                   </td>
-                  <td className={`${CELL} whitespace-nowrap`}>{row.actWords}</td>
-                  <td className={`${CELL} break-words`}>{row.subject}</td>
-                  <td className={`${CELL} break-words`}>{row.reason}</td>
-                  <td className={`${CELL} text-label`}>{row.author}</td>
-                  <td className={`${CELL} text-label`} title={`Signed as ${row.signedAs}`}>
+                  <td className={cn(CELL, 'whitespace-nowrap')}>{row.actWords}</td>
+                  <td className={cn(CELL, 'break-words')}>{row.subject}</td>
+                  <td className={cn(CELL, 'break-words')}>{row.reason}</td>
+                  <td className={cn(CELL, 'text-label')}>{row.author}</td>
+                  <td className={cn(CELL, 'text-label')} title={`Signed as ${row.signedAs}`}>
                     {row.decidedHow}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {why === null ? null : <p className="p-2 text-xs text-destructive">{why}</p>}
           {more === 'none' ? null : (
             <div className="p-2">
               <button

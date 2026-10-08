@@ -492,6 +492,51 @@ test('a child whose rejected parent took its link with it is not written by the 
   }
 });
 
+test('each decision answers what it wrote or rejected: the name and the counts', async () => {
+  const [army, brigade, toArmy, corps, toCorps] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  await proposedBatch([
+    unit(army, 'Said test army'),
+    unit(brigade, 'Said test brigade'),
+    under(toArmy, brigade, army),
+    unit(corps, 'Said test corps'),
+    under(toCorps, corps, army),
+  ]);
+  const promoted: string[] = [];
+  try {
+    const [rejectStatus, relation] = await ask('/write/reject-relation', {
+      proposalId: toCorps,
+      reason: 'wrong_value',
+    });
+    expect(rejectStatus).toBe(200);
+    expect(relation).toMatchObject({
+      targetId: null,
+      written: { name: 'Said test corps subordinate to Said test army', entities: 0, relations: 1 },
+    });
+
+    const [promoteStatus, written] = await ask('/write/promote-unit', { unitId: army });
+    expect(promoteStatus).toBe(200);
+    promoted.push(army);
+    expect(written).toMatchObject({
+      state: 'decided',
+      written: { name: 'Said test army', entities: 1, relations: 0, others: 0 },
+    });
+
+    const [, rejected] = await ask('/write/reject-unit', { unitId: brigade, reason: 'duplicate' });
+    expect(rejected).toMatchObject({
+      targetId: null,
+      written: { name: 'Said test brigade', entities: 1, relations: 1, others: 0 },
+    });
+  } finally {
+    await undone(promoted, [corps]);
+  }
+});
+
 const decidedAct = z.object({
   id: z.uuid(),
   status: z.enum(['accepted', 'rejected']),

@@ -208,12 +208,12 @@ export const EachFilterAsksForTheQueueAgain: Story = {
     await userEvent.selectOptions(within(filter).getByLabelText('Proposer'), 'extractor');
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
-      filter: { ...NO_FILTER, proposer: 'extractor' },
+      patch: { proposer: 'extractor' },
     });
     await userEvent.selectOptions(within(filter).getByLabelText('Fault'), 'dispute');
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
-      filter: { ...NO_FILTER, fault: 'dispute' },
+      patch: { fault: 'dispute' },
     });
     await userEvent.selectOptions(
       within(filter).getByLabelText('Group'),
@@ -221,7 +221,7 @@ export const EachFilterAsksForTheQueueAgain: Story = {
     );
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
-      filter: { ...NO_FILTER, group: '9a0c3c1e-5b7d-4e2f-8a61-2d4f6b8c0e13' },
+      patch: { group: '9a0c3c1e-5b7d-4e2f-8a61-2d4f6b8c0e13' },
     });
     await userEvent.selectOptions(
       within(filter).getByLabelText('Source document'),
@@ -229,12 +229,12 @@ export const EachFilterAsksForTheQueueAgain: Story = {
     );
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
-      filter: { ...NO_FILTER, document: 'doc_2852b6ae9b28' },
+      patch: { document: 'doc_2852b6ae9b28' },
     });
     await userEvent.type(within(filter).getByLabelText('Name'), 'brigade{Enter}');
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
-      filter: { ...NO_FILTER, name: 'brigade' },
+      patch: { name: 'brigade' },
     });
   },
 };
@@ -258,7 +258,7 @@ export const AFilterThatFindsNothingSaysSo: Story = {
     await expect(canvas.queryByText('The queue is empty.')).toBeNull();
     await expect(canvas.getByText('0 of 1082 units match the filter')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'Show every unit' }));
-    await expect(onAct).toHaveBeenCalledWith({ kind: 'filter', filter: NO_FILTER });
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'filter', patch: NO_FILTER });
   },
 };
 
@@ -343,7 +343,6 @@ export const OneRelationIsRejectedAlone: Story = {
         proposalId: '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c',
         reason: 'not_in_source',
       },
-      said: 'Rejected the relation subordinate to → Eastern Military District: Not in the source.',
     });
     await userEvent.click(within(bar).getByRole('button', { name: 'Back to the unit' }));
     const unitBar = canvas.getByRole('region', { name: 'The decision' });
@@ -402,7 +401,6 @@ export const ARelationToARejectedEndIsRejectedInOneClick: Story = {
       kind: 'decide',
       unitId: SAMPLE_UNITS.orphan,
       decision: { op: 'reject_relation', proposalId: ORPHAN_RELATION, reason: 'end_rejected' },
-      said: 'Rejected the relation subordinate to → 1061st Logistics Center: End rejected.',
     });
   },
 };
@@ -423,9 +421,6 @@ export const ALinkToARejectedSourceIsRejectedInOneClick: Story = {
       kind: 'decide',
       unitId: SAMPLE_UNITS.rejectedSource,
       decision: { op: 'reject_unit', unitId: SAMPLE_UNITS.rejectedSource, reason: 'end_rejected' },
-      said:
-        'Rejected the relation 1061st Logistics Center subordinate to → Eastern Military ' +
-        'District: End rejected.',
     });
   },
 };
@@ -473,7 +468,6 @@ export const ALinkOpensAUnitThatIsNotOnThePage: Story = {
       kind: 'decide',
       unitId: SAMPLE_UNITS.disputed,
       decision: { op: 'promote_unit', unitId: SAMPLE_UNITS.disputed },
-      said: 'Promoted North American countries.',
     });
   },
 };
@@ -494,6 +488,7 @@ export const ALinkToADecidedUnitSaysItIsNotInTheQueue: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText(/This unit is not in the queue\./u)).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Promote' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Reject' })).toBeNull();
     await expect(canvasElement.querySelector('[aria-current="true"]')).toBeNull();
   },
 };
@@ -530,10 +525,139 @@ export const TheNameAppliesWhileTyping: Story = {
     await waitFor(async () => {
       await expect(onAct).toHaveBeenLastCalledWith({
         kind: 'filter',
-        filter: { ...NO_FILTER, name: 'arsenal' },
+        patch: { name: 'arsenal' },
       });
     });
     await expect(onAct).toHaveBeenCalledOnce();
+  },
+};
+
+/** A choice made during the pause of the typing stays: the late name carries only the name, and
+ * the page merges it into the newest filter. */
+export const TheLateNameCarriesOnlyTheName: Story = {
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.type(within(filter).getByLabelText('Name'), 'ars');
+    await userEvent.selectOptions(within(filter).getByLabelText('Proposer'), 'extractor');
+    await new Promise((done) => setTimeout(done, 500));
+    // Each act carries only its own part: the page merges each into the newest filter.
+    await expect(onAct.mock.calls.map((call): unknown => call[0])).toStrictEqual([
+      { kind: 'filter', patch: { name: 'ars' } },
+      { kind: 'filter', patch: { proposer: 'extractor' } },
+    ]);
+  },
+};
+
+/** A relation of an unknown type is marked in the middle column. */
+export const AnUnknownRelationTypeIsMarked: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(
+        units.map((unit) =>
+          unit.id === SAMPLE_UNITS.link
+            ? {
+                ...unit,
+                faults: [
+                  ...unit.faults,
+                  {
+                    kind: 'unknown_type' as const,
+                    level: 'not_clean' as const,
+                    act: SAMPLE_UNITS.link,
+                    said: 'The relation type is unknown',
+                  },
+                ],
+              }
+            : unit,
+        ),
+      ),
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.link,
+  },
+  play: async ({ canvasElement }) => {
+    const line = canvasElement.querySelector(`[data-relation="${SAMPLE_UNITS.link}"]`);
+    await expect(line).toHaveTextContent('(type unknown)');
+    await expect(line?.querySelector('[data-type-unknown]')).not.toBeNull();
+  },
+};
+
+/** After a reload, the line of the selected unit is in view, also far down the list. */
+export const TheSelectedUnitIsInViewAfterAReload: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(LONG),
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+    selectedId: LONG.at(-1)?.id ?? '',
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
+    const scroller = list.querySelector('ul');
+    const line = canvasElement.querySelector('[aria-current="true"]');
+    if (scroller === null || line === null) throw new Error('no list or no selected line');
+    await waitFor(async () => {
+      await expect(scroller.scrollTop).toBeGreaterThan(0);
+    });
+    const box = scroller.getBoundingClientRect();
+    const seen = line.getBoundingClientRect();
+    await expect(seen.top).toBeGreaterThanOrEqual(box.top - 1);
+    await expect(seen.bottom).toBeLessThanOrEqual(box.bottom + 1);
+  },
+};
+
+/** A unit that a page read holds is shown, even when an older read said that it waits no more. */
+export const AUnitOnThePageIsNeverLost: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units),
+      filter: NO_FILTER,
+      choices,
+      linked: { state: 'gone', unitId: SAMPLE_UNITS.army },
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.army,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByText(/This unit is not in the queue/u)).toBeNull();
+    await expect(canvas.getByRole('button', { name: 'Promote' })).toBeEnabled();
+  },
+};
+
+/** A failed read of the unit of the address gives the sentence of the writer, and no write
+ * control. */
+export const AFailedReadOfTheLinkedUnitSaysWhy: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units),
+      filter: NO_FILTER,
+      choices,
+      linked: {
+        state: 'failed',
+        unitId: 'c0ffee00-0000-4000-8000-000000000000',
+        why: 'The unit cannot be read: the database did not answer',
+      },
+      decision: { step: 'idle' },
+    },
+    selectedId: 'c0ffee00-0000-4000-8000-000000000000',
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText('The unit cannot be read: the database did not answer'),
+    ).toBeVisible();
+    await expect(canvas.queryByText(/not in the queue/u)).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Promote' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Reject' })).toBeNull();
   },
 };
 

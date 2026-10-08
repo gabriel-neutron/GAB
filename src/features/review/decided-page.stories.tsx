@@ -9,7 +9,7 @@ const ROWS = decidedRows(DECIDED_SAMPLE);
 
 const meta = {
   component: DecidedPage,
-  args: { view: { state: 'held', rows: ROWS, more: 'none' }, onMore: fn() },
+  args: { view: { state: 'held', rows: ROWS, unread: 0, why: null, more: 'none' }, onMore: fn() },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-[720px] w-[1280px]">
@@ -57,15 +57,43 @@ export const TheDecisionModeIsNamed: Story = {
 
 /** A long history is read page by page. */
 export const TheNextActsAreReadOnDemand: Story = {
-  args: { view: { state: 'held', rows: ROWS, more: 'ready' } },
+  args: { view: { state: 'held', rows: ROWS, unread: 0, why: null, more: 'ready' } },
   play: async ({ args, canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Read the next acts' }));
     await expect(args.onMore).toHaveBeenCalledOnce();
   },
 };
 
+/** While the next acts are read, the control says so and takes no second click. */
+export const TheNextActsAreBeingRead: Story = {
+  args: { view: { state: 'held', rows: ROWS, unread: 0, why: null, more: 'reading' } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Reading the next acts' })).toBeDisabled();
+  },
+};
+
+/** An act that the page cannot read is counted, and the other acts stay. */
+export const AnUnreadActIsCounted: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: ROWS,
+      unread: 1,
+      why: 'The decided acts cannot be read: the database did not answer',
+      more: 'none',
+    },
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelectorAll('[data-decided]')).toHaveLength(3);
+    await expect(canvas.getByText(/^1 decided act cannot be read by this page/u)).toBeVisible();
+    await expect(
+      canvas.getByText('The decided acts cannot be read: the database did not answer'),
+    ).toBeVisible();
+  },
+};
+
 export const AnEmptyHistoryIsSaid: Story = {
-  args: { view: { state: 'held', rows: [], more: 'none' } },
+  args: { view: { state: 'held', rows: [], unread: 0, why: null, more: 'none' } },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelectorAll('[data-decided]')).toHaveLength(0);
     await expect(canvas.getByText('The operator decided no act yet.')).toBeInTheDocument();

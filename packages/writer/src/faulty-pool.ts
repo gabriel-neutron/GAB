@@ -19,7 +19,9 @@ interface FaultyPool {
 
 const rowsOf = (text: string): Record<string, unknown>[] => {
   if (text.includes('sign_change')) return [{ proposal_id: PROPOSAL, target_id: TARGET }];
-  if (text.includes('promote_unit')) return [{ id: TARGET }];
+  const said = { name: 'MV Northern Ledger', entities: 1, relations: 0, others: 0 };
+  if (text.includes('promote_unit')) return [{ id: TARGET, said }];
+  if (text.includes('decision_said')) return [{ id: null, said }];
   return [];
 };
 

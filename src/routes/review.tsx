@@ -2,6 +2,7 @@ import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-r
 import { useMemo, useState } from 'react';
 
 import type { DecisionState } from '@/features/review/decision-bar';
+import { decisionDone } from '@/features/review/decision-done';
 import { DecidedPage, type DecidedView } from '@/features/review/decided-page';
 import { readDecidedPage, type DecidedRead } from '@/features/review/decided-read';
 import type { GroupActionState, GroupView } from '@/features/review/group-panel';
@@ -13,20 +14,20 @@ import {
 } from '@/features/review/groups';
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
+import { linkedUnit } from '@/features/review/linked-unit';
 import { nextGroup } from '@/features/review/next-group';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { openQueue } from '@/features/review/queue-start';
-import { filterIsOn, patchReviewWorkspace } from '@/features/review/review-workspace';
+import {
+  filterIsOn,
+  patchQueueFilter,
+  patchReviewWorkspace,
+} from '@/features/review/review-workspace';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { sendGroupAction } from '@/features/review/send-group-action';
 import { readUnit, readUnits } from '@/features/review/units';
-import {
-  UnitsPage,
-  type LinkedUnit,
-  type QueueView,
-  type ReviewAct,
-} from '@/features/review/units-page';
+import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
 import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
 import { sendDecision } from '@/shared/write/door';
 
@@ -67,14 +68,7 @@ export const Route = createFileRoute('/review')({
     ]);
     const asked: unknown = Reflect.get(location.search, 'unit');
     const unitId = typeof asked === 'string' ? asked : '';
-    const onFirst = first.state !== 'held' || first.page.units.some((unit) => unit.id === unitId);
-    const read = unitId === '' || onFirst ? null : await readUnit(unitId);
-    const linked: LinkedUnit =
-      unitId === '' || onFirst
-        ? { state: 'none' }
-        : read === null
-          ? { state: 'gone', unitId }
-          : { state: 'held', unit: read };
+    const linked = await linkedUnit(unitId, first, readUnit);
     const held = {
       first,
       filter,
@@ -182,9 +176,9 @@ function ReviewRoute() {
     void navigate({ search: (search) => ({ ...search, unit: unitId }), replace: true });
   };
 
-  // A new filter or a read from the first unit asks the loader for its first page again.
-  const readFrom = (patch: Parameters<typeof patchReviewWorkspace>[0]): void => {
-    patchReviewWorkspace({ ...patch, from: null });
+  // A read from the first unit asks the loader for its first page again.
+  const readFromStart = (): void => {
+    patchReviewWorkspace({ from: null });
     void router.invalidate();
   };
 
@@ -212,11 +206,13 @@ function ReviewRoute() {
         select(act.unitId);
         return;
       case 'start':
-        readFrom({});
+        readFromStart();
         return;
+      // The part of the filter that changed is merged into the newest filter.
       case 'filter':
         void navigate({ search: (search) => ({ ...search, unit: '' }), replace: true });
-        readFrom({ filter: act.filter });
+        patchQueueFilter(act.patch);
+        void router.invalidate();
         return;
       case 'more':
         if (now.reading || last === null) return;
@@ -236,7 +232,11 @@ function ReviewRoute() {
         });
         return;
       case 'decide': {
-        const { unitId, decision: asked, said } = act;
+        const { unitId, decision: asked } = act;
+        const mode = asked.op === 'reject_relation' ? 'relation' : 'unit';
+        // A unit of the address that no page read holds is read again by the loader after the
+        // rejection of one of its relations. A unit decided whole leaves the screen.
+        const linkedOnly = !now.pages.some((page) => page.units.some((one) => one.id === unitId));
         // The held pages are kept as they stand, so the read after the decision replaces one.
         setHeld(now);
         setDecision({ step: 'working', unitId });
@@ -245,16 +245,15 @@ function ReviewRoute() {
             setDecision({ ...result, unitId });
             return;
           }
-          setDecision({ step: 'done', unitId, said });
-          await readAgain(unitId, asked.op === 'reject_relation' ? 'relation' : 'unit');
+          setDecision({ step: 'done', unitId, said: decisionDone(asked, result.written) });
+          if (linkedOnly && mode === 'relation') await router.invalidate();
+          else await readAgain(unitId, mode);
         });
         return;
       }
     }
   };
 
-  // A group whose every unit the action wrote waits no more, so its read is refused: the result
-  // of the action stays on the screen with the sentence of that read.
   const entered = groups?.group ?? null;
   const groupRead =
     picked !== null && picked.groupId === group
@@ -269,7 +268,7 @@ function ReviewRoute() {
       : { step: 'idle' };
   const groupView: GroupView =
     group === ''
-      ? { state: 'none' }
+      ? { state: 'none', action }
       : groupRead === null
         ? { state: 'reading', groupId: group }
         : groupRead.state === 'private'
@@ -330,6 +329,12 @@ function ReviewRoute() {
             rows: [history, ...heldLater.rows].flatMap((read) =>
               read.state === 'held' ? read.rows : [],
             ),
+            unread: [history, ...heldLater.rows].reduce(
+              (sum, read) => sum + (read.state === 'held' ? read.unread : 0),
+              0,
+            ),
+            // A later page that the writer did not give says why, under the rows read.
+            why: lastRead?.state === 'private' ? lastRead.why : null,
             more: heldLater.reading ? 'reading' : nextKey === null ? 'none' : 'ready',
           };
   const readMoreDecided = (): void => {

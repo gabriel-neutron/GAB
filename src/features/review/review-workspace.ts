@@ -89,8 +89,8 @@ const isWorkspace = (value: unknown): value is ReviewWorkspace => {
   return isFilter(value['filter']) && (from === null || isKey(from));
 };
 
-// Departure: four exports, one job. They read and patch one stored record of the filter, the
-// empty filter is its starting value, and the last says whether a filter is on.
+// Departure: five exports, one job. They read and patch one stored record of the filter, the
+// empty filter is its starting value, and one says whether a filter is on.
 
 /** A filter is on when it can leave out a unit. */
 export const filterIsOn = (filter: QueueFilter): boolean =>
@@ -109,4 +109,12 @@ export function patchReviewWorkspace(patch: Partial<ReviewWorkspace>): ReviewWor
   const next: ReviewWorkspace = { ...readReviewWorkspace(), ...patch };
   writeWorkspace(FEATURE, next);
   return next;
+}
+
+/** Merges a part of the filter into the newest stored filter, and puts the place at the first
+ * unit. It gives the filter that the queue now reads. */
+export function patchQueueFilter(patch: Partial<QueueFilter>): QueueFilter {
+  const filter: QueueFilter = { ...readReviewWorkspace().filter, ...patch };
+  patchReviewWorkspace({ filter, from: null });
+  return filter;
 }
