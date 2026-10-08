@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { connectionString } from '../../../tools/db-runtime.ts';
 import { openPool } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -16,26 +17,13 @@ const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_
 
 // Departure: the runner is not part of this suite, so the owner moves a lead to `running` and the
 // worker role records its documents through its own door, as the runner does.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_AGENT_PASSWORD: z.string().min(1),
-  GABRIEL_READ_PASSWORD: z.string().min(1),
-  GABRIEL_RESEARCH_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const held = secrets.parse(process.env);
-const addressOf = (role: string, password: string): string =>
-  `postgresql://${role}:${encodeURIComponent(password)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`;
-const owner = new Pool({ connectionString: addressOf('gabriel', held.POSTGRES_PASSWORD) });
-const agent = new Pool({
-  connectionString: addressOf('gabriel_agent', held.GABRIEL_AGENT_PASSWORD),
-});
-const research = new Pool({
-  connectionString: addressOf('gabriel_research', held.GABRIEL_RESEARCH_PASSWORD),
-});
-const reader = new Pool({
-  connectionString: addressOf('gabriel_read', held.GABRIEL_READ_PASSWORD),
-});
+const { GABRIEL_DATABASE } = z
+  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
+  .parse(process.env);
+const owner = new Pool({ connectionString: connectionString('superuser', GABRIEL_DATABASE) });
+const agent = new Pool({ connectionString: connectionString('agent', GABRIEL_DATABASE) });
+const research = new Pool({ connectionString: connectionString('research', GABRIEL_DATABASE) });
+const reader = new Pool({ connectionString: connectionString('read', GABRIEL_DATABASE) });
 
 // The rows commit, and the runner of a later project takes each queued job. So each lead that a
 // test starts ends here, as a lead that failed.

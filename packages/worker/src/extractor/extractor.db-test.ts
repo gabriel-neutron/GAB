@@ -2,6 +2,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { connectionString } from '../../../../tools/db-runtime.ts';
 import type { RunnerAgent } from '../agents.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
@@ -19,13 +20,11 @@ import { makeExtractor } from './extractor.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const env = secrets.parse(process.env);
+const { GABRIEL_DATABASE } = z
+  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
+  .parse(process.env);
 const pool = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:5432/${env.GABRIEL_DATABASE}`,
+  connectionString: connectionString('superuser', GABRIEL_DATABASE),
   max: 2,
 });
 

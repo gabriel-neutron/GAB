@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { connectionString } from '../../../../tools/db-runtime.ts';
 import type { Queryable } from '../queryable.ts';
 import type { RaterConfig } from '../reader-config.ts';
 import { completionOf, READER, routerOf } from '../runner-fixture.ts';
@@ -16,13 +17,11 @@ import {
 // Departure: each test runs in one transaction that rolls back. One connection signs as the
 // operator role to store and as the agent role to record the call. The model is a fake answer: no
 // test reaches OpenRouter.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const env = secrets.parse(process.env);
+const { GABRIEL_DATABASE } = z
+  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
+  .parse(process.env);
 const pool = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:5432/${env.GABRIEL_DATABASE}`,
+  connectionString: connectionString('superuser', GABRIEL_DATABASE),
   max: 2,
 });
 

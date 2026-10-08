@@ -12,5 +12,7 @@
     // Node runs the source directly and strips the types, so an import needs the real extension.
     "allowImportingTsExtensions": true
   },
-  "include": ["src"]
+  // A test that reaches the database logs in through the helper of the schema tests, so the
+  // helper and the file it imports are part of this project too.
+  "include": ["src", "../../tools/db-runtime.ts", "../../tools/test-database.ts"]
 }
