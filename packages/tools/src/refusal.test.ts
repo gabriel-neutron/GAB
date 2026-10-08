@@ -51,6 +51,7 @@ const REFUSED: readonly (readonly [string, string, unknown])[] = [
   ['find_document', 'neither a url nor a title', {}],
   ['list_vocabulary', 'a field that nothing declares', { type: 'vessel' }],
   ['enqueue_extract', 'a blank document', { document: ' ' }],
+  ['enqueue_mapping', 'a blank document', { document: ' ' }],
   ['job_status', 'a missing document', {}],
   ['propose', 'an empty batch', { items: [] }],
   [
