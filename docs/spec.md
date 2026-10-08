@@ -213,7 +213,9 @@ stores the letter that the model gives, and the database decides.
 
 The review queue shows only the units that need the operator by default. The units that wait are a
 separate list, with the source that each one needs. The page of an element shows who decided it:
-the name of the rule, "validated manually by the operator", or "decided by an AI reviewer".
+the name of the rule, "validated manually by the operator", or "decided by an AI reviewer". A
+decision of an AI reviewer keeps the reason that the AI gives, and the screens say that a human did
+not decide it.
 
 ## The lead path
 
@@ -228,8 +230,8 @@ a lead (a short text from the operator or the research AI)
 A rule of S3 can give a deepening search for a unit with weak sources, inside the budget that the
 operator sets. The lead agent proposes nothing, starts no lead, and does not fetch an address that
 is already stored. It has no page limit; its token budget stops it, and it gives that reason. No
-schedule starts a lead. The text of a lead is private: only the operator reads the leads, and the
-worker reads the text of the one lead that it runs.
+schedule starts a lead. The text of a lead is private: only the operator and the research AI read
+the leads, and the worker reads the text of the one lead that it runs.
 
 ## Technical baseline
 
