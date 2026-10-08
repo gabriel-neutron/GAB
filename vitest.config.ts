@@ -93,7 +93,10 @@ const liveProjects = [
   nodeProject('tools', ['packages/tools/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('mcp', ['packages/mcp/src/**/*.db-test.ts'], LIVE_TARGET),
   nodeProject('contract', ['src/shared/read/**/*.db-test.ts'], LIVE_TARGET),
-  nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP),
+  // Departure: a test of the rules sets `rule_config`, and the update sends every pending unit of
+  // the database through the rules. That locks the rows that a parallel file holds, and the two
+  // deadlock. The files of the schema project run one after the other.
+  nodeProject('schema', ['tools/*.db-test.ts'], LIVE_TARGET, SCHEMA_GROUP, false),
   nodeProject('perimeter', ['tools/perimeter/*.db-test.ts'], LIVE_TARGET),
   nodeProject('corpus', ['tools/corpus/*.db-test.ts'], LIVE_TARGET),
   nodeProject('service', ['tools/service/*.db-test.ts'], LIVE_TARGET),
