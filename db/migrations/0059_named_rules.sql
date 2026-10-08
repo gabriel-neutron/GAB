@@ -1,5 +1,5 @@
 -- =============================================================================================
--- 0058 — the named rules, their configuration and the origin of a decision             ORDERED
+-- 0059 — the named rules, their configuration and the origin of a decision             ORDERED
 --
 -- THE RULES RUN IN THE DATABASE, AS ONE FUNCTION. This file holds what the function reads and
 -- what it writes: a table of configuration, and the origin of each decision.

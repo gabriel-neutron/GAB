@@ -79,9 +79,13 @@ without the letters.
   records "decided by an AI reviewer".
 - A decision also records the inputs that its rule read: the letters, the independent authors and
   the digit, so a later read can explain it.
-- **Weak sources:** the unit waits. A unit whose only sources are D or E is rejected only after a
-  deepening search. Until the operator sets a budget, no deepening search runs, so no unit is
-  rejected for weak sources.
+- **Weak sources:** the unit waits. A unit whose sources have each passed their check starts one
+  **deepening search**: a job of the lead agent that carries a token budget. The budget is a
+  setting of the rule, it starts at zero, and the operator sets it with a new version of the rule.
+  At zero, no search runs, so no unit is rejected for weak sources. The lead agent proposes
+  nothing: it stores pages, the extraction proposes, and the rules decide again. When the search
+  and the extraction of its pages have ended, a unit whose only sources are D or E is rejected by
+  the rule, with its origin. Any other unit keeps waiting, because a source can come later.
 
 ## Consequences
 

@@ -1779,7 +1779,7 @@ DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
 RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text, job_mapping uuid,
-               job_author text)
+               job_author text, job_budget integer)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
@@ -1804,8 +1804,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.kind, j.lead, j.mapping, j.author
-       INTO job_id, job_document, job_kind, job_lead, job_mapping, job_author;
+  RETURNING j.id, j.document_id, j.kind, j.lead, j.mapping, j.author, j.token_budget
+       INTO job_id, job_document, job_kind, job_lead, job_mapping, job_author, job_budget;
 
   RETURN NEXT;
 END $$;
@@ -1870,6 +1870,7 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job fails', p_id;
   END IF;
+  PERFORM public.run_rules(public.units_of_job(p_id));
 END $$;
 
 
@@ -3100,6 +3101,7 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
+  PERFORM public.run_rules(public.units_of_job(p_id));
   RETURN v_status;
 END $$;
 
@@ -3763,8 +3765,78 @@ BEGIN
   RETURN 'weak_sources';
 END $$;
 
+-- THE UNITS THAT A JOB CAN FREE. The end of a deepening search, or the end of the extraction of a
+-- page that a search stored, lets the rule judge the unit of that search again. The list is empty
+-- for any other job. No role holds this step.
+CREATE OR REPLACE FUNCTION units_of_job(p_job uuid) RETURNS uuid[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(array_agg(DISTINCT d.unit_id), '{}')
+    FROM public.deepening d
+   WHERE d.job_id = p_job
+      OR d.job_id IN (SELECT l.job_id FROM public.lead_document l
+                        JOIN public.jobs j ON j.document_id = l.document_id
+                       WHERE j.id = p_job)
+$$;
+
+-- THE DEEPENING SEARCH OF A UNIT. A unit with weak sources starts at most one lead, and only when
+-- the operator has set a budget: at zero, nothing runs. The unit waits until each act of a machine
+-- has its check, because a source is weak or strong only after the check. The lead carries the
+-- budget as it stands now, and it states the acts that wait. No role holds this step; the unit is
+-- locked by the caller, so two callers never start two searches.
+CREATE OR REPLACE FUNCTION start_deepening(p_unit uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_tokens integer;
+  v_lead   text;
+  v_job    uuid;
+BEGIN
+  SELECT (c.settings->>'deepening_tokens')::integer INTO v_tokens
+    FROM public.rule_config c WHERE c.rule = 'weak_sources';
+  IF coalesce(v_tokens, 0) <= 0 OR EXISTS (SELECT 1 FROM public.deepening WHERE unit_id = p_unit)
+  THEN
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals a
+              WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.originator IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = a.id)) THEN
+    RETURN;
+  END IF;
+  SELECT left('Find a better source for these acts: ' ||
+              string_agg(a.op || ' ' || a.payload::text, '; ' ORDER BY a.id), 1900)
+    INTO v_lead
+    FROM public.proposals a WHERE a.unit_id = p_unit AND a.status = 'pending';
+  INSERT INTO public.jobs (kind, lead, lead_by, token_budget)
+  VALUES ('research_lead', v_lead, 'rule weak_sources', v_tokens)
+  RETURNING id INTO v_job;
+  INSERT INTO public.deepening (unit_id, job_id) VALUES (p_unit, v_job);
+END $$;
+
+-- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead has ended and no
+-- extraction of a page that it stored is open. The unit is weak when it has sources, and each one
+-- has a letter D or E. An author with no letter counts as F, so such a unit is kept, because a
+-- letter can come later. No role holds this step.
+CREATE OR REPLACE FUNCTION rejected_after_search(p_unit uuid) RETURNS boolean
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM public.deepening d JOIN public.jobs j ON j.id = d.job_id
+                  WHERE d.unit_id = p_unit AND j.status IN ('done', 'failed'))
+     AND NOT EXISTS (SELECT 1 FROM public.deepening d
+                       JOIN public.lead_document l ON l.job_id = d.job_id
+                       JOIN public.jobs e ON e.document_id = l.document_id
+                      WHERE d.unit_id = p_unit AND e.status IN ('queued', 'running'))
+     AND coalesce((
+       SELECT bool_and(s.letter IN ('D', 'E'))
+         FROM (SELECT DISTINCT public.letter_of(f.originator) AS letter
+                 FROM public.proposals a
+                 JOIN public.proposals f ON f.claim_key = a.claim_key AND f.status <> 'rejected'
+                                        AND f.originator IS NOT NULL
+                WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL) AS s),
+       false)
+$$;
+
 -- THE DECISION OF A RULE ON ONE UNIT. The impossible rule rejects the unit, and the strong rule
--- writes it. Any other rule leaves the unit as it is. It gives the name of the rule that
+-- writes it. The weak rule rejects a unit only after its deepening search, when every source is
+-- D or E. Any other case leaves the unit as it is. It gives the name of the rule that
 -- decided, or NULL. The origin of the decision names the rule, its version and the inputs that it
 -- read: the digit of each fact. A write that the record refuses leaves the unit as it is, so a
 -- rule never stops the act that called it. No role holds this step: only the doors that write an
@@ -3784,7 +3856,13 @@ BEGIN
   END IF;
   PERFORM public.pending_unit(p_unit);
   v_rule := public.unit_rule(p_unit);
-  IF v_rule NOT IN ('impossible', 'strong_sources') THEN
+  -- A unit with weak sources starts its one deepening search. It is rejected only after that
+  -- search, and only when every source is D or E. Any other unit waits.
+  IF v_rule = 'weak_sources' AND NOT public.rejected_after_search(p_unit) THEN
+    PERFORM public.start_deepening(p_unit);
+    RETURN NULL;
+  END IF;
+  IF v_rule NOT IN ('impossible', 'strong_sources', 'weak_sources') THEN
     RETURN NULL;
   END IF;
   SELECT 'rule ' || c.rule || ' v' || c.version INTO v_by
@@ -3794,13 +3872,16 @@ BEGIN
             FROM public.proposals a
            WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL) AS d;
   v_origin := v_by || ' (fact digits: ' || coalesce(v_digits, 'no fact') || ')';
-  IF v_rule = 'impossible' THEN
+  IF v_rule IN ('impossible', 'weak_sources') THEN
     UPDATE public.proposals p
        SET status = 'rejected', decided_at = now(), decided_by = v_by, decided_as = 'rule',
            decision_origin = v_origin,
-           reject_reason = CASE WHEN public.end_was_rejected(p.op, p.payload)
+           reject_reason = CASE WHEN v_rule = 'impossible' AND public.end_was_rejected(p.op, p.payload)
                                 THEN 'end_rejected' ELSE 'other' END,
-           reject_note = CASE WHEN public.end_was_rejected(p.op, p.payload) THEN NULL
+           reject_note = CASE WHEN v_rule = 'weak_sources'
+                              THEN 'weak sources: after a deepening search, every source of the '
+                                   'facts is rated D or E'
+                              WHEN public.end_was_rejected(p.op, p.payload) THEN NULL
                               ELSE 'impossible: the unit links an element to itself, or to an '
                                    'element that was rejected' END
      WHERE p.unit_id = p_unit AND p.status = 'pending';
