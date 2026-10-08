@@ -167,8 +167,13 @@ ON CONFLICT (key) DO UPDATE SET
 -- THE WAIT OF THE RUNNER IS A CHOICE AND NOT A MEASUREMENT. An empty queue is looked at every
 -- thirty seconds, which is the longest the operator waits after queuing a document with the
 -- runner idle.
+--
+-- THE RUN OF SHARED WORDS THAT MAKES TWO PASSAGES A COPY is a choice and not a measurement: eight
+-- words in a row are rare in two texts that were written apart, and a quote of a few words is not
+-- a copy. The operator tunes it from real data (ADR 0012).
 INSERT INTO parameter (key, value) VALUES
-  ('runner_empty_wait_seconds', 30)
+  ('runner_empty_wait_seconds', 30),
+  ('independence_shared_run_words', 8)
 ON CONFLICT (key) DO NOTHING;
 
 RESET ROLE;

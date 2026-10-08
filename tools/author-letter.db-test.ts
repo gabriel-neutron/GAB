@@ -5,52 +5,11 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { as, MODEL, rate, refusal, reference } from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
-const MODEL = 'a-strong-model';
-
-const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T> => {
-  await ask(`SET LOCAL SESSION AUTHORIZATION ${role}`);
-  const done = await work();
-  await ask('RESET SESSION AUTHORIZATION');
-  return done;
-};
-
-const STORE = `SELECT public.store_author_letter($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
 const JOIN = 'SELECT public.join_author_name($1, $2)';
 const REFERENCE = `SELECT public.store_reference_author($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
-
-interface Options {
-  readonly references?: readonly string[];
-  readonly controller?: string | null;
-  readonly party?: boolean;
-}
-
-const rate = (ask: Ask, name: string, letter: string, options: Options = {}) =>
-  as(ask, 'gabriel_agent', () =>
-    ask(STORE, [
-      name,
-      letter,
-      MODEL,
-      'a reason',
-      options.references ?? ['Reference Agency'],
-      options.controller ?? null,
-      options.party ?? false,
-    ]),
-  );
-
-const reference = (ask: Ask, name: string, letter: string, options: Options = {}) =>
-  as(ask, 'gabriel_app', () =>
-    ask(REFERENCE, [
-      name,
-      letter,
-      MODEL,
-      'an approved reason',
-      options.references ?? [],
-      options.controller ?? null,
-      options.party ?? false,
-    ]),
-  );
 
 const letterOf = async (ask: Ask, name: string): Promise<string | undefined> =>
   z
@@ -58,19 +17,6 @@ const letterOf = async (ask: Ask, name: string): Promise<string | undefined> =>
     .parse(
       await as(ask, 'gabriel_app', () => ask('SELECT public.letter_of($1)::text AS letter', [name])),
     )[0]?.letter;
-
-// A refused statement aborts the transaction, so each one runs behind a savepoint.
-const refusal = async (ask: Ask, work: () => Promise<unknown>): Promise<string | null> => {
-  await ask('SAVEPOINT refusal');
-  try {
-    await work();
-  } catch (cause) {
-    await ask('ROLLBACK TO SAVEPOINT refusal');
-    return cause instanceof Error ? cause.message : String(cause);
-  }
-  await ask('RELEASE SAVEPOINT refusal');
-  return null;
-};
 
 test('an author with no letter reads as F, and a name with no author is no author', async () => {
   const read = await rolledBack('superuser', async (ask) => ({
