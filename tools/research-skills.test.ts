@@ -21,6 +21,7 @@ const SKILLS = [
   'cite-claim',
   'ingest-batch',
   'carto-step',
+  'review-unit',
 ] as const;
 
 const frontMatter = z.object({ name: z.string().min(1), description: z.string().trim().min(1) });
@@ -94,13 +95,21 @@ test('the rules of the workspace name each tool of the server', () => {
 });
 
 // The research session writes with no question (P12): each proposal waits in the review queue,
-// and the operator decides it there. The tools that spend model credit still ask the operator
-// first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
+// and the operator decides it there. The tools that spend model credit, and the decisions of an
+// AI reviewer, still ask the operator first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
 // fails here. The settings also refuse each read and each write of the environment file of the
 // stack, because it holds the password of the checker role.
-const ASKS_FIRST = new Set(['enqueue_extract', 'enqueue_mapping', 'start_lead']);
+const ASKS_FIRST = new Set([
+  'enqueue_extract',
+  'enqueue_mapping',
+  'start_lead',
+  'promote_unit',
+  'reject_unit',
+  'reject_relation',
+  'promote_clean_proposals',
+]);
 
-test('the Claude Code settings allow each tool of the server, except the ones that spend credit', () => {
+test('the Claude Code settings allow each tool of the server, except the ones that spend credit or decide', () => {
   const settings = z
     .strictObject({
       permissions: z.strictObject({ allow: z.array(z.string()), deny: z.array(z.string()) }),
@@ -126,4 +135,15 @@ test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source',
     readFileSync(copy).equals(readFileSync(source)),
     `${shown(copy)} differs from its source ${shown(source)}. Copy the source over it.`,
   ).toBe(true);
+});
+
+// A session at the root of the repository loads the same server, and the client asks the operator
+// before each tool that spends credit or decides.
+test('the Claude Code settings of the root ask before each tool that spends credit or decides', () => {
+  const settings = z
+    .object({ permissions: z.strictObject({ ask: z.array(z.string()) }) })
+    .parse(JSON.parse(read(path.join(ROOT, '.claude', 'settings.json'))));
+  expect([...settings.permissions.ask].sort()).toStrictEqual(
+    [...ASKS_FIRST].map((name) => `mcp__gab__${name}`).sort(),
+  );
 });

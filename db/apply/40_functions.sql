@@ -879,8 +879,9 @@ END $$;
 -- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
 -- the operator decided: one unit, or a group action. The act that the operator signs is no
 -- decision on the queue, and it has no mode.
+DROP FUNCTION IF EXISTS apply_proposal_as(uuid, text, text, text);
 CREATE OR REPLACE FUNCTION apply_proposal_as(p_id uuid, p_decided_by text, p_mode text,
-                                             p_origin text)
+                                             p_origin text, p_reason text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1113,6 +1114,7 @@ BEGIN
          decided_by  = p_decided_by,
          decided_as  = p_mode,
          decision_origin = p_origin,
+         decision_reason = p_reason,
          prior_value = v_prior
    WHERE id = p_id AND status = 'pending';
 
@@ -1205,8 +1207,9 @@ END $$;
 -- relation that names it, or it writes none: the first refusal stops the whole unit, and the
 -- sentence names the act and the reason. A relation is written only when each end is in the
 -- record or comes with the unit.
+DROP FUNCTION IF EXISTS write_unit_as(uuid, text, text, text);
 CREATE OR REPLACE FUNCTION write_unit_as(p_unit uuid, p_decided_by text, p_mode text,
-                                         p_origin text)
+                                         p_origin text, p_reason text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1232,8 +1235,8 @@ BEGIN
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
   -- A named rule runs in the transaction of the act, and it is no machine that decides: no role
-  -- holds the function of the rules, so the rule gives its origin and skips this test.
-  IF p_origin IS NULL AND EXISTS (SELECT 1 FROM public.proposals
+  -- holds the function of the rules, so a rule skips this test. Every other decision takes it.
+  IF p_mode IS DISTINCT FROM 'rule' AND EXISTS (SELECT 1 FROM public.proposals
               WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
     RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
                     'the transaction that proposed it', p_unit
@@ -1273,7 +1276,7 @@ BEGIN
                       'circle' USING CONSTRAINT = 'unit_order';
     END IF;
     BEGIN
-      v_id := public.apply_proposal_as(p.id, p_decided_by, p_mode, p_origin);
+      v_id := public.apply_proposal_as(p.id, p_decided_by, p_mode, p_origin, p_reason);
     EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
       GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
                               v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
@@ -1307,13 +1310,15 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.write_unit_as(p_unit, p_decided_by, p_mode, NULL)
 $$;
 
--- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
--- "a machine proposes, only the operator promotes". It runs the check of the faults that the
--- screen reads, and refuses a unit that the check blocks, or that waits for an entity of its own
--- group, with the words of each such fault. Then it writes the unit whole, or nothing.
-CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+-- THE PROMOTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
+-- and the door of an AI reviewer run it. It runs the check of the faults that the screen reads,
+-- and refuses a unit that the check blocks, or that waits for an entity of its own group, with
+-- the words of each such fault. Then it writes the unit whole, or nothing. A NULL origin is a
+-- decision of the operator.
+CREATE OR REPLACE FUNCTION promote_unit_as(p_unit uuid, p_decided_by text, p_origin text,
+                                           p_reason text)
 RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_left  uuid[];
@@ -1342,8 +1347,16 @@ BEGIN
     RAISE EXCEPTION 'nothing of the unit is promoted: %', v_stops
       USING CONSTRAINT = 'unit_blocked';
   END IF;
-  RETURN public.write_unit(p_unit, p_decided_by, 'unit');
+  RETURN public.write_unit_as(p_unit, p_decided_by, 'unit', p_origin, p_reason);
 END $$;
+
+-- THE PROMOTION OF ONE UNIT (P11), BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+RETURNS uuid
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.promote_unit_as(p_unit, p_decided_by, NULL, NULL)
+$$;
 
 -- THE REASON OF A REJECTION, CHECKED. It is one word of a fixed list, and "other" needs a note.
 -- A blank note is no note. The note is private, as the reason is. No role holds this step.
@@ -1388,13 +1401,14 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                     AND w.status = 'rejected')
 $$;
 
--- THE REJECTION OF ONE UNIT. Only the operator role holds it. It rejects every act that waits in
--- the unit, with one reason and one note, and it leaves each row: a rejected act is never
--- deleted, because it is the record of what was set aside.
-CREATE OR REPLACE FUNCTION reject_unit(p_unit uuid, p_reason text, p_note text,
-                                       p_decided_by text)
+-- THE REJECTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
+-- and the door of an AI reviewer run it. It rejects every act that waits in the unit, with one
+-- reason and one note, and it leaves each row: a rejected act is never deleted, because it is the
+-- record of what was set aside. A NULL origin is a decision of the operator.
+CREATE OR REPLACE FUNCTION reject_unit_as(p_unit uuid, p_reason text, p_note text,
+                                          p_decided_by text, p_origin text, p_why text)
 RETURNS int
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
@@ -1408,17 +1422,27 @@ BEGIN
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note
+         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note,
+         decision_origin = p_origin, decision_reason = p_why
    WHERE id = ANY (v_left);
   RETURN cardinality(v_left);
 END $$;
 
--- THE REJECTION OF ONE RELATION OF A UNIT. Only the operator role holds it. One bad link does not
--- block a correct entity: the rest of the unit waits, and it stays one unit.
-CREATE OR REPLACE FUNCTION reject_relation(p_id uuid, p_reason text, p_note text,
-                                           p_decided_by text)
+-- THE REJECTION OF ONE UNIT, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION reject_unit(p_unit uuid, p_reason text, p_note text,
+                                       p_decided_by text)
+RETURNS int
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.reject_unit_as(p_unit, p_reason, p_note, p_decided_by, NULL, NULL)
+$$;
+
+-- THE REJECTION OF ONE RELATION OF A UNIT, WITH ITS ORIGIN. No role holds this step. One bad link
+-- does not block a correct entity: the rest of the unit waits, and it stays one unit.
+CREATE OR REPLACE FUNCTION reject_relation_as(p_id uuid, p_reason text, p_note text,
+                                              p_decided_by text, p_origin text, p_why text)
 RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
@@ -1442,12 +1466,93 @@ BEGIN
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'relation', reject_reason = p_reason, reject_note = v_note
+         decided_as = 'relation', reject_reason = p_reason, reject_note = v_note,
+         decision_origin = p_origin, decision_reason = p_why
    WHERE id = p_id;
 END $$;
 
--- THE GROUP ACTION (P11): "promote the clean proposals of this group". Only the operator role
--- holds it. It takes the group and the exact list of units that the screen showed, so a unit that
+-- THE REJECTION OF ONE RELATION OF A UNIT, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION reject_relation(p_id uuid, p_reason text, p_note text,
+                                           p_decided_by text)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.reject_relation_as(p_id, p_reason, p_note, p_decided_by, NULL, NULL)
+$$;
+
+-- THE DECISIONS OF AN AI REVIEWER. Only the research role holds them. Each one is the decision of
+-- the page, with the same check of the faults, and it records its own origin, "decided by an AI
+-- reviewer", with the reason that the AI gives. It is not a rule and it is not a decision of the
+-- operator. Which session decides is a rule of the research skills: the session that proposed a
+-- unit does not decide it. A refusal keeps its sentence and names the field to correct in its
+-- hint, and it gives what the decision took: the name and the count of its acts.
+CREATE OR REPLACE FUNCTION ai_decision(p_kind text, p_id uuid, p_reason text, p_note text,
+                                       p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  c_origin CONSTANT text := 'decided by an AI reviewer';
+  c_by     CONSTANT text := 'an AI reviewer, through the MCP server';
+  v_why    text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_said   jsonb;
+  v_text   text;
+  v_rule   text;
+  v_code   text;
+BEGIN
+  BEGIN
+    IF v_why = '' OR char_length(v_why) > 1000 THEN
+      RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+        USING CONSTRAINT = 'review_reason';
+    END IF;
+    IF p_kind = 'relation' THEN
+      v_said := public.decision_said(NULL, p_id);
+      PERFORM public.reject_relation_as(p_id, p_reason, p_note, c_by, c_origin, v_why);
+    ELSE
+      v_said := public.decision_said(p_id);
+      IF p_kind = 'promote' THEN
+        PERFORM public.promote_unit_as(p_id, c_by, c_origin, v_why);
+      ELSE
+        PERFORM public.reject_unit_as(p_id, p_reason, p_note, c_by, c_origin, v_why);
+      END IF;
+    END IF;
+  EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+              OR insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                            v_code = RETURNED_SQLSTATE;
+    RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+      HINT = CASE WHEN v_rule IN ('rejection_reason', 'rejection_end') THEN 'reason'
+                  WHEN v_rule = 'rejection_note' THEN 'note'
+                  WHEN v_rule = 'review_reason' THEN 'why'
+                  WHEN p_kind = 'relation' THEN 'relationId'
+                  ELSE 'unitId' END;
+  END;
+  RETURN v_said;
+END $$;
+
+CREATE OR REPLACE FUNCTION ai_promote_unit(p_unit uuid, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('promote', p_unit, NULL, NULL, p_why)
+$$;
+
+CREATE OR REPLACE FUNCTION ai_reject_unit(p_unit uuid, p_reason text, p_note text, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('reject', p_unit, p_reason, p_note, p_why)
+$$;
+
+CREATE OR REPLACE FUNCTION ai_reject_relation(p_id uuid, p_reason text, p_note text, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('relation', p_id, p_reason, p_note, p_why)
+$$;
+
+-- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
+-- the door of the operator and the door of an AI reviewer run it. It takes the group and the exact list of units that the screen showed, so a unit that
 -- came after the view is never written. It locks the acts of the list, runs the check of the
 -- faults once for the whole list, and writes only the units that are still pending, still in the
 -- group and still clean. A unit that others need is written first: a parent before its child, so
@@ -1455,9 +1560,10 @@ END $$;
 -- unit that fails rolls back only itself, and a unit whose end failed before it is refused with
 -- the name of that end. It gives one result for each unit of the list: the refused units first,
 -- in the order of the list, then the units in the order of the writes.
-CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+CREATE OR REPLACE FUNCTION promote_group_as(p_group uuid, p_units uuid[], p_decided_by text,
+                                            p_origin text, p_reason text)
 RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_units   uuid[];
@@ -1523,7 +1629,7 @@ BEGIN
     FOREACH v_unit IN ARRAY v_ready LOOP
       v_name := coalesce(public.element_name(v_unit), v_unit::text);
       BEGIN
-        PERFORM public.write_unit(v_unit, p_decided_by, 'group');
+        PERFORM public.write_unit_as(v_unit, p_decided_by, 'group', p_origin, p_reason);
         v_out := v_out || jsonb_build_object(
           'unit', v_unit, 'name', v_name, 'outcome', 'promoted', 'said', NULL);
       EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
@@ -1536,6 +1642,43 @@ BEGIN
     v_clean := ARRAY(SELECT c FROM unnest(v_clean) AS c WHERE NOT c = ANY (v_ready));
   END LOOP;
   RETURN v_out;
+END $$;
+
+-- THE GROUP ACTION, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.promote_group_as(p_group, p_units, p_decided_by, NULL, NULL)
+$$;
+
+-- THE GROUP ACTION OF AN AI REVIEWER. Only the research role holds it. It is the group action of
+-- the page, with the same check of the faults: each clean unit of the list is written as its own
+-- decision, with the origin "decided by an AI reviewer" and the one reason that the AI gives, and
+-- each other unit is refused with the reason. A refusal of the whole call names its field.
+CREATE OR REPLACE FUNCTION ai_promote_group(p_group uuid, p_units uuid[], p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why  text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_text text;
+  v_rule text;
+  v_code text;
+BEGIN
+  IF v_why = '' OR char_length(v_why) > 1000 THEN
+    RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+      USING CONSTRAINT = 'review_reason', HINT = 'why';
+  END IF;
+  RETURN public.promote_group_as(p_group, p_units, 'an AI reviewer, through the MCP server',
+                                 'decided by an AI reviewer', v_why);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'group_named' THEN 'unitIds'
+                ELSE 'groupId' END;
 END $$;
 
 -- THE RAIL OF THE GROUPS, FOR THE OPERATOR. The groups come in the order of the queue, with the
@@ -1725,6 +1868,7 @@ BEGIN
                 'createdAt', p.created_at, 'decidedAt', p.decided_at, 'decidedBy', p.decided_by,
                 'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
                 'rejectNote', p.reject_note, 'decisionOrigin', p.decision_origin,
+                'decisionReason', p.decision_reason,
                 'name', public.element_name(coalesce(p.target_id, p.id)))
                 ORDER BY p.no) FILTER (WHERE p.no <= v_size), '[]'::jsonb),
       'next', (SELECT jsonb_build_object('decidedAt', l.decided_at, 'id', l.id)

@@ -341,6 +341,17 @@ test('the entity says who promoted it into the record, and names a group action 
   )?.decision;
   expect(byRule).toBe('Accepted by the rule strong sources, version 1 on 2026-10-08');
   expect(byRule).not.toMatch(/operator/u);
+  const byReviewer = readDossier(
+    CORPUS,
+    VESSEL.id,
+    [],
+    [promoted('unit', 'decided by an AI reviewer')],
+  )?.decision;
+  expect(byReviewer).toBe('Decided by an AI reviewer and not by a human on 2026-10-08');
+  expect(byReviewer).not.toMatch(/operator/u);
+  expect(
+    readDossier(CORPUS, VESSEL.id, [], [promoted('group', 'decided by an AI reviewer')])?.decision,
+  ).toBe('Decided by an AI reviewer and not by a human, group action, on 2026-10-08');
   // An entity whose promotion the read does not hold says nothing of it.
   expect(readDossier(CORPUS, VESSEL.id, [], [])?.decision).toBeNull();
 });

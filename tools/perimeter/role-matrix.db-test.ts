@@ -37,6 +37,10 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.ai_promote_group": "research",
+      "public.ai_promote_unit": "research",
+      "public.ai_reject_relation": "research",
+      "public.ai_reject_unit": "research",
       "public.approve_reference_set": "app",
       "public.citations_independent": "app",
       "public.claim_job": "agent",
@@ -48,7 +52,7 @@ test('the role matrix of the doors', async () => {
       "public.fact_digit": "app",
       "public.fail_job": "agent",
       "public.join_author_name": "agent",
-      "public.lead_jobs": "app",
+      "public.lead_jobs": "app research",
       "public.letter_of": "app",
       "public.promote_group": "app",
       "public.promote_unit": "app",
@@ -68,10 +72,10 @@ test('the role matrix of the doors', async () => {
       "public.reject_relation": "app",
       "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
-      "public.review_decided": "app",
-      "public.review_group": "app",
-      "public.review_groups": "app",
-      "public.review_units": "app",
+      "public.review_decided": "app research",
+      "public.review_group": "app research",
+      "public.review_groups": "app research",
+      "public.review_units": "app research",
       "public.runner_settings": "agent",
       "public.set_entity_layout": "agent",
       "public.sign_change": "app",
@@ -105,27 +109,39 @@ test('no door is open to PUBLIC or to the public read role', async () => {
 
 // Any door that decides a proposal has "promote", "reject" or "decide" in its name, so a new door
 // of that kind falls under the rule with no edit here. The act of the operator promotes the proposal it
-// writes, and the step that writes the record runs inside both, so the two are named.
+// writes, and the steps that write the record run inside the doors, so each one is named.
 const DECIDING_DOORS_HELD = `
   SELECT r.role, p.oid::regprocedure::text AS door
     FROM pg_catalog.pg_proc p
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))
-     AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
+                         'write_unit', 'write_unit_as', 'ai_decision'))
+     AND has_function_privilege(r.role, p.oid, 'EXECUTE')
+   ORDER BY 1, 2`;
 
 const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
+                         'write_unit', 'write_unit_as', 'ai_decision'))`;
 
-test('a machine role holds no door that promotes or rejects', async () => {
+// The research role decides only as an AI reviewer: four doors that record their own origin.
+// The worker decides nothing. The read of the decided acts has "decide" in its name.
+test('a machine role holds no door that promotes or rejects, except the doors of an AI reviewer', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
   expect(z.array(z.object({ n: z.number().int() })).parse(counted)[0]?.n).toBeGreaterThan(0);
   const held = await probe('superuser', (ask) => ask(DECIDING_DOORS_HELD, [[...MACHINES]]));
-  expect(held).toStrictEqual([]);
+  expect(held).toStrictEqual([
+    { role: 'gabriel_research', door: 'ai_promote_group(uuid,uuid[],text)' },
+    { role: 'gabriel_research', door: 'ai_promote_unit(uuid,text)' },
+    { role: 'gabriel_research', door: 'ai_reject_relation(uuid,text,text,text)' },
+    { role: 'gabriel_research', door: 'ai_reject_unit(uuid,text,text,text)' },
+    // A read: the decided acts, as the review page shows them.
+    { role: 'gabriel_research', door: 'review_decided(timestamp with time zone,uuid,integer)' },
+  ]);
 });
 
 // The functions that the rules run on stand in the database for the doors to call. The matrix above
@@ -191,6 +207,7 @@ test('a machine role cannot write a check, or set that it passed', async () => {
   }
 });
 
+// The doors of the operator. The research role decides through its own doors, with its own origin.
 const DECISIONS = [
   "public.promote_unit(gen_random_uuid(), 'a perimeter test')",
   "public.promote_group(gen_random_uuid(), ARRAY[gen_random_uuid()], 'a perimeter test')",
@@ -221,8 +238,8 @@ test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
 });
 
-// A rejection keeps a reason and a note that stay private to the operator.
-for (const identity of ['read', 'agent', 'research'] as const)
+// A rejection keeps a reason and a note that stay private to the operator and to the AI reviewer.
+for (const identity of ['read', 'agent'] as const)
   test(`gabriel_${identity} cannot read the decided acts with the reasons of the rejections`, async () => {
     await expect(
       rolledBack(identity, (ask) => ask('SELECT public.review_decided(NULL, NULL, 1)')),

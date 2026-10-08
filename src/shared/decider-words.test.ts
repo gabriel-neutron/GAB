@@ -19,9 +19,14 @@ it('says validated manually for the operator, also for an older decision with no
   expect(deciderWords('group', manual, 'accepted')).toBe(`${manual}, group action`);
 });
 
-it('names an AI reviewer by its own words', () => {
-  expect(deciderWords('unit', 'decided by an AI reviewer', 'accepted')).toBe(
-    'decided by an AI reviewer',
+it('names an AI reviewer by its own words, and says that a human did not decide', () => {
+  for (const mode of ['unit', 'relation'] as const)
+    for (const verdict of ['accepted', 'rejected'] as const)
+      expect(deciderWords(mode, 'decided by an AI reviewer', verdict)).toBe(
+        'decided by an AI reviewer and not by a human',
+      );
+  expect(deciderWords('group', 'decided by an AI reviewer', 'accepted')).toBe(
+    'decided by an AI reviewer and not by a human, group action',
   );
 });
 
