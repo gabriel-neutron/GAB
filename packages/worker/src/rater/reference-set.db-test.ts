@@ -167,7 +167,7 @@ test('a written set loads with no model call, and none is usable yet', async () 
     expect(stored).toHaveLength(30);
     expect(stored.every((one) => !one.approved)).toBe(true);
     const kept = await held.ask(`SELECT DISTINCT model FROM public.author WHERE reference_set`);
-    expect(kept).toStrictEqual([{ model: 'operator-approved expert set' }]);
+    expect(kept).toStrictEqual([{ model: 'expert-written set' }]);
     const calls = await held.ask(
       `SELECT count(*)::int AS n FROM public.model_call WHERE agent = 'reference-set'`,
     );
@@ -191,7 +191,19 @@ test('a written set that breaks a rule stores nothing', async () => {
     const party = authors().map((one, index) =>
       index === 0 ? { ...one, letter: 'B', party: true } : one,
     );
-    await expect(loadReferenceSet(held.app, JSON.stringify({ authors: party }))).rejects.toThrow();
+    await expect(loadReferenceSet(held.app, JSON.stringify({ authors: party }))).rejects.toThrow(
+      'a party to the conflict has a controller',
+    );
+    const rated = authors().map((one, index) =>
+      index === 0 ? { ...one, letter: 'A', party: true, controller: 'A government' } : one,
+    );
+    await expect(loadReferenceSet(held.app, JSON.stringify({ authors: rated }))).rejects.toThrow(
+      'a party to the conflict is B at most',
+    );
+    const twice = [...authors(), { ...authors()[0], letter: 'B' }];
+    await expect(loadReferenceSet(held.app, JSON.stringify({ authors: twice }))).rejects.toThrow(
+      'two authors share one name',
+    );
     await expect(loadReferenceSet(held.app, 'not json')).rejects.toThrow();
     expect(await readReferenceSet(held.app)).toHaveLength(0);
   });

@@ -35,8 +35,9 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   by experts and approved by the operator on 2026-10-08, with no model call.
 - The operator loads a written set from a file with `pnpm worker reference-set load`, or builds
   one with `pnpm worker reference-set build`. Then the operator reads the set with `show` and
-  approves it with `approve`. A record that holds a set refuses a second load and a second build. Until the approval, a reference author is no author for any reader,
-  and a rating job waits in the queue. The approval is written once for each author.
+  approves it with `approve`. A record that holds a set refuses a second load and a second
+  build. Until the approval, a reference author is no author for any reader, and a rating job
+  waits in the queue. The approval is written once for each author.
 - Each act that names a new originator queues one rating job for that name, with no click of the
   operator. A refused answer ends the job as failed with its reason, and the name is not asked
   again. A job that fails by a fault of the service leaves the name free.

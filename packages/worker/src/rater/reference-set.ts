@@ -88,7 +88,7 @@ const storeAuthors = async (
 };
 
 /** The text that the model column holds for a set that experts wrote and no model made. */
-export const WRITTEN_SET_MODEL = 'operator-approved expert set';
+export const WRITTEN_SET_MODEL = 'expert-written set';
 
 /** Stores a set that experts wrote, from the text of a JSON file. The text passes the same rules
  * as the answer of the model. No model is called. The set is not used until the operator

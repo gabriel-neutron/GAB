@@ -56,6 +56,22 @@ export const referenceSetCommand: SubCommand = async (args) => {
     return 2;
   }
 
+  let text = '';
+  if (step === 'load' && file !== undefined) {
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      console.error(`Cannot read the file: ${file}`);
+      return 1;
+    }
+    try {
+      JSON.parse(text);
+    } catch {
+      console.error(`The file is not valid JSON: ${file}`);
+      return 1;
+    }
+  }
+
   const app = new Client({ connectionString: appAddress() });
   await app.connect();
   try {
@@ -69,8 +85,7 @@ export const referenceSetCommand: SubCommand = async (args) => {
       return 0;
     }
 
-    if (step === 'load' && file !== undefined) {
-      const text = readFileSync(file, 'utf8');
+    if (step === 'load') {
       print(await whole(app, () => loadReferenceSet(app, text)));
       console.log('Read the set. Then run: pnpm worker reference-set approve');
       return 0;
