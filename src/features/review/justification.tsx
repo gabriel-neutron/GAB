@@ -149,7 +149,11 @@ export function Justification({ unit }: JustificationProps) {
         <span data-badge="proposer" className={BADGE}>
           {proposerWords(unit.proposer)}
         </span>
-        <span data-badge="group" className={cn(BADGE, 'min-w-0 truncate')}>
+        <span
+          data-badge="group"
+          title={unit.group?.subject ?? undefined}
+          className={cn(BADGE, 'min-w-0 truncate')}
+        >
           {unit.group === null ? 'No group' : (unit.group.subject ?? 'A group with no subject')}
         </span>
       </div>
