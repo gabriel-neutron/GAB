@@ -73,7 +73,8 @@ function GraphRoute() {
     () =>
       selection === null || selection.kind === 'relation'
         ? null
-        : readDossier(corpus, selection.id, types),
+        : // The side panel names no decision, so it reads no history: the entity page does.
+          readDossier(corpus, selection.id, types, []),
     [corpus, selection, types],
   );
 

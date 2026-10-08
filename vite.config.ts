@@ -16,9 +16,10 @@ export default defineConfig({
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
 
-  // External constraint: the proxy keeps the Host of the page, port 5173 by default, and the
-  // writer admits only the names it knows. A change of this port refuses every write until the
-  // writer admits the new Host. The writer holds its own rule on the sender.
+  // External constraint: a proxy given as a text sends the Host of its target, so the writer
+  // reads its own Host. The browser sends the Origin of the page, port 5173 by default, and the
+  // writer admits only the origins it knows. A change of this port refuses every write until the
+  // writer admits the new origin. The writer holds its own rule on the sender.
   server: {
     proxy: { '/write': 'http://127.0.0.1:5177', '/private': 'http://127.0.0.1:5177' },
   },

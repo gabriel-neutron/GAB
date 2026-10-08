@@ -95,6 +95,8 @@ const fault = z.object({
   level: z.enum(['blocks', 'waits', 'not_clean', 'information']),
   act: z.uuid().nullable(),
   said: z.string(),
+  reason: z.string().optional(),
+  note: z.string().nullable().optional(),
 });
 const checked = z.array(
   z.object({
@@ -110,8 +112,16 @@ const faultsOf = async (ask: Ask, units: readonly string[]): Promise<Map<string,
 
 // The wait for a parent of the same group is on most units, so each case that is about another
 // fault leaves it out. The first case reads it.
+// A rejection gives its reason as a key, and the page holds the words of the key.
 const said = (row: Checked | undefined) =>
-  row?.faults.filter((one) => one.level !== 'waits').map((one) => [one.level, one.kind, one.said]);
+  row?.faults
+    .filter((one) => one.level !== 'waits')
+    .map((one) => [
+      one.level,
+      one.kind,
+      one.said,
+      ...(one.reason === undefined ? [] : [one.reason, one.note ?? null]),
+    ]);
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -198,7 +208,7 @@ test('a dispute, a reported claim and an unknown type make a unit not clean', as
   ]);
   expect(read.get(disputed)?.state).toBe('not_clean');
   expect(said(read.get(disputed))).toStrictEqual([
-    ['not_clean', 'dispute', 'Disputed: the checker says unclear'],
+    ['not_clean', 'dispute', 'Disputed: the checker finds the passage unclear'],
   ]);
   expect(said(read.get(alleged))).toStrictEqual([
     [
@@ -589,17 +599,19 @@ test('a claim that was rejected, then proposed again with new identities, is rej
   });
   expect(read.get(againArmy)?.state).toBe('not_clean');
   expect(said(read.get(againArmy))).toStrictEqual([
-    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}: Wrong value`],
+    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}`, 'wrong_value', null],
   ]);
   expect(said(read.get(againBrigade))).toStrictEqual([
     [
       'not_clean',
       'rejected_before',
-      `Rejected before on ${TODAY}: Other (The page names a ferry.)`,
+      `Rejected before on ${TODAY}`,
+      'other',
+      'The page names a ferry.',
     ],
   ]);
   expect(said(read.get(changedAgain))).toStrictEqual([
-    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}: Not in the source`],
+    ['not_clean', 'rejected_before', `Rejected before on ${TODAY}`, 'not_in_source', null],
   ]);
   expect(said(read.get(otherValue))).toStrictEqual([]);
 });
@@ -654,7 +666,9 @@ test('a relation rejected while its end waited is rejected before after that end
   expect(said(read.get(again))).toContainEqual([
     'not_clean',
     'rejected_before',
-    `Rejected before on ${TODAY}: Wrong type`,
+    `Rejected before on ${TODAY}`,
+    'wrong_type',
+    null,
   ]);
 });
 
@@ -683,6 +697,133 @@ test('a link unit that was rejected, then proposed again with new identities, is
   expect(said(read.get(againLink))).toContainEqual([
     'not_clean',
     'rejected_before',
-    `Rejected before on ${TODAY}: Out of scope`,
+    `Rejected before on ${TODAY}`,
+    'out_of_scope',
+    null,
+  ]);
+});
+
+test('a value that an import broke into "[object Object]" makes a unit not clean', async () => {
+  const [list, text, sound] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const withAttrs = (id: string, label: string, attrs: Item) =>
+      entity(id, label, {
+        payload: { type: 'military_unit', label, sources: [DOC], attrs },
+      });
+    await batch(ask, [
+      withAttrs(list, 'Broken list', {
+        source_urls: { v: ['[object', 'Object]'], src: [DOC] },
+      }),
+    ]);
+    await batch(ask, [withAttrs(text, 'Broken text', { branch: attribute('[object Object]') })]);
+    await batch(ask, [
+      withAttrs(sound, 'Sound list', {
+        source_urls: { v: ['https://a.example/object'], src: [DOC] },
+      }),
+    ]);
+    return faultsOf(ask, [list, text, sound]);
+  });
+  expect(read.get(list)?.state).toBe('not_clean');
+  expect(said(read.get(list))).toStrictEqual([
+    ['not_clean', 'broken_value', 'A value is broken: source_urls'],
+  ]);
+  expect(said(read.get(text))).toStrictEqual([
+    ['not_clean', 'broken_value', 'A value is broken: branch'],
+  ]);
+  expect(read.get(sound)).toMatchObject({ state: 'clean', faults: [] });
+});
+
+test('the words of a dispute name what the checker found, and not its codes', async () => {
+  const [unsupported, unstated] = [randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(unsupported, 'Unsupported unit', {
+        dissent: true,
+        dissent_reason: 'the checker says not_supported: The passage names another unit.',
+      }),
+    ]);
+    await batch(ask, [
+      entity(unstated, 'Unstated unit', {
+        dissent: true,
+        dissent_reason:
+          'no cited passage states label "Unstated unit", attrs.flag "Panama"; the checker did ' +
+          'not answer',
+      }),
+    ]);
+    return faultsOf(ask, [unsupported, unstated]);
+  });
+  expect(said(read.get(unsupported))).toStrictEqual([
+    [
+      'not_clean',
+      'dispute',
+      'Disputed: the checker finds that the passage does not support the act: The passage ' +
+        'names another unit.',
+    ],
+  ]);
+  expect(said(read.get(unstated))).toStrictEqual([
+    [
+      'not_clean',
+      'dispute',
+      'Disputed: no cited passage states the name "Unstated unit", flag "Panama"; the checker ' +
+        'did not answer',
+    ],
+  ]);
+});
+
+const REJECT_RELATION = "SELECT public.reject_relation($1::uuid, $2, NULL, 'a test')";
+const REJECT_UNIT = "SELECT public.reject_unit($1::uuid, $2, NULL, 'a test')";
+
+// The refusal of a door in a savepoint, so the case goes on after it.
+const refusalOf = async (ask: Ask, text: string, values: readonly unknown[]) => {
+  await ask('SAVEPOINT refusal');
+  const refusal = await ask(text, values).then(
+    () => null,
+    (error: unknown) => z.object({ constraint: z.string() }).parse(error).constraint,
+  );
+  await ask('ROLLBACK TO SAVEPOINT refusal');
+  return refusal;
+};
+
+test('"end rejected" is a reason only for a relation whose other end was rejected', async () => {
+  const [parent, child, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(parent, 'End parent'),
+      entity(child, 'End child'),
+      relation(link, 'subordinate_to', child, parent),
+    ]);
+    const early = await refusalOf(ask, REJECT_RELATION, [link, 'end_rejected']);
+    await ask(REJECT_UNIT, [parent, 'duplicate']);
+    const ofEntity = await refusalOf(ask, REJECT_UNIT, [child, 'end_rejected']);
+    const page = z
+      .array(z.object({ page: z.object({ units: z.array(z.unknown()) }) }))
+      .parse(await ask('SELECT public.review_units(NULL, 200) AS page'));
+    const late = await refusalOf(ask, REJECT_RELATION, [link, 'end_rejected']);
+    return { early, ofEntity, late, units: page[0]?.page.units ?? [] };
+  });
+  expect(read).toMatchObject({ early: 'rejection_end', ofEntity: 'rejection_end', late: null });
+  // The page offers the reason only to a unit that has the fault.
+  expect(read.units).toContainEqual(expect.objectContaining({ unit: child, endRejected: true }));
+});
+
+test('a child whose link to a rejected parent was rejected is not clean, and names its parent', async () => {
+  const [parent, child, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [
+      entity(parent, 'Gone parent'),
+      entity(child, 'Child of a gone parent'),
+      relation(link, 'subordinate_to', child, parent),
+    ]);
+    await ask(REJECT_UNIT, [parent, 'duplicate']);
+    await ask(REJECT_RELATION, [link, 'end_rejected']);
+    return faultsOf(ask, [child]);
+  });
+  expect(read.get(child)?.state).toBe('not_clean');
+  expect(said(read.get(child))).toStrictEqual([
+    ['not_clean', 'parent_rejected', `Its parent Gone parent was rejected on ${TODAY}`],
   ]);
 });

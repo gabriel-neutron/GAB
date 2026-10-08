@@ -12,7 +12,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL, entityTypes);
+  const held = readDossier(corpus, VESSEL, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };
@@ -23,7 +23,7 @@ const DOSSIER = read();
 const NEXT_VESSEL = 'd4e15ccd-d7e8-4411-b5b2-a2b3c4d5e6f7';
 
 const readNext = (): Dossier => {
-  const held = readDossier(corpus, NEXT_VESSEL, entityTypes);
+  const held = readDossier(corpus, NEXT_VESSEL, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no MV Kestrel Arrow');
   return held;
 };
@@ -193,7 +193,7 @@ export const ThePanelDrawsTheSameNamedParts: Story = {
 const BORROWER = 'ac1d2e3f-4051-4622-9733-b4c5d6e7f809';
 
 const readBorrower = (): Dossier => {
-  const held = readDossier(corpus, BORROWER, entityTypes);
+  const held = readDossier(corpus, BORROWER, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no 3rd Reconnaissance Company');
   return held;
 };

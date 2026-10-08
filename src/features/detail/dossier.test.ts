@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 
+import type { DecidedAct } from '@/shared/read/decided-acts';
 import type {
   Corpus,
   DocumentRow,
@@ -60,7 +61,7 @@ const CORPUS: Corpus = {
 };
 
 test('a document that one list cites twice is one mark, one card and number 1', () => {
-  const dossier = readDossier(CORPUS, VESSEL.id, []);
+  const dossier = readDossier(CORPUS, VESSEL.id, [], []);
   if (dossier === null) throw new Error('The corpus holds no vessel');
 
   const lists = [
@@ -75,7 +76,7 @@ test('a document that one list cites twice is one mark, one card and number 1', 
 });
 
 test('the relation panel and the entity page draw the same card for one document', () => {
-  const dossier = readDossier(CORPUS, VESSEL.id, []);
+  const dossier = readDossier(CORPUS, VESSEL.id, [], []);
   const relation = readRelation(CORPUS, OWNED_BY.id);
   if (dossier === null || relation === null) throw new Error('The corpus holds no such row');
 
@@ -98,7 +99,7 @@ test('a relation read from its far end takes the inverse words of its type', () 
     relationTypes: [OWNS],
   };
   const sentences = (entityId: string): readonly string[] =>
-    readDossier(read, entityId, [])?.relations.map((line) => line.sentence) ?? [];
+    readDossier(read, entityId, [], [])?.relations.map((line) => line.sentence) ?? [];
 
   expect(sentences(OWNER.id)).toEqual(['Ledger Shipping owns MV Northern Ledger']);
   expect(sentences(VESSEL.id)).toEqual(['MV Northern Ledger is owned by Ledger Shipping']);
@@ -117,7 +118,7 @@ test('a point borrowed from a parent that the entity list lacks still states tha
       },
     ],
   };
-  const dossier = readDossier(lost, VESSEL.id, []);
+  const dossier = readDossier(lost, VESSEL.id, [], []);
   if (dossier === null) throw new Error('The corpus holds no vessel');
 
   expect(dossier.drawnOnMap).toBe(true);
@@ -142,6 +143,7 @@ const ACT: Proposal = {
   createdAt: '2026-09-01T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  decidedAs: null,
   batchId: null,
 };
 
@@ -154,7 +156,7 @@ const withActs = (...proposals: readonly Proposal[]): Corpus => ({
 });
 
 const pendingOf = (read: Corpus, entityId: string): readonly PendingLine[] => {
-  const dossier = readDossier(read, entityId, []);
+  const dossier = readDossier(read, entityId, [], []);
   if (dossier === null) throw new Error(`The corpus holds no entity ${entityId}`);
   return dossier.pending;
 };
@@ -269,7 +271,7 @@ test('the type choices hold the live types and the retired type the entity holds
     declared('aircraft', 'Aircraft', true),
   ];
 
-  expect(readDossier(CORPUS, VESSEL.id, types)?.typeChoices).toEqual([
+  expect(readDossier(CORPUS, VESSEL.id, types, [])?.typeChoices).toEqual([
     { key: 'company', name: 'Company' },
     { key: 'port', name: 'Port' },
     { key: 'vessel', name: 'Vessel' },
@@ -279,7 +281,7 @@ test('the type choices hold the live types and the retired type the entity holds
 test('the type choices add the held type under its own key when the vocabulary lacks it', () => {
   const types = [declared('port', 'Port', false), declared('aircraft', 'Aircraft', true)];
 
-  expect(readDossier(CORPUS, VESSEL.id, types)?.typeChoices).toEqual([
+  expect(readDossier(CORPUS, VESSEL.id, types, [])?.typeChoices).toEqual([
     { key: 'port', name: 'Port' },
     { key: 'vessel', name: 'vessel' },
   ]);
@@ -298,7 +300,34 @@ test('a point borrowed from a parent that the entity list holds names that paren
       },
     ],
   };
-  const dossier = readDossier(held, VESSEL.id, []);
+  const dossier = readDossier(held, VESSEL.id, [], []);
 
   expect(dossier?.positionFrom).toBe(`position from ${OWNER.label}`);
+});
+
+test('the entity says who promoted it into the record, and names a group action', () => {
+  const { op, targetKind, targetId, payload, src, names, priorValue, dissent } = ACT;
+  const act = { op, targetKind, targetId, payload, src, names, priorValue, dissent };
+  const promoted = (decidedAs: DecidedAct['decidedAs']): DecidedAct => ({
+    act: {
+      ...act,
+      id: VESSEL.promotedFrom,
+      authorRole: ACT.authorRole,
+      proposer: ACT.proposer,
+      createdAt: ACT.createdAt,
+      batchId: ACT.batchId,
+    },
+    verdict: 'accepted',
+    decidedAt: '2026-10-08T09:30:00Z',
+    decidedBy: 'operator',
+    decidedAs,
+  });
+  expect(readDossier(CORPUS, VESSEL.id, [], [promoted('group')])?.decision).toBe(
+    'Promoted by the operator, group action, on 2026-10-08',
+  );
+  expect(readDossier(CORPUS, VESSEL.id, [], [promoted('unit')])?.decision).toBe(
+    'Promoted by the operator on 2026-10-08',
+  );
+  // An entity whose promotion the read does not hold says nothing of it.
+  expect(readDossier(CORPUS, VESSEL.id, [], [])?.decision).toBeNull();
 });

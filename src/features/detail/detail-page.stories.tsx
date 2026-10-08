@@ -20,7 +20,7 @@ import { readDossier, type Dossier, type RelationLine, type SourceCardModel } fr
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL, entityTypes);
+  const held = readDossier(corpus, VESSEL, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };
@@ -245,7 +245,7 @@ export const TheEntityNamesItsOwnSources: Story = {
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 
 const readCompany = (): Dossier => {
-  const held = readDossier(corpus, COMPANY, entityTypes);
+  const held = readDossier(corpus, COMPANY, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no Meridian Bulk Carriers');
   return held;
 };
@@ -282,7 +282,7 @@ const readBorrower = (): Dossier => {
   const entities = corpus.entities.map((entity) =>
     entity.id === BORROWER ? { ...entity, type: 'unknown', proposedType: PROPOSED } : entity,
   );
-  const held = readDossier({ ...corpus, entities }, BORROWER, entityTypes);
+  const held = readDossier({ ...corpus, entities }, BORROWER, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no 3rd Reconnaissance Company');
   return held;
 };

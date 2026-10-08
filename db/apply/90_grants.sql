@@ -79,9 +79,13 @@ REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
+REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION end_was_rejected(proposals) FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
@@ -172,14 +176,16 @@ GRANT EXECUTE ON FUNCTION start_lead(text)         TO gabriel_app, gabriel_resea
 GRANT EXECUTE ON FUNCTION record_lead_document(uuid,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
--- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages and the reason of each
--- dispute, and only the operator reads them.
+-- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
+-- dispute and the reason and the note of each rejection, and only the operator reads them.
 REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text) TO gabriel_app;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_decided()            FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_decided() TO gabriel_app;
 
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count

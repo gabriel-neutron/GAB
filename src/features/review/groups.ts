@@ -1,3 +1,4 @@
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { z } from 'zod';
 
 import type { Proposer } from '@/shared/read/model';
@@ -31,8 +32,9 @@ export interface GroupUnit {
   readonly faults: readonly { readonly kind: FaultKind; readonly level: FaultLevel }[];
   readonly entities: number;
   readonly relations: number;
-  /** The other units of the queue that the relations of this unit need. */
-  readonly needs: readonly string[];
+  /** The group action can write the unit: it is clean, and each unit that it needs is a clean
+   * unit of the same group. */
+  readonly writable: boolean;
   /** The parent of the entity, with its unit when the parent waits in the queue. */
   readonly parent: { readonly unit: string | null; readonly name: string } | null;
 }
@@ -49,7 +51,7 @@ export type GroupsRead<Held> =
   | { readonly state: 'held'; readonly read: Held }
   | { readonly state: 'private'; readonly why: string };
 
-const PROPOSER = z.enum(['extractor', 'research_ai', 'v1_import', 'operator']);
+const PROPOSER = z.enum(PROPOSERS);
 const KIND = z.enum(FAULT_KINDS);
 
 const rail = z.object({
@@ -81,7 +83,7 @@ const group = z.object({
       ),
       entities: z.number().int(),
       relations: z.number().int(),
-      needs: z.array(z.string()),
+      writable: z.boolean(),
       parent: z.object({ unit: z.string().nullable(), name: z.string() }).nullable(),
     }),
   ),

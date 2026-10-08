@@ -1,6 +1,7 @@
 /** The history of the record, one row per decided act, in the words of the queue. It offers no
  * way back: a decided act is frozen. */
 
+import { deciderWords } from '@/shared/decider-words';
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type { Corpus, EndpointKind, ProposalOp, Relation } from '@/shared/read/model';
 import { proposerWords } from '@/shared/proposer-words';
@@ -30,6 +31,8 @@ export interface DecidedRow {
   readonly when: string;
   /** The name the verdict was signed with. It proves no person. */
   readonly signedAs: string;
+  /** Who decided the act, and whether in a group action. */
+  readonly decidedHow: string;
   /** Who proposed the act: the v1 import, the research AI, the extractor or the operator. */
   readonly author: string;
 }
@@ -180,7 +183,7 @@ export function readDecided(corpus: Corpus, acts: readonly DecidedAct[]): readon
     typeWordsOf: (type) => wordsOf(type).label,
   };
 
-  const rows = acts.map(({ act, verdict, decidedAt, decidedBy }): DecidedRow => {
+  const rows = acts.map(({ act, verdict, decidedAt, decidedBy, decidedAs }): DecidedRow => {
     const held = VERDICT_OF[verdict];
     return {
       id: act.id,
@@ -192,6 +195,7 @@ export function readDecided(corpus: Corpus, acts: readonly DecidedAct[]): readon
       decidedAt,
       when: whenOf(decidedAt),
       signedAs: decidedBy,
+      decidedHow: deciderWords(decidedAs),
       author: proposerWords(act.proposer),
     };
   });

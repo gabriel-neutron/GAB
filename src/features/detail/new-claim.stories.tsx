@@ -12,7 +12,7 @@ import type { SaveState } from './save';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): readonly RecordRow[] => {
-  const held = readDossier(corpus, VESSEL, entityTypes);
+  const held = readDossier(corpus, VESSEL, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held.rows;
 };

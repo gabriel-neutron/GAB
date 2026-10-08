@@ -1,3 +1,4 @@
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { z } from 'zod';
 
 import { readBody } from './body.ts';
@@ -17,7 +18,7 @@ const LONGEST_NAME = 200;
 /** The filters of the queue. An absent filter keeps every unit. */
 const filter = z.strictObject({
   group: z.uuid().optional(),
-  proposer: z.enum(['extractor', 'research_ai', 'v1_import', 'operator']).optional(),
+  proposer: z.enum(PROPOSERS).optional(),
   fault: z
     .string()
     .regex(/^[a-z_]{1,40}$/)

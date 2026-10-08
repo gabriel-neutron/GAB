@@ -1,6 +1,9 @@
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { z } from 'zod';
 
 import type { Proposer } from '@/shared/read/model';
+
+import { REJECTION_REASONS } from './rejection';
 
 /** Where an element that an act names stands: it waits in the queue, the record holds it, the
  * operator rejected it, or neither holds it. */
@@ -41,6 +44,8 @@ export const FAULT_KINDS = [
   'duplicate',
   'unknown_type',
   'rejected_before',
+  'broken_value',
+  'parent_rejected',
   'sources_from_parent',
   'approximate_position',
   'note',
@@ -195,7 +200,7 @@ const answer = z.object({
       kind: z.enum(['entity', 'link', 'relation', 'change']),
       name: z.string(),
       type: z.string().nullable(),
-      proposer: z.enum(['extractor', 'research_ai', 'v1_import', 'operator']),
+      proposer: z.enum(PROPOSERS),
       group: z.object({ id: z.string(), subject: z.string().nullable() }).nullable(),
       state: z.enum(['clean', 'not_clean', 'blocked']),
       faults: z.array(
@@ -204,6 +209,8 @@ const answer = z.object({
           level: z.enum(['blocks', 'waits', 'not_clean', 'information']),
           act: z.string().nullable(),
           said: z.string(),
+          reason: z.string().optional(),
+          note: z.string().nullable().optional(),
         }),
       ),
       acts: z.array(act),
@@ -271,6 +278,16 @@ const attributesOf = (read: ReadAct['payload']): readonly Attribute[] => {
   ];
 };
 
+type ReadFault = z.output<typeof answer>['units'][number]['faults'][number];
+
+// The database gives the reason of a rejection as its key, and the page holds the words of it.
+const faultOf = ({ reason, note, ...fault }: ReadFault): Fault => {
+  if (reason === undefined) return fault;
+  const words = REJECTION_REASONS.find((held) => held.key === reason)?.words ?? reason;
+  const noted = note === null || note === undefined ? '' : ` (${note})`;
+  return { ...fault, said: `${fault.said}: ${words}${noted}` };
+};
+
 // The read names no element that the record and the queue both lack, so it reads as missing.
 const endOf = (id: string, read: z.output<typeof end>): UnitEnd => ({
   id,
@@ -329,7 +346,7 @@ export function unitPageOf(raw: unknown, after: readonly string[] | null): UnitP
       proposer: unit.proposer,
       group: unit.group,
       state: unit.state,
-      faults: unit.faults,
+      faults: unit.faults.map(faultOf),
       acts: unit.acts.map(actOf),
       documents: unit.documents,
       passages: unit.passages,

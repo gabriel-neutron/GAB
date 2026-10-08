@@ -1,8 +1,8 @@
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { useId, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
-import type { Proposer } from '@/shared/read/model';
 import { Input } from '@/shared/ui/input';
 
 import { faultWords } from './fault-marks';
@@ -14,8 +14,6 @@ export interface QueueFilterProps {
   readonly choices: FilterChoices;
   readonly onFilter: (filter: QueueFilter) => void;
 }
-
-const PROPOSERS: readonly Proposer[] = ['v1_import', 'research_ai', 'extractor', 'operator'];
 
 const CHOOSER = cn(
   'h-6 w-full min-w-0 rounded-none border border-input bg-background px-1 text-xs text-foreground',

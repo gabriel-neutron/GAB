@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { groupConfirmation } from './group-confirmation';
 import type { GroupUnit, GroupUnits } from './groups';
 
-// A unit needs the unit of its parent when the parent waits in the queue, as the read gives it.
+// The read says whether the action can write a unit. A clean unit is writable by default here.
 const unit = (id: string, extra: Partial<GroupUnit> = {}): GroupUnit => ({
   id,
   kind: 'entity',
@@ -14,7 +14,7 @@ const unit = (id: string, extra: Partial<GroupUnit> = {}): GroupUnit => ({
   entities: 1,
   relations: 1,
   parent: null,
-  needs: extra.parent?.unit ? [extra.parent.unit] : [],
+  writable: (extra.state ?? 'clean') === 'clean',
   ...extra,
 });
 
@@ -79,9 +79,11 @@ test('the tree puts each clean unit under its clean parent, and the action sends
 test('a clean unit below a unit that stays in the queue stays too, with each unit below it', () => {
   const orphan = unit('2nd Battalion', {
     parent: { unit: 'Disputed regiment', name: 'Disputed regiment' },
+    writable: false,
   });
   const company = unit('1st Company', {
     parent: { unit: '2nd Battalion', name: '2nd Battalion' },
+    writable: false,
   });
   const held = unit('3rd Battalion', { parent: { unit: null, name: 'Southern District' } });
   const read = groupConfirmation(group([DISPUTED, company, orphan, held]));
@@ -95,8 +97,8 @@ test('a clean unit below a unit that stays in the queue stays too, with each uni
   );
 });
 
-test('a clean unit that needs a unit outside the list stays in the queue', () => {
-  const read = groupConfirmation(group([BRIGADE]));
+test('a clean unit that the read says the action cannot write stays in the queue', () => {
+  const read = groupConfirmation(group([{ ...BRIGADE, writable: false }]));
   expect(read.unitIds).toStrictEqual([]);
 });
 

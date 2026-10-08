@@ -1,3 +1,5 @@
+import { PROPOSERS } from '@gab/proposal/proposer';
+
 import type { Proposer } from '@/shared/read/model';
 import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
@@ -31,7 +33,7 @@ export const NO_FILTER: QueueFilter = {
 
 const DEFAULT_REVIEW_WORKSPACE: ReviewWorkspace = { filter: NO_FILTER, from: null };
 
-const PROPOSERS: readonly string[] = ['extractor', 'research_ai', 'v1_import', 'operator'];
+const PROPOSER_KEYS: readonly string[] = PROPOSERS;
 const KINDS: readonly string[] = FAULT_KINDS;
 
 // The compiler holds these lists closed: a key added to an interface and forgotten here fails the
@@ -53,7 +55,7 @@ const isFilter = (value: unknown): value is QueueFilter => {
   if (!holdsOnlyDeclaredKeys(value, FILTER_KEYS)) return false;
   return (
     textOrNull(value['group']) &&
-    textOrNull(value['proposer'], PROPOSERS) &&
+    textOrNull(value['proposer'], PROPOSER_KEYS) &&
     textOrNull(value['fault'], KINDS) &&
     textOrNull(value['document']) &&
     typeof value['name'] === 'string'
