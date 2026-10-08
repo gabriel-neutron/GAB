@@ -30,7 +30,8 @@ on 7 October 2026.
 ### The rules
 
 - The rules of S3 run **in the database**, as one function. Every writer gets the same decision,
-  and no machine role can decide in place of a rule.
+  and no machine role can call this function in place of a rule. An AI reviewer decides through the
+  MCP server as a separate act, with its own origin "decided by an AI reviewer" (ADR 0010, #376).
 - The function runs on a unit when its acts are written, when one of its authors gets a letter,
   and when a new act cites a new source for one of its facts.
 - The **first rule that matches** decides: impossible, doubt, strong sources, weak sources.
