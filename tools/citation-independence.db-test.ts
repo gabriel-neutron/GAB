@@ -65,10 +65,9 @@ test('two citations of different authors, controllers, sites and passages are in
 });
 
 test('two names of one author are one author', async () => {
-  const read = await judge(
-    { one: {}, two: { author: 'The Second Name' } },
-    (ask) => join(ask, 'The Second Name', 'Author One'),
-  );
+  const read = await judge({ one: {}, two: { author: 'The Second Name' } }, async (ask) => {
+    await join(ask, 'The Second Name', 'Author One');
+  });
   expect(read.forward).toBe(false);
 });
 
@@ -152,9 +151,7 @@ test('passages that share a long run of words are copies, and the length is a pa
   const seven = await judge(sharing(7));
   const eight = await judge(sharing(8));
   const lowered = await judge(sharing(7), undefined, async (ask) => {
-    await ask(
-      `UPDATE public.parameter SET value = 4 WHERE key = 'independence_shared_run_words'`,
-    );
+    await ask(`UPDATE public.parameter SET value = 4 WHERE key = 'independence_shared_run_words'`);
   });
   expect(seven.forward).toBe(true);
   expect(eight.forward).toBe(false);
@@ -162,7 +159,10 @@ test('passages that share a long run of words are copies, and the length is a pa
 });
 
 test('a short passage that is the same words is a copy', async () => {
-  const read = await judge({ one: { text: 'Brigade moved north.' }, two: { text: 'brigade MOVED, north' } });
+  const read = await judge({
+    one: { text: 'Brigade moved north.' },
+    two: { text: 'brigade MOVED, north' },
+  });
   expect(read.forward).toBe(false);
 });
 

@@ -123,6 +123,9 @@ REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
@@ -219,6 +222,11 @@ GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
+-- The extractor runs the check by a second model family, and the research session proposes beside
+-- it, so both write the check through one door. Neither reads a check or a digit.
+GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text)
+  TO gabriel_agent, gabriel_research;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
