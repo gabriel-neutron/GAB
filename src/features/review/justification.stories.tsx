@@ -291,7 +291,8 @@ export const ATextDocumentDrawsNoImage: Story = {
 
 const CHECKER = 'other-family/check-model';
 
-// A fact of the research AI, as the writer gives it after the check by a second model.
+// A fact of the research AI, as the writer gives it after the check by a second model. A disputed
+// fact is a doubt with the reason of its dispute. Any other fact waits for a source.
 const researchFact = (check: ActCheck | null, dispute: string | null): Unit | null => {
   const held = unitOf(SAMPLE_UNITS.disputed);
   if (held === null) return null;
@@ -299,6 +300,12 @@ const researchFact = (check: ActCheck | null, dispute: string | null): Unit | nu
     ...held,
     proposer: 'research_ai',
     state: dispute === null ? 'clean' : 'not_clean',
+    lane: dispute === null ? 'waiting' : 'doubt',
+    said:
+      dispute ??
+      (check?.passed === true
+        ? 'A second independent author, C or better'
+        : 'A passed check by a second model family for each fact'),
     faults:
       dispute === null
         ? []
@@ -309,13 +316,18 @@ const researchFact = (check: ActCheck | null, dispute: string | null): Unit | nu
 
 /** A research fact that a second model found in its passage says which check ran. */
 export const AResearchFactSaysThatASecondModelCheckedIt: Story = {
-  args: { unit: researchFact({ model: CHECKER, verdict: 'supported', passed: true }, null) },
+  args: {
+    unit: researchFact({ model: CHECKER, verdict: 'supported', passed: true, reason: null }, null),
+  },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText('research AI')).toBeVisible();
     await expect(
       canvas.getByText(`Checked by a second model, ${CHECKER}: the passage supports it.`),
     ).toBeVisible();
     await expect(canvasElement.querySelector('[data-check="passed"]')).not.toBeNull();
+    await expect(canvas.getByText('Clean')).toBeVisible();
+    await expect(canvas.queryByRole('heading', { name: 'Why it is a doubt' })).toBeNull();
+    await expect(canvas.getByText('No fault.')).toBeVisible();
   },
 };
 
@@ -324,19 +336,24 @@ export const AResearchFactSaysThatASecondModelCheckedIt: Story = {
 export const ADisputedResearchFactGivesTheReasonOfTheChecker: Story = {
   args: {
     unit: researchFact(
-      { model: CHECKER, verdict: 'not_supported', passed: false },
+      {
+        model: CHECKER,
+        verdict: 'not_supported',
+        passed: false,
+        reason: 'The passage names European and Asian countries',
+      },
       'Disputed: the checker finds that the passage does not support the act: The passage ' +
         'names European and Asian countries',
     ),
   },
   play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-check="disputed"]')).toHaveTextContent(
+      `Checked by a second model, ${CHECKER}: the passage does not support it: The passage ` +
+        'names European and Asian countries.',
+    );
     await expect(
-      canvas.getByText(`Checked by a second model, ${CHECKER}: the passage does not support it.`),
+      canvas.getByText(/^Disputed: the checker finds that the passage does not support the act/u),
     ).toBeVisible();
-    await expect(
-      canvas.getByText(/the passage does not support the act: The passage names European/u),
-    ).toBeVisible();
-    await expect(canvasElement.querySelector('[data-check="disputed"]')).not.toBeNull();
   },
 };
 
@@ -344,16 +361,7 @@ export const ADisputedResearchFactGivesTheReasonOfTheChecker: Story = {
  * disputed: it waits for a passed check. */
 export const AnUncheckedResearchFactWaitsAndSaysCodeOnly: Story = {
   args: {
-    unit: (() => {
-      const held = researchFact(null, null);
-      return held === null
-        ? null
-        : {
-            ...held,
-            lane: 'waiting' as const,
-            said: 'A passed check by a second model family for each fact',
-          };
-    })(),
+    unit: researchFact(null, null),
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(

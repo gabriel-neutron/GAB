@@ -15,6 +15,7 @@ Line 4 opens the environment file: put the values that its comments name. Line 5
 server `gab` as connected. Then start `claude` or `codex` in the folder `research`.
 
 The server reads the checker of the proposals from `infra/.env` of the repository, wherever the
-client starts it: `OPENROUTER_API_KEY`, the `CHECKER_` values and `RESEARCH_CHECK_TOKEN_CAP`. When
+client starts it: `OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_TOKEN_CAP` and
+`GABRIEL_CHECKER_PASSWORD`. Never put these values in `research/.env`. When
 one is absent, the server starts. Each proposal then waits with no check, and the answer of
 `propose` names the value.

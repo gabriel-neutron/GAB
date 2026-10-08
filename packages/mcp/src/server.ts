@@ -6,17 +6,10 @@ import {
   type Tool as ListedTool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { CATALOGUE } from '@gab/tools/catalogue';
-import {
-  callTool,
-  CheckFailure,
-  inputSchemaOf,
-  type CheckVerdict,
-  type Reach,
-  type Session,
-  type Tool,
-} from '@gab/tools/tool';
+import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@gab/tools/tool';
 
-import { checkBatch, readerFamilyOf, recordChecks, type SecondCheck } from './second-check.ts';
+import { proposeChecked } from './checked-propose.ts';
+import { readerFamilyOf, type SecondCheck } from './second-check.ts';
 import { RESEARCH_TOOLS } from './surface.ts';
 
 /** A session that goes back to its pool when the call ends. */
@@ -86,28 +79,6 @@ const faultSentence = (cause: unknown): string => {
   return `the database refused the call (SQLSTATE ${code})`;
 };
 
-// The propose tool asks the checker before the write, and the verdicts become the checks of the
-// acts after it. Only a verdict that the passage does not support disputes an item. A checker
-// that fails or is not ready gives no dispute and no check, so the rules keep the unit waiting,
-// and a later call of the same batch can check it.
-const proposeReach = (
-  reach: Reach | undefined,
-  check: SecondCheck,
-  session: Session,
-  readerFamily: string | null,
-  verdicts: Map<string, CheckVerdict>,
-): Reach => ({
-  now: () => new Date(),
-  ...reach,
-  checkMarks: 'refuted',
-  check: async (items) => {
-    if (!check.ready) throw new CheckFailure(`the server has no checker: ${check.reason}`);
-    for (const [ref, verdict] of await checkBatch(check.setup, session, readerFamily, items))
-      verdicts.set(ref, verdict);
-    return verdicts;
-  },
-});
-
 interface Context {
   readonly pool: SessionPool;
   readonly reach: Reach | undefined;
@@ -132,18 +103,11 @@ const run = async (context: Context, name: string, raw: unknown): Promise<CallTo
     return toolError(faultSentence(cause));
   }
   try {
-    const readerFamily = context.readerFamily();
-    const verdicts = new Map<string, CheckVerdict>();
-    const checked = tool.name === 'propose' && check !== undefined;
-    const outcome = await callTool(
-      tool,
-      session,
-      raw ?? {},
-      checked ? proposeReach(reach, check, session, readerFamily, verdicts) : reach,
-    );
+    const outcome =
+      tool.name === 'propose' && check !== undefined
+        ? await proposeChecked(tool, session, raw ?? {}, reach, check, context.readerFamily())
+        : await callTool(tool, session, raw ?? {}, reach);
     if (!outcome.ok) return toolError(outcome.refusal);
-    if (checked && check.ready && readerFamily !== null)
-      await recordChecks(session, check.setup.checker, readerFamily, outcome.output, verdicts);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
     console.error(cause);

@@ -176,7 +176,8 @@ doubt.
   record also keeps each verdict as the check of its act, which the rules of ADR 0012 read. A
   failure of the checker never drops an item. The two families are set in the configuration, and
   the worker does not start when they are the same. The propose tool of the research AI gets the
-  same check from the MCP server: one question for each batch, under a token cap of its own, from
+  same check from the MCP server: one question for each batch, with no second question, under a
+  hard token cap of its own, from
   a checker of another family than the research AI. The server reads that family from the name of
   its client. Only a verdict that the passage does not support disputes a research item. A batch
   above the cap, a checker that fails, or a checker that is not configured gives no dispute and no

@@ -12,6 +12,16 @@ const CHECKER = {
   CHECKER_MAX_ANSWER_TOKENS: '2000',
   RESEARCH_CHECK_TOKEN_CAP: '40000',
   OPENROUTER_API_KEY: 'a-stub-key',
+  GABRIEL_CHECKER_PASSWORD: 'a-checker-secret',
+};
+
+const RESEARCH = 'postgresql://gabriel_research:a-research-secret@127.0.0.1:5432/gabriel';
+
+// The pool of the checker opens nothing here: the test reads only its address.
+const opened: string[] = [];
+const poolOf = (address: string) => {
+  opened.push(address);
+  return { connect: () => Promise.reject(new Error('a unit test opens no session')) };
 };
 
 describe('the values of the check', () => {
@@ -34,6 +44,16 @@ describe('the values of the check', () => {
     expect(env).toStrictEqual({ CHECKER_FAMILY: 'b', CHECKER_MODEL: 'a/b' });
   });
 
+  it('reads a file that Notepad saved with a byte order mark', () => {
+    expect(checkEnvOf('\uFEFFCHECKER_MODEL=a/b\n', {})).toStrictEqual({ CHECKER_MODEL: 'a/b' });
+  });
+
+  it('keeps the password of the checker role', () => {
+    expect(
+      checkEnvOf('GABRIEL_CHECKER_PASSWORD=x\nGABRIEL_RESEARCH_PASSWORD=y\n', {}),
+    ).toStrictEqual({ GABRIEL_CHECKER_PASSWORD: 'x' });
+  });
+
   it('reads the process alone when the stack has no file', () => {
     expect(checkEnvOf(null, { RESEARCH_CHECK_TOKEN_CAP: '10' })).toStrictEqual({
       RESEARCH_CHECK_TOKEN_CAP: '10',
@@ -43,15 +63,24 @@ describe('the values of the check', () => {
 
 describe('the checker of the research proposals', () => {
   it('is ready when each value is set', () => {
-    const check = readSecondCheck(CHECKER);
+    opened.length = 0;
+    const check = readSecondCheck(CHECKER, RESEARCH, poolOf);
     expect(check.ready && check.setup.checker.model).toBe('other-family/check-model');
     expect(check.ready && check.setup.tokenCap).toBe(40000);
+    expect(opened).toStrictEqual([
+      'postgresql://gabriel_checker:a-checker-secret@127.0.0.1:5432/gabriel',
+    ]);
   });
 
-  for (const name of ['OPENROUTER_API_KEY', 'CHECKER_MODEL', 'RESEARCH_CHECK_TOKEN_CAP'])
+  for (const name of [
+    'OPENROUTER_API_KEY',
+    'CHECKER_MODEL',
+    'RESEARCH_CHECK_TOKEN_CAP',
+    'GABRIEL_CHECKER_PASSWORD',
+  ])
     it(`is not ready, with a sentence that names ${name}, when it is absent`, () => {
       const env = Object.fromEntries(Object.entries(CHECKER).filter(([held]) => held !== name));
-      const check = readSecondCheck(env);
+      const check = readSecondCheck(env, RESEARCH, poolOf);
       expect(check.ready).toBe(false);
       expect(check.ready ? '' : check.reason).toMatch(new RegExp(name, 'u'));
     });

@@ -47,12 +47,31 @@ const itemOf = (ref: string, label: string, type: string, excerpt: string) => ({
 const NAYARA = itemOf('nayara', 'Nayara', 'vessel', 'The tanker Nayara left Sikka');
 const ROSNEFT = itemOf('rosneft', 'Rosneft', 'company', 'Rosneft owns the tanker Nayara');
 
-const checkOf = (router: StubRouter, tokenCap = ROOMY_CAP): SecondCheck => ({
+// The session of the test. The pool of the checker role writes on it as gabriel_checker, so its
+// rows stay inside the transaction of the test.
+let current: Ask | null = null;
+
+const asChecker = async (text: string, values: unknown[]) => {
+  if (current === null) throw new Error('no test session is open');
+  await current('SET LOCAL SESSION AUTHORIZATION gabriel_checker');
+  try {
+    return { rows: await current(text, values) };
+  } finally {
+    await current('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+  }
+};
+
+const checkerPool = {
+  connect: () => Promise.resolve({ query: asChecker, release: () => undefined }),
+};
+
+const checkOf = (router: StubRouter, tokenCap = ROOMY_CAP, checker = CHECKER): SecondCheck => ({
   ready: true,
   setup: {
-    checker: CHECKER,
+    checker,
     tokenCap,
     open: (model) => openrouterModel(model, STUB_ENV, router.send),
+    pool: checkerPool,
   },
 });
 
@@ -71,6 +90,7 @@ const acts = z.array(
     label: z.string(),
     dissent: z.boolean(),
     dissent_reason: z.string().nullable(),
+    reason: z.string().nullable(),
     checker_model: z.string().nullable(),
     checker_family: z.string().nullable(),
     reader_family: z.string().nullable(),
@@ -79,7 +99,8 @@ const acts = z.array(
   }),
 );
 
-const ACTS = `SELECT p.payload ->> 'label' AS label, p.dissent, p.dissent_reason, k.checker_model,
+const ACTS = `SELECT p.payload ->> 'label' AS label, p.dissent, p.dissent_reason, k.reason,
+                     k.checker_model,
                      k.checker_family, k.reader_family, k.verdict, k.passed
                 FROM public.proposals p LEFT JOIN public.act_check k ON k.proposal_id = p.id
                WHERE $1 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`;
@@ -117,6 +138,7 @@ const proposeThrough = (
   items: readonly unknown[],
   client = 'claude-code',
   before: (ask: Ask) => Promise<unknown> = () => Promise.resolve(),
+  after: (ask: Ask) => Promise<unknown> = () => Promise.resolve(),
 ): Promise<Run> =>
   rolledBack('superuser', async (ask) => {
     await ask(STORE, [
@@ -131,6 +153,7 @@ const proposeThrough = (
     ]);
     await ask(WRITE_TEXT, [DOC, JSON.stringify([PAGE]), 'second-check-test-1']);
     await before(ask);
+    current = ask;
     let last: { rule: string | null; status: string }[] = [];
     let text = '';
     const rules: (string | null)[][] = [];
@@ -154,6 +177,7 @@ const proposeThrough = (
         .parse(await ask(RULES, [DOC]));
       rules.push(last.map((row) => row.rule));
     }
+    await after(ask);
     const [counted] = z.array(z.object({ n: z.number() })).parse(await ask(CALLS, [CHECKER.model]));
     return {
       output: outcome.parse(JSON.parse(text)),
@@ -165,6 +189,7 @@ const proposeThrough = (
   });
 
 const passedCheck = {
+  reason: null,
   checker_model: CHECKER.model,
   checker_family: CHECKER.family,
   reader_family: 'anthropic',
@@ -228,12 +253,27 @@ test('a fact that its passage does not support is disputed with the reason of th
     dissent: true,
     dissent_reason: 'the checker says not_supported: The passage names no owner.',
     ...passedCheck,
+    reason: 'The passage names no owner.',
     verdict: 'not_supported',
     passed: false,
   });
 });
 
 const NO_CHECK = { dissent: false, dissent_reason: null, verdict: null, passed: null };
+
+const NO_READER = () => {
+  throw new Error('the research check asks no reader');
+};
+
+const refuting = (): StubRouter =>
+  routerOf(NO_READER, () =>
+    completionOf(
+      JSON.stringify({
+        verdicts: [{ ref: 'nayara', verdict: 'not_supported', reason: 'No date is given.' }],
+      }),
+      CHECKER.model,
+    ),
+  );
 
 const failing = (): StubRouter =>
   routerOf(
@@ -346,4 +386,75 @@ test('a server with no checker asks no model, and says why in the answer', async
     'the server has no checker: OPENROUTER_API_KEY is empty, absent or wrong.',
   );
   expect(run.acts[0]).toMatchObject(NO_CHECK);
+});
+
+test('a later check that does not support the act keeps its reason with the check', async () => {
+  const later = refuting();
+  const run = await proposeThrough([checkOf(failing()), checkOf(later)], [NAYARA]);
+
+  expect(later.checks()).toBe(1);
+  expect(run.acts[0]).toMatchObject({
+    dissent: false,
+    verdict: 'not_supported',
+    passed: false,
+    reason: 'No date is given.',
+  });
+});
+
+test('a batch that the record holds whole and checked is sent again with no paid call', async () => {
+  const router = routerOf(NO_READER);
+  const run = await proposeThrough([checkOf(router), checkOf(router)], [NAYARA, ROSNEFT]);
+
+  expect(router.checks()).toBe(1);
+  expect(run.calls).toBe(1);
+  expect(run.output.proposals.map((one) => one.ref)).toStrictEqual(['nayara', 'rosneft']);
+  for (const act of run.acts) expect(act).toMatchObject({ verdict: 'supported', passed: true });
+});
+
+test('an answer of a bad shape asks no second question, and the batch waits', async () => {
+  const router = routerOf(NO_READER, () => completionOf('not json', CHECKER.model));
+  const run = await proposeThrough(checkOf(router), [NAYARA]);
+
+  expect(router.checks()).toBe(1);
+  expect(run.output.checkFailure).toBe(
+    'the checker failed: the model gave an answer the boundary refuses',
+  );
+  expect(run.acts[0]).toMatchObject(NO_CHECK);
+});
+
+test('a checker of the family of the research AI asks no model, and the batch waits', async () => {
+  const router = routerOf(NO_READER);
+  const run = await proposeThrough(
+    checkOf(router, ROOMY_CAP, { ...CHECKER, family: 'anthropic' }),
+    [NAYARA],
+  );
+
+  expect(router.checks()).toBe(0);
+  expect(run.output.checkFailure).toBe(
+    'the checker is of the family anthropic, which is the family of the research AI',
+  );
+  expect(run.acts[0]).toMatchObject(NO_CHECK);
+  expect(run.rules).toStrictEqual([['weak_sources']]);
+});
+
+test('the door of the worker writes no check on an act of the research AI', async () => {
+  let refusal = '';
+  await proposeThrough(checkOf(failing()), [NAYARA], 'claude-code', undefined, async (ask) => {
+    await ask('SAVEPOINT forged');
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_agent');
+    try {
+      await ask(
+        `SELECT public.record_act_check(p.id, 'm', 'a', 'b', 'supported')
+           FROM public.proposals p WHERE $1 = ANY (p.src::text[])`,
+        [DOC],
+      );
+    } catch (cause) {
+      refusal = cause instanceof Error ? cause.message : String(cause);
+    }
+    await ask('ROLLBACK TO SAVEPOINT forged');
+    await ask('RESET SESSION AUTHORIZATION');
+  });
+  expect(refusal).toBe(
+    'a check of this door belongs to an act of a machine that gabriel_agent wrote',
+  );
 });

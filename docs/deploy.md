@@ -35,10 +35,15 @@ values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR
 worker does not start when they are the same.
 
 The MCP server of the research session asks the same checker for each batch that the research AI
-proposes. It reads `OPENROUTER_API_KEY`, the `CHECKER_` values and `RESEARCH_CHECK_TOKEN_CAP` (the
-tokens of one check) from `infra/.env` of the repository, wherever the client starts it. The server
-knows the family of the research AI from the name of its client: Claude Code is `anthropic`, Codex
-is `openai`. Set a `CHECKER_FAMILY` that is neither. When a value is absent, the server starts, and
+proposes. It reads `OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_TOKEN_CAP` (the
+tokens of one check, a hard cap: the checker gets no second question) and
+`GABRIEL_CHECKER_PASSWORD` from `infra/.env` of the repository, wherever the client starts it. On
+the Windows PC, add `GABRIEL_CHECKER_PASSWORD` and `RESEARCH_CHECK_TOKEN_CAP` to `infra/.env`,
+then run `pnpm db:migrate`, which creates the role `gabriel_checker` and sets its password. Never
+put that password in `research/.env`: the research AI reads that file. The server knows the family
+of the research AI from the name of its MCP client: `claude-code` is `anthropic`, and a name with
+`codex` is `openai`. A client that runs a model of another provider under one of these names gives
+a wrong family. Set a `CHECKER_FAMILY` that is neither. When a value is absent, the server starts, and
 each proposal waits with no check, and the answer of the tool names the value. Propose the same
 batch again when the checker is up: the server checks it then.
 

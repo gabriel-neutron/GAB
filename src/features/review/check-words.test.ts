@@ -18,7 +18,9 @@ const MODEL = 'other/checker';
 
 describe('the check of each act', () => {
   it('says that a second model found the act in its passage', () => {
-    expect(checkLines([entity({ model: MODEL, verdict: 'supported', passed: true })])).toEqual([
+    expect(
+      checkLines([entity({ model: MODEL, verdict: 'supported', passed: true, reason: null })]),
+    ).toEqual([
       {
         act: 'e1',
         name: 'MV Example',
@@ -28,21 +30,27 @@ describe('the check of each act', () => {
     ]);
   });
 
-  it('says that a second model disputes the act', () => {
-    const [line] = checkLines([entity({ model: MODEL, verdict: 'not_supported', passed: false })]);
+  it('says that a second model disputes the act, with its reason', () => {
+    const [line] = checkLines([
+      entity({ model: MODEL, verdict: 'not_supported', passed: false, reason: 'No date.' }),
+    ]);
     expect(line?.state).toBe('disputed');
     expect(line?.words).toBe(
-      'Checked by a second model, other/checker: the passage does not support it',
+      'Checked by a second model, other/checker: the passage does not support it: No date.',
     );
   });
 
   it('says that a second model could not decide', () => {
-    const [line] = checkLines([entity({ model: MODEL, verdict: 'unclear', passed: false })]);
+    const [line] = checkLines([
+      entity({ model: MODEL, verdict: 'unclear', passed: false, reason: null }),
+    ]);
     expect(line?.state).toBe('unclear');
   });
 
   it('says that a check by the family of the reader does not count', () => {
-    const [line] = checkLines([entity({ model: MODEL, verdict: 'supported', passed: false })]);
+    const [line] = checkLines([
+      entity({ model: MODEL, verdict: 'supported', passed: false, reason: null }),
+    ]);
     expect(line?.state).toBe('same_family');
     expect(line?.words).toContain('the check does not count');
   });

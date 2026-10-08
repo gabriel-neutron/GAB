@@ -44,8 +44,8 @@ const read = async (ask: Ask, unit: string | null, lane: string | null) => {
 };
 
 const check = (ask: Ask, act: string): Promise<unknown> =>
-  as(ask, 'gabriel_agent', () =>
-    ask('SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)', [
+  as(ask, 'gabriel_checker', () =>
+    ask('SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)', [
       act,
       'a-checker',
       'openai',
