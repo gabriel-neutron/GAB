@@ -239,8 +239,7 @@ blind spot. The public text says that the accuracy of the rules is not measured.
 
 ### S4 — The origin of each decision is published
 
-**Rule.** Each decision records who or what decided it: a named rule, or "validated manually by
-the operator". Each public claim shows this origin. A machine never decides in the name of the
+**Rule.** Each decision records who or what decided it: a named rule, "validated manually by the operator", or "decided by an AI reviewer". Each public claim shows this origin. A machine never decides in the name of the
 operator.
 **Why.** A machine decision shown as a human one would destroy trust. Declared, it stays
 defensible.
@@ -270,7 +269,7 @@ goes public, GAB searches for a public response from the subject. GAB never cont
 ### P1 — Two layers
 
 **Rule.** The machine writes freely into the candidate layer. Nothing reaches the evidentiary layer
-without a promotion: by the operator, or by a named rule (S3).
+without a promotion: by the operator, by a named rule (S3), or by an AI reviewer (#376).
 **Why.** Correlation has value only when it casts a wide net at no cost per result. Evidence has
 value only when nothing enters it without a check.
 **Cost.** If the sources stay weak, the evidentiary layer fills slowly.
