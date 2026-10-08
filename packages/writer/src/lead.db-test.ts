@@ -128,7 +128,7 @@ test('the research AI starts a lead, and the worker starts none', async () => {
   ).rejects.toMatchObject({ code: '42501' });
 });
 
-test('only the operator reads a lead', async () => {
+test('only the operator and the research AI read a lead', async () => {
   const jobId = await startLead('A private lead');
 
   // The public read reaches no part of the queue.
@@ -137,12 +137,14 @@ test('only the operator reads a lead', async () => {
   });
   await expect(reader.query('SELECT * FROM api.job')).rejects.toMatchObject({ code: '42501' });
 
-  // A machine role reads no other lead. The worker gets the text of the lead that it claims, and
-  // the research AI gets the job id of the lead that it starts.
-  for (const machine of [agent, research])
-    await expect(machine.query('SELECT * FROM public.lead_jobs()')).rejects.toMatchObject({
-      code: '42501',
-    });
+  // The worker reads no other lead: it gets the text of the lead that it claims. The research AI
+  // reads the leads through their door, as the operator does, and never the table.
+  await expect(agent.query('SELECT * FROM public.lead_jobs()')).rejects.toMatchObject({
+    code: '42501',
+  });
+  await expect(research.query('SELECT job_id FROM public.lead_jobs()')).resolves.toMatchObject({
+    command: 'SELECT',
+  });
   await expect(agent.query('SELECT lead FROM public.jobs')).rejects.toMatchObject({
     code: '42501',
   });

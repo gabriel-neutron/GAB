@@ -12,8 +12,19 @@ import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
 import { newsSearch } from './news-search.ts';
+import { promoteCleanProposals } from './promote-clean-proposals.ts';
+import { promoteUnit } from './promote-unit.ts';
 import { propose } from './propose.ts';
+import { readDecided } from './read-decided.ts';
+import { readDoubts } from './read-doubts.ts';
 import { readEntity } from './read-entity.ts';
+import { readGroup } from './read-group.ts';
+import { readGroups } from './read-groups.ts';
+import { readLeads } from './read-leads.ts';
+import { readUnit } from './read-unit.ts';
+import { readWaiting } from './read-waiting.ts';
+import { rejectRelation } from './reject-relation.ts';
+import { rejectUnit } from './reject-unit.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
 import { startLead } from './start-lead.ts';
@@ -34,6 +45,13 @@ export const CATALOGUE = [
   documentText,
   fileSchemaSample,
   jobStatus,
+  readDoubts,
+  readWaiting,
+  readUnit,
+  readGroups,
+  readGroup,
+  readDecided,
+  readLeads,
   webSearch,
   newsSearch,
   archiveSnapshot,
@@ -49,6 +67,10 @@ export const CATALOGUE = [
   enqueueMapping,
   startLead,
   propose,
+  promoteUnit,
+  rejectUnit,
+  rejectRelation,
+  promoteCleanProposals,
 ] as const;
 
 export type ToolName = (typeof CATALOGUE)[number]['name'];

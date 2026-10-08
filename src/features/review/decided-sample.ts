@@ -14,6 +14,7 @@ export const DECIDED_SAMPLE: readonly DecidedAct[] = [
     decidedBy: 'operator',
     decidedAs: 'group',
     decisionOrigin: null,
+    decisionReason: null,
     rejectReason: null,
     rejectNote: null,
     name: '57th Separate Motor Rifle Brigade',
@@ -27,6 +28,7 @@ export const DECIDED_SAMPLE: readonly DecidedAct[] = [
     decidedBy: 'operator',
     decidedAs: 'unit',
     decisionOrigin: null,
+    decisionReason: null,
     rejectReason: 'not_in_source',
     rejectNote: 'The page names the region, not a body.',
     name: 'North American countries',
@@ -40,6 +42,7 @@ export const DECIDED_SAMPLE: readonly DecidedAct[] = [
     decidedBy: 'operator',
     decidedAs: 'unit',
     decisionOrigin: null,
+    decisionReason: null,
     rejectReason: null,
     rejectNote: null,
     name: '5th Combined Arms Army',
@@ -56,7 +59,24 @@ export const RULE_DECIDED: DecidedAct = {
   decidedBy: 'rule strong_sources v1',
   decidedAs: 'rule',
   decisionOrigin: 'rule strong_sources v1 (fact digits: 1)',
+  decisionReason: null,
   rejectReason: null,
   rejectNote: null,
   name: '12th Operational Command',
+};
+
+/** One act that an AI reviewer rejected, with its reason. */
+export const AI_DECIDED: DecidedAct = {
+  id: '4f506172-93a4-4bcd-e456-789abcdef012',
+  op: 'create_entity',
+  proposer: 'extractor',
+  status: 'rejected',
+  decidedAt: '2026-10-08T10:15:00Z',
+  decidedBy: 'an AI reviewer, through the MCP server',
+  decidedAs: 'unit',
+  decisionOrigin: 'decided by an AI reviewer',
+  decisionReason: 'The cited passage names the port, and no vessel of this name.',
+  rejectReason: 'not_in_source',
+  rejectNote: null,
+  name: 'MV Baltic Star',
 };

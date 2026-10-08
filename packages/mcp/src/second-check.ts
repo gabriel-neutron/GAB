@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { parseEnv } from 'node:util';
 
 import {
   openBudget,
@@ -15,6 +14,8 @@ import {
 import { checkAnswer, verdictsOf } from '@gab/tools/check-answer';
 import { CheckFailure, type CheckVerdict, type ItemToCheck, type Session } from '@gab/tools/tool';
 import { z } from 'zod';
+
+import { envFileValues } from './config.ts';
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -55,16 +56,12 @@ const CHECK_VARIABLES =
 const CHECKER_PASSWORD = 'GABRIEL_CHECKER_PASSWORD';
 const CHECKER_ROLE = 'gabriel_checker';
 
-// External constraint: Notepad of Windows can save the file with a byte order mark, and the parser
-// then reads the first name with the mark in it.
-const BOM = '\uFEFF';
-
 /** The values of the check: those of the environment file of the stack, and over them each one
  * that the process sets. Only the variables of the check are kept, so no other secret of the
  * stack reaches the research server. */
 export const checkEnvOf = (file: string | null, env: Env): Env => {
   const given = [
-    ...Object.entries(file === null ? {} : parseEnv(file.startsWith(BOM) ? file.slice(1) : file)),
+    ...Object.entries(envFileValues(file)),
     ...Object.entries(env).filter(([, value]) => (value?.trim() ?? '') !== ''),
   ];
   return Object.fromEntries(given.filter(([name]) => CHECK_VARIABLES.test(name)));

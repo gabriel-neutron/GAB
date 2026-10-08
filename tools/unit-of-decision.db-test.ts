@@ -275,11 +275,13 @@ test('the queue comes in pages of units, each with its acts, its group and its p
   });
 });
 
-test('only the operator reads the page of the queue', async () => {
-  for (const identity of ['read', 'research', 'agent'] as const)
+// The research role reads the page as an AI reviewer. The worker and the public read do not.
+test('only the operator and the AI reviewer read the page of the queue', async () => {
+  for (const identity of ['read', 'agent'] as const)
     await expect(rolledBack(identity, (ask) => ask(READ, [null, 1]))).rejects.toMatchObject({
       code: '42501',
     });
+  await expect(rolledBack('research', (ask) => ask(READ, [null, 1]))).resolves.toHaveLength(1);
 });
 
 test('only an item that cites the stored v1 ORBAT may name the originator of the v1 import', async () => {

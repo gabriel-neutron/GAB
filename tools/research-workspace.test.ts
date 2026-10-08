@@ -10,7 +10,6 @@ import { expect, test } from 'vitest';
 import { z } from 'zod';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const WORKSPACE = path.join(ROOT, 'research');
 
 // The names an environment file sets. A comment line or a blank line sets nothing.
 const namesSet = (text: string): Set<string> =>
@@ -37,10 +36,39 @@ test('the Claude Code file names the GAB server and no other', () => {
   const { mcpServers } = claudeFile.parse(JSON.parse(read('research', '.mcp.json')));
 
   expect(Object.keys(mcpServers)).toEqual(['gab']);
+});
+
+// A client starts the server in the folder of its file. The server reads research/.env by itself,
+// so no file passes an environment file that the working folder would choose.
+const gabServerOf = (folder: string): readonly string[] => {
+  const { mcpServers } = claudeFile.parse(JSON.parse(read(folder, '.mcp.json')));
   const gab = mcpServers['gab'];
-  expect(gab?.command).toBe('node');
-  const script = gab?.args.find((arg) => arg.endsWith('.ts'));
-  expect(script && path.resolve(WORKSPACE, script)).toBe(SERVER_SCRIPT);
+  if (gab === undefined) throw new Error(`${folder}/.mcp.json names no gab server`);
+  expect(gab.command).toBe('node');
+  return gab.args;
+};
+
+const codexArgsOf = (folder: string): readonly string[] => {
+  const text = read(folder, '.codex', 'config.toml');
+  expect(text).toMatch(/^\[mcp_servers\.gab\]$/mu);
+  expect(text).toMatch(/^command = "node"$/mu);
+  const args = /^args = (\[.*\])$/mu.exec(text)?.[1];
+  if (args === undefined) throw new Error(`${folder}/.codex/config.toml gives no args`);
+  return z.array(z.string()).parse(JSON.parse(args));
+};
+
+test.each([
+  ['the Claude Code file of the workspace', 'research', gabServerOf],
+  ['the Claude Code file of the root', '.', gabServerOf],
+  ['the Codex file of the workspace', 'research', codexArgsOf],
+  ['the Codex file of the root', '.', codexArgsOf],
+] as const)('%s starts the one server and passes no environment file', (_, folder, argsOf) => {
+  const args = argsOf(folder);
+  expect(args).toHaveLength(1);
+  // Claude Code gives the folder of the project in this variable, so the path does not follow the
+  // folder where the session starts.
+  const script = (args[0] ?? '').replace(/^\$\{CLAUDE_PROJECT_DIR:-\.\}\//u, '');
+  expect(path.resolve(ROOT, folder, script)).toBe(SERVER_SCRIPT);
 });
 
 test('the research environment names its connection, the store, the two search settings, three register keys and the inbox, and nothing else', () => {
