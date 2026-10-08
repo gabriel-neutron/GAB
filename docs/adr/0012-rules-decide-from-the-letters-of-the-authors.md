@@ -97,14 +97,17 @@ without the letters.
   checks only the form of the second check: the two family names differ. The process gives both
   names, and the agent role also gives the originator, the model call and the letters C to F.
 - Each check door checks the acts of one author role. The worker role checks the acts of the
-  worker. A checker role, which writes nothing else, checks the acts of the research role. So no
-  role writes a check on the acts of another role.
+  worker. A checker role checks the acts of the research role, and records the model call of each
+  check. It writes nothing else. So the worker role cannot check a research act, and the research
+  role writes no check.
 - The research AI holds the password of the research role, and not the password of the checker
-  role. The MCP server reads that password from the environment file of the stack, and the
-  settings of the research workspace refuse a read of that file to Claude Code. This makes a
-  forged check of a research fact much harder, but not impossible: the AI and the server run as
-  the same user of the operating system on the operator's PC, and Codex has no rule that refuses
-  the read of one file.
+  role. The MCP server reads that password from the environment file of the stack. The settings of
+  the research workspace refuse a read of that file to Claude Code. A session at the root of the
+  repository also starts the MCP server, but its settings do not refuse that read. So start Claude Code
+  for research only in the research workspace.
+- These rules make a false check of a research fact much harder, but not impossible. The AI and
+  the server run as the same user of the operating system on the operator's PC. Codex has no rule
+  that refuses the read of one file.
 - The second check defends against the blind spots of a model. It does not defend against a worker
   or a server that is hostile or broken.
 - A check belongs to the act, and the act can gain a citation later: a batch that repeats a

@@ -3916,8 +3916,8 @@ $$;
 -- not `supported`, cut to the length that the table keeps.
 --
 -- EACH DOOR CHECKS THE ACTS OF ONE AUTHOR ROLE. The worker checks the acts of gabriel_agent, and
--- gabriel_checker checks the acts of gabriel_research. So no role writes a check on the acts of
--- another role, and the research AI, which holds the research password, writes no check. The roles
+-- gabriel_checker checks the acts of gabriel_research. So the worker cannot check a research act,
+-- and the research AI, which holds the research password, writes no check. The roles
 -- give both family names, so the rules trust the processes (ADR 0012, trust boundary). The common
 -- step holds no grant.
 DROP FUNCTION IF EXISTS record_act_check(uuid, text, text, text, text);
