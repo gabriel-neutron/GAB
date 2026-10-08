@@ -1,11 +1,11 @@
 // The start of the server. The client talks over stdin and stdout, so every line of the log goes
-// to stderr. The credentials come from the environment of the research workspace. The checker of
-// the proposals comes from the environment file of the stack, and only its own variables.
+// to stderr. The credentials come from the environment file of the research workspace. The
+// checker of the proposals comes from the environment file of the stack, and only its own
+// variables. Both files are found from this file, so the server starts the same from the research
+// workspace and from the root of the repository.
 
-import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { openStore, putObject } from '@gab/store';
 import { endOcr } from '@gab/text';
@@ -14,6 +14,7 @@ import type { Reach } from '@gab/tools/tool';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import pg from 'pg';
 
+import { CONFIG_FILES, researchEnvOf, textOf } from './config.ts';
 import {
   assertSessionRole,
   CREDENTIALS_VARIABLE,
@@ -23,6 +24,9 @@ import {
 import { checkEnvOf, readSecondCheck, type SecondCheck } from './second-check.ts';
 import { createServer } from './server.ts';
 import { webOf } from '@gab/tools/web';
+
+// The research environment file fills each value that the process does not set.
+Object.assign(process.env, researchEnvOf(textOf(CONFIG_FILES.research), process.env));
 
 const STOPPED =
   'the database does not answer; start the stack (docker compose -f infra/docker-compose.yml up -d)';
@@ -60,11 +64,7 @@ const stop = (cause: unknown): never => {
 // A browser saves a page into the inbox for the research AI. GAB_INBOX can name the download
 // folder of the browser; with no value, the inbox is the folder inbox of the research workspace.
 const GIVEN_INBOX = process.env['GAB_INBOX']?.trim() ?? '';
-const INBOX = resolve(
-  GIVEN_INBOX === ''
-    ? fileURLToPath(new URL('../../../research/inbox', import.meta.url))
-    : GIVEN_INBOX,
-);
+const INBOX = resolve(GIVEN_INBOX === '' ? CONFIG_FILES.inbox : GIVEN_INBOX);
 
 const reachOf = (): Reach => {
   const web = webOf(process.env);
@@ -84,18 +84,6 @@ const reachOf = (): Reach => {
   }
 };
 
-// A client starts the server from the research workspace or from the root of the repository, so
-// the file is found from this file and not from the working folder.
-const STACK_ENV = fileURLToPath(new URL('../../../infra/.env', import.meta.url));
-
-const stackEnv = (): string | null => {
-  try {
-    return readFileSync(STACK_ENV, 'utf8');
-  } catch {
-    return null;
-  }
-};
-
 // A checker that is not ready does not stop the server: each proposal then says why no model
 // checked it.
 // The checker role writes the model call and the checks. Its pool opens no session before the
@@ -109,7 +97,11 @@ const checkerPool = (address: string): pg.Pool => {
 };
 
 const checkOf = (research: string): SecondCheck => {
-  const check = readSecondCheck(checkEnvOf(stackEnv(), process.env), research, checkerPool);
+  const check = readSecondCheck(
+    checkEnvOf(textOf(CONFIG_FILES.stack), process.env),
+    research,
+    checkerPool,
+  );
   if (!check.ready) console.error(`no model checks the proposals: ${check.reason}`);
   return check;
 };
