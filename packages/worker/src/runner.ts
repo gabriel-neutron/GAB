@@ -111,7 +111,10 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     recordModelCall(deps.db, agent, job.id, call);
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
-    const budget = openBudget(agent.tokenCap);
+    // A deepening search carries the budget that the operator set, and it replaces the cap.
+    const budget = openBudget(
+      job.kind === 'research_lead' ? (job.tokenBudget ?? agent.tokenCap) : agent.tokenCap,
+    );
 
     const ask = async <T>(
       model: ModelConfig,

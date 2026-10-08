@@ -77,6 +77,7 @@ test('the role matrix of the doors', async () => {
       "public.start_lead": "app research",
       "public.store_author_letter": "agent",
       "public.store_reference_author": "app",
+      "public.unit_rule": "app",
     }
   `);
 });
@@ -110,20 +111,76 @@ const DECIDING_DOORS_HELD = `
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
 
 const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))`;
 
 test('a machine role holds no door that promotes or rejects', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
   expect(z.array(z.object({ n: z.number().int() })).parse(counted)[0]?.n).toBeGreaterThan(0);
   const held = await probe('superuser', (ask) => ask(DECIDING_DOORS_HELD, [[...MACHINES]]));
   expect(held).toStrictEqual([]);
+});
+
+// The functions that the rules run on stand in the database for the doors to call. The matrix above
+// lists a function that is SECURITY DEFINER only, so this list names each step, definer or not.
+// The read of the operator is the one exception: unit_rule, which the snapshot shows.
+const RULE_STEPS = [
+  'apply_rules',
+  'run_rules',
+  'start_deepening',
+  'rejected_after_search',
+  'rerun_on_budget',
+  'units_of_job',
+  'units_of_author',
+  'fact_is_strong',
+  'unit_doubt_cause',
+  'rule_of_faults',
+  'unit_said',
+] as const;
+
+const RULE_STEPS_HELD = `
+  SELECT r.role, p.proname AS door
+    FROM pg_catalog.pg_proc p
+   CROSS JOIN unnest($1::text[]) AS r(role)
+   WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY ($2::text[])
+     AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
+
+test('no role and no PUBLIC holds a step of the rules', async () => {
+  const known = await probe('superuser', (ask) =>
+    ask(
+      `SELECT count(DISTINCT proname)::int AS n FROM pg_catalog.pg_proc
+        WHERE pronamespace = 'public'::regnamespace AND proname = ANY ($1::text[])`,
+      [[...RULE_STEPS]],
+    ),
+  );
+  // A name that does not exist is a typo in this list, so the count must match the names.
+  expect(z.array(z.object({ n: z.number().int() })).parse(known)[0]?.n).toBe(RULE_STEPS.length);
+  const held = await probe('superuser', (ask) =>
+    ask(RULE_STEPS_HELD, [
+      ['gabriel_app', 'gabriel_agent', 'gabriel_research', 'gabriel_read', 'public'],
+      [...RULE_STEPS],
+    ]),
+  );
+  expect(held).toStrictEqual([]);
+});
+
+test('a machine role cannot write a check, or set that it passed', async () => {
+  for (const identity of ['agent', 'research'] as const) {
+    await expect(
+      rolledBack(identity, (ask) =>
+        ask(
+          `INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family,
+             verdict) SELECT id, 'm', 'a', 'b', 'supported' FROM public.proposals LIMIT 1`,
+        ),
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+  }
 });
 
 const DECISIONS = [

@@ -109,6 +109,33 @@ export const ADisputeShowsItsReason: Story = {
   },
 };
 
+/** A unit that waits says the source that it needs. */
+export const AWaitingUnitSaysTheSourceItNeeds: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.army) },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'What it needs' })).toBeVisible();
+    await expect(canvas.getByText('A second independent author, C or better.')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-lane="waiting"]')).not.toBeNull();
+  },
+};
+
+/** A doubt with no fault states its cause, so the reason is never blank. A doubt that a fault
+ * states is read once, in the list of the faults. */
+export const ADoubtWithNoFaultStatesItsCause: Story = {
+  args: {
+    unit: (() => {
+      const held = unitOf(SAMPLE_UNITS.army);
+      return held === null
+        ? null
+        : { ...held, lane: 'doubt' as const, said: 'A party to the conflict denies a fact' };
+    })(),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { name: 'Why it is a doubt' })).toBeVisible();
+    await expect(canvas.getByText('A party to the conflict denies a fact.')).toBeVisible();
+  },
+};
+
 /** Each kind of fault has its sentence, under the level that says what it does to the unit. */
 export const EachFaultIsListedWithItsText: Story = {
   args: { unit: unitOf(SAMPLE_UNITS.blockedMix) },
@@ -148,7 +175,7 @@ export const AFileWithNoAddressIsNoLink: Story = {
       'Evidence for 5th Combined Arms Army · page 1',
     );
     await expect(canvas.queryByRole('link', { name: /Open page/u })).toBeNull();
-    await userEvent.click(canvas.getByText('The v1 record of this unit'));
+    await userEvent.click(canvas.getByText('The source line of this unit'));
     await expect(canvas.getByRole('link', { name: 'voinskaya-chast-poisk.ru' })).toBeVisible();
     await expect(canvas.getByText('No fault.')).toBeVisible();
     await expect(canvas.queryByText(/A group action can promote/u)).toBeNull();
@@ -165,9 +192,9 @@ export const AV1LineFoldsTheLinesOfOtherUnits: Story = {
     const record = passage?.querySelector('details');
     if (!(record instanceof HTMLDetailsElement)) throw new Error('the record is not folded');
     await expect(record.open).toBe(false);
-    await expect(canvas.getByText('The v1 record of this unit')).toBeVisible();
+    await expect(canvas.getByText('The source line of this unit')).toBeVisible();
     await expect(canvas.getByText('The lines of other units around it')).not.toBeVisible();
-    await userEvent.click(canvas.getByText('The v1 record of this unit'));
+    await userEvent.click(canvas.getByText('The source line of this unit'));
     await expect(passage?.querySelector('mark')).toHaveTextContent('5th Combined Arms Army');
     await expect(canvas.getByText('The lines of other units around it')).toBeVisible();
   },

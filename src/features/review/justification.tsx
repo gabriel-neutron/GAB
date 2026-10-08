@@ -55,16 +55,21 @@ const distinct = (passages: readonly Passage[]): readonly Passage[] => {
   return [...held.values()];
 };
 
+// A fault that states the reason of a doubt is in the list of faults. Do not say it twice.
+const saysMore = (unit: Unit): boolean =>
+  unit.said !== '' &&
+  (unit.lane === 'waiting' || !unit.faults.some((fault) => unit.said.includes(fault.said)));
+
 const listed = (faults: readonly Fault[]): readonly Fault[] =>
   faults.filter((fault) => fault.level !== 'waits');
 
-/** The words of a passage. The line of a unit of the v1 import comes first, and the lines of the
+/** The words of a passage. The own line of a unit comes first, and the lines of the
  * other units around it are folded. */
 function Quote({ passage }: { readonly passage: Passage }) {
   if (passage.ownLine)
     return (
       <details className="text-label">
-        <summary className="cursor-default">The v1 record of this unit</summary>
+        <summary className="cursor-default">The source line of this unit</summary>
         <div className="mt-1 space-y-1">
           <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
             <mark className="bg-muted text-foreground">
@@ -157,6 +162,15 @@ export function Justification({ unit }: JustificationProps) {
           {unit.group === null ? 'No group' : (unit.group.subject ?? 'A group with no subject')}
         </span>
       </div>
+
+      {!saysMore(unit) ? null : (
+        <div className="space-y-0.5" data-lane={unit.lane}>
+          <h3 className={HEADING}>
+            {unit.lane === 'doubt' ? 'Why it is a doubt' : 'What it needs'}
+          </h3>
+          <p className="break-words">{withFullStop(unit.said)}</p>
+        </div>
+      )}
 
       <div className="space-y-2" data-faults={unit.state}>
         <h3 className={HEADING}>Faults</h3>

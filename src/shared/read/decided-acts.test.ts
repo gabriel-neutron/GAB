@@ -18,6 +18,7 @@ const DECIDED_ROW = {
   decided_at: '2026-08-25T04:00:00+00:00',
   decided_by: 'the writer door',
   decided_as: null,
+  decision_origin: null,
   batch_id: null,
 };
 

@@ -63,6 +63,12 @@ export interface Fault {
   readonly said: string;
 }
 
+/** The list that the rules put a unit in: the doubt rule sent it to the operator, or it waits for
+ * a better source. */
+export type Lane = 'doubt' | 'waiting';
+
+export const LANES = ['doubt', 'waiting'] as const;
+
 /** Clean: a group action can promote it. Not clean: the operator decides it alone. Blocked:
  * Promote cannot write it. */
 export type UnitState = 'clean' | 'not_clean' | 'blocked';
@@ -126,6 +132,10 @@ export interface Unit {
   readonly proposer: Proposer;
   readonly group: { readonly id: string; readonly subject: string | null } | null;
   readonly state: UnitState;
+  readonly lane: Lane;
+  /** In the lane of the doubts, the reason of the doubt. In the other lane, the source that the
+   * unit needs. Blank where the database gave none. */
+  readonly said: string;
   /** The blocks first, then the waits, then the faults that are not clean, then the
    * information. */
   readonly faults: readonly Fault[];
@@ -150,9 +160,17 @@ export interface FilterChoices {
   readonly proposers: readonly Proposer[];
 }
 
+/** What the rules did over the whole queue: the units that they decided, the units that they sent
+ * to the operator as doubts, and the units that wait for a better source. */
+export interface LaneCounts {
+  readonly decided: number;
+  readonly doubt: number;
+  readonly waiting: number;
+}
+
 /** One page of the queue: the key it starts after, the key that opens the next page, the count
- * of every unit, the count of the units that the filter keeps, and how many of them come before
- * the page. */
+ * of every unit, the count of the units that the filter keeps, how many of them come before
+ * the page, and the counts of the rules. */
 export interface UnitPage {
   readonly units: readonly Unit[];
   readonly after: readonly string[] | null;
@@ -160,6 +178,7 @@ export interface UnitPage {
   readonly total: number;
   readonly matched: number;
   readonly before: number;
+  readonly counts: LaneCounts;
   readonly choices: FilterChoices;
 }
 
@@ -199,6 +218,11 @@ const answer = z.object({
   total: z.number().int(),
   matched: z.number().int(),
   before: z.number().int(),
+  counts: z.object({
+    decided: z.number().int(),
+    doubt: z.number().int(),
+    waiting: z.number().int(),
+  }),
   next: z.array(z.string()).nullable(),
   choices: z.object({
     groups: z.array(z.object({ id: z.string(), subject: z.string().nullable() })),
@@ -214,6 +238,8 @@ const answer = z.object({
       proposer: z.enum(PROPOSERS),
       group: z.object({ id: z.string(), subject: z.string().nullable() }).nullable(),
       state: z.enum(['clean', 'not_clean', 'blocked']),
+      lane: z.enum(LANES),
+      said: z.string().nullable(),
       faults: z.array(
         z.object({
           kind: z.enum(FAULT_KINDS),
@@ -355,6 +381,7 @@ export function unitPageOf(raw: unknown, after: readonly string[] | null): UnitP
     total: read.data.total,
     matched: read.data.matched,
     before: read.data.before,
+    counts: read.data.counts,
     choices: read.data.choices,
     next: read.data.next,
     units: read.data.units.map((unit) => ({
@@ -365,6 +392,8 @@ export function unitPageOf(raw: unknown, after: readonly string[] | null): UnitP
       proposer: unit.proposer,
       group: unit.group,
       state: unit.state,
+      lane: unit.lane,
+      said: unit.said ?? '',
       faults: unit.faults.map(faultOf),
       endRejected: unit.endRejected === true,
       acts: unit.acts.map(actOf),

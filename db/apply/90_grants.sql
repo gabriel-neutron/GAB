@@ -51,7 +51,8 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, entiti
 -- an act except these two. A new column of the table needs its own line here.
 GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, dissent,
   author_role, xact, status, created_at, decided_at, decided_by, model_call_id, act_digest,
-  originator, batch_id, dissent_reason, unit_id, proposer, decided_as, claim_key) ON proposals
+  originator, batch_id, dissent_reason, unit_id, proposer, decided_as, claim_key,
+  decision_origin) ON proposals
   TO gabriel_agent, gabriel_research;
 
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
@@ -78,6 +79,7 @@ REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_proposal_as(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
@@ -90,6 +92,7 @@ REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION write_unit_as(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
@@ -131,6 +134,18 @@ REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION rule_of_faults(uuid,jsonb)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_said(uuid,text)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
+REVOKE ALL ON FUNCTION run_rules(uuid[])           FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION start_deepening(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
@@ -200,8 +215,8 @@ GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
 -- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
 -- dispute and the reason and the note of each rejection, and only the operator reads them.
-REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) TO gabriel_app;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
@@ -234,6 +249,11 @@ GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
+
+-- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
+-- check call the function of the rules inside the database, so it holds no grant. The operator
+-- role reads which rule matches a unit, and the read decides nothing.
+GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
 -- The extractor runs the check by a second model family. The check for a proposal of the research
 -- session is a separate ticket (spec 369). The worker reads no check and no digit.
 GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text) TO gabriel_agent;

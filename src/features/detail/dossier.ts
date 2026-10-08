@@ -255,12 +255,11 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
 function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
   const promotion = decided.find((held) => held.act.id === entityFrom);
   if (promotion === undefined) return null;
-  const how = deciderWords(promotion.decidedAs);
+  const how = deciderWords(promotion.decidedAs, promotion.decisionOrigin, 'accepted');
   const day = new Date(promotion.decidedAt);
   const on = Number.isNaN(day.getTime()) ? promotion.decidedAt : day.toISOString().slice(0, 10);
-  return promotion.decidedAs === 'group'
-    ? `Promoted by ${how}, on ${on}`
-    : `Promoted by ${how} on ${on}`;
+  const said = `${how.slice(0, 1).toUpperCase()}${how.slice(1)}`;
+  return promotion.decidedAs === 'group' ? `${said}, on ${on}` : `${said} on ${on}`;
 }
 
 export function readDossier(
