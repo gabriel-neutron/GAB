@@ -5,22 +5,18 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
+import { connectionString } from '../../../tools/db-runtime.ts';
+
+const secrets = z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') });
 
 const ownerClient = (): Client => {
   const held = secrets.safeParse(process.env);
   if (!held.success)
     throw new Error(
-      'POSTGRES_PASSWORD is empty or absent, or GABRIEL_DATABASE is not gabriel_test. Run the ' +
-        'suite through its configuration.',
+      'GABRIEL_DATABASE is not gabriel_test. Run the suite through its configuration.',
     );
-  const password = encodeURIComponent(held.data.POSTGRES_PASSWORD);
-  const database = held.data.GABRIEL_DATABASE;
   return new Client({
-    connectionString: `postgresql://gabriel:${password}@127.0.0.1:5432/${database}`,
+    connectionString: connectionString('superuser', held.data.GABRIEL_DATABASE),
   });
 };
 
