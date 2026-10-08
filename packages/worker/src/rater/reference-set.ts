@@ -70,6 +70,39 @@ export const readReferenceSet = async (app: Queryable): Promise<readonly Referen
 export const approveReferenceSet = async (app: Queryable): Promise<number> =>
   z.object({ n: z.number().int() }).parse((await app.query(APPROVE)).rows[0]).n;
 
+type Authors = z.infer<typeof referenceAnswer>['authors'];
+
+const refuseSecondSet = async (app: Queryable, ending: string): Promise<void> => {
+  if ((await readReferenceSet(app)).length > 0)
+    throw new Error(`The record holds a reference set already. ${ending}`);
+};
+
+const storeAuthors = async (
+  app: Queryable,
+  authors: Authors,
+  model: string,
+): Promise<readonly ReferenceRow[]> => {
+  for (const one of authors)
+    await app.query(STORE, [one.name, one.letter, model, one.reason, one.controller, one.party]);
+  return readReferenceSet(app);
+};
+
+/** The text that the model column holds for a set that experts wrote and no model made. */
+export const WRITTEN_SET_MODEL = 'expert-written set';
+
+/** Stores a set that experts wrote, from the text of a JSON file. The text passes the same rules
+ * as the answer of the model. No model is called. The set is not used until the operator
+ * approves it. A record that holds a reference set refuses a load. The caller wraps the call in
+ * one transaction, so a set is stored whole or not at all. */
+export const loadReferenceSet = async (
+  app: Queryable,
+  text: string,
+): Promise<readonly ReferenceRow[]> => {
+  const set = referenceAnswer.parse(JSON.parse(text));
+  await refuseSecondSet(app, 'It is loaded once.');
+  return storeAuthors(app, set.authors, WRITTEN_SET_MODEL);
+};
+
 export interface BuildDeps {
   /** The connection of the agent role: it records the call of the model. */
   readonly agent: Queryable;
@@ -88,8 +121,7 @@ export interface BuildDeps {
  * its reason. The set is stored but is not used until the operator approves it. A record that
  * holds a reference set refuses a second build. */
 export const buildReferenceSet = async (deps: BuildDeps): Promise<readonly ReferenceRow[]> => {
-  if ((await readReferenceSet(deps.app)).length > 0)
-    throw new Error('The record holds a reference set already. It is built once.');
+  await refuseSecondSet(deps.app, 'It is built once.');
 
   const line: Model = openModel(deps.language, deps.config.model.line, {
     record: (call: CallRecord) => recordModelCall(deps.agent, AGENT, null, call),
@@ -112,14 +144,5 @@ export const buildReferenceSet = async (deps: BuildDeps): Promise<readonly Refer
   if ('call' in answer)
     throw new Error('The model answered with a tool call, and the build offers none.');
 
-  for (const one of answer.value.authors)
-    await deps.app.query(STORE, [
-      one.name,
-      one.letter,
-      answer.served ?? deps.config.model.model,
-      one.reason,
-      one.controller,
-      one.party,
-    ]);
-  return readReferenceSet(deps.app);
+  return storeAuthors(deps.app, answer.value.authors, answer.served ?? deps.config.model.model);
 };

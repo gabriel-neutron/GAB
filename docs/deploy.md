@@ -55,8 +55,13 @@ The rater of `pnpm worker run` rates each new author name. Set the `RATER_*` val
 absent, the worker starts and runs the extractions, and each rating fails with a reason that names
 the value. A rating waits in the queue until the operator approves the reference set:
 
-1. `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
-   letter and a reason, and stores them. The set is not used yet.
+1. Store the set. It is not used yet. Use one of two ways:
+   - `pnpm worker reference-set load <file>` stores a set that experts wrote. The file is JSON
+     with an `authors` list. It needs no model and no OpenRouter key. The repository holds the
+     first set in `packages/worker/src/rater/reference-set.json`. Experts wrote it, and the
+     operator approved it.
+   - `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
+     letter and a reason, and stores them.
 2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
