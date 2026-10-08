@@ -28,7 +28,7 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v7';
+const VERSION = 'v8';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -79,7 +79,7 @@ const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
 
 // The door that keeps the verdict of the checker on one act. The rules read it, so an act with a
 // passed check can be accepted with no step by hand.
-const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)';
+const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5, $6)';
 
 // The part of the answer of the propose tool that names the act of each item.
 const proposed = z.object({
@@ -204,6 +204,7 @@ export const makeExtractor = (
           config.checker.family,
           config.reader.family,
           said.verdict,
+          said.verdict === 'supported' ? null : said.reason,
         ]);
       }
     };

@@ -28,14 +28,16 @@ const stateOf = (check: ActCheck | null): CheckState => {
   return check.passed ? 'passed' : 'same_family';
 };
 
-const wordsOf = (state: CheckState, model: string): string => {
+const wordsOf = (state: CheckState, check: ActCheck | null): string => {
+  const model = check?.model ?? '';
+  const why = check?.reason === null || check?.reason === undefined ? '' : `: ${check.reason}`;
   switch (state) {
     case 'passed':
       return `Checked by a second model, ${model}: the passage supports it`;
     case 'disputed':
-      return `Checked by a second model, ${model}: the passage does not support it`;
+      return `Checked by a second model, ${model}: the passage does not support it${why}`;
     case 'unclear':
-      return `Checked by a second model, ${model}: it cannot decide`;
+      return `Checked by a second model, ${model}: it cannot decide${why}`;
     case 'same_family':
       return `Checked by ${model}, a model of the family of the reader: the check does not count`;
     case 'code_only':
@@ -47,5 +49,5 @@ const wordsOf = (state: CheckState, model: string): string => {
 export const checkLines = (acts: readonly UnitAct[]): readonly CheckLine[] =>
   acts.map((act) => {
     const state = stateOf(act.check);
-    return { act: act.id, name: nameOf(act), state, words: wordsOf(state, act.check?.model ?? '') };
+    return { act: act.id, name: nameOf(act), state, words: wordsOf(state, act.check) };
   });

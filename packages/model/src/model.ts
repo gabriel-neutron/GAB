@@ -87,6 +87,9 @@ export interface Question<T> {
   readonly shape: z.ZodType<T>;
   readonly budget: Budget;
   readonly tools?: readonly Tool[];
+  /** False sends no second question after an answer of a bad shape, so the cap of the budget is
+   * a hard cap of one question. The default is one retry with the fault. */
+  readonly retryShape?: boolean;
 }
 
 /** The record of one question. The prompt is kept as a digest only, because it can quote an
@@ -511,7 +514,12 @@ export const openModel = (
         served: undefined,
       };
       const started = now();
-      const got = await attempt(question, run, question.messages, SHAPE_RETRIES);
+      const got = await attempt(
+        question,
+        run,
+        question.messages,
+        question.retryShape === false ? 0 : SHAPE_RETRIES,
+      );
       const callId = await options.record({
         requested: pinned,
         served: run.served,

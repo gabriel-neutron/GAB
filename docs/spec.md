@@ -107,15 +107,16 @@ operator shows it.
 
 Before the extractor or the research AI writes its acts, a model of another family checks each act
 against its passage. For the research AI, the MCP server asks the checker once for each batch,
-under a token cap, and a batch above the cap is not sent. The act is written as disputed when the check does not support it, or when no cited passage states its value.
+under a hard token cap, and a batch above the cap is not sent. A batch that the record holds whole
+and checked is not sent again. A role of its own writes the checks of the research acts. The act is written as disputed when the check does not support it, or when no cited passage states its value.
 For the extractor, a failed check that could not read the act also disputes it. For the research
 AI, only a checker that finds that the passage does not support the act disputes it: an act that
 no model checked has no dispute and no check, so it waits, and the same batch sent again checks it.
 The flag keeps a short reason. The
 reason is frozen with the act: the value that no passage states, the verdict and reason of the checker, or
 that the checker did not answer. The reason is private: the review card shows it, and the public read does not.
-After the write, the record also keeps each verdict with its act, the checker model and both
-families, so the rules can decide the unit. The review card says which check ran on each act: a
+After the write, the record also keeps each verdict with its act, the checker model, both
+families and the reason of the checker, so the rules can decide the unit. The review card says which check ran on each act: a
 second model, with its verdict, or code only. An act that the checker did not answer keeps no check
 until a later extraction of the document, or the same batch of the research AI, checks it. The first check of an act stays.
 Every model call goes to OpenRouter and is recorded.

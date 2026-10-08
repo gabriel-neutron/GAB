@@ -85,6 +85,8 @@ export interface ActCheck {
   readonly model: string;
   readonly verdict: 'supported' | 'not_supported' | 'unclear';
   readonly passed: boolean;
+  /** The reason of a verdict that is not `supported`, or null when the checker gave none. */
+  readonly reason: string | null;
 }
 
 interface ActBase {
@@ -224,6 +226,7 @@ const act = z.object({
       model: z.string(),
       verdict: z.enum(['supported', 'not_supported', 'unclear']),
       passed: z.boolean(),
+      reason: z.string().nullish(),
     })
     .nullish(),
   target: end,
@@ -363,7 +366,10 @@ const actOf = (read: ReadAct): UnitAct => {
     id: read.id,
     attributes: attributesOf(read.payload),
     disputed: read.dissent,
-    check: read.check ?? null,
+    check:
+      read.check === null || read.check === undefined
+        ? null
+        : { ...read.check, reason: read.check.reason ?? null },
     endRejected: read.endRejected,
   };
   if (read.op === 'create_entity')

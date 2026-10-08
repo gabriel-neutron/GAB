@@ -124,6 +124,7 @@ interface Opened {
   readonly ask: (
     tools?: readonly Tool[],
     cap?: number,
+    retryShape?: boolean,
   ) => ReturnType<ReturnType<typeof openModel>['ask']>;
 }
 
@@ -147,12 +148,13 @@ const open = (pinned = PINNED): Opened => {
   return {
     records,
     waits,
-    ask: (tools, cap = 1000) =>
+    ask: (tools, cap = 1000, retryShape) =>
       model.ask({
         messages: GO,
         shape: SHAPE,
         budget: openBudget(cap),
         ...(tools === undefined ? {} : { tools }),
+        ...(retryShape === undefined ? {} : { retryShape }),
       }),
   };
 };
@@ -403,6 +405,17 @@ describe('a bad shape', () => {
     const retry = sent.parse(bodies[1]).messages.at(-1);
     expect(JSON.stringify(retry)).toContain('claim');
     expect(records).toHaveLength(1);
+  });
+
+  it('asks no second question when the caller turns the retry off', async () => {
+    replies.push(said('{"claim":7}'), said('{"claim":"a ship"}'));
+    const { ask } = open();
+
+    expect(await ask(undefined, 1000, false)).toMatchObject({
+      ok: false,
+      failure: { kind: 'rejected', attempts: 1 },
+    });
+    expect(bodies).toHaveLength(1);
   });
 
   it('fails when the second answer is bad too', async () => {

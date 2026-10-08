@@ -15,12 +15,12 @@ SET ROLE gabriel_owner;
 -- remove a privilege held through PUBLIC.
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 REVOKE ALL   ON SCHEMA public FROM gabriel_read;
-GRANT  USAGE ON SCHEMA public TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT  USAGE ON SCHEMA public TO gabriel_app, gabriel_agent, gabriel_research, gabriel_checker;
 
 REVOKE ALL ON ALL TABLES    IN SCHEMA public
-  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read;
+  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read, gabriel_checker;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
-  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read;
+  FROM PUBLIC, gabriel_app, gabriel_agent, gabriel_research, gabriel_read, gabriel_checker;
 
 -- External constraint: no blanket function revoke runs here. PostGIS is in public, and as the
 -- superuser the revoke stops the map read. A default privilege of gabriel_owner, set for every
@@ -131,7 +131,10 @@ REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_act_check(uuid,text,text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION unchecked_acts(uuid[])      FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
@@ -187,11 +190,12 @@ GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) T
 -- so it opens nothing of the evidentiary layer.
 GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
 
--- THE CALL RECORD IS gabriel_agent AND gabriel_research. Only the process that asked the model
+-- THE CALL RECORD IS gabriel_agent AND gabriel_checker. Only the process that asked the model
 -- knows what it asked: the worker, or the MCP server that asks the checker of a research batch.
--- The door writes model_call and nothing else.
+-- The server writes the record through the checker role, whose password the research AI does not
+-- hold. The door writes model_call and nothing else.
 GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
-  TO gabriel_agent, gabriel_research;
+  TO gabriel_agent, gabriel_checker;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 
@@ -255,10 +259,12 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 -- check call the function of the rules inside the database, so it holds no grant. The operator
 -- role reads which rule matches a unit, and the read decides nothing.
 GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
--- The extractor and the MCP server of the research session run the check by a second model
--- family, and each one keeps the verdicts of its own batch. Neither one reads a check or a digit.
-GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text)
-  TO gabriel_agent, gabriel_research;
+-- The extractor checks the acts of gabriel_agent through its door. The MCP server checks the acts
+-- of gabriel_research through the other door, as gabriel_checker, so the research AI writes no
+-- check. Neither role reads a check or a digit: the server reads only which acts have none.
+GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text,text) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION record_research_check(uuid,text,text,text,text,text) TO gabriel_checker;
+GRANT EXECUTE ON FUNCTION unchecked_acts(uuid[])   TO gabriel_research;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
@@ -346,9 +352,11 @@ RESET ROLE;
 --      SELECT r.rolname, g.rolname FROM pg_auth_members m
 --        JOIN pg_roles r ON r.oid = m.member JOIN pg_roles g ON g.oid = m.roleid
 --       WHERE m.roleid = 'gabriel_owner'::regrole
---          OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read');
+--          OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read',
+--                         'gabriel_checker');
 --      SELECT rolname FROM pg_roles
---       WHERE rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
+--       WHERE rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read',
+--                         'gabriel_checker')
 --         AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolbypassrls OR rolreplication);
 --
 --   4. a write grant on any table — this one catches a later migration that adds a table and

@@ -98,8 +98,18 @@ const stackEnv = (): string | null => {
 
 // A checker that is not ready does not stop the server: each proposal then says why no model
 // checked it.
-const checkOf = (): SecondCheck => {
-  const check = readSecondCheck(checkEnvOf(stackEnv(), process.env));
+// The checker role writes the model call and the checks. Its pool opens no session before the
+// first check.
+const checkerPool = (address: string): pg.Pool => {
+  const pool = new pg.Pool({ connectionString: address, max: 2 });
+  pool.on('error', (fault) => {
+    console.error(fault);
+  });
+  return pool;
+};
+
+const checkOf = (research: string): SecondCheck => {
+  const check = readSecondCheck(checkEnvOf(stackEnv(), process.env), research, checkerPool);
   if (!check.ready) console.error(`no model checks the proposals: ${check.reason}`);
   return check;
 };
@@ -121,7 +131,7 @@ const start = async (): Promise<void> => {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
   process.stdin.once('end', shutdown);
-  await createServer(pool, reachOf(), checkOf()).connect(new StdioServerTransport());
+  await createServer(pool, reachOf(), checkOf(url)).connect(new StdioServerTransport());
   console.error('the MCP server runs as gabriel_research over stdio');
 };
 

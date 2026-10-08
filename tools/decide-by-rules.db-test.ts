@@ -153,8 +153,8 @@ const rate = (ask: Ask, author: string, letter: string): Promise<unknown> =>
   letter === 'A' || letter === 'B' ? reference(ask, author, letter) : worker(ask, author, letter);
 
 const check = (ask: Ask, one: Cited, verdict = 'supported'): Promise<unknown> =>
-  as(ask, 'gabriel_agent', () =>
-    ask('SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)', [
+  as(ask, 'gabriel_checker', () =>
+    ask('SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)', [
       one.act,
       'a-checker',
       'openai',
@@ -306,9 +306,9 @@ test.each([
     await rate(ask, author, letter);
     const one = await cited(ask, { author, label: label(), ...ONE });
     if (verdict === 'same') {
-      await as(ask, 'gabriel_agent', () =>
+      await as(ask, 'gabriel_checker', () =>
         ask(
-          "SELECT public.record_act_check($1::uuid, 'm', 'anthropic', 'Anthropic', 'supported')",
+          "SELECT public.record_research_check($1::uuid, 'm', 'anthropic', 'Anthropic', 'supported')",
           [one.act],
         ),
       );
