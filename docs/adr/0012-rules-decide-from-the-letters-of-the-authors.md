@@ -23,7 +23,7 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   refused. A rating that names no reference author is refused. A refused or missing answer leaves
   the author F.
 - A name that joins an author A or B is a doubt, because it would raise the letter of every act
-  of that name.
+  of that name. In the first build, the join only records a doubt flag. Nothing reads the flag yet.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
@@ -45,9 +45,11 @@ without the letters.
   A citation that reports what another party says never counts. When code is not sure, the two
   citations count as one author.
 - A fact with no passed check by a second model family gets **no digit**: the check proves that the
-  passage says the fact, not that the fact is true. The check also runs on research acts.
+  passage says the fact, not that the fact is true. The check for research acts is a separate ticket.
+  This gate comes before rule 5. So a fact whose only check disputes it shows no digit, because that
+  check did not pass. A verdict "unclear" is not a dispute.
 - **The digit:** 1 when two or more independent citations agree with no conflict; 2 when two or
-  more citations are not proved independent; 3 for one author; 4 when another pending value
+  more known authors give citations that are not proved independent; 3 for one known author; 4 when another pending value
   disagrees; 5 when the checker disputes the fact or a party denies it; 6 when no citation has a
   known author. Code tries 5, then 4, 1, 2, 3 and 6. It computes the digit when it reads the fact,
   so the digit never goes stale.
