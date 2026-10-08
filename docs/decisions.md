@@ -25,7 +25,7 @@ it. The build decisions are in the ADRs.
 | M10 | The unit is in the key name | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
 | M12 | An entity merge is reversible | Data model |
-| S1 | The NATO letter rates the author; code gives every letter | Sources and trust |
+| S1 | The NATO letter rates the author; the machine gives every letter | Sources and trust |
 | S2 | The source is listed at entity, relation and attribute level | Sources and trust |
 | S3 | Named rules decide from the sources; the operator decides the doubts | Sources and trust |
 | S4 | The origin of each decision is stored and published | Sources and trust |
@@ -183,19 +183,19 @@ it. This becomes weak when an agent writes at volume.
 
 ## Sources and trust
 
-### S1 — The NATO letter rates the author; code gives every letter
+### S1 — The NATO letter rates the author; the machine gives every letter
 
-**Rule.** GAB uses the NATO rating (STANAG 2511). A letter from A to F rates the reliability of
-the author: the person or the body that first gives the information and knows it. The letter never
-rates the site or the medium that carries it: a blog post can be good or bad, by its author. A copy
-of a text counts as its first author. A new author gets F. The letter can have an exception for
-one subject, because one author can be open on one subject and not on another (for example, a
-party to the conflict on its own data and on the data of the other side). A digit from 1 to 6
-rates the credibility of one fact, from its sources. Code gives every letter and every digit; the
-operator gives none. A strong model rates a reference set of authors once, with a reason for each
-letter. After that, a model rates a new author against the reference set and names the reference
-authors that it compares with, so that the letters do not drift. Code computes the digit. The
-public does not see the letter or the digit.
+**Rule.** GAB uses the NATO rating (STANAG 2511). A letter from A to F rates the reliability of the
+author: the person or the body that first gives the information and knows it. The letter never rates
+the site or the medium that carries it: a blog post can be good or bad, by its author. A copy of a
+text counts as its first author. A new author gets F. The letter can have an exception for one
+subject, because one author can be open on one subject and not on another (for example, a party to
+the conflict on its own data and on the data of the other side). A digit from 1 to 6 rates the
+credibility of one fact, from its sources. The machine gives every letter, and code gives every
+digit; the operator gives none. A strong model rates a reference set of authors once, with a reason
+for each letter. After that, a model rates a new author against the reference set and names the
+reference authors that it compares with, so that the letters do not drift. Code computes the digit.
+The public does not see the letter or the digit.
 **Why.** A document mixes facts and rumours, so one grade per document is false. The author is the
 thing that knows. One operator cannot rate each author by hand. A fixed reference set keeps the
 letters of the model consistent over time.
@@ -218,12 +218,12 @@ order to each unit, and the first rule that matches decides:
 
 1. **Impossible.** The unit cannot be written: a link to a rejected element, or a link to itself.
    The rule rejects it.
-2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that the operator rejected before, or an adverse claim
-   about a named person or company (S6). The unit goes to the operator, with the reason.
+2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that
+   the operator rejected before, or an adverse claim about a named person or company (S6). The unit
+   goes to the operator, with the reason.
 3. **Strong sources.** Each fact of the unit has one source A, or two independent sources B or
    better, and a model of a second family found each fact in its passage. Two sources are
-   independent when they have different authors. The rule accepts the unit, and each fact gets
-   the digit 1.
+   independent when they have different authors. The rule accepts the unit.
 4. **Weak sources.** All other units wait for a better source, and the operator does not see them
    in the queue. A deepening search can look for a better source (P10). When a new source comes,
    the unit goes through the rules again. A unit whose only sources are D or E, after the
@@ -359,7 +359,7 @@ depend on it. One promotion writes them together, or writes none. The group is a
 filter, and not a unit. A relation is never promoted without its two entities: each end is
 already in the record, or it is promoted in the same decision. A unit whose end waits in another
 group waits until that end is decided. A relation is part of one unit only, so an entity never
-waits for a relation.
+waits for a relation. On a group, the operator can promote all its clean units at once.
 **Why.** The graph never holds a link to a missing entity, and one wrong item never forces the
 rejection of a whole group.
 **Cost.** A unit with many relations takes long to read. A relation between two groups needs two
@@ -368,16 +368,16 @@ steps.
 ### P12 — The operator AI proposes the facts of a research layer
 
 **Rule.** In a research session, Claude or Codex finds the sources of its layer, stores each one,
-and proposes each fact of the layer itself, with the page and a checked excerpt (P9). Each source
-is a stored document before it is cited. The back-end extractor and the lead agent run only when
-the operator asks for them. The session writes with no approval of each write, except a write that
-spends model credit. The rules of S3 decide each proposal, and the operator decides the doubts. A source that the session cannot store goes
-on a list of needs that tells the operator what to get.
+and proposes each fact of the layer itself, with the page and a checked excerpt (P9). Each source is
+a stored document before it is cited. The back-end extractor and the lead agent run only when the
+operator asks for them, or when a rule starts a deepening search (P10). The session writes with no approval of each write, except a write that
+spends model credit. The rules of S3 decide each proposal, and the operator decides the doubts. A
+source that the session cannot store goes on a list of needs that tells the operator what to get.
 **Why.** A research layer needs a few targeted facts, and the extractor proposes each claim of a
 document, also the claims outside the layer. A method skill tells the operator AI what to propose
 and what to leave out, so that the queue holds facts that are ready to promote.
-**Cost.** The research uses the tokens of the operator's own subscription. A wrong fact with strong sources
-can pass a rule with no person reading it.
+**Cost.** The research uses the tokens of the operator's own subscription. A wrong fact with strong
+sources can pass a rule with no person reading it.
 
 ---
 

@@ -83,7 +83,7 @@ such as 03/04/2024 or 1,000, states no value, so it also marks the item as dispu
 needs a word of yes or no, and a negative number needs its minus sign or a word for it. Code mints
 the identifier of each item, so a relation names an entity that an earlier item of the same batch
 creates. The items that name each other stay one linked batch. The batch is a group: a label and
-a filter. The operator decides one unit of it at a time: an entity with the relations that depend
+a filter. A rule or the operator decides one unit of it at a time (ADR 0012): an entity with the relations that depend
 on it. The door writes each act with its citations in one transaction, and it holds the rules of the
 data: a machine proposes a new entity, a new relation or new attributes and never a change of a name
 or a type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
@@ -109,7 +109,7 @@ can run on another machine.
 A model reads the header and the first rows of a table, and proposes one mapping of its columns.
 The operator promotes it. The promotion writes nothing to the graph: it queues the load. Code
 then reads every row with no model. Each row is a proposal cited by the span of the row, and a
-row and its links are one linked batch, which the operator decides one unit at a time. A row that
+row and its links are one linked batch, which a rule or the operator decides one unit at a time. A row that
 does not fit is left out, and one report
 document keeps the reason for each. The rows carry the model call of the mapping, because that
 call is the origin of the way the row is read. A new file from the same host with the same header
@@ -117,7 +117,8 @@ takes the accepted mapping, and no model reads it.
 
 **Cost:** only a CSV table is mapped. A link to an entity that the record does not hold is not
 loaded, and the report says so. A mapping that reads a column wrongly shows only in the
-proposals of the rows, which the operator reviews.
+proposals of the rows, which the rules check, and which the operator reads when a rule finds a
+doubt.
 
 ## External sources are reached on demand
 
@@ -216,8 +217,8 @@ on 6 October 2026. The chat feature builds its store again.
 
 ## Consequences
 
-- **The operator reads each proposal before it is promoted.** The speed of the review screen
-  sets the speed of the record. No model writes a state or a verdict.
+- **Named rules in the database decide most units, and the operator reads only the doubts**
+  (ADR 0012). A model gives the letter of an author, and never a state or a verdict.
 - OpenRouter has no service level of its own. A provider can fail, and the pinned model and a
   failure that shows its reason contain this risk. They do not remove it. A spent credit balance
   fails each job with a clear reason. The operator adds credit and queues the documents again.
