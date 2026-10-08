@@ -73,9 +73,12 @@ export interface Reach {
   readonly refuses?: (address: string) => boolean;
   /** A check of each item by a model of another family, before the write. It gives the verdict
    * on each item that the checker answered. Each item with no `supported` verdict is written as
-   * disputed. */
+   * disputed. It throws a `CheckFailure` when no model could check the batch. */
   readonly check?: (items: readonly ItemToCheck[]) => Promise<ReadonlyMap<string, CheckVerdict>>;
 }
+
+/** A check that no model could run on a batch, with the one sentence that says why. */
+export class CheckFailure extends Error {}
 
 /** A request that a tool declines, with the one sentence that says why. */
 export class ToolRefusal extends Error {}

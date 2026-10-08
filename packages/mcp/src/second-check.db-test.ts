@@ -1,0 +1,288 @@
+// The check of a research batch by a second model, through the server, against the disposable
+// database. Each test runs in one transaction that rolls back, on one connection that signs as
+// the owner to seed and to read, and as gabriel_research while the server works. Each model call
+// goes to the stub router of the worker tests: no test reaches a model.
+
+import { openrouterModel } from '@gab/model';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { expect, test } from 'vitest';
+import { z } from 'zod';
+
+import { rolledBack, type Ask } from '../../../tools/probe.ts';
+import {
+  CHECKER,
+  claimsOf,
+  completionOf,
+  routerOf,
+  verdictsOf,
+  type StubRouter,
+} from '@gab/worker/runner-fixture';
+import type { SecondCheck } from './second-check.ts';
+import { createServer, type SessionPool } from './server.ts';
+
+const SHA = 'f'.repeat(64);
+const DOC = `doc_${SHA.slice(0, 12)}`;
+
+const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
+const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
+const PAGE = 'The tanker Nayara left Sikka on 2 May. Rosneft owns the tanker Nayara.';
+
+const STUB_ENV = { OPENROUTER_API_KEY: 'a-stub-key' };
+
+// Origin: decided. The cap holds a batch of two short items with the prompt and the answer.
+const ROOMY_CAP = 20_000;
+
+const itemOf = (ref: string, label: string, type: string, excerpt: string) => ({
+  ref,
+  act: { op: 'create_entity', type, label },
+  originator: 'The port authority',
+  modality: 'asserts',
+  evidence: [{ document: DOC, page: 1, excerpt }],
+});
+
+const NAYARA = itemOf('nayara', 'Nayara', 'vessel', 'The tanker Nayara left Sikka');
+const ROSNEFT = itemOf('rosneft', 'Rosneft', 'company', 'Rosneft owns the tanker Nayara');
+
+const checkOf = (router: StubRouter, tokenCap = ROOMY_CAP): SecondCheck => ({
+  ready: true,
+  setup: {
+    checker: CHECKER,
+    tokenCap,
+    open: (model) => openrouterModel(model, STUB_ENV, router.send),
+  },
+});
+
+const answer = z.object({
+  content: z.array(z.object({ type: z.literal('text'), text: z.string() })),
+  isError: z.boolean().optional(),
+});
+
+const outcome = z.object({
+  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid(), disputed: z.boolean() })),
+  checkFailure: z.string().optional(),
+});
+
+const acts = z.array(
+  z.object({
+    label: z.string(),
+    dissent: z.boolean(),
+    dissent_reason: z.string().nullable(),
+    checker_model: z.string().nullable(),
+    checker_family: z.string().nullable(),
+    reader_family: z.string().nullable(),
+    verdict: z.string().nullable(),
+    passed: z.boolean().nullable(),
+  }),
+);
+
+const ACTS = `SELECT p.payload ->> 'label' AS label, p.dissent, p.dissent_reason, k.checker_model,
+                     k.checker_family, k.reader_family, k.verdict, k.passed
+                FROM public.proposals p LEFT JOIN public.act_check k ON k.proposal_id = p.id
+               WHERE $1 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`;
+
+const CALLS = `SELECT count(*)::int AS n FROM public.model_call
+                WHERE agent = 'research-check' AND requested_model = $1`;
+
+interface Run {
+  readonly output: z.output<typeof outcome>;
+  readonly acts: z.output<typeof acts>;
+  readonly calls: number;
+}
+
+// Every call of the server takes the one session of the test, as gabriel_research.
+const poolOf = (ask: Ask): SessionPool => ({
+  connect: () =>
+    Promise.resolve({
+      query: async (text: string, values: unknown[]) => ({ rows: await ask(text, values) }),
+      release: () => undefined,
+    }),
+});
+
+// One batch through a server whose client gives the name `client`.
+const proposeThrough = (
+  check: SecondCheck | undefined,
+  items: readonly unknown[],
+  client = 'claude-code',
+): Promise<Run> =>
+  rolledBack('superuser', async (ask) => {
+    await ask(STORE, [
+      'url',
+      'A port report',
+      `raw/${SHA}`,
+      'https://example.org/port-report',
+      SHA,
+      'application/pdf',
+      '2026-10-01',
+      null,
+    ]);
+    await ask(WRITE_TEXT, [DOC, JSON.stringify([PAGE]), 'second-check-test-1']);
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await createServer(poolOf(ask), undefined, check).connect(serverSide);
+    const mcp = new Client({ name: client, version: '0.0.0' });
+    await mcp.connect(clientSide);
+    let text: string;
+    try {
+      const called = answer.parse(await mcp.callTool({ name: 'propose', arguments: { items } }));
+      text = called.content.map((part) => part.text).join('');
+      if (called.isError === true) throw new Error(`the server refused the batch: ${text}`);
+    } finally {
+      await mcp.close();
+    }
+    await ask('RESET SESSION AUTHORIZATION');
+    const [counted] = z.array(z.object({ n: z.number() })).parse(await ask(CALLS, [CHECKER.model]));
+    return {
+      output: outcome.parse(JSON.parse(text)),
+      acts: acts.parse(await ask(ACTS, [DOC])),
+      calls: counted?.n ?? 0,
+    };
+  });
+
+const passedCheck = {
+  checker_model: CHECKER.model,
+  checker_family: CHECKER.family,
+  reader_family: 'anthropic',
+};
+
+test('a batch that its passages support gets one call and a passed check on each act', async () => {
+  const router = routerOf(() => {
+    throw new Error('the research check asks no reader');
+  });
+  const run = await proposeThrough(checkOf(router), [NAYARA, ROSNEFT]);
+
+  expect(router.checks()).toBe(1);
+  expect(run.calls).toBe(1);
+  expect(run.output.checkFailure).toBeUndefined();
+  expect(run.acts).toStrictEqual([
+    {
+      label: 'Nayara',
+      dissent: false,
+      dissent_reason: null,
+      ...passedCheck,
+      verdict: 'supported',
+      passed: true,
+    },
+    {
+      label: 'Rosneft',
+      dissent: false,
+      dissent_reason: null,
+      ...passedCheck,
+      verdict: 'supported',
+      passed: true,
+    },
+  ]);
+});
+
+test('a fact that its passage does not support is disputed with the reason of the checker', async () => {
+  const router = routerOf(
+    () => {
+      throw new Error('the research check asks no reader');
+    },
+    (_call, body) =>
+      completionOf(
+        JSON.stringify({
+          verdicts: claimsOf(body).map((ref) =>
+            ref === 'rosneft'
+              ? { ref, verdict: 'not_supported', reason: 'The passage names no owner.' }
+              : { ref, verdict: 'supported' },
+          ),
+        }),
+        CHECKER.model,
+      ),
+  );
+  const run = await proposeThrough(checkOf(router), [NAYARA, ROSNEFT]);
+
+  expect(router.checks()).toBe(1);
+  expect(run.output.proposals.map((one) => [one.ref, one.disputed])).toStrictEqual([
+    ['nayara', false],
+    ['rosneft', true],
+  ]);
+  expect(run.acts[1]).toStrictEqual({
+    label: 'Rosneft',
+    dissent: true,
+    dissent_reason: 'the checker says not_supported: The passage names no owner.',
+    ...passedCheck,
+    verdict: 'not_supported',
+    passed: false,
+  });
+});
+
+test('a checker that fails gives no check, and each item is disputed with the reason', async () => {
+  const router = routerOf(
+    () => {
+      throw new Error('the research check asks no reader');
+    },
+    () => new Response('{"error":{"message":"no credit"}}', { status: 402 }),
+  );
+  const run = await proposeThrough(checkOf(router), [NAYARA, ROSNEFT]);
+
+  expect(router.checks()).toBe(1);
+  expect(run.calls).toBe(1);
+  expect(run.output.checkFailure).toBe('the checker failed: the model account has no credit left');
+  for (const act of run.acts) {
+    expect(act).toMatchObject({ dissent: true, verdict: null, passed: null });
+    expect(act.dissent_reason).toBe(
+      'no model checked it: the checker failed: the model account has no credit left',
+    );
+  }
+});
+
+test('an answer that names no item gives no check, and the item is disputed', async () => {
+  const router = routerOf(
+    () => {
+      throw new Error('the research check asks no reader');
+    },
+    () => verdictsOf([['someone_else', 'supported']]),
+  );
+  const run = await proposeThrough(checkOf(router), [NAYARA]);
+
+  expect(run.acts).toStrictEqual([
+    expect.objectContaining({
+      dissent: true,
+      dissent_reason: 'the checker did not answer',
+      verdict: null,
+    }),
+  ]);
+});
+
+test('a batch above the token cap asks no model, and its items stay with no check', async () => {
+  const router = routerOf(() => {
+    throw new Error('the research check asks no reader');
+  });
+  const run = await proposeThrough(checkOf(router, 300), [NAYARA, ROSNEFT]);
+
+  expect(router.checks()).toBe(0);
+  expect(run.calls).toBe(0);
+  expect(run.output.checkFailure).toMatch(/^the batch needs about \d+ tokens, above the cap/u);
+  for (const act of run.acts) expect(act).toMatchObject({ dissent: true, verdict: null });
+});
+
+test('a client of an unknown family asks no model, and its items stay with no check', async () => {
+  const router = routerOf(() => {
+    throw new Error('the research check asks no reader');
+  });
+  const run = await proposeThrough(checkOf(router), [NAYARA], 'a-client');
+
+  expect(router.checks()).toBe(0);
+  expect(run.output.checkFailure).toBe(
+    'the server does not know the model family of the research AI',
+  );
+  expect(run.acts[0]).toMatchObject({ dissent: true, verdict: null });
+});
+
+test('a server with no checker marks each item, and asks no model', async () => {
+  const run = await proposeThrough(
+    { ready: false, reason: 'OPENROUTER_API_KEY is empty, absent or wrong.' },
+    [NAYARA],
+  );
+
+  expect(run.calls).toBe(0);
+  expect(run.acts[0]).toMatchObject({
+    dissent: true,
+    dissent_reason:
+      'no model checked it: the server has no checker: OPENROUTER_API_KEY is empty, absent or ' +
+      'wrong.',
+    verdict: null,
+  });
+});

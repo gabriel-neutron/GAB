@@ -1,6 +1,8 @@
 // The start of the server. The client talks over stdin and stdout, so every line of the log goes
-// to stderr. The credentials come from the environment of the research workspace alone.
+// to stderr. The credentials come from the environment of the research workspace. The checker of
+// the proposals comes from the environment file of the stack, and only its own variables.
 
+import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +20,7 @@ import {
   researchCredentials,
   StartRefusal,
 } from './role.ts';
+import { checkEnvOf, readSecondCheck, type SecondCheck } from './second-check.ts';
 import { createServer } from './server.ts';
 import { webOf } from '@gab/tools/web';
 
@@ -81,6 +84,26 @@ const reachOf = (): Reach => {
   }
 };
 
+// A client starts the server from the research workspace or from the root of the repository, so
+// the file is found from this file and not from the working folder.
+const STACK_ENV = fileURLToPath(new URL('../../../infra/.env', import.meta.url));
+
+const stackEnv = (): string | null => {
+  try {
+    return readFileSync(STACK_ENV, 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+// A checker that is not ready does not stop the server: each proposal then says why no model
+// checked it.
+const checkOf = (): SecondCheck => {
+  const check = readSecondCheck(checkEnvOf(stackEnv(), process.env));
+  if (!check.ready) console.error(`no model checks the proposals: ${check.reason}`);
+  return check;
+};
+
 // The fetch tools keep an exiftool process and an OCR worker thread, and each one holds the event
 // loop open until it ends.
 const shutdown = (): void => {
@@ -98,7 +121,7 @@ const start = async (): Promise<void> => {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
   process.stdin.once('end', shutdown);
-  await createServer(pool, reachOf()).connect(new StdioServerTransport());
+  await createServer(pool, reachOf(), checkOf()).connect(new StdioServerTransport());
   console.error('the MCP server runs as gabriel_research over stdio');
 };
 

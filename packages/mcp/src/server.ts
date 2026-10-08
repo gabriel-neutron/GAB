@@ -6,8 +6,17 @@ import {
   type Tool as ListedTool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { CATALOGUE } from '@gab/tools/catalogue';
-import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@gab/tools/tool';
+import {
+  callTool,
+  CheckFailure,
+  inputSchemaOf,
+  type CheckVerdict,
+  type Reach,
+  type Session,
+  type Tool,
+} from '@gab/tools/tool';
 
+import { checkBatch, readerFamilyOf, recordChecks, type SecondCheck } from './second-check.ts';
 import { RESEARCH_TOOLS } from './surface.ts';
 
 /** A session that goes back to its pool when the call ends. */
@@ -77,12 +86,36 @@ const faultSentence = (cause: unknown): string => {
   return `the database refused the call (SQLSTATE ${code})`;
 };
 
-const run = async (
-  pool: SessionPool,
+// The propose tool asks the checker before the write, and the verdicts become the checks of the
+// acts after it. A checker that is not ready makes each item of the batch disputed, with the
+// reason, and gives no check.
+const proposeReach = (
   reach: Reach | undefined,
-  name: string,
-  raw: unknown,
-): Promise<CallToolResult> => {
+  check: SecondCheck,
+  session: Session,
+  readerFamily: string | null,
+  verdicts: Map<string, CheckVerdict>,
+): Reach => ({
+  now: () => new Date(),
+  ...reach,
+  check: async (items) => {
+    if (!check.ready) throw new CheckFailure(`the server has no checker: ${check.reason}`);
+    for (const [ref, verdict] of await checkBatch(check.setup, session, readerFamily, items))
+      verdicts.set(ref, verdict);
+    return verdicts;
+  },
+});
+
+interface Context {
+  readonly pool: SessionPool;
+  readonly reach: Reach | undefined;
+  readonly check: SecondCheck | undefined;
+  /** The family of the research AI, which the server reads from its client. */
+  readonly readerFamily: () => string | null;
+}
+
+const run = async (context: Context, name: string, raw: unknown): Promise<CallToolResult> => {
+  const { pool, reach, check } = context;
   const tool = TOOLS.find((entry) => entry.name === name);
   if (tool === undefined)
     return toolError(
@@ -97,8 +130,18 @@ const run = async (
     return toolError(faultSentence(cause));
   }
   try {
-    const outcome = await callTool(tool, session, raw ?? {}, reach);
+    const readerFamily = context.readerFamily();
+    const verdicts = new Map<string, CheckVerdict>();
+    const checked = tool.name === 'propose' && check !== undefined;
+    const outcome = await callTool(
+      tool,
+      session,
+      raw ?? {},
+      checked ? proposeReach(reach, check, session, readerFamily, verdicts) : reach,
+    );
     if (!outcome.ok) return toolError(outcome.refusal);
+    if (checked && check.ready && readerFamily !== null)
+      await recordChecks(session, check.setup.checker, readerFamily, outcome.output, verdicts);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
     console.error(cause);
@@ -110,14 +153,22 @@ const run = async (
 
 // The server registers its own handlers, so the input schema of each tool goes out as the
 // catalogue builds it, and the refusal of a bad input is the sentence of the tool.
-/** The MCP server of the research workspace. With no reach, each tool that stores or reads the web refuses its call. */
-export const createServer = (pool: SessionPool, reach?: Reach): McpServer => {
+/** The MCP server of the research workspace. With no reach, each tool that stores or reads the
+ * web refuses its call. With a check, a model of another family than the research AI reads each
+ * proposed item with its passages; with none, code alone checks a proposal. */
+export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondCheck): McpServer => {
   const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
+  const context: Context = {
+    pool,
+    reach,
+    check,
+    readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name),
+  };
 
   mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...LISTED] }));
 
   mcp.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    run(pool, reach, request.params.name, request.params.arguments),
+    run(context, request.params.name, request.params.arguments),
   );
 
   return mcp;

@@ -187,10 +187,11 @@ GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) T
 -- so it opens nothing of the evidentiary layer.
 GRANT EXECUTE ON FUNCTION set_entity_layout(jsonb) TO gabriel_agent;
 
--- THE CALL RECORD IS gabriel_agent ALONE. Only the worker that asked the model knows what it
--- asked, and the door writes model_call and nothing else.
+-- THE CALL RECORD IS gabriel_agent AND gabriel_research. Only the process that asked the model
+-- knows what it asked: the worker, or the MCP server that asks the checker of a research batch.
+-- The door writes model_call and nothing else.
 GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
-  TO gabriel_agent;
+  TO gabriel_agent, gabriel_research;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 
@@ -254,9 +255,10 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 -- check call the function of the rules inside the database, so it holds no grant. The operator
 -- role reads which rule matches a unit, and the read decides nothing.
 GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
--- The extractor runs the check by a second model family. The check for a proposal of the research
--- session is a separate ticket (spec 369). The worker reads no check and no digit.
-GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text) TO gabriel_agent;
+-- The extractor and the MCP server of the research session run the check by a second model
+-- family, and each one keeps the verdicts of its own batch. Neither one reads a check or a digit.
+GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text)
+  TO gabriel_agent, gabriel_research;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --

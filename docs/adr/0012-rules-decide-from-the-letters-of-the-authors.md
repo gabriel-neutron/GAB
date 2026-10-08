@@ -93,11 +93,12 @@ without the letters.
 
 ### The trust boundary
 
-- The rules trust the worker process. The database checks only the form of the second check: the
-  two family names differ. The agent role gives both names, and it also gives the originator, the
-  model call and the letters C to F.
+- The rules trust the worker process and the MCP server of the research session. The database
+  checks only the form of the second check: the two family names differ. The role of each process
+  gives both names for its own batches, and the agent role also gives the originator, the model
+  call and the letters C to F.
 - The second check defends against the blind spots of a model. It does not defend against a worker
-  that is hostile or broken.
+  or a server that is hostile or broken.
 - A real separation needs a checker in its own process with its own secret. It is out of scope
   until the operator runs more than one worker.
 
