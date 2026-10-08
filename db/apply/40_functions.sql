@@ -1741,14 +1741,18 @@ END $$;
 DROP FUNCTION IF EXISTS claim_job(text);
 DROP FUNCTION IF EXISTS claim_job();
 CREATE OR REPLACE FUNCTION claim_job()
-RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text, job_mapping uuid)
+RETURNS TABLE (job_id uuid, job_document text, job_kind text, job_lead text, job_mapping uuid,
+               job_author text)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_id uuid;
 BEGIN
   SELECT j.id INTO v_id
     FROM public.jobs j
-   WHERE j.status = 'queued' AND j.kind IN ('extract_text','map_structured','load_mapped','research_lead')
+   WHERE j.status = 'queued'
+     AND j.kind IN ('extract_text','map_structured','load_mapped','research_lead','rate_author')
+     -- A rating waits for the approval of the reference set: with no set, no model can compare.
+     AND (j.kind <> 'rate_author' OR EXISTS (SELECT 1 FROM public.reference_approval))
    ORDER BY j.created_at, j.id
    LIMIT 1
    FOR UPDATE SKIP LOCKED;
@@ -1763,8 +1767,8 @@ BEGIN
          claimed_at = now(),
          updated_at = now()
    WHERE j.id = v_id
-  RETURNING j.id, j.document_id, j.kind, j.lead, j.mapping
-       INTO job_id, job_document, job_kind, job_lead, job_mapping;
+  RETURNING j.id, j.document_id, j.kind, j.lead, j.mapping, j.author
+       INTO job_id, job_document, job_kind, job_lead, job_mapping, job_author;
 
   RETURN NEXT;
 END $$;
@@ -3162,11 +3166,16 @@ BEGIN
     CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
--- THE AUTHOR OF A NAME, or NULL when no worker answer has resolved the name. Inside the doors
--- only, so no role holds EXECUTE on it.
+-- THE AUTHOR OF A NAME, or NULL when no worker answer has resolved the name. A reference author is
+-- no author until the operator approves the reference set. Inside the doors only, so no role holds
+-- EXECUTE on it.
 CREATE OR REPLACE FUNCTION author_of(p_name text) RETURNS uuid
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT n.author_id FROM public.author_name n WHERE n.name_key = public.name_key(p_name)
+  SELECT n.author_id
+    FROM public.author_name n JOIN public.author a ON a.id = n.author_id
+   WHERE n.name_key = public.name_key(p_name)
+     AND (NOT a.reference_set
+          OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id))
 $$;
 
 -- THE WRITE OF A NEW AUTHOR, for the two doors below. It refuses a blank field, a name that has an
@@ -3291,9 +3300,80 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT coalesce(
     (SELECT CASE WHEN a.party AND a.letter IN ('A','B') THEN 'C' ELSE a.letter END
        FROM public.author_name n JOIN public.author a ON a.id = n.author_id
-      WHERE n.name_key = public.name_key(p_name)),
+      WHERE n.name_key = public.name_key(p_name)
+        AND (NOT a.reference_set
+             OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id))),
     'F')::char(1)
 $$;
+
+-- THE APPROVAL OF THE REFERENCE SET, by the operator. It approves each reference author that has
+-- no approval yet, and it gives their number. A set with nothing to approve is no fault: it gives 0.
+CREATE OR REPLACE FUNCTION approve_reference_set() RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_count int;
+BEGIN
+  INSERT INTO public.reference_approval (author_id)
+  SELECT a.id FROM public.author a
+   WHERE a.reference_set
+     AND NOT EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id);
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END $$;
+
+-- THE REFERENCE SET, for the operator to read before the approval. Each author comes with its
+-- letter, its reason and the state of its approval.
+CREATE OR REPLACE FUNCTION reference_set()
+RETURNS TABLE (name_key text, letter char(1), reason text, controller text, party boolean,
+               approved boolean)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT a.name_key, a.letter, a.reason, a.controller, a.party,
+         EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id)
+    FROM public.author a
+   WHERE a.reference_set
+   ORDER BY a.letter, a.name_key
+$$;
+
+-- WHAT THE WORKER READS TO RATE ONE NAME. When the name has an author, the answer says so and holds
+-- nothing else, because the job has nothing to do. Else it holds the known authors, with the
+-- reference set once the operator approved it. The worker reads no other letter than these.
+CREATE OR REPLACE FUNCTION rating_context(p_name text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE WHEN public.author_of(p_name) IS NOT NULL
+              THEN jsonb_build_object('resolved', true)
+              ELSE jsonb_build_object('resolved', false, 'authors', coalesce((
+                SELECT jsonb_agg(jsonb_build_object(
+                         'name', a.name_key, 'letter', a.letter, 'reason', a.reason,
+                         'controller', a.controller, 'party', a.party,
+                         'reference', a.reference_set,
+                         'names', (SELECT coalesce(jsonb_agg(n.name_key ORDER BY n.name_key),
+                                                   '[]'::jsonb)
+                                     FROM public.author_name n
+                                    WHERE n.author_id = a.id AND n.name_key <> a.name_key))
+                       ORDER BY a.reference_set DESC, a.letter, a.name_key)
+                  FROM public.author a
+                 WHERE NOT a.reference_set
+                    OR EXISTS (SELECT 1 FROM public.reference_approval r
+                                WHERE r.author_id = a.id)), '[]'::jsonb))
+         END
+$$;
+
+-- THE JOB THAT RATES A NEW NAME. Each act that names an originator with no author queues one job
+-- for that name, and the unique index of the jobs keeps it to one. No click of the operator.
+CREATE OR REPLACE FUNCTION enqueue_author_rating() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_key text := public.name_key(coalesce(NEW.originator, ''));
+BEGIN
+  IF v_key <> '' AND public.author_of(v_key) IS NULL THEN
+    INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key)
+    ON CONFLICT (author) WHERE kind = 'rate_author' AND status IN ('queued','running','done')
+    DO NOTHING;
+  END IF;
+  RETURN NULL;
+END $$;
 
 -- ========================================================================= INDEPENDENCE ==
 -- THE SITE OF AN ADDRESS: the host, and for a network of channels the channel too. A channel is a

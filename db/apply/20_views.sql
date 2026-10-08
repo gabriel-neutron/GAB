@@ -135,12 +135,12 @@ COMMENT ON VIEW api.layout IS
 
 -- Departure: the queue is readable by the tool roles, or a row stuck in `running` is a state
 -- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a
--- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead is
--- private work of the operator and names no document, so this view leaves it out.
+-- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead and a
+-- rating name no document, so this view leaves them out.
 CREATE VIEW api.job AS
   SELECT id, document_id, status, claimed_by, claimed_at, failure_reason, finished_at
     FROM public.jobs
-   WHERE kind <> 'research_lead';
+   WHERE kind NOT IN ('research_lead','rate_author');
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '

@@ -53,8 +53,8 @@ export const rate = (ask: Ask, name: string, letter: string, options: Options = 
     ]),
   );
 
-/** The operator puts an author into the reference set. */
-export const reference = (ask: Ask, name: string, letter: string, options: Options = {}) =>
+/** The operator puts an author into the reference set, without the approval. */
+export const storeUnapproved = (ask: Ask, name: string, letter: string, options: Options = {}) =>
   as(ask, 'gabriel_app', () =>
     ask(REFERENCE, [
       name,
@@ -66,6 +66,17 @@ export const reference = (ask: Ask, name: string, letter: string, options: Optio
       options.party ?? false,
     ]),
   );
+
+/** The operator approves the reference set: each stored reference author becomes an author. */
+export const approve = (ask: Ask) =>
+  as(ask, 'gabriel_app', () => ask('SELECT public.approve_reference_set() AS n'));
+
+/** The operator puts an author into the reference set and approves the set. */
+export const reference = async (ask: Ask, name: string, letter: string, options: Options = {}) => {
+  const stored = await storeUnapproved(ask, name, letter, options);
+  await approve(ask);
+  return stored;
+};
 
 /** The worker joins a new name to a known author. */
 export const join = (ask: Ask, name: string, known: string) =>

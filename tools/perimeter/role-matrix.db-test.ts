@@ -37,6 +37,7 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.approve_reference_set": "app",
       "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
@@ -58,9 +59,11 @@ test('the role matrix of the doors', async () => {
       "public.put_document_text": "agent app research",
       "public.put_fetched_document": "agent research",
       "public.put_load_report": "agent",
+      "public.rating_context": "agent",
       "public.record_act_check": "agent",
       "public.record_lead_document": "agent",
       "public.record_model_call": "agent",
+      "public.reference_set": "app",
       "public.reject_relation": "app",
       "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
