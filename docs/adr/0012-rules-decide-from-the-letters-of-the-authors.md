@@ -103,8 +103,8 @@ without the letters.
 - The research AI holds the password of the research role, and not the password of the checker
   role. The MCP server reads that password from the environment file of the stack. The settings of
   the research workspace refuse a read of that file to Claude Code. A session at the root of the
-  repository also starts the MCP server, but its settings do not refuse that read. So do research
-  only in the research workspace.
+  repository also starts the MCP server, but its settings do not refuse that read. So start Claude Code
+  for research only in the research workspace.
 - These rules make a false check of a research fact much harder, but not impossible. The AI and
   the server run as the same user of the operating system on the operator's PC. Codex has no rule
   that refuses the read of one file.

@@ -106,8 +106,8 @@ already holds instead of a duplicate. The cited passage is private: only the rev
 operator and the AI reviewer of the MCP server read it.
 
 Before the extractor or the research AI writes its acts, a model of another family checks each act
-against its passage. For the research AI, the MCP server asks the checker one time for each batch, under a hard token
-cap. The server does not send a batch above the cap. A batch sent again is checked again, at the
+against its passage. For the research AI, the MCP server asks the checker one time for each batch,
+under a hard token cap. The server does not send a batch above the cap. A batch sent again is checked again, at the
 cost of one call. A role of its own writes the checks of the research acts. The act is written as
 disputed when the check does not support it, or when no cited passage states its value. For the
 extractor, a failed check that could not read the act also disputes it. For the research AI, a
