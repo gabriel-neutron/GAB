@@ -102,7 +102,7 @@
       "name": "Chupilkin, Javorcik and Plekhanov (EBRD working paper)",
       "letter": "B",
       "reason": "Its researchers are named and it shows its data and its method.",
-      "controller": null,
+      "controller": "European Bank for Reconstruction and Development",
       "party": false
     },
     {
@@ -136,21 +136,21 @@
     {
       "name": "The Insider",
       "letter": "C",
-      "reason": "It runs strong investigations that are often based on one source.",
+      "reason": "Investigations that others confirmed; it takes an open anti-Kremlin stance and uses unnamed sources.",
       "controller": null,
       "party": false
     },
     {
       "name": "Kyiv Independent",
       "letter": "C",
-      "reason": "It does real reporting but repeats official claims.",
+      "reason": "Real reporting with corrections; it is not neutral on the war.",
       "controller": null,
       "party": false
     },
     {
       "name": "Meduza",
       "letter": "C",
-      "reason": "It is an exile media outlet with hidden sources.",
+      "reason": "Exile outlet with real reporting; it relies on sources it cannot name.",
       "controller": null,
       "party": false
     },
@@ -164,7 +164,7 @@
     {
       "name": "DeepState",
       "letter": "C",
-      "reason": "It keeps a good front-line map but has ties to the army.",
+      "reason": "Front-line map that Ukrainian forces use; one side's view.",
       "controller": "Ukrainian volunteer team with army link",
       "party": true
     },
@@ -178,21 +178,21 @@
     {
       "name": "Brookings",
       "letter": "C",
-      "reason": "It publishes opinion and analysis with mixed sourcing.",
+      "reason": "Publishes opinion pieces beside research, so each piece needs its own check.",
       "controller": null,
       "party": false
     },
     {
       "name": "Rybar",
       "letter": "D",
-      "reason": "Some of its maps are correct, but it has propaganda framing and links to the defence ministry.",
-      "controller": "Rybar channel network, close to the Russian defence ministry",
+      "reason": "Sanctioned by the EU; some correct maps, but one-sided framing.",
+      "controller": "Rybar channel network",
       "party": true
     },
     {
       "name": "TASS",
       "letter": "D",
-      "reason": "It gives the state line and does not correct it.",
+      "reason": "State agency that carries the official Russian line.",
       "controller": "Russian state",
       "party": true
     },
@@ -206,7 +206,7 @@
     {
       "name": "Mash",
       "letter": "D",
-      "reason": "It is a tabloid channel with some real scoops and no corrections.",
+      "reason": "Tabloid-style channel with some real scoops and no published correction policy.",
       "controller": "Mash channel network",
       "party": false
     },
