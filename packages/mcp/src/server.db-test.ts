@@ -340,6 +340,37 @@ test('enqueue_extract returns the job id, and job_status gives its kind, status 
   );
 });
 
+test('enqueue_mapping returns the job id, job_status shows the mapping job, and a second call is refused', async () => {
+  const found = await rolledBack('research', async (ask) => {
+    await withDocument(ask);
+    return withServer(ask, async (call) => ({
+      queued: z
+        .object({ jobId: z.uuid() })
+        .parse(outputOf(await call('enqueue_mapping', { document: DOC }))),
+      status: jobs.parse(outputOf(await call('job_status', { document: DOC }))),
+      // A refusal of the door aborts the transaction, so only the last call may be refused.
+      again: await call('enqueue_mapping', { document: DOC }),
+    }));
+  });
+  expect(found.status.jobs).toMatchObject([
+    { id: found.queued.jobId, kind: 'map_structured', status: 'queued' },
+  ]);
+  expect(found.again.refused).toBe(true);
+  expect(found.again.text).toContain(
+    `document ${DOC} has a job of kind map_structured that is queued or runs already`,
+  );
+});
+
+test('enqueue_mapping of a document that does not exist is refused with its reason', async () => {
+  const called = await rolledBack('research', (ask) =>
+    withServer(ask, (call) => call('enqueue_mapping', { document: 'doc_absent' })),
+  );
+  expect(called).toStrictEqual({
+    refused: true,
+    text: 'the record refused the call: document doc_absent does not exist',
+  });
+});
+
 test('a refusal of the record reaches the AI with its reason', async () => {
   const called = await rolledBack('research', (ask) =>
     withServer(ask, (call) => call('enqueue_extract', { document: 'doc_absent' })),
