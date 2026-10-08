@@ -78,7 +78,6 @@ test('the role matrix of the doors', async () => {
       "public.start_lead": "app research",
       "public.store_author_letter": "agent",
       "public.store_reference_author": "app",
-      "public.unchecked_acts": "research",
       "public.unit_rule": "app",
     }
   `);

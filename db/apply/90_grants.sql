@@ -134,7 +134,6 @@ REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_act_check(uuid,text,text,text,text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION unchecked_acts(uuid[])      FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
@@ -261,10 +260,9 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
 -- The extractor checks the acts of gabriel_agent through its door. The MCP server checks the acts
 -- of gabriel_research through the other door, as gabriel_checker, so the research AI writes no
--- check. Neither role reads a check or a digit: the server reads only which acts have none.
+-- check. Neither role reads a check or a digit.
 GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION record_research_check(uuid,text,text,text,text,text) TO gabriel_checker;
-GRANT EXECUTE ON FUNCTION unchecked_acts(uuid[])   TO gabriel_research;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --

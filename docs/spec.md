@@ -107,8 +107,8 @@ operator shows it.
 
 Before the extractor or the research AI writes its acts, a model of another family checks each act
 against its passage. For the research AI, the MCP server asks the checker once for each batch,
-under a hard token cap, and a batch above the cap is not sent. A batch that the record holds whole
-and checked is not sent again. A role of its own writes the checks of the research acts. The act is written as disputed when the check does not support it, or when no cited passage states its value.
+under a hard token cap, and a batch above the cap is not sent. A batch sent again is checked again, at the
+cost of one call. A role of its own writes the checks of the research acts. The act is written as disputed when the check does not support it, or when no cited passage states its value.
 For the extractor, a failed check that could not read the act also disputes it. For the research
 AI, only a checker that finds that the passage does not support the act disputes it: an act that
 no model checked has no dispute and no check, so it waits, and the same batch sent again checks it.

@@ -110,8 +110,11 @@ test('the Claude Code settings allow each tool of the server, except the ones th
     .filter((name) => !ASKS_FIRST.has(name))
     .map((name) => `mcp__gab__${name}`);
   expect([...settings.permissions.allow].sort()).toStrictEqual(allowed.sort());
-  for (const rule of ['Read(../infra/.env)', 'Edit(../infra/.env)', 'Bash(*infra/.env*)'])
-    expect(settings.permissions.deny).toContain(rule);
+  expect(settings.permissions.deny).toStrictEqual([
+    'Read(//**/infra/.env)',
+    'Edit(//**/infra/.env)',
+    'Bash(*infra*.env*)',
+  ]);
 });
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {

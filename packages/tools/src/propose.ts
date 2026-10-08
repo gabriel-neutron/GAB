@@ -5,6 +5,7 @@ import { machineAct } from '@gab/proposal/machine';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import { plainText } from './check-answer.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
@@ -317,10 +318,7 @@ const disputeReason = (
   if (parts.length === 0) return null;
   // The reason of the checker can echo the text of the page. A control character (a NUL refuses
   // the whole batch at the door) becomes a space, so the record keeps one line of plain text.
-  const plain = parts
-    .join('; ')
-    .replace(/\p{Cc}+/gu, ' ')
-    .replace(/ {2,}/gu, ' ');
+  const plain = plainText(parts.join('; '));
   return Array.from(plain).slice(0, MAX_REASON).join('');
 };
 
