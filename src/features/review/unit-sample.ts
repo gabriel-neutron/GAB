@@ -109,8 +109,13 @@ const relation = (
 
 type Level = 'blocks' | 'waits' | 'not_clean' | 'information';
 
+// A rejection before gives its reason as a key and its note, as the database gives them.
 const faultsOf = (said: readonly (readonly [Level, string, string])[]) =>
-  said.map(([level, kind, words]) => ({ kind, level, act: null, said: words }));
+  said.map(([level, kind, words]) =>
+    kind === 'rejected_before'
+      ? { kind, level, act: null, said: words, reason: 'wrong_value', note: 'A ferry.' }
+      : { kind, level, act: null, said: words },
+  );
 
 // Each sample unit holds a set of faults that the check of the database can give together. A
 // unit in a circle does not show the wait of the same end, and one relation has two ends only.
@@ -137,7 +142,7 @@ const BLOCKED_MIX = faultsOf([
   ],
   ['not_clean', 'reported_claim', 'The source reports a claim (alleges) and does not state a fact'],
   ['not_clean', 'unknown_type', 'The entity type is unknown'],
-  ['not_clean', 'rejected_before', 'Rejected before on 2026-10-06: Wrong value'],
+  ['not_clean', 'rejected_before', 'Rejected before on 2026-10-06'],
   ['information', 'approximate_position', 'The position is approximate'],
   ['information', 'note', 'Note: no clear location'],
   ['information', 'sources_from_parent', 'Sources from the parent Southern Military District'],

@@ -2,6 +2,7 @@ import { createFileRoute, notFound, stripSearchParams, useRouter } from '@tansta
 import { DetailPage } from '@/features/detail/detail-page';
 import { readDossier } from '@/features/detail/dossier';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
+import { loadDecidedActs } from '@/shared/read/decided-acts';
 import type { DocId } from '@/shared/read/model';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
 
@@ -36,8 +37,12 @@ export const Route = createFileRoute('/entity/$id')({
     // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
     // exception above is a blank segment, which names no entity under any schema. The read API
     // answers the whole corpus, and the router holds this page back until that answer arrives.
-    const [corpus, types] = await Promise.all([loadCorpus(), loadEntityTypes()]);
-    return readDossier(corpus, params.id, types) ?? entityNotFound();
+    const [corpus, types, decided] = await Promise.all([
+      loadCorpus(),
+      loadEntityTypes(),
+      loadDecidedActs(),
+    ]);
+    return readDossier(corpus, params.id, types, decided) ?? entityNotFound();
   },
 
   component: EntityRoute,

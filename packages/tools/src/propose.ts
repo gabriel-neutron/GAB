@@ -285,11 +285,19 @@ type UnstatedValue = ReturnType<typeof unstatedValues>[number];
 // checker never refuses the batch.
 const MAX_REASON = 1000;
 
+// The checker names an item by its ref, and the record keeps no ref. A ref with a digit or an
+// underscore is no word of a sentence, so it gives way to the name of the entity of its item.
+const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =>
+  reason.replace(/\b[a-z][a-z0-9_]*\b/gu, (word) =>
+    /[\d_]/u.test(word) ? (names.get(word) ?? word) : word,
+  );
+
 // Why an item is disputed, in the words that the review card shows, or null when nothing disputes
 // it. No answer of the checker on an item disputes it: a failure never lets an item pass.
 const disputeReason = (
   unstated: readonly UnstatedValue[],
   verdict: CheckVerdict | 'unchecked' | undefined,
+  names: ReadonlyMap<string, string>,
 ): string | null => {
   const parts: string[] = [];
   if (unstated.length > 0)
@@ -303,7 +311,7 @@ const disputeReason = (
     parts.push(
       verdict.reason.trim() === ''
         ? `the checker says ${verdict.verdict}`
-        : `the checker says ${verdict.verdict}: ${verdict.reason.trim()}`,
+        : `the checker says ${verdict.verdict}: ${namedRefs(verdict.reason.trim(), names)}`,
     );
   if (parts.length === 0) return null;
   // The reason of the checker can echo the text of the page. A control character (a NUL refuses
@@ -374,8 +382,13 @@ export const proposeOf = (modelCallId: string | null) =>
         })),
       }));
       const verdicts = reach?.check === undefined ? null : await reach.check(toCheck);
+      const names = new Map(
+        input.items.flatMap((given) =>
+          given.act.op === 'create_entity' ? [[given.ref, given.act.label] as const] : [],
+        ),
+      );
       const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
-        disputeReason(unstated, verdicts === null ? 'unchecked' : verdicts.get(ref));
+        disputeReason(unstated, verdicts === null ? 'unchecked' : verdicts.get(ref), names);
 
       const items = prepared.map(({ given, act, cited, unstated, id }) => {
         const reason = reasonOf(given.ref, unstated);

@@ -9,6 +9,7 @@ import { documentJobs, queueExtraction } from './extraction.ts';
 import { promoteGroup } from './group-action.ts';
 import { readDocumentImage, type ObjectReader } from './image.ts';
 import { readLeads, startLead } from './lead.ts';
+import { readReviewDecided } from './review-decided.ts';
 import { readReviewGroup, readReviewGroups } from './review-groups.ts';
 import { readReviewUnits } from './review-units.ts';
 import type { Sessions } from './pool.ts';
@@ -41,8 +42,8 @@ const capped = (maxSize: number) =>
   });
 
 /** The doors of the operator, and the private reads: the status of the jobs of a document,
- * the page of the review queue with its cited passages, the groups of the queue, the image of a
- * cited document, and the leads. The public read never shows any of them. */
+ * the page of the review queue with its cited passages, the groups of the queue, the decided acts
+ * with the reasons of the rejections, the image of a cited document, and the leads. The public read never shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
@@ -63,6 +64,12 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
 
   app.post('/private/review-group', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readReviewGroup(pool, await context.req.text());
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // A rejection keeps a reason and a note that only the operator reads.
+  app.post('/private/review-decided', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readReviewDecided(pool);
     return context.json(read.reply, STATUS[read.outcome]);
   });
 

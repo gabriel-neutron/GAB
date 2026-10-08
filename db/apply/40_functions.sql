@@ -119,8 +119,12 @@ BEGIN
   IF NEW.op <> 'create_relation' OR NEW.batch_id IS NULL THEN
     RETURN NEW;
   END IF;
-  v_src := (NEW.payload->>'src_id')::uuid;
-  v_dst := (NEW.payload->>'dst_id')::uuid;
+  -- The door checks the shape of the payload after this stamp, so an end that is no identifier
+  -- names no act here, and the door words its own refusal.
+  v_src := CASE WHEN pg_input_is_valid(NEW.payload->>'src_id', 'uuid')
+                THEN (NEW.payload->>'src_id')::uuid END;
+  v_dst := CASE WHEN pg_input_is_valid(NEW.payload->>'dst_id', 'uuid')
+                THEN (NEW.payload->>'dst_id')::uuid END;
   IF EXISTS (SELECT 1 FROM public.proposals o
               WHERE o.id IN (v_src, v_dst) AND o.status = 'pending'
                 AND NOT (o.op = 'create_entity'
@@ -1121,34 +1125,53 @@ BEGIN
   RETURN v_left;
 END $$;
 
+-- THE UNITS THAT ONE UNIT NEEDS: the other units of the queue that hold an act that a relation of
+-- the unit names. The promotion of the unit waits until each of them is in the record. The check
+-- of the faults, the group action and the reads of the groups read this one rule. No role holds
+-- this step.
+--
+-- Departure: PL/pgSQL and not SQL, for the plans that it keeps (see the name of an element). The
+-- check of the faults calls it for each end of each unit of the queue.
+CREATE OR REPLACE FUNCTION unit_needs(p_unit uuid)
+RETURNS SETOF uuid
+LANGUAGE plpgsql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT o.unit_id
+    FROM public.proposals x,
+         LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
+    JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
+   WHERE x.unit_id = p_unit AND x.status = 'pending' AND x.op = 'create_relation'
+     AND o.unit_id <> p_unit;
+END $$;
+
 -- THE UNITS THAT ONE UNIT WAITS FOR, directly or through a chain. A unit waits for another unit
 -- when one of its relations names an act that waits in that other unit. Two relations of one group
 -- can make a circle: "A to B" belongs to the unit of A and "B to A" to the unit of B, so each unit
 -- waits for the other. A unit that is in its own list waits in a circle, and no promotion ends the
 -- wait. The check of the faults reads this list, and the promotion reads that check. No role
 -- holds this step.
+--
+-- Departure: a loop and not a recursive query. Measured on 8 October 2026: a recursive query that
+-- calls the needs of each unit took 35 ms for each unit, and the check of the faults of the queue
+-- took 40 s, against 0.7 s with this loop.
 CREATE OR REPLACE FUNCTION unit_waits_for(p_unit uuid)
 RETURNS SETOF uuid
-LANGUAGE sql STABLE
+LANGUAGE plpgsql STABLE
 SET search_path = pg_catalog, public, pg_temp AS $$
-  WITH RECURSIVE waits (unit_id) AS (
-    SELECT o.unit_id
-      FROM public.proposals x,
-           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
-      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
-     WHERE x.unit_id = p_unit AND x.status = 'pending' AND x.op = 'create_relation'
-       AND o.unit_id <> x.unit_id
-    UNION
-    SELECT o.unit_id
-      FROM waits w
-      JOIN public.proposals x ON x.unit_id = w.unit_id AND x.status = 'pending'
-                             AND x.op = 'create_relation',
-           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
-      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
-     WHERE o.unit_id <> x.unit_id
-  )
-  SELECT unit_id FROM waits
-$$;
+DECLARE
+  v_seen uuid[] := '{}';
+  v_next uuid[] := ARRAY(SELECT n.unit_id FROM public.unit_needs(p_unit) AS n(unit_id));
+BEGIN
+  WHILE cardinality(v_next) > 0 LOOP
+    v_seen := v_seen || v_next;
+    v_next := ARRAY(SELECT DISTINCT n.unit_id
+                      FROM unnest(v_next) AS u(unit_id), public.unit_needs(u.unit_id) AS n(unit_id)
+                     WHERE NOT n.unit_id = ANY (v_seen));
+  END LOOP;
+  RETURN QUERY SELECT unnest(v_seen);
+END $$;
 
 -- THE WRITE OF ONE UNIT, WITH NO CHECK OF ITS FAULTS. No role holds this step. The promotion of one
 -- unit runs the check first, and the group action runs the check once for its whole list and then
@@ -1314,6 +1337,18 @@ BEGIN
   RETURN v_note;
 END $$;
 
+-- AN END OF A NEW RELATION THAT THE OPERATOR REJECTED. Only such a relation takes the reason "end
+-- rejected", so the reason never hides another one. No role holds this step.
+CREATE OR REPLACE FUNCTION end_was_rejected(p public.proposals)
+RETURNS boolean
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT p.op = 'create_relation'
+     AND EXISTS (SELECT 1 FROM public.proposals w
+                  WHERE w.id::text IN (p.payload->>'src_id', p.payload->>'dst_id')
+                    AND w.status = 'rejected')
+$$;
+
 -- THE REJECTION OF ONE UNIT. Only the operator role holds it. It rejects every act that waits in
 -- the unit, with one reason and one note, and it leaves each row: a rejected act is never
 -- deleted, because it is the record of what was set aside.
@@ -1326,6 +1361,12 @@ DECLARE
   v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
   v_left uuid[] := public.pending_unit(p_unit);
 BEGIN
+  IF p_reason = 'end_rejected'
+     AND EXISTS (SELECT 1 FROM public.proposals x
+                  WHERE x.id = ANY (v_left) AND NOT public.end_was_rejected(x)) THEN
+    RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
+      USING CONSTRAINT = 'rejection_end';
+  END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit', reject_reason = p_reason, reject_note = v_note
@@ -1355,6 +1396,10 @@ BEGIN
   IF p.op <> 'create_relation' THEN
     RAISE EXCEPTION 'the act % is no new relation: reject its unit', p_id
       USING CONSTRAINT = 'relation_only';
+  END IF;
+  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p) THEN
+    RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
+      USING CONSTRAINT = 'rejection_end';
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
@@ -1431,14 +1476,8 @@ BEGIN
     -- The units of the list that wait for no unit of the list that is still to write.
     SELECT array_agg(c.id ORDER BY c.at) INTO v_ready
       FROM unnest(v_clean) WITH ORDINALITY AS c(id, at)
-     WHERE NOT EXISTS (
-             SELECT 1
-               FROM public.proposals x,
-                    LATERAL (VALUES ((x.payload->>'src_id')::uuid),
-                                    ((x.payload->>'dst_id')::uuid)) AS e(ref)
-               JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
-              WHERE x.unit_id = c.id AND x.status = 'pending' AND x.op = 'create_relation'
-                AND o.unit_id <> c.id AND o.unit_id = ANY (v_clean));
+     WHERE NOT EXISTS (SELECT 1 FROM public.unit_needs(c.id) AS n(unit_id)
+                        WHERE n.unit_id = ANY (v_clean));
     -- A circle has no first unit. The check blocks it, so this is a guard: each unit of it is
     -- tried, and the write refuses it with the name of the end that waits.
     v_ready := coalesce(v_ready, v_clean);
@@ -1466,9 +1505,12 @@ END $$;
 -- unit that needs a unit that is not clean, directly or through a chain, is not counted clean:
 -- the group action cannot write it. The faults read private data, so only the operator role holds
 -- this read.
+--
+-- Departure: no compiled plan (jit), as for the page of the queue.
 CREATE OR REPLACE FUNCTION review_groups()
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_rail jsonb;
@@ -1484,12 +1526,7 @@ BEGIN
       FROM units u
       JOIN public.unit_faults(ARRAY(SELECT unit_id FROM units)) AS f ON f.unit_id = u.unit_id
   ), needs AS (
-    SELECT DISTINCT x.unit_id, o.unit_id AS needed
-      FROM public.proposals x,
-           LATERAL (VALUES ((x.payload->>'src_id')::uuid), ((x.payload->>'dst_id')::uuid)) AS e(ref)
-      JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
-     WHERE x.status = 'pending' AND x.op = 'create_relation' AND x.batch_id IS NOT NULL
-       AND o.unit_id <> x.unit_id
+    SELECT u.unit_id, n.needed FROM units u, public.unit_needs(u.unit_id) AS n(needed)
   ), spoiled AS (
     SELECT c.unit_id FROM checked c WHERE c.state <> 'clean'
     UNION
@@ -1532,14 +1569,20 @@ BEGIN
 END $$;
 
 -- THE UNITS OF ONE GROUP THAT WAIT, FOR THE CONFIRMATION OF THE GROUP ACTION. Each unit comes with
--- its state, the kind and the level of each fault, the count of its entities and relations, and
--- the parent of its entity: the other end of its relation "subordinate to", with the unit of that
--- end when it waits in the queue, and the other units that its relations need. The screen draws
--- the tree of the units that the action can write from it, and it sends back the units that it
--- showed. Only the operator role holds this read, as for the queue.
+-- its state, the kind and the level of each fault, the count of its entities and relations, the
+-- parent of its entity (the other end of its relation "subordinate to", with the unit of that end
+-- when it waits in the queue), and whether the group action can write it: a clean unit is
+-- writable when each unit that it needs, directly or through a chain, is a clean unit of the same
+-- group. The rail of the groups counts the clean units by the same rule. The screen draws the tree
+-- of the writable units, and it sends back the units that it showed. Only the operator role holds
+-- this read, as for the queue.
+--
+-- Departure: no compiled plan (jit). Measured on the record on 8 October 2026: the compile took
+-- 0.9 s of the 1 s of the read of the largest group.
 CREATE OR REPLACE FUNCTION review_group(p_group uuid)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_units uuid[] := ARRAY(SELECT DISTINCT p.unit_id FROM public.proposals p
@@ -1549,7 +1592,7 @@ BEGIN
   IF cardinality(v_units) = 0 THEN
     RAISE EXCEPTION 'no unit of this group waits' USING CONSTRAINT = 'group_waits';
   END IF;
-  WITH acts AS (
+  WITH RECURSIVE acts AS (
     SELECT a.* FROM public.proposals a WHERE a.unit_id = ANY (v_units) AND a.status = 'pending'
   ), heads AS (
     SELECT DISTINCT ON (a.unit_id) a.unit_id, a.op, a.payload, a.target_id
@@ -1559,11 +1602,20 @@ BEGIN
            count(*) FILTER (WHERE a.op = 'create_relation') AS relations
       FROM acts a GROUP BY a.unit_id
   ), parents AS (
-    SELECT DISTINCT ON (a.unit_id) a.unit_id, (a.payload->>'dst_id')::uuid AS parent
-      FROM acts a
-     WHERE a.op = 'create_relation' AND a.payload->>'type' = 'subordinate_to'
-       AND (a.payload->>'src_id')::uuid = a.unit_id
-     ORDER BY a.unit_id, a.created_at, a.id
+    SELECT h.unit_id, (l.payload->>'dst_id')::uuid AS parent
+      FROM heads h, public.parent_link(h.unit_id, true) AS l
+     WHERE h.op = 'create_entity'
+  ), checked AS (
+    SELECT f.unit_id, f.state, f.faults FROM public.unit_faults(v_units) AS f
+  ), needs AS (
+    SELECT h.unit_id, n.needed FROM heads h, public.unit_needs(h.unit_id) AS n(needed)
+  ), spoiled AS (
+    -- The group action writes a clean unit only when it writes each unit that it needs too.
+    SELECT c.unit_id FROM checked c WHERE c.state <> 'clean'
+    UNION
+    SELECT n.unit_id FROM needs n WHERE NOT n.needed = ANY (v_units)
+    UNION
+    SELECT n.unit_id FROM needs n JOIN spoiled s ON s.unit_id = n.needed
   ), named AS (
     SELECT h.*, coalesce(public.element_name(
                   CASE WHEN h.op IN ('create_entity', 'create_relation')
@@ -1584,13 +1636,7 @@ BEGIN
                                       '[]'::jsonb)
                         FROM jsonb_array_elements(f.faults) AS x),
            'entities', s.entities, 'relations', s.relations,
-           'needs', (SELECT coalesce(jsonb_agg(DISTINCT o.unit_id), '[]'::jsonb)
-                       FROM acts x,
-                            LATERAL (VALUES ((x.payload->>'src_id')::uuid),
-                                            ((x.payload->>'dst_id')::uuid)) AS e(ref)
-                       JOIN public.proposals o ON o.id = e.ref AND o.status = 'pending'
-                      WHERE x.unit_id = h.unit_id AND x.op = 'create_relation'
-                        AND o.unit_id <> h.unit_id),
+           'writable', h.unit_id NOT IN (SELECT sp.unit_id FROM spoiled sp),
            'parent', CASE WHEN pa.parent IS NULL THEN NULL
                           ELSE jsonb_build_object(
                                  'unit', (SELECT w.unit_id FROM public.proposals w
@@ -1601,10 +1647,31 @@ BEGIN
     INTO v_read
     FROM named h
     JOIN sizes s ON s.unit_id = h.unit_id
-    JOIN public.unit_faults(v_units) AS f ON f.unit_id = h.unit_id
+    JOIN checked f ON f.unit_id = h.unit_id
     LEFT JOIN parents pa ON pa.unit_id = h.unit_id;
   RETURN jsonb_build_object('id', p_group, 'subject', public.group_subject(p_group),
                             'units', v_read);
+END $$;
+
+-- THE DECIDED ACTS, FOR THE OPERATOR: each promoted and each rejected act, the newest decision
+-- first, with how the operator decided it (one unit, one relation or a group action) and the name
+-- of the element that it proposed. A rejected act comes with its reason and its note, which are
+-- private, so only the operator role holds this read. The public read shows no rejected act.
+CREATE OR REPLACE FUNCTION review_decided()
+RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RETURN (SELECT jsonb_build_object('acts', coalesce(jsonb_agg(jsonb_build_object(
+           'id', p.id, 'op', p.op, 'payload', p.payload, 'targetKind', p.target_kind,
+           'targetId', p.target_id, 'proposer', p.proposer, 'status', p.status,
+           'createdAt', p.created_at, 'decidedAt', p.decided_at, 'decidedBy', p.decided_by,
+           'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
+           'rejectNote', p.reject_note,
+           'name', public.element_name(coalesce(p.target_id, p.id)))
+           ORDER BY p.decided_at DESC, p.id), '[]'::jsonb))
+    FROM public.proposals p
+   WHERE p.status <> 'pending');
 END $$;
 
 -- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
@@ -1955,17 +2022,33 @@ BEGIN
   END LOOP;
 END $$;
 
+-- THE ACT THAT PUTS AN ENTITY UNDER ITS PARENT: the first act, by its hour, that proposes the
+-- relation "subordinate to" from the entity. With p_pending, only an act that waits. The parent of
+-- an entity, the faults, the tree of a group and the order of the queue read this one rule. No row
+-- says that no act puts the entity under a parent. No role holds this step.
+--
+-- Departure: no fixed search path, so the planner puts the body inside the query that calls it.
+-- The body names each table with its schema, and the function runs with the rights of its caller.
+-- Measured on 8 October 2026: as a function of its own, it took 0.3 s of the check of the faults
+-- of the queue.
+CREATE OR REPLACE FUNCTION parent_link(p_child uuid, p_pending boolean)
+RETURNS SETOF public.proposals
+LANGUAGE sql STABLE AS $$
+  SELECT w.* FROM public.proposals w
+   WHERE w.names @> ARRAY[p_child] AND w.op = 'create_relation'
+     AND w.payload->>'type' = 'subordinate_to' AND w.payload->>'src_id' = p_child::text
+     AND (w.status = 'pending' OR NOT p_pending)
+   ORDER BY w.created_at, w.id
+   LIMIT 1
+$$;
+
 -- THE PARENT OF AN ENTITY OF THE RECORD: the target of its relation "subordinate to", in the queue
 -- or in the record. A pending act comes first, because it is the newest claim.
 CREATE OR REPLACE FUNCTION parent_of(p_id uuid) RETURNS uuid
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE v_parent uuid;
 BEGIN
-  SELECT (w.payload->>'dst_id')::uuid INTO v_parent FROM public.proposals w
-   WHERE w.names @> ARRAY[p_id] AND w.status = 'pending' AND w.op = 'create_relation'
-     AND w.payload->>'type' = 'subordinate_to' AND (w.payload->>'src_id')::uuid = p_id
-   ORDER BY w.created_at, w.id
-   LIMIT 1;
+  SELECT (l.payload->>'dst_id')::uuid INTO v_parent FROM public.parent_link(p_id, true) AS l;
   IF v_parent IS NULL THEN
     SELECT r.dst_id INTO v_parent FROM public.relations r
      WHERE r.src_id = p_id AND r.src_kind = 'entity' AND r.type = 'subordinate_to'
@@ -1975,26 +2058,73 @@ BEGIN
   RETURN v_parent;
 END $$;
 
--- THE SUBJECT OF A GROUP: its entity that is the source of no relation to another entity of the
--- group, so the top of its tree. An act keeps its group after the decision, so the subject stays
--- the same while the operator decides the group.
+-- THE SUBJECT OF A GROUP. A group with a tree (an entity of the group put under a parent) is named
+-- by the top of its tree: its entity that is under no other entity of the group. A group with no
+-- tree, as the extractor gives, is named by the document that its acts cite most. A group with no
+-- top, because its parents make a circle, or with no document, is named by its first entity. An
+-- act keeps its group after the decision, so the subject stays the same while the operator decides
+-- the group.
 CREATE OR REPLACE FUNCTION group_subject(p_batch uuid) RETURNS text
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_subject text;
+DECLARE
+  v_subject text;
+  v_tree    boolean;
 BEGIN
-  SELECT g.payload->>'label' INTO v_subject
-    FROM public.proposals g
-   WHERE g.batch_id = p_batch AND g.op = 'create_entity'
-     AND NOT EXISTS (
+  SELECT EXISTS (
            SELECT 1 FROM public.proposals r
-             JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
-            WHERE r.op = 'create_relation' AND r.batch_id = p_batch
-              AND (r.payload->>'src_id')::uuid = g.id
-              AND d.op = 'create_entity' AND d.batch_id = p_batch)
-   ORDER BY g.created_at, g.id
-   LIMIT 1;
+             JOIN public.proposals c ON c.id::text = r.payload->>'src_id'
+                                    AND c.op = 'create_entity' AND c.batch_id = p_batch
+            WHERE r.batch_id = p_batch AND r.op = 'create_relation'
+              AND r.payload->>'type' = 'subordinate_to')
+    INTO v_tree;
+  IF v_tree THEN
+    SELECT g.payload->>'label' INTO v_subject
+      FROM public.proposals g
+     WHERE g.batch_id = p_batch AND g.op = 'create_entity'
+       AND NOT EXISTS (
+             SELECT 1 FROM public.proposals r
+               JOIN public.proposals d ON d.id::text = r.payload->>'dst_id'
+              WHERE r.op = 'create_relation' AND r.batch_id = p_batch
+                AND r.payload->>'type' = 'subordinate_to' AND r.payload->>'src_id' = g.id::text
+                AND d.op = 'create_entity' AND d.batch_id = p_batch)
+     ORDER BY g.created_at, g.payload->>'label', g.id
+     LIMIT 1;
+  ELSE
+    SELECT d.title INTO v_subject
+      FROM public.proposals g, unnest(g.src) AS s(doc)
+      JOIN public.documents d ON d.id = s.doc
+     WHERE g.batch_id = p_batch
+     GROUP BY d.id, d.title
+     ORDER BY count(*) DESC, d.id
+     LIMIT 1;
+  END IF;
+  IF v_subject IS NULL THEN
+    SELECT g.payload->>'label' INTO v_subject
+      FROM public.proposals g
+     WHERE g.batch_id = p_batch AND g.op = 'create_entity'
+     ORDER BY g.created_at, g.payload->>'label', g.id
+     LIMIT 1;
+  END IF;
   RETURN v_subject;
 END $$;
+
+-- THE WORDS OF A DISPUTE. The checks store their verdict as a code and a value by the name of its
+-- field, and the operator reads words. A reason with no code stays as it is. No role holds this
+-- step: the reads of the operator call it.
+CREATE OR REPLACE FUNCTION dispute_said(p_reason text)
+RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, pg_temp AS $$
+  SELECT regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+           regexp_replace(p_reason,
+             'the checker says not_supported',
+             'the checker finds that the passage does not support the act', 'g'),
+           'the checker says unclear', 'the checker finds the passage unclear', 'g'),
+           '(states |, )label "', '\1the name "', 'g'),
+           '(states |, )validFrom "', '\1the start date "', 'g'),
+           '(states |, )validTo "', '\1the end date "', 'g'),
+           '(states |, )attrs\.', '\1', 'g')
+$$;
 
 -- THE FAULTS OF EACH UNIT, AND ITS STATE. The queue, the promotion and the group action read this
 -- one check, so the screen and the record always agree on "clean". Each fault has a level:
@@ -2009,8 +2139,10 @@ END $$;
 --   not_clean    The operator decides the unit alone, and never in a group action: a dispute; two
 --                acts that set one key differently; a source that reports a claim and does not
 --                state a fact; the same name and type under the same parent; an unknown type; a
---                claim that the operator rejected before (the newest rejection gives the day and
---                the reason, which stay private to the operator).
+--                claim that the operator rejected before (the newest rejection gives the day, and
+--                the key of its reason and its note, which stay private to the operator); a value
+--                that an import broke; an entity whose link to a rejected parent the operator
+--                rejected, so that it has no parent now.
 --   information  The unit stays clean: sources from the parent (a decision of the operator for the
 --                v1 import), an approximate position, a note, the same name under another parent.
 --
@@ -2088,28 +2220,24 @@ BEGIN
     SELECT b.batch_id, coalesce(public.group_subject(b.batch_id), 'with no subject') AS subject
       FROM (SELECT DISTINCT w.batch_id FROM public.proposals w
              WHERE w.status = 'pending' AND w.batch_id IS NOT NULL) AS b
-  ), parents AS (
-    -- A pending entity is not in the record, so its parent is in a pending act.
-    SELECT DISTINCT ON ((r.payload->>'src_id')::uuid) (r.payload->>'src_id')::uuid AS child,
-           (r.payload->>'dst_id')::uuid AS parent
-      FROM public.proposals r
-     WHERE r.status = 'pending' AND r.op = 'create_relation'
-       AND r.payload->>'type' = 'subordinate_to'
-     ORDER BY (r.payload->>'src_id')::uuid, r.created_at, r.id
   ), named AS (
+    -- A pending entity is not in the record, so its parent is in a pending act.
     SELECT a.unit_id, a.id, public.name_key(a.payload->>'label') AS key,
-           a.payload->>'type' AS type, pa.parent
-      FROM acts a LEFT JOIN parents pa ON pa.child = a.id
+           a.payload->>'type' AS type, (pa.payload->>'dst_id')::uuid AS parent,
+           pa.claim_key AS parent_key
+      FROM acts a
+      LEFT JOIN LATERAL public.parent_link(a.id, true) AS pa ON true
      WHERE a.op = 'create_entity'
   ), twins AS (
-    SELECT n.unit_id, n.parent, o.payload->>'label' AS label, pa.parent AS other_parent,
+    SELECT n.unit_id, n.parent, o.payload->>'label' AS label,
+           (pa.payload->>'dst_id')::uuid AS other_parent,
            CASE WHEN o.batch_id IS NULL THEN 'waits in the queue (no group)'
                 ELSE 'waits in the queue (group ' || sb.subject || ')' END AS place
       FROM named n
       JOIN public.proposals o ON o.status = 'pending' AND o.op = 'create_entity' AND o.id <> n.id
                              AND o.payload->>'type' = n.type
                              AND public.name_key(o.payload->>'label') = n.key
-      LEFT JOIN parents pa ON pa.child = o.id
+      LEFT JOIN LATERAL public.parent_link(o.id, true) AS pa ON true
       LEFT JOIN subjects sb ON sb.batch_id = o.batch_id
     UNION ALL
     SELECT n.unit_id, n.parent, e.label, public.parent_of(e.id), 'is in the record'
@@ -2136,18 +2264,10 @@ BEGIN
       FROM acts a
       JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
                              AND r.id <> a.id
+      LEFT JOIN named n ON n.id = a.id
      WHERE a.op <> 'create_entity'
-        OR (SELECT w.claim_key FROM public.proposals w
-             WHERE w.names @> ARRAY[a.id] AND w.status = 'pending'
-               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
-               AND (w.payload->>'src_id')::uuid = a.id
-             ORDER BY w.created_at, w.id LIMIT 1)
-           IS NOT DISTINCT FROM
-           (SELECT w.claim_key FROM public.proposals w
-             WHERE w.names @> ARRAY[r.id]
-               AND w.op = 'create_relation' AND w.payload->>'type' = 'subordinate_to'
-               AND (w.payload->>'src_id')::uuid = r.id
-             ORDER BY w.created_at, w.id LIMIT 1)
+        OR n.parent_key IS NOT DISTINCT FROM (SELECT l.claim_key
+                                                FROM public.parent_link(r.id, false) AS l)
      ORDER BY a.unit_id, r.decided_at DESC, r.id
   ), found (unit_id, level, kind, act, said) AS (
     -- -------------------------------------------------------------------------------- blocks --
@@ -2197,7 +2317,8 @@ BEGIN
     -- ----------------------------------------------------------------------------- not clean --
     UNION ALL
     SELECT a.unit_id, 'not_clean', 'dispute', a.id,
-           coalesce('Disputed: ' || a.dissent_reason, 'Disputed. The check recorded no reason')
+           coalesce('Disputed: ' || public.dispute_said(a.dissent_reason),
+                    'Disputed. The check recorded no reason')
       FROM acts a WHERE a.dissent
     UNION ALL
     SELECT s.unit_id, 'not_clean', 'contradiction', NULL::uuid,
@@ -2232,19 +2353,31 @@ BEGIN
                              WHERE t.key = a.payload->>'type' AND NOT t.retired
                                AND t.key <> 'unknown'))
     UNION ALL
+    -- The reason and the note go with the fault as a key and a text, and the page words the key.
     SELECT b.unit_id, 'not_clean', 'rejected_before', b.act,
-           'Rejected before on ' || to_char(b.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || ': '
-           || CASE b.reject_reason
-                WHEN 'wrong_value' THEN 'Wrong value'
-                WHEN 'not_in_source' THEN 'Not in the source'
-                WHEN 'wrong_type' THEN 'Wrong type'
-                WHEN 'duplicate' THEN 'Duplicate'
-                WHEN 'out_of_scope' THEN 'Out of scope'
-                WHEN 'end_rejected' THEN 'End rejected'
-                WHEN 'other' THEN 'Other'
-                ELSE 'No reason was recorded' END
-           || coalesce(' (' || b.reject_note || ')', '')
+           'Rejected before on ' || to_char(b.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
       FROM before b
+    UNION ALL
+    -- The v1 import wrote an object of its source file as the text "[object Object]", and a list
+    -- that it cut at each space as "[object" and "Object]".
+    SELECT DISTINCT a.unit_id, 'not_clean', 'broken_value', a.id, 'A value is broken: ' || k.key
+      FROM acts a, jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS k(key, held)
+     WHERE (jsonb_typeof(k.held->'v') = 'string' AND k.held->>'v' = '[object Object]')
+        OR (jsonb_typeof(k.held->'v') = 'array'
+            AND (k.held->'v') ?| ARRAY['[object Object]', '[object', 'Object]'])
+    UNION ALL
+    -- An entity whose link to its parent the operator rejected after the parent: it has no parent
+    -- now, and the operator decides it alone.
+    SELECT DISTINCT ON (n.unit_id) n.unit_id, 'not_clean', 'parent_rejected', l.id,
+           'Its parent ' || coalesce(public.element_name(d.id), d.id::text) || ' was rejected on '
+           || to_char(d.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+      FROM named n
+      JOIN public.proposals l ON l.names @> ARRAY[n.id] AND l.status = 'rejected'
+                             AND l.op = 'create_relation'
+                             AND l.payload->>'type' = 'subordinate_to'
+                             AND l.payload->>'src_id' = n.id::text
+      JOIN public.proposals d ON d.id::text = l.payload->>'dst_id' AND d.status = 'rejected'
+     WHERE n.parent IS NULL
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -2272,12 +2405,17 @@ BEGIN
               ELSE 'clean' END,
          coalesce(jsonb_agg(jsonb_build_object('kind', f.kind, 'level', f.level, 'act', f.act,
                                                'said', f.said)
+                            || CASE WHEN f.kind = 'rejected_before'
+                                    THEN jsonb_build_object('reason', b.reject_reason,
+                                                            'note', b.reject_note)
+                                    ELSE '{}'::jsonb END
                             ORDER BY array_position(ARRAY['blocks', 'waits', 'not_clean',
                                                           'information'],
                                                     f.level), f.kind, f.said)
                     FILTER (WHERE f.kind IS NOT NULL), '[]'::jsonb)
     FROM units u
     LEFT JOIN found f ON f.unit_id = u.unit_id
+    LEFT JOIN before b ON b.unit_id = u.unit_id
    GROUP BY u.unit_id;
 END $$;
 
@@ -2332,7 +2470,9 @@ $$;
 
 -- ONE PAGE OF THE REVIEW QUEUE, FOR THE OPERATOR. Each unit comes with its state and its faults,
 -- its acts, the ends of each act, the proposer, the group, the documents and the cited passages
--- with two lines of context.
+-- with two lines of context. Each passage names the element of the act that it supports. A
+-- passage of the v1 import is the whole line of its unit, and the lines around it state other
+-- units, so the passage says so.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -2394,9 +2534,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     UNION ALL
     SELECT t.start, d.id, t.path || d.id, t.depth + 1
       FROM tree t
-      JOIN public.proposals r ON r.op = 'create_relation'
-                             AND r.payload->>'type' = 'subordinate_to'
-                             AND (r.payload->>'src_id')::uuid = t.at
+     CROSS JOIN LATERAL public.parent_link(t.at, false) AS r
       JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
                              AND d.op = 'create_entity' AND d.batch_id = r.batch_id
      WHERE NOT d.id = ANY (t.path)
@@ -2491,7 +2629,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT a.unit_id,
            jsonb_agg(jsonb_build_object(
              'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
-             'createdAt', a.created_at, 'dissent', a.dissent, 'dissentReason', a.dissent_reason,
+             'createdAt', a.created_at, 'dissent', a.dissent,
+             'dissentReason', public.dispute_said(a.dissent_reason),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts
       FROM acts a
@@ -2509,7 +2648,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   ), quoted AS (
     SELECT a.unit_id,
            jsonb_agg(jsonb_build_object(
-             'act', q.claim_id, 'document', q.doc_id, 'page', q.page, 'before', q.before,
+             'act', q.claim_id,
+             'supports', coalesce(public.element_name(coalesce(a.target_id, a.id)), a.op),
+             'ownLine', a.proposer = 'v1_import',
+             'document', q.doc_id, 'page', q.page, 'before', q.before,
              'text', q.cited, 'after', q.after)
              ORDER BY q.claim_id, q.doc_id, q.page) AS passages
       FROM public.cited_passages(ARRAY(SELECT id FROM acts)) AS q
@@ -2556,6 +2698,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                              ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
                'state', s.state,
                'faults', s.faults,
+               'endRejected', s.faults @> '[{"kind": "end_rejected"}]'::jsonb,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
                'passages', coalesce(qu.passages, '[]'::jsonb))

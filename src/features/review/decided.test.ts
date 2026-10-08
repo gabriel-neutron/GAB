@@ -11,10 +11,10 @@ const TERMINAL = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 const CREATION = '2d3e4f50-7182-49ab-c234-56789abcdef0';
 
 const decidedOf = (proposals: readonly Proposal[]): readonly DecidedAct[] =>
-  proposals.flatMap(({ status, decidedAt, decidedBy, ...act }) =>
+  proposals.flatMap(({ status, decidedAt, decidedBy, decidedAs, ...act }) =>
     status !== 'accepted' || decidedAt === null || decidedBy === null
       ? []
-      : [{ act, verdict: status, decidedAt, decidedBy }],
+      : [{ act, verdict: status, decidedAt, decidedBy, decidedAs }],
   );
 
 const FIXTURE = decidedOf(corpus.proposals);
@@ -37,6 +37,7 @@ const retyped: Proposal = {
   createdAt: '2026-08-02T00:00:00Z',
   decidedAt: null,
   decidedBy: null,
+  decidedAs: null,
   batchId: null,
 };
 
@@ -60,6 +61,19 @@ describe('the history of the record', () => {
     expect(latest?.keys).toBe('hull_note');
   });
 
+  it('says who decided each act, and names a group action', () => {
+    const [first] = FIXTURE;
+    if (first === undefined) throw new Error('the fixture holds no decided act');
+    const how = (decidedAs: DecidedAct['decidedAs']): string | undefined =>
+      readDecided(corpus, [{ ...first, decidedAs }])[0]?.decidedHow;
+    expect((['unit', 'relation', 'group', null] as const).map(how)).toStrictEqual([
+      'the operator',
+      'the operator',
+      'the operator, group action',
+      'the operator',
+    ]);
+  });
+
   it('names a deleted row from the copy the act kept of it', () => {
     const deletion: DecidedAct = {
       act: {
@@ -80,6 +94,7 @@ describe('the history of the record', () => {
       verdict: 'accepted',
       decidedAt: '2026-08-01T00:05:00Z',
       decidedBy: 'the writer door',
+      decidedAs: 'unit',
     };
     const [row] = readDecided(corpus, [deletion]);
     expect(row?.subject).toBe('MV Broken Hull');
@@ -108,6 +123,7 @@ describe('the history of the record', () => {
           verdict: 'accepted',
           decidedAt: '2026-08-01T00:05:00Z',
           decidedBy: 'operator',
+          decidedAs: 'unit',
         },
       ])[0]?.subject ?? '';
     const ends = { src_kind: 'entity', src_id: VESSEL, dst_kind: 'entity', dst_id: TERMINAL };
@@ -153,6 +169,7 @@ describe('an act on the name and the type', () => {
         verdict: 'accepted',
         decidedAt: '2026-08-02T00:05:00Z',
         decidedBy: 'the writer door',
+        decidedAs: 'unit',
       },
     ]);
     expect(row?.subject).toBe('MV Northern Ledger');

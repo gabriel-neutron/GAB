@@ -22,6 +22,8 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   duplicate: 'duplicate',
   unknown_type: 'unknown type',
   rejected_before: 'rejected before',
+  broken_value: 'broken value',
+  parent_rejected: 'parent rejected',
   sources_from_parent: 'sources from the parent',
   approximate_position: 'approximate position',
   note: 'note',

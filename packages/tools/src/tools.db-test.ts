@@ -479,6 +479,45 @@ test('the record keeps why the checker disputes an item, and nothing for an item
   expect(reasonOf('port')).toBe('the checker did not answer');
 });
 
+// The checker names the items by their refs, which the record does not keep.
+const byRef: Reach = {
+  now: () => new Date(),
+  check: async () =>
+    Promise.resolve(
+      new Map([
+        ['e1', { verdict: 'supported' as const }],
+        [
+          'e2',
+          { verdict: 'not_supported' as const, reason: 'the passage names e1, and not e2 or e22' },
+        ],
+      ]),
+    ),
+};
+
+test('the reason of the checker names each item of the batch by its name, and not by its ref', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      {
+        items: [
+          { ...NAYARA, ref: 'e1' },
+          { ...SEATRADE, ref: 'e2' },
+        ],
+      },
+      byRef,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const id = found.batch.proposals.find((one) => one.ref === 'e2')?.proposalId;
+  expect(found.rows.find((row) => row.id === id)?.dissent_reason).toBe(
+    'the checker says not_supported: the passage names Nayara, and not Seatrade Ltd or e22',
+  );
+});
+
 // A free model can give a reason with control characters, or a reason that is very long.
 const messy: Reach = {
   now: () => new Date(),

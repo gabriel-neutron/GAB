@@ -322,7 +322,7 @@ const groupUnit = z.object({
   faults: z.array(z.object({ kind: z.string(), level: z.string() })),
   entities: z.number().int(),
   relations: z.number().int(),
-  needs: z.array(z.uuid()),
+  writable: z.boolean(),
   parent: z.object({ unit: z.uuid().nullable(), name: z.string() }).nullable(),
 });
 
@@ -376,10 +376,12 @@ test('the rail counts the units of each group, and the read of one group gives i
       state: 'clean',
       entities: 1,
       relations: 1,
-      needs: [army],
+      writable: true,
       parent: { unit: army, name: 'Rail test army' },
     });
-    expect(byId.get(below)).toMatchObject({ state: 'clean', needs: [disputed] });
+    // The unit below the disputed one is clean, and the action cannot write it.
+    expect(byId.get(below)).toMatchObject({ state: 'clean', writable: false });
+    expect(byId.get(disputed)).toMatchObject({ state: 'not_clean', writable: false });
     expect(byId.get(army)).toMatchObject({ entities: 1, relations: 0, parent: null });
     expect(byId.get(disputed)?.faults).toContainEqual({ kind: 'dispute', level: 'not_clean' });
   } finally {
@@ -451,5 +453,91 @@ test('a group action on a group of the size of the largest v1 group answers in o
       ],
       [toDistrict, ...entities.filter((id) => !written.has(id)), district[1], district[0]],
     );
+  }
+});
+
+test('a child whose rejected parent took its link with it is not written by the group action', async () => {
+  const [army, brigade, toArmy, sister] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    unit(army, 'Group test rejected army'),
+    unit(brigade, 'Group test brigade of the rejected army'),
+    under(toArmy, brigade, army),
+    unit(sister, 'Group test sister'),
+    under(randomUUID(), sister, brigade),
+  ]);
+  const group = await batchOf(army);
+  try {
+    // "end rejected" is refused while the other end waits.
+    expect(
+      await ask('/write/reject-relation', { proposalId: toArmy, reason: 'end_rejected' }),
+    ).toMatchObject([422, {}]);
+    expect((await ask('/write/reject-unit', { unitId: army, reason: 'duplicate' }))[0]).toBe(200);
+    expect(
+      (await ask('/write/reject-relation', { proposalId: toArmy, reason: 'end_rejected' }))[0],
+    ).toBe(200);
+    const read = await promoteGroup(group, [brigade]);
+    expect(read).toStrictEqual([
+      {
+        unit: brigade,
+        name: 'Group test brigade of the rejected army',
+        outcome: 'refused',
+        said: expect.stringMatching(
+          /^Not clean: Its parent Group test rejected army was rejected on \d{4}-\d{2}-\d{2}$/u,
+        ) as string,
+      },
+    ]);
+    expect(await decisionOf(brigade)).toStrictEqual({ status: 'pending', decided_as: null });
+  } finally {
+    await undone([], [sister, brigade]);
+  }
+});
+
+const decidedAct = z.object({
+  id: z.uuid(),
+  status: z.enum(['accepted', 'rejected']),
+  decidedAs: z.string().nullable(),
+  rejectReason: z.string().nullable(),
+  rejectNote: z.string().nullable(),
+  name: z.string().nullable(),
+});
+
+test('the operator reads its own rejections with the reason and the note', async () => {
+  const [army, brigade, toArmy] = [randomUUID(), randomUUID(), randomUUID()];
+  await proposedBatch([
+    unit(army, 'Decided test army'),
+    unit(brigade, 'Decided test brigade'),
+    under(toArmy, brigade, army),
+  ]);
+  await ask('/write/reject-unit', {
+    unitId: brigade,
+    reason: 'other',
+    note: 'The page names a ferry.',
+  });
+  try {
+    const [status, reply] = await ask('/private/review-decided', {});
+    expect(status).toBe(200);
+    const acts = z.object({ acts: z.array(decidedAct) }).parse(reply).acts;
+    expect(acts.filter((act) => act.id === brigade || act.id === toArmy)).toStrictEqual(
+      [
+        {
+          id: brigade,
+          status: 'rejected',
+          decidedAs: 'unit',
+          rejectReason: 'other',
+          rejectNote: 'The page names a ferry.',
+          name: 'Decided test brigade',
+        },
+        {
+          id: toArmy,
+          status: 'rejected',
+          decidedAs: 'unit',
+          rejectReason: 'other',
+          rejectNote: 'The page names a ferry.',
+          name: 'Decided test brigade subordinate to Decided test army',
+        },
+      ].sort((one, other) => (one.id < other.id ? -1 : 1)),
+    );
+  } finally {
+    await undone([], [army]);
   }
 });

@@ -58,6 +58,7 @@ test('the role matrix of the doors', async () => {
       "public.reject_relation": "app",
       "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
+      "public.review_decided": "app",
       "public.review_group": "app",
       "public.review_groups": "app",
       "public.review_units": "app",
@@ -144,10 +145,10 @@ test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
 });
 
-test('only the operator promotes a unit or a group, rejects a unit and rejects one relation', async () => {
-  const held = await matrix();
-  expect(held['public.promote_unit']).toBe('app');
-  expect(held['public.promote_group']).toBe('app');
-  expect(held['public.reject_unit']).toBe('app');
-  expect(held['public.reject_relation']).toBe('app');
-});
+// A rejection keeps a reason and a note that stay private to the operator.
+for (const identity of ['read', 'agent', 'research'] as const)
+  test(`gabriel_${identity} cannot read the decided acts with the reasons of the rejections`, async () => {
+    await expect(
+      rolledBack(identity, (ask) => ask('SELECT public.review_decided()')),
+    ).rejects.toMatchObject({ code: '42501' });
+  });

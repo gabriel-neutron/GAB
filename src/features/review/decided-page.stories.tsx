@@ -8,10 +8,10 @@ import { readDecided } from './decided';
 import { DecidedPage } from './decided-page';
 
 const DECIDED: readonly DecidedAct[] = corpus.proposals.flatMap(
-  ({ status, decidedAt, decidedBy, ...act }) =>
+  ({ status, decidedAt, decidedBy, decidedAs, ...act }) =>
     status !== 'accepted' || decidedAt === null || decidedBy === null
       ? []
-      : [{ act, verdict: status, decidedAt, decidedBy }],
+      : [{ act, verdict: status, decidedAt, decidedBy, decidedAs }],
 );
 
 const ROWS = readDecided(corpus, DECIDED);

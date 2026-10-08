@@ -122,7 +122,9 @@ export const EachFaultIsListedWithItsText: Story = {
     await expect(
       canvas.getByText('Sources from the parent Southern Military District.'),
     ).toBeVisible();
-    await expect(canvas.getByText('Rejected before on 2026-10-06: Wrong value.')).toBeVisible();
+    await expect(
+      canvas.getByText('Rejected before on 2026-10-06: Wrong value (A ferry.).'),
+    ).toBeVisible();
   },
 };
 
