@@ -1979,6 +1979,28 @@ BEGIN
   RETURN public.relation_name(v_src, v_type, v_dst);
 END $$;
 
+-- WHAT ONE DECISION TAKES: the name of the unit, or of the one relation, and the count of its
+-- pending entities, relations and other acts. The writer reads it in the statement of the
+-- decision, with the snapshot of that statement, so it reads the acts that the decision writes or
+-- rejects: a promotion writes the whole unit or nothing, and a rejection takes every act that
+-- waits. A relation named alone is that relation. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION decision_said(p_unit uuid, p_relation uuid DEFAULT NULL)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT jsonb_build_object(
+    'name', coalesce((SELECT public.element_name(
+                               CASE WHEN h.op IN ('create_entity', 'create_relation') THEN h.id
+                                    ELSE h.target_id END)
+                        FROM public.proposals h WHERE h.id = coalesce(p_relation, p_unit)), ''),
+    'entities', count(*) FILTER (WHERE a.op = 'create_entity'),
+    'relations', count(*) FILTER (WHERE a.op = 'create_relation'),
+    'others', count(*) FILTER (WHERE a.op NOT IN ('create_entity', 'create_relation')))
+    FROM public.proposals a
+   WHERE a.status = 'pending'
+     AND (CASE WHEN p_relation IS NULL THEN a.unit_id = p_unit ELSE a.id = p_relation END)
+$$;
+
 -- THE CITED WORDS OF THE NAMED ACTS, each with the two lines before and after them. The offsets
 -- of a citation count code points.
 --
@@ -2519,8 +2541,10 @@ $$;
 -- place of the screen. The next page then does not show them. They show again when the operator
 -- reads the queue from its first unit, or filters by the fault.
 --
--- THE FILTERS: the group, the proposer, a kind of fault, a cited document, and a part of the name
--- in any case. A null filter keeps every unit.
+-- THE FILTERS: the group, the proposer, a kind of fault, a cited document, a part of the name
+-- in any case, and the identifier of one unit. A null filter keeps every unit. The filter of one
+-- unit opens a link to a unit that is not on the first page; a unit that waits no more gives no
+-- unit.
 --
 -- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so a page with no fault filter checks only the
 -- groups that the page can reach: the group of the key that the page starts after, and the next
@@ -2529,14 +2553,15 @@ $$;
 --
 -- The answer also counts every unit of the queue, the units that the filters keep, and the units
 -- of the filters before the page, and it gives the choices of the filters: each group in the order
--- of the queue, and each document that a pending act cites.
+-- of the queue, each document that a pending act cites, and each proposer of a unit that waits.
 --
 -- Departure: no compiled plan (jit). Measured on the record on 2026-10-07: the compile of the
 -- check of the faults took longer than the check.
 DROP FUNCTION IF EXISTS review_units(text[], int);
+DROP FUNCTION IF EXISTS review_units(text[], int, uuid, text, text, text, text);
 CREATE OR REPLACE FUNCTION review_units(p_after text[], p_size int, p_group uuid DEFAULT NULL,
   p_proposer text DEFAULT NULL, p_fault text DEFAULT NULL, p_document text DEFAULT NULL,
-  p_name text DEFAULT NULL)
+  p_name text DEFAULT NULL, p_unit uuid DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET jit = off
@@ -2580,6 +2605,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
               FROM heads h
               LEFT JOIN groups gs ON gs.batch_id = h.batch_id
              WHERE (p_group IS NULL OR h.batch_id = p_group)
+               AND (p_unit IS NULL OR h.unit_id = p_unit)
                AND (p_proposer IS NULL OR h.proposer = p_proposer)
                AND (p_document IS NULL
                     OR EXISTS (SELECT 1 FROM public.proposals a
@@ -2710,7 +2736,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
         SELECT jsonb_agg(jsonb_build_object('id', d.id, 'title', d.title) ORDER BY d.title, d.id)
           FROM public.documents d
          WHERE d.id IN (SELECT s.doc FROM public.proposals a, unnest(a.src) AS s(doc)
-                         WHERE a.status = 'pending')), '[]'::jsonb)),
+                         WHERE a.status = 'pending')), '[]'::jsonb),
+      'proposers', coalesce((SELECT jsonb_agg(DISTINCT h.proposer ORDER BY h.proposer)
+                               FROM heads h), '[]'::jsonb)),
     'units', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
                'unit', s.unit_id,

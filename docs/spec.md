@@ -129,7 +129,8 @@ group, the units with a fault come first, then the clean units in tree order, so
 before its child. The acts with no group come last. The operator can filter by group, proposer,
 fault, source document and name. The database applies the order and the filters, so a page never
 needs the whole queue. The filter and the place in the queue stay in the browser, and the selected
-unit stays in the address, so a reload keeps all three.
+unit stays in the address, so a reload keeps all three. A link to a unit opens that unit, also when
+it is not on the first page. A link to a unit that waits no more says so and offers no decision.
 
 The acts of one call that name each other are one linked batch: the group of their units. The
 group is a label and a filter, and the operator never decides a group as one block. An act that
@@ -178,7 +179,8 @@ parent, or when both have no parent, so a rejected "1st battalion" marks only a 
 under the same parent. The reason stays private to the operator.
 
 The v1 import marks a unit whose sources come from a parent. The promotion does not copy the mark
-into the record.
+into the record. The keys that the v1 import kept to find a row of its file (`v1_id`, `osm_id`,
+`source_urls`) stay attributes in the record, and the review page shows them apart.
 
 ## The lead path
 

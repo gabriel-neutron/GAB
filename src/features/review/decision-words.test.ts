@@ -3,8 +3,9 @@ import { expect, it } from 'vitest';
 import { relationWording } from '@/shared/relation-words';
 
 import { decisionWords } from './decision-words';
+import { REJECTION_REASONS } from './rejection';
 import { unitPageOf } from './unit-page';
-import { SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
+import { ORPHAN_RELATION, SAMPLE_UNITS, UNIT_ANSWER } from './unit-sample';
 
 const WORDS = {
   relation: relationWording([
@@ -26,8 +27,11 @@ const unit = (id: string) => {
   return found;
 };
 
+const WITHOUT_END = REJECTION_REASONS.filter((reason) => reason.key !== 'end_rejected');
+
 it('says what Promote writes and what Reject rejects for an entity with its relations', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.army), WORDS, null)).toStrictEqual({
+    reasons: WITHOUT_END,
     promote: {
       kind: 'writes',
       said:
@@ -38,20 +42,22 @@ it('says what Promote writes and what Reject rejects for an entity with its rela
   });
 });
 
-it('counts no relation of an entity that has none', () => {
+it('names no relation of an entity that has none', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.disputed), WORDS, null)).toStrictEqual({
+    reasons: WITHOUT_END,
     promote: {
       kind: 'writes',
       said:
-        'Writes North American countries (State body) and 0 relations. Source: Financial ' +
-        'sanctions and the trade of Russia. You cannot undo this.',
+        'Writes North American countries (State body). Source: Financial sanctions and the ' +
+        'trade of Russia. You cannot undo this.',
     },
-    reject: 'Rejects North American countries and its 0 relations.',
+    reject: 'Rejects North American countries.',
   });
 });
 
 it('says why Promote cannot write a blocked unit, with each fault that blocks it', () => {
   expect(decisionWords(unit(SAMPLE_UNITS.link), WORDS, null)).toStrictEqual({
+    reasons: WITHOUT_END,
     promote: {
       kind: 'blocked',
       said:
@@ -73,4 +79,56 @@ it('rejects one relation alone, and Promote stays the promotion of the unit', ()
     'Rejects the relation subordinate to → Eastern Military District. The rest of the unit ' +
       'stays in the queue.',
   );
+});
+
+it('offers the reason "end rejected" only where the other end was rejected', () => {
+  const keys = (id: string, aimed: string | null = null) =>
+    decisionWords(unit(id), WORDS, aimed).reasons.map((reason) => reason.key);
+  expect(keys(SAMPLE_UNITS.rejectedSource)).toContain('end_rejected');
+  expect(keys(SAMPLE_UNITS.orphan)).not.toContain('end_rejected');
+  expect(keys(SAMPLE_UNITS.orphan, ORPHAN_RELATION)).toContain('end_rejected');
+  expect(keys(SAMPLE_UNITS.army, '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c')).not.toContain(
+    'end_rejected',
+  );
+});
+
+it('says that Promote alone waits for a unit of the same group, with one full stop', () => {
+  expect(decisionWords(unit(SAMPLE_UNITS.brigade), WORDS, null).promote).toStrictEqual({
+    kind: 'blocked',
+    said:
+      'Promote is not possible. Waits for 5th Combined Arms Army in this group: promote it ' +
+      'first.',
+  });
+});
+
+it('ends a fault that has its own full stop with one full stop only', () => {
+  const said = decisionWords(unit(SAMPLE_UNITS.blockedMix), WORDS, null).promote.said;
+  expect(said).not.toContain('..');
+});
+
+it('says that a second entity will be written when the record holds one of the same name', () => {
+  const twin = {
+    ...unit(SAMPLE_UNITS.army),
+    state: 'not_clean' as const,
+    faults: [
+      {
+        kind: 'duplicate' as const,
+        level: 'not_clean' as const,
+        act: null,
+        said: 'Same name and type under the same parent: 5th Combined Arms Army is in the record',
+      },
+    ],
+  };
+  expect(decisionWords(twin, WORDS, null).promote).toStrictEqual({
+    kind: 'writes',
+    said:
+      'A second 5th Combined Arms Army will be written; 5th Combined Arms Army is already in ' +
+      'the record. Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB ' +
+      'v1 ORBAT: military units and organisations of the v1 GeoPackage. You cannot undo this.',
+  });
+});
+
+it('says nothing of a second entity when the twin waits in the queue', () => {
+  const said = decisionWords(unit(SAMPLE_UNITS.twin), WORDS, null).promote.said;
+  expect(said).not.toContain('A second');
 });

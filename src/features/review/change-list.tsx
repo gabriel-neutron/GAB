@@ -48,7 +48,14 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
         <div key={attribute.key} className="contents">
           <dt className="text-label">{attribute.key}:</dt>
           <dd className="min-w-0 break-words">
-            <LinkedWords text={attribute.values.join(', ')} />
+            {/* Each value of a list is its own text, so an address in it is its own link. */}
+            {attribute.values.map((value, at) => (
+              // The values of one attribute never move, so the position is their identity.
+              <span key={at}>
+                {at === 0 ? null : ', '}
+                <LinkedWords text={value} />
+              </span>
+            ))}
           </dd>
         </div>
       ))}
@@ -73,6 +80,11 @@ function Relation({ line, alone, aimed, onRelation }: RelationProps) {
     >
       {line.from === null ? null : <span>{line.from} </span>}
       <span className="text-label">{line.word} →</span> <span>{line.other}</span>{' '}
+      {line.typeUnknown ? (
+        <span data-type-unknown className="text-small/4 text-dissent">
+          (type unknown){' '}
+        </span>
+      ) : null}
       <span
         className={cn('text-small/4', line.rejected === null ? 'text-label' : 'text-destructive')}
       >
@@ -123,11 +135,24 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
       {entity === null ? null : (
         <>
           <p className="text-label">
-            New {entity.type.toLowerCase()}. Nothing of it is in the record yet.
+            {entity.typeUnknown ? (
+              <>
+                New entity. <span className="text-dissent">Its type is unknown.</span>
+              </>
+            ) : (
+              `New ${entity.type.toLowerCase()}.`
+            )}{' '}
+            Nothing of it is in the record yet.
             {entity.disputed ? <span className="text-dissent"> Disputed.</span> : null}
           </p>
           <h3 className={HEADING}>Attributes</h3>
           <Attributes attributes={entity.attributes} />
+          {entity.importKeys.length === 0 ? null : (
+            <>
+              <h3 className={HEADING}>Import keys</h3>
+              <Attributes attributes={entity.importKeys} />
+            </>
+          )}
         </>
       )}
       {unit.kind === 'link' ? (

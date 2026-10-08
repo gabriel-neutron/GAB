@@ -2,9 +2,6 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
-import type { DecidedRow } from './decided';
-import { DecidedPage } from './decided-page';
-
 /** The pages of the review: the queue of the units, the groups of the queue, and the history.
  * The history is reached from here and from no other page. */
 export type ReviewView = 'queue' | 'groups' | 'decided';
@@ -15,7 +12,8 @@ export interface ReviewSurfaceProps {
   readonly queue: ReactNode;
   /** The page of the groups. It is drawn only while it is open. */
   readonly groups: ReactNode;
-  readonly decided: readonly DecidedRow[];
+  /** The page of the decided acts. It is drawn only while it is open. */
+  readonly decided: ReactNode;
 }
 
 const VIEWS: readonly ReviewView[] = ['queue', 'groups', 'decided'];
@@ -60,11 +58,7 @@ export function ReviewSurface({ view, onView, queue, groups, decided }: ReviewSu
         {queue}
       </div>
       {view === 'groups' ? <div className="min-h-0 flex-1">{groups}</div> : null}
-      {view === 'decided' ? (
-        <div className="min-h-0 flex-1">
-          <DecidedPage rows={decided} />
-        </div>
-      ) : null}
+      {view === 'decided' ? <div className="min-h-0 flex-1">{decided}</div> : null}
     </div>
   );
 }

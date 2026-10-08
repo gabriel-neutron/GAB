@@ -25,3 +25,21 @@ it('keeps the bar that follows an address out of the link', () => {
     { kind: 'text', text: '| next' },
   ]);
 });
+
+it('keeps a comma or a full stop after an address out of the link', () => {
+  expect(linkedText('see https://a.org/x.pdf, and https://b.org/y.')).toStrictEqual([
+    { kind: 'text', text: 'see ' },
+    { kind: 'link', href: 'https://a.org/x.pdf', host: 'a.org' },
+    { kind: 'text', text: ', and ' },
+    { kind: 'link', href: 'https://b.org/y', host: 'b.org' },
+    { kind: 'text', text: '.' },
+  ]);
+});
+
+it('keeps a closing bracket that the address opened, and drops one that it did not', () => {
+  expect(linkedText('(https://en.wikipedia.org/wiki/Army_(unit))')).toStrictEqual([
+    { kind: 'text', text: '(' },
+    { kind: 'link', href: 'https://en.wikipedia.org/wiki/Army_(unit)', host: 'en.wikipedia.org' },
+    { kind: 'text', text: ')' },
+  ]);
+});

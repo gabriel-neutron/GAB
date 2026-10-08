@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { askWriter } from '@/shared/write/door';
 
 import type { QueueFilter } from './review-workspace';
-import { unitPageOf, type UnitPage } from './unit-page';
+import { unitPageOf, type Unit, type UnitPage } from './unit-page';
+
+// Departure: two reads, one job. Both read the queue through one door: a page of it, and one unit
+// that the address names.
 
 /** One page of the queue, or the sentence that says why this page holds none. */
 export type UnitsRead =
@@ -53,4 +56,33 @@ export async function readUnits(
   return read.step === 'done'
     ? { state: 'held', page: read.page }
     : { state: 'private', why: NO_WRITER };
+}
+
+/** One unit read by its identifier: the unit that waits, no unit when it waits no more, or the
+ * sentence of a read that failed. It raises nothing. */
+export type UnitRead =
+  | { readonly state: 'held'; readonly unit: Unit }
+  | { readonly state: 'gone' }
+  | { readonly state: 'failed'; readonly why: string };
+
+// An address that is no identifier names no unit, so the page asks the writer nothing.
+const IDENTIFIER = z.uuid();
+
+export async function readUnit(unitId: string): Promise<UnitRead> {
+  if (!IDENTIFIER.safeParse(unitId).success) return { state: 'gone' };
+  const read = await askWriter(
+    DOOR,
+    { after: null, size: 1, filter: { unit: unitId } },
+    pageAfter(null),
+  );
+  switch (read.step) {
+    case 'done': {
+      const [unit] = read.page.units;
+      return unit === undefined ? { state: 'gone' } : { state: 'held', unit };
+    }
+    case 'refused':
+      return { state: 'failed', why: `The unit cannot be read: ${read.refusal}` };
+    case 'unknown':
+      return { state: 'failed', why: NO_WRITER };
+  }
 }

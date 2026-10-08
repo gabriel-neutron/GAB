@@ -21,6 +21,8 @@ export interface RelationLine {
    * rejected. */
   readonly rejected: { readonly name: string; readonly on: string } | null;
   readonly disputed: boolean;
+  /** The type is "unknown", or the record has no such type. */
+  readonly typeUnknown: boolean;
 }
 
 /** One act that neither creates an entity nor a relation, with what it names. */
@@ -38,7 +40,10 @@ export interface UnitChanges {
     readonly name: string;
     readonly type: string;
     readonly attributes: readonly Attribute[];
+    /** The keys that the v1 import kept to find the row of its file again. */
+    readonly importKeys: readonly Attribute[];
     readonly disputed: boolean;
+    readonly typeUnknown: boolean;
   } | null;
   readonly relations: readonly RelationLine[];
   readonly others: readonly OtherChange[];
@@ -54,7 +59,14 @@ const rejectedOf = (ends: readonly UnitEnd[]): RelationLine['rejected'] => {
   return end === undefined ? null : { name: nameOf(end), on: end.rejectedOn ?? 'an unknown day' };
 };
 
+// The keys that the v1 import kept, as attributes of the record, to find the row of its file.
+const IMPORT_KEYS: ReadonlySet<string> = new Set(['v1_id', 'osm_id', 'source_urls']);
+
 export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
+  const unknown = new Set(
+    unit.faults.filter((fault) => fault.kind === 'unknown_type').map((fault) => fault.act),
+  );
+  const typeUnknown = (id: string, type: string): boolean => type === 'unknown' || unknown.has(id);
   const head = unit.acts.find((act) => act.kind === 'entity' && act.id === unit.id);
   const entity =
     head?.kind === 'entity'
@@ -62,15 +74,21 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
           id: head.id,
           name: head.label,
           type: words.entityType(head.type),
-          attributes: head.attributes,
+          attributes: head.attributes.filter((held) => !IMPORT_KEYS.has(held.key)),
+          importKeys: head.attributes.filter((held) => IMPORT_KEYS.has(held.key)),
           disputed: head.disputed,
+          typeUnknown: typeUnknown(head.id, head.type),
         }
       : null;
 
   const relations = unit.acts.flatMap((act): readonly RelationLine[] => {
     if (act.kind !== 'relation') return [];
     const typed = words.relation(act.type);
-    const line = { id: act.id, disputed: act.disputed };
+    const line = {
+      id: act.id,
+      disputed: act.disputed,
+      typeUnknown: typeUnknown(act.id, act.type),
+    };
     if (entity !== null && act.dst.id === entity.id && act.src.id !== entity.id)
       return [
         {

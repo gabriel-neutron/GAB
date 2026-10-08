@@ -84,6 +84,17 @@ export const ABlockedUnitSaysWhyPromoteIsOff: Story = {
   },
 };
 
+/** The reason "end rejected" is offered only where the other end was rejected. */
+export const EndRejectedIsOfferedOnlyWhereItFits: Story = {
+  play: async ({ canvas }) => {
+    const reasons = [...canvas.getByLabelText('Reason').querySelectorAll('option')].map(
+      (option) => option.textContent,
+    );
+    await expect(reasons).not.toContain('End rejected');
+    await expect(reasons).toContain('Wrong value');
+  },
+};
+
 /** A rejection needs a reason, and the reason "other" needs a note. */
 export const ARejectionNeedsAReason: Story = {
   play: async ({ canvas }) => {

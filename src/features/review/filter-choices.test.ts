@@ -6,6 +6,7 @@ import { NO_FILTER } from './review-workspace';
 const CHOICES = {
   groups: [{ id: 'g1', subject: 'Southern Military District' }],
   documents: [{ id: 'd1', title: 'A report' }],
+  proposers: ['v1_import' as const],
 };
 
 it('keeps a filter whose group and document are still choices', () => {
@@ -16,4 +17,11 @@ it('keeps a filter whose group and document are still choices', () => {
 it('removes a group or a document that is no longer a choice, and keeps the rest', () => {
   const filter = { ...NO_FILTER, group: 'gone', document: 'gone too', fault: 'dispute' as const };
   expect(filterWithinChoices(filter, CHOICES)).toStrictEqual({ ...NO_FILTER, fault: 'dispute' });
+});
+
+it('removes a proposer that has no unit in the queue', () => {
+  const filter = { ...NO_FILTER, proposer: 'research_ai' as const, name: 'brigade' };
+  expect(filterWithinChoices(filter, CHOICES)).toStrictEqual({ ...NO_FILTER, name: 'brigade' });
+  const kept = { ...NO_FILTER, proposer: 'v1_import' as const };
+  expect(filterWithinChoices(kept, CHOICES)).toBe(kept);
 });
