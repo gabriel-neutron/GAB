@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
+import { decidedRows } from './decided';
+import { DecidedPage } from './decided-page';
+import { DECIDED_SAMPLE } from './decided-sample';
 import { ReviewSurface } from './review-surface';
 import { NO_FILTER } from './review-workspace';
 import { unitPageOf } from './unit-page';
@@ -23,7 +26,8 @@ const QUEUE = (
         more: 'ready',
       },
       filter: NO_FILTER,
-      choices: { groups: [], documents: [] },
+      choices: { groups: [], documents: [], proposers: [] },
+      linked: { state: 'none' },
       decision: { step: 'idle' },
     }}
     selectedId=""
@@ -32,9 +36,16 @@ const QUEUE = (
   />
 );
 
+const DECIDED = (
+  <DecidedPage
+    view={{ state: 'held', rows: decidedRows(DECIDED_SAMPLE), more: 'none' }}
+    onMore={fn()}
+  />
+);
+
 const meta = {
   component: ReviewSurface,
-  args: { view: 'queue', onView, queue: QUEUE, groups: null, decided: [] },
+  args: { view: 'queue', onView, queue: QUEUE, groups: null, decided: DECIDED },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-[720px] w-[1280px]">
@@ -61,7 +72,7 @@ export const TheHistoryIsReachedFromTheQueue: Story = {
 export const TheQueueOutlivesAVisitToTheHistory: Story = {
   args: { view: 'decided' },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole('region', { name: 'What the record decided' })).toBeVisible();
+    await expect(canvas.getByRole('region', { name: 'What the operator decided' })).toBeVisible();
     await expect(canvasElement.querySelector('[data-unit]')).not.toBeNull();
     await expect(
       canvas.queryByRole('navigation', { name: 'Units that wait for a decision' }),

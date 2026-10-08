@@ -128,16 +128,14 @@ export const EachFaultIsListedWithItsText: Story = {
   },
 };
 
-/** A wait for an entity of the same group has its own heading, and the unit stays clean. */
+/** A wait for an entity of the same group is no fault: a group action writes the unit, and only
+ * the decision bar says why Promote of the unit alone is off. */
 export const AWaitInTheGroupIsNoFaultOfTheUnit: Story = {
   args: { unit: unitOf(SAMPLE_UNITS.brigade) },
-  play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole('heading', { name: 'Promote of this unit alone waits' }),
-    ).toBeVisible();
-    await expect(
-      canvas.getByText('Waits for 5th Combined Arms Army in this group: promote it first.'),
-    ).toBeVisible();
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.queryByText(/in this group: promote it first/u)).toBeNull();
+    await expect(canvasElement.querySelector('[data-fault="end_waits_in_group"]')).toBeNull();
+    await expect(canvas.getByText('The position is approximate.')).toBeVisible();
   },
 };
 
@@ -145,10 +143,51 @@ export const AWaitInTheGroupIsNoFaultOfTheUnit: Story = {
  * are short links. */
 export const AFileWithNoAddressIsNoLink: Story = {
   args: { unit: unitOf(SAMPLE_UNITS.army) },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText('Page 1')).toBeVisible();
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-passage] figcaption')).toHaveTextContent(
+      'Supports 5th Combined Arms Army · page 1',
+    );
+    await expect(canvas.queryByRole('link', { name: /Open page/u })).toBeNull();
     await expect(canvas.getByRole('link', { name: 'voinskaya-chast-poisk.ru' })).toBeVisible();
-    await expect(canvas.getByText('No fault. A group action can promote this unit.')).toBeVisible();
+    await expect(canvas.getByText('No fault.')).toBeVisible();
+    await expect(canvas.queryByText(/A group action can promote/u)).toBeNull();
+  },
+};
+
+/** A line of the v1 import shows the line of its own unit, and folds the lines of the other units
+ * around it. */
+export const AV1LineFoldsTheLinesOfOtherUnits: Story = {
+  args: { unit: unitOf(SAMPLE_UNITS.army) },
+  play: async ({ canvas, canvasElement }) => {
+    const passage = canvasElement.querySelector('[data-passage]');
+    await expect(passage).toHaveAttribute('data-own-line', 'true');
+    await expect(passage?.querySelector('mark')).toHaveTextContent('5th Combined Arms Army');
+    const folded = passage?.querySelector('details');
+    if (!(folded instanceof HTMLDetailsElement)) throw new Error('the context is not folded');
+    await expect(folded.open).toBe(false);
+    await expect(canvas.getByText('The lines of other units around it')).toBeVisible();
+  },
+};
+
+/** A document whose title is its address is named by its host and its file name, as one link. */
+export const AnAddressTitleIsNamedByItsHostAndFile: Story = {
+  args: {
+    unit: (() => {
+      const disputed = unitOf(SAMPLE_UNITS.disputed);
+      return disputed === null
+        ? null
+        : {
+            ...disputed,
+            documents: disputed.documents.map((document) => ({
+              ...document,
+              title: 'www.ebrd.com/content/dam/ebrd_dxp/working-papers-2023/WP-276.pdf',
+            })),
+          };
+    })(),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('link', { name: 'ebrd.com: WP-276.pdf' })).toBeVisible();
+    await expect(canvas.getByText('North American countries')).toBeVisible();
   },
 };
 

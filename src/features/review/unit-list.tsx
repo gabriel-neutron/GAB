@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
@@ -87,6 +89,14 @@ function Marks({ unit }: { readonly unit: Unit }) {
 
 export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
   const { units, total, matched, before, filtered, more } = queue;
+  // The line of the selected unit scrolls into view once for each unit, also after a reload. A
+  // later render does not move the list that the operator scrolled.
+  const shown = useRef<string | null>(null);
+  const showSelected = (line: HTMLButtonElement | null): void => {
+    if (line === null || shown.current === selectedId) return;
+    shown.current = selectedId;
+    line.scrollIntoView({ block: 'nearest' });
+  };
   const said = queueWords({ read: units.length, before, matched, total, filtered });
   return (
     <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
@@ -114,6 +124,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
               <button
                 type="button"
                 data-unit={unit.id}
+                ref={unit.id === selectedId ? showSelected : undefined}
                 aria-current={unit.id === selectedId ? 'true' : undefined}
                 onClick={() => {
                   onAct({ kind: 'select', unitId: unit.id });

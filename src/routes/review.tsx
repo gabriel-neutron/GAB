@@ -2,7 +2,8 @@ import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-r
 import { useMemo, useState } from 'react';
 
 import type { DecisionState } from '@/features/review/decision-bar';
-import { readDecided } from '@/features/review/decided';
+import { DecidedPage, type DecidedView } from '@/features/review/decided-page';
+import { readDecidedPage, type DecidedRead } from '@/features/review/decided-read';
 import type { GroupActionState, GroupView } from '@/features/review/group-panel';
 import {
   readGroupUnits,
@@ -12,16 +13,20 @@ import {
 } from '@/features/review/groups';
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
+import { nextGroup } from '@/features/review/next-group';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { openQueue } from '@/features/review/queue-start';
 import { filterIsOn, patchReviewWorkspace } from '@/features/review/review-workspace';
 import type { UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { sendGroupAction } from '@/features/review/send-group-action';
-import { readUnits } from '@/features/review/units';
-import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
-import { loadCorpus } from '@/shared/read/corpus';
-import { loadDecidedActs } from '@/shared/read/decided-acts';
+import { readUnit, readUnits } from '@/features/review/units';
+import {
+  UnitsPage,
+  type LinkedUnit,
+  type QueueView,
+  type ReviewAct,
+} from '@/features/review/units-page';
 import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
 import { sendDecision } from '@/shared/write/door';
 
@@ -48,10 +53,11 @@ export const Route = createFileRoute('/review')({
   search: { middlewares: [stripSearchParams({ unit: '', view: 'queue', group: '' })] },
 
   // The queue reads one page of units, with the filter and from the place that the workspace
-  // holds, so a reload keeps both. The history reads the whole corpus, and the rail reads the
-  // faults of every unit that waits, so each is read only when its page is open. The rail is read
-  // when its page opens and after a group action, and never at the choice of a group: the group
-  // in the address is read here once, and each later choice reads its own group alone.
+  // holds, so a reload keeps both. A unit of the address that the first page does not hold is
+  // read by its identifier. The history and the rail of the groups are read only when their page
+  // is open. The rail is read when its page opens and after a group action, and never at the
+  // choice of a group: the group in the address is read here once, and each later choice reads
+  // its own group alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps, location }) => {
     const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
@@ -59,7 +65,25 @@ export const Route = createFileRoute('/review')({
       loadRelationTypes(),
       loadEntityTypes(),
     ]);
-    const held = { first, filter, relationTypes, entityTypes, history: [], groups: null };
+    const asked: unknown = Reflect.get(location.search, 'unit');
+    const unitId = typeof asked === 'string' ? asked : '';
+    const onFirst = first.state !== 'held' || first.page.units.some((unit) => unit.id === unitId);
+    const read = unitId === '' || onFirst ? null : await readUnit(unitId);
+    const linked: LinkedUnit =
+      unitId === '' || onFirst
+        ? { state: 'none' }
+        : read === null
+          ? { state: 'gone', unitId }
+          : { state: 'held', unit: read };
+    const held = {
+      first,
+      filter,
+      linked,
+      relationTypes,
+      entityTypes,
+      history: null,
+      groups: null,
+    };
     if (deps.view === 'groups') {
       const asked: unknown = Reflect.get(location.search, 'group');
       const groupId = typeof asked === 'string' ? asked : '';
@@ -70,8 +94,7 @@ export const Route = createFileRoute('/review')({
       return { ...held, groups: { rail, group: read === null ? null : { groupId, read } } };
     }
     if (deps.view !== 'decided') return held;
-    const [corpus, decided] = await Promise.all([loadCorpus(), loadDecidedActs()]);
-    return { ...held, history: readDecided(corpus, decided) };
+    return { ...held, history: await readDecidedPage(null) };
   },
 
   component: ReviewRoute,
@@ -97,18 +120,27 @@ const startOf = (first: UnitPage | null): HeldPages => ({
   reading: false,
 });
 
-const NO_CHOICES = { groups: [], documents: [] };
+const NO_CHOICES = { groups: [], documents: [], proposers: [] };
+
+/** The pages of the history read after the first page that the loader gave. */
+interface HeldHistory {
+  readonly from: DecidedRead | null;
+  readonly rows: readonly DecidedRead[];
+  readonly reading: boolean;
+}
 
 function ReviewRoute() {
   const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { first, filter, relationTypes, entityTypes, history, groups } = Route.useLoaderData();
+  const { first, filter, linked, relationTypes, entityTypes, history, groups } =
+    Route.useLoaderData();
   const router = useRouter();
 
   // The pages and the decision die with the view: a reload reads the first page again.
   const [held, setHeld] = useState<HeldPages>(startOf(null));
   const [decision, setDecision] = useState<DecisionState>({ step: 'idle' });
   const [groupAction, setGroupAction] = useState<GroupActionState>({ step: 'idle' });
+  const [later, setLater] = useState<HeldHistory>({ from: null, rows: [], reading: false });
   // The group read at the last choice, or after the last group action. Null while it is read.
   const [picked, setPicked] = useState<{
     readonly groupId: string;
@@ -138,6 +170,7 @@ function ReviewRoute() {
           },
           filter,
           choices: now.pages.at(-1)?.choices ?? NO_CHOICES,
+          linked,
           decision,
         };
 
@@ -203,14 +236,17 @@ function ReviewRoute() {
         });
         return;
       case 'decide': {
-        const { unitId, decision: asked } = act;
+        const { unitId, decision: asked, said } = act;
         // The held pages are kept as they stand, so the read after the decision replaces one.
         setHeld(now);
         setDecision({ step: 'working', unitId });
         void sendDecision(asked).then(async (result) => {
-          setDecision({ ...result, unitId });
-          if (result.step === 'done')
-            await readAgain(unitId, asked.op === 'reject_relation' ? 'relation' : 'unit');
+          if (result.step !== 'done') {
+            setDecision({ ...result, unitId });
+            return;
+          }
+          setDecision({ step: 'done', unitId, said });
+          await readAgain(unitId, asked.op === 'reject_relation' ? 'relation' : 'unit');
         });
         return;
       }
@@ -226,8 +262,11 @@ function ReviewRoute() {
       : entered !== null && entered.groupId === group
         ? entered.read
         : null;
+  // The result of a done action stays on the screen over the next group that the page opens.
   const action: GroupActionState =
-    groupAction.step !== 'idle' && groupAction.groupId === group ? groupAction : { step: 'idle' };
+    groupAction.step === 'done' || (groupAction.step !== 'idle' && groupAction.groupId === group)
+      ? groupAction
+      : { step: 'idle' };
   const groupView: GroupView =
     group === ''
       ? { state: 'none' }
@@ -242,23 +281,66 @@ function ReviewRoute() {
     setPicked((before) => (before?.groupId === groupId ? { groupId, read } : before));
   };
 
-  // The rail, the group and the queue are read again after the action, so each count is the
-  // count of the record.
+  const openGroup = (groupId: string): void => {
+    setPicked({ groupId, read: null });
+    void navigate({ search: (search) => ({ ...search, group: groupId }), replace: true });
+    void readGroup(groupId);
+  };
+
+  // After the action the page opens the next group of the rail, and the rail and the queue are
+  // read again, so each count is the count of the record. The group of the action is not read
+  // again: its clean units are written, and the rest waits for a decision of its own.
   const onGroupAct = (act: GroupsAct): void => {
     if (act.kind === 'select') {
-      const { groupId } = act;
-      setPicked({ groupId, read: null });
-      void navigate({ search: (search) => ({ ...search, group: groupId }), replace: true });
-      void readGroup(groupId);
+      setGroupAction({ step: 'idle' });
+      openGroup(act.groupId);
       return;
     }
     const { groupId, unitIds } = act;
+    const rail = groups?.rail.state === 'held' ? groups.rail.read : [];
+    const name = rail.find((line) => line.id === groupId)?.subject ?? 'with no subject';
     setGroupAction({ step: 'working', groupId });
     void sendGroupAction(groupId, unitIds).then(async (result) => {
-      setGroupAction({ ...result, groupId });
-      if (result.step !== 'done') return;
-      await readGroup(groupId);
+      if (result.step !== 'done') {
+        setGroupAction({ ...result, groupId });
+        return;
+      }
+      setGroupAction({ ...result, groupId, name });
+      const next = nextGroup(rail, groupId);
+      if (next === null) {
+        setPicked(null);
+        await navigate({ search: (search) => ({ ...search, group: '' }), replace: true });
+      } else openGroup(next);
       await router.invalidate();
+    });
+  };
+
+  // The history holds the first page of the loader, then each page read after it.
+  const heldLater: HeldHistory =
+    later.from === history ? later : { from: history, rows: [], reading: false };
+  const lastRead = heldLater.rows.at(-1) ?? history;
+  const nextKey = lastRead?.state === 'held' ? lastRead.next : null;
+  const decidedView: DecidedView | null =
+    history === null
+      ? null
+      : history.state === 'private'
+        ? history
+        : {
+            state: 'held',
+            rows: [history, ...heldLater.rows].flatMap((read) =>
+              read.state === 'held' ? read.rows : [],
+            ),
+            more: heldLater.reading ? 'reading' : nextKey === null ? 'none' : 'ready',
+          };
+  const readMoreDecided = (): void => {
+    if (heldLater.reading || nextKey === null) return;
+    setLater({ ...heldLater, reading: true });
+    void readDecidedPage(nextKey).then((read) => {
+      setLater((before) =>
+        before.from === history
+          ? { ...before, rows: [...before.rows, read], reading: false }
+          : before,
+      );
     });
   };
 
@@ -268,7 +350,9 @@ function ReviewRoute() {
       onView={(next) => {
         void navigate({ search: (search) => ({ ...search, view: next }), replace: true });
       }}
-      decided={history}
+      decided={
+        decidedView === null ? null : <DecidedPage view={decidedView} onMore={readMoreDecided} />
+      }
       queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
       groups={
         groups === null ? null : (

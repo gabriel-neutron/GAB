@@ -1,6 +1,7 @@
 import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
+import { documentName } from './document-name';
 import { faultWords } from './fault-marks';
 import type { GroupLine } from './groups';
 
@@ -15,21 +16,36 @@ const CONTROL = cn(
   'transition-colors duration-100 hover:bg-muted',
 );
 
-/** The groups that hold a unit that waits. Each line names the subject, the proposer and the
+const counted = (count: number, one: string, many: string): string =>
+  `${String(count)} ${count === 1 ? one : many}`;
+
+/** The groups that hold a unit that waits. The top line counts the groups, their units and their
+ * clean units, and says where to start. Each line names the subject, the proposer and the
  * document, and counts the units, the clean units and the units of each fault. */
 export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
+  const units = groups.reduce((sum, group) => sum + group.units, 0);
+  const clean = groups.reduce((sum, group) => sum + group.clean, 0);
   return (
     <nav aria-label="Groups that wait for a decision" className="flex min-h-0 flex-1 flex-col">
-      <p className="h-6 shrink-0 border-b border-border px-2 text-small/4 leading-6 text-label">
-        {groups.length === 1 ? '1 group waits' : `${String(groups.length)} groups wait`}
-      </p>
+      <div className="shrink-0 space-y-0.5 border-b border-border px-2 py-1 text-small/4 text-label">
+        <p data-said="totals" className="tabular-nums">
+          {counted(groups.length, 'group waits', 'groups wait')}, with{' '}
+          {counted(units, 'unit', 'units')}: {String(clean)} clean.
+        </p>
+        {groups.length === 0 ? null : (
+          <p>Start at the top. A group that other groups wait for comes first.</p>
+        )}
+      </div>
       {groups.length === 0 ? (
         <p className="p-2 text-xs text-label">No group waits.</p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {groups.map((group) => {
             const subject = group.subject ?? 'Group with no subject';
-            const source = group.document?.title ?? 'no document';
+            const source =
+              group.document === null
+                ? 'no document'
+                : documentName({ ...group.document, uri: null, mime: null });
             const faults = group.faults
               .map((fault) => `${faultWords(fault.kind)}: ${String(fault.units)}`)
               .join(' · ');

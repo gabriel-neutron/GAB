@@ -1,3 +1,4 @@
+import { documentName } from './document-name';
 import { GroupPanel, type GroupView } from './group-panel';
 import { GroupRail } from './group-rail';
 import type { GroupLine, GroupsRead } from './groups';
@@ -31,6 +32,11 @@ const selectedOf = (view: GroupView): string | null => {
 /** The groups of the queue in two columns: the rail of the groups, and one group with its group
  * action. Each column scrolls on its own. */
 export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
+  const selected = selectedOf(group);
+  const cited =
+    rail.state === 'held'
+      ? (rail.read.find((line) => line.id === selected)?.document ?? null)
+      : null;
   return (
     <div
       data-groups-page
@@ -42,7 +48,7 @@ export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
         ) : (
           <GroupRail
             groups={rail.read}
-            selectedId={selectedOf(group)}
+            selectedId={selected}
             onSelect={(groupId) => {
               onAct({ kind: 'select', groupId });
             }}
@@ -52,8 +58,9 @@ export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
       <div className="flex min-h-0 flex-col">
         <GroupPanel
           // A new group starts with no confirmation open.
-          key={selectedOf(group) ?? ''}
+          key={selected ?? ''}
           view={group}
+          document={cited === null ? null : documentName({ ...cited, uri: null, mime: null })}
           words={words}
           onPromote={(groupId, unitIds) => {
             onAct({ kind: 'promote', groupId, unitIds });

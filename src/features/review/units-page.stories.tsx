@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { NO_FILTER } from './review-workspace';
 import { unitPageOf } from './unit-page';
@@ -9,7 +9,10 @@ import { UnitsPage } from './units-page';
 
 const page = unitPageOf(UNIT_ANSWER, null);
 const units = page?.units ?? [];
-const choices = page?.choices ?? { groups: [], documents: [] };
+const choices = page?.choices ?? { groups: [], documents: [], proposers: [] };
+const NONE = { state: 'none' } as const;
+const disputed = units.find((unit) => unit.id === SAMPLE_UNITS.disputed);
+if (disputed === undefined) throw new Error('the sample holds no disputed unit');
 
 const queueOf = (
   held: typeof units,
@@ -63,6 +66,7 @@ const meta = {
       queue: queueOf(units),
       filter: NO_FILTER,
       choices,
+      linked: NONE,
       decision: { step: 'idle' },
     },
     selectedId: SAMPLE_UNITS.army,
@@ -137,6 +141,7 @@ export const EachColumnScrollsOnItsOwn: Story = {
       queue: queueOf(LONG),
       filter: NO_FILTER,
       choices,
+      linked: NONE,
       decision: { step: 'idle' },
     },
   },
@@ -164,6 +169,7 @@ export const TheNamesStayAt900Pixels: Story = {
       queue: queueOf(LONG),
       filter: NO_FILTER,
       choices,
+      linked: NONE,
       decision: { step: 'idle' },
     },
   },
@@ -242,6 +248,7 @@ export const AFilterThatFindsNothingSaysSo: Story = {
       queue: { ...queueOf([], { matched: 0, filtered: true }), more: 'none' },
       filter: { ...NO_FILTER, fault: 'circle' },
       choices,
+      linked: NONE,
       decision: { step: 'idle' },
     },
   },
@@ -262,7 +269,8 @@ export const AnEmptyQueueSaysSo: Story = {
       state: 'held',
       queue: { ...queueOf([], { matched: 0, total: 0 }), more: 'none' },
       filter: NO_FILTER,
-      choices: { groups: [], documents: [] },
+      choices: { groups: [], documents: [], proposers: [] },
+      linked: NONE,
       decision: { step: 'idle' },
     },
   },
@@ -281,6 +289,7 @@ export const TheListStartsAtThePlaceOfTheOperator: Story = {
       queue: queueOf(units, { before: 100 }),
       filter: NO_FILTER,
       choices,
+      linked: NONE,
       decision: { step: 'idle' },
     },
   },
@@ -334,6 +343,7 @@ export const OneRelationIsRejectedAlone: Story = {
         proposalId: '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c',
         reason: 'not_in_source',
       },
+      said: 'Rejected the relation subordinate to → Eastern Military District: Not in the source.',
     });
     await userEvent.click(within(bar).getByRole('button', { name: 'Back to the unit' }));
     const unitBar = canvas.getByRole('region', { name: 'The decision' });
@@ -350,11 +360,15 @@ export const EachLineMarksItsFaults: Story = {
       if (!(line instanceof HTMLElement)) throw new Error(`no line for ${id}`);
       return line;
     };
-    await expect(lineOf(SAMPLE_UNITS.link)).toHaveTextContent('blocked: waits');
+    await expect(lineOf(SAMPLE_UNITS.link)).toHaveTextContent('blocked: waits for another group');
     await expect(lineOf(SAMPLE_UNITS.disputed)).toHaveTextContent('not clean: disputed');
+    // A wait in the same group stops only Promote of the unit alone, so the line does not mark it.
     await expect(lineOf(SAMPLE_UNITS.brigade)).toHaveTextContent(
-      'parent first · approximate position · sources from the parent',
+      'approximate position · sources from the parent',
     );
+    await expect(
+      lineOf(SAMPLE_UNITS.brigade).querySelector('[data-fault="end_waits_in_group"]'),
+    ).toBeNull();
     await expect(lineOf(SAMPLE_UNITS.army).querySelector('[data-fault]')).toBeNull();
     await expect(lineOf(SAMPLE_UNITS.blockedMix).querySelectorAll('[data-fault]')).toHaveLength(12);
   },
@@ -388,6 +402,7 @@ export const ARelationToARejectedEndIsRejectedInOneClick: Story = {
       kind: 'decide',
       unitId: SAMPLE_UNITS.orphan,
       decision: { op: 'reject_relation', proposalId: ORPHAN_RELATION, reason: 'end_rejected' },
+      said: 'Rejected the relation subordinate to → 1061st Logistics Center: End rejected.',
     });
   },
 };
@@ -408,6 +423,9 @@ export const ALinkToARejectedSourceIsRejectedInOneClick: Story = {
       kind: 'decide',
       unitId: SAMPLE_UNITS.rejectedSource,
       decision: { op: 'reject_unit', unitId: SAMPLE_UNITS.rejectedSource, reason: 'end_rejected' },
+      said:
+        'Rejected the relation 1061st Logistics Center subordinate to → Eastern Military ' +
+        'District: End rejected.',
     });
   },
 };
@@ -424,5 +442,173 @@ export const PromoteOfAChildAloneWaitsForItsParent: Story = {
           'first.',
       ),
     ).toBeVisible();
+  },
+};
+
+/** A link to a unit that the pages read so far do not hold opens that unit, and Promote acts on
+ * it. */
+export const ALinkOpensAUnitThatIsNotOnThePage: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units.filter((unit) => unit.id !== SAMPLE_UNITS.disputed)),
+      filter: NO_FILTER,
+      choices,
+      linked: {
+        state: 'held',
+        unit: disputed,
+      },
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.disputed,
+  },
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
+    await expect(
+      within(changes).getByRole('heading', { name: 'North American countries' }),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Promote' }));
+    await expect(onAct).toHaveBeenCalledWith({
+      kind: 'decide',
+      unitId: SAMPLE_UNITS.disputed,
+      decision: { op: 'promote_unit', unitId: SAMPLE_UNITS.disputed },
+      said: 'Promoted North American countries.',
+    });
+  },
+};
+
+/** A link to a unit that waits no more says so, and offers no Promote. */
+export const ALinkToADecidedUnitSaysItIsNotInTheQueue: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units),
+      filter: NO_FILTER,
+      choices,
+      linked: { state: 'gone', unitId: 'c0ffee00-0000-4000-8000-000000000000' },
+      decision: { step: 'idle' },
+    },
+    selectedId: 'c0ffee00-0000-4000-8000-000000000000',
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByText(/This unit is not in the queue\./u)).toBeVisible();
+    await expect(canvas.queryByRole('button', { name: 'Promote' })).toBeNull();
+    await expect(canvasElement.querySelector('[aria-current="true"]')).toBeNull();
+  },
+};
+
+/** After a decision, one line says what it did, over the next unit. */
+export const ADoneDecisionSaysWhatItDid: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(units),
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: {
+        step: 'done',
+        unitId: SAMPLE_UNITS.disputed,
+        said: 'Promoted 5th Combined Arms Army and 1 relation.',
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Promoted 5th Combined Arms Army and 1 relation.',
+    );
+  },
+};
+
+/** The name applies after a short pause in the typing, with no Enter. */
+export const TheNameAppliesWhileTyping: Story = {
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.type(within(filter).getByLabelText('Name'), 'arsenal');
+    await waitFor(async () => {
+      await expect(onAct).toHaveBeenLastCalledWith({
+        kind: 'filter',
+        filter: { ...NO_FILTER, name: 'arsenal' },
+      });
+    });
+    await expect(onAct).toHaveBeenCalledOnce();
+  },
+};
+
+/** The proposer offers only the proposers that have a unit in the queue. */
+export const TheProposerOffersOnlyProposersWithUnits: Story = {
+  play: async ({ canvas }) => {
+    const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    const options = [...within(filter).getByLabelText('Proposer').querySelectorAll('option')].map(
+      (option) => option.textContent,
+    );
+    await expect(options).toStrictEqual(['Every proposer', 'extractor', 'v1 import']);
+  },
+};
+
+/** The keys of the v1 import stand apart, after the other attributes, and each address of a list
+ * is its own link. */
+export const TheImportKeysStandApart: Story = {
+  play: async ({ canvas }) => {
+    const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
+    await expect(within(changes).getByRole('heading', { name: 'Import keys' })).toBeVisible();
+    await expect(
+      within(changes).getByRole('link', { name: 'voinskaya-chast-poisk.ru' }),
+    ).toBeVisible();
+    await expect(within(changes).getByRole('link', { name: 'ru.wikipedia.org' })).toBeVisible();
+  },
+};
+
+/** An entity of an unknown type says so, and not "New unknown". */
+export const AnUnknownTypeIsMarked: Story = {
+  args: { selectedId: SAMPLE_UNITS.blockedMix },
+  play: async ({ canvas }) => {
+    const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
+    await expect(within(changes).getByText('Its type is unknown.')).toBeVisible();
+    await expect(within(changes).queryByText(/New unknown/u)).toBeNull();
+  },
+};
+
+/** An entity in the record with the same name is said before the click on Promote. */
+export const ASecondEntityIsSaidBeforePromote: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(
+        units.map((unit) =>
+          unit.id === SAMPLE_UNITS.army
+            ? {
+                ...unit,
+                state: 'not_clean' as const,
+                faults: [
+                  {
+                    kind: 'duplicate' as const,
+                    level: 'not_clean' as const,
+                    act: null,
+                    said:
+                      'Same name and type under the same parent: 5th Combined Arms Army is in ' +
+                      'the record',
+                  },
+                ],
+              }
+            : unit,
+        ),
+      ),
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+  },
+  play: async ({ canvas }) => {
+    const bar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(
+      within(bar).getByText(
+        /^A second 5th Combined Arms Army will be written; 5th Combined Arms Army is already in the record\./u,
+      ),
+    ).toBeVisible();
+    await expect(within(bar).getByRole('button', { name: 'Promote' })).toBeEnabled();
   },
 };

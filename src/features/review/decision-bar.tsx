@@ -6,10 +6,11 @@ import { Input } from '@/shared/ui/input';
 import type { WriteState } from '@/shared/write/write-state';
 
 import type { DecisionWords } from './decision-words';
-import { REJECTION_REASONS, rejectionGap } from './rejection';
+import { rejectionGap } from './rejection';
 
-/** The decision that the screen stands in, and the unit it is about. */
-export type DecisionState = WriteState<object, { readonly unitId: string }>;
+/** The decision that the screen stands in, and the unit it is about. A decision that the record
+ * took carries the line that says what it did. */
+export type DecisionState = WriteState<{ readonly said: string }, { readonly unitId: string }>;
 
 /** What the operator did in the decision bar: promote, reject with a reason, or stop aiming at
  * one relation. */
@@ -37,8 +38,9 @@ const sentenceOf = (state: DecisionState): string | null => {
       return null;
     case 'working':
       return 'The decision is on the way to the record.';
+    // The page shows the line of a done decision over the next unit, so the bar says nothing.
     case 'done':
-      return 'The record holds the decision.';
+      return null;
     case 'refused':
       return `Nothing was written: ${state.refusal}`;
     case 'unknown':
@@ -98,7 +100,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
           }}
         >
           <option value="">Choose a reason</option>
-          {REJECTION_REASONS.map((held) => (
+          {said.reasons.map((held) => (
             <option key={held.key} value={held.key}>
               {held.words}
             </option>

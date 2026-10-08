@@ -74,10 +74,12 @@ export function groupConfirmation(group: GroupUnits): GroupConfirmation {
   const stays = group.units.filter((unit) => !written.has(unit.id)).map(stayOf);
   const subject = group.subject ?? 'with no subject';
   const stay =
-    `${String(stays.length)} stay in the queue: ` +
-    `${String(stays.filter((why) => why === 'disputed').length)} disputed, ` +
-    `${String(stays.filter((why) => why === 'faulty').length)} with a fault, ` +
-    `${String(stays.filter((why) => why === 'waiting').length)} waiting for another group.`;
+    stays.length === 0
+      ? 'No other unit stays in the queue.'
+      : `${String(stays.length)} ${stays.length === 1 ? 'stays' : 'stay'} in the queue: ` +
+        `${String(stays.filter((why) => why === 'disputed').length)} disputed, ` +
+        `${String(stays.filter((why) => why === 'faulty').length)} with a fault, ` +
+        `${String(stays.filter((why) => why === 'waiting').length)} waiting for another group.`;
   const tree = treeOf(clean);
   if (clean.length === 0)
     return {

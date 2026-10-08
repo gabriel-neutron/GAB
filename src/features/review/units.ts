@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { askWriter } from '@/shared/write/door';
 
 import type { QueueFilter } from './review-workspace';
-import { unitPageOf, type UnitPage } from './unit-page';
+import { unitPageOf, type Unit, type UnitPage } from './unit-page';
+
+// Departure: two reads, one job. Both read the queue through one door: a page of it, and one unit
+// that the address names.
 
 /** One page of the queue, or the sentence that says why this page holds none. */
 export type UnitsRead =
@@ -53,4 +56,15 @@ export async function readUnits(
   return read.step === 'done'
     ? { state: 'held', page: read.page }
     : { state: 'private', why: NO_WRITER };
+}
+
+/** One unit that waits, read by its identifier, or null where it waits no more. A unit that the
+ * page cannot read is null too: the queue then says why. It raises nothing. */
+export async function readUnit(unitId: string): Promise<Unit | null> {
+  const read = await askWriter(
+    DOOR,
+    { after: null, size: 1, filter: { unit: unitId } },
+    pageAfter(null),
+  );
+  return read.step === 'done' ? (read.page.units[0] ?? null) : null;
 }
