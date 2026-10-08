@@ -209,7 +209,7 @@ const answer = z.object({
           level: z.enum(['blocks', 'waits', 'not_clean', 'information']),
           act: z.string().nullable(),
           said: z.string(),
-          reason: z.string().optional(),
+          reason: z.string().nullable().optional(),
           note: z.string().nullable().optional(),
         }),
       ),
@@ -283,7 +283,11 @@ type ReadFault = z.output<typeof answer>['units'][number]['faults'][number];
 // The database gives the reason of a rejection as its key, and the page holds the words of it.
 const faultOf = ({ reason, note, ...fault }: ReadFault): Fault => {
   if (reason === undefined) return fault;
-  const words = REJECTION_REASONS.find((held) => held.key === reason)?.words ?? reason;
+  // An older rejection kept no reason.
+  const words =
+    reason === null
+      ? 'No reason was recorded'
+      : (REJECTION_REASONS.find((held) => held.key === reason)?.words ?? reason);
   const noted = note === null || note === undefined ? '' : ` (${note})`;
   return { ...fault, said: `${fault.said}: ${words}${noted}` };
 };

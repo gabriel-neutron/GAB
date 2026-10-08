@@ -43,7 +43,8 @@ const capped = (maxSize: number) =>
 
 /** The doors of the operator, and the private reads: the status of the jobs of a document,
  * the page of the review queue with its cited passages, the groups of the queue, the decided acts
- * with the reasons of the rejections, the image of a cited document, and the leads. The public read never shows any of them. */
+ * with the reasons of the rejections, the image of a cited document, and the leads. The public
+ * read never shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
@@ -69,7 +70,7 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
 
   // A rejection keeps a reason and a note that only the operator reads.
   app.post('/private/review-decided', capped(LARGEST_BODY_BYTES), async (context) => {
-    const read = await readReviewDecided(pool);
+    const read = await readReviewDecided(pool, await context.req.text());
     return context.json(read.reply, STATUS[read.outcome]);
   });
 

@@ -85,7 +85,7 @@ REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;
-REVOKE ALL ON FUNCTION end_was_rejected(proposals) FROM PUBLIC;
+REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
@@ -184,8 +184,8 @@ REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app;
-REVOKE ALL ON FUNCTION review_decided()            FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_decided() TO gabriel_app;
+REVOKE ALL ON FUNCTION review_decided(timestamptz,uuid,int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_decided(timestamptz,uuid,int) TO gabriel_app;
 
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count

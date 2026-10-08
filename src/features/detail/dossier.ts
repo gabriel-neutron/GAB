@@ -106,7 +106,7 @@ export interface Dossier {
    * or null at its own point. The panel draws no canvas, so these words are the only place it
    * can state a borrowed position. */
   readonly positionFrom: string | null;
-  /** Who promoted the entity into the record, how and on which day (S4). Null when the read of
+  /** Who promoted the entity into the record, how and on which day. Null when the read of
    * the decided acts does not hold its promotion. */
   readonly decision: string | null;
   readonly rows: readonly RecordRow[];
