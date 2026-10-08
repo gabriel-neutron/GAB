@@ -140,6 +140,7 @@ const RULE_STEPS = [
   'units_of_author',
   'fact_is_strong',
   'unit_doubt_cause',
+  'rule_of_faults',
   'unit_said',
 ] as const;
 
