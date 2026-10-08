@@ -71,26 +71,51 @@ test('each tool of the catalogue is listed once, flat, with a read or write hint
   }
 });
 
-test('the tools that are not marked as reads are the thirteen writes', async () => {
+// The list of the tools, each with its hint: a read, or a write that the client asks before it
+// runs. A change of the list shows in the diff.
+test('the tool list, in the order of the surface, with the hint of each tool', async () => {
   const client = await connected(fakePool(() => []).pool);
-  const writes = (await client.listTools()).tools
-    .filter((tool) => tool.annotations?.readOnlyHint !== true)
-    .map((tool) => tool.name);
-  expect(writes).toStrictEqual([
-    'archive_snapshot',
-    'fetch_document',
-    'store_saved_file',
-    'telegram_channel',
-    'gleif_lookup',
-    'companies_house',
-    'wikidata_ids',
-    'sanctions_match',
-    'vessel_events',
-    'enqueue_extract',
-    'enqueue_mapping',
-    'start_lead',
-    'propose',
-  ]);
+  const listed = (await client.listTools()).tools.map(
+    (tool) => `${tool.name}: ${tool.annotations?.readOnlyHint === true ? 'read' : 'write'}`,
+  );
+  expect(listed).toMatchInlineSnapshot(`
+    [
+      "search_graph: read",
+      "read_entity: read",
+      "neighbourhood: read",
+      "list_vocabulary: read",
+      "list_proposals: read",
+      "find_document: read",
+      "document_text: read",
+      "file_schema_sample: read",
+      "job_status: read",
+      "read_doubts: read",
+      "read_waiting: read",
+      "read_unit: read",
+      "read_groups: read",
+      "read_group: read",
+      "read_decided: read",
+      "read_leads: read",
+      "web_search: read",
+      "news_search: read",
+      "archive_snapshot: write",
+      "fetch_document: write",
+      "store_saved_file: write",
+      "telegram_channel: write",
+      "gleif_lookup: write",
+      "companies_house: write",
+      "wikidata_ids: write",
+      "sanctions_match: write",
+      "vessel_events: write",
+      "enqueue_extract: write",
+      "enqueue_mapping: write",
+      "start_lead: write",
+      "propose: write",
+      "promote_unit: write",
+      "reject_unit: write",
+      "reject_relation: write",
+    ]
+  `);
 });
 
 test('no input asks for a value that only the runner knows', async () => {
