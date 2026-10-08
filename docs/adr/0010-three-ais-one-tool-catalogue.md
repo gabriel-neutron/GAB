@@ -7,8 +7,8 @@ check by a second model family. · The lead agent added 6 October 2026. · Model
 again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone. · ADR 0011
 superseded 7 October 2026: no rule promotes, and the operator decides each proposal. · ADR 0012,
 8 October 2026: named rules in the database decide from the letters of the authors, and the
-operator decides the doubts. · 8 October 2026: the operator AI can also read the review queue and accept
-or reject a unit (#376).
+operator decides the doubts. · 8 October 2026: the operator AI can also read the review queue and
+accept or reject a unit (#376).
 
 ## Context
 
@@ -63,7 +63,7 @@ Each consumer has its own database role.
 - **The operator AI**, through the MCP server, has its own research role. It does everything that
   the operator does in the review page: it can store a fetched document, propose, read the review
   queue, and accept or reject a unit or a relation. Its decision records "decided by an AI
-  reviewer" and its reason, never "validated manually". The skills say that the session which
+  reviewer" and its reason, never "validated manually by the operator". The skills say that the session which
   proposed a unit does not decide it. The database cannot enforce this, because all sessions share
   one role.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
@@ -204,9 +204,7 @@ code writes its proposals.
 - **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
   it needs. The token budget of the job is its one stop, and the job fails with that reason. The
   pages stored before the stop stay stored.
-- **The lead is private.** Its text can name a party before a source supports it. Only the
-  operator reads the leads and what each one stored. The worker reads the text of the one lead
-  that it claims, and the research AI gets only the job id of a lead that it starts.
+- **The lead is private.** Its text can name a party before a source supports it. Only the operator and the operator AI (through the MCP server) read the leads and what each one stored. The worker reads the text of the one lead that it claims.
 - **No schedule.** A person or the research AI starts each lead.
 
 **Cost:** the agent reads only the start of each page, so it can miss a page that a long document

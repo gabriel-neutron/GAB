@@ -43,7 +43,7 @@ flowchart LR
 | Read API | Read-only HTTP over a fixed set of public views. |
 | Web interface | The graph, the map, the review queue, search and the entity pages. |
 | Worker | Takes AI jobs from a queue in the database and runs the agents. |
-| MCP server | Gives the research AI one flat tool for each action: read the record, the proposals and the documents; search; fetch; propose; queue a job; start a lead. Each tool says if it reads or writes. |
+| MCP server | Gives the research AI one flat tool for each action: read the record, the proposals, the documents, the review queue and the leads; search; fetch; propose; queue a job; start a lead; accept or reject a unit or a relation. Each tool says if it reads or writes. |
 | OpenRouter, web search | External services. They hold no record of the project. |
 
 ## Who can do what
@@ -51,7 +51,7 @@ flowchart LR
 | Actor | Can | Cannot |
 |---|---|---|
 | Operator | Upload, edit, promote, reject, start a lead. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. | Promote. Read a lead. |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Write a table directly. |
 | Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
@@ -96,8 +96,7 @@ promotion       →  entities and relations (the evidentiary layer)
 
 A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
 writes no target and keeps the proposal as a record. An edit of the operator is a proposal and its
-promotion in one transaction, so it is written whole or not at all. A machine role proposes and
-never decides: only the operator and the decision rules in the database promote. When an act keeps a
+promotion in one transaction, so it is written whole or not at all. A machine role of the back end proposes and never decides. Only the operator, the decision rules in the database and the AI reviewer of the MCP server promote or reject. When an act keeps a
 value, the value keeps each document that it already cites.
 
 A machine proposes through one door, which takes a batch. Each act cites a page and a span of
@@ -194,14 +193,14 @@ a unit, or a new source of a unit
 ```
 
 The database applies the rules, so every writer gets the same decision. Each decision records the
-name and the version of its rule, or "validated manually by the operator" (S4). Code computes
+name and the version of its rule, "validated manually by the operator", or "decided by an AI reviewer" (S4). Code computes
 the digit of each fact from its sources. The letter of an author records the model, the reason,
 and the reference authors that the model compared with. A model never writes a state: the worker
 stores the letter that the model gives, and the database decides.
 
 The review queue shows only the units that need the operator by default. The units that wait are a
 separate list, with the source that each one needs. The page of an element shows who decided it:
-the name of the rule, or "validated manually by the operator".
+the name of the rule, "validated manually by the operator", or "decided by an AI reviewer".
 
 ## The lead path
 
