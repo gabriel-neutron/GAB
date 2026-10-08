@@ -180,7 +180,7 @@ doubt.
   hard token cap of its own. The checker is of another family than the research AI. The server
   reads that family from the name of its client. Of the verdicts of the checker, only "not
   supported" disputes a research item. A batch above the cap, a checker that fails, or a checker
-  that is not configured gives no dispute and no check. The item waits, and the answer of the tool
+  that is not configured gives no dispute from the checker and no check. The item waits, and the answer of the tool
   says why. The same batch sent again gets its check. A research item is not disputed for a
   failure, because the dispute cannot change later. Such a dispute would send each item of a
   failed batch to the operator. This check replaces the blind second reading, which wrote rows
