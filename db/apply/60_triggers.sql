@@ -68,7 +68,7 @@ CREATE OR REPLACE TRIGGER act_check_append_only
 -- A new author name gets a job that rates it.
 CREATE OR REPLACE TRIGGER proposals_rate_author
   AFTER INSERT ON proposals
-  FOR EACH ROW WHEN (NEW.originator IS NOT NULL) EXECUTE FUNCTION enqueue_author_rating();
+  FOR EACH ROW EXECUTE FUNCTION enqueue_author_rating();
 
 -- The approval of a reference author is written once.
 CREATE OR REPLACE TRIGGER reference_approval_append_only

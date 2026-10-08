@@ -69,7 +69,7 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         // The trigger that queues this job is tested in tools/rate-author.db-test.ts.
         await ask(
           `INSERT INTO public.jobs (kind, author, created_at)
-           VALUES ('rate_author', $1, '1970-01-01')`,
+           VALUES ('rate_author', $1, '1970-01-01') ON CONFLICT DO NOTHING`,
           [author.toLowerCase()],
         );
       },
