@@ -3152,4 +3152,147 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT entity_id, min(hop) FROM walk GROUP BY entity_id;
 $$;
 
+-- ===================================================================== THE LETTER OF AN AUTHOR ==
+-- A letter, a name and a check are written once. The owner and the superuser ignore a grant, so a
+-- trigger holds it.
+CREATE OR REPLACE FUNCTION author_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'a row of % is never %', TG_TABLE_NAME,
+    CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+END $$;
+
+-- THE AUTHOR OF A NAME, or NULL when no worker answer has resolved the name. Inside the doors
+-- only, so no role holds EXECUTE on it.
+CREATE OR REPLACE FUNCTION author_of(p_name text) RETURNS uuid
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT n.author_id FROM public.author_name n WHERE n.name_key = public.name_key(p_name)
+$$;
+
+-- THE WRITE OF A NEW AUTHOR, for the two doors below. It refuses a blank field, a name that has an
+-- author already, and a party with no controller. The letter and the reference names are the
+-- business of the door.
+CREATE OR REPLACE FUNCTION new_author(p_name text, p_letter text, p_model text, p_reason text,
+                                      p_references text[], p_controller text, p_party boolean,
+                                      p_reference_set boolean)
+RETURNS uuid
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id uuid;
+  v_blank constant text := E' \t\n\r\f\v';
+  v_key text := public.name_key(coalesce(p_name, ''));
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a letter names its author' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF public.author_of(v_key) IS NOT NULL THEN
+    RAISE EXCEPTION 'the name "%" already has an author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF btrim(coalesce(p_model, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a letter names the model that gave it'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF btrim(coalesce(p_reason, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a letter gives its reason' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_references IS NULL OR array_position(p_references, NULL) IS NOT NULL
+     OR EXISTS (SELECT 1 FROM unnest(p_references) AS r(name) WHERE btrim(r.name, v_blank) = '')
+  THEN
+    RAISE EXCEPTION 'a reference author is a name' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT p_reference_set AND cardinality(p_references) = 0 THEN
+    RAISE EXCEPTION 'a letter names at least one reference author that the model compared with'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF coalesce(p_party, false) AND btrim(coalesce(p_controller, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a party to the conflict names its controller'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.author
+    (name_key, letter, model, reason, reference_authors, controller, party, reference_set)
+  VALUES (v_key, p_letter, btrim(p_model, v_blank), btrim(p_reason, v_blank), p_references,
+          nullif(btrim(coalesce(p_controller, ''), v_blank), ''), coalesce(p_party, false),
+          p_reference_set)
+  RETURNING id INTO v_id;
+  INSERT INTO public.author_name (name_key, author_id) VALUES (v_key, v_id);
+  RETURN v_id;
+END $$;
+
+-- THE DOOR OF THE WORKER FOR A NEW AUTHOR. The model gives a letter from C to F, the reason, the
+-- reference authors that it compared with, and the controller when the author has one. The door
+-- writes an input of the rules and never a decision.
+CREATE OR REPLACE FUNCTION store_author_letter(p_name text, p_letter text, p_model text,
+                                               p_reason text, p_references text[],
+                                               p_controller text DEFAULT NULL,
+                                               p_party boolean DEFAULT false)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(p_letter, '') NOT IN ('C','D','E','F') THEN
+    RAISE EXCEPTION 'the worker stores a letter from C to F. A and B come from the reference set'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
+                           p_party, false);
+END $$;
+
+-- THE DOOR OF THE OPERATOR FOR THE REFERENCE SET. The operator reads and approves the set once.
+-- Only here an author gets A or B.
+CREATE OR REPLACE FUNCTION store_reference_author(p_name text, p_letter text, p_model text,
+                                                  p_reason text, p_references text[],
+                                                  p_controller text DEFAULT NULL,
+                                                  p_party boolean DEFAULT false)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(p_letter, '') NOT IN ('A','B','C','D','E','F') THEN
+    RAISE EXCEPTION 'a letter is one of A to F' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
+                           p_party, true);
+END $$;
+
+-- THE DOOR OF THE WORKER FOR A NAME OF A KNOWN AUTHOR. A model words one author in more than one
+-- way. A join into an author A or B is a doubt, because it raises the letter of every act of the
+-- name.
+CREATE OR REPLACE FUNCTION join_author_name(p_name text, p_known_name text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_author uuid := public.author_of(p_known_name);
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_author IS NULL THEN
+    RAISE EXCEPTION 'the name "%" is the name of no known author',
+      public.name_key(coalesce(p_known_name, '')) USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF public.author_of(v_key) IS NOT NULL THEN
+    RAISE EXCEPTION 'the name "%" already has an author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.author_name (name_key, author_id, doubt)
+  VALUES (v_key, v_author,
+          (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author));
+END $$;
+
+-- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
+-- F. A party to the conflict reads as C at most on every fact, because the graph holds no side
+-- yet (decisions.md S1). The digit of a fact never calls this function.
+CREATE OR REPLACE FUNCTION letter_of(p_name text) RETURNS char(1)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(
+    (SELECT CASE WHEN a.party AND a.letter IN ('A','B') THEN 'C' ELSE a.letter END
+       FROM public.author_name n JOIN public.author a ON a.id = n.author_id
+      WHERE n.name_key = public.name_key(p_name)),
+    'F')::char(1)
+$$;
+
 RESET ROLE;
