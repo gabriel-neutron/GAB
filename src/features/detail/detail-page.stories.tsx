@@ -351,6 +351,18 @@ export const TheElementSaysThatARuleAcceptedIt: Story = {
   },
 };
 
+/** The page of an element says that an AI reviewer accepted it, and that a human did not. */
+export const TheElementSaysThatAnAIReviewerDecidedIt: Story = {
+  args: { dossier: readDecidedBy('unit', 'decided by an AI reviewer') },
+  play: async ({ canvasElement }) => {
+    const decision = canvasElement.querySelector('[data-decision]');
+    await expect(decision).toHaveTextContent(
+      'Decided by an AI reviewer and not by a human on 2026-10-08',
+    );
+    await expect(decision).not.toHaveTextContent(/operator|validated manually/u);
+  },
+};
+
 /** The page of an element says "validated manually" when the operator decided. */
 export const TheElementSaysValidatedManually: Story = {
   args: { dossier: readDecidedBy('unit', 'validated manually by the operator') },

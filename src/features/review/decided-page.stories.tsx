@@ -3,7 +3,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { decidedRows } from './decided';
 import { DecidedPage } from './decided-page';
-import { DECIDED_SAMPLE, RULE_DECIDED } from './decided-sample';
+import { AI_DECIDED, DECIDED_SAMPLE, RULE_DECIDED } from './decided-sample';
 
 const ROWS = decidedRows(DECIDED_SAMPLE);
 
@@ -71,6 +71,29 @@ export const ARuleDecisionNamesTheRule: Story = {
     const [row] = canvasElement.querySelectorAll('[data-decided]');
     await expect(row).toHaveTextContent('accepted by the rule strong sources, version 1');
     await expect(row).not.toHaveTextContent(/operator/u);
+  },
+};
+
+/** A decision of an AI reviewer names the AI reviewer, says that a human did not decide, and
+ * gives the reason of the AI. */
+export const AnAIReviewerDecisionSaysThatAHumanDidNotDecide: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: decidedRows([AI_DECIDED]),
+      unread: 0,
+      why: null,
+      more: 'none',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const [row] = canvasElement.querySelectorAll('[data-decided]');
+    await expect(row).toHaveTextContent('decided by an AI reviewer and not by a human');
+    await expect(row).toHaveTextContent(
+      'Not in the source. The AI reviewer says: The cited passage names the port, and no vessel ' +
+        'of this name.',
+    );
+    await expect(row).not.toHaveTextContent(/operator|validated manually/u);
   },
 };
 

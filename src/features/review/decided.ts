@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { deciderWords } from '@/shared/decider-words';
 import { proposerWords } from '@/shared/proposer-words';
 
+import { withFullStop } from './full-stop';
 import { REJECTION_REASONS } from './rejection';
 
 // Departure: two exports, one job. The shape of one decided act as the writer gives it, and the
@@ -23,6 +24,8 @@ export const decidedAct = z.object({
   decidedBy: z.string(),
   decidedAs: z.enum(['unit', 'relation', 'group', 'rule']).nullable(),
   decisionOrigin: z.string().nullable(),
+  /** The reason that an AI reviewer gave for its decision. Null for every other decision. */
+  decisionReason: z.string().nullable(),
   rejectReason: z.string().nullable(),
   rejectNote: z.string().nullable(),
   name: z.string().nullable(),
@@ -37,16 +40,16 @@ export interface DecidedRow {
   readonly actWords: string;
   /** What the act changed, named as the record names it today. */
   readonly subject: string;
-  /** The reason and the note of a rejection. Blank for a promotion: the record keeps no reason
-   * for it. */
+  /** The reason and the note of a rejection, and the reason of an AI reviewer. Blank for a
+   * promotion of the operator or of a rule: the record keeps no reason for it. */
   readonly reason: string;
   /** The hour as the record states it, for a machine that reads the row. */
   readonly decidedAt: string;
   readonly when: string;
   /** The name the verdict was signed with. It proves no person. */
   readonly signedAs: string;
-  /** Who or what decided the act: the rule with its version, or "validated manually by the
-   * operator", and whether in a group action. */
+  /** Who or what decided the act: the rule with its version, an AI reviewer, or "validated
+   * manually by the operator", and whether in a group action. */
   readonly decidedHow: string;
   /** Who proposed the act: the v1 import, the research AI, the extractor or the operator. */
   readonly author: string;
@@ -77,7 +80,7 @@ function whenOf(at: string): string {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
-const reasonOf = (act: DecidedAct): string => {
+const rejectionOf = (act: DecidedAct): string => {
   if (act.status === 'accepted') return '';
   // An older rejection kept no reason.
   const words =
@@ -86,6 +89,13 @@ const reasonOf = (act: DecidedAct): string => {
       : (REJECTION_REASONS.find((held) => held.key === act.rejectReason)?.words ??
         act.rejectReason);
   return act.rejectNote === null || act.rejectNote === '' ? words : `${words}: ${act.rejectNote}`;
+};
+
+const reasonOf = (act: DecidedAct): string => {
+  const rejection = rejectionOf(act);
+  if (act.decisionReason === null) return rejection;
+  const reviewer = `The AI reviewer says: ${act.decisionReason}`;
+  return rejection === '' ? reviewer : `${withFullStop(rejection)} ${reviewer}`;
 };
 
 /** One row for each decided act, in the order of the read: the latest decision first. */
