@@ -178,8 +178,11 @@ doubt.
   the worker does not start when they are the same. The propose tool of the research AI gets the
   same check from the MCP server: one question for each batch, under a token cap of its own, from
   a checker of another family than the research AI. The server reads that family from the name of
-  its client. A batch above the cap, a checker that fails, or a checker that is not configured
-  gives no check, and each item of the batch is disputed with the reason. This check replaces the blind second reading, which wrote rows that
+  its client. Only a verdict that the passage does not support disputes a research item. A batch
+  above the cap, a checker that fails, or a checker that is not configured gives no dispute and no
+  check: the item waits, the answer of the tool says why, and the same batch sent again gets its
+  check. A research item is not disputed for a failure, because the dispute cannot change later
+  and it would send each item of a failed batch to the operator. This check replaces the blind second reading, which wrote rows that
   nothing read. **Cost:** one more call for each passage, from the same token budget, and the
   operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue

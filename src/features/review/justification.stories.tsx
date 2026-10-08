@@ -340,21 +340,29 @@ export const ADisputedResearchFactGivesTheReasonOfTheChecker: Story = {
   },
 };
 
-/** A research fact that no model could check says that code alone checked it, and the dispute
- * gives the reason of the failure. */
-export const AFailedCheckSaysThatCodeAloneCheckedTheFact: Story = {
+/** A research fact that no model could check says that code alone checked it. It is not
+ * disputed: it waits for a passed check. */
+export const AnUncheckedResearchFactWaitsAndSaysCodeOnly: Story = {
   args: {
-    unit: researchFact(
-      null,
-      'Disputed: no model checked it: the checker failed: the model service did not answer',
-    ),
+    unit: (() => {
+      const held = researchFact(null, null);
+      return held === null
+        ? null
+        : {
+            ...held,
+            lane: 'waiting' as const,
+            said: 'A passed check by a second model family for each fact',
+          };
+    })(),
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(
       canvas.getByText('Checked by code only: no second model checked it.'),
     ).toBeVisible();
-    await expect(canvas.getByText(/no model checked it: the checker failed/u)).toBeVisible();
-    await expect(canvasElement.querySelector('[data-check="passed"]')).toBeNull();
+    await expect(
+      canvas.getByText('A passed check by a second model family for each fact.'),
+    ).toBeVisible();
+    await expect(canvasElement.querySelector('[data-fault="dispute"]')).toBeNull();
   },
 };
 

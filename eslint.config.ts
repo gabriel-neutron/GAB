@@ -78,7 +78,7 @@ export default defineConfig(
         // External constraint: the plugin reads a dot in the last segment as a file name.
         { type: 'storybook', pattern: '.storybook/**', partialMatch: false },
       ],
-      'boundaries/ignore': ['src/index.css', 'tools/probe.ts'],
+      'boundaries/ignore': ['src/index.css', 'tools/probe.ts', 'tools/author-fixture.ts'],
       'import/resolver': { typescript: { alwaysTryTypes: true } },
     },
     rules: {

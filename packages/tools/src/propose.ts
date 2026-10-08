@@ -298,7 +298,6 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 const disputeReason = (
   unstated: readonly UnstatedValue[],
   verdict: CheckVerdict | 'unchecked' | undefined,
-  failure: string | null,
   names: ReadonlyMap<string, string>,
 ): string | null => {
   const parts: string[] = [];
@@ -308,8 +307,7 @@ const disputeReason = (
         .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
         .join(', ')}`,
     );
-  if (verdict === undefined)
-    parts.push(failure === null ? 'the checker did not answer' : `no model checked it: ${failure}`);
+  if (verdict === undefined) parts.push('the checker did not answer');
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
       verdict.reason.trim() === ''
@@ -345,17 +343,18 @@ export const proposeOf = (modelCallId: string | null) =>
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
       'the item. A value that no excerpt states marks the item as disputed. Before the write, a ' +
-      'model of another family reads each item with its passages, and an item that it does not ' +
-      'find supported, or that no model could check, is marked as disputed; checkFailure then ' +
-      'says why no model checked the batch. A relation names an ' +
-      'entity of an earlier item by its ref. A retry of the same batch writes nothing twice. The ' +
+      'model of another family reads each item with its passages, and an item that its passages ' +
+      'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
+      'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
+      'relation names an entity of an earlier item by its ref. A retry of the same batch writes ' +
+      'nothing twice. The ' +
       'proposals wait for the operator. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds.',
     input: z.strictObject({ items: proposeItems }),
     output: z.strictObject({
       proposals: z.array(outcome),
-      // Why no model checked the batch. Each item is then disputed, and a smaller batch can pass.
+      // Why no model checked the batch. The items then wait, and the same batch can be sent again.
       checkFailure: z.string().optional(),
     }),
     async run(session, input, reach) {
@@ -406,13 +405,16 @@ export const proposeOf = (modelCallId: string | null) =>
           given.act.op === 'create_entity' ? [[given.ref, given.act.label] as const] : [],
         ),
       );
+      // Under the mark `refuted`, only a verdict that the passage does not support disputes an
+      // item. Any other item with no `supported` verdict waits, with no dispute and no check.
+      const verdictOf = (ref: string): CheckVerdict | 'unchecked' | undefined => {
+        if (verdicts === null) return 'unchecked';
+        const said = verdicts.get(ref);
+        if (reach?.checkMarks !== 'refuted') return said;
+        return said?.verdict === 'not_supported' ? said : 'unchecked';
+      };
       const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
-        disputeReason(
-          unstated,
-          verdicts === null ? 'unchecked' : verdicts.get(ref),
-          failure,
-          names,
-        );
+        disputeReason(unstated, verdictOf(ref), names);
 
       const items = prepared.map(({ given, act, cited, unstated, id }) => {
         const reason = reasonOf(given.ref, unstated);

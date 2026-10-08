@@ -87,8 +87,9 @@ const faultSentence = (cause: unknown): string => {
 };
 
 // The propose tool asks the checker before the write, and the verdicts become the checks of the
-// acts after it. A checker that is not ready makes each item of the batch disputed, with the
-// reason, and gives no check.
+// acts after it. Only a verdict that the passage does not support disputes an item. A checker
+// that fails or is not ready gives no dispute and no check, so the rules keep the unit waiting,
+// and a later call of the same batch can check it.
 const proposeReach = (
   reach: Reach | undefined,
   check: SecondCheck,
@@ -98,6 +99,7 @@ const proposeReach = (
 ): Reach => ({
   now: () => new Date(),
   ...reach,
+  checkMarks: 'refuted',
   check: async (items) => {
     if (!check.ready) throw new CheckFailure(`the server has no checker: ${check.reason}`);
     for (const [ref, verdict] of await checkBatch(check.setup, session, readerFamily, items))

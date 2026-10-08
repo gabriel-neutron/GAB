@@ -3,12 +3,15 @@
 // the owner to seed and to read, and as gabriel_research while the server works. Each model call
 // goes to the stub router of the worker tests: no test reaches a model.
 
+import { randomUUID } from 'node:crypto';
+
 import { openrouterModel } from '@gab/model';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { reference } from '../../../tools/author-fixture.ts';
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import {
   CHECKER,
@@ -85,10 +88,18 @@ const CALLS = `SELECT count(*)::int AS n FROM public.model_call
                 WHERE agent = 'research-check' AND requested_model = $1`;
 
 interface Run {
+  /** The answer of the last call. */
   readonly output: z.output<typeof outcome>;
   readonly acts: z.output<typeof acts>;
   readonly calls: number;
+  /** The rule of the unit of each act after each call. */
+  readonly rules: readonly (readonly (string | null)[])[];
+  /** The status of each act at the end. */
+  readonly statuses: readonly string[];
 }
+
+const RULES = `SELECT public.unit_rule(p.unit_id) AS rule, p.status FROM public.proposals p
+                WHERE $1 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`;
 
 // Every call of the server takes the one session of the test, as gabriel_research.
 const poolOf = (ask: Ask): SessionPool => ({
@@ -99,11 +110,13 @@ const poolOf = (ask: Ask): SessionPool => ({
     }),
 });
 
-// One batch through a server whose client gives the name `client`.
+// One call of propose with the same batch for each check, in one transaction, through a server
+// whose client gives the name `client`.
 const proposeThrough = (
-  check: SecondCheck | undefined,
+  checks: SecondCheck | readonly SecondCheck[],
   items: readonly unknown[],
   client = 'claude-code',
+  before: (ask: Ask) => Promise<unknown> = () => Promise.resolve(),
 ): Promise<Run> =>
   rolledBack('superuser', async (ask) => {
     await ask(STORE, [
@@ -117,25 +130,37 @@ const proposeThrough = (
       null,
     ]);
     await ask(WRITE_TEXT, [DOC, JSON.stringify([PAGE]), 'second-check-test-1']);
-    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
-    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-    await createServer(poolOf(ask), undefined, check).connect(serverSide);
-    const mcp = new Client({ name: client, version: '0.0.0' });
-    await mcp.connect(clientSide);
-    let text: string;
-    try {
-      const called = answer.parse(await mcp.callTool({ name: 'propose', arguments: { items } }));
-      text = called.content.map((part) => part.text).join('');
-      if (called.isError === true) throw new Error(`the server refused the batch: ${text}`);
-    } finally {
-      await mcp.close();
+    await before(ask);
+    let last: { rule: string | null; status: string }[] = [];
+    let text = '';
+    const rules: (string | null)[][] = [];
+    const rounds: readonly SecondCheck[] = 'ready' in checks ? [checks] : checks;
+    for (const check of rounds) {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+      const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+      await createServer(poolOf(ask), undefined, check).connect(serverSide);
+      const mcp = new Client({ name: client, version: '0.0.0' });
+      await mcp.connect(clientSide);
+      try {
+        const called = answer.parse(await mcp.callTool({ name: 'propose', arguments: { items } }));
+        text = called.content.map((part) => part.text).join('');
+        if (called.isError === true) throw new Error(`the server refused the batch: ${text}`);
+      } finally {
+        await mcp.close();
+      }
+      await ask('RESET SESSION AUTHORIZATION');
+      last = z
+        .array(z.object({ rule: z.string().nullable(), status: z.string() }))
+        .parse(await ask(RULES, [DOC]));
+      rules.push(last.map((row) => row.rule));
     }
-    await ask('RESET SESSION AUTHORIZATION');
     const [counted] = z.array(z.object({ n: z.number() })).parse(await ask(CALLS, [CHECKER.model]));
     return {
       output: outcome.parse(JSON.parse(text)),
       acts: acts.parse(await ask(ACTS, [DOC])),
       calls: counted?.n ?? 0,
+      rules,
+      statuses: last.map((row) => row.status),
     };
   });
 
@@ -208,27 +233,72 @@ test('a fact that its passage does not support is disputed with the reason of th
   });
 });
 
-test('a checker that fails gives no check, and each item is disputed with the reason', async () => {
-  const router = routerOf(
+const NO_CHECK = { dissent: false, dissent_reason: null, verdict: null, passed: null };
+
+const failing = (): StubRouter =>
+  routerOf(
     () => {
       throw new Error('the research check asks no reader');
     },
     () => new Response('{"error":{"message":"no credit"}}', { status: 402 }),
   );
+
+test('a checker that fails gives no dispute and no check, and the unit waits', async () => {
+  const router = failing();
   const run = await proposeThrough(checkOf(router), [NAYARA, ROSNEFT]);
 
   expect(router.checks()).toBe(1);
   expect(run.calls).toBe(1);
   expect(run.output.checkFailure).toBe('the checker failed: the model account has no credit left');
-  for (const act of run.acts) {
-    expect(act).toMatchObject({ dissent: true, verdict: null, passed: null });
-    expect(act.dissent_reason).toBe(
-      'no model checked it: the checker failed: the model account has no credit left',
-    );
-  }
+  expect(run.output.proposals.map((one) => one.disputed)).toStrictEqual([false, false]);
+  for (const act of run.acts) expect(act).toMatchObject(NO_CHECK);
+  expect(run.rules).toStrictEqual([['weak_sources', 'weak_sources']]);
 });
 
-test('an answer that names no item gives no check, and the item is disputed', async () => {
+test('the same batch sent again with the checker up gets its check, and the unit can pass', async () => {
+  const down = failing();
+  const up = routerOf(() => {
+    throw new Error('the research check asks no reader');
+  });
+  const author = `Port authority ${randomUUID()}`;
+  const run = await proposeThrough(
+    [checkOf(down), checkOf(up)],
+    [{ ...NAYARA, originator: author }],
+    'claude-code',
+    (ask) => reference(ask, author, 'A'),
+  );
+
+  expect([down.checks(), up.checks()]).toStrictEqual([1, 1]);
+  expect(run.output.checkFailure).toBeUndefined();
+  expect(run.acts).toStrictEqual([
+    {
+      label: 'Nayara',
+      dissent: false,
+      dissent_reason: null,
+      ...passedCheck,
+      verdict: 'supported',
+      passed: true,
+    },
+  ]);
+  // A source A waits for the check alone. After the check, the strong rule accepts the unit.
+  expect(run.rules[0]).toStrictEqual(['weak_sources']);
+  expect(run.statuses).toStrictEqual(['accepted']);
+});
+
+test('an unclear verdict is kept as a check that does not pass, with no dispute', async () => {
+  const router = routerOf(
+    () => {
+      throw new Error('the research check asks no reader');
+    },
+    () => verdictsOf([['nayara', 'unclear']]),
+  );
+  const run = await proposeThrough(checkOf(router), [NAYARA]);
+
+  expect(run.acts[0]).toMatchObject({ dissent: false, verdict: 'unclear', passed: false });
+  expect(run.rules).toStrictEqual([['weak_sources']]);
+});
+
+test('an answer that names no item gives no check and no dispute', async () => {
   const router = routerOf(
     () => {
       throw new Error('the research check asks no reader');
@@ -237,16 +307,10 @@ test('an answer that names no item gives no check, and the item is disputed', as
   );
   const run = await proposeThrough(checkOf(router), [NAYARA]);
 
-  expect(run.acts).toStrictEqual([
-    expect.objectContaining({
-      dissent: true,
-      dissent_reason: 'the checker did not answer',
-      verdict: null,
-    }),
-  ]);
+  expect(run.acts).toStrictEqual([expect.objectContaining(NO_CHECK)]);
 });
 
-test('a batch above the token cap asks no model, and its items stay with no check', async () => {
+test('a batch above the token cap asks no model, and its items wait with no check', async () => {
   const router = routerOf(() => {
     throw new Error('the research check asks no reader');
   });
@@ -255,10 +319,10 @@ test('a batch above the token cap asks no model, and its items stay with no chec
   expect(router.checks()).toBe(0);
   expect(run.calls).toBe(0);
   expect(run.output.checkFailure).toMatch(/^the batch needs about \d+ tokens, above the cap/u);
-  for (const act of run.acts) expect(act).toMatchObject({ dissent: true, verdict: null });
+  for (const act of run.acts) expect(act).toMatchObject(NO_CHECK);
 });
 
-test('a client of an unknown family asks no model, and its items stay with no check', async () => {
+test('a client of an unknown family asks no model, and its items wait with no check', async () => {
   const router = routerOf(() => {
     throw new Error('the research check asks no reader');
   });
@@ -268,21 +332,18 @@ test('a client of an unknown family asks no model, and its items stay with no ch
   expect(run.output.checkFailure).toBe(
     'the server does not know the model family of the research AI',
   );
-  expect(run.acts[0]).toMatchObject({ dissent: true, verdict: null });
+  expect(run.acts[0]).toMatchObject(NO_CHECK);
 });
 
-test('a server with no checker marks each item, and asks no model', async () => {
+test('a server with no checker asks no model, and says why in the answer', async () => {
   const run = await proposeThrough(
     { ready: false, reason: 'OPENROUTER_API_KEY is empty, absent or wrong.' },
     [NAYARA],
   );
 
   expect(run.calls).toBe(0);
-  expect(run.acts[0]).toMatchObject({
-    dissent: true,
-    dissent_reason:
-      'no model checked it: the server has no checker: OPENROUTER_API_KEY is empty, absent or ' +
-      'wrong.',
-    verdict: null,
-  });
+  expect(run.output.checkFailure).toBe(
+    'the server has no checker: OPENROUTER_API_KEY is empty, absent or wrong.',
+  );
+  expect(run.acts[0]).toMatchObject(NO_CHECK);
 });
