@@ -94,7 +94,7 @@ const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)';
 
 // The part of the answer of the propose tool that names the act of each item.
 const proposed = z.object({
-  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid(), written: z.boolean() })),
+  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid() })),
 });
 
 // Items that cite the same passages go to the checker in one question.
@@ -209,15 +209,16 @@ export const makeExtractor = (
       return verdicts;
     };
 
-    // Each act that this batch wrote keeps the verdict of the checker on its item. An item with
-    // no verdict keeps no check, and an act that an earlier batch wrote has its check already.
+    // Each act of the batch keeps the verdict of the checker on its item, also an act that an
+    // earlier job wrote with no check. The record keeps the first check of an act, so a second
+    // call changes nothing. An item with no verdict keeps no check.
     const recordChecks = async (
       output: unknown,
       verdicts: ReadonlyMap<string, CheckVerdict>,
     ): Promise<void> => {
       for (const one of proposed.parse(output).proposals) {
         const said = verdicts.get(one.ref);
-        if (!one.written || said === undefined) continue;
+        if (said === undefined) continue;
         await context.db.query(RECORD_CHECK, [
           one.proposalId,
           config.checker.model,

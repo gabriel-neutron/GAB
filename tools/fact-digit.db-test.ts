@@ -86,13 +86,21 @@ test('a fact with no passed check of a second model family has no digit', async 
   expect(read).toStrictEqual({ without: null, sameFamily: null, unclear: null });
 });
 
-test('the check is written once for an act, and only for an act of a machine', async () => {
+test('the check is written once for an act, the first one stays, and only an act of a machine has one', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     await twoAuthors(ask);
     const first = await cited(ask, { author: 'Author One', label: label(), ...ONE });
     await check(ask, first);
     return {
-      twice: await refusal(ask, () => check(ask, first)),
+      twice: await refusal(ask, () =>
+        as(ask, 'gabriel_agent', () =>
+          ask(CHECK, [first.act, 'another', 'openai', 'anthropic', 'not_supported']),
+        ),
+      ),
+      kept: await ask(
+        'SELECT checker_model, verdict FROM public.act_check WHERE proposal_id = $1::uuid',
+        [first.act],
+      ),
       unknown: await refusal(ask, () =>
         as(ask, 'gabriel_agent', () =>
           ask(CHECK, [
@@ -109,7 +117,9 @@ test('the check is written once for an act, and only for an act of a machine', a
       ),
     };
   });
-  expect(said.twice).toMatch(/duplicate key|act_check_pkey/u);
+  expect(said.twice).toBeNull();
+  expect(said.kept).toHaveLength(1);
+  expect(said.kept[0]).toMatchObject({ verdict: 'supported' });
   expect(said.unknown).toMatch(/act of a machine/u);
   expect(said.read).toMatch(/permission denied/u);
 });

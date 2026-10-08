@@ -172,10 +172,9 @@ doubt.
   for each item. An answer that is not "supported", or a checker that fails, marks the item as
   disputed when it is written, and the mark cannot change later. The item keeps the verdict and
   the short reason of the checker with the mark, as a private note for the review card. The
-  record also keeps each verdict as the check of its act, which the rules of ADR 0012 read. A failure
-  of the checker never
-  drops an item. The two families are set in the configuration, and the worker does not start
-  when they are the same. This check replaces the blind second reading, which wrote rows that
+  record also keeps each verdict as the check of its act, which the rules of ADR 0012 read. A
+  failure of the checker never drops an item. The two families are set in the configuration, and
+  the worker does not start when they are the same. This check replaces the blind second reading, which wrote rows that
   nothing read. **Cost:** one more call for each passage, from the same token budget, and the
   operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue

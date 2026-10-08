@@ -47,12 +47,14 @@ names the value.
 
 A rule starts a deepening search for a unit with weak sources only when the deepening budget is
 above zero. The budget is a setting of the database, not of `infra/.env`, and it starts at zero.
-To set the tokens of one search, run this statement as the superuser on the record:
+To set the tokens of one search, run this statement as the superuser `gabriel` on the record.
+On the local stack, type this in PowerShell at the root of the GAB checkout, on one line:
 
-```sql
-UPDATE rule_config SET version = version + 1,
-  settings = jsonb_build_object('deepening_tokens', 40000) WHERE rule = 'weak_sources';
+```powershell
+docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel -c "UPDATE rule_config SET version = version + 1, settings = jsonb_build_object('deepening_tokens', 40000) WHERE rule = 'weak_sources';"
 ```
+
+On a hosted database, run the same statement with `psql` and the connection of step 1 above.
 
 A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
 

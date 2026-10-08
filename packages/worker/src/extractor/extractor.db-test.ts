@@ -595,3 +595,38 @@ test('with a deepening budget, an extraction of a weak source starts one deepeni
     ]);
   });
 });
+
+test('an act that an earlier extraction wrote with no check gets its check from the next extraction', async () => {
+  await inTransaction(async (held) => {
+    const reader = (call: number) => answerOf(call === 1 ? [NAYARA] : [ROSNEFT]);
+    const down = routerOf(
+      reader,
+      () => new Response(JSON.stringify({ error: { message: 'down' } }), { status: 401 }),
+    );
+    expect(await held.step(makeExtractor(CONFIG), down)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await checksOf(held)).toStrictEqual([]);
+
+    // The operator queues the extraction again, and the checker answers this time.
+    const again = z
+      .array(z.object({ id: z.uuid() }))
+      .length(1)
+      .parse(
+        (await held.client.query("SELECT public.enqueue_job($1, 'extract_text') AS id", [DOCUMENT]))
+          .rows,
+      )[0]?.id;
+    await held.client.query(OLDEST, [again]);
+    expect(await held.step(makeExtractor(CONFIG), routerOf(reader))).toStrictEqual({
+      did: 'done',
+      job: again,
+    });
+    expect(await checksOf(held)).toStrictEqual([
+      checkOf('Nayara', 'supported'),
+      checkOf('Rosneft', 'supported'),
+    ]);
+    // The same acts, and no second act for each item.
+    expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Nayara', 'Rosneft']);
+  });
+});

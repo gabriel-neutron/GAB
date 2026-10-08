@@ -3762,8 +3762,10 @@ $$;
 -- ================================================================== THE CHECK AND THE DIGIT ==
 -- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
 -- and never that the fact is true. The row names the family of the reader and the family of the
--- checker: a check by the same family does not pass. A check is written once for an act.
--- The agent role gives both names, so the rules trust the worker (ADR 0012, trust boundary).
+-- checker: a check by the same family does not pass. A check is written once for an act: a second
+-- check of the same act changes nothing, and the first one stays. So a worker that writes the
+-- check again after a stop or a retry is safe. The agent role gives both names, so the rules trust
+-- the worker (ADR 0012, trust boundary).
 CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
                                             p_checker_family text, p_reader_family text,
                                             p_verdict text)
@@ -3776,7 +3778,8 @@ BEGIN
     RAISE EXCEPTION 'a check belongs to an act of a machine' USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
-  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict);
+  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict)
+  ON CONFLICT (proposal_id) DO NOTHING;
   -- The end of the check makes the units that share the fact go through the rules again.
   PERFORM public.run_rules(ARRAY(
     SELECT DISTINCT q.unit_id FROM public.proposals q
