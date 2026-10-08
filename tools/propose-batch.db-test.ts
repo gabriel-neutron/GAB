@@ -11,11 +11,14 @@ import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_propose_batch';
 const OTHER = 'doc_propose_batch_other';
+const IMAGE = 'doc_propose_batch_image';
 const EXTRACTOR = 'propose-batch-test@1';
 const PAGE = 'The tanker Nayara left Sikka on 3 May 2026.';
 
 const PUT = `SELECT public.put_document($1, 'file', 'A test of the batch door', $2, NULL, NULL,
   NULL, 'application/pdf', '2026-10-06'::date)`;
+const PUT_IMAGE = `SELECT public.put_document($1, 'file', 'A unit tree of the batch door', $2,
+  NULL, NULL, NULL, 'image/png', '2026-10-09'::date)`;
 const TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
 const CALL = `SELECT public.record_model_call('extractor', 'v2', 'openrouter', 'a-model', $1, 120,
   'ok', NULL, 'a-model', 10, 5) AS id`;
@@ -33,6 +36,8 @@ const seed = async (ask: Ask): Promise<string> => {
   await ask(PUT, [DOC, 'raw/propose-batch.pdf']);
   await ask(PUT, [OTHER, 'raw/propose-batch-other.pdf']);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
+  await ask(PUT_IMAGE, [IMAGE, 'raw/propose-batch.png']);
+  await ask(TEXT, [IMAGE, JSON.stringify(['Nayara Sikka']), EXTRACTOR]);
   const [call] = z
     .array(z.object({ id: z.uuid() }))
     .parse(await as(ask, 'gabriel_agent', () => ask(CALL, ['d'.repeat(64)])));
@@ -92,6 +97,47 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
         citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, start: 0, end: 4 }],
       }),
     /^item 1: .*not a source of the act/u,
+  ],
+  [
+    'a transcription of a document that is no image',
+    (call) =>
+      itemOf(call, {
+        dissent: true,
+        citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara' }],
+      }),
+    /^item 1: document doc_propose_batch is no PNG or JPEG image/u,
+  ],
+  [
+    'a transcription and a span in one citation',
+    (call) =>
+      itemOf(call, {
+        src: [IMAGE],
+        payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+        dissent: true,
+        citations: [
+          {
+            document: IMAGE,
+            text_extractor: EXTRACTOR,
+            page: 1,
+            start: 0,
+            end: 6,
+            transcription: 'Nayara',
+          },
+        ],
+      }),
+    /^item 1: .*gives a span or a transcription, and never both/u,
+  ],
+  [
+    'a transcription and no dispute',
+    (call) =>
+      itemOf(call, {
+        src: [IMAGE],
+        payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+        citations: [
+          { document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara' },
+        ],
+      }),
+    /^item 1: an act that cites words read from an image is disputed/u,
   ],
   ['no originator', (call) => itemOf(call, { originator: ' ' }), /^item 1: .*first stated it/u],
   ['no model call', () => itemOf(null), /^item 1: .*names the model call/u],
@@ -265,4 +311,36 @@ test('the door refuses an identifier that a row of the record already holds', as
       /^item 1: the identifier .* is already the identifier/u,
     ) as string,
   });
+});
+
+test('a transcription is quoted as it is, marked as read from the image, and gives its words', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const transcribed = itemOf(null, {
+      src: [IMAGE],
+      payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+      dissent: true,
+      dissent_reason: 'an excerpt is read from the image by the AI',
+      citations: [
+        { document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara > Sikka' },
+      ],
+    });
+    await batchAs(ask, 'gabriel_research', [transcribed]);
+    return {
+      quoted: await ask(
+        `SELECT q.doc_id, q.page, q.before, q.cited, q.after, q.transcribed
+           FROM public.cited_passages(ARRAY[$1::uuid]) AS q`,
+        [transcribed['id']],
+      ),
+      words: await ask(
+        `SELECT s.words FROM public.citation c, public.citation_source(c.id) AS s
+          WHERE c.claim_id = $1::uuid`,
+        [transcribed['id']],
+      ),
+    };
+  });
+  expect(found.quoted).toStrictEqual([
+    { doc_id: IMAGE, page: 1, before: '', cited: 'Nayara > Sikka', after: '', transcribed: true },
+  ]);
+  expect(found.words).toStrictEqual([{ words: ['nayara', 'sikka'] }]);
 });

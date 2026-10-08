@@ -32,7 +32,8 @@ One fact is one item of a batch:
 
 Each fact cites at least one stored document, with the page and an excerpt that states each value
 of the fact: the name, each attribute value, each date, each number. Copy the excerpt word for
-word from the stored text (`document_text`), not from the web page that you saw.
+word from the stored text (`document_text`), not from the web page that you saw. For a PNG or
+JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to cite the image.
 
 ## What never goes into Gabriel
 

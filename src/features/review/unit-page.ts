@@ -113,7 +113,8 @@ export type UnitAct =
 
 /** The words of a page that an act cites, with up to two lines before and after them.
  * `supports` names the element of the act. `ownLine` says that the words are the whole line of the
- * unit, and that the lines around them state other units. */
+ * unit, and that the lines around them state other units. `transcribed` says that the AI read the
+ * words from a cited image, so the stored text does not hold them and no line stands around them. */
 export interface Passage {
   readonly act: string;
   readonly supports: string;
@@ -123,6 +124,7 @@ export interface Passage {
   readonly before: string;
   readonly text: string;
   readonly after: string;
+  readonly transcribed: boolean;
 }
 
 export interface SourceDocument {
@@ -290,6 +292,7 @@ const answer = z.object({
           before: z.string(),
           text: z.string(),
           after: z.string(),
+          transcribed: z.boolean(),
         }),
       ),
     }),

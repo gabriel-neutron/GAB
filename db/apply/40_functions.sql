@@ -537,7 +537,9 @@ END $$;
 --
 -- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
 -- attributes. A machine act cites at least one page. The page exists in the text of the document,
--- the span lies in that page, and the document is a source of the act. Each refusal names the
+-- the span lies in that page, and the document is a source of the act. A citation of a PNG or JPEG
+-- document can give a transcription in place of a span: the words that the AI read from the image.
+-- Its act is disputed, so the operator compares the words with the image. Each refusal names the
 -- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
 -- model gets its fault before the write; the promotion holds those two rules too.
 --
@@ -680,6 +682,28 @@ BEGIN
           v_cite->>'page', v_cite->>'text_extractor', v_cite->>'document'
           USING ERRCODE = 'invalid_parameter_value';
       END IF;
+      -- A TRANSCRIPTION IS WORDS THAT THE AI READ FROM AN IMAGE, which the OCR text does not hold.
+      -- Only a PNG or JPEG document has one, and only an act that the operator sees as disputed.
+      IF v_cite ? 'transcription' THEN
+        IF v_cite ? 'start' OR v_cite ? 'end' THEN
+          RAISE EXCEPTION 'item %: a citation of page % of % gives a span or a transcription, '
+                          'and never both', v_no, v_cite->>'page', v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM public.documents d
+                        WHERE d.id = v_cite->>'document'
+                          AND lower(split_part(d.mime, ';', 1)) IN ('image/png', 'image/jpeg')) THEN
+          RAISE EXCEPTION 'item %: document % is no PNG or JPEG image, so its citation gives the '
+                          'span of an excerpt of its text', v_no, v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF NOT coalesce((v_item->>'dissent')::boolean, false) THEN
+          RAISE EXCEPTION 'item %: an act that cites words read from an image is disputed, so '
+                          'the operator compares them with the image', v_no
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        CONTINUE;
+      END IF;
       -- char_length counts the characters of the database encoding, which is UTF-8: code points.
       IF coalesce((v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
                   OR (v_cite->>'end')::int > v_length, true) THEN
@@ -771,15 +795,28 @@ BEGIN
       v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
     END IF;
 
-    INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+    -- An act that waits already and is not disputed takes no words read from an image.
+    IF NOT written
+       AND EXISTS (SELECT 1 FROM jsonb_array_elements(v_item->'citations') AS c
+                    WHERE c ? 'transcription')
+       AND NOT (SELECT p.dissent FROM public.proposals p WHERE p.id = v_id) THEN
+      RAISE EXCEPTION 'item %: the act that this item repeats waits with no dispute, so it takes '
+                      'no words read from an image', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    INSERT INTO public.citation
+      (claim_id, doc_id, text_extractor, page, start, "end", transcription, modality)
     SELECT DISTINCT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int,
-           (c->>'start')::int, (c->>'end')::int, v_item->>'modality'
+           (c->>'start')::int, (c->>'end')::int, c->>'transcription', v_item->>'modality'
       FROM jsonb_array_elements(v_item->'citations') AS c
      WHERE NOT EXISTS (
              SELECT 1 FROM public.citation h
               WHERE h.claim_id = v_id AND h.doc_id = c->>'document'
                 AND h.text_extractor = c->>'text_extractor' AND h.page = (c->>'page')::int
-                AND h.start = (c->>'start')::int AND h."end" = (c->>'end')::int
+                AND h.start IS NOT DISTINCT FROM (c->>'start')::int
+                AND h."end" IS NOT DISTINCT FROM (c->>'end')::int
+                AND h.transcription IS NOT DISTINCT FROM c->>'transcription'
                 AND h.modality = v_item->>'modality');
 
     v_written := v_written || v_id;
@@ -2050,8 +2087,13 @@ $$;
 -- its line. A substr of a long page counts the code points from its start at each call. Measured
 -- on 7 October 2026: the one page of the v1 import holds about 500,000 characters, and a substr
 -- for each citation took 2.7 s for a page of 200 units.
-CREATE OR REPLACE FUNCTION cited_passages(p_claims uuid[])
-RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text)
+--
+-- A citation with a transcription gives its words as they are, with no line before or after, and
+-- `transcribed` says that the AI read them from the image.
+DROP FUNCTION IF EXISTS cited_passages(uuid[]);
+CREATE FUNCTION cited_passages(p_claims uuid[])
+RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text,
+               transcribed boolean)
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_page  record;
@@ -2062,8 +2104,13 @@ DECLARE
   v_last  int;
   v_count int;
 BEGIN
+  RETURN QUERY
+    SELECT c.claim_id, c.doc_id::text, c.page, ''::text, c.transcription, ''::text, true
+      FROM public.citation c
+     WHERE c.claim_id = ANY (p_claims) AND c.transcription IS NOT NULL;
+  transcribed := false;
   FOR v_page IN SELECT DISTINCT c.doc_id, c.text_extractor, c.page FROM public.citation c
-                 WHERE c.claim_id = ANY (p_claims) LOOP
+                 WHERE c.claim_id = ANY (p_claims) AND c.transcription IS NULL LOOP
     SELECT string_to_array(t.text, E'\n') INTO v_lines FROM public.document_text t
      WHERE t.document_id = v_page.doc_id AND t.extractor = v_page.text_extractor
        AND t.page = v_page.page;
@@ -2078,6 +2125,7 @@ BEGIN
     FOR v_cite IN SELECT c.claim_id, c.start, c."end" FROM public.citation c
                    WHERE c.claim_id = ANY (p_claims) AND c.doc_id = v_page.doc_id
                      AND c.text_extractor = v_page.text_extractor AND c.page = v_page.page
+                     AND c.transcription IS NULL
                    ORDER BY c.start, c.claim_id LOOP
       WHILE v_first < v_count AND v_at[v_first + 1] <= v_cite.start LOOP
         v_first := v_first + 1;
@@ -2961,7 +3009,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'supports', coalesce(public.element_name(coalesce(a.target_id, a.id)), a.op),
              'ownLine', a.proposer = 'v1_import',
              'document', q.doc_id, 'page', q.page, 'before', q.before,
-             'text', q.cited, 'after', q.after)
+             'text', q.cited, 'after', q.after, 'transcribed', q.transcribed)
              ORDER BY q.claim_id, q.doc_id, q.page) AS passages
       FROM public.cited_passages(ARRAY(SELECT id FROM acts)) AS q
       JOIN acts a ON a.id = q.claim_id
@@ -3733,7 +3781,14 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT a.id,
          coalesce(public.name_key(a.controller), a.name_key),
          public.site_of(d.uri),
-         public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end"),
+         -- The words that the AI read from an image are the passage of that citation.
+         CASE WHEN c.transcription IS NOT NULL
+              THEN coalesce(array(
+                     SELECT w FROM regexp_split_to_table(
+                       lower(regexp_replace(c.transcription, '[^[:alnum:]]+', ' ', 'g')), ' ') AS w
+                     WHERE w <> ''), '{}'::text[])
+              ELSE public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end")
+         END,
          c.modality IN ('enacts', 'asserts')
     FROM public.citation c
     JOIN public.proposals p ON p.id = c.claim_id
