@@ -1235,8 +1235,8 @@ BEGIN
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
   -- A named rule runs in the transaction of the act, and it is no machine that decides: no role
-  -- holds the function of the rules, so the rule gives its origin and skips this test.
-  IF p_origin IS NULL AND EXISTS (SELECT 1 FROM public.proposals
+  -- holds the function of the rules, so a rule skips this test. Every other decision takes it.
+  IF p_mode IS DISTINCT FROM 'rule' AND EXISTS (SELECT 1 FROM public.proposals
               WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
     RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
                     'the transaction that proposed it', p_unit

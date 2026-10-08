@@ -108,14 +108,15 @@ test('no door is open to PUBLIC or to the public read role', async () => {
 
 // Any door that decides a proposal has "promote", "reject" or "decide" in its name, so a new door
 // of that kind falls under the rule with no edit here. The act of the operator promotes the proposal it
-// writes, and the step that writes the record runs inside both, so the two are named.
+// writes, and the steps that write the record run inside the doors, so each one is named.
 const DECIDING_DOORS_HELD = `
   SELECT r.role, p.oid::regprocedure::text AS door
     FROM pg_catalog.pg_proc p
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
+                         'write_unit', 'write_unit_as', 'ai_decision'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')
    ORDER BY 1, 2`;
 
@@ -123,7 +124,8 @@ const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
+                         'write_unit', 'write_unit_as', 'ai_decision'))`;
 
 // The research role decides only as an AI reviewer: three doors that record their own origin.
 // The worker decides nothing. The read of the decided acts has "decide" in its name.
