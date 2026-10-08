@@ -314,12 +314,17 @@ Agents, models and prompts can change freely.
 ### P5 — Text formats and images
 
 **Rule.** Text PDF, docx, txt, md, html, csv, and a PNG or JPEG image. No audio, no video. The first
-reading of an image is OCR, and a proposal cites an excerpt of that text. The image bytes stay the
-stored source. The review page shows the image next to the excerpt.
+reading of an image is OCR, and a proposal cites an excerpt of that text. When the OCR text does not
+hold what the image shows, the research AI cites the words that it read from the image itself. Such
+a proposal is always disputed. A back-end agent reads the stored text only, so it never cites words
+read from an image. The image bytes stay the stored source. The review page shows the image next to
+the excerpt, and says when the AI read the words.
 **Why.** Each new format is a new pipeline to build and keep. An investigative source, for example a
-unit tree of Tochnyi, publishes its facts as an image only.
-**Cost.** OCR can misread a character, so the operator compares the excerpt with the image before a
-promotion. A scanned PDF is converted outside the tool first.
+unit tree of Tochnyi, publishes its facts as an image only. Its OCR text mixes the columns of the
+tree and misreads the unit numbers, so it does not state the parent of a unit (operator decision,
+9 October 2026).
+**Cost.** OCR and the AI can each misread a character, so the operator compares the excerpt with the
+image before a promotion. A scanned PDF is converted outside the tool first.
 
 ### P6 — One ingestion door
 

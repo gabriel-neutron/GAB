@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
+import { proposeOf } from './propose.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
 
 const SHA = 'f'.repeat(64);
@@ -434,6 +435,101 @@ test('a value that its excerpt does not state marks the item as disputed', async
   expect(found.rows[0]).toMatchObject({
     dissent: true,
     dissent_reason: 'no cited passage states attrs.flag "Panama"',
+  });
+});
+
+// A unit tree drawn as an image: its OCR text mixes the columns, so it holds no parent.
+const IMAGE_SHA = 'e'.repeat(64);
+const IMAGE_DOC = `doc_${IMAGE_SHA.slice(0, 12)}`;
+const READ_FROM_IMAGE = '1453rd Motorized Rifle Regiment > Ural Drone Crew';
+
+const proposeOnImage = async (ask: Ask, items: readonly unknown[]) => {
+  await asResearch(ask, async () => {
+    await ask(STORE, [
+      'url',
+      'A unit tree of the tool test',
+      `raw/${IMAGE_SHA}`,
+      'https://example.org/unit-tree.png',
+      IMAGE_SHA,
+      'image/png',
+      '2026-10-09',
+      null,
+    ]);
+    await ask(WRITE_TEXT, [
+      IMAGE_DOC,
+      JSON.stringify(['1453rd Rifle Ural Crew Drone']),
+      'tool-test-1',
+    ]);
+  });
+  return proposeAgain(ask, items);
+};
+
+const fromImage = (document: string) => ({
+  ref: 'crew',
+  act: { op: 'create_entity', type: 'military_unit', label: 'Ural Drone Crew' },
+  originator: 'Tochnyi',
+  modality: 'asserts',
+  evidence: [{ document, page: 1, excerpt: READ_FROM_IMAGE, fromImage: true }],
+});
+
+const TRANSCRIBED = `SELECT p.dissent, p.dissent_reason, c.start, c."end", c.transcription
+  FROM public.proposals p JOIN public.citation c ON c.claim_id = p.id
+  WHERE p.src::text[] @> ARRAY[$1::text]`;
+
+const transcribedRows = z.array(
+  z.object({
+    dissent: z.boolean(),
+    dissent_reason: z.string().nullable(),
+    start: z.number().nullable(),
+    end: z.number().nullable(),
+    transcription: z.string().nullable(),
+  }),
+);
+
+test('words read from an image are cited as a transcription, and the item is disputed', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const first = await proposeOnImage(ask, [fromImage(IMAGE_DOC)]);
+    const again = await proposeAgain(ask, [fromImage(IMAGE_DOC)]);
+    return {
+      first: batchOf(first),
+      again: batchOf(again),
+      rows: transcribedRows.parse(await ask(TRANSCRIBED, [IMAGE_DOC])),
+    };
+  });
+  expect(found.first.proposals).toMatchObject([{ written: true, disputed: true }]);
+  expect(found.again.proposals).toMatchObject([{ written: false }]);
+  expect(found.rows).toStrictEqual([
+    {
+      dissent: true,
+      dissent_reason:
+        'an excerpt is read from the image by the AI: compare its words with the image',
+      start: null,
+      end: null,
+      transcription: READ_FROM_IMAGE,
+    },
+  ]);
+});
+
+test('words read from an image are refused for a document that is no image', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(ask, [fromImage(DOC)]);
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item crew: .*is no PNG or JPEG image/u) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+test('a back-end agent never cites words read from an image', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    return callTool(proposeOf(ABSENT), sessionOf(ask), { items: [fromImage(DOC)] });
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item crew: an agent cites the stored text/u) as string,
   });
 });
 
