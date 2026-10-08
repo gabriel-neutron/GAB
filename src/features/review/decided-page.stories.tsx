@@ -3,7 +3,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { decidedRows } from './decided';
 import { DecidedPage } from './decided-page';
-import { DECIDED_SAMPLE } from './decided-sample';
+import { DECIDED_SAMPLE, RULE_DECIDED } from './decided-sample';
 
 const ROWS = decidedRows(DECIDED_SAMPLE);
 
@@ -43,15 +43,34 @@ export const ARejectionShowsItsReasonAndNote: Story = {
   },
 };
 
-/** The decided history names the operator, and a group action as a group action. */
+/** The decided history says "validated manually" for the operator, and a group action as a group
+ * action. */
 export const TheDecisionModeIsNamed: Story = {
   play: async ({ canvas, canvasElement }) => {
     const rows = canvasElement.querySelectorAll('[data-decided]');
-    await expect(rows[0]).toHaveTextContent('the operator, group action');
-    await expect(rows[2]).toHaveTextContent('the operator');
+    await expect(rows[0]).toHaveTextContent('validated manually by the operator, group action');
+    await expect(rows[2]).toHaveTextContent('validated manually by the operator');
     await expect(canvas.getByRole('columnheader', { name: 'Decided by' })).toBeInTheDocument();
     await expect(canvas.queryByRole('columnheader', { name: 'Keys' })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/A hold is not listed/)).not.toBeInTheDocument();
+  },
+};
+
+/** A decision of a rule names the rule, and no word makes it a decision of the operator. */
+export const ARuleDecisionNamesTheRule: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: decidedRows([RULE_DECIDED]),
+      unread: 0,
+      why: null,
+      more: 'none',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const [row] = canvasElement.querySelectorAll('[data-decided]');
+    await expect(row).toHaveTextContent('accepted by the rule strong sources, version 1');
+    await expect(row).not.toHaveTextContent(/operator/u);
   },
 };
 
@@ -96,7 +115,7 @@ export const AnEmptyHistoryIsSaid: Story = {
   args: { view: { state: 'held', rows: [], unread: 0, why: null, more: 'none' } },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelectorAll('[data-decided]')).toHaveLength(0);
-    await expect(canvas.getByText('The operator decided no act yet.')).toBeInTheDocument();
+    await expect(canvas.getByText('No act was decided yet.')).toBeInTheDocument();
   },
 };
 

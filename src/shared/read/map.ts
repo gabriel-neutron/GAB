@@ -294,6 +294,7 @@ function proposal(row: unknown): Proposal {
     decidedAt: read.decided_at,
     decidedBy: read.decided_by,
     decidedAs: read.decided_as,
+    decisionOrigin: read.decision_origin,
     batchId: read.batch_id,
   };
 }

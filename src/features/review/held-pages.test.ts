@@ -11,6 +11,8 @@ const unitOf = (id: string): Unit => ({
   proposer: 'v1_import',
   group: null,
   state: 'clean',
+  lane: 'waiting',
+  said: '',
   faults: [],
   endRejected: false,
   acts: [],
@@ -29,6 +31,7 @@ const pageOf = (
   total: 5,
   matched: 5,
   before: 0,
+  counts: { decided: 0, doubt: 0, waiting: 5 },
   choices: { groups: [], documents: [], proposers: [] },
 });
 

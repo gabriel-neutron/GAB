@@ -6,11 +6,13 @@ import { cn } from '@/shared/lib/utils';
 import { faultMarks } from './fault-marks';
 import { queueWords } from './queue-words';
 import type { UnitWords } from './unit-changes';
-import type { FaultLevel, Unit, UnitState } from './unit-page';
+import type { FaultLevel, Lane, Unit, UnitState } from './unit-page';
 
-/** The units read so far, the count of every unit, the count of the units that the filter keeps
- * and of those before the first unit read, and whether a next page waits. */
+/** The list that it shows, the units read so far, the count of every unit of the list, the count
+ * of the units that the filter keeps and of those before the first unit read, and whether a next
+ * page waits. */
 export interface UnitQueue {
+  readonly lane: Lane;
   readonly units: readonly Unit[];
   readonly total: number;
   readonly matched: number;
@@ -44,6 +46,9 @@ const typeOf = (unit: Unit, words: UnitWords): string => {
   if (unit.type === null) return 'change';
   return unit.kind === 'entity' ? words.entityType(unit.type) : words.relation(unit.type).label;
 };
+
+// The line says the reason of a doubt, or the source that a waiting unit needs.
+const SAID_LABEL: Readonly<Record<Lane, string>> = { doubt: 'Doubt', waiting: 'Needs' };
 
 const groupOf = (unit: Unit): string =>
   unit.group === null ? 'no group' : `group ${unit.group.subject ?? 'with no subject'}`;
@@ -90,7 +95,7 @@ function Marks({ unit }: { readonly unit: Unit }) {
 }
 
 export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
-  const { units, total, matched, before, filtered, more } = queue;
+  const { lane, units, total, matched, before, filtered, more } = queue;
   // The line of the selected unit scrolls into view once for each unit, also after a reload. A
   // later render does not move the list that the operator scrolled.
   const shown = useRef<string | null>(null);
@@ -99,7 +104,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
     shown.current = selectedId;
     line.scrollIntoView({ block: 'nearest' });
   };
-  const said = queueWords({ read: units.length, before, matched, total, filtered });
+  const said = queueWords({ read: units.length, before, matched, total, filtered, lane });
   return (
     <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
       <p className="shrink-0 border-b border-border px-2 py-1 text-small/4 text-label">
@@ -157,6 +162,12 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   </span>
                   <span className="sr-only">{groupOf(unit)}</span>
                 </span>
+                {unit.said === '' ? null : (
+                  <span data-said={unit.lane} className="w-full min-w-0 text-small/4 break-words">
+                    <span className="text-label">{SAID_LABEL[unit.lane]}: </span>
+                    {unit.said}
+                  </span>
+                )}
                 <Marks unit={unit} />
               </button>
             </li>

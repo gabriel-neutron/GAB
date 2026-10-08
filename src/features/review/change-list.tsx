@@ -149,7 +149,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
           <Attributes attributes={entity.attributes} />
           {entity.importKeys.length === 0 ? null : (
             <>
-              <h3 className={HEADING}>Import keys</h3>
+              <h3 className={HEADING}>Source keys</h3>
               <Attributes attributes={entity.importKeys} />
             </>
           )}

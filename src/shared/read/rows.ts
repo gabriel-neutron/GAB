@@ -119,7 +119,10 @@ export const row = {
     created_at: text('proposal.created_at'),
     decided_at: nullableText('proposal.decided_at'),
     decided_by: nullableText('proposal.decided_by'),
-    decided_as: z.enum(['unit', 'relation', 'group'], stated('proposal.decided_as')).nullable(),
+    decided_as: z
+      .enum(['unit', 'relation', 'group', 'rule'], stated('proposal.decided_as'))
+      .nullable(),
+    decision_origin: nullableText('proposal.decision_origin'),
     batch_id: nullableText('proposal.batch_id'),
     proposer: z.enum(PROPOSERS, stated('proposal.proposer')),
   }),

@@ -36,13 +36,11 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
   if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
   const { rows, unread, why, more } = view;
   return (
-    <section
-      aria-label="What the operator decided"
-      className="flex h-full min-h-0 flex-col gap-2 p-2"
-    >
+    <section aria-label="What was decided" className="flex h-full min-h-0 flex-col gap-2 p-2">
       <p className="max-w-[60rem] shrink-0 text-xs text-label">
-        Each act that the operator promoted or rejected, the latest decision first. A decided act is
-        frozen. The reason and the note of a rejection are private to the operator.
+        Each act that was promoted or rejected, by a rule or by the operator, the latest decision
+        first. A decided act is frozen. The reason and the note of a rejection are private to the
+        operator.
       </p>
 
       {unread === 0 ? null : (
@@ -53,7 +51,7 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
       )}
 
       {rows.length === 0 ? (
-        <p className="text-xs text-label">The operator decided no act yet.</p>
+        <p className="text-xs text-label">No act was decided yet.</p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
           <table className="w-full border-collapse text-xs">

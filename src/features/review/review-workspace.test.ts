@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { NO_FILTER, patchQueueFilter, readReviewWorkspace } from './review-workspace';
+import { filterIsOn, NO_FILTER, patchQueueFilter, readReviewWorkspace } from './review-workspace';
 
 // The offline project has no browser, so the store of the workspace is a map here.
 const storage = (): void => {
@@ -31,6 +31,18 @@ it('merges a late name into the newest filter, and keeps a choice made after the
     name: 'arsenal',
   });
   expect(readReviewWorkspace().filter.proposer).toBe('extractor');
+});
+
+it('opens on the doubts, and keeps the list that the operator chose after a reload', () => {
+  storage();
+  expect(readReviewWorkspace().filter.lane).toBe('doubt');
+  patchQueueFilter({ lane: 'waiting' });
+  expect(readReviewWorkspace().filter.lane).toBe('waiting');
+});
+
+it('does not count the list as a filter, so no clear button shows for it', () => {
+  expect(filterIsOn({ ...NO_FILTER, lane: 'waiting' })).toBe(false);
+  expect(filterIsOn({ ...NO_FILTER, name: 'arsenal' })).toBe(true);
 });
 
 it('puts the place at the first unit after a change of the filter', () => {
