@@ -76,8 +76,8 @@ session: each proposal waits in the review queue, and the operator decides it th
    date>". GAB voice never uses "evader", "shadow fleet vessel" or "fraudulent registry" unless an
    issuer text uses the word, with that text cited.
 7. **Work in ASD-STE100 Simplified Technical English. Write the deliverables in French** (the
-   CARTO plan). Your messages, your notes and your comments on a ticket are in ASD-STE100
-   English. A name, a label, an identifier and an excerpt stay as the source writes them, because
+   CARTO plan). Your chat replies to the operator are in French. Your notes and your comments on a ticket
+   are in ASD-STE100 English. A name, a label, an identifier and an excerpt stay as the source writes them, because
    code finds each value in its excerpt. Free text that you write into Gabriel is in French.
 8. **A refusal tells you what to correct.** It names the field, or the item of a batch, and the
    reason. Correct that part and call the tool again once.
