@@ -27,6 +27,15 @@ const CONTROL = cn(
   'transition-colors duration-100 hover:bg-muted',
 );
 
+type ChipKey = 'group' | 'proposer' | 'fault' | 'document';
+
+const CLEAR: Readonly<Record<ChipKey, Partial<QueueFilter>>> = {
+  group: { group: null },
+  proposer: { proposer: null },
+  fault: { fault: null },
+  document: { document: null },
+};
+
 // Origin: decided, not calibrated. A pause of this length ends a word, and a fast typist reads the
 // queue once per word, not once per key.
 const TYPING_PAUSE_MS = 300;
@@ -42,6 +51,8 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
   const ids = useId();
   // The text in the field dies with the view: the filter that applies is in the workspace.
   const [name, setName] = useState(filter.name);
+  // The panel of choices is closed at rest, and it dies with the view.
+  const [open, setOpen] = useState(false);
   const pause = useRef<ReturnType<typeof setTimeout> | null>(null);
   const on = (patch: Partial<QueueFilter>): void => {
     onFilter(patch);
@@ -56,122 +67,189 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
   };
   const groups = choices.groups.map((group) => group.id);
   const documents = choices.documents.map((document) => document.id);
+  const groupName = (id: string): string =>
+    choices.groups.find((group) => group.id === id)?.subject ?? 'with no subject';
+  const documentOf = (id: string): string => {
+    const held = choices.documents.find((document) => document.id === id);
+    return held === undefined ? id : documentName({ ...held, uri: null, mime: null });
+  };
+  const chips: readonly { readonly key: ChipKey; readonly words: string }[] = [
+    ...(filter.group === null ? [] : [{ key: 'group' as const, words: groupName(filter.group) }]),
+    ...(filter.proposer === null
+      ? []
+      : [{ key: 'proposer' as const, words: proposerWords(filter.proposer) }]),
+    ...(filter.fault === null ? [] : [{ key: 'fault' as const, words: faultWords(filter.fault) }]),
+    ...(filter.document === null
+      ? []
+      : [{ key: 'document' as const, words: documentOf(filter.document) }]),
+  ];
+
+  const count = chips.length;
+  const select = (
+    id: string,
+    label: string,
+    value: string,
+    every: string,
+    options: readonly { readonly value: string; readonly words: string }[],
+    onChange: (value: string) => void,
+  ) => (
+    <div className="min-w-0 space-y-0.5">
+      <label htmlFor={id} className="text-small/4 text-label">
+        {label}
+      </label>
+      <select
+        id={id}
+        className={CHOOSER}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      >
+        <option value="">{every}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.words}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
   return (
     <form
       aria-label="Filter the queue"
-      className="grid shrink-0 grid-cols-2 gap-1 border-b border-border p-1 text-xs"
+      className="shrink-0 space-y-1 border-b border-border p-1 text-xs"
       onSubmit={(event) => {
         event.preventDefault();
         applyName();
       }}
     >
-      <label htmlFor={`${ids}-name`} className="sr-only">
-        Name
-      </label>
-      <Input
-        id={`${ids}-name`}
-        type="search"
-        className="col-span-2 h-6 min-w-0 rounded-none px-1.5 py-0 text-xs md:text-xs"
-        placeholder="Name"
-        value={name}
-        onChange={(event) => {
-          const typed = event.target.value;
-          setName(typed);
-          stopPause();
-          pause.current = setTimeout(() => {
-            applyName(typed);
-          }, TYPING_PAUSE_MS);
-        }}
-        onBlur={() => {
-          applyName();
-        }}
-      />
-      <label htmlFor={`${ids}-group`} className="sr-only">
-        Group
-      </label>
-      <select
-        id={`${ids}-group`}
-        className={CHOOSER}
-        value={filter.group ?? ''}
-        onChange={(event) => {
-          on({ group: chosen(event.target.value, groups) });
-        }}
-      >
-        <option value="">Every group</option>
-        {choices.groups.map((group) => (
-          <option key={group.id} value={group.id}>
-            {group.subject ?? 'with no subject'}
-          </option>
-        ))}
-      </select>
-      <label htmlFor={`${ids}-proposer`} className="sr-only">
-        Proposer
-      </label>
-      <select
-        id={`${ids}-proposer`}
-        className={CHOOSER}
-        value={filter.proposer ?? ''}
-        onChange={(event) => {
-          on({ proposer: chosen(event.target.value, choices.proposers) });
-        }}
-      >
-        <option value="">Every proposer</option>
-        {choices.proposers.map((proposer) => (
-          <option key={proposer} value={proposer}>
-            {proposerWords(proposer)}
-          </option>
-        ))}
-      </select>
-      <label htmlFor={`${ids}-fault`} className="sr-only">
-        Fault
-      </label>
-      <select
-        id={`${ids}-fault`}
-        className={CHOOSER}
-        value={filter.fault ?? ''}
-        onChange={(event) => {
-          on({ fault: chosen<FaultKind>(event.target.value, FAULT_KINDS) });
-        }}
-      >
-        <option value="">Every fault</option>
-        {FAULT_KINDS.map((kind) => (
-          <option key={kind} value={kind}>
-            {faultWords(kind)}
-          </option>
-        ))}
-      </select>
-      <label htmlFor={`${ids}-document`} className="sr-only">
-        Source document
-      </label>
-      <select
-        id={`${ids}-document`}
-        className={CHOOSER}
-        value={filter.document ?? ''}
-        onChange={(event) => {
-          on({ document: chosen(event.target.value, documents) });
-        }}
-      >
-        <option value="">Every document</option>
-        {choices.documents.map((document) => (
-          <option key={document.id} value={document.id}>
-            {documentName({ ...document, uri: null, mime: null })}
-          </option>
-        ))}
-      </select>
-      {filterIsOn(filter) ? (
+      <div className="flex gap-1">
+        <label htmlFor={`${ids}-name`} className="sr-only">
+          Name
+        </label>
+        <Input
+          id={`${ids}-name`}
+          type="search"
+          className="h-6 min-w-0 flex-1 rounded-none px-1.5 py-0 text-xs md:text-xs"
+          placeholder="Search by name"
+          value={name}
+          onChange={(event) => {
+            const typed = event.target.value;
+            setName(typed);
+            stopPause();
+            pause.current = setTimeout(() => {
+              applyName(typed);
+            }, TYPING_PAUSE_MS);
+          }}
+          onBlur={() => {
+            applyName();
+          }}
+        />
         <button
           type="button"
-          className={cn(CONTROL, 'col-span-2 h-6 border border-input px-2 text-xs')}
+          aria-expanded={open}
+          aria-controls={`${ids}-choices`}
+          className={cn(
+            CONTROL,
+            'h-6 shrink-0 border border-input px-2 text-xs',
+            open && 'bg-muted',
+          )}
           onClick={() => {
-            stopPause();
-            setName('');
-            onFilter(NO_FILTER);
+            setOpen(!open);
           }}
         >
-          Show every unit
+          {count === 0 ? 'Filters' : `Filters · ${String(count)}`}
         </button>
+      </div>
+      {open ? (
+        <div id={`${ids}-choices`} className="grid grid-cols-2 gap-1 pb-1">
+          {select(
+            `${ids}-group`,
+            'Group',
+            filter.group ?? '',
+            'Every group',
+            choices.groups.map((group) => ({
+              value: group.id,
+              words: group.subject ?? 'with no subject',
+            })),
+            (value) => {
+              on({ group: chosen(value, groups) });
+            },
+          )}
+          {select(
+            `${ids}-proposer`,
+            'Proposer',
+            filter.proposer ?? '',
+            'Every proposer',
+            choices.proposers.map((proposer) => ({
+              value: proposer,
+              words: proposerWords(proposer),
+            })),
+            (value) => {
+              on({ proposer: chosen(value, choices.proposers) });
+            },
+          )}
+          {select(
+            `${ids}-fault`,
+            'Fault',
+            filter.fault ?? '',
+            'Every fault',
+            FAULT_KINDS.map((kind) => ({ value: kind, words: faultWords(kind) })),
+            (value) => {
+              on({ fault: chosen<FaultKind>(value, FAULT_KINDS) });
+            },
+          )}
+          {select(
+            `${ids}-document`,
+            'Source document',
+            filter.document ?? '',
+            'Every document',
+            choices.documents.map((document) => ({
+              value: document.id,
+              words: documentName({ ...document, uri: null, mime: null }),
+            })),
+            (value) => {
+              on({ document: chosen(value, documents) });
+            },
+          )}
+        </div>
       ) : null}
+      {count === 0 && !filterIsOn(filter) ? null : (
+        <div className="flex flex-wrap items-center gap-1">
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              aria-label={`Remove the filter ${chip.words}`}
+              title={chip.words}
+              className={cn(
+                CONTROL,
+                'flex h-5 min-w-0 max-w-full items-center gap-1 border border-border px-1 text-small/4',
+              )}
+              onClick={() => {
+                on(CLEAR[chip.key]);
+              }}
+            >
+              <span className="truncate">{chip.words}</span>
+              <span aria-hidden="true" className="text-label">
+                ×
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className={cn(CONTROL, 'h-5 px-1 text-small/4 text-label underline underline-offset-2')}
+            onClick={() => {
+              stopPause();
+              setName('');
+              onFilter(NO_FILTER);
+            }}
+          >
+            Show every unit
+          </button>
+        </div>
+      )}
     </form>
   );
 }
