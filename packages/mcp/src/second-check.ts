@@ -149,14 +149,28 @@ const recordCall = async (session: Session, call: CallRecord): Promise<string> =
   return recorded.parse(rows)[0]?.id ?? '';
 };
 
+// A fault of the database names its SQLSTATE, and only that code leaves: the message can name the
+// role or the host.
+const codeOf = (cause: unknown): string =>
+  typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string'
+    ? cause.code
+    : 'no code';
+
+/** The failure of a check whose role cannot write: a wrong password, or a door that refuses. The
+ * cause goes to the log, and its code alone to the research AI. */
+export const cannotWrite = (cause: unknown): CheckFailure => {
+  console.error(cause);
+  return new CheckFailure(`the checker role cannot write: ${codeOf(cause)}`);
+};
+
 const estimate = (messages: readonly Message[]): number =>
   Math.ceil(Buffer.byteLength(JSON.stringify(messages), 'utf8') / BYTES_PER_TOKEN);
 
-/** Checks one batch of the research AI in one question to the checker, with no second question:
- * the cap is a hard cap. `writer` is a session of the checker role, which records the call. It
- * throws a `CheckFailure` with the reason when no verdict can come: the family of the reader is
- * unknown or is the family of the checker, the batch is above the cap, or the model failed or
- * gave an answer of a bad shape. */
+/** Checks one batch of the research AI in exactly one call to the checker, with no transport
+ * retry and no second question: the cap is a hard cap. `writer` is a session of the checker role,
+ * which records the call. It throws a `CheckFailure` with the reason when no verdict can come: the family of the reader is
+ * unknown or is the family of the checker, the batch is above the cap, the model failed or gave
+ * an answer of a bad shape, or the checker role cannot record the call. */
 export const checkBatch = async (
   setup: CheckSetup,
   writer: Session,
@@ -184,15 +198,31 @@ export const checkBatch = async (
       `the batch needs about ${String(needed)} tokens, above the cap of ${String(setup.tokenCap)} ` +
         'tokens of one check; propose smaller batches',
     );
+  // The record of the call can fail after the model answered. The answer is then not used, and
+  // the batch waits.
+  let recordFault: unknown = null;
   const model = openModel(setup.open(setup.checker.model), setup.checker.line, {
-    record: (call) => recordCall(writer, call),
+    record: async (call) => {
+      try {
+        return await recordCall(writer, call);
+      } catch (cause) {
+        recordFault = cause;
+        throw cause;
+      }
+    },
   });
-  const asked = await model.ask({
-    messages,
-    shape: checkAnswer,
-    budget: openBudget(setup.tokenCap),
-    retryShape: false,
-  });
+  let asked: Awaited<ReturnType<typeof model.ask<z.output<typeof checkAnswer>>>>;
+  try {
+    asked = await model.ask({
+      messages,
+      shape: checkAnswer,
+      budget: openBudget(setup.tokenCap),
+      oneCall: true,
+    });
+  } catch (cause) {
+    if (recordFault !== null) throw cannotWrite(recordFault);
+    throw cause;
+  }
   if (!asked.ok) throw new CheckFailure(`the checker failed: ${asked.failure.reason}`);
   if (!('value' in asked)) throw new CheckFailure('the checker answered with a tool call');
   return new Map(

@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 import { openrouterModel } from '@gab/model';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import pg from 'pg';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -401,14 +402,41 @@ test('a later check that does not support the act keeps its reason with the chec
   });
 });
 
-test('a batch that the record holds whole and checked is sent again with no paid call', async () => {
-  const router = routerOf(NO_READER);
-  const run = await proposeThrough([checkOf(router), checkOf(router)], [NAYARA, ROSNEFT]);
+test('a batch sent again pays one call again, and the first check of each act stays', async () => {
+  const first = routerOf(NO_READER);
+  const second = refuting();
+  const run = await proposeThrough([checkOf(first), checkOf(second)], [NAYARA]);
 
-  expect(router.checks()).toBe(1);
-  expect(run.calls).toBe(1);
-  expect(run.output.proposals.map((one) => one.ref)).toStrictEqual(['nayara', 'rosneft']);
-  for (const act of run.acts) expect(act).toMatchObject({ verdict: 'supported', passed: true });
+  expect([first.checks(), second.checks()]).toStrictEqual([1, 1]);
+  expect(run.calls).toBe(2);
+  expect(run.acts[0]).toMatchObject({ dissent: false, verdict: 'supported', passed: true });
+});
+
+test('a checker role with a wrong password asks no model, and the batch waits', async () => {
+  const router = routerOf(NO_READER);
+  // An empty variable reaches the local stack, as in the tools of the schema.
+  const host =
+    (process.env['GABRIEL_DB_HOST'] ?? '').trim() === ''
+      ? '127.0.0.1'
+      : process.env['GABRIEL_DB_HOST'];
+  const port =
+    (process.env['GABRIEL_DB_PORT'] ?? '').trim() === '' ? '5432' : process.env['GABRIEL_DB_PORT'];
+  const pool = new pg.Pool({
+    connectionString: `postgresql://gabriel_checker:a-wrong-password@${host}:${port}/gabriel_test`,
+  });
+  try {
+    const check = checkOf(router);
+    const run = await proposeThrough(
+      check.ready ? { ready: true, setup: { ...check.setup, pool } } : check,
+      [NAYARA],
+    );
+
+    expect(router.checks()).toBe(0);
+    expect(run.output.checkFailure).toBe('the checker role cannot write: 28P01');
+    expect(run.acts[0]).toMatchObject(NO_CHECK);
+  } finally {
+    await pool.end();
+  }
 });
 
 test('an answer of a bad shape asks no second question, and the batch waits', async () => {

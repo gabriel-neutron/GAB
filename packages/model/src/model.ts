@@ -87,9 +87,10 @@ export interface Question<T> {
   readonly shape: z.ZodType<T>;
   readonly budget: Budget;
   readonly tools?: readonly Tool[];
-  /** False sends no second question after an answer of a bad shape, so the cap of the budget is
-   * a hard cap of one question. The default is one retry with the fault. */
-  readonly retryShape?: boolean;
+  /** True makes exactly one call to the service: no transport retry after a fault, and no second
+   * question after an answer of a bad shape. A provider can bill a call that timed out, so this is
+   * the one way to make the cap of the budget a hard cap. The default retries. */
+  readonly oneCall?: boolean;
 }
 
 /** The record of one question. The prompt is kept as a digest only, because it can quote an
@@ -464,7 +465,8 @@ export const openModel = (
   ): Promise<Tried<Said>> => {
     let kind: ReasonKind = REASON.network;
     let why = '';
-    for (let tried = 0; tried <= NETWORK_RETRIES; tried += 1) {
+    const retries = question.oneCall === true ? 0 : NETWORK_RETRIES;
+    for (let tried = 0; tried <= retries; tried += 1) {
       const step = await oneStep(question, messages, run);
       if (step.done === 'said') return { ok: true, value: step.said };
       if (step.done === 'spent')
@@ -473,7 +475,7 @@ export const openModel = (
         return { ok: false, failure: failureOf(step.kind, run.calls, step.cause) };
       kind = step.kind;
       why = step.why;
-      if (tried < NETWORK_RETRIES) await sleep(waitOf(step.afterMs, tried));
+      if (tried < retries) await sleep(waitOf(step.afterMs, tried));
     }
     return { ok: false, failure: failureOf(kind, run.calls, why) };
   };
@@ -518,7 +520,7 @@ export const openModel = (
         question,
         run,
         question.messages,
-        question.retryShape === false ? 0 : SHAPE_RETRIES,
+        question.oneCall === true ? 0 : SHAPE_RETRIES,
       );
       const callId = await options.record({
         requested: pinned,

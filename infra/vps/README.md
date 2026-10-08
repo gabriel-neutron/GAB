@@ -86,6 +86,9 @@ pnpm check
 ```
 
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
+A VPS checkout made before the role `gabriel_checker` has no `GABRIEL_CHECKER_PASSWORD`: copy its
+line from `test-stack.env.example` into `infra/.env`, as for each other role password, before
+`pnpm db:migrate`. The command stops when one role password is absent.
 The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
 The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its

@@ -3823,18 +3823,6 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                                 p_reader_family, p_verdict, p_reason);
 $$;
 
--- WHICH ACTS OF A LIST HAVE NO CHECK. The MCP server reads it before it asks the checker again for
--- a batch that the record holds already, so a batch that is whole and checked costs no call. It
--- gives the ids alone, and no verdict.
-CREATE OR REPLACE FUNCTION unchecked_acts(p_acts uuid[])
-RETURNS uuid[]
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT coalesce(array_agg(a), '{}')
-    FROM unnest(p_acts) AS a
-   WHERE NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = a);
-$$;
-
 -- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
 -- attributes is about. Two acts with one target and one key with two values disagree. An act of
 -- another operation gives no value.

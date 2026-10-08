@@ -2,8 +2,13 @@ import { z } from 'zod';
 
 import type { CheckVerdict } from './tool.ts';
 
-// Departure: two exports, one job. The shape of the answer of a checker and the read of it into
-// one verdict for each item are one contract.
+// Departure: three exports, one job. The shape of the answer of a checker, the read of it into one
+// verdict for each item, and the plain text of its reason are one contract.
+
+/** The text with each control character changed to a space, and no run of spaces. The reason of
+ * a checker can echo the page, and PostgreSQL refuses a NUL in a text. */
+export const plainText = (text: string): string =>
+  text.replace(/\p{Cc}+/gu, ' ').replace(/ {2,}/gu, ' ');
 
 /** The answer of a checker: one verdict for each item. Only `supported` lets an item stand
  * undisputed. */
@@ -31,5 +36,5 @@ export const verdictsOf = (
     if (said.length > 1)
       return [[ref, { verdict: 'unclear', reason: 'the checker gave more than one verdict' }]];
     if (only.verdict === 'supported') return [[ref, { verdict: 'supported' }]];
-    return [[ref, { verdict: only.verdict, reason: only.reason ?? '' }]];
+    return [[ref, { verdict: only.verdict, reason: plainText(only.reason ?? '') }]];
   });
