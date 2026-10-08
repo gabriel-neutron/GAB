@@ -3152,4 +3152,355 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT entity_id, min(hop) FROM walk GROUP BY entity_id;
 $$;
 
+-- ===================================================================== THE LETTER OF AN AUTHOR ==
+-- A letter, a name and a check are written once. The owner and the superuser ignore a grant, so a
+-- trigger holds it.
+CREATE OR REPLACE FUNCTION author_append_only_fn() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'a row of % is never %', TG_TABLE_NAME,
+    CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
+END $$;
+
+-- THE AUTHOR OF A NAME, or NULL when no worker answer has resolved the name. Inside the doors
+-- only, so no role holds EXECUTE on it.
+CREATE OR REPLACE FUNCTION author_of(p_name text) RETURNS uuid
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT n.author_id FROM public.author_name n WHERE n.name_key = public.name_key(p_name)
+$$;
+
+-- THE WRITE OF A NEW AUTHOR, for the two doors below. It refuses a blank field, a name that has an
+-- author already, and a party with no controller. The letter and the reference names are the
+-- business of the door.
+CREATE OR REPLACE FUNCTION new_author(p_name text, p_letter text, p_model text, p_reason text,
+                                      p_references text[], p_controller text, p_party boolean,
+                                      p_reference_set boolean)
+RETURNS uuid
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_id uuid;
+  v_blank constant text := E' \t\n\r\f\v';
+  v_key text := public.name_key(coalesce(p_name, ''));
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a letter names its author' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF public.author_of(v_key) IS NOT NULL THEN
+    RAISE EXCEPTION 'the name "%" already has an author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF btrim(coalesce(p_model, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a letter names the model that gave it'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF btrim(coalesce(p_reason, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a letter gives its reason' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_references IS NULL OR array_position(p_references, NULL) IS NOT NULL
+     OR EXISTS (SELECT 1 FROM unnest(p_references) AS r(name) WHERE btrim(r.name, v_blank) = '')
+  THEN
+    RAISE EXCEPTION 'a reference author is a name' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT p_reference_set AND cardinality(p_references) = 0 THEN
+    RAISE EXCEPTION 'a letter names at least one reference author that the model compared with'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF coalesce(p_party, false) AND btrim(coalesce(p_controller, ''), v_blank) = '' THEN
+    RAISE EXCEPTION 'a party to the conflict names its controller'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.author
+    (name_key, letter, model, reason, reference_authors, controller, party, reference_set)
+  VALUES (v_key, p_letter, btrim(p_model, v_blank), btrim(p_reason, v_blank), p_references,
+          nullif(btrim(coalesce(p_controller, ''), v_blank), ''), coalesce(p_party, false),
+          p_reference_set)
+  RETURNING id INTO v_id;
+  INSERT INTO public.author_name (name_key, author_id) VALUES (v_key, v_id);
+  RETURN v_id;
+END $$;
+
+-- THE DOOR OF THE WORKER FOR A NEW AUTHOR. The model gives a letter from C to F, the reason, the
+-- reference authors that it compared with, and the controller when the author has one. The door
+-- writes an input of the rules and never a decision.
+CREATE OR REPLACE FUNCTION store_author_letter(p_name text, p_letter text, p_model text,
+                                               p_reason text, p_references text[],
+                                               p_controller text DEFAULT NULL,
+                                               p_party boolean DEFAULT false)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(p_letter, '') NOT IN ('C','D','E','F') THEN
+    RAISE EXCEPTION 'the worker stores a letter from C to F. A and B come from the reference set'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
+                           p_party, false);
+END $$;
+
+-- THE DOOR OF THE OPERATOR FOR THE REFERENCE SET. The operator reads and approves the set once.
+-- Only here an author gets A or B.
+CREATE OR REPLACE FUNCTION store_reference_author(p_name text, p_letter text, p_model text,
+                                                  p_reason text, p_references text[],
+                                                  p_controller text DEFAULT NULL,
+                                                  p_party boolean DEFAULT false)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(p_letter, '') NOT IN ('A','B','C','D','E','F') THEN
+    RAISE EXCEPTION 'a letter is one of A to F' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
+                           p_party, true);
+END $$;
+
+-- THE DOOR OF THE WORKER FOR A NAME OF A KNOWN AUTHOR. A model words one author in more than one
+-- way. A join into an author A or B is a doubt, because it raises the letter of every act of the
+-- name.
+CREATE OR REPLACE FUNCTION join_author_name(p_name text, p_known_name text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_author uuid := public.author_of(p_known_name);
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_author IS NULL THEN
+    RAISE EXCEPTION 'the name "%" is the name of no known author',
+      public.name_key(coalesce(p_known_name, '')) USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF public.author_of(v_key) IS NOT NULL THEN
+    RAISE EXCEPTION 'the name "%" already has an author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.author_name (name_key, author_id, doubt)
+  VALUES (v_key, v_author,
+          (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author));
+END $$;
+
+-- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
+-- F. A party to the conflict reads as C at most on every fact, because the graph holds no side
+-- yet (decisions.md S1). The digit of a fact never calls this function.
+CREATE OR REPLACE FUNCTION letter_of(p_name text) RETURNS char(1)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(
+    (SELECT CASE WHEN a.party AND a.letter IN ('A','B') THEN 'C' ELSE a.letter END
+       FROM public.author_name n JOIN public.author a ON a.id = n.author_id
+      WHERE n.name_key = public.name_key(p_name)),
+    'F')::char(1)
+$$;
+
+-- ========================================================================= INDEPENDENCE ==
+-- THE SITE OF AN ADDRESS: the host, and for a network of channels the channel too. A channel is a
+-- voice of its own, so two channels of one network are two sites. An address with no host has no
+-- site. The site only joins two authors and never names one.
+CREATE OR REPLACE FUNCTION site_of(p_uri text) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE
+    WHEN public.uri_host(p_uri) IS NULL THEN NULL
+    WHEN public.uri_host(p_uri) IN ('t.me', 'telegram.me', 'vk.com', 'x.com', 'twitter.com',
+                                    'facebook.com', 'instagram.com', 'tiktok.com')
+    THEN public.uri_host(p_uri) || coalesce('/' || lower(
+           substring(p_uri FROM '^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]+/(?:s/)?@?([^/?#]+)')), '')
+    ELSE public.uri_host(p_uri)
+  END
+$$;
+
+-- THE WORDS OF A PASSAGE, in lower case, with no mark. The offsets of a citation count code points
+-- of the stored page.
+CREATE OR REPLACE FUNCTION passage_words(p_doc text, p_extractor text, p_page int, p_start int,
+                                         p_end int)
+RETURNS text[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(array(
+    SELECT w FROM regexp_split_to_table(
+      lower(regexp_replace(substr(t.text, p_start + 1, p_end - p_start), '[^[:alnum:]]+', ' ', 'g')),
+      ' ') AS w
+    WHERE w <> ''), '{}'::text[])
+    FROM public.document_text t
+   WHERE t.document_id = p_doc AND t.extractor = p_extractor AND t.page = p_page
+$$;
+
+-- TWO PASSAGES THAT SHARE A LONG RUN OF THE SAME WORDS. The length of the run is the parameter
+-- `independence_shared_run_words`. A passage shorter than the run is compared whole, and a
+-- passage with no word shares everything: when code is not sure, the two are one.
+CREATE OR REPLACE FUNCTION passages_share_run(p_one text[], p_two text[]) RETURNS boolean
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_run int;
+BEGIN
+  SELECT p.value::int INTO v_run FROM public.parameter p
+   WHERE p.key = 'independence_shared_run_words';
+  IF v_run IS NULL THEN
+    RAISE EXCEPTION 'the parameter independence_shared_run_words is absent, and no default stands';
+  END IF;
+  v_run := least(v_run, coalesce(cardinality(p_one), 0), coalesce(cardinality(p_two), 0));
+  IF v_run = 0 THEN
+    RETURN true;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1
+      FROM generate_series(1, cardinality(p_one) - v_run + 1) AS i
+      JOIN generate_series(1, cardinality(p_two) - v_run + 1) AS j
+        ON p_one[i:i + v_run - 1] = p_two[j:j + v_run - 1]);
+END $$;
+
+-- WHAT THE PROOF OF INDEPENDENCE READS IN A CITATION. The author is NULL when no worker answer
+-- has resolved the name of the originator. The control is the controller of the author, or the
+-- author itself when it has none, so an author and its controller share one control. Only an act
+-- that states or enacts the fact counts as a source of it.
+CREATE OR REPLACE FUNCTION citation_source(p_citation uuid)
+RETURNS TABLE (author uuid, control text, site text, words text[], stating boolean)
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT a.id,
+         coalesce(public.name_key(a.controller), a.name_key),
+         public.site_of(d.uri),
+         public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end"),
+         c.modality IN ('enacts', 'asserts')
+    FROM public.citation c
+    JOIN public.proposals p ON p.id = c.claim_id
+    JOIN public.documents d ON d.id = c.doc_id
+    LEFT JOIN public.author a ON a.id = public.author_of(p.originator)
+   WHERE c.id = p_citation
+$$;
+
+-- TWO CITATIONS OF ONE FACT ARE INDEPENDENT only when each one states or enacts the fact, and
+-- they have different authors, different controllers, different sites, and passages that share
+-- no long run of the same words. A citation that reports what another party says never counts.
+-- WHEN CODE IS NOT SURE, THE TWO COUNT AS ONE AUTHOR: an author that no worker answer resolved, an
+-- address with no site, or a passage that code cannot read all make the answer false. The digit
+-- of a fact reads this answer, and no letter.
+CREATE OR REPLACE FUNCTION citations_independent(p_one uuid, p_two uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((
+    SELECT coalesce(
+             one.stating AND two.stating
+             AND one.author IS NOT NULL AND two.author IS NOT NULL AND one.author <> two.author
+             AND one.control <> two.control
+             AND one.site IS NOT NULL AND two.site IS NOT NULL AND one.site <> two.site
+             AND one.words IS NOT NULL AND two.words IS NOT NULL
+             AND NOT public.passages_share_run(one.words, two.words),
+             false)
+      FROM public.citation_source(p_one) one, public.citation_source(p_two) two), false)
+$$;
+
+-- ================================================================== THE CHECK AND THE DIGIT ==
+-- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
+-- and never that the fact is true. The row names the family of the reader and the family of the
+-- checker: a check by the same family does not pass. A check is written once for an act.
+CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
+                                            p_checker_family text, p_reader_family text,
+                                            p_verdict text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.proposals p WHERE p.id = p_act AND p.originator IS NOT NULL)
+  THEN
+    RAISE EXCEPTION 'a check belongs to an act of a machine' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
+  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict);
+END $$;
+
+-- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
+-- attributes is about. Two acts with one target and one key with two values disagree. An act of
+-- another operation gives no value.
+CREATE OR REPLACE FUNCTION value_target(p_op text, p_claim_key text, p_target_id uuid) RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE p_op
+           WHEN 'create_entity' THEN p_claim_key
+           WHEN 'update_attrs' THEN public.claim_end_key(p_target_id::text)
+         END
+$$;
+
+-- THE DIGIT OF A FACT, FROM ITS CITATIONS, ON EACH READ. A fact is a claim: the acts of a machine
+-- with one claim key. A rejected act is no source. THE DIGIT READS NO LETTER (decisions.md S1):
+-- it comes from the citations, the independence of their authors, controllers, sites and passages,
+-- the conflicts between values, and the checks of the second model family. Code tries 5, 4, 1, 2,
+-- 3 and 6.
+--
+--   none  no act of the fact has a passed check of a second model family;
+--   5     a checker disputed an act of the fact (verdict not_supported; unclear is no dispute),
+--         or a party to the conflict denies it;
+--   4     another pending act gives a different value for the same attribute of the same target;
+--   1     two citations are independent, and no conflict stands;
+--   2     two known authors or more, and no pair of citations is proved independent;
+--   3     one known author, even with many citations;
+--   6     no citation has a known author.
+--
+-- Departure from ADR 0012: the check gates the digit before the rule 5, because a fact that no
+-- check passed has no digit. A fact whose only check disputes it shows no digit, and its act is
+-- disputed in the review queue already. The digit is not stored, so it never goes stale.
+CREATE OR REPLACE FUNCTION fact_digit(p_claim_key text) RETURNS smallint
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_acts uuid[];
+  v_stating uuid[];
+  v_known int;
+BEGIN
+  SELECT array_agg(p.id) INTO v_acts
+    FROM public.proposals p
+   WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL;
+  IF v_acts IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = ANY (v_acts) AND k.passed)
+  THEN
+    RETURN NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.act_check k
+              WHERE k.proposal_id = ANY (v_acts) AND k.verdict = 'not_supported')
+     OR EXISTS (SELECT 1
+                  FROM public.citation c
+                  JOIN public.proposals p ON p.id = c.claim_id
+                  JOIN public.author a ON a.id = public.author_of(p.originator)
+                 WHERE c.claim_id = ANY (v_acts) AND c.modality = 'denies' AND a.party)
+  THEN
+    RETURN 5;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+      FROM public.proposals a
+      JOIN public.proposals q
+        ON q.status = 'pending' AND q.id <> a.id
+       AND public.value_target(a.op, a.claim_key, a.target_id) =
+           public.value_target(q.op, q.claim_key, q.target_id)
+      CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS av
+      CROSS JOIN LATERAL jsonb_each(coalesce(q.payload->'attrs', '{}'::jsonb)) AS qv
+     WHERE a.id = ANY (v_acts) AND av.key = qv.key
+       AND av.value->'v' IS DISTINCT FROM qv.value->'v')
+  THEN
+    RETURN 4;
+  END IF;
+
+  SELECT array_agg(c.id) INTO v_stating
+    FROM public.citation c
+   WHERE c.claim_id = ANY (v_acts) AND c.modality IN ('enacts', 'asserts');
+  v_stating := coalesce(v_stating, '{}'::uuid[]);
+  SELECT count(DISTINCT x.author) INTO v_known
+    FROM unnest(v_stating) AS s(id)
+   CROSS JOIN LATERAL public.citation_source(s.id) x
+   WHERE x.author IS NOT NULL;
+
+  IF EXISTS (SELECT 1 FROM unnest(v_stating) AS one(id), unnest(v_stating) AS two(id)
+              WHERE one.id < two.id AND public.citations_independent(one.id, two.id)) THEN
+    RETURN 1;
+  END IF;
+  IF v_known >= 2 THEN
+    RETURN 2;
+  END IF;
+  IF v_known >= 1 THEN
+    RETURN 3;
+  END IF;
+  RETURN 6;
+END $$;
+
 RESET ROLE;

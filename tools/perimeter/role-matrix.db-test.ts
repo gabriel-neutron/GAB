@@ -37,14 +37,18 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
       "public.decision_said": "app",
       "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
       "public.enqueue_mapped_load": "agent",
+      "public.fact_digit": "app",
       "public.fail_job": "agent",
+      "public.join_author_name": "agent",
       "public.lead_jobs": "app",
+      "public.letter_of": "app",
       "public.promote_group": "app",
       "public.promote_unit": "app",
       "public.propose_batch": "agent research",
@@ -54,6 +58,7 @@ test('the role matrix of the doors', async () => {
       "public.put_document_text": "agent app research",
       "public.put_fetched_document": "agent research",
       "public.put_load_report": "agent",
+      "public.record_act_check": "agent",
       "public.record_lead_document": "agent",
       "public.record_model_call": "agent",
       "public.reject_relation": "app",
@@ -67,6 +72,8 @@ test('the role matrix of the doors', async () => {
       "public.set_entity_layout": "agent",
       "public.sign_change": "app",
       "public.start_lead": "app research",
+      "public.store_author_letter": "agent",
+      "public.store_reference_author": "app",
     }
   `);
 });
