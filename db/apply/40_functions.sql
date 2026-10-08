@@ -3558,14 +3558,20 @@ $$;
 CREATE OR REPLACE FUNCTION approve_reference_set() RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_count int;
+DECLARE v_new uuid[];
 BEGIN
-  INSERT INTO public.reference_approval (author_id)
-  SELECT a.id FROM public.author a
-   WHERE a.reference_set
-     AND NOT EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id);
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-  RETURN v_count;
+  WITH approved AS (
+    INSERT INTO public.reference_approval (author_id)
+    SELECT a.id FROM public.author a
+     WHERE a.reference_set
+       AND NOT EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id)
+    RETURNING author_id
+  )
+  SELECT coalesce(array_agg(author_id), '{}') INTO v_new FROM approved;
+  -- An approval gives a letter to an author, so the units of these authors go through the rules.
+  PERFORM public.run_rules(ARRAY(SELECT DISTINCT u FROM unnest(v_new) AS n(a),
+                                 LATERAL unnest(public.units_of_author(n.a)) AS x(u)));
+  RETURN cardinality(v_new);
 END $$;
 
 -- THE REFERENCE SET, for the operator to read before the approval. Each author comes with its
