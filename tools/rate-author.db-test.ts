@@ -149,3 +149,29 @@ test('the claim waits for the approval of the set, and then gives the name', asy
   expect(read.early).not.toContain('rate trade journal');
   expect(read.late).toContain('rate trade journal');
 });
+
+test('a rating that failed by a fault leaves the name free, and the next act asks again', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await reference(ask, 'Official Registry', 'A');
+    await cited(ask, { author: 'Trade Journal', label: label() });
+    // Other jobs may wait in the queue, so the test claims until it holds the rating.
+    for (;;) {
+      const [row] = z
+        .array(z.object({ job_id: z.uuid(), job_author: z.string().nullable() }))
+        .parse(
+          await as(ask, 'gabriel_agent', () =>
+            ask('SELECT job_id, job_author FROM public.claim_job()'),
+          ),
+        );
+      if (row === undefined) throw new Error('the queue holds no rating');
+      if (row.job_author !== 'trade journal') continue;
+      await as(ask, 'gabriel_agent', () =>
+        ask('SELECT public.fail_job($1::uuid, $2)', [row.job_id, 'the service was down']),
+      );
+      break;
+    }
+    await cited(ask, { author: 'Trade Journal', label: label() });
+    return (await jobsOf(ask, 'trade journal')).toSorted();
+  });
+  expect(read).toStrictEqual(['failed', 'queued']);
+});
