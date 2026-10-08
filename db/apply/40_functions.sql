@@ -3295,4 +3295,99 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     'F')::char(1)
 $$;
 
+-- ========================================================================= INDEPENDENCE ==
+-- THE SITE OF AN ADDRESS: the host, and for a network of channels the channel too. A channel is a
+-- voice of its own, so two channels of one network are two sites. An address with no host has no
+-- site. The site only joins two authors and never names one.
+CREATE OR REPLACE FUNCTION site_of(p_uri text) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE
+    WHEN public.uri_host(p_uri) IS NULL THEN NULL
+    WHEN public.uri_host(p_uri) IN ('t.me', 'telegram.me', 'vk.com', 'x.com', 'twitter.com',
+                                    'facebook.com', 'instagram.com', 'tiktok.com')
+    THEN public.uri_host(p_uri) || coalesce('/' || lower(
+           substring(p_uri FROM '^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]+/(?:s/)?@?([^/?#]+)')), '')
+    ELSE public.uri_host(p_uri)
+  END
+$$;
+
+-- THE WORDS OF A PASSAGE, in lower case, with no mark. The offsets of a citation count code points
+-- of the stored page.
+CREATE OR REPLACE FUNCTION passage_words(p_doc text, p_extractor text, p_page int, p_start int,
+                                         p_end int)
+RETURNS text[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(array(
+    SELECT w FROM regexp_split_to_table(
+      lower(regexp_replace(substr(t.text, p_start + 1, p_end - p_start), '[^[:alnum:]]+', ' ', 'g')),
+      ' ') AS w
+    WHERE w <> ''), '{}'::text[])
+    FROM public.document_text t
+   WHERE t.document_id = p_doc AND t.extractor = p_extractor AND t.page = p_page
+$$;
+
+-- TWO PASSAGES THAT SHARE A LONG RUN OF THE SAME WORDS. The length of the run is the parameter
+-- `independence_shared_run_words`. A passage shorter than the run is compared whole, and a
+-- passage with no word shares everything: when code is not sure, the two are one.
+CREATE OR REPLACE FUNCTION passages_share_run(p_one text[], p_two text[]) RETURNS boolean
+LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_run int;
+BEGIN
+  SELECT p.value::int INTO v_run FROM public.parameter p
+   WHERE p.key = 'independence_shared_run_words';
+  IF v_run IS NULL THEN
+    RAISE EXCEPTION 'the parameter independence_shared_run_words is absent, and no default stands';
+  END IF;
+  v_run := least(v_run, coalesce(cardinality(p_one), 0), coalesce(cardinality(p_two), 0));
+  IF v_run = 0 THEN
+    RETURN true;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1
+      FROM generate_series(1, cardinality(p_one) - v_run + 1) AS i
+      JOIN generate_series(1, cardinality(p_two) - v_run + 1) AS j
+        ON p_one[i:i + v_run - 1] = p_two[j:j + v_run - 1]);
+END $$;
+
+-- WHAT THE PROOF OF INDEPENDENCE READS IN A CITATION. The author is NULL when no worker answer
+-- has resolved the name of the originator. The control is the controller of the author, or the
+-- author itself when it has none, so an author and its controller share one control. Only an act
+-- that states or enacts the fact counts as a source of it.
+CREATE OR REPLACE FUNCTION citation_source(p_citation uuid)
+RETURNS TABLE (author uuid, control text, site text, words text[], stating boolean)
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT a.id,
+         coalesce(public.name_key(a.controller), a.name_key),
+         public.site_of(d.uri),
+         public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end"),
+         c.modality IN ('enacts', 'asserts')
+    FROM public.citation c
+    JOIN public.proposals p ON p.id = c.claim_id
+    JOIN public.documents d ON d.id = c.doc_id
+    LEFT JOIN public.author a ON a.id = public.author_of(p.originator)
+   WHERE c.id = p_citation
+$$;
+
+-- TWO CITATIONS OF ONE FACT ARE INDEPENDENT only when each one states or enacts the fact, and
+-- they have different authors, different controllers, different sites, and passages that share
+-- no long run of the same words. A citation that reports what another party says never counts.
+-- WHEN CODE IS NOT SURE, THE TWO COUNT AS ONE AUTHOR: an author that no worker answer resolved, an
+-- address with no site, or a passage that code cannot read all make the answer false. The digit
+-- of a fact reads this answer, and no letter.
+CREATE OR REPLACE FUNCTION citations_independent(p_one uuid, p_two uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((
+    SELECT coalesce(
+             one.stating AND two.stating
+             AND one.author IS NOT NULL AND two.author IS NOT NULL AND one.author <> two.author
+             AND one.control <> two.control
+             AND one.site IS NOT NULL AND two.site IS NOT NULL AND one.site <> two.site
+             AND one.words IS NOT NULL AND two.words IS NOT NULL
+             AND NOT public.passages_share_run(one.words, two.words),
+             false)
+      FROM public.citation_source(p_one) one, public.citation_source(p_two) two), false)
+$$;
+
 RESET ROLE;

@@ -118,6 +118,11 @@ REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boole
 REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION site_of(text)               FROM PUBLIC;
+REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
+REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
@@ -213,6 +218,7 @@ GRANT EXECUTE ON FUNCTION join_author_name(text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
+GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
