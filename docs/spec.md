@@ -103,7 +103,7 @@ A machine proposes through one door, which takes a batch. Each act cites a page 
 stored text; code finds the span from a quoted excerpt. The door writes the acts and their
 citations together, refuses the whole batch on one fault, and returns a pending act that it
 already holds instead of a duplicate. The cited passage is private: only the review card of the
-operator shows it.
+operator and the AI reviewer of the MCP server read it.
 
 Before the extractor or the research AI writes its acts, a model of another family checks each act
 against its passage. For the research AI, the MCP server asks the checker once for each batch,
@@ -131,7 +131,8 @@ Each act gets a unit of decision when the door writes it, and the unit never cha
 entity is a unit with the relations that depend on it. A relation that names an act that waits in
 another group, or names a relation, is a unit of its own, so no entity waits for another group.
 The review queue shows one line for each unit. It reads one page of units at a time through the
-writer, because the cited passages are private. Each line names who proposed the unit.
+writer, because the cited passages are private. The AI reviewer of the MCP server reads the same
+page through its own role. Each line names who proposed the unit.
 
 A group that other groups wait for comes before them. In a
 group, the units with a fault come first, then the clean units in tree order, so a parent comes
@@ -153,10 +154,11 @@ refused, and the refusal names that end. The rules do not refuse such a unit: it
 that end is decided (P11). A rejection keeps one reason from a fixed list, and a
 note when the reason is "other". The reason "end rejected" is only for a relation whose other end
 was rejected, so it never hides another reason. The reason and the note are private: only the
-operator reads the decided acts with them, through the writer. The operator can reject one
+operator, through the writer, and the AI reviewer of the MCP server read the decided acts with
+them. The operator can reject one
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
-relation, or a group action. The page of an entity then names the operator and whether the
-decision was a group action.
+relation, or a group action. The page of an entity then names who decided (the operator, a
+rule or an AI reviewer) and whether the decision was a group action.
 
 A rail lists the groups that wait, with the counts of their units, of their clean units and of
 each fault. The group action promotes the clean units of one group after one confirmation, which
@@ -186,7 +188,7 @@ values of any other act. An element that an act proposed gives the key of that a
 promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
 the reason of the newest rejection. An entity matches a rejected entity only under the same
 parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
-under the same parent. The reason stays private to the operator.
+under the same parent. The reason stays private to the operator and the AI reviewer of the MCP server.
 
 
 ## The decision path

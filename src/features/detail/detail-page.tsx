@@ -163,7 +163,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
         data-pane="record"
         className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain"
       >
-        <div className="flex items-baseline gap-2">
+        {/* The row wraps, so a long origin goes to its own line on a narrow pane and never
+            covers the type. */}
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <h1 className="flex min-w-0 items-baseline gap-2">
             <span className="min-w-0 truncate text-base" title={dossier.label}>
               {dossier.label}
@@ -187,7 +189,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           </h1>
           {/* Each public claim says who decided it. */}
           {dossier.decision === null ? null : (
-            <span className="shrink-0 text-small/4 text-label" data-decision="">
+            <span className="min-w-0 text-small/4 text-label" data-decision="">
               {dossier.decision}
             </span>
           )}

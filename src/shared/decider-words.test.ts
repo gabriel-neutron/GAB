@@ -25,6 +25,9 @@ it('names an AI reviewer by its own words, and says that a human did not decide'
       expect(deciderWords(mode, 'decided by an AI reviewer', verdict)).toBe(
         'decided by an AI reviewer and not by a human',
       );
+  expect(deciderWords('group', 'decided by an AI reviewer', 'accepted')).toBe(
+    'decided by an AI reviewer and not by a human, group action',
+  );
 });
 
 it('never calls a decision of a rule a decision of the operator', () => {

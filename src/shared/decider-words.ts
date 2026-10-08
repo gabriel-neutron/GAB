@@ -27,7 +27,10 @@ export const deciderWords = (
   const rule = ruleOf(origin);
   if (rule !== null) return `${verdict} by ${rule}`;
   if (mode === 'rule') return `${verdict} by a rule`;
-  if (origin === AI_REVIEWER) return `${AI_REVIEWER} and not by a human`;
+  if (origin === AI_REVIEWER)
+    return mode === 'group'
+      ? `${AI_REVIEWER} and not by a human, group action`
+      : `${AI_REVIEWER} and not by a human`;
   return mode === 'group'
     ? 'validated manually by the operator, group action'
     : 'validated manually by the operator';
