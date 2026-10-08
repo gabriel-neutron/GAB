@@ -21,8 +21,9 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Write: `archive_snapshot`, `fetch_document`, `store_saved_file`, `telegram_channel`,
-  `enqueue_extract`, `start_lead`, `propose`. Each write runs with no question, except `enqueue_extract` and
-  `start_lead`: they spend model credit, so Claude Code asks the operator first.
+  `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question,
+  except `enqueue_extract`, `enqueue_mapping` and `start_lead`: they spend model credit, so Claude
+  Code asks the operator first.
 
 ## Who proposes what
 
@@ -32,6 +33,10 @@ session: each proposal waits in the review queue, and the operator decides it th
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
   operator asks for it.
+- **The mapper is the back-end AI for a table.** A stored CSV file has columns that Gabriel does
+  not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
+  with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
+  mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
   vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
   stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,

@@ -780,6 +780,37 @@ test('enqueue_extract of a document that does not exist is a fault of the databa
   ).rejects.toMatchObject({ code: '23503' });
 });
 
+test('enqueue_mapping of a document that does not exist is a fault of the database', async () => {
+  await expect(
+    rolledBack('research', (ask) => call(ask, 'enqueue_mapping', { document: 'doc_absent' })),
+  ).rejects.toMatchObject({ code: '23503' });
+});
+
+const QUEUED = z.object({ jobId: z.uuid() });
+
+test('enqueue_mapping queues one mapping job, job_status shows it, and a second call refuses', async () => {
+  const seen = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['Vessel,IMO\nNayara,9074729']);
+    const queued = QUEUED.parse(await output(ask, 'enqueue_mapping', { document: DOC }));
+    return {
+      queued,
+      status: JOBS.parse(await output(ask, 'job_status', { document: DOC })),
+      // A refusal of the door aborts the transaction, so the refused call comes last.
+      extract: await call(ask, 'enqueue_extract', { document: DOC }),
+      again: await call(ask, 'enqueue_mapping', { document: DOC }),
+    };
+  });
+  expect(seen.status.jobs).toMatchObject([
+    { id: seen.queued.jobId, kind: 'map_structured', status: 'queued' },
+  ]);
+  expect(seen.again).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('queued or runs already') as string,
+  });
+  // Each tool keeps one job, so an open mapping does not stop the extraction of the document.
+  expect(seen.extract.ok).toBe(true);
+});
+
 test('job_status of a document with no job is an empty list', async () => {
   const found = await rolledBack('research', async (ask) =>
     JOBS.parse(await output(ask, 'job_status', { document: 'doc_absent' })),

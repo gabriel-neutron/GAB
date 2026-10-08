@@ -71,7 +71,7 @@ test('each tool of the catalogue is listed once, flat, with a read or write hint
   }
 });
 
-test('the tools that are not marked as reads are the twelve writes', async () => {
+test('the tools that are not marked as reads are the thirteen writes', async () => {
   const client = await connected(fakePool(() => []).pool);
   const writes = (await client.listTools()).tools
     .filter((tool) => tool.annotations?.readOnlyHint !== true)
@@ -87,6 +87,7 @@ test('the tools that are not marked as reads are the twelve writes', async () =>
     'sanctions_match',
     'vessel_events',
     'enqueue_extract',
+    'enqueue_mapping',
     'start_lead',
     'propose',
   ]);
