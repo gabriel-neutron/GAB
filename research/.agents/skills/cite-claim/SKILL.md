@@ -30,7 +30,8 @@ that state it.
    fetch it with `fetch_document`. If the fetch fails, follow "A blocked source" in the skill
    `research-method`.
 2. Find the excerpt that states the fact in the stored text. Use `document_text` for the page.
-   If the excerpt is not in the stored text, stop. The fact has no source in Gabriel.
+   If the excerpt is not in the stored text, stop. The fact has no source in Gabriel. A PNG or
+   JPEG image is the one exception: see "An image".
 3. Call `list_proposals` with the document id. If a proposal holds the fact, stop: another session
    or the extractor proposed it.
 4. Before you propose a new entity, call `search_graph` with each identifier of that entity. If
@@ -47,6 +48,21 @@ that state it.
    model of another family that reads each item does not find it in its passage. Check the value.
    If the answer gives `checkFailure`, no model checked the batch: the skill `research-method`
    says what to do. Keep the proposal ids that the tool gives. The skill `carto-step` reports them.
+
+## An image
+
+The stored text of a PNG or JPEG document is its OCR text. OCR can mix the columns of a chart and
+misread a number, so the text can miss a fact that the image shows clearly.
+
+1. Find the excerpt in the OCR text first. If the OCR text states the fact, cite it as usual.
+2. Otherwise, download the image from the address of the stored document. Compute its SHA-256:
+   the document id is `doc_` and the first 12 hexadecimal characters of it. If they differ, the
+   image changed since it was stored: stop, and store the new image first.
+3. Read the image. Write in `excerpt` the words that state the fact, as the image writes them,
+   for example the parent, the line to the child, the child and its number. Set `fromImage: true`
+   on that evidence. The page is the page of the OCR text, most often 1.
+4. Code marks each such item as disputed, so the operator compares the words with the image. Give
+   only the words that you read with no doubt. A label with a "?" stays as the image writes it.
 
 ## A register record
 

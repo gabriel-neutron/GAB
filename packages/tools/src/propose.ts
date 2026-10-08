@@ -88,6 +88,14 @@ const evidence = z.strictObject({
     .min(1)
     .max(MAX_EXCERPT)
     .describe('the words of the page, copied as they stand, that state the values of the act'),
+  fromImage: z
+    .boolean()
+    .optional()
+    .describe(
+      'true when the document is a PNG or JPEG image and the excerpt gives the words that you ' +
+        'read from the image, which its OCR text does not hold; the item is then disputed, so ' +
+        'the operator compares the words with the image',
+    ),
 });
 
 /** One item of a batch: one act, who first stated it, and the passages that state its values. */
@@ -131,6 +139,10 @@ const PAGE = `SELECT t.extractor, t.text FROM public.document_text t
 
 const pageRow = z.strictObject({ extractor: z.string(), text: z.string() });
 
+// The types of an image whose OCR text is the stored page; the door holds the same list.
+const IMAGE = `SELECT 1 AS one FROM public.documents d
+  WHERE d.id = $1::text AND lower(split_part(d.mime, ';', 1)) IN ('image/png', 'image/jpeg')`;
+
 const TABLE = { entity: 'api.entity', relation: 'api.relation' } as const;
 
 type Kind = keyof typeof TABLE;
@@ -152,7 +164,8 @@ interface Cited {
   readonly document: string;
   readonly textExtractor: string;
   readonly page: number;
-  readonly span: Span;
+  /** The place of the excerpt in the stored page, or null for words read from an image. */
+  readonly span: Span | null;
   readonly passage: string;
   readonly context: string;
 }
@@ -177,6 +190,25 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
+  if (given.fromImage === true) {
+    const image = await rowsOf(session, z.strictObject({ one: z.number() }), IMAGE, [
+      given.document,
+    ]);
+    if (image.length === 0)
+      refuse(
+        ref,
+        `document ${given.document} is no PNG or JPEG image, so copy the excerpt from its text`,
+      );
+    // The words that the AI read stand alone: the OCR text around them does not hold them.
+    return {
+      document: given.document,
+      textExtractor: page.extractor,
+      page: given.page,
+      span: null,
+      passage: given.excerpt,
+      context: given.excerpt,
+    };
+  }
   const span =
     findExcerpt(page.text, given.excerpt) ??
     refuse(
@@ -297,11 +329,14 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 // Why an item is disputed, in the words that the review card shows, or null when nothing disputes
 // it. No answer of the checker on an item disputes it: a failure never lets an item pass.
 const disputeReason = (
+  transcribed: boolean,
   unstated: readonly UnstatedValue[],
   verdict: CheckVerdict | 'unchecked' | undefined,
   names: ReadonlyMap<string, string>,
 ): string | null => {
   const parts: string[] = [];
+  if (transcribed)
+    parts.push('an excerpt is read from the image by the AI: compare its words with the image');
   if (unstated.length > 0)
     parts.push(
       `no cited passage states ${unstated
@@ -340,7 +375,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
-      'the item. A value that no excerpt states marks the item as disputed. Before the write, a ' +
+      'the item. For a PNG or JPEG document whose OCR text misreads the image, give the words ' +
+      'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
+      'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
@@ -365,6 +402,9 @@ export const proposeOf = (modelCallId: string | null) =>
       const prepared = [];
       for (const [index, given] of input.items.entries()) {
         const request = await resolvedAct(session, given, index, minted);
+        // A back-end agent reads the stored text only, so it never gives words read from an image.
+        if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
+          refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         const documents = [...new Set(cited.map((one) => one.document))];
@@ -374,7 +414,8 @@ export const proposeOf = (modelCallId: string | null) =>
           request,
           cited.map((one) => one.passage),
         );
-        prepared.push({ given, act, cited, unstated, id: minted.get(given.ref)?.id });
+        const transcribed = cited.some((one) => one.span === null);
+        prepared.push({ given, act, cited, unstated, transcribed, id: minted.get(given.ref)?.id });
       }
 
       // The check runs before the insert, because the door freezes the dispute flag at insert.
@@ -411,11 +452,14 @@ export const proposeOf = (modelCallId: string | null) =>
         if (reach?.checkMarks !== 'refuted') return said;
         return said?.verdict === 'not_supported' ? said : 'unchecked';
       };
-      const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
-        disputeReason(unstated, verdictOf(ref), names);
+      const reasonOf = (
+        ref: string,
+        transcribed: boolean,
+        unstated: readonly UnstatedValue[],
+      ): string | null => disputeReason(transcribed, unstated, verdictOf(ref), names);
 
-      const items = prepared.map(({ given, act, cited, unstated, id }) => {
-        const reason = reasonOf(given.ref, unstated);
+      const items = prepared.map(({ given, act, cited, unstated, transcribed, id }) => {
+        const reason = reasonOf(given.ref, transcribed, unstated);
         return {
           id,
           op: act.op,
@@ -433,8 +477,9 @@ export const proposeOf = (modelCallId: string | null) =>
             document: one.document,
             text_extractor: one.textExtractor,
             page: one.page,
-            start: one.span.start,
-            end: one.span.end,
+            ...(one.span === null
+              ? { transcription: one.passage }
+              : { start: one.span.start, end: one.span.end }),
           })),
         };
       });
@@ -454,14 +499,14 @@ export const proposeOf = (modelCallId: string | null) =>
       }
 
       return {
-        proposals: prepared.map(({ given, unstated }, index) => {
+        proposals: prepared.map(({ given, unstated, transcribed }, index) => {
           const row = rows.find((one) => one.item === index + 1);
           if (row === undefined) throw new Error(`the door returned no proposal for ${given.ref}`);
           return {
             ref: given.ref,
             proposalId: row.proposal_id,
             written: row.written,
-            disputed: reasonOf(given.ref, unstated) !== null,
+            disputed: reasonOf(given.ref, transcribed, unstated) !== null,
             unstated: [...new Set(unstated.map((one) => one.name))],
           };
         }),

@@ -242,6 +242,40 @@ export const AnImageDocumentShowsTheStoredImageBesideItsPassages: Story = {
   },
 };
 
+/** Words that the AI read from the image say so, and stand with no line around them, so the
+ * operator compares each word with the image. */
+export const WordsReadFromTheImageSaySo: Story = {
+  args: {
+    unit:
+      IMAGE_UNIT === null
+        ? null
+        : {
+            ...IMAGE_UNIT,
+            passages: IMAGE_UNIT.passages.map((passage) => ({
+              ...passage,
+              ownLine: false,
+              before: '',
+              after: '',
+              text: '1453rd Motorized Rifle Regiment MUN: 95395 > Ural Drone Crew',
+              transcribed: true,
+            })),
+          },
+  },
+  beforeEach: () => {
+    imageAnswers(pngAnswer);
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(
+      canvas.getAllByText(
+        'Read from the image by the AI, not by OCR. Compare each word with the image.',
+      )[0],
+    ).toBeVisible();
+    await expect(canvasElement.querySelector('[data-transcribed]')).toHaveTextContent(
+      '1453rd Motorized Rifle Regiment MUN: 95395 > Ural Drone Crew',
+    );
+  },
+};
+
 /** A fault of the writer or of the store says so in one sentence, and the passages stay, so the
  * operator can still decide. */
 export const AnImageThatDoesNotLoadSaysSoAndThePassagesStay: Story = {
