@@ -110,6 +110,9 @@ passage. The act is written as disputed when the check does not support it, when
 could not read it, or when no cited passage states its value. The flag keeps a short reason. The
 reason is frozen with the act: the value that no passage states, the verdict and reason of the checker, or
 that the checker did not answer. The reason is private: the review card shows it, and the public read does not.
+After the write, the record also keeps each verdict with its act, the checker model and both
+families, so the rules can decide the unit. An act that the checker did not answer keeps no check
+until a later extraction of the document checks it. The first check of an act stays.
 Every model call goes to OpenRouter and is recorded.
 
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,

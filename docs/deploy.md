@@ -45,6 +45,19 @@ page that a lead fetches, so it also needs the raw store values. When one of the
 absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
 names the value.
 
+A rule starts a deepening search for a unit with weak sources only when the deepening budget is
+above zero. The budget is a setting of the database, not of `infra/.env`, and it starts at zero.
+To set the tokens of one search, run this statement as the superuser `gabriel` on the record.
+On the local stack, type this in PowerShell at the root of the GAB checkout, on one line:
+
+```powershell
+docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel -c "UPDATE rule_config SET version = version + 1, settings = jsonb_build_object('deepening_tokens', 40000) WHERE rule = 'weak_sources';"
+```
+
+On a hosted database, run the same statement with `psql` and the connection of step 1 above.
+
+A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
+
 The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
 that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
 extractions, and each mapping fails at once with a reason that names the value. The load of a
