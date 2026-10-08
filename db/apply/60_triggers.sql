@@ -54,6 +54,17 @@ CREATE OR REPLACE TRIGGER citation_append_only
   BEFORE UPDATE OR DELETE ON citation
   FOR EACH ROW EXECUTE FUNCTION citation_append_only_fn();
 
+-- A letter, a name of an author and a check by a second model are written once.
+CREATE OR REPLACE TRIGGER author_append_only
+  BEFORE UPDATE OR DELETE ON author
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+CREATE OR REPLACE TRIGGER author_name_append_only
+  BEFORE UPDATE OR DELETE ON author_name
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+CREATE OR REPLACE TRIGGER act_check_append_only
+  BEFORE UPDATE OR DELETE ON act_check
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -84,6 +95,9 @@ ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_claim;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
+ALTER TABLE author ENABLE ALWAYS TRIGGER author_append_only;
+ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
+ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
