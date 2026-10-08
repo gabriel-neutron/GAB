@@ -7,8 +7,8 @@ import { recordModelCall } from '../runner.ts';
 
 const AGENT = { name: 'reference-set', version: 'v1' };
 
-// Origin of the numbers: the ticket asks for about thirty authors. The range keeps a build that
-// is far from thirty out of the record, and the operator reads the set before the approval.
+// The set holds about thirty authors. The range keeps a build that is far from thirty out of the
+// record, and the operator reads the set before the approval.
 const LEAST = 20;
 const MOST = 40;
 

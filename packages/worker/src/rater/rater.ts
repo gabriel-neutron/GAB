@@ -65,9 +65,10 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
         ]);
       }
     } catch (fault) {
-      // A door that refuses the answer is a refusal and not a fault of the job. Another error
-      // reaches the runner as it is.
-      if (!(fault instanceof Error) || !('code' in fault)) throw fault;
+      // A door that refuses the answer is a refusal and not a fault of the job. The doors raise
+      // an invalid value (class 22) or a broken rule of a table (class 23). Another error, such as
+      // a lost connection or a deadlock, reaches the runner as it is, and the name stays free.
+      if (!isRefusal(fault)) throw fault;
       return refused(fault.message);
     }
     if (decision.kind === 'refused') return refused(decision.reason);
@@ -83,6 +84,14 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
     run,
   };
 };
+
+const REFUSAL_CLASSES = ['22', '23'];
+
+const isRefusal = (fault: unknown): fault is Error =>
+  fault instanceof Error &&
+  'code' in fault &&
+  typeof fault.code === 'string' &&
+  REFUSAL_CLASSES.some((one) => (fault.code as string).startsWith(one));
 
 // One refused part: the runner ends the job as failed with this sentence, and the author stays F.
 const refused = (reason: string): AgentResult => ({
