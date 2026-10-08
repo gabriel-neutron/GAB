@@ -118,6 +118,10 @@ REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boole
 REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
+REVOKE ALL ON FUNCTION rating_context(text)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_author_rating()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION site_of(text)               FROM PUBLIC;
 REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
@@ -221,6 +225,12 @@ GRANT EXECUTE ON FUNCTION join_author_name(text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
+-- THE OPERATOR APPROVES THE REFERENCE SET, AND THE WORKER CANNOT. The worker reads the context of
+-- one name (the known authors and the approved set) and gives C to F through the door above. No
+-- grant here lets the worker role give a letter A or B, or approve a set.
+GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
+GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 -- The extractor runs the check by a second model family. The check for a proposal of the research
