@@ -13,7 +13,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const cardsOf = (read: Corpus): readonly SourceCardModel[] =>
-  readDossier(read, VESSEL, entityTypes)?.sources ?? [];
+  readDossier(read, VESSEL, entityTypes, [])?.sources ?? [];
 
 const SOURCES: readonly SourceCardModel[] = cardsOf(corpus);
 

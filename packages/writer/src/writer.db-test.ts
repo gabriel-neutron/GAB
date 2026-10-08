@@ -1171,7 +1171,10 @@ test('the page of the queue gives the reason why a machine act is disputed', asy
       if (read.next === null) break;
       after = read.next;
     }
-    expect(reasons.sort()).toStrictEqual([null, reason].sort());
+    // The page reads words, and not the code of the checker.
+    expect(reasons.sort()).toStrictEqual(
+      [null, 'the checker finds the passage unclear: the page names two tankers'].sort(),
+    );
   } finally {
     await post('reject-unit', { unitId: disputed, reason: 'out_of_scope' });
     await post('reject-unit', { unitId: plain, reason: 'out_of_scope' });

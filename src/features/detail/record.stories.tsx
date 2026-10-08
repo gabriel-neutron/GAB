@@ -139,7 +139,7 @@ const CORPUS: Corpus = {
   relationTypes: [],
 };
 
-const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', entityTypes)?.rows ?? [];
+const ROWS: readonly RecordRow[] = readDossier(CORPUS, 'probe-1', entityTypes, [])?.rows ?? [];
 
 const onSelectSource = fn();
 
@@ -285,7 +285,7 @@ const NOTE_CORPUS: Corpus = {
 };
 
 const NOTE_ROWS: readonly RecordRow[] =
-  readDossier(NOTE_CORPUS, 'probe-note', entityTypes)?.rows ?? [];
+  readDossier(NOTE_CORPUS, 'probe-note', entityTypes, [])?.rows ?? [];
 
 /** The record with the state a page holds for it. A story drives what a page drives. */
 function WritableRecord({ rows }: { rows: readonly RecordRow[] }) {
@@ -378,7 +378,7 @@ const NO_SUCH_DAY_CORPUS: Corpus = {
 };
 
 const NO_SUCH_DAY_ROWS: readonly RecordRow[] =
-  readDossier(NO_SUCH_DAY_CORPUS, 'probe-day', entityTypes)?.rows ?? [];
+  readDossier(NO_SUCH_DAY_CORPUS, 'probe-day', entityTypes, [])?.rows ?? [];
 
 export const ADayTheCalendarDoesNotHoldDrawsAsTextAndStands: Story = {
   parameters: { layout: 'fullscreen' },

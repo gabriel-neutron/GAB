@@ -174,7 +174,14 @@ const page = z.object({
       acts: z.array(z.object({ id: z.uuid(), op: z.string(), src: end, dst: end })),
       documents: z.array(z.object({ id: z.string(), title: z.string() })),
       passages: z.array(
-        z.object({ act: z.uuid(), before: z.string(), text: z.string(), after: z.string() }),
+        z.object({
+          act: z.uuid(),
+          supports: z.string(),
+          ownLine: z.boolean(),
+          before: z.string(),
+          text: z.string(),
+          after: z.string(),
+        }),
       ),
     }),
   ),
@@ -250,6 +257,16 @@ test('the queue comes in pages of units, each with its acts, its group and its p
     text: 'the 5th Army',
     after: ' holds Chita\nline four\nline five',
   });
+  // Each passage names the act that it supports. A line of the v1 import is the line of its own
+  // unit, and the lines around it state other units.
+  expect(
+    brigadeUnit?.passages.map(({ act, supports, ownLine }) => ({ act, supports, ownLine })),
+  ).toStrictEqual(
+    [
+      { act: brigade, supports: '57th Brigade', ownLine: true },
+      { act: brigadeToArmy, supports: '57th Brigade subordinate to 5th Army', ownLine: true },
+    ].sort((one, other) => (one.act < other.act ? -1 : 1)),
+  );
 
   const link = read.paged.find((unit) => unit.unit === armyToTop);
   expect(link).toMatchObject({
@@ -369,4 +386,49 @@ test('the migration gives the acts of the record their unit by the rule of the d
   expect(stamps.get(goneToArmy)?.unit_id).toBe(army);
   expect(stamps.get(top)?.unit_id).toBe(top);
   expect(stamps.get(brigade)?.proposer).toBe('v1_import');
+});
+
+test('a group with no tree is named by its document, and a circle by its first entity', async () => {
+  const [ship, owner, owns, alpha, beta, up, down] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  const found = (item: Item): Item => ({
+    ...item,
+    src: [OTHER],
+    originator: 'A ministry',
+    citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, ...CITED }],
+    payload: { ...(item['payload'] as Item), sources: [OTHER] },
+  });
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, 'gabriel_research', [
+      found(entity(ship, 'A tanker')),
+      found(entity(owner, 'An owner')),
+      found(
+        cited({
+          id: owns,
+          op: 'create_relation',
+          payload: { type: 'owns', src_id: owner, dst_id: ship },
+          names: [owner, ship],
+        }),
+      ),
+    ]);
+    await batch(ask, 'gabriel_research', [
+      entity(beta, 'Circle beta'),
+      entity(alpha, 'Circle alpha'),
+      subordinate(up, alpha, beta),
+      subordinate(down, beta, alpha),
+    ]);
+    return as(ask, 'gabriel_app', () => readPage(ask, null, 200));
+  });
+  const unitOf = (id: string) => read.units.find((unit) => unit.unit === id);
+  expect(unitOf(ship)?.group?.subject).toBe('A page that a session found');
+  expect(unitOf(ship)?.passages.map((passage) => passage.ownLine)).toStrictEqual([false]);
+  expect(unitOf(alpha)?.group?.subject).toBe('Circle alpha');
 });

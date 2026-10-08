@@ -64,7 +64,7 @@ const unit = (id: string, name: string, extra: Partial<GroupUnit> = {}): GroupUn
   entities: 1,
   relations: 1,
   parent: null,
-  needs: extra.parent?.unit ? [extra.parent.unit] : [],
+  writable: (extra.state ?? 'clean') === 'clean',
   ...extra,
 });
 
@@ -86,6 +86,7 @@ const DISPUTED = unit('u-disputed', '19th Motor Rifle Division', {
 // Clean, but below a disputed unit that stays in the queue, so it stays too.
 const BELOW = unit('u-below', '1st Motor Rifle Battalion', {
   parent: { unit: 'u-disputed', name: '19th Motor Rifle Division' },
+  writable: false,
 });
 const LINK = unit('u-link', 'Army subordinate to the district', {
   kind: 'link',

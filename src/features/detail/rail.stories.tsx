@@ -11,7 +11,7 @@ import { Rail } from './rail';
 
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
-const DOSSIER = readDossier(corpus, VESSEL, entityTypes);
+const DOSSIER = readDossier(corpus, VESSEL, entityTypes, []);
 
 const SOURCES: readonly SourceCardModel[] = DOSSIER?.sources ?? [];
 

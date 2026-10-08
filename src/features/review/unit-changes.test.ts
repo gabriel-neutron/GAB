@@ -27,6 +27,31 @@ const unit = (id: string) => {
   return found;
 };
 
+it('says a rejection before with the words of its reason and its note', () => {
+  const said = page?.units
+    .flatMap((held) => held.faults)
+    .filter((fault) => fault.kind === 'rejected_before')
+    .map((fault) => fault.said);
+  expect(said).toStrictEqual(['Rejected before on 2026-10-06: Wrong value (A ferry.)']);
+});
+
+it('says that an older rejection before kept no reason', () => {
+  const fault = {
+    kind: 'rejected_before',
+    level: 'not_clean',
+    act: null,
+    said: 'Rejected before on 2026-10-01',
+    reason: null,
+    note: null,
+  };
+  const [first] = UNIT_ANSWER.units;
+  if (first === undefined) throw new Error('the sample holds no unit');
+  const read = unitPageOf({ ...UNIT_ANSWER, units: [{ ...first, faults: [fault] }] }, null);
+  expect(read?.units[0]?.faults.map((held) => held.said)).toStrictEqual([
+    'Rejected before on 2026-10-01: No reason was recorded',
+  ]);
+});
+
 it('reads the answer of the writer into one unit for each line', () => {
   expect(page?.units.map((held) => held.kind)).toStrictEqual([
     'entity',

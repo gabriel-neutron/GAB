@@ -56,8 +56,12 @@ export interface V1Line {
 
 const oneLine = (text: string): string => text.replace(/\s+/gu, ' ').trim();
 
+// The v1 work wrote an object of its own as the text "[object Object]" in one cell, so a part of a
+// cell is a source only when it is a web address.
 const urlsOf = (cell: unknown): string[] =>
-  typeof cell === 'string' ? cell.split(/\s+/u).filter((part) => part !== '') : [];
+  typeof cell === 'string'
+    ? cell.split(/\s+/u).filter((part) => URL.canParse(part) && /^https?:\/\//iu.test(part))
+    : [];
 
 // External constraint: a GeoPackage geometry is a header of eight bytes (magic, version, flags,
 // SRS id), an envelope that bits 1 to 3 of the flags size, then the WKB. Bit 0 of the flags gives
@@ -355,9 +359,9 @@ export const doorItems = (
     if (span === null)
       throw new Error(`the stored page does not hold the line of v1 ${line.element.id} once`);
     const act = machineAct(request, [document]);
-    // The review reads "sources from the parent" from this key. The promotion copies no key of the
-    // payload outside the name, the type, the location, the attributes and the sources, so the
-    // key stays out of the public record.
+    // The review reads "sources from the parent" from this key. A pending act publishes its whole
+    // payload, this key too. The promotion copies no key of the payload outside the name, the
+    // type, the location, the attributes and the sources, so the promoted record does not hold it.
     const marked =
       act.op === 'create_entity' && line.sourcesFrom !== null
         ? { ...act.payload, sources_from: line.sourcesFrom.name }
