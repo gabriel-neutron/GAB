@@ -1494,7 +1494,7 @@ test('a promotion refuses a rejected end, a relation to itself and an act with n
       'pending',
       'pending',
       'pending',
-      'pending',
+      'rejected',
     ]);
   } finally {
     await post('reject-unit', { unitId: parent, reason: 'end_rejected' });
