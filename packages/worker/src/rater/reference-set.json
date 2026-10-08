@@ -1,0 +1,235 @@
+{
+  "authors": [
+    {
+      "name": "Official Journal of the European Union",
+      "letter": "A",
+      "reason": "It issues its own legal acts.",
+      "controller": "EU institutions",
+      "party": false
+    },
+    {
+      "name": "OFAC (US Treasury)",
+      "letter": "A",
+      "reason": "It issues its own sanctions designations.",
+      "controller": "US government",
+      "party": false
+    },
+    {
+      "name": "Companies House (UK)",
+      "letter": "A",
+      "reason": "It issues its own company register, which proves the filing and not the content.",
+      "controller": "UK government",
+      "party": false
+    },
+    {
+      "name": "European Court of Human Rights",
+      "letter": "A",
+      "reason": "It issues its own judgments.",
+      "controller": "Council of Europe",
+      "party": false
+    },
+    {
+      "name": "Reuters",
+      "letter": "B",
+      "reason": "It does its own reporting and has a record of corrections.",
+      "controller": "Thomson Reuters",
+      "party": false
+    },
+    {
+      "name": "BBC News",
+      "letter": "B",
+      "reason": "It works under published editorial rules and publishes corrections.",
+      "controller": "BBC (UK public broadcaster)",
+      "party": false
+    },
+    {
+      "name": "Bellingcat",
+      "letter": "B",
+      "reason": "It shows its evidence and its method.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Institute for the Study of War",
+      "letter": "B",
+      "reason": "It names its sources and has a long public record.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Oryx",
+      "letter": "B",
+      "reason": "It counts a loss only with a photo or a video.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "IISS, The Military Balance",
+      "letter": "B",
+      "reason": "It is a yearly order-of-battle reference with an open method.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "RUSI",
+      "letter": "B",
+      "reason": "It publishes field analysis with named authors.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Mediazona",
+      "letter": "B",
+      "reason": "It counts Russian dead by name from open records.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "International Energy Agency",
+      "letter": "B",
+      "reason": "It publishes standard energy data with a clear method.",
+      "controller": "member governments",
+      "party": false
+    },
+    {
+      "name": "Cipriani, Goldberg and La Spada (NY Fed staff report)",
+      "letter": "B",
+      "reason": "Its researchers are named and it shows its data and its method.",
+      "controller": "Federal Reserve System",
+      "party": false
+    },
+    {
+      "name": "Chupilkin, Javorcik and Plekhanov (EBRD working paper)",
+      "letter": "B",
+      "reason": "Its researchers are named and it shows its data and its method.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Argus Media",
+      "letter": "B",
+      "reason": "It is a price reporter with a published method.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Bank of Russia",
+      "letter": "B",
+      "reason": "It is the primary source for its own statistics.",
+      "controller": "Russian state",
+      "party": true
+    },
+    {
+      "name": "OHCHR monitoring mission",
+      "letter": "B",
+      "reason": "It verifies each case.",
+      "controller": "United Nations",
+      "party": false
+    },
+    {
+      "name": "GeoConfirmed",
+      "letter": "C",
+      "reason": "It has an open method but its geolocators are volunteers.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "The Insider",
+      "letter": "C",
+      "reason": "It runs strong investigations that are often based on one source.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Kyiv Independent",
+      "letter": "C",
+      "reason": "It does real reporting but repeats official claims.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Meduza",
+      "letter": "C",
+      "reason": "It is an exile media outlet with hidden sources.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "General Staff of the Armed Forces of Ukraine",
+      "letter": "C",
+      "reason": "It is sound on its own orders, but its figures of Russian losses cannot be checked.",
+      "controller": "Ukrainian state",
+      "party": true
+    },
+    {
+      "name": "DeepState",
+      "letter": "C",
+      "reason": "It keeps a good front-line map but has ties to the army.",
+      "controller": "Ukrainian volunteer team with army link",
+      "party": true
+    },
+    {
+      "name": "Gazprom (self-report)",
+      "letter": "C",
+      "reason": "It is a company that speaks about itself under state control.",
+      "controller": "Russian state",
+      "party": true
+    },
+    {
+      "name": "Brookings",
+      "letter": "C",
+      "reason": "It publishes opinion and analysis with mixed sourcing.",
+      "controller": null,
+      "party": false
+    },
+    {
+      "name": "Rybar",
+      "letter": "D",
+      "reason": "Some of its maps are correct, but it has propaganda framing and links to the defence ministry.",
+      "controller": "Rybar channel network, close to the Russian defence ministry",
+      "party": true
+    },
+    {
+      "name": "TASS",
+      "letter": "D",
+      "reason": "It gives the state line and does not correct it.",
+      "controller": "Russian state",
+      "party": true
+    },
+    {
+      "name": "Ministry of Defence of the Russian Federation",
+      "letter": "D",
+      "reason": "It has repeated false claims on the war.",
+      "controller": "Russian state",
+      "party": true
+    },
+    {
+      "name": "Mash",
+      "letter": "D",
+      "reason": "It is a tabloid channel with some real scoops and no corrections.",
+      "controller": "Mash channel network",
+      "party": false
+    },
+    {
+      "name": "RT",
+      "letter": "E",
+      "reason": "It is sanctioned for disinformation.",
+      "controller": "Russian state",
+      "party": true
+    },
+    {
+      "name": "War on Fakes",
+      "letter": "E",
+      "reason": "It presents itself as a fact-checker but pushes state claims.",
+      "controller": "Russian state-linked network",
+      "party": true
+    },
+    {
+      "name": "Anonymous Telegram channel with no record",
+      "letter": "F",
+      "reason": "It has no record, so it cannot be judged; follow its cited source.",
+      "controller": null,
+      "party": false
+    }
+  ]
+}
