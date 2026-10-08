@@ -449,6 +449,23 @@ test('a link to an element that was rejected is rejected by the impossible rule'
   expect(read.decision_origin).toMatch(/^rule impossible v1/u);
 });
 
+test('the rule reads the fault of a pending unit that links an element to itself', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const { child } = await ends(ask);
+    const act = await as(ask, 'gabriel_app', () =>
+      first(
+        ask,
+        `SELECT public.propose_change('create_relation', $1::jsonb, ARRAY['manual']::text[], NULL,
+           NULL, $2::uuid[]) AS id`,
+        [JSON.stringify({ type: 'subordinate_to', src_id: child, dst_id: child }), [child]],
+      ),
+    );
+    return { state: await stateOf(ask, act), rule: await ruleOf(ask, act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('impossible');
+});
+
 test('a dispute goes to the operator even with a source A', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();

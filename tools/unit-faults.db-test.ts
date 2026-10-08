@@ -364,7 +364,7 @@ test('an end that was rejected blocks the unit and is named with the day', async
   );
 });
 
-test('an end that does not exist, a relation to itself and an act with no passage block a unit', async () => {
+test('an end that does not exist and an act with no passage block a unit, and a relation to itself is rejected', async () => {
   const [lost, self] = [randomUUID(), randomUUID()];
   const read = await rolledBack('superuser', async (ask) => {
     await seed(ask);
@@ -407,7 +407,8 @@ test('an end that does not exist, a relation to itself and an act with no passag
       `The end ${read.gone.label} is not in the record and not in the queue`,
     ],
   ]);
-  expect(read.read.get(self)?.faults.map((one) => one.kind)).toStrictEqual(['self']);
+  // The impossible rule rejects a relation to itself when it is written, so no act of it waits.
+  expect(read.read.has(self)).toBe(false);
   expect(said(read.read.get(read.unsourced))).toStrictEqual([
     ['blocks', 'no_source', 'The act Unsourced unit cites no passage of a source'],
   ]);
