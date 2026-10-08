@@ -11,6 +11,7 @@ const act = (extra: Partial<DecidedAct>): DecidedAct => ({
   decidedAt: '2026-10-07T09:12:44Z',
   decidedBy: 'operator',
   decidedAs: 'unit',
+  decisionOrigin: null,
   rejectReason: null,
   rejectNote: null,
   name: '5th Combined Arms Army',
@@ -49,7 +50,26 @@ it('says who decided each act, and names a group action', () => {
       act({ decidedAs: 'unit' }),
       act({ decidedAs: null }),
     ]).map((row) => row.decidedHow),
-  ).toStrictEqual(['the operator, group action', 'the operator', 'the operator']);
+  ).toStrictEqual([
+    'validated manually by the operator, group action',
+    'validated manually by the operator',
+    'validated manually by the operator',
+  ]);
+});
+
+it('names the rule that decided an act, and never calls it the operator', () => {
+  const rows = decidedRows([
+    act({ decidedAs: 'rule', decisionOrigin: 'rule strong_sources v1 (fact digits: 1)' }),
+    act({
+      status: 'rejected',
+      decidedAs: 'rule',
+      decisionOrigin: 'rule impossible v1 (fact digits: no fact)',
+    }),
+  ]);
+  expect(rows.map((row) => row.decidedHow)).toStrictEqual([
+    'accepted by the rule strong sources, version 1',
+    'rejected by the rule impossible, version 1',
+  ]);
 });
 
 it('names what the act changed, the act and the proposer, and never a machine', () => {

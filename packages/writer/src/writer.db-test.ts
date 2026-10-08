@@ -1483,7 +1483,8 @@ test('a promotion refuses a rejected end, a relation to itself and an act with n
     ]);
     const [itself, itselfReply] = await post('promote-unit', { unitId: self });
     expect(itself).toBe(422);
-    expect(itselfReply.refusal).toMatch(/has the same element at its two ends$/u);
+    // The impossible rule rejected the relation to itself when it was written.
+    expect(itselfReply.refusal).toMatch(/is decided already/u);
     const [unsourcedStatus, unsourcedReply] = await post('promote-unit', { unitId: bare });
     expect([unsourcedStatus, unsourcedReply.refusal]).toStrictEqual([
       422,
@@ -1493,7 +1494,7 @@ test('a promotion refuses a rejected end, a relation to itself and an act with n
       'pending',
       'pending',
       'pending',
-      'pending',
+      'rejected',
     ]);
   } finally {
     await post('reject-unit', { unitId: parent, reason: 'end_rejected' });

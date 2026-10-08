@@ -4,13 +4,16 @@ import { proposerWords } from '@/shared/proposer-words';
 import { cn } from '@/shared/lib/utils';
 
 import { faultMarks } from './fault-marks';
+import { SAID_LABEL } from './lane-words';
 import { queueWords } from './queue-words';
 import type { UnitWords } from './unit-changes';
-import type { FaultLevel, Unit, UnitState } from './unit-page';
+import type { FaultLevel, Lane, Unit, UnitState } from './unit-page';
 
-/** The units read so far, the count of every unit, the count of the units that the filter keeps
- * and of those before the first unit read, and whether a next page waits. */
+/** The list that it shows, the units read so far, the count of every unit of the list, the count
+ * of the units that the filter keeps and of those before the first unit read, and whether a next
+ * page waits. */
 export interface UnitQueue {
+  readonly lane: Lane;
   readonly units: readonly Unit[];
   readonly total: number;
   readonly matched: number;
@@ -90,7 +93,7 @@ function Marks({ unit }: { readonly unit: Unit }) {
 }
 
 export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
-  const { units, total, matched, before, filtered, more } = queue;
+  const { lane, units, total, matched, before, filtered, more } = queue;
   // The line of the selected unit scrolls into view once for each unit, also after a reload. A
   // later render does not move the list that the operator scrolled.
   const shown = useRef<string | null>(null);
@@ -99,11 +102,11 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
     shown.current = selectedId;
     line.scrollIntoView({ block: 'nearest' });
   };
-  const said = queueWords({ read: units.length, before, matched, total, filtered });
+  const sentence = queueWords({ read: units.length, before, matched, total, filtered, lane });
   return (
     <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
       <p className="shrink-0 border-b border-border px-2 py-1 text-small/4 text-label">
-        {said.count}
+        {sentence.count}
       </p>
       {before === 0 ? null : (
         <div className="shrink-0 border-b border-border p-1">
@@ -118,7 +121,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
           </button>
         </div>
       )}
-      {said.empty === null ? null : <p className="p-2 text-xs text-label">{said.empty}</p>}
+      {sentence.empty === null ? null : <p className="p-2 text-xs text-label">{sentence.empty}</p>}
       {units.length === 0 ? null : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {units.map((unit) => (
@@ -157,6 +160,12 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   </span>
                   <span className="sr-only">{groupOf(unit)}</span>
                 </span>
+                {unit.said === '' ? null : (
+                  <span data-said={unit.lane} className="w-full min-w-0 text-small/4 break-words">
+                    <span className="text-label">{SAID_LABEL[unit.lane]}: </span>
+                    {unit.said}
+                  </span>
+                )}
                 <Marks unit={unit} />
               </button>
             </li>

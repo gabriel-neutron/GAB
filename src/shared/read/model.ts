@@ -204,8 +204,8 @@ export type AuthorRole = z.output<typeof row.proposal>['author_role'];
  * record derives it from the role and the party that the act names. */
 export type Proposer = z.output<typeof row.proposal>['proposer'];
 
-/** How the operator decided an act: one unit, one relation of a unit, or a group action. An older
- * decision, and an act that the operator signed, have none. */
+/** How an act was decided: one unit, one relation of a unit, a group action, or a named rule. An
+ * older decision, and an act that the operator signed, have none. */
 export type DecisionMode = NonNullable<z.output<typeof row.proposal>['decided_as']>;
 
 export interface Proposal {
@@ -229,6 +229,9 @@ export interface Proposal {
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
   readonly decidedAs: DecisionMode | null;
+  /** Who or what decided the act: the name and the version of a rule, "validated manually by
+   * the operator", or "decided by an AI reviewer". An older decision has none. */
+  readonly decisionOrigin: string | null;
   /** The group of a machine act: the acts of one call that name each other. It is a label and
    * a filter. A single act has none. */
   readonly batchId: string | null;

@@ -3,12 +3,15 @@ import { PROPOSERS } from '@gab/proposal/proposer';
 import type { Proposer } from '@/shared/read/model';
 import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
-import { FAULT_KINDS, type FaultKind } from './unit-page';
+import { FAULT_KINDS, LANES, type FaultKind, type Lane } from './unit-page';
 
 const FEATURE = 'review';
 
-/** The filters of the queue. A null filter, or an empty name, keeps every unit. */
+/** The filters of the queue, and the list that it shows. A null filter, or an empty name, keeps
+ * every unit of the list. The list is the doubts or the units that wait, and it is no filter that
+ * a button clears. */
 export interface QueueFilter {
+  readonly lane: Lane;
   readonly group: string | null;
   readonly proposer: Proposer | null;
   readonly fault: FaultKind | null;
@@ -24,6 +27,7 @@ export interface ReviewWorkspace {
 }
 
 export const NO_FILTER: QueueFilter = {
+  lane: 'doubt',
   group: null,
   proposer: null,
   fault: null,
@@ -35,11 +39,13 @@ const DEFAULT_REVIEW_WORKSPACE: ReviewWorkspace = { filter: NO_FILTER, from: nul
 
 const PROPOSER_KEYS: readonly string[] = PROPOSERS;
 const KINDS: readonly string[] = FAULT_KINDS;
+const LANE_KEYS: readonly string[] = LANES;
 
 // The compiler holds these lists closed: a key added to an interface and forgotten here fails the
 // type check.
 const WORKSPACE_KEYS: Readonly<Record<keyof ReviewWorkspace, true>> = { filter: true, from: true };
 const FILTER_KEYS: Readonly<Record<keyof QueueFilter, true>> = {
+  lane: true,
   group: true,
   proposer: true,
   fault: true,
@@ -54,6 +60,8 @@ const textOrNull = (value: unknown, allowed?: readonly string[]): boolean =>
 const isFilter = (value: unknown): value is QueueFilter => {
   if (!holdsOnlyDeclaredKeys(value, FILTER_KEYS)) return false;
   return (
+    typeof value['lane'] === 'string' &&
+    LANE_KEYS.includes(value['lane']) &&
     textOrNull(value['group']) &&
     textOrNull(value['proposer'], PROPOSER_KEYS) &&
     textOrNull(value['fault'], KINDS) &&
@@ -92,7 +100,7 @@ const isWorkspace = (value: unknown): value is ReviewWorkspace => {
 // Departure: five exports, one job. They read and patch one stored record of the filter, the
 // empty filter is its starting value, and one says whether a filter is on.
 
-/** A filter is on when it can leave out a unit. */
+/** A filter is on when it can leave out a unit of the list. The list itself is not a filter. */
 export const filterIsOn = (filter: QueueFilter): boolean =>
   filter.group !== null ||
   filter.proposer !== null ||

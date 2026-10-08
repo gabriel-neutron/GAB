@@ -93,6 +93,7 @@ const PROPOSAL_ROW = {
   decided_at: null,
   decided_by: null,
   decided_as: null,
+  decision_origin: null,
   batch_id: null,
 };
 

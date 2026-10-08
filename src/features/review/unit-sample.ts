@@ -158,8 +158,7 @@ const BLOCKED_MIX = faultsOf([
   ['information', 'sources_from_parent', 'Sources from the parent Southern Military District'],
 ]);
 
-/** The answer of the writer for the first page of the queue. */
-export const UNIT_ANSWER = {
+const BASE = {
   total: 1082,
   matched: 1082,
   before: 0,
@@ -510,4 +509,29 @@ export const UNIT_ANSWER = {
       passages: [passage(SAMPLE_UNITS.blockedMix, 4, '68th GRAU arsenal')],
     },
   ],
+};
+
+interface Said {
+  readonly level: string;
+  readonly said: string;
+}
+
+// The rules put a unit that is not clean in the lane of the doubts, with the sentence of its first
+// fault. Any other unit waits, and says the source that it needs.
+const laneOf = (unit: { readonly state: string; readonly faults: readonly Said[] }) =>
+  unit.state === 'not_clean'
+    ? {
+        lane: 'doubt' as const,
+        said: unit.faults.find((fault) => fault.level === 'not_clean')?.said ?? null,
+      }
+    : {
+        lane: 'waiting' as const,
+        said: 'A second independent author, C or better',
+      };
+
+/** The answer of the writer for the first page of the queue. */
+export const UNIT_ANSWER = {
+  ...BASE,
+  counts: { decided: 12, doubt: 2, waiting: 7 },
+  units: BASE.units.map((unit) => ({ ...unit, ...laneOf(unit) })),
 };

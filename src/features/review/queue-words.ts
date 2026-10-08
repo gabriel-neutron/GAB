@@ -1,3 +1,6 @@
+import type { Lane } from './unit-page';
+import { NO_UNIT, WHOLE } from './lane-words';
+
 /** The counts of the units that the left column holds. */
 export interface QueueCounts {
   /** The units read and shown. */
@@ -6,9 +9,10 @@ export interface QueueCounts {
   readonly before: number;
   /** The units that the filter keeps. */
   readonly matched: number;
-  /** Every unit of the queue. */
+  /** Every unit of the list, the doubts or the units that wait. */
   readonly total: number;
   readonly filtered: boolean;
+  readonly lane: Lane;
 }
 
 /** The count line of the left column, and the sentence that says why it shows no unit. */
@@ -17,17 +21,17 @@ export interface QueueWords {
   readonly empty: string | null;
 }
 
-const emptyOf = ({ read, matched, total }: QueueCounts): string | null => {
-  if (total === 0) return 'The queue is empty.';
+const emptyOf = ({ read, matched, total, lane }: QueueCounts): string | null => {
+  if (total === 0) return NO_UNIT[lane];
   if (matched === 0) return 'No unit matches this filter.';
   if (read === 0) return 'No unit comes after this place in the queue.';
   return null;
 };
 
 export function queueWords(counts: QueueCounts): QueueWords {
-  const { read, before, matched, total, filtered } = counts;
+  const { read, before, matched, total, filtered, lane } = counts;
   const kept = `${String(matched)} of ${String(total)} units match the filter`;
-  const whole = filtered ? kept : `${String(matched)} units wait`;
+  const whole = filtered ? kept : `${String(matched)} ${WHOLE[lane]}`;
   const suffix = filtered ? `. ${kept}` : '';
   const count =
     read === 0 || (before === 0 && read === matched)

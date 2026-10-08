@@ -33,8 +33,10 @@ const pageAfter = (after: readonly string[] | null) =>
     return { page: held };
   });
 
-// The writer reads an absent filter as "every unit", so only the filters that are on are sent.
+// The writer reads an absent filter as "every unit", so only the filters that are on are sent. The
+// list is always sent.
 const sentFilter = (filter: QueueFilter) => ({
+  lane: filter.lane,
   ...(filter.group === null ? {} : { group: filter.group }),
   ...(filter.proposer === null ? {} : { proposer: filter.proposer }),
   ...(filter.fault === null ? {} : { fault: filter.fault }),

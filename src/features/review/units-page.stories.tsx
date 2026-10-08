@@ -11,6 +11,7 @@ const page = unitPageOf(UNIT_ANSWER, null);
 const units = page?.units ?? [];
 const choices = page?.choices ?? { groups: [], documents: [], proposers: [] };
 const NONE = { state: 'none' } as const;
+const COUNTS = page?.counts ?? { decided: 0, doubt: 0, waiting: 0 };
 const disputed = units.find((unit) => unit.id === SAMPLE_UNITS.disputed);
 if (disputed === undefined) throw new Error('the sample holds no disputed unit');
 
@@ -18,6 +19,7 @@ const queueOf = (
   held: typeof units,
   counts: { matched?: number; before?: number; total?: number; filtered?: boolean } = {},
 ) => ({
+  lane: 'doubt' as const,
   units: held,
   total: counts.total ?? 1082,
   matched: counts.matched ?? 1082,
@@ -64,6 +66,7 @@ const meta = {
     view: {
       state: 'held',
       queue: queueOf(units),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -139,6 +142,7 @@ export const EachColumnScrollsOnItsOwn: Story = {
     view: {
       state: 'held',
       queue: queueOf(LONG),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -167,6 +171,7 @@ export const TheNamesStayAt900Pixels: Story = {
     view: {
       state: 'held',
       queue: queueOf(LONG),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -248,6 +253,7 @@ export const AFilterThatFindsNothingSaysSo: Story = {
     view: {
       state: 'held',
       queue: { ...queueOf([], { matched: 0, filtered: true }), more: 'none' },
+      counts: COUNTS,
       filter: { ...NO_FILTER, fault: 'circle' },
       choices,
       linked: NONE,
@@ -264,12 +270,13 @@ export const AFilterThatFindsNothingSaysSo: Story = {
   },
 };
 
-/** An empty queue says that it is empty. */
+/** An empty list of doubts says that no doubt needs the operator. */
 export const AnEmptyQueueSaysSo: Story = {
   args: {
     view: {
       state: 'held',
       queue: { ...queueOf([], { matched: 0, total: 0 }), more: 'none' },
+      counts: COUNTS,
       filter: NO_FILTER,
       choices: { groups: [], documents: [], proposers: [] },
       linked: NONE,
@@ -277,7 +284,7 @@ export const AnEmptyQueueSaysSo: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('The queue is empty.')).toBeVisible();
+    await expect(canvas.getByText('No doubt needs a decision of the operator.')).toBeVisible();
     await expect(canvas.queryByText('No unit matches this filter.')).toBeNull();
   },
 };
@@ -289,6 +296,7 @@ export const TheListStartsAtThePlaceOfTheOperator: Story = {
     view: {
       state: 'held',
       queue: queueOf(units, { before: 100 }),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -449,6 +457,7 @@ export const ALinkOpensAUnitThatIsNotOnThePage: Story = {
     view: {
       state: 'held',
       queue: queueOf(units.filter((unit) => unit.id !== SAMPLE_UNITS.disputed)),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: {
@@ -480,6 +489,7 @@ export const ALinkToADecidedUnitSaysItIsNotInTheQueue: Story = {
     view: {
       state: 'held',
       queue: queueOf(units),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: { state: 'gone', unitId: 'c0ffee00-0000-4000-8000-000000000000' },
@@ -491,7 +501,7 @@ export const ALinkToADecidedUnitSaysItIsNotInTheQueue: Story = {
     await expect(canvas.getByText(/This unit is not in the queue\./u)).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Promote' })).toBeNull();
     await expect(canvas.queryByRole('button', { name: 'Reject' })).toBeNull();
-    await expect(canvasElement.querySelector('[aria-current="true"]')).toBeNull();
+    await expect(canvasElement.querySelector('[data-unit][aria-current="true"]')).toBeNull();
   },
 };
 
@@ -501,6 +511,7 @@ export const ADoneDecisionSaysWhatItDid: Story = {
     view: {
       state: 'held',
       queue: queueOf(units),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -576,6 +587,7 @@ export const AnUnknownRelationTypeIsMarked: Story = {
             : unit,
         ),
       ),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -596,6 +608,7 @@ export const TheSelectedUnitIsInViewAfterAReload: Story = {
     view: {
       state: 'held',
       queue: queueOf(LONG),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -606,7 +619,7 @@ export const TheSelectedUnitIsInViewAfterAReload: Story = {
   play: async ({ canvas, canvasElement }) => {
     const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
     const scroller = list.querySelector('ul');
-    const line = canvasElement.querySelector('[aria-current="true"]');
+    const line = canvasElement.querySelector('[data-unit][aria-current="true"]');
     if (scroller === null || line === null) throw new Error('no list or no selected line');
     await waitFor(async () => {
       await expect(scroller.scrollTop).toBeGreaterThan(0);
@@ -624,6 +637,7 @@ export const AUnitOnThePageIsNeverLost: Story = {
     view: {
       state: 'held',
       queue: queueOf(units),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: { state: 'gone', unitId: SAMPLE_UNITS.army },
@@ -644,6 +658,7 @@ export const AFailedReadOfTheLinkedUnitSaysWhy: Story = {
     view: {
       state: 'held',
       queue: queueOf(units),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: {
@@ -682,7 +697,7 @@ export const TheProposerOffersOnlyProposersWithUnits: Story = {
 export const TheImportKeysStandApart: Story = {
   play: async ({ canvas }) => {
     const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
-    await expect(within(changes).getByRole('heading', { name: 'Import keys' })).toBeVisible();
+    await expect(within(changes).getByRole('heading', { name: 'Source keys' })).toBeVisible();
     await expect(
       within(changes).getByRole('link', { name: 'voinskaya-chast-poisk.ru' }),
     ).toBeVisible();
@@ -725,6 +740,7 @@ export const ASecondEntityIsSaidBeforePromote: Story = {
             : unit,
         ),
       ),
+      counts: COUNTS,
       filter: NO_FILTER,
       choices,
       linked: NONE,
@@ -739,5 +755,122 @@ export const ASecondEntityIsSaidBeforePromote: Story = {
       ),
     ).toBeVisible();
     await expect(within(bar).getByRole('button', { name: 'Promote' })).toBeEnabled();
+  },
+};
+
+const doubts = units.filter((unit) => unit.lane === 'doubt');
+const waiting = units.filter((unit) => unit.lane === 'waiting');
+
+/** The queue opens on the doubts, each with its reason, and the head says how many units the
+ * rules decided and how many wait. */
+export const TheQueueOpensOnTheDoubts: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: { ...queueOf(doubts, { matched: doubts.length, total: COUNTS.doubt }), more: 'none' },
+      counts: COUNTS,
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.disputed,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(
+      canvas.getByText(
+        'The rules decided 12 units. 2 doubts wait for you. 7 units wait for a source.',
+      ),
+    ).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /^Doubts/u })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await expect(canvas.getByRole('button', { name: /^Waiting/u })).not.toHaveAttribute(
+      'aria-current',
+    );
+    const lines = canvasElement.querySelectorAll('button[data-unit]');
+    await expect(lines).toHaveLength(doubts.length);
+    for (const unit of doubts) {
+      const line = canvasElement.querySelector(`[data-unit="${unit.id}"]`);
+      await expect(line?.querySelector('[data-said="doubt"]')).toHaveTextContent(unit.said);
+    }
+    await expect(canvas.getByText('2 doubts')).toBeVisible();
+  },
+};
+
+/** The waiting list names, for each unit, the source that it needs. The operator can open any
+ * of its units and decide it. */
+export const TheWaitingListSaysWhichSourceEachUnitNeeds: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: {
+        ...queueOf(waiting, { matched: waiting.length, total: COUNTS.waiting }),
+        lane: 'waiting',
+        more: 'none',
+      },
+      counts: COUNTS,
+      filter: { ...NO_FILTER, lane: 'waiting' },
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.army,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    onAct.mockClear();
+    await expect(canvas.getByRole('button', { name: /^Waiting/u })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await expect(canvas.getByText('7 units wait for a source')).toBeVisible();
+    const army = canvasElement.querySelector(`[data-unit="${SAMPLE_UNITS.army}"]`);
+    await expect(army?.querySelector('[data-said="waiting"]')).toHaveTextContent(
+      'Needs: A second independent author, C or better',
+    );
+    const bar = canvas.getByRole('region', { name: 'The decision' });
+    await expect(within(bar).getByRole('button', { name: 'Reject…' })).toBeEnabled();
+    await expect(within(bar).getByRole('button', { name: 'Promote' })).toBeEnabled();
+    const other = canvasElement.querySelector(`[data-unit="${SAMPLE_UNITS.brigade}"]`);
+    if (!(other instanceof HTMLElement)) throw new Error('no line for the brigade');
+    await userEvent.click(other);
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'select', unitId: SAMPLE_UNITS.brigade });
+  },
+};
+
+/** A click on a list asks for it, and a click on the filter button keeps the list. */
+export const AClickOnAListAsksForIt: Story = {
+  play: async ({ canvas }) => {
+    onAct.mockClear();
+    await userEvent.click(canvas.getByRole('button', { name: /^Waiting/u }));
+    await expect(onAct).toHaveBeenCalledWith({ kind: 'filter', patch: { lane: 'waiting' } });
+  },
+};
+
+/** The reason of a unit stands in the right column, and no word of the page presents a rule as
+ * the operator or names the import of the first version. */
+export const NoWordPresentsARuleAsTheOperatorOrNamesTheImport: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: { ...queueOf(doubts, { matched: doubts.length, total: COUNTS.doubt }), more: 'none' },
+      counts: COUNTS,
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+    selectedId: SAMPLE_UNITS.disputed,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const why = canvas.getByRole('region', { name: 'The justification' });
+    await expect(
+      within(why).getByRole('heading', { name: 'Not clean: decide it alone' }),
+    ).toBeVisible();
+    const head = canvasElement.querySelector('[data-said="rules"]');
+    await expect(head?.textContent).not.toMatch(/operator|v1|import/iu);
+    const nav = canvas.getByRole('navigation', { name: 'Lists of the queue' });
+    await expect(nav.textContent).not.toMatch(/operator|v1|import/iu);
   },
 };

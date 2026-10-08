@@ -208,6 +208,21 @@ test('the token budget stops a lead that loops, with that reason', async () => {
   });
 });
 
+test('the budget of a deepening search stops the lead in place of the cap of the worker', async () => {
+  await inTransaction(async ({ job, ask, step }) => {
+    await ask('UPDATE public.jobs SET token_budget = 30 WHERE id = $1', [job]);
+    const router = routerOf(() => toolCallOf('web_search', { query: LEAD }));
+
+    // The cap of the worker is large, and the budget of the search is small.
+    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'failed', job });
+
+    expect(router.chats()).toBe(3);
+    expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
+      { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
+    ]);
+  });
+});
+
 test('a lead fetches no address that differs from a stored one only in its form', async () => {
   await inTransaction(async ({ job, known, step }) => {
     const bodies: string[] = [];
