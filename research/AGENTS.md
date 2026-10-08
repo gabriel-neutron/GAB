@@ -20,10 +20,14 @@ session: each proposal waits in the review queue, and the operator decides it th
   as a document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
+- Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
+  `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question,
   except `enqueue_extract`, `enqueue_mapping` and `start_lead`: they spend model credit, so Claude
   Code asks the operator first.
+- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`. Claude Code asks
+  the operator before each decision. Follow the skill `review-unit`.
 
 ## Who proposes what
 
@@ -52,6 +56,11 @@ session: each proposal waits in the review queue, and the operator decides it th
   key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
+- **An AI reviewer decides a doubt only in another session.** The rules of the database decide
+  each unit from its sources, and a unit with a doubt goes to a reviewer. When the operator asks
+  for a review session, follow the skill `review-unit`: read the cited passage first, and never
+  decide a unit that your own session proposed. Each decision records "decided by an AI
+  reviewer" and your reason.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 

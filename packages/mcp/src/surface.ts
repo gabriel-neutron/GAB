@@ -5,6 +5,12 @@ import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 // which one it is. No tool deletes or replaces a row, because the ledger is append-only.
 const READ_RECORD: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
 const READ_WEB: ToolAnnotations = { readOnlyHint: true, openWorldHint: true };
+const DECIDE: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+};
 
 /** Each tool of the research surface, in the order a client lists it, and how a client treats
  * it. The type holds every tool of the catalogue, so a new tool cannot stay off the list. */
@@ -18,6 +24,14 @@ export const RESEARCH_TOOLS = {
   document_text: READ_RECORD,
   file_schema_sample: READ_RECORD,
   job_status: READ_RECORD,
+  // The reads of the review page. The queue, the groups, the decided acts and the leads.
+  read_doubts: READ_RECORD,
+  read_waiting: READ_RECORD,
+  read_unit: READ_RECORD,
+  read_groups: READ_RECORD,
+  read_group: READ_RECORD,
+  read_decided: READ_RECORD,
+  read_leads: READ_RECORD,
   web_search: READ_WEB,
   news_search: READ_WEB,
   // A capture asks the archive to keep a copy of a page, which is a write outside the record.
@@ -110,4 +124,9 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: false,
   },
+  // The decisions of an AI reviewer, as the review page takes them. A decided act is frozen, so a
+  // second call is refused, and the ledger keeps the act: nothing is deleted.
+  promote_unit: DECIDE,
+  reject_unit: DECIDE,
+  reject_relation: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;
