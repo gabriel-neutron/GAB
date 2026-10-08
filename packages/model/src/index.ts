@@ -1,4 +1,5 @@
 export { checkTokenCap, openBudget, type Budget } from './budget.ts';
+export { numberOf, readModelConfig, readTokenCap, type ModelConfig } from './config.ts';
 export { REASON, type Failure, type ReasonKind } from './failure.ts';
 export { openrouterModel, PROVIDER, pinnedName } from './openrouter.ts';
 export {
