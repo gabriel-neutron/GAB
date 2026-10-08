@@ -65,6 +65,16 @@ CREATE OR REPLACE TRIGGER act_check_append_only
   BEFORE UPDATE OR DELETE ON act_check
   FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 
+-- A new author name gets a job that rates it.
+CREATE OR REPLACE TRIGGER proposals_rate_author
+  AFTER INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION enqueue_author_rating();
+
+-- The approval of a reference author is written once.
+CREATE OR REPLACE TRIGGER reference_approval_append_only
+  BEFORE UPDATE OR DELETE ON reference_approval
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -98,6 +108,8 @@ ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
 ALTER TABLE author ENABLE ALWAYS TRIGGER author_append_only;
 ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
 ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
+ALTER TABLE reference_approval ENABLE ALWAYS TRIGGER reference_approval_append_only;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_rate_author;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;

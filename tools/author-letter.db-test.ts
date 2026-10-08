@@ -5,7 +5,17 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { as, MODEL, rate, refusal, reference, type Options } from './author-fixture.ts';
+import {
+  approve,
+  as,
+  join,
+  MODEL,
+  rate,
+  refusal,
+  reference,
+  storeUnapproved,
+  type Options,
+} from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const JOIN = 'SELECT public.join_author_name($1, $2)';
@@ -53,7 +63,7 @@ test('the agent role stores a letter C to F with its model, reason, references a
         .parse(
           await ask(
             `SELECT letter::text, model, reason, reference_authors, controller, rated_at
-               FROM public.author`,
+               FROM public.author WHERE NOT reference_set`,
           ),
         ),
     };
@@ -96,6 +106,68 @@ test.each(REFUSED)('the agent role cannot store %s', async (_name, letter, optio
     refusal(ask, () => rate(ask, 'Some Author', letter, options)),
   );
   expect(said_).toMatch(said);
+});
+
+test('a reference author that is not approved in the reference set is refused', async () => {
+  const said = await rolledBack('superuser', async (ask) => {
+    await rate(ask, 'Worker Rated', 'D');
+    await storeUnapproved(ask, 'Waiting Reference', 'B');
+    const refused = (references: string[]) =>
+      refusal(ask, () =>
+        as(ask, 'gabriel_agent', () =>
+          ask(`SELECT public.store_author_letter($1, 'D', $2, 'r', $3::text[], NULL, false)`, [
+            'New Author',
+            MODEL,
+            references,
+          ]),
+        ),
+      );
+    const found = {
+      stranger: await refused(['No Such Author']),
+      workerRated: await refused(['Worker Rated']),
+      unapproved: await refused(['Waiting Reference']),
+      oneOfTwo: await refused(['Reference Agency', 'No Such Author']),
+    };
+    await approve(ask);
+    return { ...found, afterApproval: await refused(['Waiting Reference']) };
+  });
+  expect(said.stranger).toMatch(/approved.*reference set/u);
+  expect(said.workerRated).toMatch(/approved.*reference set/u);
+  expect(said.unapproved).toMatch(/approved.*reference set/u);
+  expect(said.oneOfTwo).toMatch(/approved.*reference set/u);
+  expect(said.afterApproval).toBeNull();
+});
+
+test('a worker rating of the name of an unapproved reference author is refused clean', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await reference(ask, 'Good Agency', 'B');
+    await storeUnapproved(ask, 'Waiting Reference', 'B');
+    const rated = await refusal(ask, () => rate(ask, ' waiting  reference', 'D'));
+    const joined = await refusal(ask, () => join(ask, 'Waiting Reference', 'Good Agency'));
+    return { rated, joined, count: await ask('SELECT count(*)::int AS n FROM public.author') };
+  });
+  expect(read.rated).toMatch(/already has an author/u);
+  expect(read.joined).toMatch(/already has an author/u);
+  expect(read.count).toStrictEqual([{ n: 2 }]);
+});
+
+test('the reference door skips a name that a worker rated, and it stores the others', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await rate(ask, 'Trade Journal', 'D');
+    const skipped = await storeUnapproved(ask, 'trade  journal', 'A');
+    const kept = await storeUnapproved(ask, 'Other Agency', 'B');
+    await approve(ask);
+    return {
+      skipped,
+      kept,
+      journal: await letterOf(ask, 'trade journal'),
+      agency: await letterOf(ask, 'other agency'),
+    };
+  });
+  expect(read.skipped).toStrictEqual([{ id: null }]);
+  expect(read.kept[0]).toMatchObject({ id: expect.any(String) as unknown });
+  expect(read.journal).toBe('D');
+  expect(read.agency).toBe('B');
 });
 
 test('a party with a controller is stored, and it reads as C at most', async () => {

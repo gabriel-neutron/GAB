@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { readExtractorConfig, readLeadConfig, readMapperConfig } from './reader-config.ts';
+import {
+  readExtractorConfig,
+  readLeadConfig,
+  readMapperConfig,
+  readRaterConfig,
+} from './reader-config.ts';
 
 const MAPPER = {
   MAPPER_MODEL: 'a-family/a-model',
@@ -25,6 +30,25 @@ describe('the configuration of the mapper', () => {
     it(`stops with a sentence that names ${name} when it is absent`, () => {
       const env = Object.fromEntries(Object.entries(MAPPER).filter(([held]) => held !== name));
       expect(() => readMapperConfig(env)).toThrow(new RegExp(name, 'u'));
+    });
+});
+
+const RATER = Object.fromEntries(
+  Object.entries(MAPPER).map(([name, value]) => [name.replace('MAPPER_', 'RATER_'), value]),
+);
+
+describe('the configuration of the rater', () => {
+  it('reads the model name from the environment and not from the code', () => {
+    expect(readRaterConfig({ ...RATER, RATER_MODEL: 'x-family/the-strongest' })).toMatchObject({
+      model: { model: 'x-family/the-strongest' },
+      tokenCap: 50000,
+    });
+  });
+
+  for (const name of Object.keys(RATER))
+    it(`stops with a sentence that names ${name} when it is absent`, () => {
+      const env = Object.fromEntries(Object.entries(RATER).filter(([held]) => held !== name));
+      expect(() => readRaterConfig(env)).toThrow(new RegExp(name, 'u'));
     });
 });
 
