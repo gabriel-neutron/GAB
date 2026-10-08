@@ -39,7 +39,8 @@ proposes. It reads `OPENROUTER_API_KEY`, the `CHECKER_` values and `RESEARCH_CHE
 tokens of one check) from `infra/.env` of the repository, wherever the client starts it. The server
 knows the family of the research AI from the name of its client: Claude Code is `anthropic`, Codex
 is `openai`. Set a `CHECKER_FAMILY` that is neither. When a value is absent, the server starts, and
-each proposal is disputed with the name of the value.
+each proposal waits with no check, and the answer of the tool names the value. Propose the same
+batch again when the checker is up: the server checks it then.
 
 Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
 the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a

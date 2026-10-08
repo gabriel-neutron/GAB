@@ -105,8 +105,11 @@ exists.
 - When the tool refuses a batch, read the item and the reason, correct only that item, and send
   the batch again one time. When the answer marks an item as disputed, read its excerpt again. If
   the excerpt does not state the value, the fact has no source yet: leave it out next time.
-- When the answer gives `checkFailure`, no model checked the batch, and each item is disputed. If
-  the reason names the token cap, send smaller batches. For any other reason, tell the operator.
+- When the answer gives `checkFailure`, no model checked the batch. Its facts wait with no check,
+  and no rule accepts them. If the reason names the token cap, send the same items again in
+  smaller batches. For any other reason, tell the operator, and send the same batch again when
+  the operator says that the checker is up: a batch sent again writes nothing twice and gets its
+  check.
 
 ## A blocked source
 
