@@ -39,9 +39,9 @@ document always name an entry in `decisions.md`, never a step.
 | W1 | Scouting and collection of raw material | Out |
 | W2 | Ingestion of documents into the corpus | **In** |
 | W3 | Extraction: the system reads and proposes nodes and links | **In** |
-| W4 | Automated checks: the faults that the review screen flags on each proposal | **In** |
-| W5 | Review by exception: dissent between agents, or a fault that the screen flags | **In** |
-| W6 | Promotion of a proposal to the evidentiary layer | **In** |
+| W4 | Automated checks: the letter of each author, the checks of each fact, the faults of each unit | **In** |
+| W5 | Review by exception: the operator decides only the doubts (S3) | **In** |
+| W6 | Promotion to the evidentiary layer, by a named rule or by the operator | **In** |
 | W7 | Manual creation and editing of entities and relations | **In** |
 | W8 | Conversational drill-down from a graph element | **In** |
 | W9 | Search and correlation across documents, graph and internet | **In** |
@@ -50,7 +50,7 @@ document always name an entry in `decisions.md`, never a step.
 | W12 | Report writing | Out |
 | W13 | Publication | **In** |
 
-**W6 is the pivotal step (P1).** It is the act that turns machine material into evidentiary material. The ergonomics of W5–W6 determine the value of the whole.
+**W6 is the pivotal step (P1).** It is the act that turns machine material into evidentiary material. The rules of S3 make most decisions, so the operator reads only the doubts.
 
 ---
 
@@ -86,9 +86,9 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 | Layer | Who writes | Guarantee | Destination |
 |---|---|---|---|
 | Candidate | The machine, freely | None | Exploration, correlation, hypotheses |
-| Evidentiary | The analyst, by promotion | Source cited, origin of the decision tracked | Report, dataset, public map |
+| Evidentiary | A named rule or the analyst, by promotion | Source cited, origin of the decision tracked | Report, dataset, public map |
 
-**Dual review surface (P3)**: a marker on the graph, and a dedicated queue.
+**Dual review surface (P3)**: a marker on the graph, and a dedicated queue. By default, the queue shows only the units that need the operator.
 
 **Trust**: see S1 to S6.
 

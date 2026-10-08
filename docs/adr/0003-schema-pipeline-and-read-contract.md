@@ -55,7 +55,8 @@ A grant, not a prompt, controls each write. The rule is by layer, not by table:
 - The **owner** role owns the tables and the write functions. It never logs in.
 - The **application** role writes only through the write functions.
 - The **machine** roles can only propose into the candidate layer. They never write the evidence
-  layer or the configuration layer. Only the operator promotes.
+  layer or the configuration layer. Only the operator and the decision rules of the database
+  promote (ADR 0012).
 - The **read** role reads the public views of `api` and nothing more. A view is public only when
   the grants file names it for the read role.
 

@@ -1,11 +1,11 @@
 # ADR 0011 — A decision table, not a score, decides the public state of each claim, and a letter rates only the originator
 
-**Status** Superseded · 7 October 2026 · Accepted 4 October 2026
+**Status** Superseded by ADR 0012 · 8 October 2026 · Accepted 4 October 2026
 
-**Superseded by `decisions.md` P4 and P11, and by `prd.md` W4 and W5.** The product removed the
-letter of the originator, the confidence of a proposal and the decision table. No rule promotes a
-claim. The operator decides each proposal on the review screen, and the screen flags the faults
-of each proposal. The text below records the old decision only. No code builds it.
+**Superseded by ADR 0012 and `decisions.md` S1 and S3.** On 7 October 2026 the product removed the
+letter, the confidence and the decision table. On 8 October 2026 a simpler method came back: the
+NATO letter rates the author, code gives every letter, and named rules decide from the sources.
+The text below records the old decision only. No code builds it.
 
 ## Context
 
