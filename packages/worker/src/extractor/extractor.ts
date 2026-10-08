@@ -27,7 +27,7 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v6';
+const VERSION = 'v7';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -88,6 +88,15 @@ const checkAnswer = z.strictObject({
   ),
 });
 
+// The door that keeps the verdict of the checker on one act. The rules read it, so an act with a
+// passed check can be accepted with no step by hand.
+const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)';
+
+// The part of the answer of the propose tool that names the act of each item.
+const proposed = z.object({
+  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid(), written: z.boolean() })),
+});
+
 // Items that cite the same passages go to the checker in one question.
 const byPassage = (items: readonly ItemToCheck[]): ItemToCheck[][] => {
   const groups = new Map<string, ItemToCheck[]>();
@@ -100,7 +109,8 @@ const byPassage = (items: readonly ItemToCheck[]): ItemToCheck[][] => {
 
 /** The extractor. It reads each chunk of the newest text of a document, and code proposes the
  * batch that the model gives through the same tool as the research AI. Before the write, a model
- * of another family checks each item against its passage. The models write nothing. */
+ * of another family checks each item against its passage, and code keeps each verdict with its
+ * act, so the rules can decide. The models write nothing. */
 export const makeExtractor = (
   config: ReaderConfig,
   options: ExtractorOptions = {},
@@ -199,6 +209,25 @@ export const makeExtractor = (
       return verdicts;
     };
 
+    // Each act that this batch wrote keeps the verdict of the checker on its item. An item with
+    // no verdict keeps no check, and an act that an earlier batch wrote has its check already.
+    const recordChecks = async (
+      output: unknown,
+      verdicts: ReadonlyMap<string, CheckVerdict>,
+    ): Promise<void> => {
+      for (const one of proposed.parse(output).proposals) {
+        const said = verdicts.get(one.ref);
+        if (!one.written || said === undefined) continue;
+        await context.db.query(RECORD_CHECK, [
+          one.proposalId,
+          config.checker.model,
+          config.checker.family,
+          config.reader.family,
+          said.verdict,
+        ]);
+      }
+    };
+
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
     // model once, with the sentence of the tool, and the model gives the whole batch again. The
     // answer is the second refusal, or null.
@@ -224,13 +253,20 @@ export const makeExtractor = (
         }
         if (asked.value.items.length === 0) return null;
         const proposer = tools.propose(asked.callId);
+        let verdicts: ReadonlyMap<string, CheckVerdict> = new Map();
         const made = await callTool(
           proposer,
           session,
           { items: asked.value.items },
-          { now: () => new Date(), check },
+          {
+            now: () => new Date(),
+            check: async (items) => (verdicts = await check(items)),
+          },
         );
-        if (made.ok) return null;
+        if (made.ok) {
+          await recordChecks(made.output, verdicts);
+          return null;
+        }
         if (retries === 0) {
           refusals.push({ tool: proposer.name, reason: made.refusal });
           return made.refusal;
