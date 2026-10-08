@@ -57,10 +57,11 @@ export const EachControlSaysWhatItDoes: Story = {
     onAct.mockClear();
     await expect(
       canvas.getByText(
-        'Writes 5th Combined Arms Army (Military unit) and 1 relation. Source: GAB v1 ORBAT: ' +
-          'military units and organisations of the v1 GeoPackage. You cannot undo this.',
+        'Writes 5th Combined Arms Army (Military unit) and 1 relation. You cannot undo this.',
       ),
     ).toBeVisible();
+    await expect(canvas.queryByText(/^Rejects /u)).toBeNull();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject…' }));
     await expect(
       canvas.getByText('Rejects 5th Combined Arms Army and its 1 relation.'),
     ).toBeVisible();
@@ -80,6 +81,7 @@ export const ABlockedUnitSaysWhyPromoteIsOff: Story = {
           'Military District).',
       ),
     ).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject…' }));
     await expect(canvas.getByLabelText('Reason')).toBeEnabled();
   },
 };
@@ -87,6 +89,7 @@ export const ABlockedUnitSaysWhyPromoteIsOff: Story = {
 /** The reason "end rejected" is offered only where the other end was rejected. */
 export const EndRejectedIsOfferedOnlyWhereItFits: Story = {
   play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject…' }));
     const reasons = [...canvas.getByLabelText('Reason').querySelectorAll('option')].map(
       (option) => option.textContent,
     );
@@ -99,6 +102,7 @@ export const EndRejectedIsOfferedOnlyWhereItFits: Story = {
 export const ARejectionNeedsAReason: Story = {
   play: async ({ canvas }) => {
     onAct.mockClear();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reject…' }));
     const reject = canvas.getByRole('button', { name: 'Reject' });
     await expect(reject).toBeDisabled();
     await userEvent.selectOptions(canvas.getByLabelText('Reason'), 'other');

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, restoreAllMocks, spyOn, waitFor } from 'storybook/test';
+import { expect, restoreAllMocks, spyOn, userEvent, waitFor } from 'storybook/test';
 
 import { Justification } from './justification';
 import { unitPageOf } from './unit-page';
@@ -145,26 +145,30 @@ export const AFileWithNoAddressIsNoLink: Story = {
   args: { unit: unitOf(SAMPLE_UNITS.army) },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvasElement.querySelector('[data-passage] figcaption')).toHaveTextContent(
-      'Supports 5th Combined Arms Army · page 1',
+      'Evidence for 5th Combined Arms Army · page 1',
     );
     await expect(canvas.queryByRole('link', { name: /Open page/u })).toBeNull();
+    await userEvent.click(canvas.getByText('The v1 record of this unit'));
     await expect(canvas.getByRole('link', { name: 'voinskaya-chast-poisk.ru' })).toBeVisible();
     await expect(canvas.getByText('No fault.')).toBeVisible();
     await expect(canvas.queryByText(/A group action can promote/u)).toBeNull();
   },
 };
 
-/** A line of the v1 import shows the line of its own unit, and folds the lines of the other units
- * around it. */
+/** A line of the v1 import is folded: the record of the unit, and in it the lines of the other
+ * units around it. */
 export const AV1LineFoldsTheLinesOfOtherUnits: Story = {
   args: { unit: unitOf(SAMPLE_UNITS.army) },
   play: async ({ canvas, canvasElement }) => {
     const passage = canvasElement.querySelector('[data-passage]');
     await expect(passage).toHaveAttribute('data-own-line', 'true');
+    const record = passage?.querySelector('details');
+    if (!(record instanceof HTMLDetailsElement)) throw new Error('the record is not folded');
+    await expect(record.open).toBe(false);
+    await expect(canvas.getByText('The v1 record of this unit')).toBeVisible();
+    await expect(canvas.getByText('The lines of other units around it')).not.toBeVisible();
+    await userEvent.click(canvas.getByText('The v1 record of this unit'));
     await expect(passage?.querySelector('mark')).toHaveTextContent('5th Combined Arms Army');
-    const folded = passage?.querySelector('details');
-    if (!(folded instanceof HTMLDetailsElement)) throw new Error('the context is not folded');
-    await expect(folded.open).toBe(false);
     await expect(canvas.getByText('The lines of other units around it')).toBeVisible();
   },
 };
@@ -204,7 +208,7 @@ export const AnImageDocumentShowsTheStoredImageBesideItsPassages: Story = {
     await expect(image.getAttribute('src')).toMatch(/^blob:/u);
     const open = canvas.getByRole('link', { name: `Open the full image of ${IMAGE_TITLE}` });
     await expect(open.getAttribute('href')).toBe(image.getAttribute('src'));
-    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
     await expect(asked).toStrictEqual([
       ['/private/document-image', JSON.stringify({ document: IMAGE_DOCUMENT })],
     ]);
@@ -225,7 +229,7 @@ export const AnImageThatDoesNotLoadSaysSoAndThePassagesStay: Story = {
       await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
     });
     await expect(canvas.queryByRole('img')).toBeNull();
-    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
   },
 };
 
@@ -241,7 +245,7 @@ export const AnImageThatDoesNotDrawSaysSo: Story = {
       await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
     });
     await expect(canvas.queryByRole('img')).toBeNull();
-    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
   },
 };
 
@@ -252,7 +256,7 @@ export const ATextDocumentDrawsNoImage: Story = {
     imageAnswers(pngAnswer);
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-passage] mark')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
     await expect(canvas.queryByRole('img')).toBeNull();
     await expect(asked).toStrictEqual([]);
   },
