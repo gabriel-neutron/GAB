@@ -77,6 +77,7 @@ test('the role matrix of the doors', async () => {
       "public.start_lead": "app research",
       "public.store_author_letter": "agent",
       "public.store_reference_author": "app",
+      "public.unit_rule": "app",
     }
   `);
 });
@@ -110,14 +111,14 @@ const DECIDING_DOORS_HELD = `
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
 
 const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))`;
 
 test('a machine role holds no door that promotes or rejects', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
