@@ -1,6 +1,8 @@
 # The services of the first build (T5). See docs/adr/0002-local-runtime.md.
 #
-# Every port is bound to 127.0.0.1. Nothing is reachable from outside this machine.
+# Every port is bound to 127.0.0.1. Nothing is reachable from outside this machine. Each published
+# port comes from infra/.env, so the stack of a session (`pnpm stack:up`) runs beside this one. An
+# absent variable gives the port of the main stack.
 # Every image tag is pinned. An upstream change must arrive through a commit.
 name: gab
 
@@ -14,7 +16,7 @@ services:
       POSTGRES_USER: gabriel
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
     ports:
-      - '127.0.0.1:5432:5432'
+      - '127.0.0.1:${GAB_DB_PORT:-5432}:5432'
     volumes:
       - gab-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -43,7 +45,7 @@ services:
       # No row cap is set. The mechanism that exempts the two full reads is still an open question,
       # and the 5s statement_timeout of gabriel_read already bounds every request.
     ports:
-      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:${GAB_API_PORT:-3000}:3000'
 
   # The same read service over the test database. The suite reads through it, and a reader of the
   # record never meets the rows a test writes.
@@ -61,7 +63,7 @@ services:
       PGRST_DB_ANON_ROLE: gabriel_read
       PGRST_OPENAPI_MODE: disabled
     ports:
-      - '127.0.0.1:3001:3000'
+      - '127.0.0.1:${GAB_API_TEST_PORT:-3001}:3000'
 
   # The raw store: an S3 server that keeps each source file exactly as it arrived (T3, ADR 0007).
   # The accounts and their rights are in seaweedfs/s3.json, and the keys come from infra/.env.
@@ -89,7 +91,7 @@ services:
       RAW_STORE_READ_ACCESS_KEY: ${RAW_STORE_READ_ACCESS_KEY:?set RAW_STORE_READ_ACCESS_KEY in infra/.env}
       RAW_STORE_READ_SECRET_KEY: ${RAW_STORE_READ_SECRET_KEY:?set RAW_STORE_READ_SECRET_KEY in infra/.env}
     ports:
-      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:${GAB_RAW_STORE_PORT:-9000}:9000'
     volumes:
       - gab-raw-data:/data
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
@@ -107,10 +109,10 @@ services:
     image: searxng/searxng:2026.10.2-19ffbcd30
     restart: unless-stopped
     environment:
-      SEARXNG_BASE_URL: http://127.0.0.1:8888/
+      SEARXNG_BASE_URL: http://127.0.0.1:${GAB_SEARXNG_PORT:-8888}/
       SEARXNG_SECRET: ${SEARXNG_SECRET:-gab-local-searxng-loopback-only-secret}
     ports:
-      - '127.0.0.1:8888:8080'
+      - '127.0.0.1:${GAB_SEARXNG_PORT:-8888}:8080'
     volumes:
       - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
     healthcheck:

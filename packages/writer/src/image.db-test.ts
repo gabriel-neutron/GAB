@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -21,14 +21,8 @@ const app = writeRoutes(
 
 // Departure: the suite writes the document rows as the owner of the database, because the image
 // that this door shows enters through another door, and no writer door writes a bare row.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const held = secrets.parse(process.env);
-const owner = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(held.POSTGRES_PASSWORD)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`,
-});
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 const written: string[] = [];
 
