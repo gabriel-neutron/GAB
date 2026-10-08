@@ -191,6 +191,16 @@ cd ~/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
 ```
 
+The `visual-qa` agent drives a headless Chromium through the Playwright MCP server of
+`.mcp.json`. The VPS has no Google Chrome, so install the browser build that matches the pinned
+version of the server:
+
+```bash
+npx -y @playwright/mcp@0.0.83 install-browser chrome-for-testing
+```
+
+**Check:** in a session, the `visual-qa` agent opens a page and returns a screenshot.
+
 ## 7. The PC uses the VPS service
 
 The real database, the writer and the worker stay on the PC. They reach SearXNG through
