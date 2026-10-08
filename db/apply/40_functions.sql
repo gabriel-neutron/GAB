@@ -2748,7 +2748,8 @@ END $$;
 -- with two lines of context. Each passage names the element of the act that it supports. A
 -- passage of the v1 import is the whole line of its unit, and the lines around it state other
 -- units, so the passage says so. Each act, and each unit whose every act is such a relation, says
--- whether the reason "end rejected" fits it.
+-- whether the reason "end rejected" fits it. Each act gives the check of a second model on it, or
+-- null when no model checked it.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -2935,6 +2936,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'createdAt', a.created_at, 'dissent', a.dissent,
              'endRejected', public.end_was_rejected(a.op, a.payload),
              'dissentReason', public.dispute_said(a.dissent_reason),
+             'check', (SELECT jsonb_build_object('model', k.checker_model, 'verdict', k.verdict,
+                                                 'passed', k.passed, 'reason', k.reason)
+                         FROM public.act_check k WHERE k.proposal_id = a.id),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
            bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected
@@ -3760,25 +3764,37 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 $$;
 
 -- ================================================================== THE CHECK AND THE DIGIT ==
--- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
--- and never that the fact is true. The row names the family of the reader and the family of the
--- checker: a check by the same family does not pass. A check is written once for an act: a second
--- check of the same act changes nothing, and the first one stays. So a worker that writes the
--- check again after a stop or a retry is safe. The agent role gives both names, so the rules trust
--- the worker (ADR 0012, trust boundary).
-CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
-                                            p_checker_family text, p_reader_family text,
-                                            p_verdict text)
+-- THE DOORS FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the
+-- fact, and never that the fact is true. The row names the family of the reader and the family of
+-- the checker: a check by the same family does not pass. A check is written once for an act: a
+-- second check of the same act changes nothing, and the first one stays. So a process that writes
+-- the check again after a stop or a retry is safe. The row keeps the reason of a verdict that is
+-- not `supported`, cut to the length that the table keeps.
+--
+-- EACH DOOR CHECKS THE ACTS OF ONE AUTHOR ROLE. The worker checks the acts of gabriel_agent, and
+-- gabriel_checker checks the acts of gabriel_research. So no role writes a check on the acts of
+-- another role, and the research AI, which holds the research password, writes no check. The roles
+-- give both family names, so the rules trust the processes (ADR 0012, trust boundary). The common
+-- step holds no grant.
+DROP FUNCTION IF EXISTS record_act_check(uuid, text, text, text, text);
+CREATE OR REPLACE FUNCTION store_act_check(p_act uuid, p_author_role text, p_checker_model text,
+                                           p_checker_family text, p_reader_family text,
+                                           p_verdict text, p_reason text)
 RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.proposals p WHERE p.id = p_act AND p.originator IS NOT NULL)
-  THEN
-    RAISE EXCEPTION 'a check belongs to an act of a machine' USING ERRCODE = 'invalid_parameter_value';
+  IF NOT EXISTS (SELECT 1 FROM public.proposals p
+                  WHERE p.id = p_act AND p.originator IS NOT NULL
+                    AND p.author_role = p_author_role) THEN
+    RAISE EXCEPTION 'a check of this door belongs to an act of a machine that % wrote', p_author_role
+      USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
-  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict)
+  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict,
+                                reason)
+  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict,
+          CASE WHEN p_verdict = 'supported' OR btrim(coalesce(p_reason, '')) = '' THEN NULL
+               ELSE left(p_reason, 1000) END)
   ON CONFLICT (proposal_id) DO NOTHING;
   -- The end of the check makes the units that share the fact go through the rules again.
   PERFORM public.run_rules(ARRAY(
@@ -3786,6 +3802,26 @@ BEGIN
      WHERE q.status = 'pending'
        AND q.claim_key = (SELECT a.claim_key FROM public.proposals a WHERE a.id = p_act)));
 END $$;
+
+CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
+                                            p_checker_family text, p_reader_family text,
+                                            p_verdict text, p_reason text DEFAULT NULL)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.store_act_check(p_act, 'gabriel_agent', p_checker_model, p_checker_family,
+                                p_reader_family, p_verdict, p_reason);
+$$;
+
+CREATE OR REPLACE FUNCTION record_research_check(p_act uuid, p_checker_model text,
+                                                 p_checker_family text, p_reader_family text,
+                                                 p_verdict text, p_reason text DEFAULT NULL)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.store_act_check(p_act, 'gabriel_research', p_checker_model, p_checker_family,
+                                p_reader_family, p_verdict, p_reason);
+$$;
 
 -- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
 -- attributes is about. Two acts with one target and one key with two values disagree. An act of

@@ -124,6 +124,7 @@ interface Opened {
   readonly ask: (
     tools?: readonly Tool[],
     cap?: number,
+    oneCall?: boolean,
   ) => ReturnType<ReturnType<typeof openModel>['ask']>;
 }
 
@@ -147,12 +148,13 @@ const open = (pinned = PINNED): Opened => {
   return {
     records,
     waits,
-    ask: (tools, cap = 1000) =>
+    ask: (tools, cap = 1000, oneCall) =>
       model.ask({
         messages: GO,
         shape: SHAPE,
         budget: openBudget(cap),
         ...(tools === undefined ? {} : { tools }),
+        ...(oneCall === undefined ? {} : { oneCall }),
       }),
   };
 };
@@ -352,6 +354,18 @@ describe('a fault that time mends', () => {
     expect(waits).toStrictEqual([3000, LINE.maxWaitMs]);
   });
 
+  it('makes one network attempt when the caller asks for one call', async () => {
+    for (let n = 0; n < 4; n += 1) replies.push(refused(502, { message: 'down' }));
+    const { ask, waits } = open();
+
+    expect(await ask(undefined, 1000, true)).toMatchObject({
+      ok: false,
+      failure: { kind: 'network', attempts: 1 },
+    });
+    expect(bodies).toHaveLength(1);
+    expect(waits).toStrictEqual([]);
+  });
+
   it('stops after three retries, and records one failed call', async () => {
     for (let n = 0; n < 4; n += 1) replies.push(refused(502, { message: 'down' }));
     const { ask, records } = open();
@@ -403,6 +417,17 @@ describe('a bad shape', () => {
     const retry = sent.parse(bodies[1]).messages.at(-1);
     expect(JSON.stringify(retry)).toContain('claim');
     expect(records).toHaveLength(1);
+  });
+
+  it('asks no second question when the caller asks for one call', async () => {
+    replies.push(said('{"claim":7}'), said('{"claim":"a ship"}'));
+    const { ask } = open();
+
+    expect(await ask(undefined, 1000, true)).toMatchObject({
+      ok: false,
+      failure: { kind: 'rejected', attempts: 1 },
+    });
+    expect(bodies).toHaveLength(1);
   });
 
   it('fails when the second answer is bad too', async () => {

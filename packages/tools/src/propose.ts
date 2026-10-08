@@ -5,10 +5,12 @@ import { machineAct } from '@gab/proposal/machine';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import { plainText } from './check-answer.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
 import {
+  CheckFailure,
   defineTool,
   ToolRefusal,
   type CheckVerdict,
@@ -316,10 +318,7 @@ const disputeReason = (
   if (parts.length === 0) return null;
   // The reason of the checker can echo the text of the page. A control character (a NUL refuses
   // the whole batch at the door) becomes a space, so the record keeps one line of plain text.
-  const plain = parts
-    .join('; ')
-    .replace(/\p{Cc}+/gu, ' ')
-    .replace(/ {2,}/gu, ' ');
+  const plain = plainText(parts.join('; '));
   return Array.from(plain).slice(0, MAX_REASON).join('');
 };
 
@@ -341,13 +340,21 @@ export const proposeOf = (modelCallId: string | null) =>
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
-      'the item. A value that no excerpt states marks the item as disputed. A relation names an ' +
-      'entity of an earlier item by its ref. A retry of the same batch writes nothing twice. The ' +
+      'the item. A value that no excerpt states marks the item as disputed. Before the write, a ' +
+      'model of another family reads each item with its passages, and an item that its passages ' +
+      'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
+      'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
+      'relation names an entity of an earlier item by its ref. A retry of the same batch writes ' +
+      'nothing twice. The ' +
       'proposals wait for the operator. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds.',
     input: z.strictObject({ items: proposeItems }),
-    output: z.strictObject({ proposals: z.array(outcome) }),
+    output: z.strictObject({
+      proposals: z.array(outcome),
+      // Why no model checked the batch. The items then wait, and the same batch can be sent again.
+      checkFailure: z.string().optional(),
+    }),
     async run(session, input, reach) {
       const minted = new Map<string, Minted>();
       input.items.forEach((given, index) => {
@@ -381,14 +388,31 @@ export const proposeOf = (modelCallId: string | null) =>
           context: one.context,
         })),
       }));
-      const verdicts = reach?.check === undefined ? null : await reach.check(toCheck);
+      let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;
+      let failure: string | null = null;
+      if (reach?.check !== undefined)
+        try {
+          verdicts = await reach.check(toCheck);
+        } catch (cause) {
+          if (!(cause instanceof CheckFailure)) throw cause;
+          verdicts = new Map();
+          failure = cause.message;
+        }
       const names = new Map(
         input.items.flatMap((given) =>
           given.act.op === 'create_entity' ? [[given.ref, given.act.label] as const] : [],
         ),
       );
+      // Under the mark `refuted`, only a verdict that the passage does not support disputes an
+      // item. Any other item with no `supported` verdict waits, with no dispute and no check.
+      const verdictOf = (ref: string): CheckVerdict | 'unchecked' | undefined => {
+        if (verdicts === null) return 'unchecked';
+        const said = verdicts.get(ref);
+        if (reach?.checkMarks !== 'refuted') return said;
+        return said?.verdict === 'not_supported' ? said : 'unchecked';
+      };
       const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
-        disputeReason(unstated, verdicts === null ? 'unchecked' : verdicts.get(ref), names);
+        disputeReason(unstated, verdictOf(ref), names);
 
       const items = prepared.map(({ given, act, cited, unstated, id }) => {
         const reason = reasonOf(given.ref, unstated);
@@ -441,6 +465,7 @@ export const proposeOf = (modelCallId: string | null) =>
             unstated: [...new Set(unstated.map((one) => one.name))],
           };
         }),
+        ...(failure === null ? {} : { checkFailure: failure }),
       };
     },
   });

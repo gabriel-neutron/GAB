@@ -96,17 +96,25 @@ test('the rules of the workspace name each tool of the server', () => {
 // The research session writes with no question (P12): each proposal waits in the review queue,
 // and the operator decides it there. The tools that spend model credit still ask the operator
 // first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
-// fails here.
+// fails here. The settings also refuse each read and each write of the environment file of the
+// stack, because it holds the password of the checker role.
 const ASKS_FIRST = new Set(['enqueue_extract', 'enqueue_mapping', 'start_lead']);
 
 test('the Claude Code settings allow each tool of the server, except the ones that spend credit', () => {
   const settings = z
-    .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
+    .strictObject({
+      permissions: z.strictObject({ allow: z.array(z.string()), deny: z.array(z.string()) }),
+    })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
   const allowed = [...RESEARCH]
     .filter((name) => !ASKS_FIRST.has(name))
     .map((name) => `mcp__gab__${name}`);
   expect([...settings.permissions.allow].sort()).toStrictEqual(allowed.sort());
+  expect(settings.permissions.deny).toStrictEqual([
+    'Read(//**/infra/.env)',
+    'Edit(//**/infra/.env)',
+    'Bash(*infra*.env*)',
+  ]);
 });
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {

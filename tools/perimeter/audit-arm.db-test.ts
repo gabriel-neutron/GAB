@@ -78,14 +78,14 @@ const MEMBERSHIP = `SELECT DISTINCT r.rolname || ' in ' || g.rolname AS found
             JOIN pg_catalog.pg_roles r ON r.oid = m.member
             JOIN pg_catalog.pg_roles g ON g.oid = m.roleid
            WHERE m.roleid = 'gabriel_owner'::regrole
-              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read')
+              OR r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read','gabriel_checker')
           UNION ALL
           SELECT r.rolname || ' is ' || a.attribute
             FROM pg_catalog.pg_roles r
            CROSS JOIN LATERAL (VALUES ('SUPERUSER', r.rolsuper), ('CREATEROLE', r.rolcreaterole),
                                       ('CREATEDB', r.rolcreatedb), ('BYPASSRLS', r.rolbypassrls),
                                       ('REPLICATION', r.rolreplication)) AS a(attribute, held)
-           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read') AND a.held
+           WHERE r.rolname IN ('gabriel_app','gabriel_agent','gabriel_research','gabriel_read','gabriel_checker') AND a.held
            ORDER BY 1`;
 
 // External constraint: a default with no IN SCHEMA is stored with defaclnamespace 0, which no
