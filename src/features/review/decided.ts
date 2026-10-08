@@ -9,10 +9,10 @@ import { REJECTION_REASONS } from './rejection';
 // Departure: two exports, one job. The shape of one decided act as the writer gives it, and the
 // row that the history draws of it.
 
-/** What the operator decided on an act. */
+/** What was decided on an act. */
 export type Verdict = 'promoted' | 'rejected';
 
-/** One act that the operator decided, as the private read of the writer gives it. The reason and
+/** One act that was decided, as the private read of the writer gives it. The reason and
  * the note are private: only the operator reads them. */
 export const decidedAct = z.object({
   id: z.string(),
@@ -21,7 +21,8 @@ export const decidedAct = z.object({
   status: z.enum(['accepted', 'rejected']),
   decidedAt: z.string(),
   decidedBy: z.string(),
-  decidedAs: z.enum(['unit', 'relation', 'group']).nullable(),
+  decidedAs: z.enum(['unit', 'relation', 'group', 'rule']).nullable(),
+  decisionOrigin: z.string().nullable(),
   rejectReason: z.string().nullable(),
   rejectNote: z.string().nullable(),
   name: z.string().nullable(),
@@ -44,7 +45,8 @@ export interface DecidedRow {
   readonly when: string;
   /** The name the verdict was signed with. It proves no person. */
   readonly signedAs: string;
-  /** Who decided the act, and whether in a group action. */
+  /** Who or what decided the act: the rule with its version, or "validated manually by the
+   * operator", and whether in a group action. */
   readonly decidedHow: string;
   /** Who proposed the act: the v1 import, the research AI, the extractor or the operator. */
   readonly author: string;
@@ -100,7 +102,7 @@ export function decidedRows(acts: readonly DecidedAct[]): readonly DecidedRow[] 
       decidedAt: act.decidedAt,
       when: whenOf(act.decidedAt),
       signedAs: act.decidedBy,
-      decidedHow: deciderWords(act.decidedAs),
+      decidedHow: deciderWords(act.decidedAs, act.decisionOrigin, act.status),
       author: proposerWords(act.proposer),
     };
   });

@@ -243,7 +243,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
             onClick={() => {
               stopPause();
               setName('');
-              onFilter(NO_FILTER);
+              onFilter({ ...NO_FILTER, lane: filter.lane });
             }}
           >
             Show every unit

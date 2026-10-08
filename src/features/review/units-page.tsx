@@ -5,11 +5,12 @@ import { ChangeList, type RelationAct } from './change-list';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
 import { decisionWords } from './decision-words';
 import { Justification } from './justification';
+import { LaneBar } from './lane-bar';
 import { QueueFilterBar } from './queue-filter';
 import type { QueueFilter } from './review-workspace';
 import type { UnitWords } from './unit-changes';
 import { UnitList, type UnitListAct, type UnitQueue } from './unit-list';
-import type { FilterChoices, Unit } from './unit-page';
+import type { FilterChoices, LaneCounts, Unit } from './unit-page';
 
 /** The unit that the address names when the pages read so far do not hold it: none asked, the
  * unit read by its identifier, a unit that waits no more, or a read that failed with the sentence
@@ -27,6 +28,8 @@ export type QueueView =
   | {
       readonly state: 'held';
       readonly queue: UnitQueue;
+      /** What the rules decided, and what is left in each list, over the whole queue. */
+      readonly counts: LaneCounts;
       readonly filter: QueueFilter;
       readonly choices: FilterChoices;
       readonly linked: LinkedUnit;
@@ -138,6 +141,13 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
       className="grid h-full min-h-0 grid-cols-[clamp(16rem,26%,22rem)_minmax(0,1fr)_clamp(15rem,28%,26rem)] overflow-hidden"
     >
       <div className="flex min-h-0 flex-col border-r border-border">
+        <LaneBar
+          lane={view.filter.lane}
+          counts={view.counts}
+          onLane={(lane) => {
+            onAct({ kind: 'filter', patch: { lane } });
+          }}
+        />
         <QueueFilterBar
           filter={view.filter}
           choices={view.choices}

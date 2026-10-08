@@ -144,6 +144,7 @@ const ACT: Proposal = {
   decidedAt: null,
   decidedBy: null,
   decidedAs: null,
+  decisionOrigin: null,
   batchId: null,
 };
 
@@ -305,10 +306,13 @@ test('a point borrowed from a parent that the entity list holds names that paren
   expect(dossier?.positionFrom).toBe(`position from ${OWNER.label}`);
 });
 
-test('the entity says who promoted it into the record, and names a group action', () => {
+test('the entity says who promoted it into the record, and names a group action or a rule', () => {
   const { op, targetKind, targetId, payload, src, names, priorValue, dissent } = ACT;
   const act = { op, targetKind, targetId, payload, src, names, priorValue, dissent };
-  const promoted = (decidedAs: DecidedAct['decidedAs']): DecidedAct => ({
+  const promoted = (
+    decidedAs: DecidedAct['decidedAs'],
+    decisionOrigin: DecidedAct['decisionOrigin'] = null,
+  ): DecidedAct => ({
     act: {
       ...act,
       id: VESSEL.promotedFrom,
@@ -321,13 +325,22 @@ test('the entity says who promoted it into the record, and names a group action'
     decidedAt: '2026-10-08T09:30:00Z',
     decidedBy: 'operator',
     decidedAs,
+    decisionOrigin,
   });
   expect(readDossier(CORPUS, VESSEL.id, [], [promoted('group')])?.decision).toBe(
-    'Promoted by the operator, group action, on 2026-10-08',
+    'Validated manually by the operator, group action, on 2026-10-08',
   );
   expect(readDossier(CORPUS, VESSEL.id, [], [promoted('unit')])?.decision).toBe(
-    'Promoted by the operator on 2026-10-08',
+    'Validated manually by the operator on 2026-10-08',
   );
+  const byRule = readDossier(
+    CORPUS,
+    VESSEL.id,
+    [],
+    [promoted('rule', 'rule strong_sources v1 (fact digits: 1)')],
+  )?.decision;
+  expect(byRule).toBe('Accepted by the rule strong sources, version 1 on 2026-10-08');
+  expect(byRule).not.toMatch(/operator/u);
   // An entity whose promotion the read does not hold says nothing of it.
   expect(readDossier(CORPUS, VESSEL.id, [], [])?.decision).toBeNull();
 });

@@ -18,6 +18,7 @@ const QUEUE = (
     view={{
       state: 'held',
       queue: {
+        lane: 'doubt',
         units: unitPageOf(UNIT_ANSWER, null)?.units ?? [],
         total: 1082,
         matched: 1082,
@@ -25,6 +26,7 @@ const QUEUE = (
         filtered: false,
         more: 'ready',
       },
+      counts: { decided: 12, doubt: 2, waiting: 7 },
       filter: NO_FILTER,
       choices: { groups: [], documents: [], proposers: [] },
       linked: { state: 'none' },
@@ -72,7 +74,7 @@ export const TheHistoryIsReachedFromTheQueue: Story = {
 export const TheQueueOutlivesAVisitToTheHistory: Story = {
   args: { view: 'decided' },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole('region', { name: 'What the operator decided' })).toBeVisible();
+    await expect(canvas.getByRole('region', { name: 'What was decided' })).toBeVisible();
     await expect(canvasElement.querySelector('[data-unit]')).not.toBeNull();
     await expect(
       canvas.queryByRole('navigation', { name: 'Units that wait for a decision' }),

@@ -23,7 +23,7 @@ import {
   patchQueueFilter,
   patchReviewWorkspace,
 } from '@/features/review/review-workspace';
-import type { UnitPage } from '@/features/review/unit-page';
+import type { LaneCounts, UnitPage } from '@/features/review/unit-page';
 import { unitWords } from '@/features/review/unit-words';
 import { sendGroupAction } from '@/features/review/send-group-action';
 import { readUnit, readUnits } from '@/features/review/units';
@@ -95,13 +95,14 @@ export const Route = createFileRoute('/review')({
   head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
 });
 
-/** The pages read from the first page that the loader gave, the counts of the last read, and
+/** The pages read from the first page that the loader gave, the counts of the last read (what the
+ * rules decided and what is left in each list, and the units that the filter keeps), and
  * whether a read of the next page runs now. A page read again after a decision replaces the page
  * that it was read for. */
 interface HeldPages {
   readonly from: UnitPage | null;
   readonly pages: readonly UnitPage[];
-  readonly total: number;
+  readonly counts: LaneCounts;
   readonly matched: number;
   readonly reading: boolean;
 }
@@ -109,10 +110,12 @@ interface HeldPages {
 const startOf = (first: UnitPage | null): HeldPages => ({
   from: first,
   pages: first === null ? [] : [first],
-  total: first?.total ?? 0,
+  counts: first?.counts ?? NO_COUNTS,
   matched: first?.matched ?? 0,
   reading: false,
 });
+
+const NO_COUNTS: LaneCounts = { decided: 0, doubt: 0, waiting: 0 };
 
 const NO_CHOICES = { groups: [], documents: [], proposers: [] };
 
@@ -155,13 +158,15 @@ function ReviewRoute() {
       : {
           state: 'held',
           queue: {
+            lane: filter.lane,
             units: queueUnits(now.pages),
-            total: now.total,
+            total: now.counts[filter.lane],
             matched: now.matched,
             before: now.pages[0]?.before ?? 0,
             filtered: filterIsOn(filter),
             more: now.reading ? 'reading' : last === null ? 'none' : 'ready',
           },
+          counts: now.counts,
           filter,
           choices: now.pages.at(-1)?.choices ?? NO_CHOICES,
           linked,
@@ -193,7 +198,7 @@ function ReviewRoute() {
         ? {
             ...before,
             pages: before.pages.map((page, index) => (index === after.page ? read.page : page)),
-            total: read.page.total,
+            counts: read.page.counts,
             matched: read.page.matched,
           }
         : before,
@@ -223,7 +228,7 @@ function ReviewRoute() {
               ? {
                   ...before,
                   pages: read.state === 'held' ? [...before.pages, read.page] : before.pages,
-                  total: read.state === 'held' ? read.page.total : before.total,
+                  counts: read.state === 'held' ? read.page.counts : before.counts,
                   matched: read.state === 'held' ? read.page.matched : before.matched,
                   reading: false,
                 }

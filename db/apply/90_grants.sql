@@ -137,6 +137,8 @@ REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_said(uuid,text)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
 REVOKE ALL ON FUNCTION run_rules(uuid[])           FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_job(uuid)          FROM PUBLIC;
@@ -211,8 +213,8 @@ GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
 -- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
 -- dispute and the reason and the note of each rejection, and only the operator reads them.
-REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) TO gabriel_app;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
