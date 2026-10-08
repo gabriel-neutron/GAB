@@ -177,6 +177,10 @@ BEGIN
      (OLD.reject_reason, OLD.reject_note) THEN
     RAISE EXCEPTION 'only a rejection writes a reason and a note';
   END IF;
+  -- A decision that names no rule is a decision of the operator.
+  IF NEW.decision_origin IS NULL THEN
+    NEW.decision_origin := 'validated manually by the operator';
+  END IF;
   -- Everything except the decision and its snapshot is frozen.
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
@@ -568,6 +572,7 @@ DECLARE
   v_batches  jsonb := '{}'::jsonb;
   v_batch    uuid;
   v_held     uuid;
+  v_written  uuid[] := '{}';
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -777,9 +782,19 @@ BEGIN
                 AND h.start = (c->>'start')::int AND h."end" = (c->>'end')::int
                 AND h.modality = v_item->>'modality');
 
+    v_written := v_written || v_id;
     item := v_no; proposal_id := v_id;
     RETURN NEXT;
   END LOOP;
+
+  -- The rules run on each unit of the batch, and on each unit that shares a claim with it: a new
+  -- act can add a source to a fact of a unit that waits.
+  PERFORM public.run_rules(ARRAY(
+    SELECT DISTINCT q.unit_id FROM public.proposals q
+     WHERE q.status = 'pending'
+       AND (q.unit_id IN (SELECT w.unit_id FROM public.proposals w WHERE w.id = ANY (v_written))
+            OR q.claim_key IN (SELECT w.claim_key FROM public.proposals w
+                                WHERE w.id = ANY (v_written)))));
 END $$;
 
 -- THE DOOR OF A MAPPING. gabriel_agent alone calls it: the mapper is the one agent that proposes
@@ -864,7 +879,8 @@ END $$;
 -- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
 -- the operator decided: one unit, or a group action. The act that the operator signs is no
 -- decision on the queue, and it has no mode.
-CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text, p_mode text)
+CREATE OR REPLACE FUNCTION apply_proposal_as(p_id uuid, p_decided_by text, p_mode text,
+                                             p_origin text)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1096,11 +1112,21 @@ BEGIN
          decided_at  = now(),
          decided_by  = p_decided_by,
          decided_as  = p_mode,
+         decision_origin = p_origin,
          prior_value = v_prior
    WHERE id = p_id AND status = 'pending';
 
   RETURN v_id;
 END $$;
+
+-- THE WRITE OF AN ACT THAT THE OPERATOR DECIDES: no rule gives an origin, so the freeze trigger
+-- records "validated manually by the operator".
+CREATE OR REPLACE FUNCTION apply_proposal(p_id uuid, p_decided_by text, p_mode text)
+RETURNS uuid
+LANGUAGE sql
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.apply_proposal_as(p_id, p_decided_by, p_mode, NULL)
+$$;
 
 -- THE PENDING ACTS OF ONE UNIT, LOCKED. The lock closes a second decision on the same unit while
 -- this one runs. No role holds this step: it runs inside the doors of the unit.
@@ -1179,7 +1205,8 @@ END $$;
 -- relation that names it, or it writes none: the first refusal stops the whole unit, and the
 -- sentence names the act and the reason. A relation is written only when each end is in the
 -- record or comes with the unit.
-CREATE OR REPLACE FUNCTION write_unit(p_unit uuid, p_decided_by text, p_mode text)
+CREATE OR REPLACE FUNCTION write_unit_as(p_unit uuid, p_decided_by text, p_mode text,
+                                         p_origin text)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1204,7 +1231,9 @@ BEGIN
   -- The measured forgery: propose and accept inside one transaction. Refused by a stored
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
-  IF EXISTS (SELECT 1 FROM public.proposals
+  -- A named rule runs in the transaction of the act, and it is no machine that decides: no role
+  -- holds the function of the rules, so the rule gives its origin and skips this test.
+  IF p_origin IS NULL AND EXISTS (SELECT 1 FROM public.proposals
               WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
     RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
                     'the transaction that proposed it', p_unit
@@ -1244,7 +1273,7 @@ BEGIN
                       'circle' USING CONSTRAINT = 'unit_order';
     END IF;
     BEGIN
-      v_id := public.apply_proposal(p.id, p_decided_by, p_mode);
+      v_id := public.apply_proposal_as(p.id, p_decided_by, p_mode, p_origin);
     EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
       GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
                               v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
@@ -1269,6 +1298,14 @@ BEGIN
   END LOOP;
   RETURN v_head;
 END $$;
+
+-- THE WRITE OF A UNIT THAT THE OPERATOR DECIDES, with the test of the transaction.
+CREATE OR REPLACE FUNCTION write_unit(p_unit uuid, p_decided_by text, p_mode text)
+RETURNS uuid
+LANGUAGE sql
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.write_unit_as(p_unit, p_decided_by, p_mode, NULL)
+$$;
 
 -- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
 -- "a machine proposes, only the operator promotes". It runs the check of the faults that the
@@ -3241,6 +3278,7 @@ BEGIN
           p_reference_set)
   RETURNING id INTO v_id;
   INSERT INTO public.author_name (name_key, author_id) VALUES (v_key, v_id);
+  PERFORM public.run_rules(public.units_of_author(v_id));
   RETURN v_id;
 END $$;
 
@@ -3317,6 +3355,7 @@ BEGIN
   INSERT INTO public.author_name (name_key, author_id, doubt)
   VALUES (v_key, v_author,
           (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author));
+  PERFORM public.run_rules(public.units_of_author(v_author));
 END $$;
 
 -- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
@@ -3514,6 +3553,11 @@ BEGIN
   END IF;
   INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
   VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict);
+  -- The end of the check makes the units that share the fact go through the rules again.
+  PERFORM public.run_rules(ARRAY(
+    SELECT DISTINCT q.unit_id FROM public.proposals q
+     WHERE q.status = 'pending'
+       AND q.claim_key = (SELECT a.claim_key FROM public.proposals a WHERE a.id = p_act)));
 END $$;
 
 -- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
@@ -3608,6 +3652,196 @@ BEGIN
     RETURN 3;
   END IF;
   RETURN 6;
+END $$;
+
+-- ============================================================================== THE NAMED RULES ==
+-- THE UNITS WHOSE FACTS HAVE A SOURCE FROM ONE AUTHOR, pending ones only. A new letter of the
+-- author, or a new name that joins it, makes these units go through the rules again. No role
+-- holds this step.
+CREATE OR REPLACE FUNCTION units_of_author(p_author uuid) RETURNS uuid[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(array_agg(DISTINCT q.unit_id), '{}')
+    FROM public.proposals q
+   WHERE q.status = 'pending'
+     AND q.claim_key IN (SELECT a.claim_key FROM public.proposals a
+                          WHERE a.originator IS NOT NULL
+                            AND public.author_of(a.originator) = p_author)
+$$;
+
+-- DOES A FACT HAVE ENOUGH SOURCE? Only an act with a passed check of a second model family is a
+-- source here, because the check proves that its passage says the fact. The fact needs one source
+-- with a letter as good as "single" and a known author, or two citations that code proves
+-- independent (citations_independent), one with a letter as good as "pair" and the other as good
+-- as "other". A letter is as good as another when it comes before it in the alphabet. The
+-- independence is the proof of the digit: this function never compares two authors by itself. A
+-- source that only denies the fact is no support. No role holds this step.
+CREATE OR REPLACE FUNCTION fact_is_strong(p_claim_key text, p_single text, p_pair text,
+                                          p_other text)
+RETURNS boolean
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH support AS (
+    SELECT p.id, public.author_of(p.originator) AS author, public.letter_of(p.originator) AS letter
+      FROM public.proposals p
+     WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL
+       AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
+       AND NOT (EXISTS (SELECT 1 FROM public.citation c WHERE c.claim_id = p.id)
+                AND NOT EXISTS (SELECT 1 FROM public.citation c
+                                 WHERE c.claim_id = p.id AND c.modality <> 'denies'))
+  ), cited AS (
+    SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
+     WHERE s.author IS NOT NULL
+  )
+  SELECT EXISTS (SELECT 1 FROM support WHERE author IS NOT NULL AND letter <= p_single)
+         OR EXISTS (SELECT 1 FROM cited one JOIN cited two ON one.id <> two.id
+                     WHERE one.letter <= p_pair AND two.letter <= p_other
+                       AND public.citations_independent(one.id, two.id))
+$$;
+
+-- THE RULE THAT MATCHES A UNIT. The rules read in this order, and the first one that matches
+-- decides:
+--
+--   impossible      a link to an element that was rejected, or from an element to itself;
+--   doubt           any fault of the check that the review page reads at the level "not clean",
+--                   a check that disputes a fact, a denial by a party to the conflict, or a
+--                   source whose name joined an author A or B;
+--   strong_sources  no fault stops the unit, and each fact is strong (see fact_is_strong). A fact
+--                   of the research AI has no second check yet, so it never passes;
+--   weak_sources    every other unit. It waits.
+--
+-- The function reads and writes nothing. NULL when the unit has no act that waits.
+CREATE OR REPLACE FUNCTION unit_rule(p_unit uuid)
+RETURNS text
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_faults jsonb;
+  v_single text;
+  v_pair   text;
+  v_other  text;
+BEGIN
+  SELECT f.faults INTO v_faults FROM public.unit_faults(ARRAY[p_unit]) AS f;
+  IF v_faults IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+              WHERE x->>'kind' IN ('self', 'end_rejected')) THEN
+    RETURN 'impossible';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x WHERE x->>'level' = 'not_clean')
+     OR EXISTS (
+       SELECT 1
+         FROM public.proposals a
+         JOIN public.proposals f ON f.claim_key = a.claim_key AND f.status <> 'rejected'
+                                AND f.originator IS NOT NULL
+        WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL
+          AND (EXISTS (SELECT 1 FROM public.act_check k
+                        WHERE k.proposal_id = f.id AND k.verdict = 'not_supported')
+               OR EXISTS (SELECT 1 FROM public.citation c
+                            JOIN public.author w ON w.id = public.author_of(f.originator)
+                           WHERE c.claim_id = f.id AND c.modality = 'denies' AND w.party)
+               OR EXISTS (SELECT 1 FROM public.author_name n
+                           WHERE n.name_key = public.name_key(f.originator) AND n.doubt)))
+  THEN
+    RETURN 'doubt';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+              WHERE x->>'level' IN ('blocks', 'waits')) THEN
+    RETURN 'weak_sources';
+  END IF;
+  SELECT c.settings->>'single', c.settings->>'pair', c.settings->>'other'
+    INTO v_single, v_pair, v_other
+    FROM public.rule_config c WHERE c.rule = 'strong_sources';
+  IF NOT EXISTS (
+       SELECT 1 FROM public.proposals a
+        WHERE a.unit_id = p_unit AND a.status = 'pending'
+          AND NOT (a.claim_key IS NOT NULL AND a.originator IS NOT NULL AND NOT a.dissent
+                   AND EXISTS (SELECT 1 FROM public.act_check k
+                                WHERE k.proposal_id = a.id AND k.passed)
+                   AND public.fact_is_strong(a.claim_key, v_single, v_pair, v_other))) THEN
+    RETURN 'strong_sources';
+  END IF;
+  RETURN 'weak_sources';
+END $$;
+
+-- THE DECISION OF A RULE ON ONE UNIT. The impossible rule rejects the unit, and the strong rule
+-- writes it. Any other rule leaves the unit as it is. It gives the name of the rule that
+-- decided, or NULL. The origin of the decision names the rule, its version and the inputs that it
+-- read: the digit of each fact. A write that the record refuses leaves the unit as it is, so a
+-- rule never stops the act that called it. No role holds this step: only the doors that write an
+-- act, a letter or a check call it, so no machine can decide in place of a rule.
+CREATE OR REPLACE FUNCTION apply_rules(p_unit uuid)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rule   text;
+  v_by     text;
+  v_digits text;
+  v_origin text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE unit_id = p_unit AND status = 'pending') THEN
+    RETURN NULL;
+  END IF;
+  PERFORM public.pending_unit(p_unit);
+  v_rule := public.unit_rule(p_unit);
+  IF v_rule NOT IN ('impossible', 'strong_sources') THEN
+    RETURN NULL;
+  END IF;
+  SELECT 'rule ' || c.rule || ' v' || c.version INTO v_by
+    FROM public.rule_config c WHERE c.rule = v_rule;
+  SELECT string_agg(d.digit, ', ' ORDER BY d.digit) INTO v_digits
+    FROM (SELECT DISTINCT coalesce(public.fact_digit(a.claim_key)::text, 'none') AS digit
+            FROM public.proposals a
+           WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL) AS d;
+  v_origin := v_by || ' (fact digits: ' || coalesce(v_digits, 'no fact') || ')';
+  IF v_rule = 'impossible' THEN
+    UPDATE public.proposals p
+       SET status = 'rejected', decided_at = now(), decided_by = v_by, decided_as = 'rule',
+           decision_origin = v_origin,
+           reject_reason = CASE WHEN public.end_was_rejected(p.op, p.payload)
+                                THEN 'end_rejected' ELSE 'other' END,
+           reject_note = CASE WHEN public.end_was_rejected(p.op, p.payload) THEN NULL
+                              ELSE 'impossible: the unit links an element to itself, or to an '
+                                   'element that was rejected' END
+     WHERE p.unit_id = p_unit AND p.status = 'pending';
+    RETURN v_rule;
+  END IF;
+  BEGIN
+    PERFORM public.write_unit_as(p_unit, v_by, 'rule', v_origin);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'the record refused the unit %, and it waits: %', p_unit, SQLERRM;
+    RETURN NULL;
+  END;
+  RETURN v_rule;
+END $$;
+
+-- THE RULES ON A LIST OF UNITS. A unit that a rule decides can free a unit that waited for it, such
+-- as a child that waited for its parent, so the list goes again with the pending units of the same
+-- groups until a pass decides nothing. No role holds this step.
+CREATE OR REPLACE FUNCTION run_rules(p_units uuid[]) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_todo uuid[] := ARRAY(SELECT DISTINCT u FROM unnest(p_units) AS t(u) WHERE u IS NOT NULL);
+  v_done uuid[];
+  v_unit uuid;
+BEGIN
+  LOOP
+    v_done := '{}';
+    FOREACH v_unit IN ARRAY v_todo LOOP
+      IF public.apply_rules(v_unit) IS NOT NULL THEN
+        v_done := v_done || v_unit;
+      END IF;
+    END LOOP;
+    EXIT WHEN cardinality(v_done) = 0;
+    v_todo := ARRAY(
+      SELECT x FROM unnest(v_todo) AS t(x) WHERE NOT x = ANY (v_done)
+      UNION
+      SELECT q.unit_id FROM public.proposals q
+       WHERE q.status = 'pending'
+         AND q.batch_id IN (SELECT w.batch_id FROM public.proposals w
+                             WHERE w.unit_id = ANY (v_done) AND w.batch_id IS NOT NULL));
+  END LOOP;
 END $$;
 
 RESET ROLE;
