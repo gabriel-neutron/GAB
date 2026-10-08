@@ -91,6 +91,7 @@ REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
+REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
@@ -136,6 +137,7 @@ GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_researc
 -- THE DECISION ON A UNIT, OR ON ONE RELATION OF IT. Only the operator holds it: that grant is
 -- the rule "a machine proposes, only the operator promotes".
 GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
@@ -178,8 +180,8 @@ GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
 -- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
 -- dispute and the reason and the note of each rejection, and only the operator reads them.
-REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid) TO gabriel_app;
 REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
 REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;

@@ -21,7 +21,7 @@ const PUT = `SELECT public.put_document($1, 'file', $3, $2, NULL, NULL, NULL, 't
 const TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
 const BATCH = 'SELECT item, proposal_id FROM public.propose_batch($1::jsonb) ORDER BY item';
 const READ = `SELECT public.review_units($1::text[], $2::int, $3::uuid, $4::text, $5::text,
-  $6::text, $7::text) AS page`;
+  $6::text, $7::text, $8::uuid) AS page`;
 
 const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T> => {
   await ask(`SET LOCAL SESSION AUTHORIZATION ${role}`);
@@ -84,6 +84,7 @@ const page = z.object({
   choices: z.object({
     groups: z.array(z.object({ id: z.uuid(), subject: z.string().nullable() })),
     documents: z.array(z.object({ id: z.string(), title: z.string() })),
+    proposers: z.array(z.string()),
   }),
 });
 type Page = z.output<typeof page>;
@@ -94,6 +95,7 @@ interface Filter {
   readonly fault?: string;
   readonly document?: string;
   readonly name?: string;
+  readonly unit?: string;
 }
 
 const readPage = async (
@@ -113,6 +115,7 @@ const readPage = async (
         filter.fault ?? null,
         filter.document ?? null,
         filter.name ?? null,
+        filter.unit ?? null,
       ]),
     );
   if (row === undefined) throw new Error('the read gave no row');
@@ -334,4 +337,40 @@ test('the children of a rejected parent move before the place of the screen', as
   expect(read.next.matched).toBe(3);
   // A read from the first unit shows them again, with the faults first.
   expect(read.again.units.map((unit) => unit.unit)).toStrictEqual([a, b, c]);
+});
+
+test('one unit is read by its identifier, wherever it stands in the queue', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const ids = await seed(ask);
+    const asked = await as(ask, 'gabriel_app', async () => ({
+      far: await readPage(ask, null, 1, { unit: ids.charlie }),
+      lone: await readPage(ask, null, 1, { unit: ids.lone }),
+    }));
+    await ask("SELECT public.reject_unit($1::uuid, 'duplicate', NULL, 'a test')", [ids.lone]);
+    const decided = await as(ask, 'gabriel_app', () => readPage(ask, null, 1, { unit: ids.lone }));
+    return { ids, ...asked, decided };
+  });
+  expect(read.far.units.map((unit) => unit.unit)).toStrictEqual([read.ids.charlie]);
+  expect(read.far.units[0]?.name).toBe('Qx Charlie Brigade');
+  expect(read.lone.units.map((unit) => unit.unit)).toStrictEqual([read.ids.lone]);
+  // A decided unit waits no more, so the read gives no unit.
+  expect(read.decided).toMatchObject({ units: [], matched: 0, next: null });
+});
+
+test('the choices of the proposer name only the proposers that have a unit in the queue', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [row] = z.array(z.object({ proposer: z.string() })).parse(
+      await ask(
+        `SELECT string_agg(DISTINCT proposer, ',' ORDER BY proposer) AS proposer
+             FROM public.proposals WHERE status = 'pending'`,
+      ),
+    );
+    return {
+      pending: (row?.proposer ?? '').split(','),
+      page: await as(ask, 'gabriel_app', () => readPage(ask, null, 1)),
+    };
+  });
+  expect(read.page.choices.proposers).toStrictEqual(read.pending);
+  expect(read.page.choices.proposers).toContain('research_ai');
 });

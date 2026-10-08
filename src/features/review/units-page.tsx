@@ -9,30 +9,42 @@ import { QueueFilterBar } from './queue-filter';
 import type { QueueFilter } from './review-workspace';
 import type { UnitWords } from './unit-changes';
 import { UnitList, type UnitListAct, type UnitQueue } from './unit-list';
-import type { FilterChoices } from './unit-page';
+import type { FilterChoices, Unit } from './unit-page';
 
-/** The queue as this page holds it, with the filter that keeps it, the choices of the filter and
- * the decision that it stands in, or the sentence that says why it holds none. */
+/** The unit that the address names when the pages read so far do not hold it: none asked, the
+ * unit read by its identifier, a unit that waits no more, or a read that failed with the sentence
+ * of the writer. */
+export type LinkedUnit =
+  | { readonly state: 'none' }
+  | { readonly state: 'held'; readonly unit: Unit }
+  | { readonly state: 'gone'; readonly unitId: string }
+  | { readonly state: 'failed'; readonly unitId: string; readonly why: string };
+
+/** The queue as this page holds it, with the filter that keeps it, the choices of the filter, the
+ * unit of the address and the decision that it stands in, or the sentence that says why it holds
+ * none. */
 export type QueueView =
   | {
       readonly state: 'held';
       readonly queue: UnitQueue;
       readonly filter: QueueFilter;
       readonly choices: FilterChoices;
+      readonly linked: LinkedUnit;
       readonly decision: DecisionState;
     }
   | { readonly state: 'private'; readonly why: string };
 
 /** What the operator did on the page: open a unit, read the next page, read from the first unit,
- * change the filter, or decide one unit. */
+ * change a part of the filter, or decide one unit. */
 export type ReviewAct =
   | UnitListAct
-  | { readonly kind: 'filter'; readonly filter: QueueFilter }
+  | { readonly kind: 'filter'; readonly patch: Partial<QueueFilter> }
   | { readonly kind: 'decide'; readonly unitId: string; readonly decision: Decision };
 
 export interface UnitsPageProps {
   readonly view: QueueView;
-  /** The unit under examination. An unknown or empty identifier opens the first unit. */
+  /** The unit under examination. An empty identifier, or one that the page does not know, opens
+   * the first unit. A unit that waits no more opens no unit. */
   readonly selectedId: string;
   readonly words: UnitWords;
   readonly onAct: (act: ReviewAct) => void;
@@ -54,7 +66,21 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
   const [aim, setAim] = useState<Aim | null>(null);
   if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
   const { units } = view.queue;
-  const unit = units.find((held) => held.id === selectedId) ?? units[0] ?? null;
+  const { linked } = view;
+  const listed = units.find((held) => held.id === selectedId) ?? null;
+  // The unit of the address is lost only when no page read holds it. A failed read gives the
+  // sentence of the writer, and a unit that waits no more says so. Neither shows a write control.
+  const lost =
+    listed === null &&
+    (linked.state === 'gone' || linked.state === 'failed') &&
+    linked.unitId === selectedId
+      ? linked
+      : null;
+  // Promote and Reject act on this unit, the one that the screen shows.
+  const unit =
+    listed ??
+    (linked.state === 'held' && linked.unit.id === selectedId ? linked.unit : null) ??
+    (lost === null ? (units[0] ?? null) : null);
   const aimed =
     unit !== null &&
     aim !== null &&
@@ -63,6 +89,10 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
       ? aim.relationId
       : null;
 
+  const decide = (shown: Unit, decision: Decision): void => {
+    onAct({ kind: 'decide', unitId: shown.id, decision });
+  };
+
   const onBar = (act: BarAct): void => {
     if (unit === null) return;
     switch (act.kind) {
@@ -70,23 +100,17 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
         setAim(null);
         return;
       case 'promote':
-        onAct({
-          kind: 'decide',
-          unitId: unit.id,
-          decision: { op: 'promote_unit', unitId: unit.id },
-        });
+        decide(unit, { op: 'promote_unit', unitId: unit.id });
         return;
       case 'reject': {
         const { reason, note } = act;
         const written = note === undefined ? {} : { note };
-        onAct({
-          kind: 'decide',
-          unitId: unit.id,
-          decision:
-            aimed === null
-              ? { op: 'reject_unit', unitId: unit.id, reason, ...written }
-              : { op: 'reject_relation', proposalId: aimed, reason, ...written },
-        });
+        decide(
+          unit,
+          aimed === null
+            ? { op: 'reject_unit', unitId: unit.id, reason, ...written }
+            : { op: 'reject_relation', proposalId: aimed, reason, ...written },
+        );
         return;
       }
     }
@@ -100,14 +124,12 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
       setAim({ unitId: unit.id, relationId: act.relationId });
       return;
     }
-    onAct({
-      kind: 'decide',
-      unitId: unit.id,
-      decision:
-        act.relationId === unit.id
-          ? { op: 'reject_unit', unitId: unit.id, reason: 'end_rejected' }
-          : { op: 'reject_relation', proposalId: act.relationId, reason: 'end_rejected' },
-    });
+    decide(
+      unit,
+      act.relationId === unit.id
+        ? { op: 'reject_unit', unitId: unit.id, reason: 'end_rejected' }
+        : { op: 'reject_relation', proposalId: act.relationId, reason: 'end_rejected' },
+    );
   };
 
   return (
@@ -117,17 +139,36 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
     >
       <div className="flex min-h-0 flex-col border-r border-border">
         <QueueFilterBar
-          key={view.filter.name}
           filter={view.filter}
           choices={view.choices}
-          onFilter={(filter) => {
-            onAct({ kind: 'filter', filter });
+          onFilter={(patch) => {
+            onAct({ kind: 'filter', patch });
           }}
         />
         <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
       </div>
       <div className="flex min-h-0 flex-col">
-        <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
+        {view.decision.step === 'done' ? (
+          <p
+            role="status"
+            data-said="done"
+            className="shrink-0 border-b border-border px-3 py-1 text-xs text-label"
+          >
+            {view.decision.said}
+          </p>
+        ) : null}
+        {lost?.state === 'gone' ? (
+          <p data-said="gone" className="p-3 text-xs">
+            This unit is not in the queue. It was decided, or the address names no unit. Choose a
+            unit on the left.
+          </p>
+        ) : lost?.state === 'failed' ? (
+          <p data-said="failed" className="p-3 text-xs text-label">
+            {lost.why}
+          </p>
+        ) : (
+          <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
+        )}
         {unit === null ? null : (
           <DecisionBar
             key={`${unit.id} ${aimed ?? ''}`}

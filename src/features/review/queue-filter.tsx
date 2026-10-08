@@ -1,10 +1,10 @@
-import { PROPOSERS } from '@gab/proposal/proposer';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
 import { Input } from '@/shared/ui/input';
 
+import { documentName } from './document-name';
 import { faultWords } from './fault-marks';
 import { filterIsOn, NO_FILTER, type QueueFilter } from './review-workspace';
 import { FAULT_KINDS, type FaultKind, type FilterChoices } from './unit-page';
@@ -12,7 +12,9 @@ import { FAULT_KINDS, type FaultKind, type FilterChoices } from './unit-page';
 export interface QueueFilterProps {
   readonly filter: QueueFilter;
   readonly choices: FilterChoices;
-  readonly onFilter: (filter: QueueFilter) => void;
+  /** A part of the filter that changed. The page merges it into the newest filter, so a late
+   * name never undoes a choice that came after it. */
+  readonly onFilter: (patch: Partial<QueueFilter>) => void;
 }
 
 const CHOOSER = cn(
@@ -25,21 +27,32 @@ const CONTROL = cn(
   'transition-colors duration-100 hover:bg-muted',
 );
 
+// Origin: decided, not calibrated. A pause of this length ends a word, and a fast typist reads the
+// queue once per word, not once per key.
+const TYPING_PAUSE_MS = 300;
+
 // A value from a list of choices is one of the choices, or "every unit" for the empty value.
 const chosen = <T extends string>(value: string, allowed: readonly T[]): T | null =>
   allowed.find((one) => one === value) ?? null;
 
-/** The filters of the queue, at the head of the left column. The name applies on Enter or when
- * the field loses the focus, so the queue is not read again at each key. */
+/** The filters of the queue, at the head of the left column. The name applies after a short
+ * pause in the typing, on Enter, or when the field loses the focus, so the queue is not read again
+ * at each key. The proposer offers only the proposers that have a unit in the queue. */
 export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) {
   const ids = useId();
   // The text in the field dies with the view: the filter that applies is in the workspace.
   const [name, setName] = useState(filter.name);
+  const pause = useRef<ReturnType<typeof setTimeout> | null>(null);
   const on = (patch: Partial<QueueFilter>): void => {
-    onFilter({ ...filter, ...patch });
+    onFilter(patch);
   };
-  const applyName = (): void => {
-    if (name.trim() !== filter.name) on({ name: name.trim() });
+  const stopPause = (): void => {
+    if (pause.current !== null) clearTimeout(pause.current);
+    pause.current = null;
+  };
+  const applyName = (typed: string = name): void => {
+    stopPause();
+    if (typed.trim() !== filter.name) on({ name: typed.trim() });
   };
   const groups = choices.groups.map((group) => group.id);
   const documents = choices.documents.map((document) => document.id);
@@ -63,9 +76,16 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
         placeholder="Name"
         value={name}
         onChange={(event) => {
-          setName(event.target.value);
+          const typed = event.target.value;
+          setName(typed);
+          stopPause();
+          pause.current = setTimeout(() => {
+            applyName(typed);
+          }, TYPING_PAUSE_MS);
         }}
-        onBlur={applyName}
+        onBlur={() => {
+          applyName();
+        }}
       />
       <label htmlFor={`${ids}-group`} className="sr-only">
         Group
@@ -93,11 +113,11 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
         className={CHOOSER}
         value={filter.proposer ?? ''}
         onChange={(event) => {
-          on({ proposer: chosen(event.target.value, PROPOSERS) });
+          on({ proposer: chosen(event.target.value, choices.proposers) });
         }}
       >
         <option value="">Every proposer</option>
-        {PROPOSERS.map((proposer) => (
+        {choices.proposers.map((proposer) => (
           <option key={proposer} value={proposer}>
             {proposerWords(proposer)}
           </option>
@@ -135,7 +155,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
         <option value="">Every document</option>
         {choices.documents.map((document) => (
           <option key={document.id} value={document.id}>
-            {document.title}
+            {documentName({ ...document, uri: null, mime: null })}
           </option>
         ))}
       </select>
@@ -144,6 +164,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
           type="button"
           className={cn(CONTROL, 'col-span-2 h-6 border border-input px-2 text-xs')}
           onClick={() => {
+            stopPause();
             setName('');
             onFilter(NO_FILTER);
           }}

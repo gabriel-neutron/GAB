@@ -3,9 +3,11 @@ import { proposerWords } from '@/shared/proposer-words';
 
 import { CitedImage } from './cited-image';
 import { isImageType } from './document-image';
+import { documentName } from './document-name';
+import { withFullStop } from './full-stop';
 import { LinkedWords } from './linked-words';
 import { pageAddress } from './page-address';
-import type { FaultLevel, Passage, SourceDocument, Unit } from './unit-page';
+import type { Fault, FaultLevel, Passage, SourceDocument, Unit } from './unit-page';
 
 export interface JustificationProps {
   readonly unit: Unit | null;
@@ -13,13 +15,14 @@ export interface JustificationProps {
 
 const HEADING = 'text-small/4 tracking-caps text-label uppercase';
 
+// A wait for a unit of the same group is not listed: a group action writes the unit, and the
+// decision bar says why Promote of the unit alone is off.
 const LEVELS: readonly {
-  readonly level: FaultLevel;
+  readonly level: Exclude<FaultLevel, 'waits'>;
   readonly words: string;
   readonly paint: string;
 }[] = [
   { level: 'blocks', words: 'Blocks Promote', paint: 'text-destructive' },
-  { level: 'waits', words: 'Promote of this unit alone waits', paint: 'text-label' },
   { level: 'not_clean', words: 'Not clean: decide it alone', paint: 'text-dissent' },
   { level: 'information', words: 'Information', paint: 'text-foreground' },
 ];
@@ -27,13 +30,63 @@ const LEVELS: readonly {
 const LINK =
   'text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 
-// An entity and its relation can cite the same line, and one line is read once.
+// An entity and its relation can cite the same line. One line is read once, and it names each
+// element that it supports.
 const distinct = (passages: readonly Passage[]): readonly Passage[] => {
   const held = new Map<string, Passage>();
-  for (const passage of passages)
-    held.set(`${passage.document} ${String(passage.page)} ${passage.text}`, passage);
+  for (const passage of passages) {
+    const key = `${passage.document} ${String(passage.page)} ${passage.text}`;
+    const before = held.get(key);
+    held.set(
+      key,
+      before === undefined || before.supports === passage.supports
+        ? passage
+        : { ...before, supports: `${before.supports}; ${passage.supports}` },
+    );
+  }
   return [...held.values()];
 };
+
+const listed = (faults: readonly Fault[]): readonly Fault[] =>
+  faults.filter((fault) => fault.level !== 'waits');
+
+/** The words of a passage. The line of a unit of the v1 import comes first, and the lines of the
+ * other units around it are folded. */
+function Quote({ passage }: { readonly passage: Passage }) {
+  if (passage.ownLine)
+    return (
+      <div className="space-y-0.5">
+        <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+          <mark className="bg-muted text-foreground">
+            <LinkedWords text={passage.text} />
+          </mark>
+        </blockquote>
+        {passage.before.trim() === '' && passage.after.trim() === '' ? null : (
+          <details className="text-label">
+            <summary className="cursor-default">The lines of other units around it</summary>
+            <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+              <LinkedWords text={passage.before} />
+              <span className="text-foreground">[this line]</span>
+              <LinkedWords text={passage.after} />
+            </blockquote>
+          </details>
+        )}
+      </div>
+    );
+  return (
+    <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+      <span className="text-label">
+        <LinkedWords text={passage.before} />
+      </span>
+      <mark className="bg-muted text-foreground">
+        <LinkedWords text={passage.text} />
+      </mark>
+      <span className="text-label">
+        <LinkedWords text={passage.after} />
+      </span>
+    </blockquote>
+  );
+}
 
 /** Why the unit stands in the queue: who proposed it, the documents it cites with the exact words
  * of each page and two lines around them, the stored image of a cited PNG or JPEG, and each fault
@@ -46,27 +99,26 @@ export function Justification({ unit }: JustificationProps) {
     distinct(unit.passages.filter((passage) => passage.document === document.id)).map((passage) => {
       const address = pageAddress(document, passage.page);
       return (
-        <figure key={`${String(passage.page)} ${passage.text}`} data-passage>
+        <figure
+          key={`${String(passage.page)} ${passage.text}`}
+          data-passage
+          data-own-line={passage.ownLine ? 'true' : undefined}
+        >
           <figcaption className="text-small/4 text-label">
+            <span data-supports>
+              {'Supports '}
+              <span className="text-foreground">{passage.supports}</span>
+            </span>
+            {' · '}
             {address === null ? (
-              `Page ${String(passage.page)}`
+              `page ${String(passage.page)}`
             ) : (
               <a href={address} target="_blank" rel="noreferrer" className={LINK}>
                 Open page {passage.page}
               </a>
             )}
           </figcaption>
-          <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
-            <span className="text-label">
-              <LinkedWords text={passage.before} />
-            </span>
-            <mark className="bg-muted text-foreground">
-              <LinkedWords text={passage.text} />
-            </mark>
-            <span className="text-label">
-              <LinkedWords text={passage.after} />
-            </span>
-          </blockquote>
+          <Quote passage={passage} />
         </figure>
       );
     });
@@ -89,7 +141,7 @@ export function Justification({ unit }: JustificationProps) {
 
       <div className="space-y-2" data-faults={unit.state}>
         <h3 className={HEADING}>Faults</h3>
-        {unit.faults.length === 0 ? <p>No fault. A group action can promote this unit.</p> : null}
+        {listed(unit.faults).length === 0 ? <p>No fault.</p> : null}
         {LEVELS.map(({ level, words, paint }) => {
           const held = unit.faults.filter((fault) => fault.level === level);
           if (held.length === 0) return null;
@@ -103,7 +155,7 @@ export function Justification({ unit }: JustificationProps) {
                     data-fault={fault.kind}
                     className="break-words"
                   >
-                    {fault.said}.
+                    {withFullStop(fault.said)}
                   </li>
                 ))}
               </ul>
@@ -119,7 +171,7 @@ export function Justification({ unit }: JustificationProps) {
           <div key={document.id} data-document={document.id} className="space-y-1">
             <p className="break-words">
               {document.uri === null ? (
-                document.title
+                documentName(document)
               ) : (
                 <a
                   href={document.uri}
@@ -128,13 +180,13 @@ export function Justification({ unit }: JustificationProps) {
                   rel="noreferrer"
                   className={LINK}
                 >
-                  {document.title}
+                  {documentName(document)}
                 </a>
               )}
             </p>
             {isImageType(document.mime) ? (
               <div className="flex items-start gap-2">
-                <CitedImage document={document.id} title={document.title} />
+                <CitedImage document={document.id} title={documentName(document)} />
                 <div className="min-w-0 flex-1 space-y-1">{passagesOf(document)}</div>
               </div>
             ) : (

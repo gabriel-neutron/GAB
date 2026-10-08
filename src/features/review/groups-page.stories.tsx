@@ -129,12 +129,14 @@ type Story = StoryObj<typeof meta>;
 export const TheRailCountsEachGroup: Story = {
   play: async ({ canvas }) => {
     const rail = canvas.getByRole('navigation', { name: 'Groups that wait for a decision' });
-    await expect(within(rail).getByText('2 groups wait')).toBeVisible();
+    await expect(within(rail).getByText(/^2 groups wait/u)).toBeVisible();
     const army = within(rail).getByRole('button', { name: /58th Combined Arms Army/u });
     await expect(army).toHaveAttribute('aria-current', 'true');
     await expect(within(army).getByText(/v1 import · Russian order of battle/u)).toBeVisible();
     await expect(within(army).getByText('104 units · 101 clean')).toBeVisible();
-    await expect(within(army).getByText('waits: 1 · disputed: 1 · duplicate: 1')).toBeVisible();
+    await expect(
+      within(army).getByText('waits for another group: 1 · disputed: 1 · duplicate: 1'),
+    ).toBeVisible();
     await userEvent.click(within(rail).getByRole('button', { name: /Baltic Fleet/u }));
     await expect(onAct).toHaveBeenCalledWith({
       kind: 'select',
@@ -158,7 +160,7 @@ export const TheConfirmationShowsTheCountsAndTheTree: Story = {
           'queue: 1 disputed, 1 with a fault, 1 waiting for another group. You cannot undo this.',
       ),
     ).toBeVisible();
-    const tree = within(confirm).getByRole('list', { name: 'The tree of the clean units' });
+    const tree = canvas.getByRole('list', { name: 'The tree of the clean units' });
     const lines = within(tree).getAllByRole('listitem');
     await expect(lines.map((line) => line.dataset['depth'])).toStrictEqual(['0', '1', '2']);
     await expect(lines[0]).toHaveTextContent(
@@ -182,6 +184,7 @@ export const EachRefusedUnitIsNamed: Story = {
       action: {
         step: 'done',
         groupId: ARMY_GROUP,
+        name: '58th Combined Arms Army',
         results: [
           {
             unit: 'u-disputed',
@@ -198,7 +201,8 @@ export const EachRefusedUnitIsNamed: Story = {
   play: async ({ canvas }) => {
     const result = canvas.getByRole('region', { name: 'The result of the group action' });
     await expect(result).toHaveTextContent(
-      'The record holds 2 units of the group action. 1 refused, and they stay in the queue:',
+      'Group 58th Combined Arms Army: the record holds 2 units of the group action. 1 unit ' +
+        'refused, and it stays in the queue:',
     );
     await expect(within(result).getByText(': Not clean: Disputed: two readings')).toBeVisible();
   },
@@ -247,17 +251,72 @@ export const AGroupWithNoCleanUnitWritesNothing: Story = {
   },
 };
 
-/** When the action wrote every unit, the group waits no more, and its result stays on the
- * screen. */
-export const TheResultStaysWhenTheGroupIsEmpty: Story = {
+/** After the action the page opens the next group, and the result of the action stays on the
+ * screen with the name of its group. No sentence says that a group cannot be read. */
+export const TheResultStaysOverTheNextGroup: Story = {
   args: {
     group: {
-      state: 'private',
-      groupId: ARMY_GROUP,
-      why: 'The group cannot be read: no unit of this group waits',
+      state: 'held',
+      group: GROUP,
+      action: {
+        step: 'done',
+        groupId: 'a1000000-0000-4000-8000-000000000002',
+        name: 'Baltic Fleet',
+        results: [{ unit: 'u-fleet', name: 'Baltic Fleet', outcome: 'promoted', said: null }],
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    const result = canvas.getByRole('region', { name: 'The result of the group action' });
+    await expect(result).toHaveTextContent(
+      'Group Baltic Fleet: the record holds 1 unit of the group action.',
+    );
+    await expect(within(result).getByText('The written units')).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: '58th Combined Arms Army' })).toBeVisible();
+    await expect(canvas.queryByText(/cannot be read/u)).toBeNull();
+  },
+};
+
+/** The rail counts the groups, their units and their clean units, and says where to start. */
+export const TheRailSaysTheTotalsAndWhereToStart: Story = {
+  play: async ({ canvas }) => {
+    const rail = canvas.getByRole('navigation', { name: 'Groups that wait for a decision' });
+    await expect(within(rail).getByText('2 groups wait, with 116 units: 113 clean.')).toBeVisible();
+    await expect(within(rail).getByText(/^Start at the top\./u)).toBeVisible();
+  },
+};
+
+/** The group names its document and shows the tree of the clean units before the confirmation. */
+export const TheGroupShowsItsDocumentAndTreeBeforeTheConfirmation: Story = {
+  play: async ({ canvas }) => {
+    const group = canvas.getByRole('region', { name: 'The group' });
+    await expect(group).toHaveTextContent('Source: Russian order of battle (v1 import)');
+    await expect(canvas.queryByRole('region', { name: 'Confirm the group action' })).toBeNull();
+    await expect(canvas.getByRole('list', { name: 'The tree of the clean units' })).toBeVisible();
+  },
+};
+
+/** A group that cites no document says so. */
+export const AGroupWithNoDocumentSaysSo: Story = {
+  args: {
+    rail: { state: 'held', read: LINES.map((line) => ({ ...line, document: null })) },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('region', { name: 'The group' })).toHaveTextContent(
+      'Source: no document',
+    );
+  },
+};
+
+/** After the action on the last group, no group is open, and the result stays on the screen. */
+export const TheResultStaysAfterTheLastGroup: Story = {
+  args: {
+    group: {
+      state: 'none',
       action: {
         step: 'done',
         groupId: ARMY_GROUP,
+        name: '58th Combined Arms Army',
         results: [
           { unit: 'u-army', name: '58th Combined Arms Army', outcome: 'promoted', said: null },
         ],
@@ -267,7 +326,9 @@ export const TheResultStaysWhenTheGroupIsEmpty: Story = {
   play: async ({ canvas }) => {
     await expect(
       canvas.getByRole('region', { name: 'The result of the group action' }),
-    ).toHaveTextContent('The record holds 1 unit of the group action.');
-    await expect(canvas.getByText(/no unit of this group waits/u)).toBeVisible();
+    ).toHaveTextContent(
+      'Group 58th Combined Arms Army: the record holds 1 unit of the group action.',
+    );
+    await expect(canvas.getByText('Choose a group in the list.')).toBeVisible();
   },
 };

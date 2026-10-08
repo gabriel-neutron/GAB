@@ -8,14 +8,14 @@ export interface FaultMark {
 }
 
 const WORDS: Readonly<Record<FaultKind, string>> = {
-  end_waits: 'waits',
+  end_waits: 'waits for another group',
   circle: 'circle',
   end_relation_waits: 'waits for a relation',
   end_rejected: 'end rejected',
   end_missing: 'end missing',
   self: 'points to itself',
   no_source: 'no passage',
-  end_waits_in_group: 'parent first',
+  end_waits_in_group: 'waits for a unit of its group',
   dispute: 'disputed',
   contradiction: 'two values',
   reported_claim: 'reported claim',
@@ -36,11 +36,13 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
 /** The short words of one kind of fault. */
 export const faultWords = (kind: FaultKind): string => WORDS[kind];
 
-/** One mark for each kind of fault of a unit, in the order of the faults: the blocks first. */
+/** One mark for each kind of fault of a unit, in the order of the faults: the blocks first. A
+ * wait for a unit of the same group has no mark: a group action writes the unit, and only Promote
+ * of the unit alone waits. */
 export function faultMarks(faults: readonly Fault[]): readonly FaultMark[] {
   const marks = new Map<FaultKind, FaultMark>();
   for (const fault of faults)
-    if (!marks.has(fault.kind))
+    if (fault.level !== 'waits' && !marks.has(fault.kind))
       marks.set(fault.kind, {
         kind: fault.kind,
         level: fault.level,
