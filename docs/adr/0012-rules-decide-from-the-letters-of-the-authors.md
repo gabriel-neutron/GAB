@@ -31,6 +31,12 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   safe direction.
 - A **reference set** of about thirty rated authors is made once by the strongest model that
   OpenRouter gives. The operator reads and approves it once.
+- The operator builds the set with `pnpm worker reference-set build`, reads it with `show`, and
+  approves it with `approve`. Until the approval, a reference author is no author for any reader,
+  and a rating job waits in the queue. The approval is written once for each author.
+- Each act that names a new originator queues one rating job for that name, with no click of the
+  operator. A refused answer ends the job as failed with its reason, and the name is not asked
+  again. A job that fails by a fault of the service leaves the name free.
 - The worker stores the answer through one door of the agent role, with the model and the date. A
   letter is an input of the rules, and never a decision.
 

@@ -39,22 +39,39 @@ export interface Options {
 const STORE = `SELECT public.store_author_letter($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
 const REFERENCE = `SELECT public.store_reference_author($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
 
-/** The worker rates a new author. */
-export const rate = (ask: Ask, name: string, letter: string, options: Options = {}) =>
-  as(ask, 'gabriel_agent', () =>
+/** An approved reference author, written straight: a name that has an author already is left as
+ * it is. The door of the worker accepts an approved reference author only. */
+const SEED_REFERENCE = `
+  WITH made AS (
+    INSERT INTO public.author (name_key, letter, model, reason, reference_set)
+    SELECT public.name_key($1), 'B', 'a-seed-model', 'a seed reason', true
+     WHERE NOT EXISTS (SELECT 1 FROM public.author_name WHERE name_key = public.name_key($1))
+    RETURNING id, name_key
+  ), named AS (
+    INSERT INTO public.author_name (name_key, author_id) SELECT name_key, id FROM made
+  )
+  INSERT INTO public.reference_approval (author_id) SELECT id FROM made`;
+
+/** The worker rates a new author. Each reference author that the worker names is in the
+ * approved reference set first. */
+export const rate = async (ask: Ask, name: string, letter: string, options: Options = {}) => {
+  const references = options.references ?? ['Reference Agency'];
+  for (const one of references) if (one.trim() !== '') await ask(SEED_REFERENCE, [one]);
+  return as(ask, 'gabriel_agent', () =>
     ask(STORE, [
       name,
       letter,
       MODEL,
       'a reason',
-      options.references ?? ['Reference Agency'],
+      references,
       options.controller ?? null,
       options.party ?? false,
     ]),
   );
+};
 
-/** The operator puts an author into the reference set. */
-export const reference = (ask: Ask, name: string, letter: string, options: Options = {}) =>
+/** The operator puts an author into the reference set, without the approval. */
+export const storeUnapproved = (ask: Ask, name: string, letter: string, options: Options = {}) =>
   as(ask, 'gabriel_app', () =>
     ask(REFERENCE, [
       name,
@@ -66,6 +83,17 @@ export const reference = (ask: Ask, name: string, letter: string, options: Optio
       options.party ?? false,
     ]),
   );
+
+/** The operator approves the reference set: each stored reference author becomes an author. */
+export const approve = (ask: Ask) =>
+  as(ask, 'gabriel_app', () => ask('SELECT public.approve_reference_set() AS n'));
+
+/** The operator puts an author into the reference set and approves the set. */
+export const reference = async (ask: Ask, name: string, letter: string, options: Options = {}) => {
+  const stored = await storeUnapproved(ask, name, letter, options);
+  await approve(ask);
+  return stored;
+};
 
 /** The worker joins a new name to a known author. */
 export const join = (ask: Ask, name: string, known: string) =>
