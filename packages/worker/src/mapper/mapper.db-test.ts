@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 
 import type { RawObject } from '@gab/store';
+import { CATALOGUE } from '@gab/tools/catalogue';
+import { callTool } from '@gab/tools/tool';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
@@ -121,6 +123,7 @@ interface Held {
   readonly job: (id: string) => Promise<z.infer<typeof jobRow>>;
   readonly step: (agent: RunnerAgent, router: StubRouter) => Promise<Step>;
   readonly asApp: <T>(work: () => Promise<T>) => Promise<T>;
+  readonly asResearch: <T>(work: () => Promise<T>) => Promise<T>;
 }
 
 const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
@@ -161,6 +164,7 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
       job,
       step,
       asApp: (inner) => asRole('gabriel_app', inner),
+      asResearch: (inner) => asRole('gabriel_research', inner),
     });
   } finally {
     try {
@@ -178,13 +182,17 @@ const storeOf = (held: Held) => ({
   },
 });
 
-const seedDocument = async (held: Held, id: string, uri: string, text: string): Promise<string> => {
+const storeDocument = async (held: Held, id: string, uri: string, text: string): Promise<void> => {
   await held.ask(PUT, [id, `raw/${id}.csv`, uri, sha256(text)]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
     TEXT_SET,
   ]);
+};
+
+const seedDocument = async (held: Held, id: string, uri: string, text: string): Promise<string> => {
+  await storeDocument(held, id, uri, text);
   const job = await held.idOf("SELECT public.enqueue_job($1, 'map_structured') AS id", [id]);
   await held.ask(OLDEST, [job]);
   return job;
@@ -458,6 +466,50 @@ test('the load proposes each row that fits, cited by the span of the row, and re
       expect.stringMatching(new RegExp(`^3,1,${String(spanOf(2).start)},.*empty`, 'u')),
     ]);
     expect(held.stored[0]?.key).toBe(reports[0]?.s3_key);
+  });
+});
+
+// The research AI starts the chain with the tool: the queue, the mapper, the promotion, the load.
+test('enqueue_mapping starts the chain: mapper proposal, promotion and load of a small csv', async () => {
+  await inTransaction(async (held) => {
+    const known = await recorded(held, 'vessel', 'Known Hull', { imo: KNOWN_IMO });
+    await recorded(held, 'company', 'Owner Company', { imo_company_number: OWNER });
+    await storeDocument(held, LIST, 'https://www.lists.test/a.csv', LIST_TEXT);
+
+    const tool = CATALOGUE.find((candidate) => candidate.name === 'enqueue_mapping');
+    if (tool === undefined) throw new Error('the catalogue holds no enqueue_mapping');
+    const queued = await held.asResearch(() =>
+      callTool(
+        tool,
+        { query: async (text, values) => ({ rows: await held.ask(text, values) }) },
+        { document: LIST },
+      ),
+    );
+    const job = z.object({ jobId: z.uuid() }).parse(queued.ok ? queued.output : null).jobId;
+    expect(await held.job(job)).toMatchObject({ kind: 'map_structured', status: 'queued' });
+    await held.ask(OLDEST, [job]);
+
+    expect(await held.step(makeMapper(CONFIG), mapperAnswers())).toStrictEqual({
+      did: 'done',
+      job,
+    });
+    const [mapping] = await mappingsOf(held, LIST);
+    const load = await promote(held, mapping?.id ?? '');
+    expect(await held.job(load)).toMatchObject({ kind: 'load_mapped', status: 'queued' });
+    await held.ask(OLDEST, [load]);
+
+    expect(await held.step(makeLoader({ store: storeOf(held) }), noModel())).toStrictEqual({
+      did: 'done',
+      job: load,
+    });
+    const loaded = await loadedOf(held, LIST);
+    expect(loaded.map((row) => [row.op, row.label, row.target_id])).toStrictEqual([
+      ['create_relation', null, null],
+      ['create_entity', 'Nayara Star', null],
+      ['update_attrs', null, known],
+      ['create_relation', null, null],
+    ]);
+    expect((await reportsOf(held, LIST))[0]?.title).toMatch(/4 rows read, 2 loaded, 2 excluded/u);
   });
 });
 
