@@ -183,7 +183,9 @@ under the same parent. The reason stays private to the operator.
 ## The decision path
 
 ```
-a new author       →  a model rates it against the reference set  →  a letter A to F (S1)
+a new author name  →  a model joins it to a known author, or rates it against the
+                      reference set  →  a known author, or a letter C to F and a controller
+                      when it has one (S1)
 a unit, or a new source of a unit
                    →  the rules of S3, in order, from the letters and the checks
                         → impossible     : rejected by the rule
@@ -193,8 +195,10 @@ a unit, or a new source of a unit
 ```
 
 The database applies the rules, so every writer gets the same decision. Each decision records the
-name and the version of its rule, "validated manually by the operator", or "decided by an AI reviewer" (S4). Code computes
-the digit of each fact from its sources. The letter of an author records the model, the reason,
+name and the version of its rule, "validated manually by the operator", or "decided by an AI
+reviewer" (S4), and the inputs that the rule read. Code computes the digit of each fact from its
+independent authors and its conflicts, never from the letters (NATO judges the two apart). Only the reference set, which
+the operator approves once, holds A and B. The letter of an author records the model, the reason,
 and the reference authors that the model compared with. A model never writes a state: the worker
 stores the letter that the model gives, and the database decides.
 
