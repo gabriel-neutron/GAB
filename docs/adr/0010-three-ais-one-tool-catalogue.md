@@ -7,7 +7,8 @@ check by a second model family. · The lead agent added 6 October 2026. · Model
 again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone. · ADR 0011
 superseded 7 October 2026: no rule promotes, and the operator decides each proposal. · ADR 0012,
 8 October 2026: named rules in the database decide from the letters of the authors, and the
-operator decides the doubts.
+operator decides the doubts. · 8 October 2026: the operator AI can also read the review queue and accept
+or reject a unit (#376).
 
 ## Context
 
@@ -53,18 +54,22 @@ tools.
   refusal of the record gives the sentence of the rule and its field. A fault of the connection
   or of a role gives its code alone, because its text can name a host or a role.
 
-## Machine roles propose, and never promote
+## Machine roles propose, and the operator AI can decide as a reviewer
 
 Each consumer has its own database role.
 
 - **The operator**, through the interface and the writer, can store, propose, promote and queue an
   extraction.
-- **The operator AI**, through the MCP server, has its own research role. It can store a fetched
-  document and propose. It cannot promote.
+- **The operator AI**, through the MCP server, has its own research role. It does everything that
+  the operator does in the review page: it can store a fetched document, propose, read the review
+  queue, and accept or reject a unit or a relation. Its decision records "decided by an AI
+  reviewer" and its reason, never "validated manually". The skills say that the session which
+  proposed a unit does not decide it. The database cannot enforce this, because all sessions share
+  one role.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
-  outputs and propose. They cannot promote, and they cannot start a lead.
+  outputs and propose. They cannot promote or reject, and they cannot start a lead.
 - **The decision rules** run in the database (ADR 0012). They promote or reject, and no machine
-  role can call them in place of a rule.
+  role can call their function in place of a rule.
 - **The chat** reads through the read role and can queue an extraction. It never proposes, because
   a live answer must never become a proposal directly.
 
