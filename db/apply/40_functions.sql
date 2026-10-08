@@ -3427,11 +3427,12 @@ $$;
 -- 3 and 6.
 --
 --   none  no act of the fact has a passed check of a second model family;
---   5     a checker disputed an act of the fact, or a party to the conflict denies it;
+--   5     a checker disputed an act of the fact (verdict not_supported; unclear is no dispute),
+--         or a party to the conflict denies it;
 --   4     another pending act gives a different value for the same attribute of the same target;
 --   1     two citations are independent, and no conflict stands;
---   2     two citations or more, and no pair is proved independent;
---   3     one citation with a known author;
+--   2     two known authors or more, and no pair of citations is proved independent;
+--   3     one known author, even with many citations;
 --   6     no citation has a known author.
 --
 -- Departure from ADR 0012: the check gates the digit before the rule 5, because a fact that no
@@ -3455,7 +3456,7 @@ BEGIN
   END IF;
 
   IF EXISTS (SELECT 1 FROM public.act_check k
-              WHERE k.proposal_id = ANY (v_acts) AND k.verdict <> 'supported')
+              WHERE k.proposal_id = ANY (v_acts) AND k.verdict = 'not_supported')
      OR EXISTS (SELECT 1
                   FROM public.citation c
                   JOIN public.proposals p ON p.id = c.claim_id
@@ -3484,15 +3485,16 @@ BEGIN
     FROM public.citation c
    WHERE c.claim_id = ANY (v_acts) AND c.modality IN ('enacts', 'asserts');
   v_stating := coalesce(v_stating, '{}'::uuid[]);
-  SELECT count(*) INTO v_known
+  SELECT count(DISTINCT x.author) INTO v_known
     FROM unnest(v_stating) AS s(id)
-   WHERE (SELECT x.author FROM public.citation_source(s.id) x) IS NOT NULL;
+   CROSS JOIN LATERAL public.citation_source(s.id) x
+   WHERE x.author IS NOT NULL;
 
   IF EXISTS (SELECT 1 FROM unnest(v_stating) AS one(id), unnest(v_stating) AS two(id)
               WHERE one.id < two.id AND public.citations_independent(one.id, two.id)) THEN
     RETURN 1;
   END IF;
-  IF cardinality(v_stating) >= 2 AND v_known >= 1 THEN
+  IF v_known >= 2 THEN
     RETURN 2;
   END IF;
   IF v_known >= 1 THEN
