@@ -1,0 +1,5 @@
+# The MCP server of the research workspace, for Codex started at the root of the repository. The
+# server reads research/.env by itself, so it starts the same from here and from research/.
+[mcp_servers.gab]
+command = "node"
+args = ["packages/mcp/src/main.ts"]

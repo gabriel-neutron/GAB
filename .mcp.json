@@ -11,6 +11,11 @@
         "--headless"
       ],
       "env": {}
+    },
+    "gab": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["packages/mcp/src/main.ts"]
     }
   }
 }
