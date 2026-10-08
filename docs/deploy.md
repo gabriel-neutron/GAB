@@ -34,6 +34,13 @@ start, it puts back each job that is still running.
 values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
 worker does not start when they are the same.
 
+The MCP server of the research session asks the same checker for each batch that the research AI
+proposes. It reads `OPENROUTER_API_KEY`, the `CHECKER_` values and `RESEARCH_CHECK_TOKEN_CAP` (the
+tokens of one check) from `infra/.env` of the repository, wherever the client starts it. The server
+knows the family of the research AI from the name of its client: Claude Code is `anthropic`, Codex
+is `openai`. Set a `CHECKER_FAMILY` that is neither. When a value is absent, the server starts, and
+each proposal is disputed with the name of the value.
+
 Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
 the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
 provider must not keep the prompts or train on them. When the credit is spent, each job fails with

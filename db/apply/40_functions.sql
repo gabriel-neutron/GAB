@@ -2748,7 +2748,8 @@ END $$;
 -- with two lines of context. Each passage names the element of the act that it supports. A
 -- passage of the v1 import is the whole line of its unit, and the lines around it state other
 -- units, so the passage says so. Each act, and each unit whose every act is such a relation, says
--- whether the reason "end rejected" fits it.
+-- whether the reason "end rejected" fits it. Each act gives the check of a second model on it, or
+-- null when no model checked it.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -2935,6 +2936,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'createdAt', a.created_at, 'dissent', a.dissent,
              'endRejected', public.end_was_rejected(a.op, a.payload),
              'dissentReason', public.dispute_said(a.dissent_reason),
+             'check', (SELECT jsonb_build_object('model', k.checker_model, 'verdict', k.verdict,
+                                                 'passed', k.passed)
+                         FROM public.act_check k WHERE k.proposal_id = a.id),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
            bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected

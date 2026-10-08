@@ -43,8 +43,10 @@ that state it.
    entity of an earlier item of the batch by its `ref`, and an entity of the record by its id.
 7. If the tool refuses the batch, read the item, the field and the reason that it names, correct
    that item, and call `propose` again. A retry writes nothing twice.
-8. If the answer marks an item as disputed, a value of the act is not in its excerpt. Check the
-   value. Keep the proposal ids that the tool gives. The skill `carto-step` reports them.
+8. If the answer marks an item as disputed, a value of the act is not in its excerpt, or the
+   model of another family that reads each item does not find it in its passage. Check the value.
+   If the answer gives `checkFailure`, no model checked the batch: the skill `research-method`
+   says what to do. Keep the proposal ids that the tool gives. The skill `carto-step` reports them.
 
 ## A register record
 

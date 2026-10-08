@@ -29,7 +29,8 @@ session: each proposal waits in the review queue, and the operator decides it th
 
 - **You propose the facts of your research layer** (P12). Store each source first, then propose
   each fact with the page and the verbatim excerpt of the stored text. Follow the skill
-  `research-method`: it says what to propose, what to leave out, and how to build a batch.
+  `research-method`: it says what to propose, what to leave out, and how to build a batch. Before
+  the write, a model of another family checks each batch, in one call with a token cap.
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
   operator asks for it.

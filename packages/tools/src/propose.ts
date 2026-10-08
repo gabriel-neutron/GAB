@@ -9,6 +9,7 @@ import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { unstatedValues } from './stated-value.ts';
 import {
+  CheckFailure,
   defineTool,
   ToolRefusal,
   type CheckVerdict,
@@ -297,6 +298,7 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 const disputeReason = (
   unstated: readonly UnstatedValue[],
   verdict: CheckVerdict | 'unchecked' | undefined,
+  failure: string | null,
   names: ReadonlyMap<string, string>,
 ): string | null => {
   const parts: string[] = [];
@@ -306,7 +308,8 @@ const disputeReason = (
         .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
         .join(', ')}`,
     );
-  if (verdict === undefined) parts.push('the checker did not answer');
+  if (verdict === undefined)
+    parts.push(failure === null ? 'the checker did not answer' : `no model checked it: ${failure}`);
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
       verdict.reason.trim() === ''
@@ -341,13 +344,20 @@ export const proposeOf = (modelCallId: string | null) =>
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
-      'the item. A value that no excerpt states marks the item as disputed. A relation names an ' +
+      'the item. A value that no excerpt states marks the item as disputed. Before the write, a ' +
+      'model of another family reads each item with its passages, and an item that it does not ' +
+      'find supported, or that no model could check, is marked as disputed; checkFailure then ' +
+      'says why no model checked the batch. A relation names an ' +
       'entity of an earlier item by its ref. A retry of the same batch writes nothing twice. The ' +
       'proposals wait for the operator. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds.',
     input: z.strictObject({ items: proposeItems }),
-    output: z.strictObject({ proposals: z.array(outcome) }),
+    output: z.strictObject({
+      proposals: z.array(outcome),
+      // Why no model checked the batch. Each item is then disputed, and a smaller batch can pass.
+      checkFailure: z.string().optional(),
+    }),
     async run(session, input, reach) {
       const minted = new Map<string, Minted>();
       input.items.forEach((given, index) => {
@@ -381,14 +391,28 @@ export const proposeOf = (modelCallId: string | null) =>
           context: one.context,
         })),
       }));
-      const verdicts = reach?.check === undefined ? null : await reach.check(toCheck);
+      let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;
+      let failure: string | null = null;
+      if (reach?.check !== undefined)
+        try {
+          verdicts = await reach.check(toCheck);
+        } catch (cause) {
+          if (!(cause instanceof CheckFailure)) throw cause;
+          verdicts = new Map();
+          failure = cause.message;
+        }
       const names = new Map(
         input.items.flatMap((given) =>
           given.act.op === 'create_entity' ? [[given.ref, given.act.label] as const] : [],
         ),
       );
       const reasonOf = (ref: string, unstated: readonly UnstatedValue[]): string | null =>
-        disputeReason(unstated, verdicts === null ? 'unchecked' : verdicts.get(ref), names);
+        disputeReason(
+          unstated,
+          verdicts === null ? 'unchecked' : verdicts.get(ref),
+          failure,
+          names,
+        );
 
       const items = prepared.map(({ given, act, cited, unstated, id }) => {
         const reason = reasonOf(given.ref, unstated);
@@ -441,6 +465,7 @@ export const proposeOf = (modelCallId: string | null) =>
             unstated: [...new Set(unstated.map((one) => one.name))],
           };
         }),
+        ...(failure === null ? {} : { checkFailure: failure }),
       };
     },
   });
