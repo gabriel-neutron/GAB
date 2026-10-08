@@ -25,7 +25,7 @@ it. The build decisions are in the ADRs.
 | M10 | The unit is in the key name | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
 | M12 | An entity merge is reversible | Data model |
-| S1 | The NATO letter rates the author; the machine gives every letter | Sources and trust |
+| S1 | The NATO letter rates the author, the digit rates the fact, and each is judged apart | Sources and trust |
 | S2 | The source is listed at entity, relation and attribute level | Sources and trust |
 | S3 | Named rules decide from the sources; the operator decides the doubts | Sources and trust |
 | S4 | The origin of each decision is stored and published | Sources and trust |
@@ -183,24 +183,35 @@ it. This becomes weak when an agent writes at volume.
 
 ## Sources and trust
 
-### S1 — The NATO letter rates the author; the machine gives every letter
+### S1 — The NATO letter rates the author, the digit rates the fact, and each is judged apart
 
-**Rule.** GAB uses the NATO rating (STANAG 2511). A letter from A to F rates the reliability of the
-author: the person or the body that first gives the information and knows it. The letter never rates
-the site or the medium that carries it: a blog post can be good or bad, by its author. A copy of a
-text counts as its first author. A new author gets F. The letter can have an exception for one
-subject, because one author can be open on one subject and not on another (for example, a party to
-the conflict on its own data and on the data of the other side). A digit from 1 to 6 rates the
-credibility of one fact, from its sources. The machine gives every letter, and code gives every
-digit; the operator gives none. A strong model rates a reference set of authors once, with a reason
-for each letter. After that, a model rates a new author against the reference set and names the
-reference authors that it compares with, so that the letters do not drift. Code computes the digit.
-The public does not see the letter or the digit.
+**Rule.** GAB uses the NATO rating (STANAG 2511, from STANAG 2022). A letter from A to F rates the
+reliability of the author: the person or the body that first gives the information. The letter never
+rates the site or the medium that carries it. A copy of a text counts as its first author. A digit
+from 1 to 6 rates the credibility of one fact, never of a document. NATO judges the two apart, so
+the digit never reads a letter: it comes from the number of independent authors that give the fact
+and from the conflicts with what GAB already holds. A rule can read both marks after they are
+judged. Each citation shows its pair to the operator, for example "B1".
+
+- **A** is only for the issuer of an official record, on its own record: a register, a gazette, a
+  court, a sanctions act.
+- **B** comes only from the reference set.
+- **A party to the conflict**, of either side, is B at most, and only about its own side. About the
+  other side it counts as C at most, so it never passes without an independent source B.
+- **A new author** is F. A model rates it against the reference set, gives C to F, and names the
+  reference authors that it compares with.
+- **The reference set** holds about thirty authors, each with a letter and a reason. A strong model
+  makes it once, and the operator reads and approves it once. This is one act of trust, not a letter
+  for each author.
+
+The machine gives every other letter, and code gives every digit. The public does not see the
+letter or the digit.
 **Why.** A document mixes facts and rumours, so one grade per document is false. The author is the
-thing that knows. One operator cannot rate each author by hand. A fixed reference set keeps the
-letters of the model consistent over time.
-**Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference
-set moves every later letter. Until the reference set is made, every author is F.
+thing that knows. NATO forbids that the reliability of a source changes the credibility of an item,
+because a good source can be wrong and a bad source can be right. One operator cannot rate each
+author by hand, and a model has no track record of an unknown author, so it cannot give A or B.
+**Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference set
+moves every later letter. Few authors reach B, so few facts pass at the start.
 
 ### S2 — The source is listed at each level
 
@@ -221,9 +232,13 @@ order to each unit, and the first rule that matches decides:
 2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that
    the operator rejected before, or an adverse claim about a named person or company (S6). The unit
    goes to the operator, with the reason.
-3. **Strong sources.** Each fact of the unit has one source A, or two independent sources B or
-   better, and a model of a second family found each fact in its passage. Two sources are
-   independent when they have different authors. The rule accepts the unit.
+3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
+   has either one source A on its own record, or two independent sources: one B or better and one
+   C or better. Two sources are independent only when they have different authors, different
+   controllers (one state, one holding or one channel network counts as one author), different
+   sites, and passages that are not copies of each other. When code is not sure, the two sources
+   count as one author. A source that only reports what another party says never counts. The rule
+   accepts the unit.
 4. **Weak sources.** All other units wait for a better source, and the operator does not see them
    in the queue. A deepening search can look for a better source (P10). When a new source comes,
    the unit goes through the rules again. A unit whose only sources are D or E, after the
@@ -231,7 +246,8 @@ order to each unit, and the first rule that matches decides:
    come later.
 
 The threshold starts strict. The operator relaxes it later, from real data. No model decides the
-state of a unit: a model gives a letter (S1), and code applies the rules.
+state of a unit: a model gives a letter (S1), and code applies the rules. A denial by the subject
+of a fact is a doubt. A contradiction from an author F is not a doubt: the unit waits.
 **Why.** A queue of every claim makes one person the bottleneck and cancels the gain. A rule on
 the sources is simple, and anyone can audit it.
 **Cost.** At the start few units pass, because most facts have one source. Two models can share a
