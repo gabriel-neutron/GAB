@@ -787,7 +787,14 @@ const refusalOf = async (ask: Ask, text: string, values: readonly unknown[]) => 
 };
 
 test('"end rejected" is a reason only for a relation whose other end was rejected', async () => {
-  const [parent, child, link] = [randomUUID(), randomUUID(), randomUUID()];
+  const [parent, child, link, army, brigade, crossing] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
   const read = await rolledBack('superuser', async (ask) => {
     await seed(ask);
     await batch(ask, [
@@ -795,6 +802,13 @@ test('"end rejected" is a reason only for a relation whose other end was rejecte
       entity(child, 'End child'),
       relation(link, 'subordinate_to', child, parent),
     ]);
+    // A link unit: its relation crosses two groups.
+    await batch(ask, [entity(army, 'End army')]);
+    await batch(ask, [
+      entity(brigade, 'End brigade'),
+      relation(crossing, 'subordinate_to', brigade, army),
+    ]);
+    await ask(REJECT_UNIT, [army, 'duplicate']);
     const early = await refusalOf(ask, REJECT_RELATION, [link, 'end_rejected']);
     await ask(REJECT_UNIT, [parent, 'duplicate']);
     const ofEntity = await refusalOf(ask, REJECT_UNIT, [child, 'end_rejected']);
@@ -805,8 +819,41 @@ test('"end rejected" is a reason only for a relation whose other end was rejecte
     return { early, ofEntity, late, units: page[0]?.page.units ?? [] };
   });
   expect(read).toMatchObject({ early: 'rejection_end', ofEntity: 'rejection_end', late: null });
-  // The page offers the reason only to a unit that has the fault.
-  expect(read.units).toContainEqual(expect.objectContaining({ unit: child, endRejected: true }));
+  // The page offers the reason to the relation whose end was rejected, and to a whole unit only
+  // when each of its acts is such a relation.
+  const unitOf = (id: string) =>
+    z
+      .object({
+        endRejected: z.boolean(),
+        acts: z.array(z.object({ id: z.uuid(), endRejected: z.boolean() })),
+      })
+      .parse(read.units.find((unit) => z.object({ unit: z.uuid() }).parse(unit).unit === id));
+  expect(unitOf(child)).toStrictEqual({
+    endRejected: false,
+    acts: [
+      { id: child, endRejected: false },
+      { id: link, endRejected: true },
+    ],
+  });
+  expect(unitOf(crossing)).toStrictEqual({
+    endRejected: true,
+    acts: [{ id: crossing, endRejected: true }],
+  });
+});
+
+test('an end that is no identifier gives the refusal of the shape, and no error of a cast', async () => {
+  const [one, link] = [randomUUID(), randomUUID()];
+  const refusal = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    return batch(ask, [
+      entity(one, 'Shape unit'),
+      relation(link, 'subordinate_to', 'x', one, { names: [one] }),
+    ]);
+  }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(refusal).toMatchObject({ code: '22023' });
 });
 
 test('a child whose link to a rejected parent was rejected is not clean, and names its parent', async () => {

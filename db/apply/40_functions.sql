@@ -1338,14 +1338,16 @@ BEGIN
 END $$;
 
 -- AN END OF A NEW RELATION THAT THE OPERATOR REJECTED. Only such a relation takes the reason "end
--- rejected", so the reason never hides another one. No role holds this step.
-CREATE OR REPLACE FUNCTION end_was_rejected(p public.proposals)
+-- rejected", so the reason never hides another one. It takes the operation and the payload of the
+-- act, so a query can give the columns of any row. No role holds this step.
+DROP FUNCTION IF EXISTS end_was_rejected(public.proposals);
+CREATE OR REPLACE FUNCTION end_was_rejected(p_op text, p_payload jsonb)
 RETURNS boolean
 LANGUAGE sql STABLE
 SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT p.op = 'create_relation'
+  SELECT p_op = 'create_relation'
      AND EXISTS (SELECT 1 FROM public.proposals w
-                  WHERE w.id::text IN (p.payload->>'src_id', p.payload->>'dst_id')
+                  WHERE w.id IN ((p_payload->>'src_id')::uuid, (p_payload->>'dst_id')::uuid)
                     AND w.status = 'rejected')
 $$;
 
@@ -1363,7 +1365,7 @@ DECLARE
 BEGIN
   IF p_reason = 'end_rejected'
      AND EXISTS (SELECT 1 FROM public.proposals x
-                  WHERE x.id = ANY (v_left) AND NOT public.end_was_rejected(x)) THEN
+                  WHERE x.id = ANY (v_left) AND NOT public.end_was_rejected(x.op, x.payload)) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
@@ -1397,7 +1399,7 @@ BEGIN
     RAISE EXCEPTION 'the act % is no new relation: reject its unit', p_id
       USING CONSTRAINT = 'relation_only';
   END IF;
-  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p) THEN
+  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p.op, p.payload) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
@@ -1657,21 +1659,41 @@ END $$;
 -- first, with how the operator decided it (one unit, one relation or a group action) and the name
 -- of the element that it proposed. A rejected act comes with its reason and its note, which are
 -- private, so only the operator role holds this read. The public read shows no rejected act.
-CREATE OR REPLACE FUNCTION review_decided()
+--
+-- The read comes in pages: a page starts after the hour and the identifier of the last act of the
+-- page before, and it gives the key of its own last act when more acts follow.
+DROP FUNCTION IF EXISTS review_decided();
+CREATE OR REPLACE FUNCTION review_decided(p_after_at timestamptz, p_after_id uuid, p_size int)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_size int := greatest(1, least(coalesce(p_size, 100), 500));
 BEGIN
-  RETURN (SELECT jsonb_build_object('acts', coalesce(jsonb_agg(jsonb_build_object(
-           'id', p.id, 'op', p.op, 'payload', p.payload, 'targetKind', p.target_kind,
-           'targetId', p.target_id, 'proposer', p.proposer, 'status', p.status,
-           'createdAt', p.created_at, 'decidedAt', p.decided_at, 'decidedBy', p.decided_by,
-           'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
-           'rejectNote', p.reject_note,
-           'name', public.element_name(coalesce(p.target_id, p.id)))
-           ORDER BY p.decided_at DESC, p.id), '[]'::jsonb))
-    FROM public.proposals p
-   WHERE p.status <> 'pending');
+  RETURN (
+    WITH page AS (
+      SELECT p.*, row_number() OVER (ORDER BY p.decided_at DESC, p.id) AS no
+        FROM (SELECT * FROM public.proposals q
+               WHERE q.status <> 'pending'
+                 AND (p_after_at IS NULL
+                      OR q.decided_at < p_after_at
+                      OR (q.decided_at = p_after_at AND q.id > p_after_id))
+               ORDER BY q.decided_at DESC, q.id
+               LIMIT v_size + 1) AS p
+    )
+    SELECT jsonb_build_object(
+      'acts', coalesce(jsonb_agg(jsonb_build_object(
+                'id', p.id, 'op', p.op, 'payload', p.payload, 'targetKind', p.target_kind,
+                'targetId', p.target_id, 'proposer', p.proposer, 'status', p.status,
+                'createdAt', p.created_at, 'decidedAt', p.decided_at, 'decidedBy', p.decided_by,
+                'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
+                'rejectNote', p.reject_note,
+                'name', public.element_name(coalesce(p.target_id, p.id)))
+                ORDER BY p.no) FILTER (WHERE p.no <= v_size), '[]'::jsonb),
+      'next', (SELECT jsonb_build_object('decidedAt', l.decided_at, 'id', l.id)
+                 FROM page l
+                WHERE l.no = v_size AND EXISTS (SELECT 1 FROM page m WHERE m.no > v_size)))
+      FROM page p);
 END $$;
 
 -- THE ACT OF THE OPERATOR: one proposal and its promotion, in one transaction. Only the operator
@@ -2036,7 +2058,7 @@ RETURNS SETOF public.proposals
 LANGUAGE sql STABLE AS $$
   SELECT w.* FROM public.proposals w
    WHERE w.names @> ARRAY[p_child] AND w.op = 'create_relation'
-     AND w.payload->>'type' = 'subordinate_to' AND w.payload->>'src_id' = p_child::text
+     AND w.payload->>'type' = 'subordinate_to' AND (w.payload->>'src_id')::uuid = p_child
      AND (w.status = 'pending' OR NOT p_pending)
    ORDER BY w.created_at, w.id
    LIMIT 1
@@ -2072,7 +2094,7 @@ DECLARE
 BEGIN
   SELECT EXISTS (
            SELECT 1 FROM public.proposals r
-             JOIN public.proposals c ON c.id::text = r.payload->>'src_id'
+             JOIN public.proposals c ON c.id = (r.payload->>'src_id')::uuid
                                     AND c.op = 'create_entity' AND c.batch_id = p_batch
             WHERE r.batch_id = p_batch AND r.op = 'create_relation'
               AND r.payload->>'type' = 'subordinate_to')
@@ -2083,9 +2105,9 @@ BEGIN
      WHERE g.batch_id = p_batch AND g.op = 'create_entity'
        AND NOT EXISTS (
              SELECT 1 FROM public.proposals r
-               JOIN public.proposals d ON d.id::text = r.payload->>'dst_id'
+               JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
               WHERE r.op = 'create_relation' AND r.batch_id = p_batch
-                AND r.payload->>'type' = 'subordinate_to' AND r.payload->>'src_id' = g.id::text
+                AND r.payload->>'type' = 'subordinate_to' AND (r.payload->>'src_id')::uuid = g.id
                 AND d.op = 'create_entity' AND d.batch_id = p_batch)
      ORDER BY g.created_at, g.payload->>'label', g.id
      LIMIT 1;
@@ -2109,8 +2131,10 @@ BEGIN
 END $$;
 
 -- THE WORDS OF A DISPUTE. The checks store their verdict as a code and a value by the name of its
--- field, and the operator reads words. A reason with no code stays as it is. No role holds this
--- step: the reads of the operator call it.
+-- field, and the operator reads words. A reason with no code stays as it is. A ref of an item that
+-- an older checker wrote, such as "e3", stays too: the record keeps no ref and no order of the
+-- items of a batch, so no act answers to it. The propose tool now writes the name in its place.
+-- No role holds this step: the reads of the operator call it.
 CREATE OR REPLACE FUNCTION dispute_said(p_reason text)
 RETURNS text
 LANGUAGE sql IMMUTABLE
@@ -2375,8 +2399,8 @@ BEGIN
       JOIN public.proposals l ON l.names @> ARRAY[n.id] AND l.status = 'rejected'
                              AND l.op = 'create_relation'
                              AND l.payload->>'type' = 'subordinate_to'
-                             AND l.payload->>'src_id' = n.id::text
-      JOIN public.proposals d ON d.id::text = l.payload->>'dst_id' AND d.status = 'rejected'
+                             AND (l.payload->>'src_id')::uuid = n.id
+      JOIN public.proposals d ON d.id = (l.payload->>'dst_id')::uuid AND d.status = 'rejected'
      WHERE n.parent IS NULL
     -- --------------------------------------------------------------------------- information --
     UNION ALL
@@ -2472,7 +2496,8 @@ $$;
 -- its acts, the ends of each act, the proposer, the group, the documents and the cited passages
 -- with two lines of context. Each passage names the element of the act that it supports. A
 -- passage of the v1 import is the whole line of its unit, and the lines around it state other
--- units, so the passage says so.
+-- units, so the passage says so. Each act, and each unit whose every act is such a relation, says
+-- whether the reason "end rejected" fits it.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -2534,7 +2559,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     UNION ALL
     SELECT t.start, d.id, t.path || d.id, t.depth + 1
       FROM tree t
-     CROSS JOIN LATERAL public.parent_link(t.at, false) AS r
+      JOIN public.proposals r ON r.op = 'create_relation'
+                             AND r.payload->>'type' = 'subordinate_to'
+                             AND (r.payload->>'src_id')::uuid = t.at
       JOIN public.proposals d ON d.id = (r.payload->>'dst_id')::uuid
                              AND d.op = 'create_entity' AND d.batch_id = r.batch_id
      WHERE NOT d.id = ANY (t.path)
@@ -2630,9 +2657,11 @@ SET search_path = pg_catalog, public, pg_temp AS $$
            jsonb_agg(jsonb_build_object(
              'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
              'createdAt', a.created_at, 'dissent', a.dissent,
+             'endRejected', public.end_was_rejected(a.op, a.payload),
              'dissentReason', public.dispute_said(a.dissent_reason),
              'target', et.said, 'src', es.said, 'dst', ed.said)
-             ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts
+             ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
+           bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected
       FROM acts a
       LEFT JOIN ends et ON et.id = a.target_id
       LEFT JOIN ends es ON es.id = (a.payload->>'src_id')::uuid
@@ -2698,7 +2727,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                              ELSE jsonb_build_object('id', s.batch_id, 'subject', s.subject) END,
                'state', s.state,
                'faults', s.faults,
-               'endRejected', s.faults @> '[{"kind": "end_rejected"}]'::jsonb,
+               'endRejected', ac.end_rejected,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
                'passages', coalesce(qu.passages, '[]'::jsonb))

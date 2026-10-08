@@ -145,7 +145,7 @@ test.each([
   ['/private/review-units', 'review_units', { after: null, size: 1 }],
   ['/private/review-groups', 'review_groups', {}],
   ['/private/review-group', 'review_group', { groupId: PROPOSAL }],
-  ['/private/review-decided', 'review_decided', {}],
+  ['/private/review-decided', 'review_decided', { after: null, size: 1 }],
   ['/write/promote-group', 'promote_group', { groupId: PROPOSAL, unitIds: [PROPOSAL] }],
 ])('a lost answer on %s is a doubt, and the client goes back', async (door, on, body) => {
   const held = faultyPool([{ on, cause: lostSocket() }]);

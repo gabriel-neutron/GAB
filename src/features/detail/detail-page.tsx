@@ -185,7 +185,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               </span>
             )}
           </h1>
-          {/* S4: each public claim says who decided it. */}
+          {/* Each public claim says who decided it. */}
           {dossier.decision === null ? null : (
             <span className="shrink-0 text-small/4 text-label" data-decision="">
               {dossier.decision}

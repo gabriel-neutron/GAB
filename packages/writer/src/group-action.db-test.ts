@@ -514,9 +514,17 @@ test('the operator reads its own rejections with the reason and the note', async
     note: 'The page names a ferry.',
   });
   try {
-    const [status, reply] = await ask('/private/review-decided', {});
+    // The two acts are the newest decisions, so two pages of one act give them, each once.
+    const page = z.object({
+      acts: z.array(decidedAct),
+      next: z.object({ decidedAt: z.string(), id: z.uuid() }).nullable(),
+    });
+    const [status, reply] = await ask('/private/review-decided', { after: null, size: 1 });
     expect(status).toBe(200);
-    const acts = z.object({ acts: z.array(decidedAct) }).parse(reply).acts;
+    const first = page.parse(reply);
+    expect(first.next?.id).toBe(first.acts[0]?.id);
+    const [, again] = await ask('/private/review-decided', { after: first.next, size: 1 });
+    const acts = [...first.acts, ...page.parse(again).acts];
     expect(acts.filter((act) => act.id === brigade || act.id === toArmy)).toStrictEqual(
       [
         {

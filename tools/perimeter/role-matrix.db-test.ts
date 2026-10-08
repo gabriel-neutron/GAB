@@ -149,6 +149,6 @@ test('only the worker role claims a job', async () => {
 for (const identity of ['read', 'agent', 'research'] as const)
   test(`gabriel_${identity} cannot read the decided acts with the reasons of the rejections`, async () => {
     await expect(
-      rolledBack(identity, (ask) => ask('SELECT public.review_decided()')),
+      rolledBack(identity, (ask) => ask('SELECT public.review_decided(NULL, NULL, 1)')),
     ).rejects.toMatchObject({ code: '42501' });
   });

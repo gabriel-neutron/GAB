@@ -144,8 +144,8 @@ note when the reason is "other". The reason "end rejected" is only for a relatio
 was rejected, so it never hides another reason. The reason and the note are private: only the
 operator reads the decided acts with them, through the writer. The operator can reject one
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
-relation, or a group action. The page of an entity then says who promoted it: "the operator", or
-"the operator, group action".
+relation, or a group action. The page of an entity then names the operator and whether the
+decision was a group action.
 
 A rail lists the groups that wait, with the counts of their units, of their clean units and of
 each fault. The group action promotes the clean units of one group after one confirmation, which
