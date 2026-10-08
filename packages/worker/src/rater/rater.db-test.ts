@@ -1,8 +1,9 @@
 import { Pool, type PoolClient } from 'pg';
-import { afterAll, expect, test } from 'vitest';
+import { afterAll, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 import type { RaterConfig } from '../reader-config.ts';
+import type { Queryable } from '../queryable.ts';
 import { completionOf, depsOf, READER, routerOf } from '../runner-fixture.ts';
 import { openRunner } from '../runner.ts';
 import { makeRater } from './rater.ts';
@@ -29,6 +30,30 @@ const CONFIG: RaterConfig = { model: READER, tokenCap: 10_000 };
 const STORE_REFERENCE = `SELECT public.store_reference_author($1, $2, 'a-strong-model', 'a reason',
   '{}'::text[], NULL, false)`;
 
+const DOORS = /store_author_letter|join_author_name/u;
+
+/** The connection as the rater sees it. A fault is an error of the connection that the door of the
+ * worker raises, with the SQLSTATE code of the error. A refused door aborts the transaction of the
+ * test, so each door runs behind a savepoint. */
+const doorsOf = (client: PoolClient, fault: string | undefined): Queryable => ({
+  query: (text, values) =>
+    !DOORS.test(text)
+      ? client.query(text, values)
+      : fault === undefined
+        ? behindSavepoint(client, text, values)
+        : Promise.reject(Object.assign(new Error('the connection failed'), { code: fault })),
+});
+
+const behindSavepoint = async (client: PoolClient, text: string, values?: unknown[]) => {
+  await client.query('SAVEPOINT door');
+  try {
+    return await client.query(text, values);
+  } catch (cause) {
+    await client.query('ROLLBACK TO SAVEPOINT door');
+    throw cause;
+  }
+};
+
 type Ask = (text: string, values?: unknown[]) => Promise<unknown[]>;
 
 interface Held {
@@ -36,7 +61,9 @@ interface Held {
   /** Queues the rating of a new name. */
   readonly actOf: (author: string) => Promise<void>;
   /** The runner takes the oldest job and the rater answers it with this fake answer. */
-  readonly rate: (answer: unknown) => Promise<'done' | 'failed' | 'idle'>;
+  readonly rate: (answer: unknown, fault?: string) => Promise<'done' | 'failed' | 'idle'>;
+  /** The reference author that the operator stored and did not approve yet. */
+  readonly storeUnapproved: (name: string) => Promise<void>;
   readonly letter: (name: string) => Promise<string>;
 }
 
@@ -73,9 +100,13 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
           [author.toLowerCase()],
         );
       },
-      rate: async (answer) => {
+      storeUnapproved: async (name) => {
+        await asRole('gabriel_app', () => ask(STORE_REFERENCE, [name, 'B']));
+      },
+      rate: async (answer, fault) => {
         const router = routerOf(() => completionOf(JSON.stringify(answer)));
-        const { deps } = depsOf(client, [makeRater(CONFIG)], router);
+        const db = doorsOf(client, fault);
+        const { deps } = depsOf(db, [makeRater(CONFIG)], router);
         return asRole('gabriel_agent', async () => (await (await openRunner(deps)).step()).did);
       },
       letter: async (name) =>
@@ -204,3 +235,74 @@ test.each([
     });
   },
 );
+
+test.each([
+  ['an invalid value', '22023'],
+  ['a violated unique key', '23505'],
+])(
+  'an error of the door with the SQLSTATE of %s is a refusal that keeps the name',
+  async (_name, code) => {
+    await inTransaction(async (held) => {
+      await held.actOf('Trade Journal');
+      expect(await held.rate(NEW, code)).toBe('failed');
+      expect((await jobOf(held, 'trade journal'))[0]?.failure_reason).toContain(
+        'the connection failed',
+      );
+
+      await held.actOf('Trade Journal');
+      expect(await jobOf(held, 'trade journal')).toHaveLength(1);
+    });
+  },
+);
+
+test.each([
+  ['a deadlock', '40P01'],
+  ['a lost connection', '08006'],
+  ['a shutdown of the server', '57P01'],
+])('%s is a fault that frees the name for a new rating', async (_name, code) => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    await inTransaction(async (held) => {
+      await held.actOf('Trade Journal');
+      expect(await held.rate(NEW, code)).toBe('failed');
+
+      await held.actOf('Trade Journal');
+      expect(await jobOf(held, 'trade journal')).toHaveLength(2);
+      expect(await held.rate(NEW)).toBe('done');
+      expect(await held.letter('trade journal')).toBe('D');
+    });
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test('the name of an unapproved reference author ends the rating clean, and the name stays F', async () => {
+  await inTransaction(async (held) => {
+    await held.storeUnapproved('Trade Journal');
+    await held.actOf('Trade Journal');
+    expect(await held.rate(NEW)).toBe('failed');
+
+    expect((await jobOf(held, 'trade journal'))[0]?.failure_reason).toContain(
+      'already has an author',
+    );
+    expect(await held.letter('trade journal')).toBe('F');
+    expect(await held.ask(`SELECT count(*)::int AS n FROM public.author`)).toStrictEqual([
+      { n: 3 },
+    ]);
+  });
+});
+
+test('a refused rating keeps its call of the model in the record', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    expect(await held.rate({ ...NEW, letter: 'A' })).toBe('failed');
+
+    expect(
+      await held.ask(
+        `SELECT m.agent, m.requested_model, m.outcome
+           FROM public.model_call m JOIN public.jobs j ON j.id = m.job_id
+          WHERE j.kind = 'rate_author' AND j.author = 'trade journal'`,
+      ),
+    ).toStrictEqual([{ agent: 'rater', requested_model: READER.model, outcome: 'ok' }]);
+  });
+});

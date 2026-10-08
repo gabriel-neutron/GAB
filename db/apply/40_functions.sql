@@ -3178,6 +3178,18 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
           OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id))
 $$;
 
+-- THE AUTHOR OF A NAME, FOR THE WRITES. Unlike author_of() it sees a reference author that the
+-- operator did not approve yet, because the name key of a name is unique over all authors. It gives
+-- the row of the author and whether that row is in the reference set. Inside the doors only.
+CREATE OR REPLACE FUNCTION held_name(p_name text, OUT held boolean, OUT in_reference_set boolean)
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT true, a.reference_set
+    FROM public.author_name n JOIN public.author a ON a.id = n.author_id
+   WHERE n.name_key = public.name_key(p_name)
+  UNION ALL SELECT false, false
+  LIMIT 1
+$$;
+
 -- THE WRITE OF A NEW AUTHOR, for the two doors below. It refuses a blank field, a name that has an
 -- author already, and a party with no controller. The letter and the reference names are the
 -- business of the door.
@@ -3190,11 +3202,15 @@ DECLARE
   v_id uuid;
   v_blank constant text := E' \t\n\r\f\v';
   v_key text := public.name_key(coalesce(p_name, ''));
+  v_held record;
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a letter names its author' USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF public.author_of(v_key) IS NOT NULL THEN
+  SELECT * INTO v_held FROM public.held_name(v_key);
+  IF v_held.held THEN
+    -- The reference build leaves a name that a worker rated: the rated author stands.
+    IF p_reference_set AND NOT v_held.in_reference_set THEN RETURN NULL; END IF;
     RAISE EXCEPTION 'the name "%" already has an author', v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -3243,6 +3259,18 @@ BEGIN
     RAISE EXCEPTION 'the worker stores a letter from C to F. A and B come from the reference set'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- Each reference author is an approved author of the reference set. A blank name is no author.
+  IF EXISTS (
+    SELECT 1 FROM unnest(p_references) AS r(name)
+     WHERE r.name IS NULL OR NOT EXISTS (
+       SELECT 1 FROM public.author_name n
+         JOIN public.author a ON a.id = n.author_id
+         JOIN public.reference_approval x ON x.author_id = a.id
+        WHERE n.name_key = public.name_key(r.name) AND a.reference_set))
+  THEN
+    RAISE EXCEPTION 'a reference author is an approved author of the reference set'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
                            p_party, false);
 END $$;
@@ -3282,7 +3310,7 @@ BEGIN
     RAISE EXCEPTION 'the name "%" is the name of no known author',
       public.name_key(coalesce(p_known_name, '')) USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF public.author_of(v_key) IS NOT NULL THEN
+  IF (public.held_name(v_key)).held THEN
     RAISE EXCEPTION 'the name "%" already has an author', v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;

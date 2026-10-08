@@ -113,6 +113,7 @@ REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_append_only_fn()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION held_name(text)               FROM PUBLIC;
 REVOKE ALL ON FUNCTION new_author(text,text,text,text,text[],text,boolean,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
