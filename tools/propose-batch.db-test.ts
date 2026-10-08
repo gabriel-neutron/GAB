@@ -139,6 +139,30 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
       }),
     /^item 1: an act that cites words read from an image is disputed/u,
   ],
+  [
+    'a blank transcription',
+    (call) =>
+      itemOf(call, {
+        src: [IMAGE],
+        payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+        dissent: true,
+        citations: [{ document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: ' ' }],
+      }),
+    /^item 1: a transcription of page 1 .* is a text of 1 to 600 characters/u,
+  ],
+  [
+    'a transcription from a back-end agent',
+    (call) =>
+      itemOf(call, {
+        src: [IMAGE],
+        payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+        dissent: true,
+        citations: [
+          { document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara' },
+        ],
+      }),
+    /^item 1: an agent cites the stored text, and never words read from an image/u,
+  ],
   ['no originator', (call) => itemOf(call, { originator: ' ' }), /^item 1: .*first stated it/u],
   ['no model call', () => itemOf(null), /^item 1: .*names the model call/u],
   ['a modality outside the list', (call) => itemOf(call, { modality: 'hints' }), /^item 1: /u],
@@ -343,4 +367,37 @@ test('a transcription is quoted as it is, marked as read from the image, and giv
     { doc_id: IMAGE, page: 1, before: '', cited: 'Nayara > Sikka', after: '', transcribed: true },
   ]);
   expect(found.words).toStrictEqual([{ words: ['nayara', 'sikka'] }]);
+});
+
+// A rated author whose one passed check makes a fact strong under the letter C.
+const RATED = `WITH a AS (
+    INSERT INTO public.author (name_key, letter, model, reason, reference_authors)
+    VALUES (public.name_key('The port authority'), 'C', 'a-model', 'a test', ARRAY['x'])
+    RETURNING id)
+  INSERT INTO public.author_name (name_key, author_id)
+  SELECT public.name_key('The port authority'), id FROM a`;
+const PASSED = `INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family,
+  verdict) VALUES ($1::uuid, 'a-checker', 'family-one', 'family-two', 'supported')`;
+const STRONG = `SELECT public.fact_is_strong(p.claim_key, 'C', 'C', 'C') AS strong
+  FROM public.proposals p WHERE p.id = $1::uuid`;
+
+test('a passed check of words read from an image makes no fact strong while the act waits', async () => {
+  const strongOf = (change: Item) =>
+    rolledBack('superuser', async (ask) => {
+      await seed(ask);
+      await ask(RATED);
+      const act = itemOf(null, change);
+      await batchAs(ask, 'gabriel_research', [act]);
+      await ask(PASSED, [act['id']]);
+      return ask(STRONG, [act['id']]);
+    });
+  expect(await strongOf({})).toStrictEqual([{ strong: true }]);
+  expect(
+    await strongOf({
+      src: [IMAGE],
+      payload: { type: 'vessel', label: 'Nayara', sources: [IMAGE] },
+      dissent: true,
+      citations: [{ document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara' }],
+    }),
+  ).toStrictEqual([{ strong: false }]);
 });
