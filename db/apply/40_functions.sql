@@ -2351,7 +2351,7 @@ BEGIN
            r.reject_note
       FROM acts a
       JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
-                             AND r.id <> a.id
+                             AND r.id <> a.id AND r.decided_as IS DISTINCT FROM 'rule'
       LEFT JOIN named n ON n.id = a.id
      WHERE a.op <> 'create_entity'
         OR n.parent_key IS NOT DISTINCT FROM (SELECT l.claim_key
@@ -3967,8 +3967,10 @@ END $$;
 -- and no extraction of a page that it stored is open. A lead that failed, or that stopped at its
 -- budget, did not finish its search, so it never rejects. The unit is weak when it has sources,
 -- and each one has a letter D or E. A source whose check did not pass is no source here. An
--- author with no letter counts as F, so such a unit is kept, because a letter can come later. No
--- role holds this step.
+-- author with no letter counts as F, so such a unit is kept, because a letter can come later. A
+-- fact with no passed check is not judged, so a unit with such a fact is kept. A claim that a rule
+-- rejected is not "rejected before": a later source can change a weak verdict. No role holds this
+-- step.
 CREATE OR REPLACE FUNCTION rejected_after_search(p_unit uuid) RETURNS boolean
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM public.deepening d JOIN public.jobs j ON j.id = d.job_id
@@ -3977,6 +3979,12 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
                        JOIN public.lead_document l ON l.job_id = d.job_id
                        JOIN public.jobs e ON e.document_id = l.document_id
                       WHERE d.unit_id = p_unit AND e.status IN ('queued', 'running'))
+     AND NOT EXISTS (SELECT 1 FROM public.proposals a
+                      WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL
+                        AND NOT EXISTS (SELECT 1 FROM public.proposals f
+                                          JOIN public.act_check k ON k.proposal_id = f.id AND k.passed
+                                         WHERE f.claim_key = a.claim_key AND f.status <> 'rejected'
+                                           AND f.originator IS NOT NULL))
      AND coalesce((
        SELECT bool_and(s.letter IN ('D', 'E'))
          FROM (SELECT DISTINCT public.letter_of(f.originator) AS letter

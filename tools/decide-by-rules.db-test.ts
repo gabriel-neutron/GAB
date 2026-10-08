@@ -553,6 +553,25 @@ test('a claim that the operator rejected before goes to the operator even with a
   expect(read.rule).toBe('doubt');
 });
 
+test('a claim that a rule rejected is not rejected before, so a new source A decides it again', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const { child, parent } = await ends(ask);
+    const old = await link(ask, { author: name(), src: child, dst: parent });
+    await ask(
+      `UPDATE public.proposals SET status = 'rejected', decided_at = now(), decided_by = 'a test',
+         decided_as = 'rule', decision_origin = 'rule weak_sources v1',
+         reject_reason = 'wrong_value' WHERE id = $1`,
+      [old],
+    );
+    const act = await link(ask, { author, src: child, dst: parent });
+    return { state: await stateOf(ask, act), rule: await ruleOf(ask, act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).not.toBe('doubt');
+});
+
 test('the impossible rule comes before the doubt rule', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const { child } = await ends(ask);

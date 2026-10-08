@@ -273,6 +273,29 @@ test('the unit waits while an extraction of a page of the search is open', async
   expect(read.closed).toBe('rejected');
 });
 
+test('a unit with a fact that no check passed is kept, even when the other fact is weak', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const first = await weak(ask, 'D');
+    const [search] = await deepeningOf(ask, first.act);
+    if (search === undefined) throw new Error('the search did not start');
+    await run(ask, search.id);
+    // A second fact joins the unit. Nothing checked it, so nothing judged it.
+    const who = author();
+    await rate(ask, who, 'D');
+    const second = await cited(ask, { author: who, label: label() });
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask(
+      'UPDATE public.proposals SET unit_id = (SELECT unit_id FROM public.proposals WHERE id = $1) WHERE id = $2',
+      [first.act, second.act],
+    );
+    await ask('ALTER TABLE public.proposals ENABLE TRIGGER proposals_append_only');
+    await ends(ask, search.id, 'done');
+    return statusOf(ask, first.act);
+  });
+  expect(read.status).toBe('pending');
+});
+
 test('a search that finds a source C keeps the unit', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     await budgeted(ask, BUDGET);
