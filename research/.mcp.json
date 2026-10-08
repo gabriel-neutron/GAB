@@ -3,7 +3,7 @@
     "gab": {
       "type": "stdio",
       "command": "node",
-      "args": ["../packages/mcp/src/main.ts"]
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/../packages/mcp/src/main.ts"]
     }
   }
 }

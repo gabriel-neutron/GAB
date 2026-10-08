@@ -363,6 +363,39 @@ export const TheElementSaysThatAnAIReviewerDecidedIt: Story = {
   },
 };
 
+// The origin of an AI reviewer is the longest origin. On a narrow page it goes to its own line,
+// and it covers no other word of the header. Departure: no story below 780 px, because the rail of
+// the sources keeps 24 rem, and the record pane then has no width.
+const originFitsAt = (width: number): Story => ({
+  args: { dossier: readDecidedBy('unit', 'decided by an AI reviewer') },
+  render: (args) => (
+    <div style={{ width: `${String(width)}px`, height: '720px' }}>
+      <DetailPage {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const decision = canvasElement.querySelector('[data-decision]');
+    const heading = canvasElement.querySelector('h1');
+    const pane = recordPaneOf(canvasElement);
+    if (!(decision instanceof HTMLElement) || heading === null)
+      throw new Error('the header holds no origin or no heading');
+    const said = decision.getBoundingClientRect();
+    const named = heading.getBoundingClientRect();
+    const overlaps =
+      said.left < named.right &&
+      named.left < said.right &&
+      said.top < named.bottom &&
+      named.top < said.bottom;
+    await expect(overlaps).toBe(false);
+    await expect(decision.scrollWidth).toBeLessThanOrEqual(decision.clientWidth);
+    await expect(said.right).toBeLessThanOrEqual(pane.getBoundingClientRect().right + 1);
+    await expect(decision).toBeVisible();
+  },
+});
+
+/** At 780 px, the origin of an AI reviewer covers neither the name nor the type. */
+export const TheOriginOfAnAIReviewerFitsAt780Pixels: Story = originFitsAt(780);
+
 /** The page of an element says "validated manually" when the operator decided. */
 export const TheElementSaysValidatedManually: Story = {
   args: { dossier: readDecidedBy('unit', 'validated manually by the operator') },

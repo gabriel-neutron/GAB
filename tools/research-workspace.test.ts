@@ -65,7 +65,10 @@ test.each([
 ] as const)('%s starts the one server and passes no environment file', (_, folder, argsOf) => {
   const args = argsOf(folder);
   expect(args).toHaveLength(1);
-  expect(path.resolve(ROOT, folder, args[0] ?? '')).toBe(SERVER_SCRIPT);
+  // Claude Code gives the folder of the project in this variable, so the path does not follow the
+  // folder where the session starts.
+  const script = (args[0] ?? '').replace(/^\$\{CLAUDE_PROJECT_DIR:-\.\}\//u, '');
+  expect(path.resolve(ROOT, folder, script)).toBe(SERVER_SCRIPT);
 });
 
 test('the research environment names its connection, the store, the two search settings, three register keys and the inbox, and nothing else', () => {
