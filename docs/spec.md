@@ -50,9 +50,9 @@ flowchart LR
 
 | Actor | Can | Cannot |
 |---|---|---|
-| Operator | Upload, edit, promote, reject, rate a source, start a lead. | — |
+| Operator | Upload, edit, promote, reject, start a lead. | — |
 | Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. | Promote. Read a lead. |
-| Worker agents | Read a document, propose a change with the passage that states it. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
+| Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database holds these limits, not the application.
@@ -89,14 +89,15 @@ a file  →  one ingestion door (P6)
                     proposes claims, each with a checked excerpt; a model of
                     another family checks each claim against its passage
                   → structured file: a mapping proposal; after promotion, code loads the rows
-every proposal  →  review queue and graph marker  →  operator promotes or rejects (P1, S3)
+every unit      →  the decision rules (S3)  →  accepted, rejected, waits, or the review queue
+the queue       →  the operator promotes or rejects (P1)
 promotion       →  entities and relations (the evidentiary layer)
 ```
 
 A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
 writes no target and keeps the proposal as a record. An edit of the operator is a proposal and its
-promotion in one transaction, so it is written whole or not at all. Only the operator role can
-promote: a machine proposes and never decides. When an act keeps a value, the value keeps each
+promotion in one transaction, so it is written whole or not at all. A machine role proposes
+and never decides: only the operator and the decision rules in the database promote. When an act keeps a value, the value keeps each
 document that it already cites.
 
 A machine proposes through one door, which takes a batch. Each act cites a page and a span of
@@ -124,7 +125,7 @@ another group, or names a relation, is a unit of its own, so no entity waits for
 The review queue shows one line for each unit. It reads one page of units at a time through the
 writer, because the cited passages are private. Each line names who proposed the unit.
 
-The order clears a large import fast. A group that other groups wait for comes before them. In a
+A group that other groups wait for comes before them. In a
 group, the units with a fault come first, then the clean units in tree order, so a parent comes
 before its child. The acts with no group come last. The operator can filter by group, proposer,
 fault, source document and name. The database applies the order and the filters, so a page never
@@ -178,9 +179,28 @@ the reason of the newest rejection. An entity matches a rejected entity only und
 parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
 under the same parent. The reason stays private to the operator.
 
-The v1 import marks a unit whose sources come from a parent. The promotion does not copy the mark
-into the record. The keys that the v1 import kept to find a row of its file (`v1_id`, `osm_id`,
-`source_urls`) stay attributes in the record, and the review page shows them apart.
+
+## The decision path
+
+```
+a new author       →  a model rates it against the reference set  →  a letter A to F (S1)
+a unit, or a new source of a unit
+                   →  the rules of S3, in order, from the letters and the checks
+                        → impossible     : rejected by the rule
+                        → doubt          : the review queue, with the reason
+                        → strong sources : accepted by the rule, digit 1
+                        → weak sources   : waits; a deepening search may run (P10)
+```
+
+The database applies the rules, so every writer gets the same decision. Each decision records the
+name and the version of its rule, or that the operator validated it manually (S4). Code computes
+the digit of each fact from its sources. The letter of an author records the model, the reason,
+and the reference authors that the model compared with. A model never writes a state: the worker
+stores the letter that the model gives, and the database decides.
+
+The review queue shows only the units that need the operator by default. The units that wait are a
+separate list, with the source that each one needs. The page of an element shows who decided it:
+the name of the rule, or "validated manually".
 
 ## The lead path
 
@@ -192,8 +212,9 @@ a lead (a short text from the operator or the research AI)
   → the extraction path above proposes the claims
 ```
 
-The lead agent proposes nothing, starts no lead, and does not fetch an address that is already
-stored. It has no page limit; its token budget stops it, and it gives that reason. No
+A rule of S3 can give a deepening search for a unit with weak sources, inside the budget that the
+operator sets. The lead agent proposes nothing, starts no lead, and does not fetch an address that
+is already stored. It has no page limit; its token budget stops it, and it gives that reason. No
 schedule starts a lead. The text of a lead is private: only the operator reads the leads, and the
 worker reads the text of the one lead that it runs.
 

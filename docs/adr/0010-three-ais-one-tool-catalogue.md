@@ -5,7 +5,9 @@ table, not a source rule, now decides promotion. · The MCP groups replaced by f
 2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
 check by a second model family. · The lead agent added 6 October 2026. · Model transport changed
 again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone. · ADR 0011
-superseded 7 October 2026: no rule promotes, and the operator decides each proposal.
+superseded 7 October 2026: no rule promotes, and the operator decides each proposal. · ADR 0012,
+8 October 2026: named rules in the database decide from the letters of the authors, and the
+operator decides the doubts.
 
 ## Context
 
@@ -51,7 +53,7 @@ tools.
   refusal of the record gives the sentence of the rule and its field. A fault of the connection
   or of a role gives its code alone, because its text can name a host or a role.
 
-## Machine roles propose, and only the operator promotes
+## Machine roles propose, and never promote
 
 Each consumer has its own database role.
 
@@ -61,6 +63,8 @@ Each consumer has its own database role.
   document and propose. It cannot promote.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
   outputs and propose. They cannot promote, and they cannot start a lead.
+- **The decision rules** run in the database (ADR 0012). They promote or reject, and no machine
+  role can call them in place of a rule.
 - **The chat** reads through the read role and can queue an extraction. It never proposes, because
   a live answer must never become a proposal directly.
 
