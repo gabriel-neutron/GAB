@@ -2608,22 +2608,25 @@ END $$;
 --   weak_sources    every other unit. It waits.
 --
 -- The function reads and writes nothing. NULL when the unit has no act that waits.
-CREATE OR REPLACE FUNCTION unit_rule(p_unit uuid)
+--
+-- THE RULE READS THE FAULTS OF THE UNIT, and the check of the faults is the costly step. So the
+-- rules stand in rule_of_faults, which takes the faults as an argument, and a list of units checks
+-- its faults once in one call of unit_faults. unit_rule is the rule of one unit. No role holds
+-- rule_of_faults.
+CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_faults jsonb;
   v_all_f  boolean;
   v_single text;
   v_pair   text;
   v_other  text;
 BEGIN
-  SELECT f.faults INTO v_faults FROM public.unit_faults(ARRAY[p_unit]) AS f;
-  IF v_faults IS NULL THEN
+  IF p_faults IS NULL THEN
     RETURN NULL;
   END IF;
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'kind' IN ('self', 'end_rejected')) THEN
     RETURN 'impossible';
   END IF;
@@ -2633,7 +2636,7 @@ BEGIN
   v_all_f := NOT EXISTS (SELECT 1 FROM public.proposals a
                           WHERE a.unit_id = p_unit AND a.status = 'pending'
                             AND (a.originator IS NULL OR public.letter_of(a.originator) <> 'F'));
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' = 'not_clean'
                 AND NOT (x->>'kind' = 'contradiction' AND v_all_f)
                 AND NOT (x->>'kind' = 'reported_claim'
@@ -2644,7 +2647,7 @@ BEGIN
   THEN
     RETURN 'doubt';
   END IF;
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_faults) AS x
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' IN ('blocks', 'waits')) THEN
     RETURN 'weak_sources';
   END IF;
@@ -2662,6 +2665,13 @@ BEGIN
   END IF;
   RETURN 'weak_sources';
 END $$;
+
+CREATE OR REPLACE FUNCTION unit_rule(p_unit uuid)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.rule_of_faults(p_unit, (SELECT f.faults FROM public.unit_faults(ARRAY[p_unit]) AS f));
+$$;
 
 -- WHAT THE REVIEW PAGE SAYS OF A UNIT THAT A RULE DID NOT DECIDE. A doubt gives its reason: the
 -- sentences of its faults that are not clean, or the cause that the doubt rule read beside them.
@@ -2802,9 +2812,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
      ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
   ), ruled AS (
     -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting".
+    -- other result is the lane "waiting". The faults of every unit come from one call.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
-      FROM (SELECT h.unit_id, public.unit_rule(h.unit_id) AS rule FROM heads h) AS r
+      FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
+              FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (

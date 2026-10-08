@@ -143,3 +143,42 @@ test('the history of the decisions gives the origin of a decision of a rule', as
   });
   expect(seen?.decisionOrigin).toMatch(/^rule strong_sources v1/u);
 });
+
+test('the rule of a whole list of units is the rule of each unit read alone', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const strong = name();
+    await reference(ask, strong, 'A');
+    const weak = name();
+    await rate(ask, weak, 'C');
+    const party = name();
+    await rate(ask, party, 'F');
+    const acts = [
+      await cited(ask, { author: weak, label: label(), dissentReason: 'differ' }),
+      await cited(ask, { author: weak, label: label() }),
+      await cited(ask, { author: party, label: label(), dissentReason: 'differ' }),
+      await cited(ask, { author: strong, label: label() }),
+    ];
+    const checkedOne = await cited(ask, { author: weak, label: label() });
+    await check(ask, checkedOne.act);
+    await check(ask, acts[3]?.act ?? '');
+    const units = await Promise.all([...acts, checkedOne].map((one) => unitOf(ask, one.act)));
+    const alone = await as(ask, 'gabriel_app', () =>
+      ask('SELECT u AS unit, public.unit_rule(u) AS rule FROM unnest($1::uuid[]) AS u', [units]),
+    );
+    // No role holds the step, so the owner calls it.
+    const together = await ask(
+      `SELECT u AS unit, public.rule_of_faults(u, f.faults) AS rule
+         FROM unnest($1::uuid[]) AS u
+         LEFT JOIN public.unit_faults($1::uuid[]) AS f ON f.unit_id = u`,
+      [units],
+    );
+    return { alone, together };
+  });
+  const sorted = (rows: readonly unknown[]) =>
+    z
+      .array(z.object({ unit: z.uuid(), rule: z.string().nullable() }))
+      .parse(rows)
+      .toSorted((a, b) => a.unit.localeCompare(b.unit));
+  expect(sorted(seen.together)).toStrictEqual(sorted(seen.alone));
+  expect(new Set(sorted(seen.alone).map((row) => row.rule)).size).toBeGreaterThan(2);
+});
