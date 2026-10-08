@@ -139,6 +139,9 @@ REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
 REVOKE ALL ON FUNCTION run_rules(uuid[])           FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION start_deepening(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
