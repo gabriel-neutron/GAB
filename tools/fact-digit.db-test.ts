@@ -119,13 +119,34 @@ test('digit 1: two or more independent citations and no conflict', async () => {
   expect(read).toBe(1);
 });
 
-test('digit 2: two or more citations that are not proved independent', async () => {
+test('digit 2: two or more known authors whose citations are not proved independent', async () => {
   const copied = await digitFor(twoAuthors, [
     ONE,
     { author: 'Author Two', ...TWO, uri: 'https://one.example/other' },
   ]);
+  expect(copied).toBe(2);
+});
+
+test('digit 3: two citations of one author, or one known author beside an unknown one', async () => {
+  const sameAuthor = await digitFor(twoAuthors, [ONE, { author: 'Author One', ...TWO }]);
   const unresolved = await digitFor(twoAuthors, [ONE, { author: 'Nobody Resolved', ...TWO }]);
-  expect([copied, unresolved]).toStrictEqual([2, 2]);
+  expect([sameAuthor, unresolved]).toStrictEqual([3, 3]);
+});
+
+test('digit 3: two citations inside one act by one author', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await twoAuthors(ask);
+    const one = await cited(ask, { author: 'Author One', label: label(), ...ONE });
+    await ask(
+      `INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+       SELECT claim_id, doc_id, text_extractor, page, start, "end", modality
+         FROM public.citation WHERE id = $1::uuid`,
+      [one.citation],
+    );
+    await check(ask, one);
+    return digitOf(ask, one.claimKey);
+  });
+  expect(read).toBe(3);
 });
 
 test('digit 3: one author', async () => {
@@ -192,6 +213,19 @@ test('digit 5: the checker disputes the fact, and it comes before a conflict', a
     await check(ask, third, 'not_supported');
   });
   expect(read.digit).toBe(5);
+});
+
+test('an unclear verdict is no dispute, and a supported check beside it keeps the digit', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await twoAuthors(ask);
+    const fact = label();
+    const first = await cited(ask, { author: 'Author One', label: fact, ...ONE });
+    await check(ask, first);
+    const second = await cited(ask, { author: 'Author Two', label: fact, ...TWO });
+    await check(ask, second, 'unclear');
+    return digitOf(ask, first.claimKey);
+  });
+  expect(read).toBe(1);
 });
 
 test('digit 5: a party to the conflict denies the fact', async () => {

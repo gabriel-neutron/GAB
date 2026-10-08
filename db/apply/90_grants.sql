@@ -223,10 +223,9 @@ GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text
 GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
--- The extractor runs the check by a second model family, and the research session proposes beside
--- it, so both write the check through one door. Neither reads a check or a digit.
-GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text)
-  TO gabriel_agent, gabriel_research;
+-- The extractor runs the check by a second model family. The check for a proposal of the research
+-- session is a separate ticket (spec 369). The worker reads no check and no digit.
+GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text) TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
