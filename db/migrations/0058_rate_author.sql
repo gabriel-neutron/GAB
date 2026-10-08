@@ -6,10 +6,11 @@
 -- and answers with a join or with a new letter from C to F. So a job of the new kind
 -- `rate_author` holds a name and no document.
 --
--- ONE JOB FOR ONE NAME. The unique index lets a name have one job that waits, runs or is done.
--- A refused answer ends the job as done, so the refusal is not asked again at each new act of
--- that name. A job that failed (a fault of the service, a missing setting) leaves the name free,
--- and the next act of that name asks again.
+-- ONE JOB FOR ONE NAME. The unique index lets a name have one job that waits, runs, is done, or
+-- ended on a refused answer. The refusal keeps its reason in the job, and the author stays F, so
+-- the refusal is not asked again at each new act of that name. A job that failed by a fault (the
+-- service, a missing setting) holds no refusal and leaves the name free: the next act of that name
+-- asks again.
 --
 -- THE OPERATOR APPROVES THE REFERENCE SET. A reference author is stored first and is not an author
 -- for any reader until its row in `reference_approval` exists. The approval is written once for
@@ -50,6 +51,8 @@ ALTER TABLE jobs
              END);
 
 CREATE UNIQUE INDEX jobs_one_rating_per_author
-  ON jobs (author) WHERE kind = 'rate_author' AND status IN ('queued','running','done');
+  ON jobs (author)
+  WHERE kind = 'rate_author'
+    AND (status IN ('queued','running','done') OR (status = 'failed' AND refusal IS NOT NULL));
 
 RESET ROLE;

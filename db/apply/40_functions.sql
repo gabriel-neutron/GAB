@@ -3369,8 +3369,7 @@ DECLARE v_key text := public.name_key(coalesce(NEW.originator, ''));
 BEGIN
   IF v_key <> '' AND public.author_of(v_key) IS NULL THEN
     INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key)
-    ON CONFLICT (author) WHERE kind = 'rate_author' AND status IN ('queued','running','done')
-    DO NOTHING;
+    ON CONFLICT DO NOTHING;
   END IF;
   RETURN NULL;
 END $$;

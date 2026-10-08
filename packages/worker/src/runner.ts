@@ -34,6 +34,32 @@ const recorded = z.object({ id: z.uuid() });
 
 const ended = z.object({ status: z.enum(['done', 'failed']) });
 
+/** Records one call of the model through the door of the agent role, and gives its identifier. A
+ * call outside a job names no job. */
+export const recordModelCall = async (
+  db: Queryable,
+  agent: { readonly name: string; readonly version: string },
+  jobId: string | null,
+  call: CallRecord,
+): Promise<string> =>
+  recorded.parse(
+    (
+      await db.query(RECORD, [
+        agent.name,
+        agent.version,
+        PROVIDER,
+        call.requested,
+        call.promptSha256,
+        call.latencyMs,
+        call.outcome,
+        jobId,
+        call.served ?? null,
+        call.inputTokens,
+        call.outputTokens,
+      ])
+    ).rows[0],
+  ).id;
+
 /** The seams of the runner. */
 export interface RunnerDeps {
   /** The connection of gabriel_agent. */
@@ -81,24 +107,8 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   );
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
-  const record = async (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
-    recorded.parse(
-      (
-        await deps.db.query(RECORD, [
-          agent.name,
-          agent.version,
-          PROVIDER,
-          call.requested,
-          call.promptSha256,
-          call.latencyMs,
-          call.outcome,
-          job.id,
-          call.served ?? null,
-          call.inputTokens,
-          call.outputTokens,
-        ])
-      ).rows[0],
-    ).id;
+  const record = (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
+    recordModelCall(deps.db, agent, job.id, call);
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
     const budget = openBudget(agent.tokenCap);
