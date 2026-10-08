@@ -91,6 +91,16 @@ without the letters.
   and the extraction of its pages have ended, a unit whose only sources are D or E is rejected by
   the rule, with its origin. Any other unit keeps waiting, because a source can come later.
 
+### The trust boundary
+
+- The rules trust the worker process. The database checks only the form of the second check: the
+  two family names differ. The agent role gives both names, and it also gives the originator, the
+  model call and the letters C to F.
+- The second check defends against the blind spots of a model. It does not defend against a worker
+  that is hostile or broken.
+- A real separation needs a checker in its own process with its own secret. It is out of scope
+  until the operator runs more than one worker.
+
 ## Consequences
 
 - At the start, almost no unit passes: on 8 October 2026 no pending fact of the test stack cited two

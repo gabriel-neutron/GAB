@@ -3746,6 +3746,7 @@ $$;
 -- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
 -- and never that the fact is true. The row names the family of the reader and the family of the
 -- checker: a check by the same family does not pass. A check is written once for an act.
+-- The agent role gives both names, so the rules trust the worker (ADR 0012, trust boundary).
 CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
                                             p_checker_family text, p_reader_family text,
                                             p_verdict text)
