@@ -54,24 +54,31 @@ const sentenceOf = (state: DecisionState): string | null => {
 export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
+  // The rejection fields are closed at rest, and they die with the view.
+  const [open, setOpen] = useState(false);
   const ids = useId();
   const gap = rejectionGap(reason, note);
   const busy = state.step === 'working';
   const sentence = sentenceOf(state);
 
+  // A relation aimed at opens the rejection at once: the screen asks for it.
+  const rejecting = aimed || open;
   return (
     <section
       aria-label="The decision"
       className="shrink-0 space-y-2 border-t border-border p-3 text-xs"
     >
       {aimed ? null : (
-        <div className="flex items-start gap-2">
-          <p
-            className={cn('min-w-0 flex-1', said.promote.kind === 'blocked' && 'text-destructive')}
-            data-said="promote"
-          >
-            {said.promote.said}
-          </p>
+        <p
+          className={cn('text-label', said.promote.kind === 'blocked' && 'text-destructive')}
+          data-said="promote"
+        >
+          {said.promote.said}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {aimed ? null : (
           <Button
             type="button"
             size="xs"
@@ -82,74 +89,93 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
           >
             Promote
           </Button>
-        </div>
-      )}
-
-      <p data-said="reject">{said.reject}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor={`${ids}-reason`} className="text-label">
-          Reason
-        </label>
-        <select
-          id={`${ids}-reason`}
-          className={CHOOSER}
-          value={reason}
-          disabled={busy}
-          onChange={(event) => {
-            setReason(event.target.value);
-          }}
-        >
-          <option value="">Choose a reason</option>
-          {said.reasons.map((held) => (
-            <option key={held.key} value={held.key}>
-              {held.words}
-            </option>
-          ))}
-        </select>
-        <label htmlFor={`${ids}-note`} className="sr-only">
-          Note
-        </label>
-        <Input
-          id={`${ids}-note`}
-          className="h-6 min-w-40 flex-1 rounded-none px-1.5 py-0 text-xs md:text-xs"
-          placeholder={reason === 'other' ? 'Note: why (required)' : 'Note (optional)'}
-          value={note}
-          disabled={busy}
-          onChange={(event) => {
-            setNote(event.target.value);
-          }}
-        />
-        <Button
-          type="button"
-          size="xs"
-          variant="destructive"
-          disabled={busy || gap !== null}
-          onClick={() => {
-            if (gap === null)
-              onAct({
-                kind: 'reject',
-                reason,
-                ...(note.trim() === '' ? {} : { note: note.trim() }),
-              });
-          }}
-        >
-          {aimed ? 'Reject the relation' : 'Reject'}
-        </Button>
-        {aimed ? (
+        )}
+        {aimed ? null : (
           <Button
             type="button"
             size="xs"
-            variant="ghost"
+            variant="outline"
+            aria-expanded={rejecting}
+            aria-controls={`${ids}-reject`}
             disabled={busy}
             onClick={() => {
-              onAct({ kind: 'unaim' });
+              setOpen(!open);
             }}
           >
-            Back to the unit
+            Reject…
           </Button>
-        ) : null}
+        )}
       </div>
-      {gap === null || reason === '' ? null : <p className="text-label">{gap}</p>}
+
+      {rejecting ? (
+        <div id={`${ids}-reject`} className="space-y-2 border-t border-border pt-2">
+          <p data-said="reject">{said.reject}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor={`${ids}-reason`} className="text-label">
+              Reason
+            </label>
+            <select
+              id={`${ids}-reason`}
+              className={CHOOSER}
+              value={reason}
+              disabled={busy}
+              onChange={(event) => {
+                setReason(event.target.value);
+              }}
+            >
+              <option value="">Choose a reason</option>
+              {said.reasons.map((held) => (
+                <option key={held.key} value={held.key}>
+                  {held.words}
+                </option>
+              ))}
+            </select>
+            <label htmlFor={`${ids}-note`} className="sr-only">
+              Note
+            </label>
+            <Input
+              id={`${ids}-note`}
+              className="h-6 min-w-40 flex-1 rounded-none px-1.5 py-0 text-xs md:text-xs"
+              placeholder={reason === 'other' ? 'Note: why (required)' : 'Note (optional)'}
+              value={note}
+              disabled={busy}
+              onChange={(event) => {
+                setNote(event.target.value);
+              }}
+            />
+            <Button
+              type="button"
+              size="xs"
+              variant="destructive"
+              disabled={busy || gap !== null}
+              onClick={() => {
+                if (gap === null)
+                  onAct({
+                    kind: 'reject',
+                    reason,
+                    ...(note.trim() === '' ? {} : { note: note.trim() }),
+                  });
+              }}
+            >
+              {aimed ? 'Reject the relation' : 'Reject'}
+            </Button>
+            {aimed ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  onAct({ kind: 'unaim' });
+                }}
+              >
+                Back to the unit
+              </Button>
+            ) : null}
+          </div>
+          {gap === null || reason === '' ? null : <p className="text-label">{gap}</p>}
+        </div>
+      ) : null}
       {sentence === null ? null : (
         <p
           role="status"

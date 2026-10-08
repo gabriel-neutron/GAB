@@ -38,6 +38,8 @@ const CONTROL = cn(
   'transition-colors duration-100 hover:bg-muted',
 );
 
+const BADGE = 'min-w-0 border border-border px-1 text-small/4';
+
 const typeOf = (unit: Unit, words: UnitWords): string => {
   if (unit.type === null) return 'change';
   return unit.kind === 'entity' ? words.entityType(unit.type) : words.relation(unit.type).label;
@@ -140,10 +142,20 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   {unit.name}
                 </span>
                 <span
-                  className="w-full min-w-0 truncate text-small/4 text-label"
+                  className="flex w-full min-w-0 items-center gap-1 py-0.5"
                   title={`${proposerWords(unit.proposer)}, ${typeOf(unit, words)}, ${groupOf(unit)}`}
                 >
-                  {proposerWords(unit.proposer)} · {typeOf(unit, words)} · {groupOf(unit)}
+                  <span
+                    data-badge="type"
+                    title={typeOf(unit, words)}
+                    className={cn(BADGE, 'truncate text-foreground')}
+                  >
+                    {typeOf(unit, words)}
+                  </span>
+                  <span data-badge="proposer" className={cn(BADGE, 'shrink-0 text-label')}>
+                    {proposerWords(unit.proposer)}
+                  </span>
+                  <span className="sr-only">{groupOf(unit)}</span>
                 </span>
                 <Marks unit={unit} />
               </button>

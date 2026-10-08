@@ -90,7 +90,7 @@ type Story = StoryObj<typeof meta>;
 export const OneUnitIsReadInThreeColumns: Story = {
   play: async ({ canvas }) => {
     const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
-    await expect(within(list).getAllByRole('button', { name: /group/u }).length).toBe(9);
+    await expect(list.querySelectorAll('button[data-unit]').length).toBe(9);
     const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
     await expect(
       within(changes).getByRole('heading', { name: '5th Combined Arms Army' }),
@@ -100,18 +100,18 @@ export const OneUnitIsReadInThreeColumns: Story = {
   },
 };
 
-/** A line names the unit, its type, its group and who proposed it, in words. */
-export const ALineNamesTheUnitItsGroupAndItsProposer: Story = {
+/** A line names the unit, and badges say its type and who proposed it. The group stays in the title. */
+export const ALineNamesTheUnitItsTypeAndItsProposer: Story = {
   play: async ({ canvasElement }) => {
     const line = canvasElement.querySelector(`[data-unit="${SAMPLE_UNITS.disputed}"]`);
     if (!(line instanceof HTMLElement)) throw new Error('no line for the disputed unit');
     await expect(line).toHaveTextContent('North American countries');
     await expect(line).toHaveTextContent('extractor');
-    await expect(line).toHaveTextContent('no group');
+    await expect(line.querySelector('[data-badge="type"]')).not.toBeNull();
     const army = canvasElement.querySelector(`[data-unit="${SAMPLE_UNITS.army}"]`);
-    await expect(army).toHaveTextContent(
-      'v1 import · Military unit · group 5th Combined Arms Army',
-    );
+    await expect(army?.querySelector('[data-badge="type"]')).toHaveTextContent('Military unit');
+    await expect(army?.querySelector('[data-badge="proposer"]')).toHaveTextContent('v1 import');
+    await expect(army?.querySelector('[title*="group 5th Combined Arms Army"]')).not.toBeNull();
     await expect(army).toHaveAttribute('aria-current', 'true');
   },
 };
@@ -185,6 +185,7 @@ export const TheNamesStayAt900Pixels: Story = {
     if (line === undefined) throw new Error('no line for the army');
     await expect(line.getBoundingClientRect().width).toBeGreaterThan(200);
     const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.click(within(filter).getByRole('button', { name: /^Filters/u }));
     await expect(
       within(filter).getByLabelText('Fault').getBoundingClientRect().width,
     ).toBeGreaterThan(100);
@@ -205,6 +206,7 @@ export const EachFilterAsksForTheQueueAgain: Story = {
   play: async ({ canvas }) => {
     onAct.mockClear();
     const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.click(within(filter).getByRole('button', { name: /^Filters/u }));
     await userEvent.selectOptions(within(filter).getByLabelText('Proposer'), 'extractor');
     await expect(onAct).toHaveBeenLastCalledWith({
       kind: 'filter',
@@ -521,6 +523,7 @@ export const TheNameAppliesWhileTyping: Story = {
   play: async ({ canvas }) => {
     onAct.mockClear();
     const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.click(within(filter).getByRole('button', { name: /^Filters/u }));
     await userEvent.type(within(filter).getByLabelText('Name'), 'arsenal');
     await waitFor(async () => {
       await expect(onAct).toHaveBeenLastCalledWith({
@@ -538,6 +541,7 @@ export const TheLateNameCarriesOnlyTheName: Story = {
   play: async ({ canvas }) => {
     onAct.mockClear();
     const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.click(within(filter).getByRole('button', { name: /^Filters/u }));
     await userEvent.type(within(filter).getByLabelText('Name'), 'ars');
     await userEvent.selectOptions(within(filter).getByLabelText('Proposer'), 'extractor');
     await new Promise((done) => setTimeout(done, 500));
@@ -665,6 +669,7 @@ export const AFailedReadOfTheLinkedUnitSaysWhy: Story = {
 export const TheProposerOffersOnlyProposersWithUnits: Story = {
   play: async ({ canvas }) => {
     const filter = canvas.getByRole('form', { name: 'Filter the queue' });
+    await userEvent.click(within(filter).getByRole('button', { name: /^Filters/u }));
     const options = [...within(filter).getByLabelText('Proposer').querySelectorAll('option')].map(
       (option) => option.textContent,
     );

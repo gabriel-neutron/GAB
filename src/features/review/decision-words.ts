@@ -1,4 +1,3 @@
-import { documentName } from './document-name';
 import { withFullStop } from './full-stop';
 import { REJECTION_REASONS } from './rejection';
 import { unitChanges, type RelationLine, type UnitWords } from './unit-changes';
@@ -37,7 +36,6 @@ const twinInRecord = (faults: readonly Fault[]): string | null => {
  * alone, or null when Reject rejects the whole unit. */
 export function decisionWords(unit: Unit, words: UnitWords, aimed: string | null): DecisionWords {
   const { entity, relations: lines } = unitChanges(unit, words);
-  const source = unit.documents.map(documentName).join('; ') || 'no document';
   const relation = lines.length === 1 && lines[0] !== undefined ? lineWords(lines[0]) : null;
   // An entity with no relation is named alone.
   const withLines = (name: string): string =>
@@ -66,7 +64,7 @@ export function decisionWords(unit: Unit, words: UnitWords, aimed: string | null
       blocks.length === 0
         ? {
             kind: 'writes',
-            said: `${second}Writes ${subject}. Source: ${source}. You cannot undo this.`,
+            said: `${second}Writes ${subject}. You cannot undo this.`,
           }
         : {
             kind: 'blocked',
