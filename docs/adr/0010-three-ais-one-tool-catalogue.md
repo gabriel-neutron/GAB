@@ -176,15 +176,15 @@ doubt.
   record also keeps each verdict as the check of its act, which the rules of ADR 0012 read. A
   failure of the checker never drops an item. The two families are set in the configuration, and
   the worker does not start when they are the same. The propose tool of the research AI gets the
-  same check from the MCP server: exactly one call for each batch, with no retry, under a
-  hard token cap of its own, from
-  a checker of another family than the research AI. The server reads that family from the name of
-  its client. Only a verdict that the passage does not support disputes a research item. A batch
-  above the cap, a checker that fails, or a checker that is not configured gives no dispute and no
-  check: the item waits, the answer of the tool says why, and the same batch sent again gets its
-  check. A research item is not disputed for a failure, because the dispute cannot change later
-  and it would send each item of a failed batch to the operator. This check replaces the blind second reading, which wrote rows that
-  nothing read. **Cost:** one more call for each passage, from the same token budget, and the
+  same check from the MCP server. The server makes one call for each batch, with no retry, under a
+  hard token cap of its own. The checker is of another family than the research AI. The server
+  reads that family from the name of its client. Of the verdicts of the checker, only "not
+  supported" disputes a research item. A batch above the cap, a checker that fails, or a checker
+  that is not configured gives no dispute from the checker and no check. The item waits, and the answer of the tool
+  says why. The same batch sent again gets its check. A research item is not disputed for a
+  failure, because the dispute cannot change later. Such a dispute would send each item of a
+  failed batch to the operator. This check replaces the blind second reading, which wrote rows
+  that nothing read. **Cost:** one more call for each passage, from the same token budget, and the
   operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
