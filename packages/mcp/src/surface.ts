@@ -124,9 +124,11 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: false,
   },
-  // The decisions of an AI reviewer, as the review page takes them. A decided act is frozen, so a
-  // second call is refused, and the ledger keeps the act: nothing is deleted.
+  // The decisions of an AI reviewer, as the review page takes them, with the group action. A
+  // decided act is frozen, so a second call is refused, and the ledger keeps the act: nothing is
+  // deleted.
   promote_unit: DECIDE,
   reject_unit: DECIDE,
   reject_relation: DECIDE,
+  promote_clean_proposals: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;

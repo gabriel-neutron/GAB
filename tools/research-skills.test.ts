@@ -106,6 +106,7 @@ const ASKS_FIRST = new Set([
   'promote_unit',
   'reject_unit',
   'reject_relation',
+  'promote_clean_proposals',
 ]);
 
 test('the Claude Code settings allow each tool of the server, except the ones that spend credit or decide', () => {

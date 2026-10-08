@@ -12,6 +12,7 @@ import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
 import { newsSearch } from './news-search.ts';
+import { promoteCleanProposals } from './promote-clean-proposals.ts';
 import { promoteUnit } from './promote-unit.ts';
 import { propose } from './propose.ts';
 import { readDecided } from './read-decided.ts';
@@ -69,6 +70,7 @@ export const CATALOGUE = [
   promoteUnit,
   rejectUnit,
   rejectRelation,
+  promoteCleanProposals,
 ] as const;
 
 export type ToolName = (typeof CATALOGUE)[number]['name'];

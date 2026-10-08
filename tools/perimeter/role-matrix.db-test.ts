@@ -37,6 +37,7 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.ai_promote_group": "research",
       "public.ai_promote_unit": "research",
       "public.ai_reject_relation": "research",
       "public.ai_reject_unit": "research",
@@ -127,13 +128,14 @@ const DECIDING_DOORS = `
           OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
                          'write_unit', 'write_unit_as', 'ai_decision'))`;
 
-// The research role decides only as an AI reviewer: three doors that record their own origin.
+// The research role decides only as an AI reviewer: four doors that record their own origin.
 // The worker decides nothing. The read of the decided acts has "decide" in its name.
 test('a machine role holds no door that promotes or rejects, except the doors of an AI reviewer', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
   expect(z.array(z.object({ n: z.number().int() })).parse(counted)[0]?.n).toBeGreaterThan(0);
   const held = await probe('superuser', (ask) => ask(DECIDING_DOORS_HELD, [[...MACHINES]]));
   expect(held).toStrictEqual([
+    { role: 'gabriel_research', door: 'ai_promote_group(uuid,uuid[],text)' },
     { role: 'gabriel_research', door: 'ai_promote_unit(uuid,text)' },
     { role: 'gabriel_research', door: 'ai_reject_relation(uuid,text,text,text)' },
     { role: 'gabriel_research', door: 'ai_reject_unit(uuid,text,text,text)' },

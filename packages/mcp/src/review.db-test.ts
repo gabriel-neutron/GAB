@@ -381,6 +381,64 @@ test('a decision of the research role never reads as a rule or as the operator',
   }
 });
 
+test('the group action of the research role writes each clean unit as a decision of an AI reviewer, and refuses the others', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await seeded(ask);
+    const [group] = z
+      .array(z.object({ batch_id: z.uuid() }))
+      .parse(
+        await ask('SELECT batch_id::text FROM public.proposals WHERE id = $1', [units.vessel]),
+      );
+    const said = await asResearch(ask, async (call) =>
+      z
+        .object({
+          results: z.array(
+            z.object({ unit: z.uuid(), outcome: z.string(), said: z.string().nullable() }),
+          ),
+          origin: z.string(),
+        })
+        .parse(
+          outputOf(
+            await call('promote_clean_proposals', {
+              groupId: group?.batch_id,
+              unitIds: [units.vessel, units.link, units.owner],
+              why: WHY,
+            }),
+          ),
+        ),
+    );
+    return { said, rows: await rowsOf(ask, [units.vessel, units.link, units.owner]), units };
+  });
+  expect(found.said.origin).toBe(AI);
+  const outcome = new Map(found.said.results.map((one) => [one.unit, one] as const));
+  expect(outcome.get(found.units.vessel)).toMatchObject({ outcome: 'promoted', said: null });
+  // The page would not write these two: the link is blocked, and the owner is in another group.
+  expect(outcome.get(found.units.link)?.outcome).toBe('refused');
+  expect(outcome.get(found.units.owner)).toMatchObject({
+    outcome: 'refused',
+    said: 'The unit is not in this group',
+  });
+  expect(found.rows.get(found.units.vessel)).toMatchObject({
+    status: 'accepted',
+    decided_as: 'group',
+    decision_origin: AI,
+    decision_reason: WHY,
+  });
+  expect(found.rows.get(found.units.link)?.status).toBe('pending');
+  expect(found.rows.get(found.units.owner)?.status).toBe('pending');
+});
+
+test('the group action of the research role needs its reason, and the refusal names the field', async () => {
+  const called = await rolledBack('superuser', async (ask) => {
+    const { vessel } = await seeded(ask);
+    return asResearch(ask, (call) =>
+      call('promote_clean_proposals', { groupId: randomUUID(), unitIds: [vessel], why: ' ' }),
+    );
+  });
+  expect(called.refused).toBe(true);
+  expect(called.text).toMatch(/^why: /u);
+});
+
 // ----------------------------------------------------------------------------- perimeter ---
 
 // The steps of the rules and of the decisions stand in the database for the doors to call, and
@@ -392,6 +450,7 @@ const STEPS = [
   "public.promote_unit_as(gen_random_uuid(), 'a test', 'rule strong_sources v1', NULL)",
   "public.reject_unit_as(gen_random_uuid(), 'duplicate', NULL, 'a test', 'rule impossible v1', NULL)",
   "public.ai_decision('promote', gen_random_uuid(), NULL, NULL, 'a test')",
+  "public.promote_group_as(gen_random_uuid(), ARRAY[gen_random_uuid()], 'a test', NULL, NULL)",
 ] as const;
 
 for (const step of STEPS)
