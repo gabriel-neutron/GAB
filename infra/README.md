@@ -98,24 +98,30 @@ stack, and the main checkout keeps the shared `gab` stack.
   worktree has none. Then it writes one marked block at the end of `.env`: the compose project,
   the ports of a free slot, and the addresses that the tools and the tests read. Each run replaces
   the block.
+- A second `stack:up` in the same worktree keeps the slot and the containers, and it builds
+  `gabriel_test` again from zero.
 - The stack holds the database, the read service of the test database and the raw store only.
   The worktree uses the SearXNG of the main stack, because SearXNG keeps no state.
 - **The cap.** Two session stacks can run at the same time, because the VPS has 2 CPUs, 7.8 GB of
   RAM and no swap. A third `stack:up` stops, and it lists the stacks that run.
 - **The cleanup.** `stack:down` stops each node process of the worktree (the writer, the worker,
-  Vite, Vitest), but not its own shell. Then it removes the containers and the volumes. When a
-  session ends, a hook of `.claude/settings.json` runs `stack:down`. `stack:up` first removes each
-  session stack whose worktree is gone.
+  Vite, Vitest), but not its own shell and not a tool server that runs from outside the worktree.
+  Then it removes the containers and the volumes. When a session ends (not on `/clear` or
+  `/resume`), a hook of `.claude/settings.json` runs `stack:down`. A subagent gets no such event,
+  so a subagent runs `stack:down` itself. `stack:up` first removes each session stack whose
+  worktree under `.claude/worktrees/` is gone.
 
-## Run one SQL statement
+## Run a SQL script
 
 ```
 pnpm db:sql "select count(*) from public.entities"
 pnpm db:sql "select 1" gabriel
 ```
 
-It logs in as the superuser `gabriel` (not `postgres`) on the stack of the current checkout, on
-`gabriel_test` unless the second argument names `gabriel`.
+It runs the script in one `psql` session as the superuser `gabriel` (not `postgres`), on the stack
+of the current checkout. The target is `gabriel_test`. The second argument `gabriel` names the
+record, and only a session stack accepts it, because the record of the main stack is the published
+one.
 
 ## Rules
 

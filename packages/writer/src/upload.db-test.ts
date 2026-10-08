@@ -7,8 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -19,10 +18,8 @@ const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_
 
 // Departure: the suite reads the private tables as the owner of the database, because no api
 // view shows the text or the object key.
-const { GABRIEL_DATABASE } = z
-  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
-  .parse(process.env);
-const owner = new Pool({ connectionString: connectionString('superuser', GABRIEL_DATABASE) });
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 const written: string[] = [];
 

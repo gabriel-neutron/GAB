@@ -15,7 +15,7 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
+import { roleAddress } from './address.ts';
 
 const held = z
   .object({
@@ -35,7 +35,7 @@ const RUN = randomUUID().replaceAll('-', '').slice(0, 12);
 const RECOVERED = `doc_e2e_a_${RUN}`;
 const FLAKY = `doc_e2e_b_${RUN}`;
 
-const db = new Client({ connectionString: connectionString('superuser', held.GABRIEL_DATABASE) });
+const db = new Client({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 // The router refuses the first question about the flaky document, and answers each other
 // question with one claim that the page states. The checker, a model of another family, supports

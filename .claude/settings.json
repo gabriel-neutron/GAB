@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "timeout": 120,
+            "timeout": 60,
             "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_stack_down.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_stack_down.py\""
           }
         ]

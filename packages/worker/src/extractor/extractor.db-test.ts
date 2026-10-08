@@ -2,7 +2,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../../tools/db-runtime.ts';
+import { roleAddress } from '../address.ts';
 import type { RunnerAgent } from '../agents.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
@@ -20,11 +20,9 @@ import { makeExtractor } from './extractor.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
-const { GABRIEL_DATABASE } = z
-  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
-  .parse(process.env);
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const pool = new Pool({
-  connectionString: connectionString('superuser', GABRIEL_DATABASE),
+  connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   max: 2,
 });
 

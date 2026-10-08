@@ -18,10 +18,16 @@ def git(cwd, *args):
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
+# /clear and /resume also end a session, but the work goes on and still uses the stack.
+KEEP_REASONS = ("clear", "resume")
+
 try:
-    cwd = json.load(sys.stdin).get("cwd") or os.getcwd()
+    event = json.load(sys.stdin)
 except ValueError:
     sys.exit(0)
+if event.get("reason") in KEEP_REASONS:
+    sys.exit(0)
+cwd = event.get("cwd") or os.getcwd()
 
 root = git(cwd, "rev-parse", "--show-toplevel")
 if not root:

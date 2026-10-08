@@ -5,8 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -17,12 +16,12 @@ const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_
 
 // Departure: the runner is not part of this suite, so the owner moves a job to `running` and the
 // worker role ends it through its own doors, as the runner does.
-const { GABRIEL_DATABASE } = z
-  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
-  .parse(process.env);
-const owner = new Pool({ connectionString: connectionString('superuser', GABRIEL_DATABASE) });
-const agent = new Pool({ connectionString: connectionString('agent', GABRIEL_DATABASE) });
-const reader = new Pool({ connectionString: connectionString('read', GABRIEL_DATABASE) });
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
+const agent = new Pool({
+  connectionString: roleAddress('gabriel_agent', 'GABRIEL_AGENT_PASSWORD'),
+});
+const reader = new Pool({ connectionString: roleAddress('gabriel_read', 'GABRIEL_READ_PASSWORD') });
 
 afterAll(async () => {
   await Promise.all([owner.end(), agent.end(), reader.end(), pool.end()]);

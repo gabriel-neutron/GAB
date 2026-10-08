@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../../tools/db-runtime.ts';
+import { roleAddress } from '../address.ts';
 import type { Queryable } from '../queryable.ts';
 import type { RaterConfig } from '../reader-config.ts';
 import { completionOf, READER, routerOf } from '../runner-fixture.ts';
@@ -17,11 +17,9 @@ import {
 // Departure: each test runs in one transaction that rolls back. One connection signs as the
 // operator role to store and as the agent role to record the call. The model is a fake answer: no
 // test reaches OpenRouter.
-const { GABRIEL_DATABASE } = z
-  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
-  .parse(process.env);
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const pool = new Pool({
-  connectionString: connectionString('superuser', GABRIEL_DATABASE),
+  connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   max: 2,
 });
 

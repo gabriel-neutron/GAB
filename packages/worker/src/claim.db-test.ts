@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
+import { roleAddress } from './address.ts';
 import { claimJob } from './claim.ts';
 import { runLayout } from './layout-job.ts';
 import { reconcileCorpus } from './reconcile.ts';
@@ -18,7 +18,7 @@ const ownerPool = (): Pool => {
     throw new Error(
       'GABRIEL_DATABASE is not gabriel_test. Run the suite through its configuration.',
     );
-  return new Pool({ connectionString: connectionString('superuser', held.data.GABRIEL_DATABASE) });
+  return new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 };
 
 const pool = ownerPool();

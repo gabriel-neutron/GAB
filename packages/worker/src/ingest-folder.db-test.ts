@@ -7,18 +7,16 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { connectionString } from '../../../tools/db-runtime.ts';
+import { roleAddress } from './address.ts';
 import { buildReport, summaryLines } from './ingest-report.ts';
 import { expandPaths } from './ingest-walk.ts';
 import { ingestFiles, type IngestDoor } from './ingest.ts';
 
 // Departure: the suite signs as gabriel_app, the role that the command runs as, and reads the
 // result as the owner of the database, because no api view shows a private table.
-const { GABRIEL_DATABASE } = z
-  .object({ GABRIEL_DATABASE: z.literal('gabriel_test') })
-  .parse(process.env);
-const app = new Pool({ connectionString: connectionString('app', GABRIEL_DATABASE) });
-const owner = new Pool({ connectionString: connectionString('superuser', GABRIEL_DATABASE) });
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const app = new Pool({ connectionString: roleAddress('gabriel_app', 'GABRIEL_APP_PASSWORD') });
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 const OPTIONS = {
   retrievedAt: '2026-09-01',

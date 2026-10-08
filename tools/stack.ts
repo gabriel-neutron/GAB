@@ -9,9 +9,11 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { argv, exit, kill, pid as ownPid } from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -40,8 +42,17 @@ const PROJECT = projectOf(ROOT);
 // The services the db-test projects reach. The read service of the record and SearXNG stay off.
 const TEST_SERVICES = ['db', 'postgrest-test', 'seaweedfs'] as const;
 
-// Origin of the number: a process that ignores SIGTERM for this long gets SIGKILL.
-const STOP_GRACE_MS = 3_000;
+// Origin of the number: a process that ignores SIGTERM for this long gets SIGKILL. A SessionEnd
+// hook has about 60 s, and the removal of the containers takes about 15 s.
+const STOP_GRACE_MS = 2_000;
+
+// Two sessions that start a stack at the same time could both pass the cap and take one slot. A
+// lock file of the machine holds the census, the slot choice and the start in one step.
+const LOCK_FILE = join(tmpdir(), 'gab-stack.lock');
+// Origin of the numbers: the first start of a stack takes about 40 s, so a wait of 3 minutes
+// covers two starts before this one.
+const LOCK_WAIT_MS = 180_000;
+const LOCK_POLL_MS = 1_000;
 
 const fail = (message: string): never => {
   console.error(message);
@@ -85,6 +96,45 @@ const removeStack = (name: string): void => {
   });
 };
 
+const isAlive = (pid: number): boolean => {
+  try {
+    kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const holderOfLock = (): number | null => {
+  try {
+    return Number(readFileSync(LOCK_FILE, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const dropLock = (): void => {
+  if (holderOfLock() === ownPid) rmSync(LOCK_FILE, { force: true });
+};
+
+const takeLock = async (): Promise<void> => {
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    try {
+      writeFileSync(LOCK_FILE, String(ownPid), { flag: 'wx' });
+      process.on('exit', dropLock);
+      return;
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
+    }
+    const holder = holderOfLock();
+    if (holder !== null && !isAlive(holder)) rmSync(LOCK_FILE, { force: true });
+    else if (Date.now() >= deadline)
+      fail(`Another \`pnpm stack:up\` (process ${String(holder)}) holds ${LOCK_FILE}. Try again.`);
+    else await sleep(LOCK_POLL_MS);
+  }
+};
+
 const portIsFree = (port: number): Promise<boolean> =>
   new Promise((resolve) => {
     const server = createServer();
@@ -109,8 +159,9 @@ const freeSlot = async (): Promise<number> => {
 const up = async (): Promise<void> => {
   const main = mainCheckout();
   refuseInMain(main);
+  await takeLock();
 
-  for (const orphan of orphanStacks(listedStacks(), existsSync)) {
+  for (const orphan of orphanStacks(listedStacks(), main, existsSync)) {
     console.log(`Removing ${orphan.name}: its checkout is gone.`);
     removeStack(orphan.name);
   }
@@ -144,6 +195,7 @@ const up = async (): Promise<void> => {
     stdio: 'inherit',
   });
   if (started.status !== 0) fail(`${PROJECT} did not start. Run \`pnpm stack:down\` to clean up.`);
+  dropLock();
 
   const reset = spawnSync('node', ['--env-file=infra/.env', 'tools/db-reset.ts'], {
     cwd: ROOT,
@@ -194,7 +246,7 @@ const stopStrayProcesses = async (): Promise<void> => {
     .filter((name) => /^\d+$/u.test(name))
     .map((name) => seenProcess(Number(name)))
     .filter((one) => one !== null);
-  const stray = strayProcesses(seen, ROOT, ownLine());
+  const stray = strayProcesses(seen, ROOT, ownLine(), existsSync);
   const signal = (pids: readonly number[], name: NodeJS.Signals): void => {
     for (const pid of pids) {
       try {
