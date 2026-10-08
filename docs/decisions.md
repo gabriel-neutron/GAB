@@ -25,9 +25,9 @@ it. The build decisions are in the ADRs.
 | M10 | The unit is in the key name | Data model |
 | M11 | No attribute registry; a monitoring view instead | Data model |
 | M12 | An entity merge is reversible | Data model |
-| S1 | A rating rates the originator of the information, and only that | Sources and trust |
+| S1 | The NATO letter rates the author; code gives every letter | Sources and trust |
 | S2 | The source is listed at entity, relation and attribute level | Sources and trust |
-| S3 | The machine prepares; the operator decides by exception | Sources and trust |
+| S3 | Named rules decide from the sources; the operator decides the doubts | Sources and trust |
 | S4 | The origin of each decision is stored and published | Sources and trust |
 | S5 | A claim speaks in GAB's voice only on strong evidence | Sources and trust |
 | S6 | An allegation about a named person or company is attributed | Sources and trust |
@@ -183,15 +183,24 @@ it. This becomes weak when an agent writes at volume.
 
 ## Sources and trust
 
-### S1 — A rating rates the originator
+### S1 — The NATO letter rates the author; code gives every letter
 
-**Rule.** A rating rates the originator of the information only. It never rates a platform, a
-domain, a document or a type of claim. A new source starts with no basis to judge. Only its record
-of claims that later evidence settled can change its rating; the agreement of other media never
-does. The public does not see the rating.
-**Why.** A document mixes facts and rumours, so one grade per document is false. The originator is
-the thing whose record we can measure.
-**Cost.** A new source is weak until it has a record.
+**Rule.** GAB uses the NATO rating (STANAG 2511). A letter from A to F rates the reliability of
+the author: the person or the body that first gives the information and knows it. The letter never
+rates the site or the medium that carries it: a blog post can be good or bad, by its author. A copy
+of a text counts as its first author. A new author gets F. The letter can have an exception for
+one subject, because one author can be open on one subject and not on another (for example, a
+party to the conflict on its own data and on the data of the other side). A digit from 1 to 6
+rates the credibility of one fact, from its sources. Code gives every letter and every digit; the
+operator gives none. A strong model rates a reference set of authors once, with a reason for each
+letter. After that, a model rates a new author against the reference set and names the reference
+authors that it compares with, so that the letters do not drift. Code computes the digit. The
+public does not see the letter or the digit.
+**Why.** A document mixes facts and rumours, so one grade per document is false. The author is the
+thing that knows. One operator cannot rate each author by hand. A fixed reference set keeps the
+letters of the model consistent over time.
+**Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference
+set moves every later letter. Until the reference set is made, every author is F.
 
 ### S2 — The source is listed at each level
 
@@ -201,17 +210,38 @@ field replaces the list of that row.
 **Why.** The typed fields need a source, and one list per field costs too much.
 **Cost.** The row list does not say which typed field each source supports.
 
-### S3 — The machine prepares, the operator decides by exception
+### S3 — Named rules decide from the sources; the operator decides the doubts
 
-**Rule.** The machine reads, checks and proposes. The operator looks only at the doubtful cases.
-No model writes a rating, a public state or an audit label: only code and the operator do.
-**Why.** A queue of every claim makes one person the bottleneck and cancels the gain.
-**Cost.** Two similar models can share a blind spot. Until an audit measures a path, the public
-text says that its accuracy is not measured.
+**Rule.** The machine reads, checks and proposes. Named rules accept or reject a unit with no click
+of the operator. The operator decides only the doubtful units. Code applies the rules in this
+order to each unit, and the first rule that matches decides:
+
+1. **Impossible.** The unit cannot be written: a link to a rejected element, or a link to itself.
+   The rule rejects it.
+2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that the operator rejected before, or an adverse claim
+   about a named person or company (S6). The unit goes to the operator, with the reason.
+3. **Strong sources.** Each fact of the unit has one source A, or two independent sources B or
+   better, and a model of a second family found each fact in its passage. Two sources are
+   independent when they have different authors. The rule accepts the unit, and each fact gets
+   the digit 1.
+4. **Weak sources.** All other units wait for a better source, and the operator does not see them
+   in the queue. A deepening search can look for a better source (P10). When a new source comes,
+   the unit goes through the rules again. A unit whose only sources are D or E, after the
+   deepening search, is rejected. Any other unit is kept and never rejected, because a source can
+   come later.
+
+The threshold starts strict. The operator relaxes it later, from real data. No model decides the
+state of a unit: a model gives a letter (S1), and code applies the rules.
+**Why.** A queue of every claim makes one person the bottleneck and cancels the gain. A rule on
+the sources is simple, and anyone can audit it.
+**Cost.** At the start few units pass, because most facts have one source. Two models can share a
+blind spot. The public text says that the accuracy of the rules is not measured.
 
 ### S4 — The origin of each decision is published
 
-**Rule.** Each public claim shows who or what decided it: the operator, or a named rule.
+**Rule.** Each decision records who or what decided it: a named rule, or "validated manually by
+the operator". Each public claim shows this origin. A machine never decides in the name of the
+operator.
 **Why.** A machine decision shown as a human one would destroy trust. Declared, it stays
 defensible.
 
@@ -219,9 +249,10 @@ defensible.
 
 **Rule.** A claim goes public in GAB's own voice only when an official record, a verified
 observation, or audited independent first-hand sources support it. Each other public claim is
-attributed to its source. A list from a party to the conflict is only a statement of that party.
-All public text comes from fixed templates; no free text from a model goes public. At launch, every automatic path to GAB's voice is closed. A path opens
-only after the operator audits it with hand checks.
+attributed to its source: "according to X". A rule of S3 fills the evidentiary layer, and never
+gives GAB's voice. All public text comes from fixed templates; no free text from a model goes
+public. Every automatic path to GAB's voice is closed. A path opens only after the operator audits
+it with hand checks.
 **Why.** A wrong claim in GAB's voice costs more than a slow claim.
 **Cost.** At the start, the operator decides each claim in GAB's voice.
 
@@ -239,10 +270,10 @@ goes public, GAB searches for a public response from the subject. GAB never cont
 ### P1 — Two layers
 
 **Rule.** The machine writes freely into the candidate layer. Nothing reaches the evidentiary layer
-without a promotion: by the operator, or by an audited rule (S5).
+without a promotion: by the operator, or by a named rule (S3).
 **Why.** Correlation has value only when it casts a wide net at no cost per result. Evidence has
 value only when nothing enters it without a check.
-**Cost.** Promotion is the central action. If review is slow, the evidentiary layer stays empty.
+**Cost.** If the sources stay weak, the evidentiary layer fills slowly.
 
 ### P2 — A proposal is an operation
 
@@ -311,32 +342,28 @@ is there.
 
 ### P10 — A lead agent finds sources and proposes nothing
 
-**Rule.** The operator, or Claude or Codex, gives a lead. An AI inside Gabriel searches, fetches
-and stores pages with no page limit, and queues their extraction. It proposes nothing and starts no
-lead of its own. A token budget stops each lead. No lead runs on a schedule.
+**Rule.** The operator, Claude or Codex gives a lead, or a rule of S3 gives a deepening search for
+a unit with weak sources. An AI inside Gabriel searches, fetches and stores pages with no page
+limit, and queues their extraction. It proposes nothing and starts no lead of its own. A token
+budget stops each lead. The operator sets the budget of the deepening searches; until then, no
+deepening search runs. No lead runs on a schedule.
 **Why.** The search for sources is the slow part of an investigation, and the extraction and the
-operator's decision stay the checks.
-**Cost.** A broad lead can store many pages and fill the review queue.
+rules stay the checks. A weak source is a signal to check, not a fact to reject.
+**Cost.** A broad lead can store many pages. Each deepening search spends model credit.
 
 ### P11 — One entity with its relations is the unit of decision
 
 **Rule.** An AI can propose linked facts in one group: for example a company, its vessels and the
-links between them. The operator decides one entity together with the relations that depend on it.
-One promotion writes them together, or writes none: if one part cannot be written, nothing of that
-unit is written. The group is a label and a filter, and not a unit. On a group, the operator can
-promote all its clean proposals at once: the entities with no dispute and no fault that the screen
-flags, and their relations. Each unit of the group succeeds or fails on its own, and the screen
-names each unit that fails. The other proposals of the group stay in the queue. A relation is
-never promoted without its two entities. Each end is already in the record, or it is promoted in
-the same click. One click never promotes an entity of another group. Where an end is not in the
-record and not in the same click, the operator cannot promote the relation, and the screen names
-the missing entity. If that entity waits in another group, the operator promotes it first. A
-relation is part of one unit only, so that entity never waits for the relation.
-**Why.** The graph never holds a link to a missing entity. One wrong item no longer forces the
-operator to reject a whole group, and the operator can clear a large import in a short time.
-**Cost.** The operator decides each entity of a disputed group on its own. A unit with many
-relations takes long to read. A promotion on a group needs a clear count of what it writes. A
-relation between two groups needs two steps.
+links between them. A rule or the operator decides one entity together with the relations that
+depend on it. One promotion writes them together, or writes none. The group is a label and a
+filter, and not a unit. A relation is never promoted without its two entities: each end is
+already in the record, or it is promoted in the same decision. A unit whose end waits in another
+group waits until that end is decided. A relation is part of one unit only, so an entity never
+waits for a relation.
+**Why.** The graph never holds a link to a missing entity, and one wrong item never forces the
+rejection of a whole group.
+**Cost.** A unit with many relations takes long to read. A relation between two groups needs two
+steps.
 
 ### P12 — The operator AI proposes the facts of a research layer
 
@@ -344,13 +371,13 @@ relation between two groups needs two steps.
 and proposes each fact of the layer itself, with the page and a checked excerpt (P9). Each source
 is a stored document before it is cited. The back-end extractor and the lead agent run only when
 the operator asks for them. The session writes with no approval of each write, except a write that
-spends model credit: each proposal waits in the review queue, and the operator decides it there. A source that the session cannot store goes
+spends model credit. The rules of S3 decide each proposal, and the operator decides the doubts. A source that the session cannot store goes
 on a list of needs that tells the operator what to get.
 **Why.** A research layer needs a few targeted facts, and the extractor proposes each claim of a
 document, also the claims outside the layer. A method skill tells the operator AI what to propose
 and what to leave out, so that the queue holds facts that are ready to promote.
-**Cost.** The research uses the tokens of the operator's own subscription. A wrong fact reaches the
-queue with no question first, and the operator rejects it there.
+**Cost.** The research uses the tokens of the operator's own subscription. A wrong fact with strong sources
+can pass a rule with no person reading it.
 
 ---
 
