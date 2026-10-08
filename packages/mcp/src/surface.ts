@@ -89,6 +89,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: false,
     openWorldHint: false,
   },
+  // A second call meets the open job and is refused.
+  enqueue_mapping: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   // Each call starts one more lead.
   start_lead: {
     readOnlyHint: false,
