@@ -94,12 +94,12 @@ test('the rules of the workspace name each tool of the server', () => {
 });
 
 // The research session writes with no question (P12): each proposal waits in the review queue,
-// and the operator decides it there. The two tools that spend model credit still ask the operator
+// and the operator decides it there. The tools that spend model credit still ask the operator
 // first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
 // fails here.
-const ASKS_FIRST = new Set(['enqueue_extract', 'start_lead']);
+const ASKS_FIRST = new Set(['enqueue_extract', 'enqueue_mapping', 'start_lead']);
 
-test('the Claude Code settings allow each tool of the server, except the two that spend credit', () => {
+test('the Claude Code settings allow each tool of the server, except the ones that spend credit', () => {
   const settings = z
     .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
