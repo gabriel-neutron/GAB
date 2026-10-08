@@ -1,5 +1,5 @@
 -- =============================================================================================
--- 0063 — a citation of an image can hold the words that the AI read from the image    ORDERED
+-- 0064 — a citation of an image can hold the words that the AI read from the image    ORDERED
 --
 -- AN IMAGE STATES ITS FACTS IN ITS DRAWING. A unit tree of Tochnyi draws a line from each parent
 -- to each child, and the OCR text of the image mixes the columns and misreads the numbers. So a
