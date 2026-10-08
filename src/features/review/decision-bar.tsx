@@ -96,6 +96,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
             size="xs"
             variant="outline"
             aria-expanded={rejecting}
+            aria-controls={`${ids}-reject`}
             disabled={busy}
             onClick={() => {
               setOpen(!open);
@@ -107,7 +108,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
       </div>
 
       {rejecting ? (
-        <div className="space-y-2 border-t border-border pt-2">
+        <div id={`${ids}-reject`} className="space-y-2 border-t border-border pt-2">
           <p data-said="reject">{said.reject}</p>
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor={`${ids}-reason`} className="text-label">
@@ -172,9 +173,9 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
               </Button>
             ) : null}
           </div>
+          {gap === null || reason === '' ? null : <p className="text-label">{gap}</p>}
         </div>
       ) : null}
-      {gap === null || reason === '' ? null : <p className="text-label">{gap}</p>}
       {sentence === null ? null : (
         <p
           role="status"

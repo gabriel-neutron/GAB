@@ -145,12 +145,17 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   className="flex w-full min-w-0 items-center gap-1 py-0.5"
                   title={`${proposerWords(unit.proposer)}, ${typeOf(unit, words)}, ${groupOf(unit)}`}
                 >
-                  <span data-badge="type" className={cn(BADGE, 'truncate text-foreground')}>
+                  <span
+                    data-badge="type"
+                    title={typeOf(unit, words)}
+                    className={cn(BADGE, 'truncate text-foreground')}
+                  >
                     {typeOf(unit, words)}
                   </span>
                   <span data-badge="proposer" className={cn(BADGE, 'shrink-0 text-label')}>
                     {proposerWords(unit.proposer)}
                   </span>
+                  <span className="sr-only">{groupOf(unit)}</span>
                 </span>
                 <Marks unit={unit} />
               </button>

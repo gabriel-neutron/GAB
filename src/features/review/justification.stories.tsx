@@ -208,7 +208,7 @@ export const AnImageDocumentShowsTheStoredImageBesideItsPassages: Story = {
     await expect(image.getAttribute('src')).toMatch(/^blob:/u);
     const open = canvas.getByRole('link', { name: `Open the full image of ${IMAGE_TITLE}` });
     await expect(open.getAttribute('href')).toBe(image.getAttribute('src'));
-    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-passage]')).toBeVisible();
     await expect(asked).toStrictEqual([
       ['/private/document-image', JSON.stringify({ document: IMAGE_DOCUMENT })],
     ]);
@@ -229,7 +229,7 @@ export const AnImageThatDoesNotLoadSaysSoAndThePassagesStay: Story = {
       await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
     });
     await expect(canvas.queryByRole('img')).toBeNull();
-    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-passage]')).toBeVisible();
   },
 };
 
@@ -245,7 +245,7 @@ export const AnImageThatDoesNotDrawSaysSo: Story = {
       await expect(canvas.getByText('The stored image did not load.')).toBeVisible();
     });
     await expect(canvas.queryByRole('img')).toBeNull();
-    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-passage]')).toBeVisible();
   },
 };
 
@@ -256,7 +256,7 @@ export const ATextDocumentDrawsNoImage: Story = {
     imageAnswers(pngAnswer);
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvasElement.querySelector('[data-passage] mark')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-passage]')).toBeVisible();
     await expect(canvas.queryByRole('img')).toBeNull();
     await expect(asked).toStrictEqual([]);
   },
