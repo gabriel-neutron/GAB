@@ -80,7 +80,42 @@ test database, `gabriel_test`, again.
 | `127.0.0.1:9000` | SeaweedFS, the S3 API of the raw store (bucket `raw`) |
 | `127.0.0.1:8888` | SearXNG, the engine of `web_search` (`/search?q=test&format=json`) |
 
-Nothing is bound to a public address.
+Nothing is bound to a public address. Each published port comes from a `GAB_*_PORT` variable in
+`.env`, and an absent variable gives the port in this table.
+
+## The stack of a session
+
+Many sessions can run on one machine at the same time. When they share one stack, a reset in one
+session deletes the test data of another. So a session that works in a git worktree starts its own
+stack, and the main checkout keeps the shared `gab` stack.
+
+| You want | Run, in the worktree |
+|---|---|
+| Start the stack of this worktree, and build `gabriel_test` in it | `pnpm stack:up` |
+| Stop it and delete its data | `pnpm stack:down` |
+
+- `stack:up` refuses in the main checkout. It copies `.env` from the main checkout when the
+  worktree has none. Then it writes one marked block at the end of `.env`: the compose project,
+  the ports of a free slot, and the addresses that the tools and the tests read. Each run replaces
+  the block.
+- The stack holds the database, the read service of the test database and the raw store only.
+  The worktree uses the SearXNG of the main stack, because SearXNG keeps no state.
+- **The cap.** Two session stacks can run at the same time, because the VPS has 2 CPUs, 7.8 GB of
+  RAM and no swap. A third `stack:up` stops, and it lists the stacks that run.
+- **The cleanup.** `stack:down` stops each node process of the worktree (the writer, the worker,
+  Vite, Vitest), but not its own shell. Then it removes the containers and the volumes. When a
+  session ends, a hook of `.claude/settings.json` runs `stack:down`. `stack:up` first removes each
+  session stack whose worktree is gone.
+
+## Run one SQL statement
+
+```
+pnpm db:sql "select count(*) from public.entities"
+pnpm db:sql "select 1" gabriel
+```
+
+It logs in as the superuser `gabriel` (not `postgres`) on the stack of the current checkout, on
+`gabriel_test` unless the second argument names `gabriel`.
 
 ## Rules
 
