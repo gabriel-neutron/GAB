@@ -1,6 +1,7 @@
 import { setTimeout as sleepFor } from 'node:timers/promises';
 
 import { openStore, putObject, type RawStore } from '@gab/store';
+import { endOcr } from '@gab/text';
 import { endMetadata } from '@gab/tools/fetch-document';
 import { webOf } from '@gab/tools/web';
 import { Pool } from 'pg';
@@ -9,6 +10,9 @@ import { agentAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
 import { makeExtractor } from './extractor/extractor.ts';
 import { leadAgentOf } from './lead/lead.ts';
+import { makeLoader } from './loader/loader.ts';
+import { mapperAgentOf } from './mapper/mapper.ts';
+import { raterAgentOf } from './rater/rater.ts';
 import { readExtractorConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
@@ -24,8 +28,25 @@ export const runCommand: SubCommand = async () => {
   // start with its name and claims nothing. A lead setting that is absent fails each lead and
   // stops no extraction.
   const stores: RawStore[] = [];
+  // The loader writes one report for each load, so it opens the store when it first writes.
+  const loaderStore = (): RawStore => {
+    const store = openStore();
+    stores.push(store);
+    return store;
+  };
+  let reportStore: RawStore | undefined;
   const agents = [
     makeExtractor(readExtractorConfig(process.env)),
+    mapperAgentOf(process.env),
+    raterAgentOf(process.env),
+    makeLoader({
+      store: {
+        put: (object) => {
+          reportStore ??= loaderStore();
+          return putObject(reportStore, object);
+        },
+      },
+    }),
     leadAgentOf(process.env, () => {
       const store = openStore();
       stores.push(store);
@@ -47,8 +68,9 @@ export const runCommand: SubCommand = async () => {
     });
     await runner.run(stop.signal);
   } finally {
-    // The fetch tool keeps an exiftool process, and it holds the event loop open until it ends.
-    await Promise.all([pool.end(), endMetadata()]);
+    // The fetch tool keeps an exiftool process and an OCR thread, and each one holds the event
+    // loop open until it ends.
+    await Promise.all([pool.end(), endMetadata(), endOcr()]);
     for (const store of stores) store.client.destroy();
   }
   return 0;

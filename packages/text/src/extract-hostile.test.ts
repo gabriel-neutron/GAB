@@ -17,6 +17,7 @@ const FILLER = 'The ministry of the invented republic issued a long and dull sta
 interface Shape {
   readonly name: string;
   readonly wrap: (inner: string) => string;
+  readonly mime?: string;
 }
 
 const SHAPES: readonly Shape[] = [
@@ -25,19 +26,28 @@ const SHAPES: readonly Shape[] = [
     wrap: (inner) => page(`<article><p>${FILLER}</p>${inner}</article>`),
   },
   { name: 'a short page with no article', wrap: (inner) => page(inner) },
+  {
+    name: 'an XHTML page, read whole',
+    wrap: (inner) =>
+      `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml">` +
+      `<head><title>Wire</title></head><body>${inner}</body></html>`,
+    mime: 'application/xhtml+xml',
+  },
 ];
 
-const textOf = async (html: string): Promise<string> => {
-  const { pages } = await extractText(bytesOf(html), 'text/html');
+const textOf = async (html: string, mime = 'text/html'): Promise<string> => {
+  const { pages } = await extractText(bytesOf(html), mime);
   expect(pages).toHaveLength(1);
   return pages[0] ?? '';
 };
 
 const withoutStruck = (text: string): string => text.replaceAll(/~~[\s\S]*?~~/gu, '');
 
-describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
+describe.each(SHAPES)('extractText on $name', ({ wrap, mime }) => {
+  const read = (html: string): Promise<string> => textOf(html, mime);
+
   test('a two-row table keeps each unit on the line of its own place', async () => {
-    const text = await textOf(
+    const text = await read(
       wrap(
         '<table><thead><tr><th>Unit</th><th>Place</th></tr></thead><tbody>' +
           '<tr><td>Unit 4</td><td>Pokrovsk</td></tr>' +
@@ -53,7 +63,7 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
   });
 
   test('an empty cell stays a cell, so the next row never slides into its place', async () => {
-    const text = await textOf(
+    const text = await read(
       wrap(
         '<table><thead><tr><th>Unit</th><th>Place</th><th>Day</th></tr></thead><tbody>' +
           '<tr><td>Unit 4</td><td></td><td>2026-05-04</td></tr>' +
@@ -70,7 +80,7 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
   });
 
   test('a bar inside a cell adds no column, so the cells after it keep their place', async () => {
-    const text = await textOf(
+    const text = await read(
       wrap(
         '<table><thead><tr><th>Unit</th><th>Place</th><th>Day</th></tr></thead><tbody>' +
           '<tr><td>Unit 4 | Pokrovsk</td><td></td><td>2026-05-04</td></tr></tbody></table>',
@@ -86,7 +96,7 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
   });
 
   test('a struck sentence is marked, and never reads as a live one', async () => {
-    const text = await textOf(
+    const text = await read(
       wrap(
         '<p>Unit 47 is <del>at Mulino</del> <s>at Pokrovsk</s> <strike>at Ivanivka</strike>.</p>',
       ),
@@ -119,7 +129,7 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
       '<div itemprop="comment" itemscope itemtype="https://schema.org/Comment"><p>Reader: Unit 47 is at Mulino now.</p></div>',
     ],
   ])('a reader comment %s is not part of the text', async (_name, comment) => {
-    const text = await textOf(wrap(`<p>Unit 47 may be moved next month.</p>${comment}`));
+    const text = await read(wrap(`<p>Unit 47 may be moved next month.</p>${comment}`));
     expect(text).toContain('Unit 47 may be moved next month.');
     expect(text).not.toContain('Reader');
     expect(text).not.toContain('is at Mulino now');
@@ -133,7 +143,7 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
     ['a template', '<template>Unit 47 is at Mulino.</template>'],
     ['a noscript block', '<noscript>Unit 47 is at Mulino.</noscript>'],
   ])('text hidden by %s adds no sentence', async (_name, hidden) => {
-    const text = await textOf(wrap(`<p>Unit 47 may be moved next month.</p>${hidden}`));
+    const text = await read(wrap(`<p>Unit 47 may be moved next month.</p>${hidden}`));
     expect(text).toContain('Unit 47 may be moved next month.');
     expect(text).not.toContain('is at Mulino');
   });
@@ -153,11 +163,11 @@ describe.each(SHAPES)('extractText on $name', ({ wrap }) => {
     'Position 48°30′N 35°00′E (old datum SK-42), not WGS 84',
     'An official, who asked not to be named, said the unit could be moved.',
   ])('the words of "%s" come out as they went in', async (sentence) => {
-    expect(await textOf(wrap(`<p>${sentence}</p>`))).toContain(sentence);
+    expect(await read(wrap(`<p>${sentence}</p>`))).toContain(sentence);
   });
 
   test('a hedge and a negation inside markup stay attached to their words', async () => {
-    const text = await textOf(
+    const text = await read(
       wrap(
         '<p>Unit 47 <em>may</em> be moved to <strong>Mulino</strong>, <i>not</i> to Pokrovsk.</p>',
       ),
@@ -179,4 +189,16 @@ describe('the span gate that no code builds yet', () => {
   test.todo('a place name shared by two regions never fixes one place without its region');
   test.todo('a coordinate pair on an old datum is never shown as a WGS 84 point');
   test.todo('a span of a page that changed after capture is read in the capture that holds it');
+});
+
+test('an XHTML page gives no code, no head and no frame of the site as text', async () => {
+  const text = await textOf(
+    `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head>` +
+      '<title>T</title><style>.a{color:red}</style><script>var secret="SCRIPTBODY";</script>' +
+      '</head><body><nav><a href="/">Home NAV</a></nav><header>Site header</header>' +
+      '<script>alert("INLINE")</script><noscript>NOSCRIPT</noscript><p>Body of the act</p>' +
+      '<footer>Site footer</footer></body></html>',
+    'application/xhtml+xml',
+  );
+  expect(text).toBe('Body of the act');
 });

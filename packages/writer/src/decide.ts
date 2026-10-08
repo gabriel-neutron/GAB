@@ -1,4 +1,4 @@
-import { batchDecisionRequest, decisionRequest, type DecisionOp } from '@gab/proposal/request';
+import { decisionRequest, type DecisionOp } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import { readBody } from './body.ts';
@@ -6,60 +6,89 @@ import { DECIDED_BY } from './decision.ts';
 import type { Sessions } from './pool.ts';
 import { runStatement, type DoorAct } from './statement.ts';
 
-// Departure: two exports, one job. A decision on one act and a decision on a linked batch read
-// one body, run one door and answer one shape.
+interface Door {
+  readonly statement: string;
+  /** The body, read into the values of the statement in the order the statement takes them. */
+  readonly values: z.ZodType<readonly unknown[]>;
+  readonly unread: string;
+}
 
-const STATEMENT: Readonly<Record<DecisionOp, string>> = {
-  promote_proposal: 'SELECT public.promote_proposal($1::uuid, $2::text) AS id',
-  reject_proposal: 'SELECT public.reject_proposal($1::uuid, $2::text)',
+// The statement reads what the decision takes with its own snapshot, from before the decision, so
+// it names the acts that the decision writes or rejects.
+const DOORS: Readonly<Record<DecisionOp, Door>> = {
+  promote_unit: {
+    statement:
+      'SELECT public.promote_unit($1::uuid, $2::text) AS id, public.decision_said($1::uuid) AS said',
+    values: decisionRequest.promote_unit.transform((body) => [body.unitId, DECIDED_BY]),
+    unread: 'the body names no unit',
+  },
+  reject_unit: {
+    statement:
+      'SELECT public.reject_unit($1::uuid, $2::text, $3::text, $4::text) AS id, ' +
+      'public.decision_said($1::uuid) AS said',
+    values: decisionRequest.reject_unit.transform((body) => [
+      body.unitId,
+      body.reason,
+      body.note ?? null,
+      DECIDED_BY,
+    ]),
+    unread: 'the body names no unit and no reason',
+  },
+  reject_relation: {
+    statement:
+      'SELECT public.reject_relation($1::uuid, $2::text, $3::text, $4::text) AS id, ' +
+      'public.decision_said(NULL, $1::uuid) AS said',
+    values: decisionRequest.reject_relation.transform((body) => [
+      body.proposalId,
+      body.reason,
+      body.note ?? null,
+      DECIDED_BY,
+    ]),
+    unread: 'the body names no relation and no reason',
+  },
 };
-
-const BATCH = 'SELECT public.decide_batch($1::uuid, $2::text, $3::text) AS decided';
 
 const identifier = z.uuid();
 
-// A promotion answers with the row it wrote. A rejection writes no row and answers nothing, so
-// the reply carries `null` and the caller reads one shape for both acts.
-const targetOf = (op: DecisionOp, row: Readonly<Record<string, unknown>> | undefined) =>
-  op === 'reject_proposal' ? null : identifier.parse(row?.['id']);
+/** What the decision wrote or rejected: the name of the unit, or of the one relation, and the
+ * count of its entities, relations and other acts. */
+const written = z.object({
+  name: z.string(),
+  entities: z.number().int(),
+  relations: z.number().int(),
+  others: z.number().int(),
+});
 
 interface Decided {
-  readonly proposalId: string;
-  /** The row the promotion wrote. A rejection writes none, and it answers `null`. */
+  /** The row that the promotion wrote for the head of the unit. A rejection writes none, and it
+   * answers `null`. */
   readonly targetId: string | null;
   readonly state: 'decided';
+  readonly written: z.output<typeof written>;
 }
 
-/** Decide one act that waits. A refusal wrote nothing. A doubt is the decision whose answer never
+// The decision stands, so an answer that this writer cannot read is a doubt, not a refusal.
+const UNREAD = 'the record took the decision and gave an answer that this writer cannot read';
+
+/** Decide one unit, or reject one relation of it. A promotion writes the whole unit or nothing,
+ * and a refusal names the act that the record refused. A doubt is the decision whose answer never
  * came back: it may stand in the record. It raises nothing. */
 export const decide = async (
   pool: Sessions,
   op: DecisionOp,
   raw: string,
 ): Promise<DoorAct<Decided>> => {
-  const given = readBody(raw, decisionRequest, 'the body names no act');
+  const door = DOORS[op];
+  const given = readBody(raw, door.values, door.unread);
   if (given.outcome !== 'read') return given;
 
-  const { proposalId } = given.body;
-  const answer = await runStatement(pool, STATEMENT[op], [proposalId, DECIDED_BY]);
+  const answer = await runStatement(pool, door.statement, given.body);
   if (answer.outcome !== 'answered') return answer;
-  return {
-    outcome: 'done',
-    reply: { proposalId, targetId: targetOf(op, answer.rows[0]), state: 'decided' },
-  };
-};
-
-/** Promote or reject every act that waits in one linked batch, in one transaction. A refusal
- * names the act that the record refused, and nothing of the batch was written. */
-export const decideBatch = async (
-  pool: Sessions,
-  raw: string,
-): Promise<DoorAct<{ readonly batchId: string; readonly state: 'decided' }>> => {
-  const given = readBody(raw, batchDecisionRequest, 'the body names no batch and no verdict');
-  if (given.outcome !== 'read') return given;
-
-  const { batchId, verdict } = given.body;
-  const answer = await runStatement(pool, BATCH, [batchId, verdict, DECIDED_BY]);
-  if (answer.outcome !== 'answered') return answer;
-  return { outcome: 'done', reply: { batchId, state: 'decided' } };
+  const row = answer.rows[0];
+  const said = written.safeParse(row?.['said']);
+  const target = identifier.safeParse(row?.['id']);
+  if (!said.success || (op === 'promote_unit' && !target.success))
+    return { outcome: 'doubt', reply: { doubt: UNREAD } };
+  const targetId = op === 'promote_unit' && target.success ? target.data : null;
+  return { outcome: 'done', reply: { targetId, state: 'decided', written: said.data } };
 };

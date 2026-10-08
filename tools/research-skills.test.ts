@@ -15,7 +15,13 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const CLAUDE_SKILLS = path.join(ROOT, 'research', '.claude', 'skills');
 const CODEX_SKILLS = path.join(ROOT, 'research', '.agents', 'skills');
 
-const SKILLS = ['investigate-node', 'cite-claim', 'ingest-batch', 'carto-step'] as const;
+const SKILLS = [
+  'research-method',
+  'investigate-node',
+  'cite-claim',
+  'ingest-batch',
+  'carto-step',
+] as const;
 
 const frontMatter = z.object({ name: z.string().min(1), description: z.string().trim().min(1) });
 
@@ -48,7 +54,13 @@ const RESEARCH = new Set(Object.keys(RESEARCH_TOOLS));
 
 // A name in back quotes with an underscore is a tool, unless it is one of these words of the
 // record that a skill shows as an example.
-const RECORD_WORDS = new Set(['legal_act', 'capacity_dwt']);
+const RECORD_WORDS = new Set([
+  'legal_act',
+  'capacity_dwt',
+  'state_body',
+  'registration_number',
+  'tax_id',
+]);
 
 const namedTools = (text: string): string[] =>
   [...text.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/gu)]
@@ -81,16 +93,20 @@ test('the rules of the workspace name each tool of the server', () => {
     if (tool.includes('_')) expect(named.has(tool), `AGENTS.md does not name ${tool}`).toBe(true);
 });
 
-// Claude Code runs a read with no question, and asks the operator before each other tool. The
-// schema is strict, so a second key (a permission mode, a hook, an extra directory) fails here.
-test('the Claude Code settings allow the reads of the server, and nothing else', () => {
+// The research session writes with no question (P12): each proposal waits in the review queue,
+// and the operator decides it there. The tools that spend model credit still ask the operator
+// first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
+// fails here.
+const ASKS_FIRST = new Set(['enqueue_extract', 'enqueue_mapping', 'start_lead']);
+
+test('the Claude Code settings allow each tool of the server, except the ones that spend credit', () => {
   const settings = z
     .strictObject({ permissions: z.strictObject({ allow: z.array(z.string()) }) })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
-  const reads = Object.entries(RESEARCH_TOOLS)
-    .filter(([, hints]) => hints.readOnlyHint)
-    .map(([name]) => `mcp__gab__${name}`);
-  expect([...settings.permissions.allow].sort()).toStrictEqual(reads.sort());
+  const allowed = [...RESEARCH]
+    .filter((name) => !ASKS_FIRST.has(name))
+    .map((name) => `mcp__gab__${name}`);
+  expect([...settings.permissions.allow].sort()).toStrictEqual(allowed.sort());
 });
 
 test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {

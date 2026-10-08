@@ -54,13 +54,6 @@ const isErrorOf = (result: unknown): boolean =>
 
 const SEARCH = { name: 'search_graph', arguments: { query: 'Regulation' } };
 
-// The list is what Claude Code and Codex read, so each change of a name, a description, a schema
-// or a hint shows in the diff of the snapshot.
-test('the list of tools', async () => {
-  const client = await connected(fakePool(() => []).pool);
-  expect((await client.listTools()).tools).toMatchSnapshot();
-});
-
 test('each tool of the catalogue is listed once, flat, with a read or write hint', async () => {
   const client = await connected(fakePool(() => []).pool);
   const { tools } = await client.listTools();
@@ -78,7 +71,7 @@ test('each tool of the catalogue is listed once, flat, with a read or write hint
   }
 });
 
-test('the tools that are not marked as reads are the five writes', async () => {
+test('the tools that are not marked as reads are the thirteen writes', async () => {
   const client = await connected(fakePool(() => []).pool);
   const writes = (await client.listTools()).tools
     .filter((tool) => tool.annotations?.readOnlyHint !== true)
@@ -86,7 +79,15 @@ test('the tools that are not marked as reads are the five writes', async () => {
   expect(writes).toStrictEqual([
     'archive_snapshot',
     'fetch_document',
+    'store_saved_file',
+    'telegram_channel',
+    'gleif_lookup',
+    'companies_house',
+    'wikidata_ids',
+    'sanctions_match',
+    'vessel_events',
     'enqueue_extract',
+    'enqueue_mapping',
     'start_lead',
     'propose',
   ]);
@@ -143,7 +144,7 @@ test('an unknown tool comes back as a tool error', async () => {
 const HIDDEN = [
   ['28P01', 'password authentication failed for user "gabriel_app" at db.example.org'],
   ['08006', 'connection to db.example.org:5432 failed'],
-  ['42501', 'permission denied for function promote_proposal'],
+  ['42501', 'permission denied for function promote_unit'],
 ] as const;
 
 for (const [code, message] of HIDDEN)

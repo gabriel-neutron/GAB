@@ -15,6 +15,10 @@ describe('an answer that is a challenge or a missing page is no record of the so
     expect(unreadablePage('text/html', [text])).not.toBeNull();
   });
 
+  test('refuses a challenge that comes as XHTML', () => {
+    expect(unreadablePage('application/xhtml+xml', ['Access denied'])).not.toBeNull();
+  });
+
   test('admits a short page that is a record', () => {
     expect(unreadablePage('text/html', ['Text'])).toBeNull();
     expect(

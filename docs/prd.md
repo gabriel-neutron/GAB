@@ -39,9 +39,9 @@ document always name an entry in `decisions.md`, never a step.
 | W1 | Scouting and collection of raw material | Out |
 | W2 | Ingestion of documents into the corpus | **In** |
 | W3 | Extraction: the system reads and proposes nodes and links | **In** |
-| W4 | Automated checks: the rating of the originator, the confidence of the proposal | **In** |
-| W5 | Review by exception: dissent between agents or low confidence | **In** |
-| W6 | Promotion of a proposal to the evidentiary layer | **In** |
+| W4 | Automated checks: the letter of each author, the checks of each fact, the faults of each unit | **In** |
+| W5 | Review by exception: the operator decides only the doubts (S3) | **In** |
+| W6 | Promotion to the evidentiary layer, by a named rule or by the operator | **In** |
 | W7 | Manual creation and editing of entities and relations | **In** |
 | W8 | Conversational drill-down from a graph element | **In** |
 | W9 | Search and correlation across documents, graph and internet | **In** |
@@ -50,7 +50,7 @@ document always name an entry in `decisions.md`, never a step.
 | W12 | Report writing | Out |
 | W13 | Publication | **In** |
 
-**W6 is the pivotal step (P1).** It is the act that turns machine material into evidentiary material. The ergonomics of W5–W6 determine the value of the whole.
+**W6 is the pivotal step (P1).** It is the act that turns machine material into evidentiary material. The rules of S3 make most decisions, so the operator reads only the doubts.
 
 ---
 
@@ -86,9 +86,9 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 | Layer | Who writes | Guarantee | Destination |
 |---|---|---|---|
 | Candidate | The machine, freely | None | Exploration, correlation, hypotheses |
-| Evidentiary | The analyst, by promotion | Source cited, rating origin tracked | Report, dataset, public map |
+| Evidentiary | A named rule or the analyst, by promotion | Source cited, origin of the decision tracked | Report, dataset, public map |
 
-**Dual review surface (P3)**: a marker on the graph, and a dedicated queue.
+**Dual review surface (P3)**: a marker on the graph, and a dedicated queue. By default, the queue shows only the units that need the operator.
 
 **Trust**: see S1 to S6.
 
@@ -104,7 +104,7 @@ Live mode reads three substrates: corpus documents, graph, internet (P7). Both t
 ## 5. What Gabriel does not do
 
 - **No interactive geometry editor** (ADR 0005). Vertex authoring — tracing a footprint, snapping, repairing a self-intersection — is done in QGIS or an equivalent, and the result enters as a source. A hand-drawn shape carries no source, and M8 refuses a claim with no source.
-- **No OCR as a first reading** (P5). Code runs OCR on a stored image only as its second reading. A scanned PDF is converted outside the tool before ingestion.
+- **No OCR of a scanned PDF** (P5). OCR reads a stored PNG or JPEG image, and a proposal cites an excerpt of that text; the review page shows the image next to the excerpt. A scanned PDF is converted outside the tool before ingestion.
 - **No audio, no video** (P5).
 - **No heavy satellite imagery processing.** Scope only.
 - **No drafting.** Scope only. Gabriel supplies the material and the references.

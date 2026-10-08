@@ -17,8 +17,6 @@ export default interface Proposal {
 
   prior_value: unknown;
 
-  confidence: number | null;
-
   dissent: boolean | null;
 
   author_role: string | null;
@@ -33,7 +31,13 @@ export default interface Proposal {
 
   decided_by: string | null;
 
+  decided_as: string | null;
+
   batch_id: string | null;
+
+  proposer: string | null;
+
+  decision_origin: string | null;
 }
 
 export const proposal = z.object({
@@ -45,7 +49,6 @@ export const proposal = z.object({
   src: z.string().array().nullable(),
   names: z.uuid().array().nullable(),
   prior_value: z.unknown(),
-  confidence: z.number().nullable(),
   dissent: z.boolean().nullable(),
   author_role: z.string().nullable(),
   model_call_id: z.uuid().nullable(),
@@ -53,5 +56,8 @@ export const proposal = z.object({
   created_at: z.string().nullable(),
   decided_at: z.string().nullable(),
   decided_by: z.string().nullable(),
+  decided_as: z.string().nullable(),
   batch_id: z.uuid().nullable(),
+  proposer: z.string().nullable(),
+  decision_origin: z.string().nullable(),
 });

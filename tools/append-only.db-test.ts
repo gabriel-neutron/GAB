@@ -21,7 +21,8 @@ const pendingAct = async (ask: Ask): Promise<string> => {
 };
 
 const REJECT = `UPDATE public.proposals
-  SET status = 'rejected', decided_at = now(), decided_by = 'a test' WHERE id = $1::uuid`;
+  SET status = 'rejected', decided_at = now(), decided_by = 'a test', reject_reason = 'duplicate'
+  WHERE id = $1::uuid`;
 
 /** One gesture of the superuser on one proposal, inside a transaction that always rolls back. */
 const onAct = (decided: boolean, text: string): Promise<unknown> =>
@@ -53,6 +54,7 @@ test('a decision does not change the payload of the act', async () => {
     onAct(
       false,
       `UPDATE public.proposals SET status = 'rejected', decided_at = now(), decided_by = 'a test',
+         reject_reason = 'duplicate',
          payload = '{"type":"vessel","label":"A rewritten label"}'::jsonb WHERE id = $1::uuid`,
     ),
   ).rejects.toThrow(/^a proposal is frozen at the insert$/);
@@ -69,4 +71,30 @@ test('a pending proposal takes its decision', async () => {
   await expect(
     onAct(true, 'SELECT status FROM public.proposals WHERE id = $1::uuid'),
   ).resolves.toStrictEqual([{ status: 'rejected' }]);
+});
+
+test('a rejection with no reason is refused', async () => {
+  await expect(
+    onAct(
+      false,
+      `UPDATE public.proposals SET status = 'rejected', decided_at = now(), decided_by = 'a test'
+        WHERE id = $1::uuid`,
+    ),
+  ).rejects.toThrow(/^a rejection names one reason$/);
+});
+
+test('a promotion writes no reason of a rejection', async () => {
+  await expect(
+    onAct(
+      false,
+      `UPDATE public.proposals SET status = 'accepted', decided_at = now(), decided_by = 'a test',
+         reject_note = 'a note' WHERE id = $1::uuid`,
+    ),
+  ).rejects.toThrow(/^only a rejection writes a reason and a note$/);
+});
+
+test('the reason of a rejection is frozen with the decision', async () => {
+  await expect(
+    onAct(true, `UPDATE public.proposals SET reject_reason = 'other' WHERE id = $1::uuid`),
+  ).rejects.toThrow(/^proposal [0-9a-f-]{36} is already rejected, and a decided act is frozen$/);
 });

@@ -6,9 +6,10 @@ import { openPool } from './pool.ts';
 import { LARGEST_BODY_BYTES, writeRoutes } from './routes.ts';
 
 const pool = openPool();
-// An act door never reaches the raw store, so this one refuses every object.
+// An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
-const app = writeRoutes(pool, NO_STORE);
+const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
+const app = writeRoutes(pool, NO_STORE, NO_READ);
 
 afterAll(async () => {
   await pool.end();
@@ -41,7 +42,9 @@ const knock = async (
 };
 
 const OWN_HOST = '127.0.0.1:5177';
-const PROXY_HOST = 'localhost:5173';
+// External constraint: the proxy of the development server sends the Host of the writer, and the
+// browser sends the Origin of the page.
+const PAGE_ORIGIN = 'http://localhost:5173';
 const REBOUND_HOST = 'attacker.example:5177';
 
 const JSON_HEADER = { host: OWN_HOST, 'content-type': 'application/json' };
@@ -92,11 +95,22 @@ test('a browser on another site reaches no door, whatever the distance', async (
 
 test('the page of the proxy and a caller on the loopback address reach every door', async () => {
   for (const door of doors)
-    for (const host of [OWN_HOST, PROXY_HOST]) {
-      const origin = { host, origin: `http://${host}`, 'sec-fetch-site': 'same-origin' };
-      const [status, refusal] = await knock(door, { ...JSON_HEADER, ...origin });
-      expect({ host, ...admitted(door, status, refusal) }).toEqual({ host, ...readsTheBody(door) });
+    for (const origin of [`http://${OWN_HOST}`, PAGE_ORIGIN]) {
+      const site = { host: OWN_HOST, origin, 'sec-fetch-site': 'same-origin' };
+      const [status, refusal] = await knock(door, { ...JSON_HEADER, ...site });
+      expect({ origin, ...admitted(door, status, refusal) }).toEqual({
+        origin,
+        ...readsTheBody(door),
+      });
     }
+});
+
+test('a request with the Host of the page and not of the writer reaches no door', async () => {
+  for (const door of doors) {
+    const site = { host: 'localhost:5173', origin: PAGE_ORIGIN, 'sec-fetch-site': 'same-origin' };
+    const [status, refusal] = await knock(door, { ...JSON_HEADER, ...site });
+    expect({ door, status, refusal }).toEqual({ door, status: FORBIDDEN, refusal: OTHER_SITE });
+  }
 });
 
 // External constraint: the browser sees a page whose name points at the loopback address as

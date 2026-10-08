@@ -75,7 +75,7 @@ test.each([
 // Each statement runs in its own transaction: an act is not decided by the transaction that
 // proposed it. The proposals stay, because the ledger is append-only.
 const promoted = (ask: Ask, id: string): Promise<string> =>
-  idOf(ask, 'SELECT public.promote_proposal($1::uuid, $2::text) AS id', [id, 'a test']);
+  idOf(ask, 'SELECT public.promote_unit($1::uuid, $2::text) AS id', [id, 'a test']);
 
 const CREATE_RELATION = `SELECT public.propose_change('create_relation',
   jsonb_build_object('type', 'berthed_at', 'src_kind', 'entity', 'src_id', $1::uuid,
@@ -128,7 +128,10 @@ const outcomeOf = async (ask: Ask, kind: Kind, target: string): Promise<Outcome>
     (cause: unknown) => cause,
   );
   if (refusal !== null)
-    await ask('SELECT public.reject_proposal($1::uuid, $2::text)', [act, 'a test']);
+    await ask("SELECT public.reject_unit($1::uuid, 'out_of_scope', NULL, $2::text)", [
+      act,
+      'a test',
+    ]);
   const [row] = present.parse(
     await ask(
       `SELECT count(*)::int AS n FROM public.${kind === 'entity' ? 'entities' : 'relations'}

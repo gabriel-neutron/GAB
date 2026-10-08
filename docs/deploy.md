@@ -30,16 +30,41 @@ The worker is one command with four sub-commands: `pnpm worker run` takes the qu
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running.
 
-`pnpm worker run` needs the model gateway and two models. Set `FREELLMAPI_BASE_URL` and
-`FREELLMAPI_API_KEY`, the `EXTRACTOR_` values and the `CHECKER_` values, as `infra/.env.example`
-lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
+`pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
+values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
 worker does not start when they are the same.
+
+Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
+the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
+provider must not keep the prompts or train on them. When the credit is spent, each job fails with
+a clear reason. Add credit, and queue the jobs again.
 
 The lead agent of `pnpm worker run` asks the extractor model. Set `LEAD_TOKEN_CAP`, the token
 budget of one lead, and `SEARXNG_URL`, the address of the search service. The worker stores each
 page that a lead fetches, so it also needs the raw store values. When one of these values is
 absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
 names the value.
+
+The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
+that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
+extractions, and each mapping fails at once with a reason that names the value. The load of a
+promoted mapping runs with no model and needs the raw store values.
+
+The rater of `pnpm worker run` rates each new author name. Set the `RATER_*` values that
+`infra/.env.example` lists, with the strongest model that OpenRouter gives. When one of them is
+absent, the worker starts and runs the extractions, and each rating fails with a reason that names
+the value. A rating waits in the queue until the operator approves the reference set:
+
+1. Store the set. It is not used yet. Use one of two ways:
+   - `pnpm worker reference-set load <file>` stores a set that experts wrote. The file is JSON
+     with an `authors` list. It needs no model and no OpenRouter key. The repository holds the
+     first set in `packages/worker/src/rater/reference-set.json`. Experts wrote it, and the
+     operator approved it.
+   - `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
+     letter and a reason, and stores them.
+2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
+3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
+   gets a rating job by itself.
 
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or

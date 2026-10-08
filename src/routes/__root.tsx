@@ -23,7 +23,7 @@ export const Route = createRootRoute({
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
 // and a screen that reads no filter shows no field.
-const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph', '/review']);
+const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph']);
 
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
@@ -33,7 +33,7 @@ function RootLayout() {
           document. Without it, a title is computed and never applied. */}
       <HeadContent />
       <ScreenQueryProvider path={path}>
-        <div className="flex h-svh flex-col">
+        <div className="relative flex h-svh flex-col overflow-hidden">
           <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
             <SurfaceNav />
             <div className="flex items-center gap-2">
@@ -90,7 +90,7 @@ function SurfaceNav() {
       </Link>
       <Link
         to="/review"
-        search={{ subject: '', view: 'queue' }}
+        search={{ unit: '', view: 'queue', group: '' }}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >

@@ -1,18 +1,17 @@
-import { createHash } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { extractText, UnsupportedTypeError } from '@gab/text';
+import { extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
 import { checkedRange, documentText } from './document-text.ts';
-import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
-import { defineTool, type Reach, type Session, ToolRefusal } from './tool.ts';
-import { unreadablePage } from './unreadable-page.ts';
+import { knownAnswer, storeAnswer } from './store-answer.ts';
+import { defineTool, ToolRefusal } from './tool.ts';
+import { isHtml, unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -32,31 +31,6 @@ const RENDER_BUDGET_MS = 30_000;
 // is, and the answer says so; nothing on it is solved or avoided.
 const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
 
-// External constraint: the worker writes the text of a stored file under this same word, and a
-// second word would make two sets of pages for one reading. The worker holds the other copy, in
-// its ingest module.
-const EXTRACTOR = 'text-1';
-
-const UNIQUE_VIOLATION = '23505';
-
-const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS retrieved_at
-                 FROM public.documents d WHERE d.sha256 = $1`;
-
-// One statement is one transaction, and it holds inside the transaction of a caller too. The row
-// is written first and its text second, so a document never exists with no text.
-const STORE = `WITH stored AS (
-    SELECT public.put_fetched_document('url', $1, $2, $3, $4, $5, $6::date)::text AS id)
-  SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
-
-const knownRow = z.object({
-  id: z.string(),
-  title: z.string(),
-  mime: z.string().nullable(),
-  retrieved_at: z.string().nullable(),
-});
-
-const storedRow = z.object({ id: z.string(), pages: z.number().int() });
-
 // The process of exiftool lives as long as the module uses it. A caller that ends ends it too, or
 // the process holds the event loop open.
 let exiftool: ExifTool | undefined;
@@ -71,6 +45,9 @@ export const endMetadata = async (): Promise<void> => {
 const EXTENSION: Readonly<Record<string, string>> = {
   'application/pdf': '.pdf',
   'text/html': '.html',
+  'application/xhtml+xml': '.xhtml',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
 };
 
 const textOf = (value: unknown): string | null => {
@@ -111,10 +88,32 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
   }
 };
 
+// External constraint: the signatures that open a PNG and a JPEG file.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+
+const OCR_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg']);
+
+const opensWith = (bytes: Uint8Array, signature: Buffer): boolean =>
+  Buffer.from(bytes.subarray(0, signature.length)).equals(signature);
+
+const sniffedMime = (bytes: Uint8Array): string | undefined => {
+  if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
+  if (opensWith(bytes, PNG_SIGNATURE)) return 'image/png';
+  if (opensWith(bytes, JPEG_SIGNATURE)) return 'image/jpeg';
+  return undefined;
+};
+
+// A server that names no type, or names only "bytes", says nothing of the file, so its first
+// bytes decide.
+const GENERIC = 'application/octet-stream';
+
 const mimeOf = (contentType: string | null, bytes: Uint8Array): string => {
   const given = (contentType?.split(';')[0] ?? '').trim().toLowerCase();
+  if (given !== '' && given !== GENERIC) return given;
+  const sniffed = sniffedMime(bytes);
+  if (sniffed !== undefined) return sniffed;
   if (given !== '') return given;
-  if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
   throw new ToolRefusal('the server named no type for the answer, and no type is read from it');
 };
 
@@ -128,7 +127,8 @@ const ENTITIES: Readonly<Record<string, string>> = {
   nbsp: ' ',
 };
 
-const htmlTitle = (bytes: Uint8Array): string | null => {
+/** The title of an HTML page, from its title element, or null. */
+export const htmlTitle = (bytes: Uint8Array): string | null => {
   const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 65_536));
   const found = /<title[^>]*>([\s\S]*?)<\/title>/iu.exec(head)?.[1];
   if (found === undefined) return null;
@@ -144,65 +144,10 @@ const MAX_TITLE = 500;
 const titleOf = (mime: string, bytes: Uint8Array, metadata: Metadata, url: string): string => {
   const { hostname, pathname } = new URL(url);
   const chosen =
-    (mime === 'text/html' ? htmlTitle(bytes) : null) ??
+    (isHtml(mime) ? htmlTitle(bytes) : null) ??
     metadata.title ??
     `${hostname}${decodeURI(pathname)}`;
   return chosen.slice(0, MAX_TITLE);
-};
-
-const isUniqueViolation = (fault: unknown): boolean =>
-  typeof fault === 'object' && fault !== null && 'code' in fault && fault.code === UNIQUE_VIOLATION;
-
-const knownOf = async (session: Session, sha256: string) => {
-  const [row] = await rowsOf(session, knownRow, KNOWN, [sha256]);
-  return row;
-};
-
-interface Fetched {
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-  readonly uri: string;
-  readonly title: string;
-  readonly pages: readonly string[];
-  readonly day: string;
-}
-
-// Bytes already stored are known by their hash, and nothing is written for them.
-const storeFetched = async (
-  session: Session,
-  store: NonNullable<Reach['store']>,
-  fetched: Fetched,
-) => {
-  const sha256 = createHash('sha256').update(fetched.bytes).digest('hex');
-  let status: 'known' | 'stored' = 'known';
-  let known = await knownOf(session, sha256);
-  if (known === undefined) {
-    // The key holds the hash alone, as the worker writes it, so the two paths name one object.
-    const key = await store.put({
-      key: `raw/${sha256}`,
-      bytes: fetched.bytes,
-      mime: fetched.mime,
-    });
-    try {
-      await rowsOf(session, storedRow, STORE, [
-        fetched.title,
-        key,
-        fetched.uri,
-        sha256,
-        fetched.mime,
-        fetched.day,
-        JSON.stringify(fetched.pages),
-        EXTRACTOR,
-      ]);
-      status = 'stored';
-    } catch (fault) {
-      // A second caller stored the same bytes at the same instant.
-      if (!isUniqueViolation(fault)) throw fault;
-    }
-    known = await knownOf(session, sha256);
-    if (known === undefined) throw new Error('the door stored a document and no row holds it');
-  }
-  return { ...known, status };
 };
 
 const reasonOf = (fault: unknown): string =>
@@ -241,6 +186,28 @@ const renderedOf = async (
   }
 };
 
+// The text is read before any write, so an answer with no text that can be read leaves no object
+// behind.
+const checkedPages = async (bytes: Uint8Array, mime: string): Promise<readonly string[]> => {
+  let pages: readonly string[];
+  try {
+    ({ pages } = await extractText(bytes, mime));
+  } catch (fault) {
+    if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
+      throw new ToolRefusal(fault.message);
+    throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
+  }
+
+  // An image with no text gives nothing to cite, and an excerpt could never be checked on it.
+  if (mime.startsWith('image/') && pages.join('').trim() === '')
+    throw new ToolRefusal('OCR read no text in the image, so it holds nothing to cite');
+
+  // A challenge or a missing page is no record of the source, and it leaves no object behind.
+  const unreadable = unreadablePage(mime, pages);
+  if (unreadable !== null) throw new ToolRefusal(unreadable);
+  return pages;
+};
+
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
@@ -276,7 +243,10 @@ export const fetchDocument = defineTool({
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
-    'refused, and a render of that kind is not stored.',
+    'refused, and a render of that kind is not stored. A PNG or a JPEG image is stored as ' +
+    'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
+    'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
+    'compare it with the image. An image in which OCR reads no text is refused.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -305,32 +275,25 @@ export const fetchDocument = defineTool({
     }
 
     const mime = mimeOf(got.contentType, got.bytes);
-    // The text is read before any write, so an answer with no text that can be read leaves no
-    // object behind.
-    let pages: readonly string[];
-    try {
-      ({ pages } = await extractText(got.bytes, mime));
-    } catch (fault) {
-      if (fault instanceof UnsupportedTypeError) throw new ToolRefusal(fault.message);
-      throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
-    }
-
-    // A challenge or a missing page is no record of the source, and it leaves no object behind.
-    const unreadable = unreadablePage(mime, pages);
-    if (unreadable !== null) throw new ToolRefusal(unreadable);
+    // OCR of an image takes seconds, and bytes that are already stored have their text already.
+    const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
+    const pages = known === undefined ? await checkedPages(got.bytes, mime) : [];
 
     const metadata = await metadataOf(got.bytes, mime);
-    const plain = await storeFetched(session, reach.store, {
-      bytes: got.bytes,
-      mime,
-      uri: got.url,
-      title: titleOf(mime, got.bytes, metadata, got.url),
-      pages,
-      day,
-    });
+    const plain =
+      known ??
+      (await storeAnswer(session, reach.store, {
+        kind: 'url',
+        bytes: got.bytes,
+        mime,
+        uri: got.url,
+        title: titleOf(mime, got.bytes, metadata, got.url),
+        pages,
+        day,
+      }));
 
     const notices: string[] = [];
-    let captcha = mime === 'text/html' && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
+    let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
     const allText = pages.join('').trim().length;
     if (mime === 'text/html' && allText < RENDER_BELOW) {
@@ -344,7 +307,8 @@ export const fetchDocument = defineTool({
       if (unreadableRender !== null) notices.push(`the render was not stored: ${unreadableRender}`);
       else if (page !== null) {
         captcha ||= CAPTCHA.test(page.html);
-        const stored = await storeFetched(session, reach.store, {
+        const stored = await storeAnswer(session, reach.store, {
+          kind: 'url',
           bytes: page.bytes,
           mime: 'text/html',
           uri: got.url,

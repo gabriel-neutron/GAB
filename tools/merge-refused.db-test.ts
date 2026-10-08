@@ -17,7 +17,7 @@ const idOf = async (ask: Ask, text: string, values: readonly unknown[]): Promise
 };
 
 const promoted = (ask: Ask, id: string): Promise<string> =>
-  idOf(ask, 'SELECT public.promote_proposal($1::uuid, $2::text) AS id', [id, 'a test']);
+  idOf(ask, 'SELECT public.promote_unit($1::uuid, $2::text) AS id', [id, 'a test']);
 
 const CREATE = `SELECT public.propose_change('create_entity',
   '{"type":"vessel","label":"A merge test"}'::jsonb, ARRAY['manual']::text[]) AS id`;
@@ -69,7 +69,10 @@ const mergeOutcome = (): Promise<Outcome> =>
       );
       const status = await statusOf(ask, act);
       if (status === 'pending')
-        await ask('SELECT public.reject_proposal($1::uuid, $2::text)', [act, 'a test']);
+        await ask("SELECT public.reject_unit($1::uuid, 'out_of_scope', NULL, $2::text)", [
+          act,
+          'a test',
+        ]);
       return { refusal, status, before, after: await rowsOf(ask, [kept, absorbed]) };
     } finally {
       // Departure: only a row this run actually created gets a delete, so a creation that

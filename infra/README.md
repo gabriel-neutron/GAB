@@ -6,7 +6,7 @@ The services the project runs on the operator's machine. The decision and its re
 ## First time
 
 1. Start Docker Desktop. Nothing here works until its engine runs.
-2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The four
+2. Copy `.env.example` to `.env` and put real values in it. `.env` is never committed. The
    `RAW_STORE_*_KEY` values are necessary: `docker compose` and `pnpm db:reset` stop without them.
    Use only letters, digits, `.`, `_`, `+` and `-` in each key.
 3. Start the services:
@@ -18,7 +18,7 @@ docker compose -f infra/docker-compose.yml up -d
 ## The raw store
 
 SeaweedFS keeps each source file exactly as it arrived, in the private bucket `raw`. It starts
-with the other services, and it makes the bucket at start. The three accounts and their rights
+with the other services, and it makes the bucket at start. The accounts and their rights
 are in `seaweedfs/s3.json`, and the keys come from `.env`:
 
 - `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`: the application. It may put an object in
@@ -28,25 +28,27 @@ are in `seaweedfs/s3.json`, and the keys come from `.env`:
 - `RAW_STORE_RESEARCH_ACCESS_KEY` and `RAW_STORE_RESEARCH_SECRET_KEY`: the research workspace. It
   may put an object in `raw`, and nothing else. `research/.env` takes these two values as
   `RAW_STORE_ACCESS_KEY` and `RAW_STORE_SECRET_KEY`.
+- `RAW_STORE_READ_ACCESS_KEY` and `RAW_STORE_READ_SECRET_KEY`: the writer, to show a stored image
+  on the review page. It may read an object in `raw`, and nothing else.
 
 A caller with no key gets 403. The store keeps its bytes in the named volume `gab-raw-data`.
 Any other S3 provider can hold the bucket: set `RAW_STORE_ENDPOINT` and `RAW_STORE_REGION`.
 
-## The model gateway and the search service
+## The search service
 
-freellmapi and SearXNG start with the other services. They hold no record of the project.
+SearXNG starts with the other services. It holds no record of the project.
 
-1. Put a value in `FREELLMAPI_ENCRYPTION_KEY` in `.env`: `openssl rand -hex 32`. freellmapi does
-   not start without it. `SEARXNG_SECRET` can stay empty: the compose file then uses a fixed value
-   that fits a loopback port.
-2. Start them: `docker compose -f infra/docker-compose.yml up -d --wait freellmapi searxng`.
-3. **Provider keys do not go in `.env`.** Open http://127.0.0.1:4001, enter each provider key on
-   the **Keys** page, and copy the unified key of freellmapi. freellmapi keeps the provider keys,
-   encrypted, in the volume `freellmapi-data`. If you lose `FREELLMAPI_ENCRYPTION_KEY`, you must
-   enter every provider key again. `down -v` deletes the volume and the keys.
-4. Check the search service: `curl 'http://127.0.0.1:8888/search?q=test&format=json'` answers JSON.
+1. `SEARXNG_SECRET` can stay empty: the compose file then uses a fixed value that fits a loopback
+   port.
+2. Start it: `docker compose -f infra/docker-compose.yml up -d --wait searxng`.
+3. Check it: `curl 'http://127.0.0.1:8888/search?q=test&format=json'` answers JSON.
 
-The VPS runs the same two services on the Tailscale address. See `vps/README.md`.
+The VPS runs the same service on the Tailscale address. See `vps/README.md`.
+
+## The model service
+
+Every model call goes to OpenRouter. No local service runs it. Put `OPENROUTER_API_KEY` in `.env`.
+The key is a paid key. Set a credit limit on it in the OpenRouter dashboard.
 
 ## Every day
 
@@ -76,7 +78,6 @@ test database, `gabriel_test`, again.
 | `127.0.0.1:3000` | The PostgREST read API, over the `api` schema |
 | `127.0.0.1:3001` | The same read API over `gabriel_test`, for the tests |
 | `127.0.0.1:9000` | SeaweedFS, the S3 API of the raw store (bucket `raw`) |
-| `127.0.0.1:4001` | freellmapi, the model gateway of the back-end AI (`/v1`, and a dashboard) |
 | `127.0.0.1:8888` | SearXNG, the engine of `web_search` (`/search?q=test&format=json`) |
 
 Nothing is bound to a public address.

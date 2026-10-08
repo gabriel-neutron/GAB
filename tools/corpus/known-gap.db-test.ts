@@ -1,21 +1,10 @@
-// Departure: the two losses the load is known to carry. A test that states a gap fails on the day
+// Departure: the losses the load is known to carry. A test that states a gap fails on the day
 // somebody closes the gap and forgets the story, which a comment cannot do.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { probe, rolledBack } from '../probe.ts';
-
-const rated = z.array(z.object({ rated_documents: z.coerce.number() }));
-
-const RATED = `
-  SELECT count(*) AS rated_documents FROM public.documents
-   WHERE admiralty IS NOT NULL OR admiralty_origin IS NOT NULL`;
-
-test('no document carries an Admiralty rating', async () => {
-  const held = await probe('superuser', async (ask) => rated.parse(await ask(RATED)));
-  expect(held).toStrictEqual([{ rated_documents: 0 }]);
-});
 
 const documents = z.array(z.object({ id: z.string() }));
 
@@ -32,34 +21,6 @@ test('only the reserved documents carry no work', async () => {
   expect(held.map((row) => row.id)).toStrictEqual(['inherited', 'manual']);
 });
 
-const parameters = z.array(z.object({ parameter: z.string() }));
-
-const PUT_DOCUMENT_TAKES = `
-  SELECT unnest(p.proargnames) AS parameter
-    FROM pg_catalog.pg_proc p
-   WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'put_document'`;
-
-// Departure: this reads the cause of the loss above, and not the loss again. The one ingestion
-// door has no parameter to carry a rating, so no rating can arrive with a document.
-test('the ingestion door takes no rating parameter', async () => {
-  const taken = await probe('superuser', async (ask) =>
-    parameters.parse(await ask(PUT_DOCUMENT_TAKES)).map((row) => row.parameter),
-  );
-  expect(taken).toStrictEqual([
-    'p_id',
-    'p_kind',
-    'p_title',
-    'p_s3_key',
-    'p_uri',
-    'p_archive_uri',
-    'p_sha256',
-    'p_mime',
-    'p_retrieved_at',
-    'p_provider_id',
-    'p_cost_eur',
-  ]);
-});
-
 const gaps = z.array(z.object({ rows_that_leave_the_creating_citation: z.coerce.number() }));
 
 // S2, amended 28 September 2026: the row-level list backs the typed columns alone, and an
@@ -67,7 +28,7 @@ const gaps = z.array(z.object({ rows_that_leave_the_creating_citation: z.coerce.
 // second known gap (an untouched row that omitted a value source from its own list) closed —
 // the row's own list was never meant to hold a value source. `payload.sources` names the row's
 // own citation; a creating act that gives none (no agent proposes a create yet, #25) falls back
-// to `src`, its whole citation set, exactly as promote_proposal does.
+// to `src`, its whole citation set, exactly as the promotion of a unit does.
 const SOURCES = `
   WITH renamed AS (
     SELECT u.target_id AS id, u.src, u.decided_at,

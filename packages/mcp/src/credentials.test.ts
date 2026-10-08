@@ -41,3 +41,12 @@ test('a start with credentials that are not a URL names no part of them', () => 
   expect(run.stderr).toContain('the MCP server runs only as gabriel_research');
   expect(run.stderr).not.toContain(PASSWORD);
 });
+
+test('a start that finds no database says to start the stack', () => {
+  const run = start(`postgresql://gabriel_research:${PASSWORD}@127.0.0.1:1/gabriel_test`);
+  expect(run.status).toBe(1);
+  expect(run.stderr).toContain('(ECONNREFUSED): the database does not answer; start the stack');
+  expect(run.stdout).toBe('');
+  expect(run.stderr).not.toContain(PASSWORD);
+  expect(run.stderr).not.toContain('127.0.0.1');
+});

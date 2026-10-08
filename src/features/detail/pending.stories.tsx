@@ -17,7 +17,7 @@ import { EntityRecord } from './record';
  */
 const FACILITY = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const DOSSIER = readDossier(corpus, FACILITY, entityTypes);
+const DOSSIER = readDossier(corpus, FACILITY, entityTypes, []);
 
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 
@@ -39,11 +39,12 @@ const MIXED: readonly PendingLine[] =
           ...corpus,
           proposals: [
             ...corpus.proposals,
-            { ...AGENT_ACT, id: OPERATOR_ACT_ID, authorRole: 'gabriel_app' },
+            { ...AGENT_ACT, id: OPERATOR_ACT_ID, authorRole: 'gabriel_app', proposer: 'operator' },
           ],
         },
         FACILITY,
         entityTypes,
+        [],
       )?.pending ?? []);
 
 const rows = (root: HTMLElement): readonly HTMLElement[] =>
@@ -124,12 +125,11 @@ export const ACandidateIsNeverMixedIntoTheRecord: Story = {
   },
 };
 
-export const DissentAndConfidenceAreWritten: Story = {
+export const DissentIsWrittenAndNoConfidence: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('disputed')).toBeInTheDocument();
     await expect(canvas.getByText('not disputed')).toBeInTheDocument();
-    await expect(canvas.getByText('0.82')).toBeInTheDocument();
-    await expect(canvas.getByText('0.41')).toBeInTheDocument();
+    await expect(canvas.queryByText(/^\d\.\d\d$/)).toBeNull();
   },
 };
 
@@ -145,10 +145,10 @@ export const EachCandidateStatesItsOrigin: Story = {
     const operator = within(row(OPERATOR_ACT_ID));
 
     await expect(agent.getByText('candidate')).toBeInTheDocument();
-    await expect(agent.getByText('machine')).toBeInTheDocument();
+    await expect(agent.getByText('extractor')).toBeInTheDocument();
     await expect(agent.queryByText('operator')).toBeNull();
     await expect(operator.getByText('candidate')).toBeInTheDocument();
     await expect(operator.getByText('operator')).toBeInTheDocument();
-    await expect(operator.queryByText('machine')).toBeNull();
+    await expect(operator.queryByText('extractor')).toBeNull();
   },
 };

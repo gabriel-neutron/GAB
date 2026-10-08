@@ -37,27 +37,47 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.approve_reference_set": "app",
+      "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
-      "public.decide_batch": "app",
+      "public.decision_said": "app",
       "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
+      "public.enqueue_mapped_load": "agent",
+      "public.fact_digit": "app",
       "public.fail_job": "agent",
+      "public.join_author_name": "agent",
       "public.lead_jobs": "app",
-      "public.promote_proposal": "app",
+      "public.letter_of": "app",
+      "public.promote_group": "app",
+      "public.promote_unit": "app",
       "public.propose_batch": "agent research",
       "public.propose_change": "app",
+      "public.propose_mapping": "agent",
       "public.put_document": "app",
       "public.put_document_text": "agent app research",
       "public.put_fetched_document": "agent research",
+      "public.put_load_report": "agent",
+      "public.rating_context": "agent",
+      "public.record_act_check": "agent",
       "public.record_lead_document": "agent",
       "public.record_model_call": "agent",
-      "public.reject_proposal": "app",
+      "public.reference_set": "app",
+      "public.reject_relation": "app",
+      "public.reject_unit": "app",
       "public.requeue_running_jobs": "agent",
+      "public.review_decided": "app",
+      "public.review_group": "app",
+      "public.review_groups": "app",
+      "public.review_units": "app",
       "public.runner_settings": "agent",
       "public.set_entity_layout": "agent",
       "public.sign_change": "app",
       "public.start_lead": "app research",
+      "public.store_author_letter": "agent",
+      "public.store_reference_author": "app",
+      "public.unit_rule": "app",
     }
   `);
 });
@@ -91,14 +111,14 @@ const DECIDING_DOORS_HELD = `
    CROSS JOIN unnest($1::text[]) AS r(role)
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
 
 const DECIDING_DOORS = `
   SELECT count(*)::int AS n FROM pg_catalog.pg_proc p
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
-          OR p.proname IN ('sign_change', 'apply_proposal'))`;
+          OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules'))`;
 
 test('a machine role holds no door that promotes or rejects', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
@@ -107,24 +127,76 @@ test('a machine role holds no door that promotes or rejects', async () => {
   expect(held).toStrictEqual([]);
 });
 
-for (const identity of ['agent', 'research'] as const)
-  for (const door of ['promote_proposal', 'reject_proposal'])
-    test(`gabriel_${identity} is refused when it calls ${door}`, async () => {
-      await expect(
-        rolledBack(identity, (ask) =>
-          ask(`SELECT public.${door}(gen_random_uuid(), 'a perimeter test')`),
-        ),
-      ).rejects.toMatchObject({ code: '42501' });
-    });
+// The functions that the rules run on stand in the database for the doors to call. The matrix above
+// lists a function that is SECURITY DEFINER only, so this list names each step, definer or not.
+// The read of the operator is the one exception: unit_rule, which the snapshot shows.
+const RULE_STEPS = [
+  'apply_rules',
+  'run_rules',
+  'start_deepening',
+  'rejected_after_search',
+  'rerun_on_budget',
+  'units_of_job',
+  'units_of_author',
+  'fact_is_strong',
+  'unit_doubt_cause',
+  'rule_of_faults',
+  'unit_said',
+] as const;
 
-for (const identity of ['agent', 'research'] as const)
-  test(`gabriel_${identity} is refused when it decides a batch`, async () => {
+const RULE_STEPS_HELD = `
+  SELECT r.role, p.proname AS door
+    FROM pg_catalog.pg_proc p
+   CROSS JOIN unnest($1::text[]) AS r(role)
+   WHERE p.pronamespace = 'public'::regnamespace AND p.proname = ANY ($2::text[])
+     AND has_function_privilege(r.role, p.oid, 'EXECUTE')`;
+
+test('no role and no PUBLIC holds a step of the rules', async () => {
+  const known = await probe('superuser', (ask) =>
+    ask(
+      `SELECT count(DISTINCT proname)::int AS n FROM pg_catalog.pg_proc
+        WHERE pronamespace = 'public'::regnamespace AND proname = ANY ($1::text[])`,
+      [[...RULE_STEPS]],
+    ),
+  );
+  // A name that does not exist is a typo in this list, so the count must match the names.
+  expect(z.array(z.object({ n: z.number().int() })).parse(known)[0]?.n).toBe(RULE_STEPS.length);
+  const held = await probe('superuser', (ask) =>
+    ask(RULE_STEPS_HELD, [
+      ['gabriel_app', 'gabriel_agent', 'gabriel_research', 'gabriel_read', 'public'],
+      [...RULE_STEPS],
+    ]),
+  );
+  expect(held).toStrictEqual([]);
+});
+
+test('a machine role cannot write a check, or set that it passed', async () => {
+  for (const identity of ['agent', 'research'] as const) {
     await expect(
       rolledBack(identity, (ask) =>
-        ask(`SELECT public.decide_batch(gen_random_uuid(), 'promote', 'a perimeter test')`),
+        ask(
+          `INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family,
+             verdict) SELECT id, 'm', 'a', 'b', 'supported' FROM public.proposals LIMIT 1`,
+        ),
       ),
     ).rejects.toMatchObject({ code: '42501' });
-  });
+  }
+});
+
+const DECISIONS = [
+  "public.promote_unit(gen_random_uuid(), 'a perimeter test')",
+  "public.promote_group(gen_random_uuid(), ARRAY[gen_random_uuid()], 'a perimeter test')",
+  "public.reject_unit(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
+  "public.reject_relation(gen_random_uuid(), 'duplicate', NULL, 'a perimeter test')",
+] as const;
+
+for (const identity of ['agent', 'research'] as const)
+  for (const door of DECISIONS)
+    test(`gabriel_${identity} is refused when it calls ${door}`, async () => {
+      await expect(rolledBack(identity, (ask) => ask(`SELECT ${door}`))).rejects.toMatchObject({
+        code: '42501',
+      });
+    });
 
 for (const identity of ['agent', 'research'] as const)
   test(`gabriel_${identity} is refused when it signs an act of the operator`, async () => {
@@ -141,8 +213,10 @@ test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');
 });
 
-test('the operator promotes and rejects', async () => {
-  const held = await matrix();
-  expect(held['public.promote_proposal']).toBe('app');
-  expect(held['public.reject_proposal']).toBe('app');
-});
+// A rejection keeps a reason and a note that stay private to the operator.
+for (const identity of ['read', 'agent', 'research'] as const)
+  test(`gabriel_${identity} cannot read the decided acts with the reasons of the rejections`, async () => {
+    await expect(
+      rolledBack(identity, (ask) => ask('SELECT public.review_decided(NULL, NULL, 1)')),
+    ).rejects.toMatchObject({ code: '42501' });
+  });

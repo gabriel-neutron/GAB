@@ -110,40 +110,51 @@ test('a request that never arrived is unknown, and the sentence states the act m
 
 // ------------------------------------------------------------------------ the decision door --
 
-test('a decision names its door, and the body carries the act that waits', async () => {
-  said({ proposalId: PROPOSAL, targetId: null, state: 'decided' });
+const WRITTEN = { name: 'MV Southern Ledger', entities: 1, relations: 2, others: 0 };
 
-  await sendDecision('reject_proposal', PROPOSAL);
+test('a decision names its door, and the body carries the unit, the reason and the note', async () => {
+  said({ targetId: null, state: 'decided', written: WRITTEN });
+
+  await sendDecision({ op: 'reject_unit', unitId: PROPOSAL, reason: 'other', note: 'a ferry' });
+  await sendDecision({ op: 'reject_relation', proposalId: PROPOSAL, reason: 'duplicate' });
 
   expect(asked).toStrictEqual([
     {
-      address: '/write/reject-proposal',
+      address: '/write/reject-unit',
       method: 'POST',
-      body: `{"proposalId":"${PROPOSAL}"}`,
+      body: `{"unitId":"${PROPOSAL}","reason":"other","note":"a ferry"}`,
+    },
+    {
+      address: '/write/reject-relation',
+      method: 'POST',
+      body: `{"proposalId":"${PROPOSAL}","reason":"duplicate"}`,
     },
   ]);
 });
 
-test('a promotion that landed is done', async () => {
-  said({ proposalId: PROPOSAL, targetId: TARGET, state: 'decided' });
+test('a promotion that landed is done, with what the record wrote', async () => {
+  said({ targetId: TARGET, state: 'decided', written: WRITTEN });
 
-  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({ step: 'done' });
+  expect(await sendDecision({ op: 'promote_unit', unitId: PROPOSAL })).toStrictEqual({
+    step: 'done',
+    written: WRITTEN,
+  });
 });
 
 // The record moved under the analyst. Nothing was written, and the sentence is the writer's.
 test('a decision the record refused is a sentence, and it names no row', async () => {
-  said({ refusal: 'the act is decided already, and a decided act is frozen' }, 422);
+  said({ refusal: 'the unit is decided already, and a decided act is frozen' }, 422);
 
-  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+  expect(await sendDecision({ op: 'promote_unit', unitId: PROPOSAL })).toStrictEqual({
     step: 'refused',
-    refusal: 'the act is decided already, and a decided act is frozen',
+    refusal: 'the unit is decided already, and a decided act is frozen',
   });
 });
 
 test('a decision whose answer is a doubt is unknown, and never a refusal', async () => {
   said({ doubt: 'the record gave no answer to read' }, 502);
 
-  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+  expect(await sendDecision({ op: 'promote_unit', unitId: PROPOSAL })).toStrictEqual({
     step: 'unknown',
     doubt: 'The write service did not confirm the act, and the act may have run whole.',
   });
@@ -152,7 +163,9 @@ test('a decision whose answer is a doubt is unknown, and never a refusal', async
 test('a decision answered by a gateway is unknown, and the sentence names the status', async () => {
   said({ error: 'Bad Gateway' }, 502);
 
-  expect(await sendDecision('reject_proposal', PROPOSAL)).toStrictEqual({
+  expect(
+    await sendDecision({ op: 'reject_unit', unitId: PROPOSAL, reason: 'duplicate' }),
+  ).toStrictEqual({
     step: 'unknown',
     doubt: 'The write service answered 502, and this page cannot read the answer.',
   });
@@ -200,7 +213,7 @@ test('an upload the writer could not finish is unknown, and never refused', asyn
 test('a decision that never arrived is unknown, and the sentence states the act may have run', async () => {
   answers(() => Promise.reject(new Error('the connection was dropped')));
 
-  expect(await sendDecision('promote_proposal', PROPOSAL)).toStrictEqual({
+  expect(await sendDecision({ op: 'promote_unit', unitId: PROPOSAL })).toStrictEqual({
     step: 'unknown',
     doubt: 'The write service did not answer, and the act may have reached it.',
   });

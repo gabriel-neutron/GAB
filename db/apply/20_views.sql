@@ -34,14 +34,11 @@ DROP VIEW IF EXISTS api.document_provider;
 
 
 CREATE VIEW api.document AS
-  SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at,
-         admiralty, admiralty_origin, created_at, cost_eur
+  SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at, created_at, cost_eur
     FROM public.documents;
 -- s3_key is not published. The bucket is private, and #31 owns how a reader reaches a file.
 COMMENT ON VIEW api.document IS
-  'One row per source. The raw file stays in the object store; this is the reference. The '
-  'ADMIRALTY rating is a score of the SOURCE and never of a claim (S1): one document holds a '
-  'corroborated fact and a rumour at the same score.';
+  'One row per source. The raw file stays in the object store; this is the reference.';
 
 
 CREATE VIEW api.document_provider AS
@@ -97,8 +94,8 @@ COMMENT ON VIEW api.relation IS
 
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
-         confidence, dissent, author_role, model_call_id, status, created_at, decided_at,
-         decided_by, batch_id
+         dissent, author_role, model_call_id, status, created_at, decided_at,
+         decided_by, decided_as, batch_id, proposer, decision_origin
     FROM public.proposals
    -- PU1: a rejected act is not public. The public read role and any role that this list does
    -- not name see no rejected row, so the rule fails closed. current_user in a view is the role
@@ -113,8 +110,14 @@ COMMENT ON VIEW api.proposal IS
   'holds it. `names` lists the other elements the act touches. author_role is the connection '
   'role and never a person. model_call_id names the call that made a machine act. It is NULL '
   'for an act of the operator and for a machine act older than the call record. batch_id joins '
-  'the acts of a machine that name each other, and the operator decides them as one unit; a '
-  'single act has none. decided_by is '
+  'the acts of a machine that name each other: it is a label and a filter, and the operator '
+  'decides one entity with its relations. A single act has none. proposer names who proposed '
+  'the act: extractor, research_ai, v1_import or operator. decided_as says how the operator '
+  'decided the act: one unit, one relation, or a group action, or a named rule; an older '
+  'decision and an act that the operator signed have none. decision_origin says who or what '
+  'decided: the name and the version of a rule, "validated manually by the operator", or '
+  '"decided by an AI reviewer"; an older decision has none. The reason of a rejection is '
+  'private. decided_by is '
   'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
 
@@ -128,19 +131,19 @@ CREATE VIEW api.layout AS
     LEFT JOIN public.entity_layout l ON l.entity_id = e.id;
 COMMENT ON VIEW api.layout IS
   'Where the graph draws each entity. A position is presentation and never data: it is derived '
-  'from the record, no source holds it up, and a rating that moves does not touch it. x and y '
+  'from the record, and no source holds it up. x and y '
   'are NULL for an entity the last run did not place, and the surface then places that entity '
   'itself. Every position of one run belongs beside the others of the same run.';
 
 
 -- Departure: the queue is readable by the tool roles, or a row stuck in `running` is a state
 -- nobody can find. The public read role does not read it (90_grants.sql). It shows no payload: a
--- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead is
--- private work of the operator and names no document, so this view leaves it out.
+-- job carries an identifier, a state, its claim, and the reason and the hour it ended. A lead and a
+-- rating name no document, so this view leaves them out.
 CREATE VIEW api.job AS
   SELECT id, document_id, status, claimed_by, claimed_at, failure_reason, finished_at
     FROM public.jobs
-   WHERE kind <> 'research_lead';
+   WHERE kind NOT IN ('research_lead','rate_author');
 COMMENT ON VIEW api.job IS
   'One unit of work behind the ingestion door, and one row per document that entered it. '
   'A hand-entered source queues nothing, so this is not the whole record of what passed the '

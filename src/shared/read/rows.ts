@@ -2,6 +2,7 @@
 // nullable, because a view proves no more, so each row is stated here once: the columns the base
 // table declares NOT NULL, and the closed sets its checks allow. A broken read names its column.
 
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { z } from 'zod';
 
 const ENDPOINT = ['entity', 'relation'] as const;
@@ -42,10 +43,6 @@ export const row = {
     archive_uri: nullableText('document.archive_uri'),
     sha256: nullableText('document.sha256'),
     retrieved_at: nullableText('document.retrieved_at'),
-    admiralty: nullableText('document.admiralty'),
-    admiralty_origin: z
-      .enum(['machine', 'arbitrated', 'human'], stated('document.admiralty_origin'))
-      .nullable(),
   }),
 
   entity: z.object({
@@ -103,6 +100,7 @@ export const row = {
         'update_relation',
         'delete_relation',
         'merge_entities',
+        'map_document',
       ],
       stated('proposal.op'),
     ),
@@ -112,7 +110,6 @@ export const row = {
     src: docIds('proposal.src'),
     names: docIds('proposal.names'),
     prior_value: z.unknown(),
-    confidence: z.number(stated('proposal.confidence')).nullable(),
     dissent: z.boolean(stated('proposal.dissent')),
     author_role: z.enum(
       ['gabriel_agent', 'gabriel_app', 'gabriel_research'],
@@ -122,6 +119,11 @@ export const row = {
     created_at: text('proposal.created_at'),
     decided_at: nullableText('proposal.decided_at'),
     decided_by: nullableText('proposal.decided_by'),
+    decided_as: z
+      .enum(['unit', 'relation', 'group', 'rule'], stated('proposal.decided_as'))
+      .nullable(),
+    decision_origin: nullableText('proposal.decision_origin'),
     batch_id: nullableText('proposal.batch_id'),
+    proposer: z.enum(PROPOSERS, stated('proposal.proposer')),
   }),
 } as const;

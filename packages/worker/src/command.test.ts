@@ -13,14 +13,14 @@ test('the first word picks the sub-command, and the other words go to it', () =>
 test('no word gives the usage, and the usage names each sub-command', () => {
   const command = readCommand([]);
   expect(command.kind).toBe('usage');
-  for (const name of ['ingest', 'layout', 'reconcile', 'run'])
+  for (const name of ['ingest', 'layout', 'reconcile', 'reference-set', 'run'])
     expect(command).toHaveProperty('text', expect.stringContaining(name));
 });
 
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <ingest|layout|reconcile|run> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <ingest|layout|reconcile|reference-set|run> [arguments]',
   });
 });
 
@@ -28,7 +28,7 @@ test('the name of a property of every object is not a sub-command', () => {
   expect(readCommand(['toString']).kind).toBe('usage');
 });
 
-test.each(['ingest', 'layout', 'reconcile', 'run'])(
+test.each(['ingest', 'layout', 'reconcile', 'reference-set', 'run'])(
   'the %s sub-command loads, and opens no connection when it loads',
   async (name) => {
     const command = readCommand([name]);
