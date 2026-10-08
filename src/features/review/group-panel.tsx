@@ -19,7 +19,7 @@ export type GroupActionState = WriteState<
 /** The group on the screen: none chosen, one that is being read, one that this page cannot read,
  * or its units. Each group that is read carries the group action that the screen stands in. */
 export type GroupView =
-  | { readonly state: 'none' }
+  | { readonly state: 'none'; readonly action: GroupActionState }
   | { readonly state: 'reading'; readonly groupId: string }
   | {
       readonly state: 'private';
@@ -111,8 +111,16 @@ const sentenceOf = (action: GroupActionState): string | null => {
 export function GroupPanel({ view, document, words, onPromote }: GroupPanelProps) {
   // The confirmation dies with the view: a reload asks for it again.
   const [confirming, setConfirming] = useState(false);
+  // After the last group, the result of its action stays on the screen.
   if (view.state === 'none')
-    return <p className="p-3 text-xs text-label">Choose a group in the list.</p>;
+    return (
+      <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-xs">
+        {view.action.step === 'done' ? (
+          <Results name={view.action.name} results={view.action.results} />
+        ) : null}
+        <p className="text-label">Choose a group in the list.</p>
+      </section>
+    );
   if (view.state === 'reading')
     return <p className="p-3 text-xs text-label">Reading the units of the group.</p>;
   if (view.state === 'private')

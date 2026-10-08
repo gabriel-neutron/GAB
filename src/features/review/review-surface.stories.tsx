@@ -38,7 +38,7 @@ const QUEUE = (
 
 const DECIDED = (
   <DecidedPage
-    view={{ state: 'held', rows: decidedRows(DECIDED_SAMPLE), more: 'none' }}
+    view={{ state: 'held', rows: decidedRows(DECIDED_SAMPLE), unread: 0, why: null, more: 'none' }}
     onMore={fn()}
   />
 );

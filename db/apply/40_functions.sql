@@ -1979,6 +1979,28 @@ BEGIN
   RETURN public.relation_name(v_src, v_type, v_dst);
 END $$;
 
+-- WHAT ONE DECISION TAKES: the name of the unit, or of the one relation, and the count of its
+-- pending entities, relations and other acts. The writer reads it in the statement of the
+-- decision, with the snapshot of that statement, so it reads the acts that the decision writes or
+-- rejects: a promotion writes the whole unit or nothing, and a rejection takes every act that
+-- waits. A relation named alone is that relation. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION decision_said(p_unit uuid, p_relation uuid DEFAULT NULL)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT jsonb_build_object(
+    'name', coalesce((SELECT public.element_name(
+                               CASE WHEN h.op IN ('create_entity', 'create_relation') THEN h.id
+                                    ELSE h.target_id END)
+                        FROM public.proposals h WHERE h.id = coalesce(p_relation, p_unit)), ''),
+    'entities', count(*) FILTER (WHERE a.op = 'create_entity'),
+    'relations', count(*) FILTER (WHERE a.op = 'create_relation'),
+    'others', count(*) FILTER (WHERE a.op NOT IN ('create_entity', 'create_relation')))
+    FROM public.proposals a
+   WHERE a.status = 'pending'
+     AND (CASE WHEN p_relation IS NULL THEN a.unit_id = p_unit ELSE a.id = p_relation END)
+$$;
+
 -- THE CITED WORDS OF THE NAMED ACTS, each with the two lines before and after them. The offsets
 -- of a citation count code points.
 --

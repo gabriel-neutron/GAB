@@ -3,7 +3,6 @@ import { useState } from 'react';
 
 import { ChangeList, type RelationAct } from './change-list';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
-import { decisionDone } from './decision-done';
 import { decisionWords } from './decision-words';
 import { Justification } from './justification';
 import { QueueFilterBar } from './queue-filter';
@@ -13,11 +12,13 @@ import { UnitList, type UnitListAct, type UnitQueue } from './unit-list';
 import type { FilterChoices, Unit } from './unit-page';
 
 /** The unit that the address names when the pages read so far do not hold it: none asked, the
- * unit read by its identifier, or a unit that waits no more. */
+ * unit read by its identifier, a unit that waits no more, or a read that failed with the sentence
+ * of the writer. */
 export type LinkedUnit =
   | { readonly state: 'none' }
   | { readonly state: 'held'; readonly unit: Unit }
-  | { readonly state: 'gone'; readonly unitId: string };
+  | { readonly state: 'gone'; readonly unitId: string }
+  | { readonly state: 'failed'; readonly unitId: string; readonly why: string };
 
 /** The queue as this page holds it, with the filter that keeps it, the choices of the filter, the
  * unit of the address and the decision that it stands in, or the sentence that says why it holds
@@ -34,17 +35,11 @@ export type QueueView =
   | { readonly state: 'private'; readonly why: string };
 
 /** What the operator did on the page: open a unit, read the next page, read from the first unit,
- * change the filter, or decide one unit. A decision carries the line that says what it did, for
- * the screen after the record took it. */
+ * change a part of the filter, or decide one unit. */
 export type ReviewAct =
   | UnitListAct
-  | { readonly kind: 'filter'; readonly filter: QueueFilter }
-  | {
-      readonly kind: 'decide';
-      readonly unitId: string;
-      readonly decision: Decision;
-      readonly said: string;
-    };
+  | { readonly kind: 'filter'; readonly patch: Partial<QueueFilter> }
+  | { readonly kind: 'decide'; readonly unitId: string; readonly decision: Decision };
 
 export interface UnitsPageProps {
   readonly view: QueueView;
@@ -72,12 +67,20 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
   if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
   const { units } = view.queue;
   const { linked } = view;
-  const gone = linked.state === 'gone' && linked.unitId === selectedId;
+  const listed = units.find((held) => held.id === selectedId) ?? null;
+  // The unit of the address is lost only when no page read holds it. A failed read gives the
+  // sentence of the writer, and a unit that waits no more says so. Neither shows a write control.
+  const lost =
+    listed === null &&
+    (linked.state === 'gone' || linked.state === 'failed') &&
+    linked.unitId === selectedId
+      ? linked
+      : null;
   // Promote and Reject act on this unit, the one that the screen shows.
   const unit =
-    units.find((held) => held.id === selectedId) ??
+    listed ??
     (linked.state === 'held' && linked.unit.id === selectedId ? linked.unit : null) ??
-    (gone ? null : (units[0] ?? null));
+    (lost === null ? (units[0] ?? null) : null);
   const aimed =
     unit !== null &&
     aim !== null &&
@@ -87,12 +90,7 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
       : null;
 
   const decide = (shown: Unit, decision: Decision): void => {
-    onAct({
-      kind: 'decide',
-      unitId: shown.id,
-      decision,
-      said: decisionDone(shown, words, decision),
-    });
+    onAct({ kind: 'decide', unitId: shown.id, decision });
   };
 
   const onBar = (act: BarAct): void => {
@@ -143,8 +141,8 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
         <QueueFilterBar
           filter={view.filter}
           choices={view.choices}
-          onFilter={(filter) => {
-            onAct({ kind: 'filter', filter });
+          onFilter={(patch) => {
+            onAct({ kind: 'filter', patch });
           }}
         />
         <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
@@ -159,10 +157,14 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
             {view.decision.said}
           </p>
         ) : null}
-        {gone ? (
+        {lost?.state === 'gone' ? (
           <p data-said="gone" className="p-3 text-xs">
             This unit is not in the queue. It was decided, or the address names no unit. Choose a
             unit on the left.
+          </p>
+        ) : lost?.state === 'failed' ? (
+          <p data-said="failed" className="p-3 text-xs text-label">
+            {lost.why}
           </p>
         ) : (
           <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
