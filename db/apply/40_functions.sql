@@ -684,10 +684,18 @@ BEGIN
       END IF;
       -- A TRANSCRIPTION IS WORDS THAT THE AI READ FROM AN IMAGE, which the OCR text does not hold.
       -- Only a PNG or JPEG document has one, and only an act that the operator sees as disputed.
-      IF v_cite ? 'transcription' THEN
-        IF v_cite ? 'start' OR v_cite ? 'end' THEN
+      IF coalesce(jsonb_typeof(v_cite->'transcription'), 'null') <> 'null' THEN
+        IF coalesce(jsonb_typeof(v_cite->'start'), 'null') <> 'null'
+           OR coalesce(jsonb_typeof(v_cite->'end'), 'null') <> 'null' THEN
           RAISE EXCEPTION 'item %: a citation of page % of % gives a span or a transcription, '
                           'and never both', v_no, v_cite->>'page', v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF jsonb_typeof(v_cite->'transcription') <> 'string'
+           OR btrim(v_cite->>'transcription', E' \t\n\r\f\v') = ''
+           OR char_length(v_cite->>'transcription') > 600 THEN
+          RAISE EXCEPTION 'item %: a transcription of page % of % is a text of 1 to 600 '
+                          'characters', v_no, v_cite->>'page', v_cite->>'document'
             USING ERRCODE = 'invalid_parameter_value';
         END IF;
         IF NOT EXISTS (SELECT 1 FROM public.documents d
@@ -700,6 +708,11 @@ BEGIN
         IF NOT coalesce((v_item->>'dissent')::boolean, false) THEN
           RAISE EXCEPTION 'item %: an act that cites words read from an image is disputed, so '
                           'the operator compares them with the image', v_no
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF v_item->>'model_call_id' IS NOT NULL THEN
+          RAISE EXCEPTION 'item %: an agent cites the stored text, and never words read from an '
+                          'image', v_no
             USING ERRCODE = 'invalid_parameter_value';
         END IF;
         CONTINUE;
@@ -798,7 +811,7 @@ BEGIN
     -- An act that waits already and is not disputed takes no words read from an image.
     IF NOT written
        AND EXISTS (SELECT 1 FROM jsonb_array_elements(v_item->'citations') AS c
-                    WHERE c ? 'transcription')
+                    WHERE c->>'transcription' IS NOT NULL)
        AND NOT (SELECT p.dissent FROM public.proposals p WHERE p.id = v_id) THEN
       RAISE EXCEPTION 'item %: the act that this item repeats waits with no dispute, so it takes '
                       'no words read from an image', v_no
@@ -2090,6 +2103,9 @@ $$;
 --
 -- A citation with a transcription gives its words as they are, with no line before or after, and
 -- `transcribed` says that the AI read them from the image.
+--
+-- External constraint: CREATE OR REPLACE cannot change the columns of a function, so each apply
+-- drops it first. No view, no grant and no function body that the catalogue tracks depends on it.
 DROP FUNCTION IF EXISTS cited_passages(uuid[]);
 CREATE FUNCTION cited_passages(p_claims uuid[])
 RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text,
@@ -4006,6 +4022,11 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
        AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
        AND EXISTS (SELECT 1 FROM public.citation c
                     WHERE c.claim_id = p.id AND c.modality IN ('enacts', 'asserts'))
+       -- The checker reads only the words that the AI wrote from an image, and not the image. So
+       -- such an act supports no fact until the operator compares the words with the image.
+       AND NOT (p.status = 'pending'
+                AND EXISTS (SELECT 1 FROM public.citation c
+                             WHERE c.claim_id = p.id AND c.transcription IS NOT NULL))
   ), cited AS (
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
