@@ -40,6 +40,15 @@ export interface MapperConfig {
   readonly tokenCap: number;
 }
 
+/** What the operator sets for the rating of authors, and for the build of the reference set. */
+export interface RaterConfig {
+  /** The strongest pinned model that OpenRouter gives. It builds the reference set once, and it
+   * rates each new author name. */
+  readonly model: ModelConfig;
+  /** The tokens that one rating, or one build of the set, may spend. */
+  readonly tokenCap: number;
+}
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 const textOf = (env: Env, name: string): string => {
@@ -138,4 +147,11 @@ export const readLeadConfig = (env: Env): LeadConfig => {
 export const readMapperConfig = (env: Env): MapperConfig => ({
   model: readModelConfig('MAPPER', env),
   tokenCap: checked('MAPPER_TOKEN_CAP', () => checkTokenCap(numberOf(env, 'MAPPER_TOKEN_CAP'))),
+});
+
+/** Reads the configuration of the rater. It throws a sentence that names the variable when a
+ * value is absent, blank or wrong. */
+export const readRaterConfig = (env: Env): RaterConfig => ({
+  model: readModelConfig('RATER', env),
+  tokenCap: checked('RATER_TOKEN_CAP', () => checkTokenCap(numberOf(env, 'RATER_TOKEN_CAP'))),
 });

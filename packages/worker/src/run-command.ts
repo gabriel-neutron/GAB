@@ -12,6 +12,7 @@ import { makeExtractor } from './extractor/extractor.ts';
 import { leadAgentOf } from './lead/lead.ts';
 import { makeLoader } from './loader/loader.ts';
 import { mapperAgentOf } from './mapper/mapper.ts';
+import { raterAgentOf } from './rater/rater.ts';
 import { readExtractorConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
@@ -37,6 +38,7 @@ export const runCommand: SubCommand = async () => {
   const agents = [
     makeExtractor(readExtractorConfig(process.env)),
     mapperAgentOf(process.env),
+    raterAgentOf(process.env),
     makeLoader({
       store: {
         put: (object) => {

@@ -6,6 +6,7 @@ const COMMANDS = {
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
+  'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 
