@@ -39,7 +39,7 @@ on 7 October 2026.
   check today, so it waits until that check exists.
 - The **threshold** is a row of configuration, not a code constant. It starts strict.
 - A decision records the rule name and its version in the origin of the decision (S4). A decision
-  of the operator records "validated manually".
+  of the operator records "validated manually by the operator".
 - Code computes the **digit** of each fact when it reads the fact. The digit is not stored, so it
   never goes stale.
 - **Weak sources:** the unit waits. A unit whose only sources are D or E is rejected only after a
