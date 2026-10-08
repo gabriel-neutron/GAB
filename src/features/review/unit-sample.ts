@@ -65,6 +65,7 @@ const passage = (act: string, line: number, supports: string) => ({
   before: `${LINES.slice(Math.max(0, line - 2), line).join('\n')}\n`,
   text: LINES[line] ?? '',
   after: `\n${LINES.slice(line + 1, line + 3).join('\n')}`,
+  transcribed: false,
 });
 
 const entity = (
@@ -332,6 +333,7 @@ const BASE = {
             'Table 3 reports the change of the trade.\nThe rows group the partners by region.\n',
           text: 'European and Asian countries',
           after: ' kept their imports.\nThe next section turns to the prices.',
+          transcribed: false,
         },
       ],
     },

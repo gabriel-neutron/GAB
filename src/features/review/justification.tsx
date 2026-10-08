@@ -67,6 +67,19 @@ const listed = (faults: readonly Fault[]): readonly Fault[] =>
 /** The words of a passage. The own line of a unit comes first, and the lines of the
  * other units around it are folded. */
 function Quote({ passage }: { readonly passage: Passage }) {
+  if (passage.transcribed)
+    return (
+      <div className="space-y-1" data-transcribed>
+        <p className="text-small/4 text-label">
+          Read from the image by the AI, not by OCR. Compare each word with the image.
+        </p>
+        <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
+          <mark className="bg-muted text-foreground">
+            <LinkedWords text={passage.text} />
+          </mark>
+        </blockquote>
+      </div>
+    );
   if (passage.ownLine)
     return (
       <details className="text-label">
@@ -107,8 +120,8 @@ function Quote({ passage }: { readonly passage: Passage }) {
 
 /** Why the unit stands in the queue: who proposed it, which check ran on each act, the documents it
  * cites with the exact words of each page and two lines around them, the stored image of a cited
- * PNG or JPEG, and each fault that the check found, with its sentence. The operator compares the words that OCR read with the
- * image, because OCR can misread a character. */
+ * PNG or JPEG, and each fault that the check found, with its sentence. The operator compares the
+ * words that OCR or the AI read with the image, because each one can misread a character. */
 export function Justification({ unit }: JustificationProps) {
   if (unit === null) return <section aria-label="The justification" className="p-3" />;
   const checks = checkLines(unit.acts);
