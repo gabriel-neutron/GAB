@@ -14,9 +14,10 @@ promote. A proposal that the operator must reject costs more than a fact that yo
 
 The app is strict. Code refuses a batch when an excerpt is not on its page, when a type is not a
 word of the vocabulary, or when a relation names an entity that does not exist. Code marks an item
-as disputed when a value of the item is not in its excerpts. No model reads your facts after you,
-so read each excerpt again against its item before you send the batch. Propose only what passes
-these checks with no correction.
+as disputed when a value of the item is not in its excerpts. Then a model of another family reads
+each item with its excerpts, and marks as disputed an item that they do not support. No rule
+accepts a disputed fact, so read each excerpt again against its item before you send the batch.
+Propose only what passes these checks with no correction.
 
 ## What a fact is
 
@@ -104,6 +105,11 @@ exists.
 - When the tool refuses a batch, read the item and the reason, correct only that item, and send
   the batch again one time. When the answer marks an item as disputed, read its excerpt again. If
   the excerpt does not state the value, the fact has no source yet: leave it out next time.
+- When the answer gives `checkFailure`, no model checked the batch. Its facts wait with no check,
+  and no rule accepts them. If the reason names the token cap, send the same items again in
+  smaller batches. For any other reason, tell the operator, and send the same batch again when
+  the operator says that the checker is up: a batch sent again writes nothing twice and gets its
+  check.
 
 ## A blocked source
 

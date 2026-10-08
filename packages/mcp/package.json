@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@gab/model": "workspace:*",
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
     "@gab/tools": "workspace:*",
@@ -12,6 +13,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@gab/worker": "workspace:*",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.23.1",
     "vitest": "^4.1.10"

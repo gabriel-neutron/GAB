@@ -34,6 +34,19 @@ start, it puts back each job that is still running.
 values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
 worker does not start when they are the same.
 
+The MCP server of the research session asks the same checker for each batch that the research AI
+proposes. It reads `OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_TOKEN_CAP` (the
+tokens of one check, a hard cap: the checker gets exactly one call, with no retry) and
+`GABRIEL_CHECKER_PASSWORD` from `infra/.env` of the repository, wherever the client starts it. On
+the Windows PC, add `GABRIEL_CHECKER_PASSWORD` and `RESEARCH_CHECK_TOKEN_CAP` to `infra/.env`,
+then run `pnpm db:migrate`, which creates the role `gabriel_checker` and sets its password. Never
+put that password in `research/.env`: the research AI reads that file. The server knows the family
+of the research AI from the name of its MCP client: `claude-code` is `anthropic`, and a name with
+`codex` is `openai`. A client that runs a model of another provider under one of these names gives
+a wrong family. Set a `CHECKER_FAMILY` that is neither. When a value is absent, the server starts, and
+each proposal waits with no check, and the answer of the tool names the value. Propose the same
+batch again when the checker is up: the server checks it then.
+
 Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
 the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
 provider must not keep the prompts or train on them. When the credit is spent, each job fails with

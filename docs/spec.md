@@ -105,14 +105,20 @@ citations together, refuses the whole batch on one fault, and returns a pending 
 already holds instead of a duplicate. The cited passage is private: only the review card of the
 operator shows it.
 
-Before the extractor writes its acts, a model of another family checks each act against its
-passage. The act is written as disputed when the check does not support it, when a failed check
-could not read it, or when no cited passage states its value. The flag keeps a short reason. The
+Before the extractor or the research AI writes its acts, a model of another family checks each act
+against its passage. For the research AI, the MCP server asks the checker once for each batch,
+under a hard token cap, and a batch above the cap is not sent. A batch sent again is checked again, at the
+cost of one call. A role of its own writes the checks of the research acts. The act is written as disputed when the check does not support it, or when no cited passage states its value.
+For the extractor, a failed check that could not read the act also disputes it. For the research
+AI, only a checker that finds that the passage does not support the act disputes it: an act that
+no model checked has no dispute and no check, so it waits, and the same batch sent again checks it.
+The flag keeps a short reason. The
 reason is frozen with the act: the value that no passage states, the verdict and reason of the checker, or
 that the checker did not answer. The reason is private: the review card shows it, and the public read does not.
-After the write, the record also keeps each verdict with its act, the checker model and both
-families, so the rules can decide the unit. An act that the checker did not answer keeps no check
-until a later extraction of the document checks it. The first check of an act stays.
+After the write, the record also keeps each verdict with its act, the checker model, both
+families and the reason of the checker, so the rules can decide the unit. The review card says which check ran on each act: a
+second model, with its verdict, or code only. An act that the checker did not answer keeps no check
+until a later extraction of the document, or the same batch of the research AI, checks it. The first check of an act stays.
 Every model call goes to OpenRouter and is recorded.
 
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,

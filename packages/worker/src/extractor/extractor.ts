@@ -1,4 +1,5 @@
 import type { Message, ToolUse } from '@gab/model';
+import { checkAnswer, verdictsOf } from '@gab/tools/check-answer';
 import { documentText } from '@gab/tools/document-text';
 import { proposeItem, proposeOf } from '@gab/tools/propose';
 import { searchGraph } from '@gab/tools/search-graph';
@@ -27,7 +28,7 @@ import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../too
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v7';
+const VERSION = 'v8';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -76,21 +77,9 @@ const vocabularyOf = async (session: Session): Promise<Vocabulary> => {
 // extractor give one shape. An empty list is a chunk that states no claim.
 const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
 
-// The checker gives one verdict for each item. Only `supported` lets an item stand undisputed.
-const checkAnswer = z.strictObject({
-  verdicts: z.array(
-    z.strictObject({
-      ref: z.string(),
-      verdict: z.enum(['supported', 'not_supported', 'unclear']),
-      // A model can give `null` for no reason, and that is not a fault of the answer.
-      reason: z.string().nullish(),
-    }),
-  ),
-});
-
 // The door that keeps the verdict of the checker on one act. The rules read it, so an act with a
 // passed check can be accepted with no step by hand.
-const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)';
+const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5, $6)';
 
 // The part of the answer of the propose tool that names the act of each item.
 const proposed = z.object({
@@ -187,17 +176,7 @@ export const makeExtractor = (
         throw cause;
       }
       if (asked.kind !== 'value') return [];
-      const { verdicts } = asked.value;
-      // One verdict for each item. A second verdict on one item makes it unclear.
-      return refs.flatMap((ref): (readonly [string, CheckVerdict])[] => {
-        const said = verdicts.filter((one) => one.ref === ref);
-        const [only] = said;
-        if (only === undefined) return [];
-        if (said.length > 1)
-          return [[ref, { verdict: 'unclear', reason: 'the checker gave more than one verdict' }]];
-        if (only.verdict === 'supported') return [[ref, { verdict: 'supported' }]];
-        return [[ref, { verdict: only.verdict, reason: only.reason ?? '' }]];
-      });
+      return verdictsOf(refs, asked.value);
     };
 
     const check = async (
@@ -225,6 +204,7 @@ export const makeExtractor = (
           config.checker.family,
           config.reader.family,
           said.verdict,
+          said.verdict === 'supported' ? null : said.reason,
         ]);
       }
     };

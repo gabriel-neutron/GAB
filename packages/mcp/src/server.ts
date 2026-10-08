@@ -8,6 +8,8 @@ import {
 import { CATALOGUE } from '@gab/tools/catalogue';
 import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@gab/tools/tool';
 
+import { proposeChecked } from './checked-propose.ts';
+import { readerFamilyOf, type SecondCheck } from './second-check.ts';
 import { RESEARCH_TOOLS } from './surface.ts';
 
 /** A session that goes back to its pool when the call ends. */
@@ -77,12 +79,16 @@ const faultSentence = (cause: unknown): string => {
   return `the database refused the call (SQLSTATE ${code})`;
 };
 
-const run = async (
-  pool: SessionPool,
-  reach: Reach | undefined,
-  name: string,
-  raw: unknown,
-): Promise<CallToolResult> => {
+interface Context {
+  readonly pool: SessionPool;
+  readonly reach: Reach | undefined;
+  readonly check: SecondCheck | undefined;
+  /** The family of the research AI, which the server reads from its client. */
+  readonly readerFamily: () => string | null;
+}
+
+const run = async (context: Context, name: string, raw: unknown): Promise<CallToolResult> => {
+  const { pool, reach, check } = context;
   const tool = TOOLS.find((entry) => entry.name === name);
   if (tool === undefined)
     return toolError(
@@ -97,7 +103,10 @@ const run = async (
     return toolError(faultSentence(cause));
   }
   try {
-    const outcome = await callTool(tool, session, raw ?? {}, reach);
+    const outcome =
+      tool.name === 'propose' && check !== undefined
+        ? await proposeChecked(tool, session, raw ?? {}, reach, check, context.readerFamily())
+        : await callTool(tool, session, raw ?? {}, reach);
     if (!outcome.ok) return toolError(outcome.refusal);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
@@ -110,14 +119,22 @@ const run = async (
 
 // The server registers its own handlers, so the input schema of each tool goes out as the
 // catalogue builds it, and the refusal of a bad input is the sentence of the tool.
-/** The MCP server of the research workspace. With no reach, each tool that stores or reads the web refuses its call. */
-export const createServer = (pool: SessionPool, reach?: Reach): McpServer => {
+/** The MCP server of the research workspace. With no reach, each tool that stores or reads the
+ * web refuses its call. With a check, a model of another family than the research AI reads each
+ * proposed item with its passages; with none, code alone checks a proposal. */
+export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondCheck): McpServer => {
   const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
+  const context: Context = {
+    pool,
+    reach,
+    check,
+    readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name),
+  };
 
   mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...LISTED] }));
 
   mcp.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    run(pool, reach, request.params.name, request.params.arguments),
+    run(context, request.params.name, request.params.arguments),
   );
 
   return mcp;

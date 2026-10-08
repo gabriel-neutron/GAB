@@ -18,7 +18,7 @@ import {
 } from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
-const CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)';
+const CHECK = 'SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)';
 
 const check = (
   ask: Ask,
@@ -26,7 +26,7 @@ const check = (
   verdict: 'supported' | 'not_supported' | 'unclear' = 'supported',
   checkerFamily = 'openai',
 ) =>
-  as(ask, 'gabriel_agent', () =>
+  as(ask, 'gabriel_checker', () =>
     ask(CHECK, [one.act, 'a-checker', checkerFamily, 'anthropic', verdict]),
   );
 
@@ -93,7 +93,7 @@ test('the check is written once for an act, the first one stays, and only an act
     await check(ask, first);
     return {
       twice: await refusal(ask, () =>
-        as(ask, 'gabriel_agent', () =>
+        as(ask, 'gabriel_checker', () =>
           ask(CHECK, [first.act, 'another', 'openai', 'anthropic', 'not_supported']),
         ),
       ),
@@ -102,7 +102,7 @@ test('the check is written once for an act, the first one stays, and only an act
         [first.act],
       ),
       unknown: await refusal(ask, () =>
-        as(ask, 'gabriel_agent', () =>
+        as(ask, 'gabriel_checker', () =>
           ask(CHECK, [
             '00000000-0000-4000-8000-000000000000',
             'm',

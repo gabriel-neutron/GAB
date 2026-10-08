@@ -22,6 +22,11 @@
       "mcp__gab__vessel_events",
       "mcp__gab__web_search",
       "mcp__gab__wikidata_ids"
+    ],
+    "deny": [
+      "Read(//**/infra/.env)",
+      "Edit(//**/infra/.env)",
+      "Bash(*infra*.env*)"
     ]
   }
 }

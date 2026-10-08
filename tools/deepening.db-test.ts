@@ -24,8 +24,8 @@ const budgeted = (ask: Ask, tokens: number): Promise<unknown> =>
   );
 
 const check = (ask: Ask, one: Cited): Promise<unknown> =>
-  as(ask, 'gabriel_agent', () =>
-    ask('SELECT public.record_act_check($1::uuid, $2, $3, $4, $5)', [
+  as(ask, 'gabriel_checker', () =>
+    ask('SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)', [
       one.act,
       'a-checker',
       'openai',
@@ -207,9 +207,9 @@ test('a source whose check did not pass does not keep the unit', async () => {
          decided_as = 'unit' WHERE id = $1`,
       [second.act],
     );
-    await as(ask, 'gabriel_agent', () =>
+    await as(ask, 'gabriel_checker', () =>
       ask(
-        "SELECT public.record_act_check($1::uuid, 'a-checker', 'openai', 'anthropic', 'unclear')",
+        "SELECT public.record_research_check($1::uuid, 'a-checker', 'openai', 'anthropic', 'unclear')",
         [second.act],
       ),
     );

@@ -79,11 +79,23 @@ export interface Attribute {
   readonly values: readonly string[];
 }
 
+/** What a model of a second family said of an act: the model, its verdict, and whether the check
+ * passes. A check by a model of the family of the reader does not pass. */
+export interface ActCheck {
+  readonly model: string;
+  readonly verdict: 'supported' | 'not_supported' | 'unclear';
+  readonly passed: boolean;
+  /** The reason of a verdict that is not `supported`, or null when the checker gave none. */
+  readonly reason: string | null;
+}
+
 interface ActBase {
   readonly id: string;
   readonly attributes: readonly Attribute[];
   /** A check disputes the act. The fault of the dispute gives its reason. */
   readonly disputed: boolean;
+  /** The check of a second model, or null when only code checked the act. */
+  readonly check: ActCheck | null;
   /** The act is a relation whose other end was rejected, so the reason "end rejected" fits it. */
   readonly endRejected: boolean;
 }
@@ -209,6 +221,14 @@ const act = z.object({
   targetId: z.string().nullable(),
   dissent: z.boolean(),
   endRejected: z.boolean(),
+  check: z
+    .object({
+      model: z.string(),
+      verdict: z.enum(['supported', 'not_supported', 'unclear']),
+      passed: z.boolean(),
+      reason: z.string().nullish(),
+    })
+    .nullish(),
   target: end,
   src: end,
   dst: end,
@@ -346,6 +366,10 @@ const actOf = (read: ReadAct): UnitAct => {
     id: read.id,
     attributes: attributesOf(read.payload),
     disputed: read.dissent,
+    check:
+      read.check === null || read.check === undefined
+        ? null
+        : { ...read.check, reason: read.check.reason ?? null },
     endRejected: read.endRejected,
   };
   if (read.op === 'create_entity')
