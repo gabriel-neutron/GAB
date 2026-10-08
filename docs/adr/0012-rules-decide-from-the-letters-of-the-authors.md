@@ -29,10 +29,13 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
   side for an entity yet, so in the first build a party counts as C on every fact. This is the
   safe direction.
-- A **reference set** of about thirty rated authors is made once by the strongest model that
-  OpenRouter gives. The operator reads and approves it once.
-- The operator builds the set with `pnpm worker reference-set build`, reads it with `show`, and
-  approves it with `approve`. Until the approval, a reference author is no author for any reader,
+- A **reference set** of about thirty rated authors is made once. The operator can load a set
+  that experts wrote, or build one with the strongest model that OpenRouter gives. Both ways
+  pass the same rules. The operator reads and approves the set once. The first set was written
+  by experts and approved by the operator on 2026-10-08, with no model call.
+- The operator loads a written set from a file with `pnpm worker reference-set load`, or builds
+  one with `pnpm worker reference-set build`. Then the operator reads the set with `show` and
+  approves it with `approve`. A record that holds a set refuses a second load and a second build. Until the approval, a reference author is no author for any reader,
   and a rating job waits in the queue. The approval is written once for each author.
 - Each act that names a new originator queues one rating job for that name, with no click of the
   operator. A refused answer ends the job as failed with its reason, and the name is not asked
