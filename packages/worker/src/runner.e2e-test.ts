@@ -15,9 +15,10 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from './address.ts';
+
 const held = z
   .object({
-    POSTGRES_PASSWORD: z.string().min(1),
     GABRIEL_AGENT_PASSWORD: z.string().min(1),
     GABRIEL_DATABASE: z.literal('gabriel_test'),
   })
@@ -34,9 +35,7 @@ const RUN = randomUUID().replaceAll('-', '').slice(0, 12);
 const RECOVERED = `doc_e2e_a_${RUN}`;
 const FLAKY = `doc_e2e_b_${RUN}`;
 
-const db = new Client({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(held.POSTGRES_PASSWORD)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`,
-});
+const db = new Client({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 // The router refuses the first question about the flaky document, and answers each other
 // question with one claim that the page states. The checker, a model of another family, supports

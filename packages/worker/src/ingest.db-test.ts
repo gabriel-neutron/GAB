@@ -7,20 +7,14 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from './address.ts';
 import { ingestFiles, type IngestDoor } from './ingest.ts';
 
 // Departure: the suite signs as gabriel_app, the role that the command runs as, and reads the
 // result as the owner of the database, because no api view shows a private table.
-const secrets = z.object({
-  GABRIEL_APP_PASSWORD: z.string().min(1),
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const held = secrets.parse(process.env);
-const address = (role: string, password: string): string =>
-  `postgresql://${role}:${encodeURIComponent(password)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`;
-const app = new Pool({ connectionString: address('gabriel_app', held.GABRIEL_APP_PASSWORD) });
-const owner = new Pool({ connectionString: address('gabriel', held.POSTGRES_PASSWORD) });
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const app = new Pool({ connectionString: roleAddress('gabriel_app', 'GABRIEL_APP_PASSWORD') });
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 const OPTIONS = {
   retrievedAt: '2026-09-01',

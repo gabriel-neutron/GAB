@@ -4,8 +4,8 @@
 import { z } from 'zod';
 
 // The compose file publishes the read service of the test database here, and nothing reaches it
-// from outside the machine.
-const LOOPBACK = 'http://127.0.0.1:3001/';
+// from outside the machine. A session stack names its own port in infra/.env.
+const LOOPBACK = process.env['GABRIEL_TEST_API_URL'] ?? 'http://127.0.0.1:3001/';
 
 const failureShape = z.object({
   code: z.string(),

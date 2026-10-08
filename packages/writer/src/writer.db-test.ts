@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -1079,9 +1079,7 @@ test('the private read refuses a request from another site', async () => {
 
 // A research AI proposes a linked batch through its own door, as the MCP server does.
 const research = new Pool({
-  connectionString:
-    `postgresql://gabriel_research:${encodeURIComponent(z.string().parse(process.env['GABRIEL_RESEARCH_PASSWORD']))}` +
-    '@127.0.0.1:5432/gabriel_test',
+  connectionString: roleAddress('gabriel_research', 'GABRIEL_RESEARCH_PASSWORD'),
 });
 
 afterAll(async () => {
@@ -1417,11 +1415,7 @@ test('two units that wait for each other are refused as a circle', async () => {
 
 // The superuser lends the research role the door of the operator for one transaction, because no
 // door of a machine writes an act with no passage today, and older acts can hold none.
-const superuser = new Pool({
-  connectionString:
-    `postgresql://gabriel:${encodeURIComponent(z.string().parse(process.env['POSTGRES_PASSWORD']))}` +
-    '@127.0.0.1:5432/gabriel_test',
-});
+const superuser = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 afterAll(async () => {
   await superuser.end();

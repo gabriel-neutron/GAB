@@ -1,5 +1,6 @@
 Write your chat replies to the operator in French. Write every repository document, code comment, commit, pull request, issue and GitHub comment in ASD-STE100 Simplified Technical English (exception: the research deliverables, see `research/AGENTS.md`).
 Do the development on the VPS. The VPS runs the code and the test stack. The research sessions, the record, the writer and the worker are on the operator's Windows PC (`infra/vps/README.md`).
+In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end of the work, also in a subagent (`infra/README.md`).
 The repository is public: never write a local path, a user name or private data in GitHub, a commit or a file (section "Privacy" of docs/agents/issue-tracker.md).
 Work with the Matt Pocock skills (`/to-spec`, `/to-tickets`, `/implement-spec`). Fix a small detail in the current work, with no ticket.
 Decide each technical detail yourself. Ask the operator only a product question. Read docs/authoring.md before you write a document.

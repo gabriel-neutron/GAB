@@ -9,7 +9,9 @@ import { chosenDatabase, type DatabaseName } from './test-database.ts';
 const ROOT = join(import.meta.dirname, '..');
 const COMPOSE_FILE = join(ROOT, 'infra', 'docker-compose.yml');
 const ENV_FILE = join(ROOT, 'infra', '.env');
-const PROJECT = 'gab';
+// Departure: a session stack of a worktree names its own compose project in infra/.env. The main
+// checkout names none, so it keeps the one shared stack.
+const PROJECT = process.env['COMPOSE_PROJECT_NAME'] ?? 'gab';
 
 // External constraint: the bootstrap superuser owns the schema. gabriel_app runs the promoted acts,
 // gabriel_agent runs the proposal door only, gabriel_research proposes and stores fetched documents
@@ -115,6 +117,9 @@ const libpqVariables = (database: DatabaseName): Readonly<Record<string, string>
 
 const PSQL_FLAGS = ['-v', 'ON_ERROR_STOP=1'] as const;
 
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
+const CONTAINER_PORT = '5432';
+
 const isAbsentProgram = (error: Error): boolean => 'code' in error && error.code === 'ENOENT';
 
 // External constraint: a program that fails to start closes no stdin, and a write to it throws.
@@ -152,6 +157,12 @@ export const runScriptAsSuperuser = async (
 
   // Departure: a host with no psql uses the one in the local database container. That psql reaches
   // the configured host over the network, so a remote target then needs the local stack to run.
+  // When the target is the database of this stack, psql inside the container reaches it on the
+  // port inside the container, not on the published one.
+  const published = process.env['GAB_DB_PORT'] ?? CONTAINER_PORT;
+  const isThisStack =
+    LOCAL_HOSTS.has(variables['PGHOST'] ?? '') && variables['PGPORT'] === published;
+  const inside = isThisStack ? { PGPORT: CONTAINER_PORT } : {};
   const passed = Object.keys(variables).flatMap((name) => ['-e', name]);
   const inContainer = await feedScript(
     'docker',
@@ -160,7 +171,7 @@ export const runScriptAsSuperuser = async (
       ...['exec', '-T', ...passed, 'db', 'psql', ...PSQL_FLAGS],
     ],
     script,
-    env,
+    { ...env, ...inside },
   );
   if (inContainer === 'absent') {
     throw new Error(`Neither psql nor docker is on the PATH, so no script reaches ${database}.`);
