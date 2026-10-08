@@ -131,7 +131,8 @@ const fixture = (): string => {
     null,
     null,
     null,
-    null,
+    // The v1 work wrote an object of its own as text in one cell of the real file.
+    '[object Object]',
     'none',
     0,
   );
@@ -172,7 +173,9 @@ test('a unit with no source has the sources of its nearest parent with sources',
     'https://b.example/army',
   ]);
   expect(of(BATTALION)?.sourcesFrom?.id).toBe(ARMY);
+  // A cell that holds no address is a unit with no source.
   expect(of(DEPOT)?.sources).toStrictEqual(['https://a.example/district']);
+  expect(of(DEPOT)?.sourcesFrom?.id).toBe(DISTRICT);
   expect(of(ARMY)?.sourcesFrom).toBeNull();
   expect(of(BATTALION)?.text).toContain(`sources of 1st Army (v1 ${ARMY}): https://a.example/army`);
 });

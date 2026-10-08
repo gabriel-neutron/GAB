@@ -92,6 +92,7 @@ const PROPOSAL_ROW = {
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,
   decided_by: null,
+  decided_as: null,
   batch_id: null,
 };
 

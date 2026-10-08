@@ -1,7 +1,9 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
+import { deciderWords } from '@/shared/decider-words';
 import { proposerWords } from '@/shared/proposer-words';
+import type { DecidedAct } from '@/shared/read/decided-acts';
 import type {
   Corpus,
   DocId,
@@ -104,6 +106,9 @@ export interface Dossier {
    * or null at its own point. The panel draws no canvas, so these words are the only place it
    * can state a borrowed position. */
   readonly positionFrom: string | null;
+  /** Who promoted the entity into the record, how and on which day. Null when the read of
+   * the decided acts does not hold its promotion. */
+  readonly decision: string | null;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
   readonly sources: readonly SourceCardModel[];
@@ -246,7 +251,24 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
   );
 }
 
-export function readDossier(read: Corpus, entityId: string, types: TypeVocabulary): Dossier | null {
+// The day is written in UTC, so two analysts in two zones read one day.
+function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
+  const promotion = decided.find((held) => held.act.id === entityFrom);
+  if (promotion === undefined) return null;
+  const how = deciderWords(promotion.decidedAs);
+  const day = new Date(promotion.decidedAt);
+  const on = Number.isNaN(day.getTime()) ? promotion.decidedAt : day.toISOString().slice(0, 10);
+  return promotion.decidedAs === 'group'
+    ? `Promoted by ${how}, on ${on}`
+    : `Promoted by ${how} on ${on}`;
+}
+
+export function readDossier(
+  read: Corpus,
+  entityId: string,
+  types: TypeVocabulary,
+  decided: readonly DecidedAct[],
+): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
@@ -389,6 +411,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     proposedType: entity.proposedType,
     drawnOnMap: (at?.point ?? null) !== null,
     positionFrom,
+    decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,
     sources,

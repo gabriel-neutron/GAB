@@ -777,6 +777,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-03T09:12:00Z',
       decidedAt: null,
       decidedBy: null,
+      decidedAs: null,
       batchId: null,
     },
     {
@@ -806,6 +807,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-04T14:38:00Z',
       decidedAt: null,
       decidedBy: null,
+      decidedAs: null,
       batchId: null,
     },
     {
@@ -831,6 +833,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-08-05T08:02:00Z',
       decidedAt: null,
       decidedBy: null,
+      decidedAs: null,
       batchId: null,
     },
     {
@@ -855,6 +858,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-22T11:45:00Z',
       decidedAt: '2026-07-22T16:20:00Z',
       decidedBy: 'operator',
+      decidedAs: null,
       batchId: null,
     },
     {
@@ -878,6 +882,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-19T10:05:00Z',
       decidedAt: '2026-07-19T18:41:00Z',
       decidedBy: 'operator',
+      decidedAs: null,
       batchId: null,
     },
     {
@@ -901,6 +906,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       createdAt: '2026-07-25T07:30:00Z',
       decidedAt: '2026-07-25T07:30:00Z',
       decidedBy: 'operator',
+      decidedAs: null,
       batchId: null,
     },
   ],

@@ -17,7 +17,7 @@ import { EntityRecord } from './record';
  */
 const FACILITY = 'd41a7f38-2b90-4c15-8e6a-90f3b7c2d5e8';
 
-const DOSSIER = readDossier(corpus, FACILITY, entityTypes);
+const DOSSIER = readDossier(corpus, FACILITY, entityTypes, []);
 
 const PROPOSALS: readonly PendingLine[] = DOSSIER?.pending ?? [];
 
@@ -44,6 +44,7 @@ const MIXED: readonly PendingLine[] =
         },
         FACILITY,
         entityTypes,
+        [],
       )?.pending ?? []);
 
 const rows = (root: HTMLElement): readonly HTMLElement[] =>

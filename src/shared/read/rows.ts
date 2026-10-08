@@ -2,6 +2,7 @@
 // nullable, because a view proves no more, so each row is stated here once: the columns the base
 // table declares NOT NULL, and the closed sets its checks allow. A broken read names its column.
 
+import { PROPOSERS } from '@gab/proposal/proposer';
 import { z } from 'zod';
 
 const ENDPOINT = ['entity', 'relation'] as const;
@@ -118,10 +119,8 @@ export const row = {
     created_at: text('proposal.created_at'),
     decided_at: nullableText('proposal.decided_at'),
     decided_by: nullableText('proposal.decided_by'),
+    decided_as: z.enum(['unit', 'relation', 'group'], stated('proposal.decided_as')).nullable(),
     batch_id: nullableText('proposal.batch_id'),
-    proposer: z.enum(
-      ['extractor', 'research_ai', 'v1_import', 'operator'],
-      stated('proposal.proposer'),
-    ),
+    proposer: z.enum(PROPOSERS, stated('proposal.proposer')),
   }),
 } as const;

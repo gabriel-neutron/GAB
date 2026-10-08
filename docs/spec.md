@@ -140,9 +140,12 @@ The operator promotes or rejects one unit. A promotion writes the whole unit in 
 or nothing, and a refusal names the act that the record refused. A relation is written only when
 each end is in the record or comes with the same unit, so a unit whose end waits elsewhere is
 refused, and the refusal names that end. A rejection keeps one reason from a fixed list, and a
-note when the reason is "other". The reason and the note are private. The operator can reject one
+note when the reason is "other". The reason "end rejected" is only for a relation whose other end
+was rejected, so it never hides another reason. The reason and the note are private: only the
+operator reads the decided acts with them, through the writer. The operator can reject one
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
-relation, or a group action. The public page can then say who decided a fact and how.
+relation, or a group action. The page of an entity then names the operator and whether the
+decision was a group action.
 
 A rail lists the groups that wait, with the counts of their units, of their clean units and of
 each fault. The group action promotes the clean units of one group after one confirmation, which
@@ -158,7 +161,12 @@ group action read this check, so the screen and the record agree. Each fault has
 - A wait for an entity of the same group stops Promote of that unit alone. The unit stays clean,
   because the group action writes the parent first.
 - A fault that is not clean keeps the unit out of a group action. The operator decides it alone.
+  An entity whose link to a rejected parent was rejected has no parent now, so it is not clean.
 - Information does not change the state of the unit.
+
+A group with a tree is named by the top of its tree. A group with no tree, as the extractor gives,
+is named by the document that it cites. The words of a dispute name what the checker found, and
+not its codes.
 
 A machine can propose again a claim that the operator rejected, from a new run with new
 identities. So each act keeps a frozen key of its claim, with no identity that a run makes: the
