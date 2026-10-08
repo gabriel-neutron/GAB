@@ -479,6 +479,45 @@ test('the record keeps why the checker disputes an item, and nothing for an item
   expect(reasonOf('port')).toBe('the checker did not answer');
 });
 
+// The checker names the items by their refs, which the record does not keep.
+const byRef: Reach = {
+  now: () => new Date(),
+  check: async () =>
+    Promise.resolve(
+      new Map([
+        ['e1', { verdict: 'supported' as const }],
+        [
+          'e2',
+          { verdict: 'not_supported' as const, reason: 'the passage names e1, and not e2 or e22' },
+        ],
+      ]),
+    ),
+};
+
+test('the reason of the checker names each item of the batch by its name, and not by its ref', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      {
+        items: [
+          { ...NAYARA, ref: 'e1' },
+          { ...SEATRADE, ref: 'e2' },
+        ],
+      },
+      byRef,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  const id = found.batch.proposals.find((one) => one.ref === 'e2')?.proposalId;
+  expect(found.rows.find((row) => row.id === id)?.dissent_reason).toBe(
+    'the checker says not_supported: the passage names Nayara, and not Seatrade Ltd or e22',
+  );
+});
+
 // A free model can give a reason with control characters, or a reason that is very long.
 const messy: Reach = {
   now: () => new Date(),
@@ -739,6 +778,37 @@ test('enqueue_extract of a document that does not exist is a fault of the databa
   await expect(
     rolledBack('research', (ask) => call(ask, 'enqueue_extract', { document: 'doc_absent' })),
   ).rejects.toMatchObject({ code: '23503' });
+});
+
+test('enqueue_mapping of a document that does not exist is a fault of the database', async () => {
+  await expect(
+    rolledBack('research', (ask) => call(ask, 'enqueue_mapping', { document: 'doc_absent' })),
+  ).rejects.toMatchObject({ code: '23503' });
+});
+
+const QUEUED = z.object({ jobId: z.uuid() });
+
+test('enqueue_mapping queues one mapping job, job_status shows it, and a second call refuses', async () => {
+  const seen = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['Vessel,IMO\nNayara,9074729']);
+    const queued = QUEUED.parse(await output(ask, 'enqueue_mapping', { document: DOC }));
+    return {
+      queued,
+      status: JOBS.parse(await output(ask, 'job_status', { document: DOC })),
+      // A refusal of the door aborts the transaction, so the refused call comes last.
+      extract: await call(ask, 'enqueue_extract', { document: DOC }),
+      again: await call(ask, 'enqueue_mapping', { document: DOC }),
+    };
+  });
+  expect(seen.status.jobs).toMatchObject([
+    { id: seen.queued.jobId, kind: 'map_structured', status: 'queued' },
+  ]);
+  expect(seen.again).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('queued or runs already') as string,
+  });
+  // Each tool keeps one job, so an open mapping does not stop the extraction of the document.
+  expect(seen.extract.ok).toBe(true);
 });
 
 test('job_status of a document with no job is an empty list', async () => {

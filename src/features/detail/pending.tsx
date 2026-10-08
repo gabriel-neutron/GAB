@@ -42,10 +42,6 @@ export function Pending({ proposals, mark }: PendingProps) {
           >
             {proposal.dissent ? 'disputed' : 'not disputed'}
           </span>
-          <span className="sr-only">confidence</span>
-          <span className="shrink-0 font-mono text-small/4 tabular-nums text-label">
-            {proposal.confidence}
-          </span>
           {mark(proposal.sources)}
         </li>
       ))}

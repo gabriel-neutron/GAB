@@ -1,17 +1,14 @@
 ---
 name: ingest-batch
-description: Store a list of URLs as documents, queue the extraction of each one, and follow the jobs to the end. Use it when you have more than one source, or a long document, to put into Gabriel.
+description: Store a list of URLs as documents, and give the table of the result. Use it when you have more than one source to put into Gabriel. It queues the extraction of the back-end AI only when the operator asks for it.
 ---
 
 # Ingest a batch
 
-Use this skill for a list of URLs. Gabriel stores each source, and the extractor (the back-end
-AI) proposes the claims of each one. You do not extract with your own tokens.
-
-If you have a lead and no list of URLs (for example "Intershipping and its vessels"), call
-`start_lead` with the lead. The lead agent of Gabriel searches, stores each new page and queues
-its extraction, with its own tokens. Later, find the pages that it stored with `find_document`,
-and continue at step 6.
+Use this skill for a list of URLs. Gabriel stores each source. You then propose the facts of your
+layer with the skill `cite-claim`. The extractor (the back-end AI) and the lead agent run only
+when the operator asks for them, because they propose each claim of a document, also the claims
+outside your layer.
 
 ## Tools
 
@@ -31,23 +28,19 @@ and continue at step 6.
    not fetch it again.
 3. Call `fetch_document` for each other URL, one URL for each call. Keep the document id of each
    one. If the answer has `rendered`, keep the id of `rendered.document`.
-4. If a fetch fails, write the URL and the reason. Do not try a different copy of the page
-   without a reason that you can give.
-5. Call `enqueue_extract` with each new document id. Keep the job id that each call gives. If the
-   tool says that an extraction is queued or runs already, do not queue it again.
-6. Call `job_status` for each document. Wait between two calls. Stop when each job is done or
-   failed.
-7. For each done job, call `list_proposals` with the document id. These are the claims of the
-   extractor. Propose only a fact that it missed, with the skill `cite-claim`. When the job
-   gives `refused`, the extractor lost the claims of those parts: read the document with
-   `document_text` and propose what those parts state.
-8. Give the result as a table: URL, document id, job status, number of proposals, refused parts,
-   failure reason.
+4. Read the start of the stored text of each document with `document_text`. A challenge page,
+   an error page or an empty text is not the source: follow "A blocked source" in the skill
+   `research-method`.
+5. Only when the operator asks for an extraction: call `enqueue_extract` with the document id,
+   follow it with `job_status`, and read its proposals with `list_proposals`. Propose only a fact
+   that it missed.
+6. Give the result as a table: URL, document id, status (stored, known, blocked), and the reason
+   of each failure.
 
 ## Never
 
-- Never extract the facts of a long document with your own tokens. Store it and queue it.
-- Never propose a fact that the extractor proposed for the same document.
+- Never queue an extraction or start a lead that the operator did not ask for.
+- Never propose a fact that a pending proposal holds for the same document.
 - Never fetch a search result list as a source. Fetch the page that the result points to.
 - Never crawl. One fetch takes one URL that you chose.
 - Never queue a document that is not stored.

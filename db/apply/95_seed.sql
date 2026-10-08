@@ -98,10 +98,10 @@ ON CONFLICT (id) DO UPDATE SET
 -- rifle, aviation, artillery, and 22 more spellings — is NOT a type: it is the `unit_type`
 -- attribute, because a type list of 25 arms of service is a vocabulary that the data writes.
 --
--- ITS TWO HUES HOLD THE BAND THE OTHER FOUR HOLD: 4.9:1 on the light page for colour_light, and
--- 8.5:1 on the dark page for colour_dark. The seeded hues are now blue, cyan, green, olive,
--- violet, amber, magenta, plum and grey. The next type must have a new measured pair in the same
--- band.
+-- ITS TWO HUES HOLD THE BAND THE OTHER TYPES HOLD: 4.9:1 on the light page for colour_light,
+-- and 8.5:1 on the dark page for colour_dark. The seeded hues are now blue, cyan, green, olive,
+-- violet, amber, magenta, rust, plum and grey. The next type must have a new measured pair in the
+-- same band.
 -- >>> GENERATED entity_type
 INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
   ('vessel',        'Vessel',        '#2971c6', '#70adfb',  10),
@@ -111,6 +111,7 @@ INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
   ('military_unit', 'Military unit', '#8254c4', '#b7a0e4',  50),
   ('port',          'Port',          '#a16100', '#df9b44',  60),
   ('bank',          'Bank',          '#b53c7f', '#e887b6',  70),
+  ('state_body',    'State body',    '#bb4530', '#fa8c7a',  75),
   ('legal_act',     'Legal act',     '#8b598e', '#e889ed',  80),
   ('unknown',       'Unknown',       '#6b7280', '#9ca3af', 900)
 ON CONFLICT (key) DO UPDATE SET
@@ -166,8 +167,13 @@ ON CONFLICT (key) DO UPDATE SET
 -- THE WAIT OF THE RUNNER IS A CHOICE AND NOT A MEASUREMENT. An empty queue is looked at every
 -- thirty seconds, which is the longest the operator waits after queuing a document with the
 -- runner idle.
+--
+-- THE RUN OF SHARED WORDS THAT MAKES TWO PASSAGES A COPY is a choice and not a measurement: eight
+-- words in a row are rare in two texts that were written apart, and a quote of a few words is not
+-- a copy. The operator tunes it from real data (ADR 0012).
 INSERT INTO parameter (key, value) VALUES
-  ('runner_empty_wait_seconds', 30)
+  ('runner_empty_wait_seconds', 30),
+  ('independence_shared_run_words', 8)
 ON CONFLICT (key) DO NOTHING;
 
 RESET ROLE;

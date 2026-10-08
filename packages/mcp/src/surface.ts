@@ -16,6 +16,7 @@ export const RESEARCH_TOOLS = {
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
+  file_schema_sample: READ_RECORD,
   job_status: READ_RECORD,
   web_search: READ_WEB,
   news_search: READ_WEB,
@@ -33,8 +34,63 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same bytes are stored once, so a second store of a saved file writes nothing.
+  store_saved_file: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  // The same post is stored once, so a second read of a post writes nothing.
+  telegram_channel: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  // The same answer is stored once, so a second lookup writes nothing. A name search stores
+  // nothing.
+  gleif_lookup: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  companies_house: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  wikidata_ids: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  // Each call reads and stores one record, so a second call writes nothing. A search stores
+  // nothing.
+  sanctions_match: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  vessel_events: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
+  // A second call meets the open job and is refused.
+  enqueue_mapping: {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,

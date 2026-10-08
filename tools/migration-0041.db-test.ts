@@ -16,7 +16,8 @@ const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0041_one_
 const DOC = 'doc_migration_0041';
 const EXTRACTOR = 'migration-0041@1';
 
-// The columns of 0036 that the migration reads, and the shape of 0032. The constraint and the
+// The columns of 0036 that the migration reads, and the shape of 0032. The proposer of 0052 reads
+// the originator, so it goes first, with the view that reads it. The constraint and the
 // index carry the names that the migration drops.
 const BEFORE_0041 = `
   SET LOCAL ROLE gabriel_owner;
@@ -24,6 +25,7 @@ const BEFORE_0041 = `
   DELETE FROM citation;
   ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
   ALTER TABLE citation DROP COLUMN text_extractor;
+  ALTER TABLE proposals DROP COLUMN proposer CASCADE;
   ALTER TABLE proposals DROP COLUMN act_digest, DROP COLUMN originator;
   ALTER TABLE proposals ADD COLUMN idempotency_key text,
     ADD CONSTRAINT proposals_key_is_machine CHECK (true);

@@ -1,26 +1,53 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 
-import { readQueue } from './queue';
-import { ReviewPage } from './review-page';
+import { decidedRows } from './decided';
+import { DecidedPage } from './decided-page';
+import { DECIDED_SAMPLE } from './decided-sample';
 import { ReviewSurface } from './review-surface';
-import { SAMPLE, reviewSample } from './sample';
+import { NO_FILTER } from './review-workspace';
+import { unitPageOf } from './unit-page';
+import { UNIT_ANSWER } from './unit-sample';
+import { unitWords } from './unit-words';
+import { UnitsPage } from './units-page';
 
 const onView = fn();
 
 const QUEUE = (
-  <ReviewPage
-    queue={{ subjects: readQueue(reviewSample), verdicts: {} }}
-    examination={{ subjectId: SAMPLE.contestedRow, sort: 'confidence' }}
-    decision={{ step: 'idle' }}
-    passages={{ state: 'held', byAct: {}, disputes: {} }}
+  <UnitsPage
+    view={{
+      state: 'held',
+      queue: {
+        lane: 'doubt',
+        units: unitPageOf(UNIT_ANSWER, null)?.units ?? [],
+        total: 1082,
+        matched: 1082,
+        before: 0,
+        filtered: false,
+        more: 'ready',
+      },
+      counts: { decided: 12, doubt: 2, waiting: 7 },
+      filter: NO_FILTER,
+      choices: { groups: [], documents: [], proposers: [] },
+      linked: { state: 'none' },
+      decision: { step: 'idle' },
+    }}
+    selectedId=""
+    words={unitWords([], [])}
     onAct={fn()}
+  />
+);
+
+const DECIDED = (
+  <DecidedPage
+    view={{ state: 'held', rows: decidedRows(DECIDED_SAMPLE), unread: 0, why: null, more: 'none' }}
+    onMore={fn()}
   />
 );
 
 const meta = {
   component: ReviewSurface,
-  args: { view: 'queue', onView, queue: QUEUE, decided: [] },
+  args: { view: 'queue', onView, queue: QUEUE, groups: null, decided: DECIDED },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-[720px] w-[1280px]">
@@ -43,14 +70,14 @@ export const TheHistoryIsReachedFromTheQueue: Story = {
   },
 };
 
-/** The queue stays mounted under the history, so a visit to the history ends no pass. */
+/** The queue stays mounted under the history, so a visit to the history keeps the pages read. */
 export const TheQueueOutlivesAVisitToTheHistory: Story = {
   args: { view: 'decided' },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole('region', { name: 'What the record decided' })).toBeVisible();
-    await expect(canvasElement.querySelector('[data-subject]')).not.toBeNull();
+    await expect(canvas.getByRole('region', { name: 'What was decided' })).toBeVisible();
+    await expect(canvasElement.querySelector('[data-unit]')).not.toBeNull();
     await expect(
-      canvas.queryByRole('navigation', { name: 'What waits for a decision' }),
+      canvas.queryByRole('navigation', { name: 'Units that wait for a decision' }),
     ).toBeNull();
     await expect(canvas.getByRole('button', { name: 'Decided' })).toHaveAttribute(
       'aria-current',

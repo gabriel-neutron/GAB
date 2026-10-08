@@ -9,14 +9,16 @@ const DECIDED_ROW = {
   src: ['doc_8f2a41'],
   names: [],
   prior_value: null,
-  confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
+  proposer: 'extractor',
   model_call_id: null,
   status: 'accepted',
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: '2026-08-25T04:00:00+00:00',
   decided_by: 'the writer door',
+  decided_as: null,
+  decision_origin: null,
   batch_id: null,
 };
 

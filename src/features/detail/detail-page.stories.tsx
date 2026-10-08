@@ -15,12 +15,13 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { DetailPage } from './detail-page';
 import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
+import type { DecidedAct } from '@/shared/read/decided-acts';
 
 // A lint gate refuses a page story that mounts a live canvas. This page mounts none.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
 
 const read = (): Dossier => {
-  const held = readDossier(corpus, VESSEL, entityTypes);
+  const held = readDossier(corpus, VESSEL, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
   return held;
 };
@@ -245,7 +246,7 @@ export const TheEntityNamesItsOwnSources: Story = {
 const COMPANY = '3f6b1e20-9a4c-4d51-8b77-1c2e5a9d0f31';
 
 const readCompany = (): Dossier => {
-  const held = readDossier(corpus, COMPANY, entityTypes);
+  const held = readDossier(corpus, COMPANY, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no Meridian Bulk Carriers');
   return held;
 };
@@ -282,7 +283,7 @@ const readBorrower = (): Dossier => {
   const entities = corpus.entities.map((entity) =>
     entity.id === BORROWER ? { ...entity, type: 'unknown', proposedType: PROPOSED } : entity,
   );
-  const held = readDossier({ ...corpus, entities }, BORROWER, entityTypes);
+  const held = readDossier({ ...corpus, entities }, BORROWER, entityTypes, []);
   if (held === null) throw new Error('The committed corpus holds no 3rd Reconnaissance Company');
   return held;
 };
@@ -300,6 +301,63 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
 
     const from = canvasElement.querySelector('[data-position-from]');
     await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+  },
+};
+
+// The promotion of the entity as the history of the decisions holds it.
+const readDecidedBy = (decidedAs: DecidedAct['decidedAs'], origin: string | null): Dossier => {
+  const promotedFrom = corpus.entities.find((entity) => entity.id === VESSEL)?.promotedFrom;
+  const proposal = corpus.proposals[0];
+  if (promotedFrom === undefined || proposal === undefined)
+    throw new Error('The committed corpus holds no promotion of MV Northern Ledger');
+  const { op, targetKind, targetId, payload, src, names, priorValue, dissent } = proposal;
+  const { authorRole, proposer, createdAt, batchId } = proposal;
+  const decided: DecidedAct = {
+    act: {
+      id: promotedFrom,
+      op,
+      targetKind,
+      targetId,
+      payload,
+      src,
+      names,
+      priorValue,
+      dissent,
+      authorRole,
+      proposer,
+      createdAt,
+      batchId,
+    },
+    verdict: 'accepted',
+    decidedAt: '2026-10-08T09:30:00Z',
+    decidedBy: origin ?? 'operator',
+    decidedAs,
+    decisionOrigin: origin,
+  };
+  const held = readDossier(corpus, VESSEL, entityTypes, [decided]);
+  if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
+  return held;
+};
+
+/** The page of an element says that a rule accepted it, and names the rule. */
+export const TheElementSaysThatARuleAcceptedIt: Story = {
+  args: { dossier: readDecidedBy('rule', 'rule strong_sources v1 (fact digits: 1)') },
+  play: async ({ canvasElement }) => {
+    const decision = canvasElement.querySelector('[data-decision]');
+    await expect(decision).toHaveTextContent(
+      'Accepted by the rule strong sources, version 1 on 2026-10-08',
+    );
+    await expect(decision).not.toHaveTextContent(/operator/u);
+  },
+};
+
+/** The page of an element says "validated manually" when the operator decided. */
+export const TheElementSaysValidatedManually: Story = {
+  args: { dossier: readDecidedBy('unit', 'validated manually by the operator') },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-decision]')).toHaveTextContent(
+      'Validated manually by the operator on 2026-10-08',
+    );
   },
 };
 

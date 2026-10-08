@@ -29,4 +29,5 @@ rules of the code review.
 | [0008](adr/0008-the-read-role-carries-no-row-cap.md) | The read role carries no row cap | Accepted |
 | [0009](adr/0009-the-map-read-resolves-a-borrowed-position.md) | The map read resolves a borrowed position | Accepted |
 | [0010](adr/0010-three-ais-one-tool-catalogue.md) | Three AIs share one tool catalogue | Accepted |
-| [0011](adr/0011-trust-and-rating-method.md) | A decision table decides the public state of a claim; a letter rates only the originator | Accepted |
+| [0011](adr/0011-trust-and-rating-method.md) | A decision table decides the public state of a claim; a letter rates only the originator | Superseded by 0012 |
+| [0012](adr/0012-rules-decide-from-the-letters-of-the-authors.md) | Named rules in the database decide from the letters of the authors | Accepted |

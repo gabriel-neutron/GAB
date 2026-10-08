@@ -1,8 +1,8 @@
-import { Check, Clock, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 
-import type { Verdict } from './queue';
+import type { Verdict } from './decided';
 
 interface VerdictMarkProps {
   readonly verdict: Verdict;
@@ -14,13 +14,11 @@ interface VerdictMarkProps {
 const GLYPH: Readonly<Record<Verdict, typeof Check>> = {
   promoted: Check,
   rejected: X,
-  deferred: Clock,
 };
 
 const PAINT: Readonly<Record<Verdict, string>> = {
   promoted: 'text-primary',
   rejected: 'text-dissent',
-  deferred: 'text-label',
 };
 
 /** What this pass decided of one act. The foot of the page and the line of a list draw the same

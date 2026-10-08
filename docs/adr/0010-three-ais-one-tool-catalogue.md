@@ -3,25 +3,31 @@
 **Status** Accepted · 3 October 2026 · Promotion rule replaced by ADR 0011, 4 October 2026. A decision
 table, not a source rule, now decides promotion. · The MCP groups replaced by flat tools, 6 October
 2026. · Model transport changed 6 October 2026: a maintained library, the free gateway only, and a
-check by a second model family. · The lead agent added 6 October 2026.
+check by a second model family. · The lead agent added 6 October 2026. · Model transport changed
+again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone. · ADR 0011
+superseded 7 October 2026: no rule promotes, and the operator decides each proposal. · ADR 0012,
+8 October 2026: named rules in the database decide from the letters of the authors, and the
+operator decides the doubts. · 8 October 2026: the operator AI can also read the review queue and
+accept or reject a unit (#376).
 
 ## Context
 
-The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work on
-free tokens. Each tool must be available to the web interface and to each AI. This ADR decides how.
+The operator does the research with Claude Code and Codex. Gabriel must do the repetitive work with
+cheap tokens and a hard spend limit. Each tool must be available to the web interface and to each AI. This ADR decides how.
 
 ## Three AIs, and each one has one job
 
 | AI | Who runs it | Its job | Tokens |
 |---|---|---|---|
 | Operator AI | Claude Code, Codex | Research: leads, hypotheses, hard sources, writing | The operator's own |
-| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Free, through a model gateway |
-| Front-end AI | A chat route on the local writer | A question in the interface | Free, through a model gateway |
+| Back-end AI | The worker, from a job queue in the database | Ingestion, tagging, extraction, mapping | Paid, through OpenRouter |
+| Front-end AI | A chat route on the local writer | A question in the interface | Paid, through OpenRouter |
 
-**The cost rule.** Deterministic work is plain code with no model: hash, store, load, text
+**The cost rule.** The spend limit is the token cap of each job and a credit limit that the
+operator sets on the key in the OpenRouter dashboard. Deterministic work is plain code with no model: hash, store, load, text
 extraction, a call to a registry API. Repetitive judgement is the back-end AI. Reasoning is the
-operator AI. The operator AI never ingests with its own tokens: it stores a document and queues its
-extraction.
+operator AI. The operator AI stores each source. In a research layer, it proposes the targeted facts
+itself with checked excerpts (P12); the extraction of a whole document stays the back-end AI's job.
 
 ## One catalogue, and few tools for each back-end agent
 
@@ -48,18 +54,22 @@ tools.
   refusal of the record gives the sentence of the rule and its field. A fault of the connection
   or of a role gives its code alone, because its text can name a host or a role.
 
-## Machine roles propose, and only the operator or the rule promotes
+## Machine roles propose, and the operator AI can decide as a reviewer
 
 Each consumer has its own database role.
 
 - **The operator**, through the interface and the writer, can store, propose, promote and queue an
   extraction.
-- **The operator AI**, through the MCP server, has its own research role. It can store a fetched
-  document and propose. It cannot promote.
+- **The operator AI**, through the MCP server, has its own research role. It does everything that
+  the operator does in the review page: it can store a fetched document, propose, read the review
+  queue, and accept or reject a unit or a relation. Its decision records "decided by an AI
+  reviewer" and its reason, never "validated manually by the operator". The skills say that the session which
+  proposed a unit does not decide it. The database cannot enforce this, because all sessions share
+  one role.
 - **The back-end agents** have the agent role. They can store a fetched document, write their own
-  outputs and propose. They cannot promote, and they cannot start a lead.
-- **The promotion rule** runs as the agent role and does only the rule decision. ADR 0011 now holds
-  that rule.
+  outputs and propose. They cannot promote or reject, and they cannot start a lead.
+- **The decision rules** run in the database (ADR 0012). They promote or reject, and no machine
+  role can call their function in place of a rule.
 - **The chat** reads through the read role and can queue an extraction. It never proposes, because
   a live answer must never become a proposal directly.
 
@@ -76,19 +86,20 @@ whole batch, and the refusal names the item, so the model can correct it once. A
 excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
 such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. A yes or no
 needs a word of yes or no, and a negative number needs its minus sign or a word for it. Code mints
-the identifier of each item, so a relation names an entity that an earlier item of the same batch creates. The items
-that name each other stay one linked batch, which the operator promotes or rejects as one unit. The door
-writes each act with its citations in one transaction, and it holds the rules of the data: a
-machine proposes a new entity, a new relation or new attributes and never a change of a name or a
-type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
+the identifier of each item, so a relation names an entity that an earlier item of the same batch
+creates. The items that name each other stay one linked batch. The batch is a group: a label and
+a filter. A rule or the operator decides one unit of it at a time (ADR 0012): an entity with the relations that depend
+on it. The door writes each act with its citations in one transaction, and it holds the rules of the
+data: a machine proposes a new entity, a new relation or new attributes and never a change of a name
+or a type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
 page. A pending act with the same operation, target, payload, sources and role is returned and not
 written again, so a retry or a second run writes no duplicate. The door adds to that act each
-citation that it does not hold yet. Another role is another witness, and its act stays separate.
-The originator does not make a second act, because a model words one party in more than one way:
-the act that waits keeps the originator that it was written with. The cited passage is private:
-the review card reads it through the
-writer, and the public read never shows it. **Cost:** a model that cannot copy a quote word for
-word loses its claim, and an excerpt proves only that the page holds the words.
+citation that it does not hold yet. Another role is another witness, and its act stays separate. The
+originator does not make a second act, because a model words one party in more than one way: the act
+that waits keeps the originator that it was written with. The cited passage is private: the review
+card reads it through the writer, and the public read never shows it. **Cost:** a model that cannot
+copy a quote word for word loses its claim, and an excerpt proves only that the page holds the
+words.
 
 **The MCP server never calls the writer.** The writer signs each act as the operator. A call from an
 AI through the writer would enter the evidence as an operator act that nothing tells apart.
@@ -98,30 +109,58 @@ the operator secret. Its rules override the build rules of the repository, so a 
 never changes code and never commits. It reaches the object store by its address, so the store
 can run on another machine.
 
+## A structured file is mapped by one proposal, and code loads it
+
+A model reads the header and the first rows of a table, and proposes one mapping of its columns.
+The operator promotes it. The promotion writes nothing to the graph: it queues the load. Code
+then reads every row with no model. Each row is a proposal cited by the span of the row, and a
+row and its links are one linked batch, which a rule or the operator decides one unit at a time. A row that
+does not fit is left out, and one report
+document keeps the reason for each. The rows carry the model call of the mapping, because that
+call is the origin of the way the row is read. A new file from the same host with the same header
+takes the accepted mapping, and no model reads it.
+
+**Cost:** only a CSV table is mapped. A link to an entity that the record does not hold is not
+loaded, and the report says so. A mapping that reads a column wrongly shows only in the
+proposals of the rows, which the rules check, and which the operator reads when a rule finds a
+doubt.
+
 ## External sources are reached on demand
 
 - A fetch answers at once and uses no model. It stores the bytes, extracts the text and returns
-  the text in the same turn, because the research needs the page now. An extraction is queued, and
-  the AI follows the job.
+  the text in the same turn, because the research needs the page now. The operator AI proposes the
+  facts of its layer from the stored text, and queues an extraction only when the operator asks
+  for it.
 - **A list of search results is a lead, and it is not stored.** An API answer that lists
   candidates is a search result, also when the query is an identifier. Only the read of one record
   by its identifier, or one page that is fetched, becomes a document.
+- **A page that refuses the server can come from the browser of the operator.** The research AI
+  opens it in the browser on the operator's machine, saves it, and stores the saved file under the
+  address of the page. Its bytes are what the browser held after the scripts of the page ran, not
+  the answer of the server, so its title says that the browser saved it. A page that shows an
+  account of the operator is not saved.
 - The same bytes are stored once.
 - One fetch reads one address. No crawl and no schedule: a person or an AI asks for each fetch.
 
 ## The model transport
 
-- **Every model call goes to the free model gateway.** No paid router is a switch any more.
+- **Every model call goes to OpenRouter, with one paid key.** No other service takes a model call,
+  and no local gateway runs. The code reads one variable, `OPENROUTER_API_KEY`.
 - **A maintained library makes the calls.** The Vercel AI SDK, with its OpenAI-compatible
   provider, replaces a custom client. Both are free and under the Apache 2.0 licence, and the
   versions are pinned exactly. One small adapter holds the rules of the project: the token budget
-  of each job, the network retries with a wait that grows and the wait that the gateway asks for,
+  of each job, the network retries with a wait that grows and the wait that OpenRouter asks for,
   one retry with the fault for an answer of a bad shape, and the stops for credits and for a text
   that is too long. **Cost:** a new dependency that changes often, and a library error that the
   adapter does not know stops the job.
-- **The adapter takes only a model of the free gateway.** The library sends a bare model name to
-  a paid router of its vendor. So the adapter takes no name: it takes only a chat model that the
-  OpenAI-compatible provider made for the gateway, and it refuses a model of any other provider.
+- **The adapter sends the routing rules of the project.** Each call asks OpenRouter for
+  `data_collection` set to `deny`, so a provider must not keep the prompts or train on them. Each
+  call also sets `require_parameters`, so the router picks only a provider that accepts tools and
+  the JSON answer format. **Cost:** fewer providers can serve a model, so a call can fail or cost
+  more.
+- **The adapter takes only a model of OpenRouter.** It takes a chat model that the
+  OpenAI-compatible provider made for OpenRouter, and it refuses a model of any other provider. A
+  model name is a pinned slug such as vendor/model, and never `auto`.
 - **A back-end agent pins one model.** A middleware reads the served model of each answer before
   any tool runs. If it differs from the requested model, the answer is refused. Two models in one
   job make the extraction inconsistent.
@@ -137,7 +176,7 @@ can run on another machine.
   drops an item. The two families are set in the configuration, and the worker does not start
   when they are the same. This check replaces the blind second reading, which wrote rows that
   nothing read. **Cost:** one more call for each passage, from the same token budget, and the
-  operator must keep two models of two families available on the gateway.
+  operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
   left running. The operator queues a failed document again by hand. A job that runs again writes
@@ -165,9 +204,7 @@ code writes its proposals.
 - **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
   it needs. The token budget of the job is its one stop, and the job fails with that reason. The
   pages stored before the stop stay stored.
-- **The lead is private.** Its text can name a party before a source supports it. Only the
-  operator reads the leads and what each one stored. The worker reads the text of the one lead
-  that it claims, and the research AI gets only the job id of a lead that it starts.
+- **The lead is private.** Its text can name a party before a source supports it. Only the operator and the operator AI (through the MCP server) read the leads and what each one stored. The worker reads the text of the one lead that it claims.
 - **No schedule.** A person or the research AI starts each lead.
 
 **Cost:** the agent reads only the start of each page, so it can miss a page that a long document
@@ -183,13 +220,10 @@ on 6 October 2026. The chat feature builds its store again.
 
 ## Consequences
 
-- **A claim that the rule promotes is a claim that no person read.** The dataset must tell this for
-  each claim, and the agents share their blind spots. No accuracy rate is defensible without an
-  audit sample.
-- The rule is only as good as the checks and the audit of ADR 0011. A change that lets a model
-  write a rating, a state or an audit label reopens ADR 0011.
-- The free gateway has no service level. The pinned model and a failure that shows its reason
-  contain this risk. They do not remove it. A spent quota fails each job until the gateway has
-  quota again, and the operator queues the documents again.
-- Two support services are added: the model gateway and a metasearch engine. They hold no record of
-  the project and listen on a private address only.
+- **Named rules in the database decide most units, and the operator reads only the doubts**
+  (ADR 0012). A model gives the letter of an author, and never a state or a verdict.
+- OpenRouter has no service level of its own. A provider can fail, and the pinned model and a
+  failure that shows its reason contain this risk. They do not remove it. A spent credit balance
+  fails each job with a clear reason. The operator adds credit and queues the documents again.
+- One support service is added: a metasearch engine. It holds no record of the project and listens
+  on a private address only. The model service is external, and it sees the text of each document.

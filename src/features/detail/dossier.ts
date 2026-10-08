@@ -1,8 +1,10 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
+import { deciderWords } from '@/shared/decider-words';
+import { proposerWords } from '@/shared/proposer-words';
+import type { DecidedAct } from '@/shared/read/decided-acts';
 import type {
-  AuthorRole,
   Corpus,
   DocId,
   DocumentRow,
@@ -12,20 +14,16 @@ import type {
   Relation,
   TypeVocabulary,
 } from '@/shared/read/model';
-
-import { readBand, readRating } from '@/shared/read/rating';
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
 
-/** One cited document, at the position it was first met. The badge is a number and not a score:
- * one score repeated on twenty claims reads as a score for each claim. */
+/** One cited document, at the position it was first met. The badge is a number. */
 export interface SourceRef {
   readonly id: DocId;
   /** 1-based, and the position in the page order. */
   readonly number: number;
-  /** The accessible name of the mark: `Source 7 — <title>`. It says which document (M8) and no
-   * more: a score here repeats once for each claim the document holds up. */
+  /** The accessible name of the mark: `Source 7 — <title>`. It says which document (M8). */
   readonly name: string;
 }
 
@@ -39,16 +37,6 @@ export interface SourceCardModel {
   readonly id: DocId;
   readonly number: number;
   readonly title: string;
-  /** Invariant 6: false only when the rating and its origin are both absent. */
-  readonly rated: boolean;
-  /** `not rated` when it is not rated. Never a dash, never `0`. */
-  readonly score: string;
-  readonly scoreOrigin: string;
-  /** A low letter or a high figure. The hue marks this, and never the absence of a rating. */
-  readonly poor: boolean;
-  /** What the card stands for, in one word: `missing`, a rating, `not rated`, or
-   * `rating incomplete`. A check reads this, and the hue alone never says it. */
-  readonly band: string;
   readonly uri: string | null;
   readonly uriShort: string | null;
   readonly retrievedAt: string | null;
@@ -79,10 +67,8 @@ export interface PendingLine {
   readonly id: string;
   readonly summary: string;
   readonly dissent: boolean;
-  /** Already formatted, and a sentence where the act states none. A `.tsx` here calls no
-   * `toFixed`. */
-  readonly confidence: string;
-  readonly origin: 'machine' | 'operator';
+  /** Who proposed the act, in the words of the review. */
+  readonly origin: string;
   readonly sources: readonly SourceRef[];
 }
 
@@ -120,6 +106,9 @@ export interface Dossier {
    * or null at its own point. The panel draws no canvas, so these words are the only place it
    * can state a borrowed position. */
   readonly positionFrom: string | null;
+  /** Who promoted the entity into the record, how and on which day. Null when the read of
+   * the decided acts does not hold its promotion. */
+  readonly decision: string | null;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
   readonly sources: readonly SourceCardModel[];
@@ -143,12 +132,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   update_relation: 'Changes a relation',
   delete_relation: 'Deletes a relation',
   merge_entities: 'Merges entities',
-};
-
-const ORIGIN_WORDS: Readonly<Record<AuthorRole, PendingLine['origin']>> = {
-  gabriel_agent: 'machine',
-  gabriel_research: 'machine',
-  gabriel_app: 'operator',
+  map_document: 'Maps the columns of a table',
 };
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
@@ -185,16 +169,10 @@ function cardOf(
   row: DocumentRow | undefined,
   holdsUp: readonly ClaimLine[],
 ): SourceCardModel {
-  const rating = readRating(row);
   return {
     id: ref.id,
     number: ref.number,
     title: titleOf(ref.id, row),
-    rated: rating.rated,
-    score: rating.score,
-    scoreOrigin: rating.scoreOrigin,
-    poor: rating.poor,
-    band: readBand(row),
     uri: row?.uri ?? null,
     uriShort: shorten(row?.uri ?? null),
     retrievedAt: row?.retrievedAt ?? null,
@@ -273,7 +251,23 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
   );
 }
 
-export function readDossier(read: Corpus, entityId: string, types: TypeVocabulary): Dossier | null {
+// The day is written in UTC, so two analysts in two zones read one day.
+function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
+  const promotion = decided.find((held) => held.act.id === entityFrom);
+  if (promotion === undefined) return null;
+  const how = deciderWords(promotion.decidedAs, promotion.decisionOrigin, 'accepted');
+  const day = new Date(promotion.decidedAt);
+  const on = Number.isNaN(day.getTime()) ? promotion.decidedAt : day.toISOString().slice(0, 10);
+  const said = `${how.slice(0, 1).toUpperCase()}${how.slice(1)}`;
+  return promotion.decidedAs === 'group' ? `${said}, on ${on}` : `${said} on ${on}`;
+}
+
+export function readDossier(
+  read: Corpus,
+  entityId: string,
+  types: TypeVocabulary,
+  decided: readonly DecidedAct[],
+): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
 
@@ -362,6 +356,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
       case 'create_entity':
       case 'update_entity':
       case 'delete_entity':
+      case 'map_document':
         return false;
     }
   };
@@ -369,10 +364,6 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
-      // THIS LINE STATES NO VERDICT ON WHY THE ACT WAITS. The threshold that sends an act to
-      // review is calibrated on real data, and no path carries one to the browser, so a figure
-      // written here would settle an open question in code.
-      const stated = proposal.confidence;
       const head = OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
@@ -380,8 +371,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
         id: proposal.id,
         summary: body,
         dissent: proposal.dissent,
-        confidence: stated === null ? 'no confidence is stated' : stated.toFixed(2),
-        origin: ORIGIN_WORDS[proposal.authorRole],
+        origin: proposerWords(proposal.proposer),
         sources: refsOf(proposal.src),
       };
     });
@@ -420,6 +410,7 @@ export function readDossier(read: Corpus, entityId: string, types: TypeVocabular
     proposedType: entity.proposedType,
     drawnOnMap: (at?.point ?? null) !== null,
     positionFrom,
+    decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,
     sources,

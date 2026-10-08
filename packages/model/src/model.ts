@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 import type { Budget } from './budget.ts';
 import { failureOf, REASON, sentenceOf, type Failure, type ReasonKind } from './failure.ts';
-import { GATEWAY } from './gateway.ts';
+import { PROVIDER } from './openrouter.ts';
 import { refusalOf } from './refusal.ts';
 
 // Origin of the numbers: decided, not calibrated. The transport gets one attempt and three retries,
@@ -146,7 +146,7 @@ interface Run {
   served: string | undefined;
 }
 
-// What the middleware heard in one call, as the gateway sent it.
+// What the middleware heard in one call, as the router sent it.
 interface Heard {
   said?: Said;
 }
@@ -187,6 +187,18 @@ const again = (kind: ReasonKind, why: string, afterMs?: number): Step => ({
 type Tried<T> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly failure: Failure };
 
+// OpenRouter can name the served model with a date or a variant, such as `-20250514` or `:nitro`,
+// where the pinned name has none. Those two names are one model. Any other difference is another
+// model, and the answer is refused.
+const baseName = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/:[^/:]+$/u, '')
+    .replace(/-(?:\d{8}|\d{4}-\d{2}-\d{2})$/u, '');
+
+const sameModel = (served: string | undefined, pinned: string): boolean =>
+  served !== undefined && baseName(served) === baseName(pinned);
+
 // The middleware sees each answer before the library reads it. It counts the tokens first,
 // because a refused answer costs tokens too. It judges the served model next: another model made
 // the answer, and nothing of it is kept, so no tool runs on it.
@@ -203,7 +215,8 @@ const middlewareOf = (pinned: string, run: Run, heard: Heard): LanguageModelMidd
     run.budget.add((input ?? 0) + (output ?? 0));
 
     run.served = result.response?.modelId;
-    if (run.served !== pinned) throw new Stopped(REASON.servedOther, run.served ?? 'no model');
+    if (!sameModel(run.served, pinned))
+      throw new Stopped(REASON.servedOther, run.served ?? 'no model');
     if (result.finishReason.unified === 'length') throw new Stopped(REASON.truncated);
     if (result.finishReason.unified === 'content-filter') throw new Stopped(REASON.refused);
 
@@ -314,7 +327,7 @@ const wireOf = (message: Message): ModelMessage => {
   return { role: message.role, content: message.content };
 };
 
-// A gateway refuses an assistant message with tool calls that has no answer for each call, so a
+// A router refuses an assistant message with tool calls that has no answer for each call, so a
 // bad call is answered on the tool role, one message for each call.
 const retryAfter = (said: Said, issues: string): readonly Message[] => {
   if (said.calls.length === 0)
@@ -338,8 +351,12 @@ type Settled<T> =
   { readonly kind: 'value'; readonly value: T } | { readonly kind: 'call'; readonly call: ToolUse };
 
 // The model answers with JSON text, and the shape of the caller judges the value.
+// Some models put a JSON answer in a Markdown code fence although the request asks for JSON. The
+// fence is not part of the answer, so code removes it before the read.
+const FENCED = /^```[a-z]*[^\S\n]*\n([\s\S]*?)\n?```$/iu;
+
 const judged = <T>(shape: z.ZodType<T>, text: string): Judged<T> => {
-  const read = asJson(text);
+  const read = asJson(FENCED.exec(text.trim())?.[1] ?? text);
   if (!read.ok) return { ok: false, issues: 'the answer is not JSON text' };
   const held = shape.safeParse(read.value);
   return held.success
@@ -381,15 +398,15 @@ const toolSetOf = (tools: readonly Tool[]): ToolSet =>
     tools.map((one) => [one.name, tool({ description: one.description, inputSchema: one.input })]),
   );
 
-/** The one way to reach a model. It takes only a chat model of the free-model gateway, so no
- * call can go to a paid router. */
+/** The one way to reach a model. It takes only a chat model of OpenRouter, so no call can go to
+ * another provider. */
 export const openModel = (
   model: OpenAICompatibleChatLanguageModel,
   given: ModelLine,
   options: ModelOptions,
 ): Model => {
-  if (model.provider !== `${GATEWAY}.chat`)
-    throw new Error('the adapter takes a model of the free-model gateway only');
+  if (model.provider !== `${PROVIDER}.chat`)
+    throw new Error('the adapter takes a model of OpenRouter only');
   const settings = checkLine(given);
   const pinned = model.modelId;
   const sleep =

@@ -33,14 +33,16 @@ const PROPOSAL_ROW = {
   src: ['doc_8f2a41'],
   names: [],
   prior_value: null,
-  confidence: 0.41,
   dissent: false,
   author_role: 'gabriel_agent',
+  proposer: 'extractor',
   model_call_id: null,
   status: 'pending',
   created_at: '2026-08-25T03:25:13.734752+00:00',
   decided_at: null,
   decided_by: null,
+  decided_as: null,
+  decision_origin: null,
   batch_id: null,
 };
 
@@ -272,12 +274,10 @@ test('an act on the name or the type keeps the columns it replaced as a row', ()
     status: 'accepted',
     decided_at: '2026-08-25T03:30:00+00:00',
     decided_by: 'the writer door',
+    decided_as: null,
+    decision_origin: null,
   };
   expect(toDomain.proposal(row).priorValue).toStrictEqual({ kind: 'row', row: prior });
-});
-
-test('an act that states no confidence survives the mapper', () => {
-  expect(toDomain.proposal({ ...PROPOSAL_ROW, confidence: null }).confidence).toBeNull();
 });
 
 const DOCUMENT_ROW = {
@@ -289,8 +289,6 @@ const DOCUMENT_ROW = {
   sha256: null,
   mime: null,
   retrieved_at: '2026-06-02',
-  admiralty: 'A1',
-  admiralty_origin: 'human',
   created_at: '2026-08-25T03:25:13.270163+00:00',
   cost_eur: null,
 };

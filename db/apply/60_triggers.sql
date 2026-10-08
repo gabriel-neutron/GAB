@@ -29,6 +29,16 @@ CREATE OR REPLACE TRIGGER proposals_src_exists
   BEFORE INSERT ON proposals
   FOR EACH ROW EXECUTE FUNCTION proposals_src_exists_fn();
 
+-- The unit of decision of each act, read from the acts that wait at the insert.
+CREATE OR REPLACE TRIGGER proposals_stamp_unit
+  BEFORE INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION stamp_unit();
+
+-- The key of the claim of each act, to find a claim that was rejected before.
+CREATE OR REPLACE TRIGGER proposals_stamp_claim
+  BEFORE INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION stamp_claim_key();
+
 -- The log is append-only.
 CREATE OR REPLACE TRIGGER proposals_append_only
   BEFORE UPDATE OR DELETE ON proposals
@@ -43,6 +53,34 @@ CREATE OR REPLACE TRIGGER model_call_append_only
 CREATE OR REPLACE TRIGGER citation_append_only
   BEFORE UPDATE OR DELETE ON citation
   FOR EACH ROW EXECUTE FUNCTION citation_append_only_fn();
+
+-- A letter, a name of an author and a check by a second model are written once.
+CREATE OR REPLACE TRIGGER author_append_only
+  BEFORE UPDATE OR DELETE ON author
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+CREATE OR REPLACE TRIGGER author_name_append_only
+  BEFORE UPDATE OR DELETE ON author_name
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+CREATE OR REPLACE TRIGGER act_check_append_only
+  BEFORE UPDATE OR DELETE ON act_check
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+
+-- A new author name gets a job that rates it.
+CREATE OR REPLACE TRIGGER proposals_rate_author
+  AFTER INSERT ON proposals
+  FOR EACH ROW EXECUTE FUNCTION enqueue_author_rating();
+
+-- A budget of the deepening search that rises from zero sends the units that wait through the
+-- rules again.
+CREATE OR REPLACE TRIGGER rule_config_budget_rises
+  AFTER UPDATE OF settings ON rule_config
+  FOR EACH ROW WHEN (NEW.rule = 'weak_sources')
+  EXECUTE FUNCTION rerun_on_budget();
+
+-- The approval of a reference author is written once.
+CREATE OR REPLACE TRIGGER reference_approval_append_only
+  BEFORE UPDATE OR DELETE ON reference_approval
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
@@ -69,9 +107,17 @@ CREATE OR REPLACE TRIGGER relation_type_interval
 
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_unit;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_claim;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
+ALTER TABLE author ENABLE ALWAYS TRIGGER author_append_only;
+ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
+ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
+ALTER TABLE reference_approval ENABLE ALWAYS TRIGGER reference_approval_append_only;
+ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_rate_author;
+ALTER TABLE rule_config ENABLE ALWAYS TRIGGER rule_config_budget_rises;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_interval;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;

@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { RawObject } from '@gab/store';
-import { extractText } from '@gab/text';
+import { extractText, mimeOfFileName } from '@gab/text';
 
 import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
 
@@ -12,17 +12,6 @@ import { DEFAULT_INCLUDE, type WalkOptions } from './ingest-walk.ts';
 // better extractor writes a new set beside the old one under a new word. This word names the
 // extractor of today.
 const EXTRACTOR = 'text-1';
-
-// External constraint: the types that extractText reads, by the extension that a file name holds.
-// A name with another extension names no type, and the file is refused before any write.
-const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
-  '.pdf': 'application/pdf',
-  '.html': 'text/html',
-  '.htm': 'text/html',
-  '.txt': 'text/plain',
-  '.md': 'text/markdown',
-  '.csv': 'text/csv',
-};
 
 const KINDS = ['file', 'report'] as const;
 type Kind = (typeof KINDS)[number];
@@ -139,8 +128,9 @@ const UNIQUE_VIOLATION = '23505';
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'the file was not taken';
 
-/** A file that this door does not take: no type is read from its name, or its text cannot be
- * read. Nothing was written when it is raised. Every other fault is a fault of a service. */
+/** A file that this door does not take: no type is read from its name, its text cannot be read,
+ * or it is an image with no text. Nothing was written when it is raised. Every other fault is a
+ * fault of a service. */
 export class RefusedFile extends Error {}
 
 /** One file to store, with every field its row records. */
@@ -217,10 +207,25 @@ const writeRow = async (
 };
 
 /** The type that a file name names, or nothing. */
-const mimeOf = (fileName: string): string | undefined =>
-  MIME_BY_EXTENSION[extname(fileName).toLowerCase()];
+const mimeOf = (fileName: string): string | undefined => mimeOfFileName(basename(fileName));
 
 const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+// The text is read before any write, so a file that holds none that can be read leaves no object
+// behind. An image with no text gives nothing to cite, and an excerpt could never be checked on it.
+const pagesOf = async (bytes: Uint8Array, mime: string): Promise<readonly string[]> => {
+  let pages: readonly string[];
+  try {
+    ({ pages } = await extractText(bytes, mime));
+  } catch (error) {
+    throw new RefusedFile(`the text of the file cannot be read: ${reasonOf(error)}`, {
+      cause: error,
+    });
+  }
+  if (mime.startsWith('image/') && pages.every((page) => page.trim() === ''))
+    throw new RefusedFile('OCR read no text in the image, so it holds nothing to cite');
+  return pages;
+};
 
 /** Store the bytes once: the hash, the known check, the text, the object, then the row and its
  * text. It raises RefusedFile before any write for a file it does not take. */
@@ -236,16 +241,7 @@ export const storeBytes = async (
   const known = idOfRow((await session.query(LOOKUP, [sha256])).rows);
   if (known !== undefined) return { status: 'known', id: known, sha256 };
 
-  // The text is read before any write, so a file that holds none that can be read leaves no
-  // object behind.
-  let pages: readonly string[];
-  try {
-    ({ pages } = await extractText(file.bytes, mime));
-  } catch (error) {
-    throw new RefusedFile(`the text of the file cannot be read: ${reasonOf(error)}`, {
-      cause: error,
-    });
-  }
+  const pages = await pagesOf(file.bytes, mime);
   const emptyPages = pages.flatMap((page, at) => (page.trim() === '' ? [at + 1] : []));
 
   // The key holds the hash alone. A file name can hold any character, and the title keeps it.
@@ -297,7 +293,7 @@ const ingestOne = async (
   const isKnown = seen.has(sha256) || (await session.query(LOOKUP, [sha256])).rows.length > 0;
   if (isKnown) return { path, status: 'known', id, sha256 };
 
-  const { pages } = await extractText(bytes, mime);
+  const pages = await pagesOf(bytes, mime);
   const emptyPages = pages.flatMap((page, at) => (page.trim() === '' ? [at + 1] : []));
   seen.add(sha256);
   return { path, status: 'stored', id, sha256, pageCount: pages.length, emptyPages };

@@ -49,3 +49,8 @@ npm-debug.log*
 
 # The report that a run of pnpm worker ingest writes where it starts
 ingest-report.json
+
+# The notes, the list of needs and the files that a browser saved for a research session. They
+# stay on the machine of the operator.
+research/out/
+research/inbox/

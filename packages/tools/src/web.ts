@@ -1,4 +1,4 @@
-// The only place where a surface opens a socket to the web for a search. A redirect is handed back
+// The only place where a surface opens a socket to the web for a tool. A redirect is handed back
 // and never followed, because a public host that redirects to a private address turns a fetch
 // against the machine. The hosts asked are constants of the tools.
 
@@ -44,9 +44,15 @@ const bodyOf = async (response: Response, maxBytes: number): Promise<string> => 
 export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
   const searxngUrl = given(env['SEARXNG_URL']);
   const braveKey = given(env['BRAVE_SEARCH_API_KEY']);
+  const companiesHouseKey = given(env['COMPANIES_HOUSE_API_KEY']);
+  const openSanctionsKey = given(env['OPENSANCTIONS_API_KEY']);
+  const gfwToken = given(env['GFW_API_TOKEN']);
   return {
     ...(searxngUrl === undefined ? {} : { searxngUrl }),
     ...(braveKey === undefined ? {} : { braveKey }),
+    ...(companiesHouseKey === undefined ? {} : { companiesHouseKey }),
+    ...(openSanctionsKey === undefined ? {} : { openSanctionsKey }),
+    ...(gfwToken === undefined ? {} : { gfwToken }),
     get: async (url, request) => {
       const response = await fetcher(url, {
         method: 'GET',

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@gab/model": "workspace:*",
+    "@gab/proposal": "workspace:*",
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
     "@gab/tools": "workspace:*",

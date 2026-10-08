@@ -14,15 +14,13 @@ interface Turned {
   readonly refusal: string;
 }
 
-// External constraint: the writer listens on 127.0.0.1:5177, and the proxy of the development
-// server keeps the Host of the browser page, which is on port 5173. No other name is this writer.
-const OWN_HOSTS: ReadonlySet<string> = new Set([
-  '127.0.0.1:5177',
-  'localhost:5177',
-  '127.0.0.1:5173',
-  'localhost:5173',
-]);
-const OWN_ORIGINS: ReadonlySet<string> = new Set([...OWN_HOSTS].map((host) => `http://${host}`));
+// External constraint: the writer listens on 127.0.0.1:5177. The proxy of the development server
+// sends the Host of the writer, and the browser sends the Origin of the page, which is on port
+// 5173. No other name is this writer, and no other page is this site.
+const OWN_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1:5177', 'localhost:5177']);
+const OWN_ORIGINS: ReadonlySet<string> = new Set(
+  [...OWN_HOSTS, '127.0.0.1:5173', 'localhost:5173'].map((host) => `http://${host}`),
+);
 
 const mediaOf = (header: string | null): string => (header ?? '').split(';')[0]?.trim() ?? '';
 

@@ -4,10 +4,14 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
-import { decide, decideBatch } from './decide.ts';
+import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
+import { promoteGroup } from './group-action.ts';
+import { readDocumentImage, type ObjectReader } from './image.ts';
 import { readLeads, startLead } from './lead.ts';
-import { readPassages } from './passages.ts';
+import { readReviewDecided } from './review-decided.ts';
+import { readReviewGroup, readReviewGroups } from './review-groups.ts';
+import { readReviewUnits } from './review-units.ts';
 import type { Sessions } from './pool.ts';
 import { sign } from './sign.ts';
 import { uploadDocument, type ObjectDoor } from './upload.ts';
@@ -37,18 +41,49 @@ const capped = (maxSize: number) =>
     onError: (context) => context.json({ refusal: TOO_LARGE }, PAYLOAD_TOO_LARGE),
   });
 
-/** The doors of the operator, and three private reads: the status of the jobs of a document,
- * the passages that the acts cite, and the leads. The public read never shows any of them. */
-export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
+/** The doors of the operator, and the private reads: the status of the jobs of a document,
+ * the page of the review queue with its cited passages, the groups of the queue, the decided acts
+ * with the reasons of the rejections, the image of a cited document, and the leads. The public
+ * read never shows any of them. */
+export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
   app.use('/write/*', admitOwnSiteJson());
   app.use('/private/*', admitOwnSiteJson());
 
-  // The text of a document is private, so the passage that an act cites reaches the review card
-  // through the writer and never through the public read API.
-  app.post('/private/passages', capped(LARGEST_BODY_BYTES), async (context) => {
-    const read = await readPassages(pool, await context.req.text());
+  // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
+  // reaches the review page through the writer, one page at a time.
+  app.post('/private/review-units', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readReviewUnits(pool, await context.req.text());
     return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // The rail of the groups and the units of one group read the faults, which are private too.
+  app.post('/private/review-groups', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readReviewGroups(pool);
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  app.post('/private/review-group', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readReviewGroup(pool, await context.req.text());
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // A rejection keeps a reason and a note that only the operator reads.
+  app.post('/private/review-decided', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readReviewDecided(pool, await context.req.text());
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // The raw store is private, so a cited image reaches the review page through the writer. The
+  // browser must draw the bytes as the image type of the row and never sniff another type.
+  app.post('/private/document-image', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readDocumentImage(pool, reader, await context.req.text());
+    if (read.outcome !== 'done') return context.json(read.reply, STATUS[read.outcome]);
+    return context.body(read.image.bytes, STATUS.done, {
+      'Content-Type': read.image.mime,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store',
+    });
   });
 
   // The text of a lead can name a party before any source supports it, so it stays private.
@@ -69,17 +104,16 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor): Hono => {
       return context.json(act.reply, STATUS[act.outcome]);
     });
 
-  // A decision writes no proposal: it names one that waits, and it opens the promotion door of
-  // the record or the rejection door.
+  // A decision writes no proposal: it names a unit that waits, or one relation of it.
   for (const op of DECISION_OPS)
     app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await decide(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
 
-  // The acts of a linked batch name each other, so the operator decides them as one unit.
-  app.post('/write/decide-batch', capped(LARGEST_BODY_BYTES), async (context) => {
-    const act = await decideBatch(pool, await context.req.text());
+  // The group action names the units that the screen showed, and it answers for each one.
+  app.post('/write/promote-group', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await promoteGroup(pool, await context.req.text());
     return context.json(act.reply, STATUS[act.outcome]);
   });
 

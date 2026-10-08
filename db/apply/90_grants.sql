@@ -32,8 +32,8 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public
 -- Audit arm 4 proves that the list is still complete after the next migration.
 GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
   relations, jobs TO gabriel_app;
-GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
-  relations TO gabriel_agent;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, entities, relations
+  TO gabriel_agent;
 -- THE TEXT OF A LEAD IS PRIVATE, ALSO FROM THE WORKER. The worker reads the text of the lead that it
 -- claims through the claim door, so its read of the queue leaves out the text and its author. A
 -- process that reads untrusted web content then cannot read the other leads of the operator.
@@ -43,8 +43,17 @@ GRANT SELECT (id, document_id, kind, status, failure_reason, claimed_by, claimed
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
 -- column that a tool has no use for.
-GRANT SELECT ON documents, document_provider, entity_type, relation_type, proposals, entities,
-  relations TO gabriel_research;
+GRANT SELECT ON documents, document_provider, entity_type, relation_type, entities, relations
+  TO gabriel_research;
+
+-- THE REASON AND THE NOTE OF A REJECTION ARE THE OPERATOR'S. They can name a party or quote a
+-- page, and a machine role reads untrusted text, so the two machine roles read every column of
+-- an act except these two. A new column of the table needs its own line here.
+GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, dissent,
+  author_role, xact, status, created_at, decided_at, decided_by, model_call_id, act_digest,
+  originator, batch_id, dissent_reason, unit_id, proposer, decided_as, claim_key,
+  decision_origin) ON proposals
+  TO gabriel_agent, gabriel_research;
 
 -- THE TEXT OF A DOCUMENT IS PRIVATE. Both roles that read a document read its text, and
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
@@ -64,18 +73,37 @@ GRANT SELECT ON citation TO gabriel_app;
 -- The doors, and nothing else.
 REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_batch(jsonb)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_model_call(text,text,text,text,text,int,text,uuid,text,int,int)
   FROM PUBLIC;
-REVOKE ALL ON FUNCTION promote_proposal(uuid,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION apply_proposal(uuid,text)   FROM PUBLIC;
-REVOKE ALL ON FUNCTION refuse_batch_act(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_proposal(uuid,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_proposal_as(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
+REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
+REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
+REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
+REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION write_unit_as(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
+REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION reject_proposal(uuid,text)  FROM PUBLIC;
-REVOKE ALL ON FUNCTION decide_batch(uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
+REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_load_report(uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION uri_host(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
@@ -86,6 +114,38 @@ REVOKE ALL ON FUNCTION record_lead_document(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION lead_jobs()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION runner_settings()           FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
+REVOKE ALL ON FUNCTION author_append_only_fn()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION author_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION held_name(text)               FROM PUBLIC;
+REVOKE ALL ON FUNCTION new_author(text,text,text,text,text[],text,boolean,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
+REVOKE ALL ON FUNCTION rating_context(text)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_author_rating()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION site_of(text)               FROM PUBLIC;
+REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
+REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION rule_of_faults(uuid,jsonb)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_said(uuid,text)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
+REVOKE ALL ON FUNCTION run_rules(uuid[])           FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_job(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION start_deepening(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
@@ -106,16 +166,19 @@ GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,d
   TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
-GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],numeric,boolean,uuid)
+GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_research;
-GRANT EXECUTE ON FUNCTION promote_proposal(uuid,text) TO gabriel_app;
+-- THE DECISION ON A UNIT, OR ON ONE RELATION OF IT. Only the operator holds it: that grant is
+-- the rule "a machine proposes, only the operator promotes".
+GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION reject_proposal(uuid,text)  TO gabriel_app;
--- The decision on a linked batch is a promotion and a rejection, so the operator alone holds it.
-GRANT EXECUTE ON FUNCTION decide_batch(uuid,text,text) TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
@@ -130,6 +193,13 @@ GRANT EXECUTE ON FUNCTION record_model_call(text,text,text,text,text,int,text,uu
   TO gabriel_agent;
 
 GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
+
+-- THE THREE DOORS OF A MAPPED FILE ARE gabriel_agent ALONE. The mapper proposes the mapping of a
+-- table, or queues the load of a file under a mapping that the operator already promoted. The
+-- loader stores the report of the rows it excluded. None of them writes the graph.
+GRANT EXECUTE ON FUNCTION propose_mapping(text,jsonb,uuid) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text)   TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION put_load_report(uuid,text,text,text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
@@ -143,12 +213,50 @@ GRANT EXECUTE ON FUNCTION start_lead(text)         TO gabriel_app, gabriel_resea
 GRANT EXECUTE ON FUNCTION record_lead_document(uuid,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION lead_jobs()              TO gabriel_app;
 
+-- THE QUEUE OF THE REVIEW IS gabriel_app ALONE. It holds the cited passages, the reason of each
+-- dispute and the reason and the note of each rejection, and only the operator reads them.
+REVOKE ALL ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_units(text[],int,uuid,text,text,text,text,uuid,text) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_groups()             FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_groups() TO gabriel_app;
+REVOKE ALL ON FUNCTION review_group(uuid)          FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_group(uuid) TO gabriel_app;
+REVOKE ALL ON FUNCTION review_decided(timestamptz,uuid,int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION review_decided(timestamptz,uuid,int) TO gabriel_app;
+
 -- THE STATUS READ IS gabriel_app AND gabriel_research. The writer shows the operator the work on
 -- a document, and the research AI follows the extraction that it queued. The door returns a count
 -- of proposals and no row of a model call. The public read holds no door of the queue.
 REVOKE ALL ON FUNCTION document_jobs(text)         FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION document_jobs(text)      TO gabriel_app, gabriel_research;
 GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
+
+-- THE LETTER OF AN AUTHOR IS AN INPUT. The worker writes it through two doors: a new author with a
+-- letter from C to F, and a new name of a known author. The operator writes the reference set
+-- through a third door, and reads a letter. The worker reads no letter. The public read role
+-- holds no grant on a letter, and no view of the api schema shows one.
+GRANT EXECUTE ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean)
+  TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION join_author_name(text,text) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean)
+  TO gabriel_app;
+GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
+-- THE OPERATOR APPROVES THE REFERENCE SET, AND THE WORKER CANNOT. The worker reads the context of
+-- one name (the known authors and the approved set) and gives C to F through the door above. No
+-- grant here lets the worker role give a letter A or B, or approve a set.
+GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
+GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
+GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
+
+-- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
+-- check call the function of the rules inside the database, so it holds no grant. The operator
+-- role reads which rule matches a unit, and the read decides nothing.
+GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
+-- The extractor runs the check by a second model family. The check for a proposal of the research
+-- session is a separate ticket (spec 369). The worker reads no check and no digit.
+GRANT EXECUTE ON FUNCTION record_act_check(uuid,text,text,text,text) TO gabriel_agent;
 
 -- THE FOUR ENDS OF THE QUEUE, AND THEY ARE HELD BY DIFFERENT ROLES.
 --
@@ -160,7 +268,7 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 -- bytes.
 --
 -- ONE PROCESS HOLDS ONE SECRET, and that is what carries the claim. A worker that held the
--- gabriel_app secret to claim would also hold put_document, promote_proposal and reject_proposal,
+-- gabriel_app secret to claim would also hold put_document and the doors that decide a unit,
 -- which is the whole operator surface, inside the one process that runs a model over untrusted
 -- text. So the claim goes to the narrower secret, which is the one that cannot sign as the
 -- operator. The claim door itself signs nothing; a trigger stamps the taker from session_user.

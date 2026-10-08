@@ -2,7 +2,7 @@ import { checkLine, checkTokenCap, pinnedName, type ModelLine } from '@gab/model
 
 import { checkChunkCap } from './chunk.ts';
 
-/** One pinned model of the free-model gateway, its family, and how the adapter reaches it. */
+/** One pinned model of OpenRouter, its family, and how the adapter reaches it. */
 export interface ModelConfig {
   readonly model: string;
   /** The family of the model. A check by a model of the same family shares its blind spots. */
@@ -29,6 +29,23 @@ export interface LeadConfig {
   /** The pinned model that chooses the searches and the pages. */
   readonly model: ModelConfig;
   /** The tokens that one lead may spend. A lead has no page limit, so this is its one stop. */
+  readonly tokenCap: number;
+}
+
+/** What the operator sets for the mapper. */
+export interface MapperConfig {
+  /** The pinned model that maps the columns of a table. */
+  readonly model: ModelConfig;
+  /** The tokens that one mapping may spend. */
+  readonly tokenCap: number;
+}
+
+/** What the operator sets for the rating of authors, and for the build of the reference set. */
+export interface RaterConfig {
+  /** The strongest pinned model that OpenRouter gives. It builds the reference set once, and it
+   * rates each new author name. */
+  readonly model: ModelConfig;
+  /** The tokens that one rating, or one build of the set, may spend. */
   readonly tokenCap: number;
 }
 
@@ -124,3 +141,17 @@ export const readLeadConfig = (env: Env): LeadConfig => {
     );
   return { model: readModelConfig('EXTRACTOR', env), tokenCap };
 };
+
+/** Reads the configuration of the mapper. It throws a sentence that names the variable when a
+ * value is absent, blank or wrong. */
+export const readMapperConfig = (env: Env): MapperConfig => ({
+  model: readModelConfig('MAPPER', env),
+  tokenCap: checked('MAPPER_TOKEN_CAP', () => checkTokenCap(numberOf(env, 'MAPPER_TOKEN_CAP'))),
+});
+
+/** Reads the configuration of the rater. It throws a sentence that names the variable when a
+ * value is absent, blank or wrong. */
+export const readRaterConfig = (env: Env): RaterConfig => ({
+  model: readModelConfig('RATER', env),
+  tokenCap: checked('RATER_TOKEN_CAP', () => checkTokenCap(numberOf(env, 'RATER_TOKEN_CAP'))),
+});

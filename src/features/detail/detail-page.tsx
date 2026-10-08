@@ -185,6 +185,12 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               </span>
             )}
           </h1>
+          {/* Each public claim says who decided it. */}
+          {dossier.decision === null ? null : (
+            <span className="shrink-0 text-small/4 text-label" data-decision="">
+              {dossier.decision}
+            </span>
+          )}
           <div className="ml-auto flex shrink-0 items-center gap-3">
             {/* The map link is drawn only where the map draws the entity. A link that opens a
                 surface which then selects nothing states a position the record does not hold. */}

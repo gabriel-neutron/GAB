@@ -96,7 +96,8 @@ function MapRoute() {
   // A stale identifier gives `null`, the route composes no sidebar, and the canvas keeps the full
   // width. There is no "not found" screen here: the map is still the answer. The read is memoised
   // because every other render of this route would otherwise walk the whole corpus again.
-  const dossier = useMemo(() => readDossier(corpus, entity, types), [corpus, entity, types]);
+  // The side panel names no decision, so it reads no history: the entity page does.
+  const dossier = useMemo(() => readDossier(corpus, entity, types, []), [corpus, entity, types]);
 
   const chosen = useMemo(() => readRelation(corpus, relation), [corpus, relation]);
 

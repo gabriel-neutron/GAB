@@ -1,7 +1,8 @@
-// The requests that change the record. The address, the method, the headers, the status codes
-// and the shape of the answer stay inside; a caller names an act and the body it carries.
+// The requests to the writer: the acts that change the record, and the read of the stored bytes
+// of a document. The address, the method, the headers, the status codes and the shape of the
+// answer stay inside; a caller names an act and the body it carries.
 
-import { type BatchVerdict, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
+import { type Decision, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import type { WriteResult } from './write-state';
@@ -28,8 +29,26 @@ const UNCONFIRMED = 'The write service did not confirm the act, and the act may 
 
 const signed = z.object({ proposalId: z.string(), targetId: z.string() });
 
-// A decision answers no row that the screen reads, so its done step carries nothing.
-const decided = z.object({ state: z.literal('decided') }).transform(() => ({}));
+/** What a decision wrote or rejected, as the record names it: the unit, or the one relation, and
+ * the count of its entities, relations and other acts. */
+export interface Written {
+  readonly name: string;
+  readonly entities: number;
+  readonly relations: number;
+  readonly others: number;
+}
+
+const decided = z
+  .object({
+    state: z.literal('decided'),
+    written: z.object({
+      name: z.string(),
+      entities: z.number().int(),
+      relations: z.number().int(),
+      others: z.number().int(),
+    }),
+  })
+  .transform(({ written }): { readonly written: Written } => ({ written }));
 
 const refused = z.object({ refusal: z.string() });
 
@@ -92,6 +111,21 @@ export async function askWriter<Done extends object>(
   return unwrittenOf(answer.status, answer.body);
 }
 
+/** Read the stored bytes of one document through the writer, or null when it gives none. The raw
+ * store is private, so no browser reads it directly. */
+export async function readDocumentBytes(document: string): Promise<Blob | null> {
+  try {
+    const answer = await fetch('/private/document-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document }),
+    });
+    return answer.ok ? await answer.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
 const doorOf = (op: WriteOp | DecisionOp): string => `/write/${op.replaceAll('_', '-')}`;
 
 /** Send one act to the writer. */
@@ -100,15 +134,14 @@ export const sendAct = (
   body: Readonly<Record<string, unknown>>,
 ): Promise<WriteResult<Signed>> => askWriter(doorOf(op), body, signed);
 
-/** Decide one act that already waits in the record. It writes no proposal: it names one, so a
- * doubt about it is a doubt about a verdict. */
-export const sendDecision = (op: DecisionOp, proposalId: string): Promise<WriteResult> =>
-  askWriter(doorOf(op), { proposalId }, decided);
-
-/** Decide every act of one linked batch as one unit. A refusal names the act that the record
- * refused, and nothing of the batch was written. */
-export const sendBatchDecision = (batchId: string, verdict: BatchVerdict): Promise<WriteResult> =>
-  askWriter('/write/decide-batch', { batchId, verdict }, decided);
+/** Decide one unit that waits in the record, or reject one relation of it. It writes no
+ * proposal: it names one, so a doubt about it is a doubt about a verdict. A refused promotion
+ * wrote nothing of the unit, and the sentence names the act that the record refused. */
+export const sendDecision = ({
+  op,
+  ...body
+}: Decision): Promise<WriteResult<{ readonly written: Written }>> =>
+  askWriter(doorOf(op), body, decided);
 
 /** One file and the fields its document row records. The content is the file in base64. */
 export interface UploadBody {

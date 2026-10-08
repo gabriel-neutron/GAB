@@ -104,16 +104,19 @@ const queue = z.array(
 );
 
 const QUEUE = `
-  SELECT (SELECT count(*) FROM public.jobs)                          AS jobs,
+  SELECT (SELECT count(*) FROM public.jobs WHERE kind <> 'rate_author') AS jobs,
          (SELECT count(*) FROM public.jobs
             WHERE kind = 'store_only' AND status = 'done') AS stored,
-         (SELECT count(*) FROM public.jobs WHERE status IN ('queued','running')) AS open,
+         (SELECT count(*) FROM public.jobs
+            WHERE kind <> 'rate_author' AND status IN ('queued','running')) AS open,
          (SELECT count(*) FROM public.jobs j
-            WHERE NOT EXISTS (SELECT 1 FROM public.documents d WHERE d.id = j.document_id))
+            WHERE kind <> 'rate_author' AND NOT EXISTS (SELECT 1 FROM public.documents d WHERE d.id = j.document_id))
            AS jobs_with_no_document,
-         (SELECT count(*) FROM (SELECT document_id FROM public.jobs
+         (SELECT count(*) FROM (SELECT document_id FROM public.jobs WHERE kind <> 'rate_author'
              GROUP BY document_id HAVING count(*) > 1) twice) AS documents_queued_twice`;
 
+// A rating job holds a name and no document, and the acts of the corpus name their originators, so
+// the census leaves the ratings out.
 // The door records one finished `store_only` job for each document it writes, and it asks for no
 // work. An `open` row above zero is work that the load started and nothing finishes. Without this
 // the loss shows up much later, as a claim test that accuses SKIP LOCKED of a fault it has not.

@@ -79,6 +79,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   update_relation: 'attrs',
   delete_relation: 'delete',
   merge_entities: 'merge',
+  map_document: 'mapping',
 };
 
 const geometryType = z.looseObject({ type: z.string() });
@@ -120,6 +121,7 @@ const mergePayload = z.looseObject({
   merge_ids: z.array(z.string()).nullish(),
 });
 const deletePayload = z.looseObject({ reason: z.string().nullish() });
+const mappingPayload = z.looseObject({ table: z.string().nullish() });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
   const kind = KIND_OF_OP[op];
@@ -165,6 +167,10 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = deletePayload.parse(value);
       return { kind, reason: held.reason ?? null };
     }
+    case 'mapping': {
+      const held = mappingPayload.parse(value);
+      return { kind, table: held.table ?? null };
+    }
   }
 }
 
@@ -187,6 +193,7 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
     case 'create_entity':
     case 'create_relation':
     case 'merge_entities':
+    case 'map_document':
       return null;
   }
 }
@@ -233,8 +240,6 @@ function document(row: unknown): DocumentRow {
     archiveUri: webAddressOf(read.archive_uri),
     sha256: read.sha256,
     retrievedAt: read.retrieved_at,
-    admiralty: read.admiralty,
-    admiraltyOrigin: read.admiralty_origin,
   };
 }
 
@@ -281,13 +286,15 @@ function proposal(row: unknown): Proposal {
     src: read.src,
     names: read.names,
     priorValue: priorValueOf(read.op, read.prior_value),
-    confidence: read.confidence,
     dissent: read.dissent,
     authorRole: read.author_role,
+    proposer: read.proposer,
     status: read.status,
     createdAt: read.created_at,
     decidedAt: read.decided_at,
     decidedBy: read.decided_by,
+    decidedAs: read.decided_as,
+    decisionOrigin: read.decision_origin,
     batchId: read.batch_id,
   };
 }

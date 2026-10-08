@@ -30,6 +30,12 @@ export interface Web {
   readonly searxngUrl?: string;
   /** The key of the Brave Search API. It leaves in a header and in no address. */
   readonly braveKey?: string;
+  /** The key of the Companies House API. It leaves in a header and in no address. */
+  readonly companiesHouseKey?: string;
+  /** The key of the OpenSanctions API. It leaves in a header and in no address. */
+  readonly openSanctionsKey?: string;
+  /** The token of the Global Fishing Watch API. It leaves in a header and in no address. */
+  readonly gfwToken?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
@@ -59,6 +65,8 @@ export interface Reach {
   readonly store?: { put(object: RawObject): Promise<string> };
   readonly web?: Web;
   readonly now: () => Date;
+  /** The folder where a browser saves a page for the research AI to store. */
+  readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */

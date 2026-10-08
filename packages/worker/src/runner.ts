@@ -1,6 +1,6 @@
 import {
-  GATEWAY,
-  gatewayModel,
+  openrouterModel,
+  PROVIDER,
   openBudget,
   openModel,
   type CallRecord,
@@ -34,6 +34,32 @@ const recorded = z.object({ id: z.uuid() });
 
 const ended = z.object({ status: z.enum(['done', 'failed']) });
 
+/** Records one call of the model through the door of the agent role, and gives its identifier. A
+ * call outside a job names no job. */
+export const recordModelCall = async (
+  db: Queryable,
+  agent: { readonly name: string; readonly version: string },
+  jobId: string | null,
+  call: CallRecord,
+): Promise<string> =>
+  recorded.parse(
+    (
+      await db.query(RECORD, [
+        agent.name,
+        agent.version,
+        PROVIDER,
+        call.requested,
+        call.promptSha256,
+        call.latencyMs,
+        call.outcome,
+        jobId,
+        call.served ?? null,
+        call.inputTokens,
+        call.outputTokens,
+      ])
+    ).rows[0],
+  ).id;
+
 /** The seams of the runner. */
 export interface RunnerDeps {
   /** The connection of gabriel_agent. */
@@ -43,9 +69,8 @@ export interface RunnerDeps {
   readonly sleep: (ms: number) => Promise<void>;
   /** The clock in milliseconds, read to time each call of the model. */
   readonly now: () => number;
-  /** Makes the pinned model of the free-model gateway. The default reads the gateway from the
-   * environment. */
-  readonly open?: (model: string) => ReturnType<typeof gatewayModel>;
+  /** Makes the pinned model of OpenRouter. The default reads the key from the environment. */
+  readonly open?: (model: string) => ReturnType<typeof openrouterModel>;
 }
 
 /** What one step of the runner did. */
@@ -74,35 +99,22 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   const settings = settingsRow.parse((await deps.db.query(SETTINGS)).rows[0]);
   await deps.db.query(REQUEUE);
 
-  // Each model is made at the start, so a gateway that is not set stops the start and claims
+  // Each model is made at the start, so a key that is not set stops the start and claims
   // nothing.
-  const open = deps.open ?? ((model: string) => gatewayModel(model));
+  const open = deps.open ?? ((model: string) => openrouterModel(model));
   const made = new Map(
     deps.agents.flatMap((agent) => agent.models).map((one) => [one, open(one.model)] as const),
   );
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
-  const record = async (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
-    recorded.parse(
-      (
-        await deps.db.query(RECORD, [
-          agent.name,
-          agent.version,
-          GATEWAY,
-          call.requested,
-          call.promptSha256,
-          call.latencyMs,
-          call.outcome,
-          job.id,
-          call.served ?? null,
-          call.inputTokens,
-          call.outputTokens,
-        ])
-      ).rows[0],
-    ).id;
+  const record = (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
+    recordModelCall(deps.db, agent, job.id, call);
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
-    const budget = openBudget(agent.tokenCap);
+    // A deepening search carries the budget that the operator set, and it replaces the cap.
+    const budget = openBudget(
+      job.kind === 'research_lead' ? (job.tokenBudget ?? agent.tokenCap) : agent.tokenCap,
+    );
 
     const ask = async <T>(
       model: ModelConfig,

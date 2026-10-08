@@ -51,7 +51,6 @@ export interface RelationTypeDeclaration {
 export type RelationTypeVocabulary = readonly RelationTypeDeclaration[];
 
 export type DocumentKind = z.output<typeof row.document>['kind'];
-export type AdmiraltyOrigin = NonNullable<z.output<typeof row.document>['admiralty_origin']>;
 
 export interface DocumentRow {
   readonly id: DocId;
@@ -61,9 +60,6 @@ export interface DocumentRow {
   readonly archiveUri: string | null;
   readonly sha256: string | null;
   readonly retrievedAt: string | null;
-  /** An ADMIRALTY rating, `A1` to `F6`. */
-  readonly admiralty: string | null;
-  readonly admiraltyOrigin: AdmiraltyOrigin | null;
 }
 
 /** A provider that distributes the bytes of a document, and the licence it gives them. */
@@ -189,7 +185,8 @@ export type ProposalPayload =
       readonly keep_id: string | null;
       readonly merge_ids: readonly string[];
     }
-  | { readonly kind: 'delete'; readonly reason: string | null };
+  | { readonly kind: 'delete'; readonly reason: string | null }
+  | { readonly kind: 'mapping'; readonly table: string | null };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds
  * every other one. A deletion copies the whole row it destroyed, and an act on the name or the
@@ -202,6 +199,14 @@ export type ProposalStatus = z.output<typeof row.proposal>['status'];
 
 /** A trigger stamps this from `session_user`. The caller cannot state it. */
 export type AuthorRole = z.output<typeof row.proposal>['author_role'];
+
+/** Who proposed an act: the extractor, the research AI, the v1 import or the operator. The
+ * record derives it from the role and the party that the act names. */
+export type Proposer = z.output<typeof row.proposal>['proposer'];
+
+/** How an act was decided: one unit, one relation of a unit, a group action, or a named rule. An
+ * older decision, and an act that the operator signed, have none. */
+export type DecisionMode = NonNullable<z.output<typeof row.proposal>['decided_as']>;
 
 export interface Proposal {
   readonly id: string;
@@ -216,16 +221,19 @@ export interface Proposal {
   /** What the act replaced, so a surface draws a before beside an after. A creation and a merge
    * replace nothing, and an act that stated no snapshot carries `null`. */
   readonly priorValue: PriorValue | null;
-  /** An act may state no confidence at all, and an absence is never a low score. */
-  readonly confidence: number | null;
   readonly dissent: boolean;
   readonly authorRole: AuthorRole;
+  readonly proposer: Proposer;
   readonly status: ProposalStatus;
   readonly createdAt: string;
   readonly decidedAt: string | null;
   readonly decidedBy: string | null;
-  /** The linked batch of a machine act, which the operator decides as one unit. A single act
-   * has none. */
+  readonly decidedAs: DecisionMode | null;
+  /** Who or what decided the act: the name and the version of a rule, "validated manually by
+   * the operator", or "decided by an AI reviewer". An older decision has none. */
+  readonly decisionOrigin: string | null;
+  /** The group of a machine act: the acts of one call that name each other. It is a label and
+   * a filter. A single act has none. */
   readonly batchId: string | null;
 }
 

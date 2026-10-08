@@ -10,7 +10,9 @@ import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
 const store = openStore();
-const app = writeRoutes(pool, { put: (object) => putObject(store, object) });
+// No door under test reads an object back, so this one refuses every read.
+const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the raw store')) };
+const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_READ);
 
 // Departure: the runner is not part of this suite, so the owner moves a job to `running` and the
 // worker role ends it through its own doors, as the runner does.
@@ -81,7 +83,7 @@ const SHA = 'a'.repeat(64);
 // The runner records each call to a model before it proposes, and a proposal names its call.
 const proposedBy = async (jobId: string, documentId: string): Promise<string> => {
   const call = await agent.query<{ id: string }>(
-    `SELECT public.record_model_call('extractor', 'v1', 'freellmapi', 'a-model', $1, 10, 'ok',
+    `SELECT public.record_model_call('extractor', 'v1', 'openrouter', 'a-model', $1, 10, 'ok',
        $2::uuid, 'a-model') AS id`,
     [SHA, jobId],
   );
@@ -179,7 +181,7 @@ test('a done extraction counts the proposals it made and the parts that were ref
     ]);
   } finally {
     // The ledger keeps the act, so the test decides it and the review queue stays as it was.
-    await send('reject-proposal', { proposalId });
+    await send('reject-unit', { unitId: proposalId, reason: 'out_of_scope' });
   }
 });
 

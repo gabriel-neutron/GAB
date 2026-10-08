@@ -45,7 +45,7 @@ const PUT_TEXT = `INSERT INTO public.document_text (document_id, extractor, page
 const TEXT_SET = 'fixture@1';
 const ORIGINATOR_NAME = 'Fixture agency';
 const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
-const PROMOTE = 'SELECT promote_proposal($1, $2) AS id';
+const PROMOTE = 'SELECT promote_unit($1, $2) AS id';
 
 interface Act {
   readonly op: string;
@@ -54,7 +54,6 @@ interface Act {
   readonly targetKind: EndpointKind | null;
   readonly targetId: string | null;
   readonly names: readonly string[];
-  readonly confidence: number | null;
   readonly dissent: boolean;
 }
 
@@ -109,7 +108,6 @@ const proposeCandidate = (client: Client, act: Act, modelCallId: string): Promis
         target_kind: act.targetKind,
         target_id: act.targetId,
         names: act.names,
-        confidence: act.confidence,
         dissent: act.dissent,
         model_call_id: modelCallId,
         originator: ORIGINATOR_NAME,
@@ -182,7 +180,6 @@ const loadEntities = async (client: Client): Promise<Translation> => {
         targetKind: null,
         targetId: null,
         names: [],
-        confidence: null,
         dissent: false,
       });
       ids.set(entity.id, await promote(client, proposalId));
@@ -224,7 +221,6 @@ const loadRelation = async (
     targetKind: null,
     targetId: null,
     names: [srcId, dstId],
-    confidence: null,
     dissent: false,
   });
   return promote(client, proposalId);
@@ -291,9 +287,11 @@ const candidatePayload = (
         dst_id: dstId,
       };
     }
-    // A merge and a delete have no agreed payload shape, so neither is written.
+    // A merge and a delete have no agreed payload shape, and a mapping names a stored table that
+    // the fixture does not hold, so none of the three is written.
     case 'merge':
     case 'delete':
+    case 'mapping':
       throw new Error(`A ${payload.kind} candidate has no agreed payload shape.`);
   }
 };
@@ -347,7 +345,6 @@ const loadCandidates = async (
           targetKind: targetId === null ? null : proposal.targetKind,
           targetId,
           names: candidateNames(payload),
-          confidence: proposal.confidence,
           dissent: proposal.dissent,
         },
         modelCallId,

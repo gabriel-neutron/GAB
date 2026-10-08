@@ -1,12 +1,11 @@
 # ADR 0011 — A decision table, not a score, decides the public state of each claim, and a letter rates only the originator
 
-**Status** Accepted · 4 October 2026
+**Status** Superseded by ADR 0012 · 8 October 2026 · Accepted 4 October 2026
 
-**Not built: the letter of the originator.** The register cards, the track record, the letter,
-the sanction flags and the trust lists are not built. A first build of their tables, doors and
-loaders had no caller, and it was removed on 6 October 2026 (operator decision). The method below
-stays the decision. A later spec builds the rating, and it can start from the stored name of the
-originator of each claim.
+**Superseded by ADR 0012 and `decisions.md` S1 and S3.** On 7 October 2026 the product removed the
+letter, the confidence and the decision table. On 8 October 2026 a simpler method came back: the
+NATO letter rates the author, code gives every letter, and named rules decide from the sources.
+The text below records the old decision only. No code builds it.
 
 ## Context
 
