@@ -12,6 +12,7 @@ const unitOf = (id: string): Unit => ({
   group: null,
   state: 'clean',
   faults: [],
+  endRejected: false,
   acts: [],
   documents: [],
   passages: [],
@@ -28,7 +29,7 @@ const pageOf = (
   total: 5,
   matched: 5,
   before: 0,
-  choices: { groups: [], documents: [] },
+  choices: { groups: [], documents: [], proposers: [] },
 });
 
 const PAGES = [

@@ -88,6 +88,7 @@ it('words each relation from the entity of the unit, and says where the other en
       state: 'record',
       rejected: null,
       disputed: false,
+      typeUnknown: false,
     },
   ]);
   expect(unitChanges(unit(SAMPLE_UNITS.brigade), WORDS).relations[0]).toMatchObject({
@@ -110,6 +111,7 @@ it('reads a relation of its own from its source end', () => {
       state: 'pending',
       rejected: null,
       disputed: false,
+      typeUnknown: false,
     },
   ]);
 });
@@ -135,6 +137,7 @@ it('names the other end that the operator rejected, with the day', () => {
       state: 'rejected',
       rejected: { name: '1061st Logistics Center', on: '2026-10-07' },
       disputed: false,
+      typeUnknown: false,
     },
   ]);
 });
@@ -146,4 +149,34 @@ it('names the source end of a link that the operator rejected', () => {
     state: 'record',
     rejected: { name: '1061st Logistics Center', on: '2026-10-07' },
   });
+});
+
+it('puts the keys of the v1 import apart from the other attributes, after them', () => {
+  const changes = unitChanges(unit(SAMPLE_UNITS.army), WORDS);
+  expect(changes.entity?.attributes.map((held) => held.key)).toStrictEqual([
+    'position',
+    'echelon',
+    'affiliation',
+    'military_unit_number',
+  ]);
+  expect(changes.entity?.importKeys.map((held) => held.key)).toStrictEqual(['source_urls']);
+  expect(changes.entity?.importKeys[0]?.values).toHaveLength(2);
+});
+
+it('marks an entity or a relation whose type is unknown', () => {
+  expect(unitChanges(unit(SAMPLE_UNITS.blockedMix), WORDS).entity?.typeUnknown).toBe(true);
+  expect(unitChanges(unit(SAMPLE_UNITS.army), WORDS).entity?.typeUnknown).toBe(false);
+  const link = unit(SAMPLE_UNITS.link);
+  const unknown = {
+    ...link,
+    faults: [
+      {
+        kind: 'unknown_type' as const,
+        level: 'not_clean' as const,
+        act: link.id,
+        said: 'The relation type is unknown',
+      },
+    ],
+  };
+  expect(unitChanges(unknown, WORDS).relations[0]?.typeUnknown).toBe(true);
 });

@@ -56,8 +56,10 @@ const LINES = [
   v1Line('68th GRAU arsenal', 'position_precision: approximate'),
 ];
 
-const passage = (act: string, line: number) => ({
+const passage = (act: string, line: number, supports: string) => ({
   act,
+  supports,
+  ownLine: true,
   document: V1.id,
   page: 1,
   before: `${LINES.slice(Math.max(0, line - 2), line).join('\n')}\n`,
@@ -65,11 +67,16 @@ const passage = (act: string, line: number) => ({
   after: `\n${LINES.slice(line + 1, line + 3).join('\n')}`,
 });
 
-const entity = (id: string, label: string, attrs: Record<string, unknown>) => ({
+const entity = (
+  id: string,
+  label: string,
+  attrs: Record<string, unknown>,
+  type = 'military_unit',
+) => ({
   id,
   op: 'create_entity',
   payload: {
-    type: 'military_unit',
+    type,
     label,
     sources: [V1.id],
     geom: { type: 'Point', coordinates: [131.955795, 43.790382] },
@@ -77,6 +84,7 @@ const entity = (id: string, label: string, attrs: Record<string, unknown>) => ({
   },
   targetId: null,
   dissent: false,
+  endRejected: false,
   dissentReason: null,
   target: null,
   src: null,
@@ -88,6 +96,7 @@ const relation = (
   src: string,
   dst: string,
   ends: { readonly src: object; readonly dst: object },
+  endRejected = false,
 ) => ({
   id,
   op: 'create_relation',
@@ -102,6 +111,7 @@ const relation = (
   },
   targetId: null,
   dissent: false,
+  endRejected,
   dissentReason: null,
   target: null,
   ...ends,
@@ -172,6 +182,7 @@ export const UNIT_ANSWER = {
       { id: REPORT.id, title: REPORT.title },
       { id: V1.id, title: V1.title },
     ],
+    proposers: ['extractor', 'v1_import'],
   },
   units: [
     {
@@ -183,6 +194,7 @@ export const UNIT_ANSWER = {
       group: { id: GROUP, subject: '5th Combined Arms Army' },
       state: 'clean',
       faults: [],
+      endRejected: false,
       acts: [
         entity(ARMY, '5th Combined Arms Army', {
           echelon: 'Army',
@@ -199,7 +211,7 @@ export const UNIT_ANSWER = {
         }),
       ],
       documents: [V1],
-      passages: [passage(ARMY, 2)],
+      passages: [passage(ARMY, 2, '5th Combined Arms Army')],
     },
     {
       unit: BRIGADE,
@@ -229,6 +241,7 @@ export const UNIT_ANSWER = {
           said: 'Sources from the parent 5th Combined Arms Army',
         },
       ],
+      endRejected: false,
       acts: [
         entity(BRIGADE, '57th Separate Motor Rifle Brigade', {
           echelon: 'Brigade',
@@ -240,7 +253,7 @@ export const UNIT_ANSWER = {
         }),
       ],
       documents: [V1],
-      passages: [passage(BRIGADE, 1)],
+      passages: [passage(BRIGADE, 1, '57th Separate Motor Rifle Brigade')],
     },
     {
       unit: SAMPLE_UNITS.link,
@@ -258,6 +271,7 @@ export const UNIT_ANSWER = {
           said: 'Waits for Southern Military District (group Southern Military District)',
         },
       ],
+      endRejected: false,
       acts: [
         relation(SAMPLE_UNITS.link, BRIGADE, DISTRICT, {
           src: { name: '1061st Logistics Center', state: 'pending', group: GROUP },
@@ -265,7 +279,13 @@ export const UNIT_ANSWER = {
         }),
       ],
       documents: [V1],
-      passages: [passage(SAMPLE_UNITS.link, 3)],
+      passages: [
+        passage(
+          SAMPLE_UNITS.link,
+          3,
+          '1061st Logistics Center subordinate to Southern Military District',
+        ),
+      ],
     },
     {
       unit: SAMPLE_UNITS.disputed,
@@ -283,6 +303,7 @@ export const UNIT_ANSWER = {
           said: 'Disputed: no cited passage states label "North American countries"',
         },
       ],
+      endRejected: false,
       acts: [
         {
           id: SAMPLE_UNITS.disputed,
@@ -290,6 +311,7 @@ export const UNIT_ANSWER = {
           payload: { type: 'state_body', label: 'North American countries', attrs: {} },
           targetId: null,
           dissent: true,
+          endRejected: false,
           dissentReason: 'no cited passage states label "North American countries"',
           target: null,
           src: null,
@@ -300,6 +322,8 @@ export const UNIT_ANSWER = {
       passages: [
         {
           act: SAMPLE_UNITS.disputed,
+          supports: 'North American countries',
+          ownLine: false,
           document: REPORT.id,
           page: 14,
           before:
@@ -331,20 +355,27 @@ export const UNIT_ANSWER = {
           said: 'Same name under 20th Combined Arms Army',
         },
       ],
+      endRejected: false,
       acts: [
         entity(SAMPLE_UNITS.orphan, '117th GRAU arsenal', { military_unit_number: '57229-51' }),
-        relation(ORPHAN_RELATION, SAMPLE_UNITS.orphan, REJECTED_PARENT, {
-          src: { name: '117th GRAU arsenal', state: 'pending', group: GROUP },
-          dst: {
-            name: '1061st Logistics Center',
-            state: 'rejected',
-            group: null,
-            rejectedOn: '2026-10-07',
+        relation(
+          ORPHAN_RELATION,
+          SAMPLE_UNITS.orphan,
+          REJECTED_PARENT,
+          {
+            src: { name: '117th GRAU arsenal', state: 'pending', group: GROUP },
+            dst: {
+              name: '1061st Logistics Center',
+              state: 'rejected',
+              group: null,
+              rejectedOn: '2026-10-07',
+            },
           },
-        }),
+          true,
+        ),
       ],
       documents: [V1],
-      passages: [passage(SAMPLE_UNITS.orphan, 3)],
+      passages: [passage(SAMPLE_UNITS.orphan, 3, '117th GRAU arsenal')],
     },
     {
       unit: SAMPLE_UNITS.rejectedSource,
@@ -362,19 +393,32 @@ export const UNIT_ANSWER = {
           said: 'The end 1061st Logistics Center was rejected on 2026-10-07',
         },
       ],
+      endRejected: true,
       acts: [
-        relation(SAMPLE_UNITS.rejectedSource, REJECTED_PARENT, RECORD_UNIT, {
-          src: {
-            name: '1061st Logistics Center',
-            state: 'rejected',
-            group: null,
-            rejectedOn: '2026-10-07',
+        relation(
+          SAMPLE_UNITS.rejectedSource,
+          REJECTED_PARENT,
+          RECORD_UNIT,
+          {
+            src: {
+              name: '1061st Logistics Center',
+              state: 'rejected',
+              group: null,
+              rejectedOn: '2026-10-07',
+            },
+            dst: { name: 'Eastern Military District', state: 'record', group: null },
           },
-          dst: { name: 'Eastern Military District', state: 'record', group: null },
-        }),
+          true,
+        ),
       ],
       documents: [V1],
-      passages: [passage(SAMPLE_UNITS.rejectedSource, 3)],
+      passages: [
+        passage(
+          SAMPLE_UNITS.rejectedSource,
+          3,
+          '1061st Logistics Center subordinate to Eastern Military District',
+        ),
+      ],
     },
     {
       unit: SAMPLE_UNITS.pointer,
@@ -397,6 +441,7 @@ export const UNIT_ANSWER = {
             'District, which is not in the record yet',
         ],
       ]),
+      endRejected: false,
       acts: [
         relation(SAMPLE_UNITS.pointer, DISTRICT, '3f6a1c2e-0b9d-4e7f-a1c3-5d7e9f1a3b5c', {
           src: { name: '19th Separate EW Brigade', state: 'missing', group: null },
@@ -432,6 +477,7 @@ export const UNIT_ANSWER = {
         ],
         ['information', 'sources_from_parent', 'Sources from the parent 5th Combined Arms Army'],
       ]),
+      endRejected: false,
       acts: [
         entity(SAMPLE_UNITS.twin, '439th Guards Rocket Artillery Brigade', { echelon: 'Brigade' }),
         relation('5b8c3e4a-2d1f-4a9b-c3e5-7f9a1b3c5d7e', SAMPLE_UNITS.twin, ARMY, {
@@ -440,7 +486,7 @@ export const UNIT_ANSWER = {
         }),
       ],
       documents: [V1],
-      passages: [passage(SAMPLE_UNITS.twin, 1)],
+      passages: [passage(SAMPLE_UNITS.twin, 1, '439th Guards Rocket Artillery Brigade')],
     },
     {
       unit: SAMPLE_UNITS.blockedMix,
@@ -451,14 +497,17 @@ export const UNIT_ANSWER = {
       group: { id: GROUP, subject: '5th Combined Arms Army' },
       state: 'blocked',
       faults: BLOCKED_MIX,
+      endRejected: false,
       acts: [
-        entity(SAMPLE_UNITS.blockedMix, '68th GRAU arsenal', {
-          position_precision: 'approximate',
-          note: 'no clear location',
-        }),
+        entity(
+          SAMPLE_UNITS.blockedMix,
+          '68th GRAU arsenal',
+          { position_precision: 'approximate', note: 'no clear location' },
+          'unknown',
+        ),
       ],
       documents: [V1],
-      passages: [passage(SAMPLE_UNITS.blockedMix, 4)],
+      passages: [passage(SAMPLE_UNITS.blockedMix, 4, '68th GRAU arsenal')],
     },
   ],
 };

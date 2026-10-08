@@ -60,8 +60,8 @@ test('one entity and one relation are named in the singular', () => {
     group([unit('Lone brigade', { parent: { unit: null, name: 'Southern District' } })]),
   );
   expect(read.said).toBe(
-    'Writes 1 entity and 1 relation of group 58th Combined Arms Army. 0 stay in the queue: ' +
-      '0 disputed, 0 with a fault, 0 waiting for another group. You cannot undo this.',
+    'Writes 1 entity and 1 relation of group 58th Combined Arms Army. No other unit stays in ' +
+      'the queue. You cannot undo this.',
   );
 });
 
@@ -108,5 +108,13 @@ test('a group with no clean unit writes nothing, and the sentence says so', () =
   expect(read.said).toBe(
     'No unit of group with no subject is clean, so the action writes nothing. 2 stay in the ' +
       'queue: 1 disputed, 0 with a fault, 1 waiting for another group.',
+  );
+});
+
+test('one unit that stays is counted in the singular', () => {
+  const read = groupConfirmation(group([ARMY, DUPLICATE]));
+  expect(read.said).toBe(
+    'Writes 1 entity and 0 relations of group 58th Combined Arms Army. 1 stays in the queue: ' +
+      '0 disputed, 1 with a fault, 0 waiting for another group. You cannot undo this.',
   );
 });

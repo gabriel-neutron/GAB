@@ -78,6 +78,8 @@ interface ActBase {
   readonly attributes: readonly Attribute[];
   /** A check disputes the act. The fault of the dispute gives its reason. */
   readonly disputed: boolean;
+  /** The act is a relation whose other end was rejected, so the reason "end rejected" fits it. */
+  readonly endRejected: boolean;
 }
 
 /** One act of a unit: a new entity, a new relation, or any other change. */
@@ -91,9 +93,13 @@ export type UnitAct =
     })
   | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null });
 
-/** The words of a page that an act cites, with up to two lines before and after them. */
+/** The words of a page that an act cites, with up to two lines before and after them.
+ * `supports` names the element of the act. `ownLine` says that the words are the whole line of the
+ * unit, and that the lines around them state other units. */
 export interface Passage {
   readonly act: string;
+  readonly supports: string;
+  readonly ownLine: boolean;
   readonly document: string;
   readonly page: number;
   readonly before: string;
@@ -123,6 +129,8 @@ export interface Unit {
   /** The blocks first, then the waits, then the faults that are not clean, then the
    * information. */
   readonly faults: readonly Fault[];
+  /** Each act of the unit is a relation whose other end was rejected. */
+  readonly endRejected: boolean;
   readonly acts: readonly UnitAct[];
   readonly documents: readonly SourceDocument[];
   readonly passages: readonly Passage[];
@@ -134,11 +142,12 @@ export interface GroupChoice {
   readonly subject: string | null;
 }
 
-/** What the filters of the queue can choose: each group in the order of the queue, and each
- * document that a pending act cites. */
+/** What the filters of the queue can choose: each group in the order of the queue, each
+ * document that a pending act cites, and each proposer of a unit that waits. */
 export interface FilterChoices {
   readonly groups: readonly GroupChoice[];
   readonly documents: readonly { readonly id: string; readonly title: string }[];
+  readonly proposers: readonly Proposer[];
 }
 
 /** One page of the queue: the key it starts after, the key that opens the next page, the count
@@ -180,6 +189,7 @@ const act = z.object({
   payload,
   targetId: z.string().nullable(),
   dissent: z.boolean(),
+  endRejected: z.boolean(),
   target: end,
   src: end,
   dst: end,
@@ -193,6 +203,7 @@ const answer = z.object({
   choices: z.object({
     groups: z.array(z.object({ id: z.string(), subject: z.string().nullable() })),
     documents: z.array(z.object({ id: z.string(), title: z.string() })),
+    proposers: z.array(z.enum(PROPOSERS)),
   }),
   units: z.array(
     z.object({
@@ -213,6 +224,7 @@ const answer = z.object({
           note: z.string().nullable().optional(),
         }),
       ),
+      endRejected: z.boolean().nullable(),
       acts: z.array(act),
       documents: z.array(
         z.object({
@@ -225,6 +237,8 @@ const answer = z.object({
       passages: z.array(
         z.object({
           act: z.string(),
+          supports: z.string(),
+          ownLine: z.boolean(),
           document: z.string(),
           page: z.number().int(),
           before: z.string(),
@@ -306,6 +320,7 @@ const actOf = (read: ReadAct): UnitAct => {
     id: read.id,
     attributes: attributesOf(read.payload),
     disputed: read.dissent,
+    endRejected: read.endRejected,
   };
   if (read.op === 'create_entity')
     return {
@@ -351,6 +366,7 @@ export function unitPageOf(raw: unknown, after: readonly string[] | null): UnitP
       group: unit.group,
       state: unit.state,
       faults: unit.faults.map(faultOf),
+      endRejected: unit.endRejected === true,
       acts: unit.acts.map(actOf),
       documents: unit.documents,
       passages: unit.passages,
