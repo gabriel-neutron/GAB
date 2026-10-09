@@ -287,16 +287,112 @@ describe('a capture', () => {
     expect((await callTool(archiveSnapshot, stored(), input, webReach(two, now))).ok).toBe(true);
   });
 
-  test('a rate limit of the archive is a refusal that says so', async () => {
+  test('a capture that the archive limits is asked again, and passes on the next answer', async () => {
+    let captures = 0;
+    const web = stubWeb((asked) => {
+      if (!asked.url.pathname.startsWith('/save/')) return cdx(CDX_ROWS)(asked);
+      captures += 1;
+      return captures === 1
+        ? text('slow down', 429)
+        : text('', 302, {
+            location: `/web/20261005100000/${URL_OFFLINE}`,
+          });
+    });
+    const outcome = await callTool(
+      archiveSnapshot,
+      stored(),
+      { url: URL_OFFLINE, capture: true },
+      webReach(web),
+    );
+    expect(outcome).toMatchObject({
+      ok: true,
+      output: { newCapture: { timestamp: '20261005100000' } },
+    });
+    expect(captures).toBe(2);
+  });
+
+  test('a capture that the archive limits three times is a refusal that says so', async () => {
     const web = stubWeb(saved(text('slow down', 429)));
     expect(await refusalOf(web, { url: URL_OFFLINE, capture: true }, stored())).toMatch(
-      /rate limit/u,
+      /limits the requests: it answered 429 3 times/u,
     );
+    expect(web.asked.filter((asked) => asked.url.pathname.startsWith('/save/'))).toHaveLength(3);
   });
 
   test('a failed capture is a refusal and never an empty answer', async () => {
     const web = stubWeb(saved(text('error', 500)));
     expect(await refusalOf(web, { url: URL_OFFLINE, capture: true }, stored())).toMatch(/500/u);
+  });
+});
+
+describe('an answer 429 of the archive', () => {
+  // The first answers are 429, and the next ones are the captures.
+  const limitedThen = (limits: number, headers: Record<string, string> = {}): Answerer => {
+    let count = 0;
+    return (asked) => {
+      count += 1;
+      return count <= limits ? text('slow down', 429, headers) : cdx(CDX_ROWS)(asked);
+    };
+  };
+
+  const run = async (web: StubWeb) => {
+    const waits: number[] = [];
+    const outcome = await callTool(
+      archiveSnapshot,
+      noSql,
+      { url: URL_OFFLINE },
+      {
+        web,
+        now: () => new Date('2026-10-05T10:00:00Z'),
+        sleep: (ms) => {
+          waits.push(ms);
+          return Promise.resolve();
+        },
+      },
+    );
+    return { outcome, waits };
+  };
+
+  test('a lookup that gets 429 and then an answer gives the captures', async () => {
+    const web = stubWeb(limitedThen(1, { 'retry-after': '3' }));
+    const { outcome, waits } = await run(web);
+
+    expect(outcome.ok && outcome.output).toMatchObject({ captures: [{}, {}] });
+    expect(waits).toStrictEqual([3000]);
+    expect(web.asked).toHaveLength(2);
+  });
+
+  test('Retry-After as a date gives the time until that date', async () => {
+    const { waits } = await run(
+      stubWeb(limitedThen(1, { 'retry-after': 'Mon, 05 Oct 2026 10:00:07 GMT' })),
+    );
+    expect(waits).toStrictEqual([7000]);
+  });
+
+  test('with no Retry-After the wait grows, and no wait is longer than the cap', async () => {
+    expect((await run(stubWeb(limitedThen(2)))).waits).toStrictEqual([5000, 10_000]);
+    expect((await run(stubWeb(limitedThen(1, { 'retry-after': '3600' })))).waits).toStrictEqual([
+      20_000,
+    ]);
+  });
+
+  test('after three answers 429 the lookup is a refusal that says the archive limits the requests', async () => {
+    const web = stubWeb(limitedThen(3));
+    const { outcome, waits } = await run(web);
+
+    expect(outcome).toMatchObject({ ok: false });
+    expect(!outcome.ok && outcome.refusal).toMatch(/limits the requests/u);
+    expect(waits).toHaveLength(2);
+    expect(web.asked).toHaveLength(3);
+  });
+
+  test('another error status is not asked again', async () => {
+    const web = stubWeb(() => text('down', 503));
+    const { outcome, waits } = await run(web);
+
+    expect(outcome.ok).toBe(false);
+    expect(waits).toStrictEqual([]);
+    expect(web.asked).toHaveLength(1);
   });
 });
 
