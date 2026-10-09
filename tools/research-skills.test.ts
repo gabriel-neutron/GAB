@@ -137,13 +137,13 @@ test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source',
   ).toBe(true);
 });
 
-// A session at the root of the repository loads the same server, and the client asks the operator
-// before each tool that spends credit or decides.
-test('the Claude Code settings of the root ask before each tool that spends credit or decides', () => {
+// A session at the root of the repository loads the same server, and the operator chose that it
+// asks before no tool. Only a session that starts in the research workspace asks.
+test('the Claude Code settings of the root ask before no tool of the server', () => {
   const settings = z
-    .object({ permissions: z.strictObject({ ask: z.array(z.string()) }) })
+    .object({ permissions: z.object({ ask: z.array(z.string()).optional() }).optional() })
     .parse(JSON.parse(read(path.join(ROOT, '.claude', 'settings.json'))));
-  expect([...settings.permissions.ask].sort()).toStrictEqual(
-    [...ASKS_FIRST].map((name) => `mcp__gab__${name}`).sort(),
-  );
+  expect(
+    (settings.permissions?.ask ?? []).filter((rule) => rule.startsWith('mcp__gab__')),
+  ).toStrictEqual([]);
 });
