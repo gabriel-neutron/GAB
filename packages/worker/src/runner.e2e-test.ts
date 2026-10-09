@@ -286,6 +286,7 @@ beforeAll(async () => {
 const LEDGER_TRIGGERS = [
   ['public.citation', 'citation_append_only'],
   ['public.proposals', 'proposals_append_only'],
+  ['public.act_check', 'act_check_append_only'],
   ['public.model_call', 'model_call_append_only'],
 ] as const;
 
@@ -302,6 +303,12 @@ const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
     await db.query('DELETE FROM public.jobs WHERE lead = $1', [LEAD]);
     const jobIds = `SELECT id FROM public.jobs WHERE document_id = ANY($1::text[])`;
     await db.query('DELETE FROM public.citation WHERE doc_id = ANY($1::text[])', [documents]);
+    // The second check of an act names its proposal, so it goes first.
+    await db.query(
+      `DELETE FROM public.act_check WHERE proposal_id IN
+         (SELECT id FROM public.proposals WHERE src::text[] && $1::text[])`,
+      [documents],
+    );
     await db.query('DELETE FROM public.proposals WHERE src::text[] && $1::text[]', [documents]);
     await db.query(`DELETE FROM public.model_call WHERE job_id IN (${jobIds})`, [documents]);
     await db.query('DELETE FROM public.document_text WHERE document_id = ANY($1::text[])', [
