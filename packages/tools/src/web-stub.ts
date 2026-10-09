@@ -44,7 +44,11 @@ export const stubWeb = (answer: Answerer, settings: Omit<Web, 'get'> = {}): Stub
 const WEB_DAY = new Date('2026-10-05T10:00:00Z');
 
 /** The reach of a test that may use the stub web and nothing else. */
-export const webReach = (web: Web, now: () => Date = () => WEB_DAY): Reach => ({ web, now });
+export const webReach = (web: Web, now: () => Date = () => WEB_DAY): Reach => ({
+  web,
+  now,
+  sleep: () => Promise.resolve(),
+});
 
 /** A session that fails the test when a tool reaches it. */
 export const noSql: Session = {

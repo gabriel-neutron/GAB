@@ -59,6 +59,11 @@ interface Held {
   readonly actOf: (author: string) => Promise<void>;
   /** The runner takes the oldest job and the rater answers it with this fake answer. */
   readonly rate: (answer: unknown, fault?: string) => Promise<'done' | 'failed' | 'idle'>;
+  /** The same, with one fake answer for each question in turn. It gives the bodies of the
+   * questions. */
+  readonly rateInTurn: (
+    answers: readonly unknown[],
+  ) => Promise<{ did: 'done' | 'failed' | 'idle'; bodies: string[] }>;
   /** The reference author that the operator stored and did not approve yet. */
   readonly storeUnapproved: (name: string) => Promise<void>;
   readonly letter: (name: string) => Promise<string>;
@@ -105,6 +110,19 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         const db = doorsOf(client, fault);
         const { deps } = depsOf(db, [makeRater(CONFIG)], router);
         return asRole('gabriel_agent', async () => (await (await openRunner(deps)).step()).did);
+      },
+      rateInTurn: async (answers) => {
+        const bodies: string[] = [];
+        const router = routerOf((call, body) => {
+          bodies.push(body);
+          return completionOf(JSON.stringify(answers[call - 1]));
+        });
+        const { deps } = depsOf(doorsOf(client, undefined), [makeRater(CONFIG)], router);
+        const did = await asRole(
+          'gabriel_agent',
+          async () => (await (await openRunner(deps)).step()).did,
+        );
+        return { did, bodies };
       },
       letter: async (name) =>
         z
@@ -301,5 +319,67 @@ test('a refused rating keeps its call of the model in the record', async () => {
           WHERE j.kind = 'rate_author' AND j.author = 'trade journal'`,
       ),
     ).toStrictEqual([{ agent: 'rater', requested_model: READER.model, outcome: 'ok' }]);
+  });
+});
+
+const callsOf = async (held: Held) =>
+  held.ask(
+    `SELECT count(*)::int AS n FROM public.model_call m JOIN public.jobs j ON j.id = m.job_id
+      WHERE j.kind = 'rate_author' AND j.author = 'trade journal'`,
+  );
+
+test('the question gives the names of the reference set apart from the known authors', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    const { bodies } = await held.rateInTurn([NEW]);
+
+    const sent = z
+      .object({ messages: z.array(z.object({ content: z.string() })) })
+      .parse(JSON.parse(bodies[0] ?? '{}'));
+    const asked = z
+      .object({ references: z.array(z.string()) })
+      .parse(JSON.parse(sent.messages[1]?.content ?? '{}'));
+    expect(asked.references.toSorted()).toStrictEqual(['reuters', 'state register']);
+  });
+});
+
+test('a comparison outside the reference set is asked again once, with the exact list', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    const { did, bodies } = await held.rateInTurn([{ ...NEW, references: ['botaş'] }, NEW]);
+
+    expect(did).toBe('done');
+    expect(await held.letter('trade journal')).toBe('D');
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toContain('the reference set has no such author');
+    expect(bodies[1]).toContain('Compare only with the names in this list');
+    expect(await callsOf(held)).toStrictEqual([{ n: 2 }]);
+  });
+});
+
+test('a second comparison outside the reference set is refused, and the author stays F', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    const outside = { ...NEW, references: ['rosneft oil company'] };
+    const { did, bodies } = await held.rateInTurn([outside, outside, NEW]);
+
+    expect(did).toBe('failed');
+    expect(bodies).toHaveLength(2);
+    expect((await jobOf(held, 'trade journal'))[0]?.failure_reason).toContain(
+      '"rosneft oil company", and the reference set has no such author',
+    );
+    expect(await held.letter('trade journal')).toBe('F');
+    expect(await callsOf(held)).toStrictEqual([{ n: 2 }]);
+  });
+});
+
+test('another refusal is not asked again', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    const { did, bodies } = await held.rateInTurn([{ ...NEW, letter: 'A' }, NEW]);
+
+    expect(did).toBe('failed');
+    expect(bodies).toHaveLength(1);
+    expect(await callsOf(held)).toStrictEqual([{ n: 1 }]);
   });
 });

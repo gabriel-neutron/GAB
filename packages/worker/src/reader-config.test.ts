@@ -122,7 +122,7 @@ describe('the configuration of the extractor', () => {
   });
 
   // The ranges are rules of the model package and of the chunks. The worker calls those checks at
-  // its start, so a value out of range stops the start and no job.
+  // its start, so a value out of range fails each extraction job, and no other job.
   it('stops at the start on the model auto', () => {
     expect(() => readExtractorConfig({ ...FULL, CHECKER_MODEL: 'auto' })).toThrow(
       /CHECKER_MODEL.*auto/u,

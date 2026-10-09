@@ -116,11 +116,62 @@ const FRAME = [
   '[style*="visibility: hidden" i]',
 ].join(', ');
 
+// External constraint: the HTML standard reads the charset of a page in this order: a byte order
+// mark, the charset of the Content-Type header, then a meta element near the start of the bytes. A
+// page of a Russian or Ukrainian forum is often in windows-1251 or koi8-r, and a UTF-8 read of it
+// gives garbled text.
+const PRESCAN_BYTES = 4096;
+
+const BOMS: readonly (readonly [readonly number[], string])[] = [
+  [[0xef, 0xbb, 0xbf], 'utf-8'],
+  [[0xfe, 0xff], 'utf-16be'],
+  [[0xff, 0xfe], 'utf-16le'],
+];
+
+const CHARSET = /charset\s*=\s*["']?\s*([\w.:-]+)/iu;
+
+const charsetOfBytes = (bytes: Uint8Array): string | undefined => {
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, PRESCAN_BYTES));
+  for (const tag of head.match(/<meta\b[^>]*>/giu) ?? []) {
+    const found = CHARSET.exec(tag)?.[1];
+    if (found !== undefined) return found;
+  }
+  return /<\?xml\b[^>]*\bencoding\s*=\s*["']([\w.:-]+)["']/iu.exec(head)?.[1];
+};
+
+const decoderOf = (label: string | undefined, fromMeta: boolean) => {
+  if (label === undefined) return undefined;
+  try {
+    const decoder = new TextDecoder(label);
+    // External constraint: the HTML standard reads a meta that names UTF-16 as UTF-8, because the
+    // bytes that held the meta were read as ASCII. The charset of the header stays as it is.
+    return fromMeta && decoder.encoding.startsWith('utf-16') ? new TextDecoder('utf-8') : decoder;
+  } catch {
+    // An unknown label names no decoder, and the next source of the charset decides.
+    return undefined;
+  }
+};
+
+/**
+ * The text of the bytes of an HTML page, in the charset that its byte order mark, the charset of
+ * its type (for example "text/html; charset=windows-1251") or its meta element names. UTF-8 is the
+ * default.
+ */
+export const decodeHtml = (bytes: Uint8Array, mime = ''): string => {
+  const bom = BOMS.find(([marks]) => marks.every((mark, i) => bytes[i] === mark));
+  if (bom !== undefined) return new TextDecoder(bom[1]).decode(bytes);
+  const decoder =
+    decoderOf(CHARSET.exec(mime)?.[1], false) ??
+    decoderOf(charsetOfBytes(bytes), true) ??
+    new TextDecoder('utf-8');
+  return decoder.decode(bytes);
+};
+
 // Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
 // alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
 // acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
-const htmlPage = (bytes: Uint8Array, whole: boolean): string => {
-  const source = new TextDecoder('utf-8').decode(bytes);
+const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
+  const source = decodeHtml(bytes, mime);
   const { document } = parseHTML(source);
   document.querySelectorAll(COMMENTS).forEach((comment: { remove(): void }) => {
     comment.remove();
@@ -328,10 +379,10 @@ const IMAGE = new Set(['image/png', 'image/jpeg']);
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
   if (type === 'application/pdf') return { pages: await pdfPages(bytes) };
-  if (type === 'text/html') return { pages: [htmlPage(bytes, false)] };
+  if (type === 'text/html') return { pages: [htmlPage(bytes, mime, false)] };
   // XHTML is HTML written as XML. The Publications Office of the EU gives the official text of an
   // act in it.
-  if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, true)] };
+  if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, mime, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
   if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);

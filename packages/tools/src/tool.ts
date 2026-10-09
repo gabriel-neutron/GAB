@@ -65,6 +65,8 @@ export interface Reach {
   readonly store?: { put(object: RawObject): Promise<string> };
   readonly web?: Web;
   readonly now: () => Date;
+  /** Waits this many milliseconds. The default is a timer. A test gives a wait that ends at once. */
+  readonly sleep?: (ms: number) => Promise<void>;
   /** The folder where a browser saves a page for the research AI to store. */
   readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */

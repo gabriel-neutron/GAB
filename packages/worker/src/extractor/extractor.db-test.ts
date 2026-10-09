@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { Pool, type PoolClient } from 'pg';
-import { afterAll, expect, test } from 'vitest';
+import { afterAll, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 import { roleAddress } from '../address.ts';
@@ -18,7 +18,7 @@ import {
   type StubRouter,
 } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
-import { makeExtractor } from './extractor.ts';
+import { extractorAgentOf, makeExtractor } from './extractor.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
@@ -629,4 +629,23 @@ test('an act that an earlier extraction wrote with no check gets its check from 
     // The same acts, and no second act for each item.
     expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Nayara', 'Rosneft']);
   });
+});
+
+test('a worker with no extractor settings starts, and each extraction fails with the setting it lacks', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    const extractor = extractorAgentOf({});
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/^the extractor is not set up: /u));
+    await inTransaction(async (held) => {
+      const router = routerOf(() => completionOf('{}'));
+      expect((await held.step(extractor, router)).did).toBe('failed');
+
+      expect(router.chats()).toBe(0);
+      expect((await held.read()).failure_reason).toMatch(
+        /^the extractor is not set up: .*EXTRACTOR_/u,
+      );
+    });
+  } finally {
+    log.mockRestore();
+  }
 });

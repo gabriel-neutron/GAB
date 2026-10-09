@@ -205,6 +205,52 @@ export const TheNamesStayAt900Pixels: Story = {
   },
 };
 
+/** At 375 px the columns stack: the unit, its decision and its justification stand below the
+ * list at the full width of the page, and the page scrolls to them. */
+export const AtPhoneWidthTheUnitStandsBelowTheList: Story = {
+  args: {
+    view: {
+      state: 'held',
+      queue: queueOf(LONG),
+      counts: COUNTS,
+      filter: NO_FILTER,
+      choices,
+      linked: NONE,
+      decision: { step: 'idle' },
+    },
+  },
+  render: (args) => (
+    <div className="h-[720px] w-[375px]">
+      <UnitsPage {...args} />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const page = canvasElement.querySelector('[data-units-page]');
+    if (!(page instanceof HTMLElement)) throw new Error('no page');
+    const edge = page.getBoundingClientRect();
+    const list = canvas.getByRole('navigation', { name: 'Units that wait for a decision' });
+    const changes = canvas.getByRole('region', { name: 'The changes of the unit' });
+    const decision = canvas.getByRole('region', { name: 'The decision' });
+    const why = canvas.getByRole('region', { name: 'The justification' });
+    await expect(changes.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      list.getBoundingClientRect().bottom,
+    );
+    await expect(why.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      decision.getBoundingClientRect().bottom,
+    );
+    for (const part of [changes, decision, why]) {
+      const box = part.getBoundingClientRect();
+      await expect(box.left).toBeGreaterThanOrEqual(edge.left);
+      await expect(box.right).toBeLessThanOrEqual(edge.right + 1);
+      await expect(box.width).toBeGreaterThan(300);
+    }
+    await expect(page.scrollHeight).toBeGreaterThan(page.clientHeight);
+    const scroller = list.querySelector('ul');
+    if (scroller === null) throw new Error('the list has no scroller');
+    await expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
+  },
+};
+
 /** Each filter is a plain control at the head of the list, and a change asks for the queue
  * again with the new filter. The name applies on Enter. */
 export const EachFilterAsksForTheQueueAgain: Story = {

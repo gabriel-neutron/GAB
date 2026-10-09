@@ -122,7 +122,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
   if (unit === null)
     return (
       <section aria-label="The changes of the unit" className="p-3 text-xs text-label">
-        Choose a unit on the left.
+        Choose a unit in the list.
       </section>
     );
   const { entity, relations, others } = unitChanges(unit, words);

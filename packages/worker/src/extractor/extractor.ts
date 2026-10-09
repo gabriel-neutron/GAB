@@ -23,7 +23,7 @@ import {
 } from '../agents.ts';
 import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
-import type { ReaderConfig } from '../reader-config.ts';
+import { readExtractorConfig, type ReaderConfig } from '../reader-config.ts';
 import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
 import { screenBatch, type ScreenItem } from './screen.ts';
 
@@ -307,4 +307,25 @@ export const makeExtractor = (
     tokenCap: config.tokenCap,
     run,
   };
+};
+
+/** The extractor, or an agent that fails each job with the reason that the configuration is not
+ * set. An extractor value that is absent never stops the other agents. */
+export const extractorAgentOf = (
+  env: Readonly<Record<string, string | undefined>>,
+): RunnerAgent => {
+  try {
+    return makeExtractor(readExtractorConfig(env));
+  } catch (fault) {
+    const reason = `the extractor is not set up: ${fault instanceof Error ? fault.message : String(fault)}`;
+    console.error(reason);
+    return {
+      name: EXTRACTOR_NAME,
+      version: VERSION,
+      kind: 'extract_text',
+      models: [],
+      tokenCap: 1,
+      run: () => Promise.reject(new JobStop(reason)),
+    };
+  }
 };

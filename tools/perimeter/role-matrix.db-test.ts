@@ -45,6 +45,7 @@ test('the role matrix of the doors', async () => {
       "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
+      "public.correct_document_title": "app",
       "public.decision_said": "app",
       "public.document_jobs": "app research",
       "public.enqueue_job": "agent app research",
