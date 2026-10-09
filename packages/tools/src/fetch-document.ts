@@ -2,11 +2,11 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
+import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
-import { checkedRange, documentText } from './document-text.ts';
+import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
@@ -17,7 +17,7 @@ import {
 import { renderPage } from './render-page.ts';
 import { knownAnswer, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
-import { CHALLENGE_PAGE, isHtml, unreadablePage } from './unreadable-page.ts';
+import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -33,8 +33,9 @@ const RENDER_BELOW = 200;
 // draws is quiet inside a few seconds, or it is a page that this tool reads only in part.
 const RENDER_BUDGET_MS = 30_000;
 
-// The words that the common CAPTCHA services put in a page. A page that holds one is stored as it
-// is, and the answer says so; nothing on it is solved or avoided.
+// The words that the common CAPTCHA services put in a page. A short page that holds one is stored as
+// it is, and the answer says so; nothing on it is solved or avoided. A long page is an article or a
+// record: the script of a wiki or a forum names a CAPTCHA for its own forms, and gives no notice.
 const CAPTCHA = /captcha|cf-turnstile|cf-challenge|challenge-platform/iu;
 
 // The process of exiftool lives as long as the module uses it. A caller that ends ends it too, or
@@ -133,9 +134,9 @@ const ENTITIES: Readonly<Record<string, string>> = {
   nbsp: ' ',
 };
 
-/** The title of an HTML page, from its title element, or null. */
-export const htmlTitle = (bytes: Uint8Array): string | null => {
-  const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 65_536));
+/** The title of an HTML page, from its title element, or null. The type can name the charset. */
+export const htmlTitle = (bytes: Uint8Array, type?: string): string | null => {
+  const head = decodeHtml(bytes.subarray(0, 65_536), type);
   const found = /<title[^>]*>([\s\S]*?)<\/title>/iu.exec(head)?.[1];
   if (found === undefined) return null;
   const plain = found
@@ -147,10 +148,16 @@ export const htmlTitle = (bytes: Uint8Array): string | null => {
 
 const MAX_TITLE = 500;
 
-const titleOf = (mime: string, bytes: Uint8Array, metadata: Metadata, url: string): string => {
+const titleOf = (
+  mime: string,
+  type: string,
+  bytes: Uint8Array,
+  metadata: Metadata,
+  url: string,
+): string => {
   const { hostname, pathname } = new URL(url);
   const chosen =
-    (isHtml(mime) ? htmlTitle(bytes) : null) ??
+    (isHtml(mime) ? htmlTitle(bytes, type) : null) ??
     metadata.title ??
     `${hostname}${decodeURI(pathname)}`;
   return chosen.slice(0, MAX_TITLE);
@@ -217,9 +224,9 @@ const unreadableRefusal = (sentence: string): string =>
 const blank = (pages: readonly string[]): boolean => pages.join('').trim() === '';
 
 // The text of a shell is its title at most. A page with other text holds text of its own.
-const shellOnly = (bytes: Uint8Array, pages: readonly string[]): boolean => {
+const shellOnly = (bytes: Uint8Array, type: string, pages: readonly string[]): boolean => {
   const text = pages.join(' ').replace(/\s+/gu, ' ').trim();
-  const title = htmlTitle(bytes);
+  const title = htmlTitle(bytes, type);
   return (title === null ? text : text.replace(title, '').trim()) === '';
 };
 
@@ -252,7 +259,10 @@ const renderedOf = async (
           'text is what it held then',
       );
     const bytes = new TextEncoder().encode(page.html);
-    return { html: page.html, bytes, pages: (await extractText(bytes, 'text/html')).pages };
+    // The browser gives the page as a string, so its bytes are UTF-8, also when a meta element of the
+    // page still names the charset of the origin.
+    const pages = (await extractText(bytes, 'text/html; charset=utf-8')).pages;
+    return { html: page.html, bytes, pages };
   } catch (fault) {
     notices.push(`the page could not be rendered: ${reasonOf(fault)}`);
     return null;
@@ -261,12 +271,16 @@ const renderedOf = async (
 
 // The text is read before any write, so an answer with no text that can be read leaves no object
 // behind.
-const checkedPages = async (bytes: Uint8Array, mime: string): Promise<readonly string[]> => {
+const checkedPages = async (
+  bytes: Uint8Array,
+  mime: string,
+  type: string,
+): Promise<readonly string[]> => {
   // An answer with no bytes but blanks holds no text, whatever its type says. The caller refuses it.
   if (blankBytes(bytes)) return [''];
   let pages: readonly string[];
   try {
-    ({ pages } = await extractText(bytes, mime));
+    ({ pages } = await extractText(bytes, type));
   } catch (fault) {
     if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
       throw new ToolRefusal(fault.message);
@@ -294,6 +308,7 @@ const outputShape = z.strictObject({
   pages: z.array(z.strictObject({ page: z.number().int().min(1), text: z.string() })),
   lastPage: z.number().int().nullable(),
   truncated: z.boolean(),
+  next: nextShape,
   notice: z.string().nullable(),
   rendered: z
     .strictObject({
@@ -310,7 +325,9 @@ export const fetchDocument = defineTool({
     'Reads one web page or file at one http or https address, stores its bytes as a document, ' +
     'and returns the document id and the text of its pages. Cite the id of the document that ' +
     'gave the pages in a proposal. A page whose bytes are already stored comes back as ' +
-    '"known", and nothing is written. The pages follow the caps of document_text. An HTML page ' +
+    '"known", and nothing is written. The pages follow the caps of document_text. When "next" ' +
+    'is present, read on with document_text: give the id of the document that gave the pages, ' +
+    'and give "next" as fromPage and fromCharacter. An HTML page ' +
     'is also loaded in a headless browser when its text is shorter ' +
     `than ${String(RENDER_BELOW)} characters. The browser runs the scripts of the ` +
     'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
@@ -355,12 +372,13 @@ export const fetchDocument = defineTool({
     }
 
     const mime = mimeOf(got.contentType, got.bytes);
+    // The type with its parameters, so the charset that the server names decodes an HTML page.
+    const type = isHtml(mime) && got.contentType !== null ? got.contentType : mime;
     // OCR of an image takes seconds, and bytes that are already stored have their text already.
     const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
-    const pages = known === undefined ? await checkedPages(got.bytes, mime) : [];
+    const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
 
     const notices: string[] = [];
-    let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
     let page: Awaited<ReturnType<typeof renderedOf>> = null;
     const allText = pages.join('').trim().length;
     // Bytes that are all blank hold no script to run, so the render can add nothing to them.
@@ -381,7 +399,7 @@ export const fetchDocument = defineTool({
     // page holds no text but its title, it is the shell of that page, and nothing is stored. When
     // the plain page holds its own text, that text stays, and only the render is not stored.
     const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
-    if (unreadableRender !== null && shellOnly(got.bytes, pages))
+    if (unreadableRender !== null && shellOnly(got.bytes, type, pages))
       throw new ToolRefusal(unreadableRefusal(unreadableRender));
     if (unreadableRender !== null)
       notices.push(
@@ -409,14 +427,13 @@ export const fetchDocument = defineTool({
         bytes: got.bytes,
         mime,
         uri: got.url,
-        title: titleOf(mime, got.bytes, metadata, got.url),
+        title: titleOf(mime, type, got.bytes, metadata, got.url),
         pages,
         day,
       }));
 
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
     if (usable !== null) {
-      captcha ||= CAPTCHA.test(usable.html);
       const stored = await storeAnswer(session, reach.store, {
         kind: 'url',
         bytes: usable.bytes,
@@ -428,12 +445,18 @@ export const fetchDocument = defineTool({
       });
       rendered = { id: stored.id, status: stored.status, title: stored.title };
     }
+    // The notice is about the page that is cited: the render when it is stored, else the plain page.
+    const captcha =
+      usable === null
+        ? isHtml(mime) && allText <= SHORT_PAGE && CAPTCHA.test(decodeHtml(got.bytes, type))
+        : usable.pages.join('').trim().length <= SHORT_PAGE && CAPTCHA.test(usable.html);
     if (captcha)
       notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
 
     const text = await documentText.run(session, {
       document: rendered?.id ?? plain.id,
       fromPage: input.fromPage,
+      fromCharacter: 0,
       toPage,
     });
     return {
@@ -447,6 +470,7 @@ export const fetchDocument = defineTool({
       pages: text.pages,
       lastPage: text.lastPage,
       truncated: text.truncated,
+      next: text.next,
       notice: notices.length === 0 ? null : notices.join('; '),
       rendered:
         rendered === null

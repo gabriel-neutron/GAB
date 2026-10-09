@@ -229,6 +229,27 @@ export const TheGroupsStayUsableAt900Px: Story = {
   },
 };
 
+/** At 375 px the group stands below the rail at the full width of the page. */
+export const AtPhoneWidthTheGroupStandsBelowTheRail: Story = {
+  render: (args) => (
+    <div className="h-[720px] w-[375px]">
+      <GroupsPage {...args} />
+    </div>
+  ),
+  play: async ({ canvas, canvasElement }) => {
+    const page = canvasElement.querySelector('[data-groups-page]');
+    if (!(page instanceof HTMLElement)) throw new Error('no page');
+    const edge = page.getBoundingClientRect();
+    const rail = canvas.getByRole('navigation', { name: 'Groups that wait for a decision' });
+    const group = canvas.getByRole('region', { name: 'The group' });
+    const box = group.getBoundingClientRect();
+    await expect(box.top).toBeGreaterThanOrEqual(rail.getBoundingClientRect().bottom);
+    await expect(box.left).toBeGreaterThanOrEqual(edge.left);
+    await expect(box.right).toBeLessThanOrEqual(edge.right + 1);
+    await expect(box.width).toBeGreaterThan(300);
+  },
+};
+
 /** A group with no clean unit says so, and its action is off. */
 export const AGroupWithNoCleanUnitWritesNothing: Story = {
   args: {

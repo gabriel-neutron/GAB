@@ -3505,6 +3505,24 @@ BEGIN
   RETURN 'other';
 END $$;
 
+-- THE TITLE OF A DOCUMENT THAT IS READ AGAIN. Before PR #416 the fetch tool read each HTML page as
+-- UTF-8, so a page in another charset got a garbled title. The command that reads the stored
+-- bytes again gives the title that it read before (p_from) and the corrected one (p_to). The door
+-- changes the title only when the row still holds p_from, so a title that the operator or a later
+-- run changed stays. It answers whether it changed the title. It changes no other column.
+CREATE OR REPLACE FUNCTION correct_document_title(p_document text, p_from text, p_to text)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF p_to IS NULL OR btrim(p_to, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'the corrected title is blank' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  UPDATE public.documents SET title = p_to
+   WHERE id = p_document::doc_id AND title = p_from AND title <> p_to;
+  RETURN FOUND;
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
