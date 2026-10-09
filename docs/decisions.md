@@ -428,4 +428,11 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
 - An attribute key stays free (M11). A screen shows its readable name only by a fixed rule: each
   underscore becomes a space, and the first letter becomes a capital.
 - A fact about a person is public only when at least one of its cited sources is a public
-  document. A private or bought file does not make a fact about a person public.
+  document. A bought file, or an upload with no address, does not make a fact about a person
+  public.
+- A file that the operator uploads comes from the Internet. It must carry the address where it
+  comes from, and with this address it is a public document. The upload refuses a file with no
+  address, and asks the operator where the file comes from. An older upload with no address is
+  not public. An upload stored before this ruling is not public, also with an address, because
+  its address can be the page where the file was bought. A public API, such as OpenSanctions, is
+  a public source. A bought file stays not public. The private data repository is not a source.

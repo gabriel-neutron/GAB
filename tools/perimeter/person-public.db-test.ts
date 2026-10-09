@@ -1,8 +1,9 @@
-// PU1, the ruling of 9 October 2026: a fact about a person is public only when at least one of its
-// cited sources is a public document. A public document is one that anyone can open at a public
-// address: a web page, or a public registry or API. A file that the operator uploaded, a file of
-// the private data repository and a bought file are not public. The public read role hides the
-// fact. The roles that run a tool and the review doors of the operator still read it.
+// PU1, the rulings of 9 October 2026: a fact about a person is public only when at least one of
+// its cited sources is a public document. A public document is one that anyone can open at a
+// public address: a web page, a public registry or API, or a file that the operator uploaded with
+// the address where it comes from. An old upload with no address and a bought file are not
+// public. The public read role hides the fact. The roles that run a tool and the review doors of
+// the operator still read it.
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -11,9 +12,12 @@ import { rolledBack, type Ask } from '../probe.ts';
 
 const PUBLIC_PAGE = 'doc_pu1_public_page';
 const PUBLIC_API = 'doc_pu1_public_api';
-const UPLOADED = 'doc_pu1_uploaded_file';
+const UPLOADED = 'doc_pu1_upload_no_address';
+const ADDRESSED = 'doc_pu1_upload_with_address';
+const BOUGHT_FILE = 'doc_pu1_bought_upload';
 const BOUGHT = 'doc_pu1_bought_filing';
 const PAID_FILING = 'doc_pu1_paid_filing_no_price';
+const OLD_ADDRESSED = 'doc_pu1_upload_before_rule';
 
 const VESSEL = '00000000-0000-4000-8000-0000000a0001';
 const NAMED = '00000000-0000-4000-8000-0000000a0002';
@@ -61,8 +65,9 @@ const act = async (
 
 const cited = (v: string, src: readonly string[]) => ({ v, src });
 
-// Two public documents, one upload of the operator that holds a web address, a bought file with
-// a price, and a filing of a paid provider with no recorded price.
+// Two public documents, an old upload of the operator with no address, an upload with the
+// address where it comes from, a bought upload, a bought file with a price, and a filing of a
+// paid provider with no recorded price.
 const documents = async (ask: Ask) => {
   await ask(
     `INSERT INTO public.document_provider (id, name, licence)
@@ -72,11 +77,21 @@ const documents = async (ask: Ask) => {
     `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
        ($1, 'url',  'A public page',     'https://example.org/page',   current_date, NULL, NULL),
        ($2, 'api',  'A public registry', 'https://example.org/api',    current_date, NULL, NULL),
-       ($3, 'file', 'An upload',         'https://example.org/page',   current_date, NULL, NULL),
+       ($3, 'file', 'An old upload',     NULL,                         current_date, NULL, NULL),
        ($4, 'url',  'A bought filing',   'https://example.org/paid',   current_date, 12.50, NULL),
        ($5, 'url',  'A paid filing',     'https://example.org/filing', current_date, NULL,
-        'pu1_paid_registry')`,
-    [PUBLIC_PAGE, PUBLIC_API, UPLOADED, BOUGHT, PAID_FILING],
+        'pu1_paid_registry'),
+       ($6, 'file', 'An upload',         'https://example.org/upload', current_date, NULL, NULL),
+       ($7, 'file', 'A bought upload',   'https://example.org/bought', current_date, 40.00, NULL)`,
+    [PUBLIC_PAGE, PUBLIC_API, UPLOADED, BOUGHT, PAID_FILING, ADDRESSED, BOUGHT_FILE],
+  );
+  // An upload from before the address rule: its address can be the page where it was bought,
+  // and its cost is not known. The migration of the rule marks it.
+  await ask(
+    `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, uri_before_pu1)
+     VALUES ($1, 'file', 'An older upload', 'https://example.org/purchase', current_date, NULL,
+             true)`,
+    [OLD_ADDRESSED],
   );
 };
 
@@ -118,7 +133,7 @@ const relation = async (
   return made.id;
 };
 
-// A vessel, a person that a public page names, and a person that only an upload names.
+// A vessel, a person that a public page names, and a person that only an old upload names.
 const graph = async (ask: Ask) => {
   await documents(ask);
   await entity(ask, VESSEL, 'vessel', 'A vessel', [UPLOADED], {
@@ -172,6 +187,48 @@ const SEEN = `SELECT
     (SELECT count(*)::int FROM api.full_map WHERE id = $1)        AS map`;
 
 const seen = z.array(z.object({ entity: z.number(), layout: z.number(), map: z.number() }));
+
+const SOURCED = '00000000-0000-4000-8000-0000000a0004';
+const UNSOURCED = '00000000-0000-4000-8000-0000000a0005';
+const BOUGHT_ONLY = '00000000-0000-4000-8000-0000000a0006';
+
+test('a person fact that cites only an upload with its address shows in the public read', async () => {
+  const shown = await rolledBack('superuser', async (ask) => {
+    await graph(ask);
+    await entity(ask, SOURCED, 'person', 'A person of an upload', [ADDRESSED], {
+      rank: cited('colonel', [ADDRESSED]),
+    });
+    return {
+      keys: await keysAs(ask, 'gabriel_read', SOURCED),
+      seen: seen.parse(await readAs(ask, 'gabriel_read', SEEN, [SOURCED])),
+    };
+  });
+  expect(shown.keys).toStrictEqual([['rank']]);
+  expect(shown.seen).toStrictEqual([{ entity: 1, layout: 1, map: 1 }]);
+});
+
+test('an upload with no address, a bought upload and an upload from before the rule do not make a person fact public', async () => {
+  const shown = await rolledBack('superuser', async (ask) => {
+    await graph(ask);
+    await entity(ask, UNSOURCED, 'person', 'A person of an old upload', [UPLOADED, ADDRESSED], {
+      rank: cited('major', [ADDRESSED]),
+      birth_year: cited('1960', [UPLOADED]),
+      home_town: cited('Elsewhere', [BOUGHT_FILE]),
+      employer: cited('A shipyard', [OLD_ADDRESSED]),
+    });
+    await entity(ask, BOUGHT_ONLY, 'person', 'A person of a bought upload', [
+      BOUGHT_FILE,
+      UPLOADED,
+      OLD_ADDRESSED,
+    ]);
+    return {
+      keys: await keysAs(ask, 'gabriel_read', UNSOURCED),
+      bought: seen.parse(await readAs(ask, 'gabriel_read', SEEN, [BOUGHT_ONLY])),
+    };
+  });
+  expect(shown.keys).toStrictEqual([['rank']]);
+  expect(shown.bought).toStrictEqual([{ entity: 0, layout: 0, map: 0 }]);
+});
 
 test('a person with no public source is not public, and a tool role still reads it', async () => {
   const counts = await rolledBack('superuser', async (ask) => {

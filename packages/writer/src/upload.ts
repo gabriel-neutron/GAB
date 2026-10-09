@@ -19,7 +19,8 @@ interface Upload {
   readonly fileName: string;
   readonly title: string;
   readonly retrievedAt: string;
-  readonly uri: string | null;
+  /** The address where the file comes from. It makes the file a public document (PU1). */
+  readonly uri: string;
   readonly providerId: string | null;
   /** Euros as the decimal text the column takes, so no float reaches the record. */
   readonly costEur: string | null;
@@ -47,18 +48,24 @@ const blank = (value: string): boolean => value.trim() === '';
 
 const inCents = (value: number): boolean => Math.round(value * 100) / 100 === value;
 
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
+// and the address where it comes from makes it a public document. A file with no address is
+// refused, so no new upload stays out of the public read by default.
+const NO_ADDRESS =
+  'give the address where the file comes from: the record takes no file without it';
+
 const request = z.strictObject({
   fileName: z.string().refine((value) => !blank(value), 'the file has no name'),
   title: z.string().refine((value) => !blank(value), 'the title is blank'),
   content: z.base64('the content is not base64'),
   retrievedAt: z.string().optional(),
   uri: z
-    .string()
+    .string(NO_ADDRESS)
+    .refine((value) => !blank(value), NO_ADDRESS)
     .refine(
-      (value) => WEB_SCHEMES.has(URL.parse(value)?.protocol ?? ''),
+      (value) => WEB_SCHEMES.has(URL.parse(value.trim())?.protocol ?? ''),
       'the address is not an http or an https address',
-    )
-    .optional(),
+    ),
   providerId: z
     .string()
     .refine((value) => !blank(value), 'the provider is blank')
@@ -118,7 +125,7 @@ export const parseUpload = (raw: string): ParsedUpload => {
       fileName: body.fileName.trim(),
       title: body.title.trim(),
       retrievedAt,
-      uri: body.uri ?? null,
+      uri: body.uri.trim(),
       providerId: body.providerId?.trim() ?? null,
       costEur: body.costEur === undefined ? null : body.costEur.toFixed(2),
     },
