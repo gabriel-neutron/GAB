@@ -107,6 +107,9 @@ of a parent unit is a lead for the child, not a citation.
 
 - Every name that a cited source gives can be public. GAB shows no personal data that a cited
   source does not already publish.
+  A fact about a person is public only when one of its cited sources is a public document. A
+  private or bought file does not make it public, and the read API hides it (`spec.md`, the read
+  path).
 - An **adverse allegation** about a named person or company that is not an official act is always
   attributed. It never goes into GAB voice and never becomes a corroborated fact.
 - Before an adverse allegation goes public, the search loop looks for a **public response** by the
