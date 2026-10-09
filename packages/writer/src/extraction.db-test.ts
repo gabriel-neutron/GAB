@@ -50,6 +50,7 @@ const storedDocument = async (): Promise<string> => {
       'base64',
     ),
     retrievedAt: '2026-10-01',
+    uri: 'https://example.org/register',
   });
   expect(status).toBe(200);
   return stored.parse(reply).documentId;

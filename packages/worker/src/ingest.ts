@@ -20,6 +20,8 @@ export interface IngestOptions {
   readonly retrievedAt: string;
   readonly kind: Kind;
   readonly title: string | undefined;
+  /** The address where the file comes from. A run of the kind `file` names it (PU1). */
+  readonly uri: string | undefined;
   readonly dryRun: boolean;
 }
 
@@ -35,6 +37,23 @@ export const checkedDay = (stated: string | undefined, field = '--retrieved-at')
     DAY.test(stated) && new Date(`${stated}T00:00:00Z`).toISOString().slice(0, 10) === stated;
   if (!real) throw new Error(`${field} "${stated}" is not a real day, as YYYY-MM-DD.`);
   return stated;
+};
+
+const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
+// and the address where it comes from makes it a public document. A run of the kind `file` with
+// no address stores nothing. A load report does not come from the Internet, so it needs none.
+const checkedUri = (stated: string | undefined, kind: Kind): string | undefined => {
+  if (stated === undefined) {
+    if (kind === 'file')
+      throw new Error('--uri is required: give the address where the file comes from.');
+    return undefined;
+  }
+  const uri = stated.trim();
+  if (!WEB_SCHEMES.has(URL.parse(uri)?.protocol ?? ''))
+    throw new Error(`--uri "${stated}" is not an http or an https address.`);
+  return uri;
 };
 
 /** The paths and the options of a run. It throws before any read when an argument is wrong. */
@@ -53,6 +72,7 @@ export const parseIngestArguments = (
       'retrieved-at': { type: 'string' },
       kind: { type: 'string' },
       title: { type: 'string' },
+      uri: { type: 'string' },
       'dry-run': { type: 'boolean' },
       recursive: { type: 'boolean' },
       include: { type: 'string', multiple: true },
@@ -68,19 +88,25 @@ export const parseIngestArguments = (
       throw new Error('--title names one file, and this run names more than one.');
     if (title.trim() === '') throw new Error('--title is blank.');
   }
+  const uri = checkedUri(values.uri, kind);
+  if (uri !== undefined && positionals.length > 1)
+    throw new Error('--uri names one file, and this run names more than one.');
   const include = values.include ?? DEFAULT_INCLUDE;
   if (include.some((glob) => glob.trim() === '')) throw new Error('--include is blank.');
   return {
     paths: positionals,
-    options: { retrievedAt, kind, title, dryRun: values['dry-run'] === true },
+    options: { retrievedAt, kind, title, uri, dryRun: values['dry-run'] === true },
     walk: { recursive: values.recursive === true, include },
   };
 };
 
-/** A title names one document, and a folder gives any number, so the walk is checked too. */
+/** A title and an address name one document, and a folder gives any number, so the walk is
+ * checked too. */
 export const checkedTitle = (files: readonly string[], options: IngestOptions): void => {
   if (options.title !== undefined && files.length !== 1)
     throw new Error(`--title names one file, and this run takes ${files.length}.`);
+  if (options.uri !== undefined && files.length !== 1)
+    throw new Error(`--uri names one file, and this run takes ${files.length}.`);
 };
 
 /** What the run did with one file. In a dry run `stored` means would be stored. */
@@ -278,7 +304,7 @@ const ingestOne = async (
       title: options.title ?? basename(path),
       kind: options.kind,
       retrievedAt: options.retrievedAt,
-      uri: null,
+      uri: options.uri ?? null,
       providerId: null,
       costEur: null,
     });

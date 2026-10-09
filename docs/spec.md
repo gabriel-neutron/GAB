@@ -77,8 +77,9 @@ and a cache protect the public read. It shows the record and the candidate layer
 rejected proposal, no job, no lead and no model call. A fact about a person (an attribute of a
 person, or a relation that names a person) shows only when one of its sources is a public
 document, and a person with no public source does not show. A public document is one that anyone
-can open at a public address: a web page, or a public registry or API. An upload of the operator,
-a file of the private data repository and a bought file are not public. A file is bought when it
+can open at a public address: a web page, a public registry or API, or a file that the operator
+uploaded with the address where it comes from. The upload refuses a file with no address, and an
+older upload with no address is not public. A bought file is not public. A file is bought when it
 has a price or when its provider sells its filings, because an unknown price is not a free file.
 An act about a person also shows only when each person that it names is public. An entity that a
 later act retyped stays a person for the older acts about it. The rule covers an entity of the

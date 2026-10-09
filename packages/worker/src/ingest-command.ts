@@ -15,7 +15,8 @@ const REPORT_FILE = 'ingest-report.json';
 
 const USAGE =
   'Usage: pnpm worker ingest <file-or-folder...> --retrieved-at <YYYY-MM-DD> ' +
-  '[--kind file|report] [--title <text>] [--recursive] [--include <glob>]... [--dry-run]';
+  '[--kind file|report] [--uri <address>] [--title <text>] [--recursive] [--include <glob>]... ' +
+  '[--dry-run]. A file (the default kind) needs --uri, the address where it comes from.';
 
 /** Stores the files that the words name. A usage fault gives 2, and a refused file gives 1. */
 export const ingestCommand: SubCommand = async (args) => {

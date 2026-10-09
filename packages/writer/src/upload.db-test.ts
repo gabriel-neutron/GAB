@@ -165,6 +165,15 @@ test('an upload with no retrieval date is refused, and nothing is stored', async
   expect(await nothingStored(bytes)).toStrictEqual(NOTHING);
 });
 
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet.
+test('an upload with no address is refused, and nothing is stored', async () => {
+  const bytes = freshText();
+  const [status, reply] = await send(requestOf(bytes, { uri: undefined }));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(/give the address where the file comes from/u);
+  expect(await nothingStored(bytes)).toStrictEqual(NOTHING);
+});
+
 test('a body over the cap is refused, and nothing is stored', async () => {
   const bytes = freshText();
   const padded = requestOf(bytes, { title: 'x'.repeat(LARGEST_UPLOAD_BODY) });
