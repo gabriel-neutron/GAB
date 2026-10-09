@@ -144,6 +144,8 @@ test('the Claude Code settings of the root ask before no tool of the server', ()
     .object({ permissions: z.object({ ask: z.array(z.string()).optional() }).optional() })
     .parse(JSON.parse(read(path.join(ROOT, '.claude', 'settings.json'))));
   expect(
-    (settings.permissions?.ask ?? []).filter((rule) => rule.startsWith('mcp__gab__')),
+    (settings.permissions?.ask ?? []).filter(
+      (rule) => rule === 'mcp__gab' || rule.startsWith('mcp__gab__'),
+    ),
   ).toStrictEqual([]);
 });
