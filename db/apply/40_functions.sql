@@ -32,17 +32,46 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- second witness. The originator is not part of it, because a model words the same party in more
 -- than one way, and each wording would make a second act of one claim.
 --
+-- A NEW ENTITY ALSO KEEPS ITS PASSAGES IN THE DIGEST. A label does not identify a unit: one page
+-- can name two battalions "3rd Motorized Rifle Battalion", each under a different brigade. Two
+-- creations with one type and one label, that cite different passages, are two acts. A retry
+-- cites the same passages, so it still returns the act that waits. The passages are the cited
+-- spans, which code calculated from the excerpts. A relation and new attributes have no
+-- passages in the digest: their target and their payload identify the fact.
+--
 -- An act that waited before this digest keeps the digest it was written with, because a pending
 -- act is frozen. A retry of such an act writes it once more.
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text);
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text,text);
 CREATE OR REPLACE FUNCTION act_digest_of(
   p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
-  p_author_role text)
+  p_author_role text, p_passages jsonb DEFAULT NULL)
 RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
-  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
-                               p_author_role)::text)
+  -- With no passages, the digest is the digest of an act that waits already.
+  SELECT md5(CASE WHEN p_passages IS NULL
+                  THEN jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                                         p_author_role)
+                  ELSE jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                                         p_author_role, p_passages) END::text)
+$$;
+
+-- THE PASSAGES OF A NEW ENTITY, in one order. Each citation of the item gives its document, its
+-- text, its page, and its span or its transcription. Another item gives no passages.
+CREATE OR REPLACE FUNCTION act_passages_of(p_op text, p_citations jsonb)
+RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE WHEN p_op = 'create_entity' THEN
+    (SELECT coalesce(jsonb_agg(DISTINCT x.passage ORDER BY x.passage), '[]'::jsonb)
+       FROM (SELECT jsonb_build_object(
+                      'document', c->>'document', 'text_extractor', c->>'text_extractor',
+                      'page', (c->>'page')::int, 'start', (c->>'start')::int,
+                      'end', (c->>'end')::int, 'transcription', c->>'transcription') AS passage
+               FROM jsonb_array_elements(
+                      CASE WHEN jsonb_typeof(p_citations) = 'array' THEN p_citations
+                           ELSE '[]'::jsonb END) AS c) AS x)
+  END
 $$;
 
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
@@ -67,10 +96,15 @@ BEGIN
   END IF;
   -- THE DIGEST OF A MACHINE ACT. A pending act with the same digest is the same act, and the
   -- unique index returns it to a retry. The operator gets none, so an act of the operator is
-  -- never joined to an act of a machine.
+  -- never joined to an act of a machine. The passages of a new entity come from propose_batch,
+  -- which sets them for each item before its insert. No role inserts a proposal by hand, so only
+  -- a door sets them.
   NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
     ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
-                       NEW.author_role) END;
+                       NEW.author_role,
+                       CASE WHEN NEW.op = 'create_entity'
+                            THEN nullif(current_setting('gabriel.act_passages', true), '')::jsonb
+                       END) END;
   RETURN NEW;
 END $$;
 
@@ -534,6 +568,8 @@ END $$;
 -- identifier and its own originator, so each later item that named the minted one names the act
 -- that waits instead. The door adds to that act each citation of the item that it does not hold
 -- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
+-- A new entity keeps its passages in the digest, so a creation with the same type and the same
+-- label that cites another passage is a new act, and not a second passage of the first.
 --
 -- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
 -- attributes. A machine act cites at least one page. The page exists in the text of the document,
@@ -575,6 +611,7 @@ DECLARE
   v_batch    uuid;
   v_held     uuid;
   v_written  uuid[] := '{}';
+  v_passages jsonb;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -767,6 +804,9 @@ BEGIN
                     THEN coalesce((v_batches->>v_key)::uuid, v_key::uuid) END;
 
     v_id := NULL;
+    -- The stamp trigger reads the passages of a new entity into its digest.
+    v_passages := public.act_passages_of(v_item->>'op', v_item->'citations');
+    PERFORM set_config('gabriel.act_passages', coalesce(v_passages::text, ''), true);
     -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
@@ -795,7 +835,8 @@ BEGIN
       SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text)
+                                          v_payload::jsonb, v_src, session_user::text,
+                                          v_passages)
          FOR SHARE;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
@@ -836,6 +877,7 @@ BEGIN
     item := v_no; proposal_id := v_id;
     RETURN NEXT;
   END LOOP;
+  PERFORM set_config('gabriel.act_passages', '', true);
 
   -- The rules run on each unit of the batch, and on each unit that shares a claim with it: a new
   -- act can add a source to a fact of a unit that waits.

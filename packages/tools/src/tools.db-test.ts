@@ -714,6 +714,28 @@ test('a retry of the same batch writes no second proposal and no second citation
   expect(found.rows).toHaveLength(2);
 });
 
+// One page can name two units with one label, each under a different parent.
+test('two new entities with one type and one label that cite different passages are two acts', async () => {
+  const vessel = { op: 'create_entity', type: 'vessel', label: 'Nayara' };
+  const batch = [
+    item('first', vessel, 'the tanker NAYARA'),
+    item('second', vessel, 'On 12 March 2024 the tanker NAYARA, of 41 200 dwt'),
+  ];
+  const found = await rolledBack('superuser', async (ask) => {
+    const first = batchOf(await proposeOnPage(ask, batch));
+    const again = batchOf(await proposeAgain(ask, batch));
+    return { first, again, rows: await rowsOfDocument(ask) };
+  });
+  const [one, two] = found.first.proposals;
+  expect(one?.proposalId).not.toBe(two?.proposalId);
+  expect(found.first.proposals.map((each) => each.written)).toStrictEqual([true, true]);
+  expect(found.again.proposals.map((each) => each.proposalId)).toStrictEqual(
+    found.first.proposals.map((each) => each.proposalId),
+  );
+  expect(found.again.proposals.map((each) => each.written)).toStrictEqual([false, false]);
+  expect(found.rows).toHaveLength(2);
+});
+
 const KEYED = `SELECT e.id::text AS id, k.key, e.attrs -> k.key -> 'v' #>> '{}' AS value
   FROM api.entity e CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS k(key)
   WHERE jsonb_typeof(e.attrs -> k.key -> 'v') = 'string'
