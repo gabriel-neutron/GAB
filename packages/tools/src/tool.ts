@@ -71,6 +71,8 @@ export interface Reach {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */
   readonly refuses?: (address: string) => boolean;
+  /** The time in milliseconds that a fetch waits for a whole answer. The tool sets the default. */
+  readonly fetchTimeoutMs?: number;
   /** A check of each item by a model of another family, before the write. It gives the verdict
    * on each item that the checker answered. `checkMarks` says which items are written as
    * disputed. It throws a `CheckFailure` when no model could check the batch. */

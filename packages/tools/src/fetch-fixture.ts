@@ -15,6 +15,10 @@ interface Route {
   readonly body?: Uint8Array | string;
   /** The body goes out in chunks with no length, so only a count of the bytes can stop it. */
   readonly chunked?: boolean;
+  /** The server sends nothing and keeps the connection open, as a site that gives no answer. */
+  readonly silent?: boolean;
+  /** The server closes the connection before any answer. */
+  readonly drop?: boolean;
 }
 
 export interface Fixture {
@@ -32,6 +36,11 @@ export const startFixture = async (routes: Readonly<Record<string, Route>>): Pro
     const route = routes[path];
     if (route === undefined) {
       response.writeHead(404, { 'content-type': 'text/plain' }).end('absent');
+      return;
+    }
+    if (route.silent === true) return;
+    if (route.drop === true) {
+      request.socket.destroy();
       return;
     }
     const body = route.body ?? '';

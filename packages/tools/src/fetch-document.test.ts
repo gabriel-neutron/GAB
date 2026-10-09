@@ -48,6 +48,11 @@ HUGE_PNG.writeUInt32BE(10_000, 20);
 
 const HTML = '<html><head><title>A page</title></head><body><p>Text</p></body></html>';
 
+const CHALLENGE_PAGE_HTML =
+  '<html><head><title>Just a moment...</title></head><body><div id="challenge-running">' +
+  'Checking if the site connection is secure</div><script src="/cdn-cgi/challenge-platform/' +
+  'h/b/orchestrate/chl_page/v1"></script></body></html>';
+
 let fixture: Fixture;
 let base: string;
 
@@ -76,6 +81,19 @@ beforeAll(async () => {
       headers: { 'content-type': 'text/html' },
       body: '<html><head><title>Just a moment...</title></head><body><h1>Checking your browser before accessing the register of Example Port.</h1><p>Enable JavaScript and cookies to continue.</p></body></html>',
     },
+    // A Cloudflare challenge: a 403 with the page that asks the browser to run its script.
+    '/cloudflare': {
+      status: 403,
+      headers: { 'content-type': 'text/html', 'cf-mitigated': 'challenge' },
+      body: CHALLENGE_PAGE_HTML,
+    },
+    // AWS WAF: a 202 with an empty page.
+    '/waf': { status: 202, headers: { 'content-type': 'text/html' } },
+    '/empty.html': { headers: { 'content-type': 'text/html' } },
+    '/blank.txt': { headers: { 'content-type': 'text/plain' }, body: '  \n\t ' },
+    '/missing': { status: 404, headers: { 'content-type': 'text/html' }, body: 'absent' },
+    '/silent': { silent: true },
+    '/drop': { drop: true },
     '/soft-404': {
       headers: { 'content-type': 'text/html' },
       body: '<html><head><title>Example Port</title></head><body><h1>Page not found</h1><p>The register entry does not exist.</p></body></html>',
@@ -196,6 +214,70 @@ describe('the other refusals store nothing', () => {
       expect(store.puts).toStrictEqual([]);
     },
   );
+
+  test('a challenge page with a success status names the browser step', async () => {
+    expect(await refusalOf(`${base}/challenge`, fixtureReach(memoryStore()))).toMatch(
+      /store_saved_file/,
+    );
+  });
+
+  test('a missing page names no browser step', async () => {
+    expect(await refusalOf(`${base}/soft-404`, fixtureReach(memoryStore()))).not.toMatch(
+      /store_saved_file/,
+    );
+    expect(await refusalOf(`${base}/missing`, fixtureReach(memoryStore()))).not.toMatch(
+      /store_saved_file/,
+    );
+  });
+});
+
+describe('a bot filter or a silent server gives a refusal that names the next step', () => {
+  test('a 403 with a Cloudflare challenge: open the page in a browser, store_saved_file', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/cloudflare`, fixtureReach(store));
+    expect(refusal).toMatch(/answered 403/);
+    expect(refusal).toMatch(/bot filter/);
+    expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a 202 with an empty page (AWS WAF): open the page in a browser, store_saved_file', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/waf`, fixtureReach(store));
+    expect(refusal).toMatch(/answered 202 with a page that holds no text/);
+    expect(refusal).toMatch(/AWS WAF/);
+    expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test.each(['/empty.html', '/blank.txt'])(
+    'a 200 with no text is refused, and nothing is stored: %s',
+    async (path) => {
+      const store = memoryStore();
+      const refusal = await refusalOf(`${base}${path}`, fixtureReach(store));
+      expect(refusal).toMatch(/holds no text/);
+      expect(refusal).toMatch(/store_saved_file/);
+      expect(store.puts).toStrictEqual([]);
+    },
+  );
+
+  test('no answer within the time: the browser step, then the list of needs', async () => {
+    const store = memoryStore();
+    const reach: Reach = { ...fixtureReach(store), fetchTimeoutMs: 300 };
+    const refusal = await refusalOf(`${base}/silent`, reach);
+    expect(refusal).toMatch(/no whole answer within 0\.3 seconds/);
+    expect(refusal).toMatch(/store_saved_file/);
+    expect(refusal).toMatch(/research\/out\/needs\.md/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a connection closed with no answer: the browser step, then the list of needs', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/drop`, fixtureReach(store));
+    expect(refusal).toMatch(/could not be reached/);
+    expect(refusal).toMatch(/research\/out\/needs\.md/);
+    expect(store.puts).toStrictEqual([]);
+  });
 
   test('a type from which no text is read', async () => {
     const store = memoryStore();
