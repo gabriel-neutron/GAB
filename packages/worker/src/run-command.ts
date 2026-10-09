@@ -8,12 +8,11 @@ import { Pool } from 'pg';
 
 import { agentAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
-import { makeExtractor } from './extractor/extractor.ts';
+import { extractorAgentOf } from './extractor/extractor.ts';
 import { leadAgentOf } from './lead/lead.ts';
 import { makeLoader } from './loader/loader.ts';
 import { mapperAgentOf } from './mapper/mapper.ts';
 import { raterAgentOf } from './rater/rater.ts';
-import { readExtractorConfig } from './reader-config.ts';
 import { openRunner } from './runner.ts';
 
 /** Takes the queued jobs one at a time until a stop signal. This is the one sub-command that
@@ -24,9 +23,9 @@ export const runCommand: SubCommand = async () => {
   const stop = new AbortController();
   for (const name of ['SIGINT', 'SIGTERM'] as const) process.once(name, () => stop.abort());
 
-  // The configuration is read at the start, so a value of the extractor that is absent stops the
-  // start with its name and claims nothing. A lead setting that is absent fails each lead and
-  // stops no extraction.
+  // The configuration is read at the start. A value of one agent that is absent or wrong writes
+  // one line with its name, and fails each job of that agent with that reason. The other agents
+  // run.
   const stores: RawStore[] = [];
   // The loader writes one report for each load, so it opens the store when it first writes.
   const loaderStore = (): RawStore => {
@@ -36,7 +35,7 @@ export const runCommand: SubCommand = async () => {
   };
   let reportStore: RawStore | undefined;
   const agents = [
-    makeExtractor(readExtractorConfig(process.env)),
+    extractorAgentOf(process.env),
     mapperAgentOf(process.env),
     raterAgentOf(process.env),
     makeLoader({
