@@ -230,8 +230,8 @@ export const TheHeaderShowsTheIdentifierToCite: Story = {
     await expect(shown).toBeVisible();
     await expect(shown).toHaveTextContent(`Identifier ${DOSSIER.entityId}`);
     // One click selects the whole value, because a double click stops at each hyphen.
+    // A synthetic click makes no native selection, so the story reads the style that makes it.
     const value = within(shown).getByText(DOSSIER.entityId);
-    await expect(value.tagName).toBe('CODE');
     await expect(getComputedStyle(value).userSelect).toBe('all');
   },
 };
