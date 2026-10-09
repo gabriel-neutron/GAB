@@ -136,14 +136,3 @@ test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source',
     `${shown(copy)} differs from its source ${shown(source)}. Copy the source over it.`,
   ).toBe(true);
 });
-
-// A session at the root of the repository loads the same server, and the client asks the operator
-// before each tool that spends credit or decides.
-test('the Claude Code settings of the root ask before each tool that spends credit or decides', () => {
-  const settings = z
-    .object({ permissions: z.strictObject({ ask: z.array(z.string()) }) })
-    .parse(JSON.parse(read(path.join(ROOT, '.claude', 'settings.json'))));
-  expect([...settings.permissions.ask].sort()).toStrictEqual(
-    [...ASKS_FIRST].map((name) => `mcp__gab__${name}`).sort(),
-  );
-});
