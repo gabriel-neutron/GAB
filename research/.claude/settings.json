@@ -4,6 +4,7 @@
       "mcp__gab__archive_snapshot",
       "mcp__gab__companies_house",
       "mcp__gab__document_text",
+      "mcp__gab__eu_act",
       "mcp__gab__fetch_document",
       "mcp__gab__file_schema_sample",
       "mcp__gab__find_document",
