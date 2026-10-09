@@ -19,3 +19,6 @@
 *.ico  binary
 *.pdf  binary
 *.zip  binary
+
+# A fixture in windows-1251 must keep its bytes as they are.
+packages/text/fixtures/windows-1251.html -text
