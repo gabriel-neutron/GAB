@@ -20,6 +20,10 @@ export default interface Entity {
   created_at: string | null;
 
   updated_at: string | null;
+
+  origin_label: string | null;
+
+  attr_labels: unknown;
 }
 
 export const entity = z.object({
@@ -33,4 +37,6 @@ export const entity = z.object({
   promoted_from: z.uuid().nullable(),
   created_at: z.string().nullable(),
   updated_at: z.string().nullable(),
+  origin_label: z.string().nullable(),
+  attr_labels: z.unknown(),
 });

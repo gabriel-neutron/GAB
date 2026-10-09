@@ -77,6 +77,11 @@ and a cache protect the public read. It shows the record and the candidate layer
 rejected proposal, no job, no lead and no model call. The machine roles read through their own
 grants.
 
+Each public claim carries its label, in the fixed words of `decisions.md` PU1, and each value of
+an element carries the label of the act that last set it. The database writes the words, so the
+read API, the screen and an export give the same label. The read API also gives the disclaimer of
+the dataset beside the data, and an export file copies it.
+
 ## The write path
 
 ```

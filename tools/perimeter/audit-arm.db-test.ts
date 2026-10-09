@@ -310,6 +310,7 @@ const READ_HOLDS = `
    ORDER BY 1`;
 
 const READ_VIEWS = [
+  'api.dataset SELECT',
   'api.document SELECT',
   'api.document_provider SELECT',
   'api.entity SELECT',
@@ -321,7 +322,7 @@ const READ_VIEWS = [
   'api.relation_type SELECT',
 ];
 
-test('gabriel_read holds SELECT on the nine public api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the ten public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 

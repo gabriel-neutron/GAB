@@ -32,6 +32,50 @@ test('the read service counts the acts the committed fixture leaves waiting', as
   });
 });
 
+// PU1: a reader of the read API gets the disclaimer of the dataset with the data. The text is
+// the exact text of the operator, so a copy of the data can carry it word for word.
+const DISCLAIMER = [
+  '**About this data.** A machine reads public documents and proposes each claim. Each claim ' +
+    'cites the documents that state it, and each claim carries a label that tells who decided it.',
+  '',
+  '- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not ' +
+    'evidence.',
+  '- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited ' +
+    'sources. No person read it. Nobody has measured the accuracy of the rules yet.',
+  '- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read ' +
+    'it.',
+  '- **Validated manually by the operator:** the operator read the sources and accepted the claim.',
+  '',
+  'A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a ' +
+    'person beyond what a cited source already publishes. Each row carries its label: when you ' +
+    'copy a row, copy its label with it.',
+  '',
+  'Report an error: `<link>`. Right of reply: `<link>`.',
+].join('\n');
+
+test('the read service gives the disclaimer of the dataset', async () => {
+  const answer = await askReadApi('dataset');
+  expect({ status: answer.status, rows: answer.rows }).toStrictEqual({
+    status: 200,
+    rows: [{ disclaimer: DISCLAIMER }],
+  });
+});
+
+const labelled = z.array(
+  z.strictObject({ origin_label: z.string(), attr_labels: z.record(z.string(), z.string()) }),
+);
+
+test('the read service gives each claim with its label', async () => {
+  const [entities, relations, proposals] = await Promise.all([
+    askReadApi('entity?select=origin_label,attr_labels&limit=1'),
+    askReadApi('relation?select=origin_label,attr_labels&limit=1'),
+    askReadApi('proposal?select=origin_label&status=eq.pending&limit=1'),
+  ]);
+  expect(labelled.parse(entities.rows)).toHaveLength(1);
+  expect(labelled.parse(relations.rows)).toHaveLength(1);
+  expect(proposals.rows).toStrictEqual([{ origin_label: 'Proposed — not checked' }]);
+});
+
 const names = z.array(z.object({ name: z.string() }));
 
 // A departure: the views and the doors are read from the catalogue and never written by hand, so

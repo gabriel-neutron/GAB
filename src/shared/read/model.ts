@@ -232,6 +232,10 @@ export interface Proposal {
   /** Who or what decided the act: the name and the version of a rule, "validated manually by
    * the operator", or "decided by an AI reviewer". An older decision has none. */
   readonly decisionOrigin: string | null;
+  /** The label of the claim for a reader (PU1): fixed words that tell who decided the act, and
+   * the day. A candidate reads "Proposed — not checked". The record writes the words, and a
+   * screen shows them as they are. */
+  readonly originLabel: string | null;
   /** The group of a machine act: the acts of one call that name each other. It is a label and
    * a filter. A single act has none. */
   readonly batchId: string | null;
