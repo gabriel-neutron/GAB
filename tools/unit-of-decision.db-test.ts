@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { ORIGINATOR, TITLE } from './import-v1.ts';
+import { ORIGINATOR, TITLE } from './v1-orbat.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_unit_of_decision';

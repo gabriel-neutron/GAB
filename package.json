@@ -27,7 +27,6 @@
     "stack:up": "node tools/stack.ts up",
     "stack:down": "node tools/stack.ts down",
     "load:claims": "node --env-file=infra/.env tools/load-claims.ts",
-    "import:v1": "node --env-file=infra/.env tools/import-v1.ts",
     "test": "node --env-file-if-exists=infra/.env node_modules/vitest/vitest.mjs run",
     "test:fast": "node --env-file=tools/offline.env node_modules/vitest/vitest.mjs run --project offline",
     "test:most": "node --env-file-if-exists=infra/.env node_modules/vitest/vitest.mjs run --project storybook --project offline --project store --project writer --project worker --project tools --project mcp --project contract --project schema --project perimeter --project corpus --project service",
