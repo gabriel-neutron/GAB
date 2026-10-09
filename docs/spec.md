@@ -125,6 +125,15 @@ keeps no check until a later check. A later extraction of the document, or the s
 research AI, gives that check. The first check of an act stays.
 Every model call goes to OpenRouter and is recorded.
 
+Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
+the door and the checker never read it. Code drops a type outside the vocabulary, a group of
+countries given as a state body, a concept given as a legal act, and an entity that the job
+already proposed. Code drops a person unless the same batch designates the person, or names the
+person as a director, an officer or an owner. Code drops the e-mail address of a person that stays.
+A relation that names a dropped item is dropped too. The log keeps the count of drops for each
+reason. Each rule decides from the words of the answer alone, so a live run on real documents
+measures what it costs in lost facts.
+
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,
 the claims of that part are lost. The job keeps the count of refused parts and the first refusal,
 and its status shows them to the operator and to the research AI. A job with every part refused

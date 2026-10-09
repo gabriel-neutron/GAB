@@ -25,10 +25,11 @@ import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
+import { screenBatch } from './screen.ts';
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v8';
+const VERSION = 'v9';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -118,6 +119,9 @@ export const makeExtractor = (
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
     let turns = 0;
+    // The entities that the parts of this job proposed, and the count of each drop of code.
+    const seen = new Set<string>();
+    const dropped: Record<string, number> = {};
 
     const ask = async (
       messages: readonly Message[],
@@ -232,13 +236,23 @@ export const makeExtractor = (
           messages.push(...(await turnOf(asked.call)));
           continue;
         }
-        if (asked.value.items.length === 0) return null;
+        // Code drops each item that a rule can refuse, so the door and the checker never read
+        // it. The drops of an answer count once, when the answer is the last of its part.
+        const screened = screenBatch(asked.value.items, words, seen);
+        const counted = (): void => {
+          for (const [reason, count] of Object.entries(screened.dropped))
+            dropped[reason] = (dropped[reason] ?? 0) + count;
+        };
+        if (screened.items.length === 0) {
+          counted();
+          return null;
+        }
         const proposer = tools.propose(asked.callId);
         let verdicts: ReadonlyMap<string, CheckVerdict> = new Map();
         const made = await callTool(
           proposer,
           session,
-          { items: asked.value.items },
+          { items: screened.items },
           {
             now: () => new Date(),
             check: async (items) => (verdicts = await check(items)),
@@ -246,9 +260,12 @@ export const makeExtractor = (
         );
         if (made.ok) {
           await recordChecks(made.output, verdicts);
+          for (const key of screened.proposed) seen.add(key);
+          counted();
           return null;
         }
         if (retries === 0) {
+          counted();
           refusals.push({ tool: proposer.name, reason: made.refusal });
           return made.refusal;
         }
@@ -278,6 +295,7 @@ export const makeExtractor = (
     return {
       refusals,
       parts: { parts: chunks.length, refused: refused.length, firstRefusal: refused[0] ?? null },
+      dropped,
     };
   };
 
