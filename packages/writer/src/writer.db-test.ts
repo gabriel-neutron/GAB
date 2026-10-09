@@ -1062,7 +1062,7 @@ test('the writer passes the filters to the queue, and counts the units they keep
 });
 
 // The page parser of the review needs each key of the page. A key that the writer drops makes
-// every page unreadable, and the review shows the Doubts and Waiting lanes as closed.
+// every page unreadable, and the review shows an error on the Doubts and Waiting lanes.
 test('the writer gives the page of the queue as the record gives it, with the count of each lane', async () => {
   const record = await one(
     'SELECT public.review_units(NULL::text[], 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS page',
@@ -1072,12 +1072,11 @@ test('the writer gives the page of the queue as the record gives it, with the co
   expect(answer.status).toBe(200);
   const given: unknown = await answer.json();
   expect(given).toStrictEqual(record['page']);
-  const lanes = z.object({
-    decided: z.number().int(),
-    doubt: z.number().int(),
-    waiting: z.number().int(),
-  });
-  expect(lanes.safeParse((given as { counts?: unknown }).counts).success).toBe(true);
+  const lanes = z
+    .object({ counts: z.object({ doubt: z.number().int(), waiting: z.number().int() }) })
+    .parse(given);
+  expect(lanes.counts.doubt).toBeGreaterThan(0);
+  expect(lanes.counts.waiting).toBeGreaterThan(0);
 
   for (const lane of ['doubt', 'waiting'] as const) {
     const kept = await askUnitsFrom({ after: null, size: 1, filter: { lane } });
