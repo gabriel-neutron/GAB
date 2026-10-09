@@ -35,8 +35,11 @@ so that the file stays not public.
 
 `pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
 values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and
-`CHECKER_FAMILY` must name two different model families. The worker does not start when they are
-the same.
+`CHECKER_FAMILY` must name two different model families. When an `EXTRACTOR_` or a `CHECKER_`
+value is absent or wrong, or the two families are the same, the worker starts and writes one line
+that says "the extractor is not set up" with the name of the value. Each extraction job then fails
+with that reason, and the other agents run. The mapper, the rater and the lead agent do the same
+with their values.
 
 The MCP server of the research session asks the same checker for each batch that the research AI
 proposes. The server reads these values from `infra/.env`, from any start folder:
