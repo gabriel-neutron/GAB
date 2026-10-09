@@ -131,6 +131,7 @@ REVOKE ALL ON FUNCTION new_author(text,text,text,text,text[],text,boolean,boolea
 REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
