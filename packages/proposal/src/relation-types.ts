@@ -41,6 +41,9 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('flagged_falsely', 'flagged falsely', 'is flagged falsely by', false),
   relationType('contradicts', 'contradicts', 'is contradicted by', false),
   relationType('subordinate_to', 'subordinate to', 'is superior to', false),
+  // A list says that two parties are linked, and it does not say how: an OFAC "Linked To" remark,
+  // or the words "associated with" in a UK or EU entry.
+  relationType('associated_with', 'associated with', 'is associated with', false),
   // The fallback. A word that fits no live type lands here and is kept beside the row, so a
   // missing word never fails the promotion.
   relationType('unknown', 'is linked to', 'is linked to', false),
