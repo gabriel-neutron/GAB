@@ -28,6 +28,7 @@ const MODEL = 'stub-family/stub-model';
 const CHECKER = 'other-family/check-model';
 const PAGE = 'The tanker Nayara left Sikka.';
 const LABEL = 'Nayara';
+const ORIGINATOR = 'The port authority';
 const WORKER = fileURLToPath(new URL('./main.ts', import.meta.url));
 
 // A run of the suite writes rows that the ledger keeps, so each run takes documents of its own.
@@ -57,7 +58,7 @@ const claimOf = (body: string): string => {
       {
         ref: 'vessel',
         act: { op: 'create_entity', type: 'vessel', label: LABEL },
-        originator: 'The port authority',
+        originator: ORIGINATOR,
         modality: 'asserts',
         evidence: [{ document, page: 1, excerpt: `tanker ${LABEL}` }],
       },
@@ -292,6 +293,9 @@ const LEDGER_TRIGGERS = [
 
 // The lead names no document, so its rows are found by its text.
 const LEAD_JOBS = 'SELECT id FROM public.jobs WHERE lead = $1';
+// A proposal of a new author queues a job that rates the author. That job names no document.
+const RATER_JOBS = `SELECT id FROM public.jobs
+  WHERE kind = 'rate_author' AND author = public.name_key($1)`;
 
 const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
   await db.query('BEGIN');
@@ -301,6 +305,8 @@ const deleteRowsOf = async (documents: readonly string[]): Promise<void> => {
     await db.query(`DELETE FROM public.model_call WHERE job_id IN (${LEAD_JOBS})`, [LEAD]);
     await db.query(`DELETE FROM public.lead_document WHERE job_id IN (${LEAD_JOBS})`, [LEAD]);
     await db.query('DELETE FROM public.jobs WHERE lead = $1', [LEAD]);
+    await db.query(`DELETE FROM public.model_call WHERE job_id IN (${RATER_JOBS})`, [ORIGINATOR]);
+    await db.query(`DELETE FROM public.jobs WHERE id IN (${RATER_JOBS})`, [ORIGINATOR]);
     const jobIds = `SELECT id FROM public.jobs WHERE document_id = ANY($1::text[])`;
     await db.query('DELETE FROM public.citation WHERE doc_id = ANY($1::text[])', [documents]);
     // The second check of an act names its proposal, so it goes first.
