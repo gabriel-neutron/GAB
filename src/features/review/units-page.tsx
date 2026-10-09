@@ -1,6 +1,8 @@
 import type { Decision } from '@gab/proposal/request';
 import { useState } from 'react';
 
+import { cn } from '@/shared/lib/utils';
+
 import { ChangeList, type RelationAct } from './change-list';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
 import { decisionWords } from './decision-words';
@@ -63,7 +65,8 @@ const IDLE: DecisionState = { step: 'idle' };
 
 /** The review queue in three columns: the units, the changes of one unit with its decision, and
  * why it waits. Each column scrolls on its own, so the page itself never scrolls under the
- * lists. */
+ * lists. Below a width of 48rem the columns stack: the list keeps its own scroll at a capped
+ * height, and the page scrolls to the unit and its justification below it. */
 export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
   // The aim dies with the view: a reload aims at the whole unit again.
   const [aim, setAim] = useState<Aim | null>(null);
@@ -136,65 +139,71 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
   };
 
   return (
-    <div
-      data-units-page
-      className="grid h-full min-h-0 grid-cols-[clamp(16rem,26%,22rem)_minmax(0,1fr)_clamp(15rem,28%,26rem)] overflow-hidden"
-    >
-      <div className="flex min-h-0 flex-col border-r border-border">
-        <LaneBar
-          lane={view.filter.lane}
-          counts={view.counts}
-          onLane={(lane) => {
-            onAct({ kind: 'filter', patch: { lane } });
-          }}
-        />
-        <QueueFilterBar
-          filter={view.filter}
-          choices={view.choices}
-          onFilter={(patch) => {
-            onAct({ kind: 'filter', patch });
-          }}
-        />
-        <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
-      </div>
-      <div className="flex min-h-0 flex-col">
-        {view.decision.step === 'done' ? (
-          <p
-            role="status"
-            data-said="done"
-            className="shrink-0 border-b border-border px-3 py-1 text-xs text-label"
-          >
-            {view.decision.said}
-          </p>
-        ) : null}
-        {lost?.state === 'gone' ? (
-          <p data-said="gone" className="p-3 text-xs">
-            This unit is not in the queue. It was decided, or the address names no unit. Choose a
-            unit on the left.
-          </p>
-        ) : lost?.state === 'failed' ? (
-          <p data-said="failed" className="p-3 text-xs text-label">
-            {lost.why}
-          </p>
-        ) : (
-          <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
+    // The columns follow the width of the page, not of the window.
+    <div className="@container h-full">
+      <div
+        data-units-page
+        className={cn(
+          'h-full overflow-y-auto overscroll-contain',
+          '@3xl:grid @3xl:min-h-0 @3xl:grid-cols-[clamp(16rem,26%,22rem)_minmax(0,1fr)_clamp(15rem,28%,26rem)] @3xl:overflow-hidden',
         )}
-        {unit === null ? null : (
-          <DecisionBar
-            key={`${unit.id} ${aimed ?? ''}`}
-            said={decisionWords(unit, words, aimed)}
-            aimed={aimed !== null}
-            state={
-              view.decision.step !== 'idle' && view.decision.unitId === unit.id
-                ? view.decision
-                : IDLE
-            }
-            onAct={onBar}
+      >
+        <div className="flex max-h-[60dvh] flex-col border-b border-border @3xl:max-h-none @3xl:min-h-0 @3xl:border-r @3xl:border-b-0">
+          <LaneBar
+            lane={view.filter.lane}
+            counts={view.counts}
+            onLane={(lane) => {
+              onAct({ kind: 'filter', patch: { lane } });
+            }}
           />
-        )}
-      </div>
-      <div className="flex min-h-0 flex-col border-l border-border">
-        <Justification unit={unit} />
+          <QueueFilterBar
+            filter={view.filter}
+            choices={view.choices}
+            onFilter={(patch) => {
+              onAct({ kind: 'filter', patch });
+            }}
+          />
+          <UnitList queue={view.queue} selectedId={unit?.id ?? null} words={words} onAct={onAct} />
+        </div>
+        <div className="flex flex-col @3xl:min-h-0">
+          {view.decision.step === 'done' ? (
+            <p
+              role="status"
+              data-said="done"
+              className="shrink-0 border-b border-border px-3 py-1 text-xs text-label"
+            >
+              {view.decision.said}
+            </p>
+          ) : null}
+          {lost?.state === 'gone' ? (
+            <p data-said="gone" className="p-3 text-xs">
+              This unit is not in the queue. It was decided, or the address names no unit. Choose a
+              unit on the left.
+            </p>
+          ) : lost?.state === 'failed' ? (
+            <p data-said="failed" className="p-3 text-xs text-label">
+              {lost.why}
+            </p>
+          ) : (
+            <ChangeList unit={unit} words={words} aimed={aimed} onRelation={onRelation} />
+          )}
+          {unit === null ? null : (
+            <DecisionBar
+              key={`${unit.id} ${aimed ?? ''}`}
+              said={decisionWords(unit, words, aimed)}
+              aimed={aimed !== null}
+              state={
+                view.decision.step !== 'idle' && view.decision.unitId === unit.id
+                  ? view.decision
+                  : IDLE
+              }
+              onAct={onBar}
+            />
+          )}
+        </div>
+        <div className="flex flex-col border-t border-border @3xl:min-h-0 @3xl:border-t-0 @3xl:border-l">
+          <Justification unit={unit} />
+        </div>
       </div>
     </div>
   );
