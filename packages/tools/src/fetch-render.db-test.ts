@@ -68,6 +68,20 @@ const DRAWN_CHALLENGE =
   "document.getElementById('out').textContent = 'Checking your browser. Run " +
   "${RUN}.';</script></body></html>";
 
+// A short page with text of its own, and a script that adds the words of a bot challenge.
+const MIXED =
+  '<html><head><title>Council decision</title></head><body><p>Council decision ' +
+  `${RUN} of 2026 lists ten vessels.</p><div id="out"></div><script>` +
+  "document.getElementById('out').textContent = 'Checking your browser before you continue.';" +
+  '</script></body></html>';
+
+// AWS WAF: a 202 whose page holds only a script, and the script draws no text here.
+const WAF_SHELL =
+  '<html><head><title></title><script>window.awsWafCookieDomainList = [];' +
+  "window.gokuProps = { key: 'run-" +
+  RUN +
+  '\' };</script></head><body><div id="challenge-container"></div></body></html>';
+
 let fixture: Fixture;
 let base: string;
 
@@ -79,6 +93,8 @@ beforeAll(async () => {
     '/private': { headers: html, body: PRIVATE },
     '/missing-file': { headers: html, body: MISSING },
     '/drawn-challenge': { headers: html, body: DRAWN_CHALLENGE },
+    '/mixed': { headers: html, body: MIXED },
+    '/waf': { status: 202, headers: html, body: WAF_SHELL },
     '/secret': { headers: { 'content-type': 'text/plain' }, body: SECRET },
   });
   base = `http://${FIXTURE_HOST}:${fixture.port}`;
@@ -227,14 +243,44 @@ test('a file of the page that is absent is not counted as a private address', as
   });
 });
 
-test('a render that draws a bot challenge is not stored, and the plain page comes back', async () => {
+const refusalOf = async (ask: Ask, url: string, reach: Reach): Promise<string> => {
+  const outcome = await callTool(fetchDocument, sessionOf(ask), { url }, reach);
+  if (outcome.ok) throw new Error(`fetch_document took ${url}, and it had to refuse it`);
+  return outcome.refusal;
+};
+
+test('a page whose render draws a bot challenge is refused, and nothing is stored', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
-    const got = await fetched(ask, { url: `${base}/drawn-challenge` }, fixtureReach(store));
+    const refusal = await refusalOf(ask, `${base}/drawn-challenge`, fixtureReach(store));
+    expect(refusal).toMatch(/the page is a challenge/);
+    expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+    expect(await rowOf(ask, shaOf(DRAWN_CHALLENGE))).toHaveLength(0);
+  });
+});
+
+test('a 202 whose page holds no text, also after the render, is refused, and nothing is stored', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const refusal = await refusalOf(ask, `${base}/waf`, fixtureReach(store));
+    expect(refusal).toMatch(/answered 202 with a page that holds no text, also after the render/);
+    expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+    expect(await rowOf(ask, shaOf(WAF_SHELL))).toHaveLength(0);
+  });
+});
+
+test('a short page with its own text keeps that text when its render draws a bot challenge', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, { url: `${base}/mixed` }, fixtureReach(store));
     expect(got.rendered).toBeNull();
-    expect(got.notice).toMatch(/the render was not stored: the page is a challenge/);
-    expect(got.pages.map((page) => page.text).join('')).not.toContain('Checking your browser');
+    expect(got.pages[0]?.text).toContain(`Council decision ${RUN} of 2026 lists ten vessels.`);
+    expect(got.notice).toMatch(/the render was not stored: it shows a challenge/);
     expect(store.puts).toHaveLength(1);
-    expect(await rowOf(ask, shaOf(DRAWN_CHALLENGE))).toHaveLength(1);
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).toBe(MIXED);
+    const [plain] = await rowOf(ask, shaOf(MIXED));
+    expect(plain?.id).toBe(got.document);
   });
 });

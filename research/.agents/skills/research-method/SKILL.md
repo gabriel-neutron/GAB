@@ -121,7 +121,15 @@ answer (a timeout, often a state site that refuses foreign addresses). Try these
 and stop at the first that stores the full text:
 
 1. `fetch_document` on the address. The tool renders a page with JavaScript when its text is
-   short. Check that the stored text holds the content, and not a challenge or an empty page.
+   short. It refuses a challenge page and a page with no text (also an empty 202), and it stores
+   nothing for them. Read the refusal: it names the next step.
+
+   | Refusal | Usual cause | Next step |
+   |---|---|---|
+   | The server answered 403 (or 429, 503): a bot filter | A Cloudflare challenge | Steps 2 and 3, then the browser (step 4) |
+   | A 202 or a 200 with no text, or a challenge page | AWS WAF, or a script that draws a challenge | Steps 2 and 3, then the browser (step 4) |
+   | No whole answer within the time, or no connection | A state site that refuses foreign addresses | The browser (step 4); if it gets no answer either, the list of needs (step 5) |
+   | The server answered 404 or 410, or the page says it is missing | The address is wrong or old | Steps 2 and 3 |
 2. `archive_snapshot` on the address lists the captures of the web archive. It stores nothing.
    Call `fetch_document` on the address of the newest capture, and cite that document. An address
    with a query string has no capture.

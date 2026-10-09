@@ -28,6 +28,10 @@ const MISSING = [
   /no longer (?:available|exists?)/iu,
 ] as const;
 
+/** The sentence for a page that a bot filter or a refusal gave in place of the source. */
+export const CHALLENGE_PAGE =
+  'the page is a challenge of a bot filter or a refusal, and it is not the page of the source';
+
 /** True for a page of HTML, also when it is written as XML (XHTML). */
 export const isHtml = (mime: string): boolean =>
   mime === 'text/html' || mime === 'application/xhtml+xml';
@@ -37,8 +41,7 @@ export const unreadablePage = (mime: string, pages: readonly string[]): string |
   if (!isHtml(mime)) return null;
   const text = pages.join('\n').trim();
   if (text.length > SHORT_PAGE) return null;
-  if (CHALLENGE.some((word) => word.test(text)))
-    return 'the page is a challenge of a bot filter or a refusal, and it is not the page of the source';
+  if (CHALLENGE.some((word) => word.test(text))) return CHALLENGE_PAGE;
   if (MISSING.some((word) => word.test(text)))
     return 'the page says it is missing, although the server answered with a success, and it is not the page of the source';
   return null;
