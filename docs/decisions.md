@@ -416,3 +416,16 @@ publishes. A unit stays hidden until it has its own citation. Each page gives th
 an error" and "Right of reply".
 **Accepted.** Every name that a cited source gives can be public. The operator accepts the legal
 risk of an anonymous publisher.
+**The label (9 October 2026).** The label tells who decided a claim, in fixed words: "Proposed —
+not checked", "Accepted by rule <name> v<n> — no person read it", "Accepted by an AI reviewer —
+no person read it", "Validated manually by the operator". It shows no NATO letter and no rating digit (S1).
+- On a screen, the origin shows one time for each entity. On a claim, a number points to the
+  source card. This pointer is enough.
+- The label is part of the public data, not only of the screen. Each public claim carries it, each
+  export copies it, and each export file holds the disclaimer of the dataset. The label must
+  survive export and reuse.
+- The entity detail screen has no disclaimer of its own. The labels are enough.
+- An attribute key stays free (M11). A screen shows its readable name only by a fixed rule: each
+  underscore becomes a space, and the first letter becomes a capital.
+- A fact about a person is public only when at least one of its cited sources is a public
+  document. A private or bought file does not make a fact about a person public.
