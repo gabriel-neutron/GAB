@@ -45,6 +45,8 @@ test('the arguments hold the paths, the date, the kind and the title', () => {
       kind: 'report',
       title: undefined,
       uri: undefined,
+      providerId: undefined,
+      costEur: undefined,
       dryRun: false,
     },
     walk: { recursive: false, include: ['*.pdf'] },
@@ -63,6 +65,28 @@ test('a file with no address is refused, and the refusal asks for the address', 
   expect(() =>
     parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', 'ftp://example.org/a'),
   ).toThrow(/--uri/u);
+});
+
+// A bought file stays not public, so the command records its cost and its provider as the
+// upload form does.
+test('the cost and the provider of a bought file are read and checked', () => {
+  const day = ['--retrieved-at', '2026-09-01', '--uri', 'https://example.org/a'];
+  expect(
+    parsed('a.pdf', ...day, '--cost-eur', '12.5', '--provider', ' mca21 ').options,
+  ).toMatchObject({ costEur: '12.50', providerId: 'mca21' });
+  expect(parsed('a.pdf', ...day, '--cost-eur', '0').options).toMatchObject({ costEur: '0.00' });
+  for (const cost of ['-1', 'abc', '1.234', '', '12345678901'])
+    expect(() => parsed('a.pdf', ...day, '--cost-eur', cost)).toThrow(/--cost-eur/u);
+  expect(() => parsed('a.pdf', ...day, '--provider', ' ')).toThrow(/--provider/u);
+});
+
+test('the run gives the cost and the provider to the row', async () => {
+  const { door, calls } = doorOf();
+  const bought = { ...OPTIONS, uri: 'https://example.org/a', providerId: 'mca21', costEur: '9.90' };
+  const [outcome] = await ingestFiles(door, [join(folder, 'two.txt')], bought);
+  expect(outcome?.status).toBe('stored');
+  const put = calls.find((c) => c.text.includes('put_document('));
+  expect(put?.values?.slice(-2)).toStrictEqual(['mca21', '9.90']);
 });
 
 test('an address names one file', () => {
@@ -177,6 +201,8 @@ const OPTIONS = {
   kind: 'file',
   title: undefined,
   uri: undefined,
+  providerId: undefined,
+  costEur: undefined,
   dryRun: false,
 } as const;
 const only = async (door: IngestDoor, path: string): Promise<IngestOutcome> => {

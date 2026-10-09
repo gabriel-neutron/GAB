@@ -30,6 +30,7 @@ The worker is one command with four sub-commands: `pnpm worker run` takes the qu
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
+For a bought file, also give `--cost-eur` or `--provider`, so that the file stays not public.
 
 `pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
 values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and

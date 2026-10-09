@@ -21,6 +21,8 @@ const OPTIONS = {
   kind: 'file',
   title: undefined,
   uri: undefined,
+  providerId: undefined,
+  costEur: undefined,
   dryRun: false,
 } as const;
 
@@ -30,6 +32,9 @@ const BODIES = {
   'third.csv': 'ingest suite,third,file',
 } as const;
 const COPY = 'copy-of-first.txt';
+// PU1: an upload with its address is a public document, and a bought one is not.
+const SOURCED = { 'public-page.txt': 'ingest suite, a file from a public page' } as const;
+const BOUGHT = { 'bought.txt': 'ingest suite, a bought file' } as const;
 
 let folder = '';
 const puts: string[] = [];
@@ -42,10 +47,11 @@ const door: IngestDoor = {
 };
 
 const hashOf = (text: string): string => createHash('sha256').update(text).digest('hex');
-const ids = (): string[] => Object.values(BODIES).map((text) => `doc_${hashOf(text).slice(0, 12)}`);
+const idOf = (text: string): string => `doc_${hashOf(text).slice(0, 12)}`;
+const ids = (): string[] => Object.values(BODIES).map(idOf);
 
 const clean = async (): Promise<void> => {
-  const list = ids();
+  const list = [...ids(), ...Object.values(SOURCED).map(idOf), ...Object.values(BOUGHT).map(idOf)];
   await owner.query('DELETE FROM public.document_text WHERE document_id = ANY($1::text[])', [list]);
   await owner.query('DELETE FROM public.jobs WHERE document_id = ANY($1::text[])', [list]);
   await owner.query('DELETE FROM public.documents WHERE id = ANY($1::text[])', [list]);
@@ -54,7 +60,8 @@ const clean = async (): Promise<void> => {
 beforeAll(async () => {
   await clean();
   folder = await mkdtemp(join(tmpdir(), 'ingest-db-suite-'));
-  for (const [name, text] of Object.entries(BODIES)) await writeFile(join(folder, name), text);
+  for (const [name, text] of Object.entries({ ...BODIES, ...SOURCED, ...BOUGHT }))
+    await writeFile(join(folder, name), text);
   await writeFile(join(folder, COPY), BODIES['first.txt']);
 });
 afterAll(async () => {
@@ -113,4 +120,47 @@ test('two files with the same bytes and different names give one document', asyn
     [hashOf(BODIES['first.txt'])],
   );
   expect(count.rows).toStrictEqual([{ n: 1 }]);
+});
+
+const addressOf = async (id: string): Promise<unknown> =>
+  (
+    await owner.query<{ uri: unknown; open: boolean }>(
+      `SELECT d.uri, EXISTS (SELECT 1 FROM public.public_document p WHERE p.id = d.id) AS open
+         FROM public.documents d WHERE d.id = $1`,
+      [id],
+    )
+  ).rows[0];
+
+const PAGE = 'https://example.org/public-page';
+
+test('a file of the command with its address is public, and a bought one is not', async () => {
+  const [sourced] = await ingestFiles(door, paths('public-page.txt'), { ...OPTIONS, uri: PAGE });
+  expect(sourced?.status).toBe('stored');
+  expect(await addressOf(idOf(SOURCED['public-page.txt']))).toStrictEqual({
+    uri: PAGE,
+    open: true,
+  });
+
+  const bought = { ...OPTIONS, uri: 'https://example.org/shop', costEur: '25.00' };
+  const [paid] = await ingestFiles(door, paths('bought.txt'), bought);
+  expect(paid?.status).toBe('stored');
+  expect(await addressOf(idOf(BOUGHT['bought.txt']))).toStrictEqual({
+    uri: 'https://example.org/shop',
+    open: false,
+  });
+});
+
+test('a known file with no address gets the address, and another address is refused', async () => {
+  const id = idOf(SOURCED['public-page.txt']);
+  await owner.query('UPDATE public.documents SET uri = NULL WHERE id = $1', [id]);
+
+  const [filled] = await ingestFiles(door, paths('public-page.txt'), { ...OPTIONS, uri: PAGE });
+  expect(filled?.status).toBe('known');
+  expect(await addressOf(id)).toStrictEqual({ uri: PAGE, open: true });
+
+  const other = { ...OPTIONS, uri: 'https://example.org/another-page' };
+  const [refused] = await ingestFiles(door, paths('public-page.txt'), other);
+  expect(refused).toMatchObject({ status: 'refused' });
+  expect(refused?.reason).toMatch(/with another address/u);
+  expect(await addressOf(id)).toStrictEqual({ uri: PAGE, open: true });
 });

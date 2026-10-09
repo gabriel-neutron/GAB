@@ -160,6 +160,7 @@ REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 
@@ -176,6 +177,8 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
   TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
+-- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
+GRANT EXECUTE ON FUNCTION fill_document_uri(text,text) TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
