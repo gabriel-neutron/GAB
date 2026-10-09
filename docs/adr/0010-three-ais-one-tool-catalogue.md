@@ -213,7 +213,8 @@ code writes its proposals.
 - **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
   it needs. The token budget of the job is its one stop. A lead of the operator then fails with
   that reason. A deepening search ends well at its budget, because its budget is a choice of the
-  operator and not a fault, and the rules then judge its unit. The pages stored before the stop
+  operator and not a fault, and the rules then judge its unit. It keeps the reason, so the
+  operator sees that the budget stopped it. The pages stored before the stop
   stay stored.
 - **The lead is private.** Its text can name a party before a source supports it. Only the operator and the operator AI (through the MCP server) read the leads and what each one stored. The worker reads the text of the one lead that it claims.
 - **No schedule.** A person or the research AI starts each lead.

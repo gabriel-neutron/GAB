@@ -23,7 +23,8 @@ export const readLeads = defineTool({
   name: 'read_leads',
   description:
     'Reads the leads, the newest first: the text of each lead, the role that started it (the ' +
-    'operator or the research AI), its status, the reason of a failure, and the documents that ' +
+    'operator or the research AI), its status, the reason of a failure or of the stop of a ' +
+    'deepening search at its token budget (a done search), and the documents that ' +
     'it stored. find_document and list_proposals give what each document holds.',
   input: z.strictObject({}),
   output: z.strictObject({

@@ -162,10 +162,11 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
         );
       } catch (cause) {
         // A deepening search ends at its budget: that is its normal end, so the job is done and
-        // the rule judges the unit again. A lead of the operator has no budget, and the cap of
-        // the worker fails it with the reason.
+        // the rule judges the unit again. The row keeps the reason, so the operator sees the stop.
+        // A lead of the operator has no budget, and the cap of the worker fails it with the
+        // reason.
         if (job.tokenBudget !== null && cause instanceof JobStop && cause.reason === BUDGET_SPENT)
-          return { refusals };
+          return { refusals, stop: BUDGET_SPENT };
         throw cause;
       }
       // An answer that costs no token never spends the budget, and the budget is the one stop.

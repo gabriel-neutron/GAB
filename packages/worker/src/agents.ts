@@ -59,6 +59,9 @@ export interface AgentResult {
   readonly refusals: readonly Refusal[];
   /** Only an agent that reads in parts gives a count. */
   readonly parts?: PartCount;
+  /** The reason of a stop that is a good end, such as the budget of a deepening search. The job
+   * is done, and its row keeps this reason. */
+  readonly stop?: string;
 }
 
 /** What the runner gives to the agent of one job. */
