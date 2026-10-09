@@ -11,7 +11,7 @@ export interface Chunk {
 }
 
 /** Checks a chunk cap and gives it back. The configuration calls this at the start of the worker,
- * so a cap out of range stops the start and no job. */
+ * so a cap out of range fails each extraction job before it reads a chunk. */
 export const checkChunkCap = (cap: number): number => {
   if (!Number.isInteger(cap) || cap <= 0)
     throw new Error('the chunk cap is a whole number of code points above zero');
