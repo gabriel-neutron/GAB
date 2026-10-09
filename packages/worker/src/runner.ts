@@ -162,6 +162,12 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         job: job.id,
         refusals: result.refusals,
       });
+    if (result.dropped !== undefined && Object.keys(result.dropped).length > 0)
+      console.info('the agent dropped items', {
+        agent: agent.name,
+        job: job.id,
+        dropped: result.dropped,
+      });
     const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
     const { status } = ended.parse(
       (
