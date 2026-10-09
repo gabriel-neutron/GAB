@@ -7,6 +7,8 @@ const COMMANDS = {
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  'requeue-ratings': async () =>
+    (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
