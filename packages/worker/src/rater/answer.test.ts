@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { decide, type KnownAuthor, type RatingAnswer } from './answer.ts';
+import { decide, referenceNames, type KnownAuthor, type RatingAnswer } from './answer.ts';
 
 const author = (name: string, letter: string, extra: Partial<KnownAuthor> = {}): KnownAuthor => ({
   name,
@@ -93,4 +93,17 @@ test('a party with no controller is refused', () => {
 
 test('a rating with a blank reason is refused', () => {
   expect(decide('X', rating({ reason: '  ' }), AUTHORS)).toMatchObject({ kind: 'refused' });
+});
+
+test('only a comparison outside the reference set is marked for one more question', () => {
+  expect(decide('X', rating({ references: ['trade journal'] }), AUTHORS)).toMatchObject({
+    kind: 'refused',
+    outsideSet: true,
+  });
+  expect(decide('X', rating({ letter: 'A' }), AUTHORS)).not.toHaveProperty('outsideSet');
+  expect(decide('X', rating({ references: [] }), AUTHORS)).not.toHaveProperty('outsideSet');
+});
+
+test('the reference names are the names of the reference set alone', () => {
+  expect(referenceNames(AUTHORS)).toStrictEqual(['reuters', 'state register']);
 });
