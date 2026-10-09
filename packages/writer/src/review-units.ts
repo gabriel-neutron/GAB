@@ -38,8 +38,10 @@ const asked = z.strictObject({
   filter: filter.optional(),
 });
 
+// The page parser of the review reads each key of the page, so the writer keeps a key that it
+// does not name.
 const pageRow = z.object({
-  page: z.object({
+  page: z.looseObject({
     total: z.number().int(),
     matched: z.number().int(),
     before: z.number().int(),
