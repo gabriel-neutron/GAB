@@ -22,16 +22,5 @@
         ]
       }
     ]
-  },
-  "permissions": {
-    "ask": [
-      "mcp__gab__enqueue_extract",
-      "mcp__gab__enqueue_mapping",
-      "mcp__gab__start_lead",
-      "mcp__gab__promote_unit",
-      "mcp__gab__reject_unit",
-      "mcp__gab__reject_relation",
-      "mcp__gab__promote_clean_proposals"
-    ]
   }
 }
