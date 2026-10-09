@@ -20,6 +20,7 @@ const OPTIONS = {
   retrievedAt: '2026-09-01',
   kind: 'file',
   title: undefined,
+  uri: undefined,
   dryRun: false,
 } as const;
 

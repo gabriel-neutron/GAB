@@ -51,15 +51,16 @@ DROP VIEW IF EXISTS public.public_document;
 -- them with the rights of its owner. A function cannot do it: a function that a view calls runs
 -- with the rights of the caller, and gabriel_read holds nothing on public.
 
--- A PUBLIC DOCUMENT IS ONE THAT ANYONE CAN OPEN AT A PUBLIC ADDRESS: a web page (`url`) or a
--- public registry or API (`api`), with its address. An upload of the operator is a `file`, also
--- when it holds the same text or an address. A file of the private data repository, a load
--- report and a hand-entered value are not public either. A bought file is not public. A document
--- is a bought file when it has a cost, or when its provider sells its filings: a NULL cost means
--- that the cost is unknown, and not that the file is free.
+-- A PUBLIC DOCUMENT IS ONE THAT ANYONE CAN OPEN AT A PUBLIC ADDRESS: a web page (`url`), a
+-- public registry or API (`api`), or a file that the operator uploaded (`file`), each with its
+-- address. The ruling of 9 October 2026 after #403: a file that the operator uploads comes from
+-- the Internet, and the upload refuses it with no address. An old upload with no address stays
+-- not public, so the rule fails closed. A load report and a hand-entered value are not public. A
+-- bought file is not public. A document is a bought file when it has a cost, or when its provider
+-- sells its filings: a NULL cost means that the cost is unknown, and not that the file is free.
 CREATE VIEW public.public_document AS
   SELECT d.id FROM public.documents d
-   WHERE d.kind IN ('url','api')
+   WHERE d.kind IN ('url','api','file')
      AND btrim(coalesce(d.uri, ''), E' \t\n\r\f\v') <> ''
      AND coalesce(d.cost_eur, 0) = 0
      AND NOT EXISTS (SELECT 1 FROM public.document_provider v

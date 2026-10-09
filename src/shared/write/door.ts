@@ -149,7 +149,8 @@ export interface UploadBody {
   readonly title: string;
   readonly content: string;
   readonly retrievedAt: string;
-  readonly uri?: string;
+  /** The address where the file comes from (PU1). */
+  readonly uri: string;
   readonly providerId?: string;
   readonly costEur?: number;
 }

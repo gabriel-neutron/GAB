@@ -41,7 +41,7 @@ const openIt = async (): Promise<void> => {
 const fillAll = async (file: File): Promise<void> => {
   await userEvent.upload(panel().getByLabelText('File'), file);
   await userEvent.type(
-    panel().getByLabelText('Purchase or source page'),
+    panel().getByLabelText('Address where the file comes from'),
     'https://www.mca.gov.in/x',
   );
   await userEvent.type(panel().getByLabelText('Retrieved on'), '2026-10-01');
@@ -86,6 +86,17 @@ export const AFormWithNoDateIsRefused: Story = {
     await openIt();
     await userEvent.upload(panel().getByLabelText('File'), filing());
     await expect(uploadLine()).toHaveTextContent('Write the day the file was retrieved.');
+    await expect(panel().getByRole('button', { name: 'Upload' })).toBeDisabled();
+  },
+};
+
+// PU1: a file of the operator comes from the Internet, and the dialog asks where.
+export const AFormWithNoAddressIsRefused: Story = {
+  play: async () => {
+    await openIt();
+    await userEvent.upload(panel().getByLabelText('File'), filing());
+    await userEvent.type(panel().getByLabelText('Retrieved on'), '2026-10-01');
+    await expect(uploadLine()).toHaveTextContent('Write the address where the file comes from.');
     await expect(panel().getByRole('button', { name: 'Upload' })).toBeDisabled();
   },
 };
