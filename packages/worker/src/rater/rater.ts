@@ -54,10 +54,10 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
       asked = await askOnce(context, messages);
       decision = decide(name, asked.value, read.authors);
     }
-    // A join that the door refuses gets one more question: the name is a new author. A name of two
-    // authors or a generic name joins no author (ADR 0012).
+    // A name of two authors or a generic name joins no author. The door refuses the join, and the
+    // model gets one more question: the name is a new author. No other refusal is asked again.
     let stored = await storeOf(context, name, decision, asked.served);
-    if (stored !== null && decision.kind === 'join') {
+    if (stored?.includes(JOINS_NO_AUTHOR) === true && decision.kind === 'join') {
       messages.push(
         { role: 'assistant', content: JSON.stringify(asked.value) },
         { role: 'user', content: newAuthorOf(stored) },
@@ -126,6 +126,9 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
 const againOf = (reason: string, references: readonly string[]): string =>
   `Your answer is refused: ${reason}. Compare only with the names in this list, written as they ` +
   `stand: ${JSON.stringify(references)}. Answer again with JSON only.`;
+
+// The end of the sentence of the join door when a name joins no author.
+const JOINS_NO_AUTHOR = 'joins no author';
 
 const newAuthorOf = (reason: string): string =>
   `The join is refused: ${reason}. Rate the name as a new author. A name of two authors, or a ` +
