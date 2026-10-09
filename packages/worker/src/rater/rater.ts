@@ -54,8 +54,9 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
       asked = await askOnce(context, messages);
       decision = decide(name, asked.value, read.authors);
     }
-    // A name of two authors or a generic name joins no author. The door refuses the join, and the
-    // model gets one more question: the name is a new author. No other refusal is asked again.
+    // A name of two authors, a generic name and a name that the operator refused for an author
+    // join no author. The door refuses the join, and the model gets one more question: the name
+    // is a new author. No other refusal is asked again.
     let stored = await storeOf(context, name, decision, asked.served);
     if (stored?.includes(JOINS_NO_AUTHOR) === true && decision.kind === 'join') {
       messages.push(

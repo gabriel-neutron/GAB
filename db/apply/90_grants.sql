@@ -133,6 +133,8 @@ REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,bo
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_row(text)              FROM PUBLIC;
+REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_name(text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_waiting()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;

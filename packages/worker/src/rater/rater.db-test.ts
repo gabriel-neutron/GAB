@@ -477,3 +477,19 @@ test.each([
     else expect(row?.said).toContain(said);
   });
 });
+
+test('a name that the operator refused is rated again as a new author', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Reuters Wire');
+    expect(await held.rate({ kind: 'same', as: 'Reuters' })).toBe('done');
+    await held.ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await held.ask(`SELECT public.decide_author_name('Reuters Wire', false)`);
+    await held.ask('RESET SESSION AUTHORIZATION');
+
+    const { did, bodies } = await held.rateInTurn([{ kind: 'same', as: 'Reuters' }, NEW]);
+
+    expect(did).toBe('done');
+    expect(bodies[1]).toContain('the operator refused the name');
+    expect(await held.letter('reuters wire')).toBe('D');
+  });
+});
