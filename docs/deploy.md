@@ -27,7 +27,8 @@ Run `pnpm writer` and the worker on the operator's machine, with the same `infra
 The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
-reference-set` manages the reference set of the authors, and `pnpm worker reread-html` reads the
+reference-set` manages the reference set of the authors, `pnpm worker requeue-ratings` tries the
+failed ratings again, and `pnpm worker reread-html` reads the
 stored HTML pages again (see below). They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
@@ -101,6 +102,9 @@ the value. A rating waits in the queue until the operator approves the reference
 2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
+
+A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each failed rating job
+back in the queue with no attempt, and prints the names. The next `pnpm worker run` rates them.
 
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or

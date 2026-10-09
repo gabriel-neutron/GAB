@@ -115,6 +115,7 @@ REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_load_report(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION uri_host(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION requeue_failed_ratings()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid,int,int,text,text) FROM PUBLIC;
@@ -279,6 +280,8 @@ GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 -- grant here lets the worker role give a letter A or B, or approve a set.
 GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
+-- The operator tries a failed rating again. The worker role ends a job and never queues it again.
+GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
