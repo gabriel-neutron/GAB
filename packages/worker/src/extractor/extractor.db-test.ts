@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto';
+
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from '../address.ts';
 import type { RunnerAgent } from '../agents.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import {
@@ -19,13 +22,9 @@ import { makeExtractor } from './extractor.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const env = secrets.parse(process.env);
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const pool = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:5432/${env.GABRIEL_DATABASE}`,
+  connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   max: 2,
 });
 
@@ -432,5 +431,202 @@ test('a checker that another model answers is refused, and the item is disputed'
     });
     expect(await dissentOf(held)).toStrictEqual({ Nayara: true });
     expect((await callsOf(held)).map((row) => row.outcome)).toContain('served_other');
+  });
+});
+
+const checks = z.array(
+  z.object({
+    label: z.string(),
+    checker_model: z.string(),
+    checker_family: z.string(),
+    reader_family: z.string(),
+    verdict: z.string(),
+  }),
+);
+
+// The check that the record keeps for each act of the document.
+const checksOf = async (held: Held) =>
+  checks.parse(
+    (
+      await held.client.query(
+        `SELECT p.payload ->> 'label' AS label, k.checker_model, k.checker_family,
+                k.reader_family, k.verdict
+           FROM public.act_check k JOIN public.proposals p ON p.id = k.proposal_id
+          WHERE $1 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`,
+        [DOCUMENT],
+      )
+    ).rows,
+  );
+
+const checkOf = (label: string, verdict: string) => ({
+  label,
+  checker_model: CHECKER.model,
+  checker_family: CHECKER.family,
+  reader_family: READER.family,
+  verdict,
+});
+
+test('the record keeps one check for each checked item, with the checker, both families and the verdict', async () => {
+  await inTransaction(async (held) => {
+    const router = routerOf(
+      (call) => answerOf(call === 1 ? [NAYARA_LEFT, SIKKA] : [ROSNEFT]),
+      (_call, body) =>
+        verdictsOf(
+          claimsOf(body).map(
+            (ref) =>
+              [
+                ref,
+                ref === 'nayara' ? 'supported' : ref === 'sikka' ? 'unclear' : 'not_supported',
+              ] as const,
+          ),
+        ),
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await checksOf(held)).toStrictEqual([
+      checkOf('Nayara', 'supported'),
+      checkOf('Rosneft', 'not_supported'),
+      checkOf('Sikka', 'unclear'),
+    ]);
+  });
+});
+
+test('an item that the checker did not answer keeps no check', async () => {
+  await inTransaction(async (held) => {
+    const router = routerOf(
+      (call) => answerOf(call === 1 ? [NAYARA] : [ROSNEFT]),
+      (call, body) =>
+        call === 1
+          ? new Response(JSON.stringify({ error: { message: 'down' } }), { status: 401 })
+          : verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const)),
+    );
+
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await checksOf(held)).toStrictEqual([checkOf('Rosneft', 'supported')]);
+  });
+});
+
+const decided = z.array(
+  z.object({
+    label: z.string(),
+    status: z.string(),
+    decided_by: z.string().nullable(),
+    decided_as: z.string().nullable(),
+  }),
+);
+
+test('an extraction of a document whose source is rated A ends with units that the strong rule accepted', async () => {
+  await inTransaction(async (held) => {
+    // The operator puts the source into the reference set with the letter A, and approves it.
+    const author = `The port authority ${randomUUID()}`;
+    await held.client.query('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await held.client.query(
+      "SELECT public.store_reference_author($1, 'A', 'a-rater', 'a reason', ARRAY[]::text[])",
+      [author],
+    );
+    await held.client.query('SELECT public.approve_reference_set()');
+    await held.client.query('RESET SESSION AUTHORIZATION');
+
+    const router = routerOf((call) =>
+      answerOf([{ ...(call === 1 ? NAYARA : ROSNEFT), originator: author }]),
+    );
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+
+    const rows = decided.parse(
+      (
+        await held.client.query(
+          `SELECT p.payload ->> 'label' AS label, p.status, p.decided_by, p.decided_as
+             FROM public.proposals p
+            WHERE $1 = ANY (p.src::text[]) ORDER BY p.payload ->> 'label'`,
+          [DOCUMENT],
+        )
+      ).rows,
+    );
+    expect(rows).toStrictEqual(
+      ['Nayara', 'Rosneft'].map((label) => ({
+        label,
+        status: 'accepted',
+        decided_by: 'rule strong_sources v1',
+        decided_as: 'rule',
+      })),
+    );
+  });
+});
+
+test('with a deepening budget, an extraction of a weak source starts one deepening search for its unit', async () => {
+  await inTransaction(async (held) => {
+    // The operator sets the budget, as the runbook says. The source of the page has no letter.
+    await held.client.query(
+      `UPDATE public.rule_config
+          SET version = version + 1, settings = jsonb_build_object('deepening_tokens', 40000)
+        WHERE rule = 'weak_sources'`,
+    );
+    const router = routerOf((call) => answerOf(call === 1 ? [NAYARA] : []));
+    expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+
+    const searches = z
+      .array(z.object({ status: z.string(), lead_by: z.string(), token_budget: z.number() }))
+      .parse(
+        (
+          await held.client.query(
+            `SELECT j.status, j.lead_by, j.token_budget
+               FROM public.deepening d
+               JOIN public.jobs j ON j.id = d.job_id
+               JOIN public.proposals p ON p.unit_id = d.unit_id
+              WHERE $1 = ANY (p.src::text[])`,
+            [DOCUMENT],
+          )
+        ).rows,
+      );
+    expect(searches).toStrictEqual([
+      { status: 'queued', lead_by: 'rule weak_sources', token_budget: 40_000 },
+    ]);
+  });
+});
+
+test('an act that an earlier extraction wrote with no check gets its check from the next extraction', async () => {
+  await inTransaction(async (held) => {
+    const reader = (call: number) => answerOf(call === 1 ? [NAYARA] : [ROSNEFT]);
+    const down = routerOf(
+      reader,
+      () => new Response(JSON.stringify({ error: { message: 'down' } }), { status: 401 }),
+    );
+    expect(await held.step(makeExtractor(CONFIG), down)).toStrictEqual({
+      did: 'done',
+      job: held.job,
+    });
+    expect(await checksOf(held)).toStrictEqual([]);
+
+    // The operator queues the extraction again, and the checker answers this time.
+    const again = z
+      .array(z.object({ id: z.uuid() }))
+      .length(1)
+      .parse(
+        (await held.client.query("SELECT public.enqueue_job($1, 'extract_text') AS id", [DOCUMENT]))
+          .rows,
+      )[0]?.id;
+    await held.client.query(OLDEST, [again]);
+    expect(await held.step(makeExtractor(CONFIG), routerOf(reader))).toStrictEqual({
+      did: 'done',
+      job: again,
+    });
+    expect(await checksOf(held)).toStrictEqual([
+      checkOf('Nayara', 'supported'),
+      checkOf('Rosneft', 'supported'),
+    ]);
+    // The same acts, and no second act for each item.
+    expect((await citedOf(held)).map((row) => row.label)).toStrictEqual(['Nayara', 'Rosneft']);
   });
 });

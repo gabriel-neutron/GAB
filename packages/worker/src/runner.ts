@@ -24,7 +24,7 @@ const REQUEUE = 'SELECT public.requeue_running_jobs()';
 const RECORD = `SELECT public.record_model_call($1::text, $2::text, $3::text, $4::text, $5::text,
   $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int)::text AS id`;
 const FAIL = 'SELECT public.fail_job($1::uuid, $2::text)';
-const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::text) AS status`;
+const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::text, $5::text) AS status`;
 
 const MS = 1000;
 
@@ -162,10 +162,23 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         job: job.id,
         refusals: result.refusals,
       });
+    if (result.dropped !== undefined && Object.keys(result.dropped).length > 0)
+      console.info('the agent dropped items', {
+        agent: agent.name,
+        job: job.id,
+        dropped: result.dropped,
+      });
     const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
     const { status } = ended.parse(
-      (await deps.db.query(COMPLETE, [job.id, parts.parts, parts.refused, parts.firstRefusal]))
-        .rows[0],
+      (
+        await deps.db.query(COMPLETE, [
+          job.id,
+          parts.parts,
+          parts.refused,
+          parts.firstRefusal,
+          result.stop ?? null,
+        ])
+      ).rows[0],
     );
     return { did: status, job: job.id };
   };

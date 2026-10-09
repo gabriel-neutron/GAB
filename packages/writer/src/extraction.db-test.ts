@@ -5,7 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -16,22 +16,12 @@ const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_
 
 // Departure: the runner is not part of this suite, so the owner moves a job to `running` and the
 // worker role ends it through its own doors, as the runner does.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_AGENT_PASSWORD: z.string().min(1),
-  GABRIEL_READ_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const held = secrets.parse(process.env);
-const addressOf = (role: string, password: string): string =>
-  `postgresql://${role}:${encodeURIComponent(password)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`;
-const owner = new Pool({ connectionString: addressOf('gabriel', held.POSTGRES_PASSWORD) });
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 const agent = new Pool({
-  connectionString: addressOf('gabriel_agent', held.GABRIEL_AGENT_PASSWORD),
+  connectionString: roleAddress('gabriel_agent', 'GABRIEL_AGENT_PASSWORD'),
 });
-const reader = new Pool({
-  connectionString: addressOf('gabriel_read', held.GABRIEL_READ_PASSWORD),
-});
+const reader = new Pool({ connectionString: roleAddress('gabriel_read', 'GABRIEL_READ_PASSWORD') });
 
 afterAll(async () => {
   await Promise.all([owner.end(), agent.end(), reader.end(), pool.end()]);
@@ -60,6 +50,7 @@ const storedDocument = async (): Promise<string> => {
       'base64',
     ),
     retrievedAt: '2026-10-01',
+    uri: 'https://example.org/register',
   });
   expect(status).toBe(200);
   return stored.parse(reply).documentId;

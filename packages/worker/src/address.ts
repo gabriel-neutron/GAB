@@ -33,7 +33,8 @@ const placement = z.object({
 // signs with its own authority. The compatibility flag gives the libpq meaning: encrypt only.
 const PG_TLS_QUERY = '?uselibpqcompat=true&sslmode=require';
 
-const addressOf = (role: string, variable: string): string => {
+/** The URL of one login role, from the variable of its password. It throws when it is absent. */
+export const roleAddress = (role: string, variable: string): string => {
   const held = z.string().min(1).safeParse(process.env[variable]);
   if (!held.success)
     throw new Error(`${variable} is empty or absent. Set it in the environment file.`);
@@ -52,7 +53,7 @@ const addressOf = (role: string, variable: string): string => {
 };
 
 /** The URL a hand-taken command of this package signs with. It throws when the secret is absent. */
-export const agentAddress = (): string => addressOf(AGENT_ROLE, 'GABRIEL_AGENT_PASSWORD');
+export const agentAddress = (): string => roleAddress(AGENT_ROLE, 'GABRIEL_AGENT_PASSWORD');
 
 /** The URL of the command that stores a file. It throws when the secret is absent. */
-export const appAddress = (): string => addressOf(APP_ROLE, 'GABRIEL_APP_PASSWORD');
+export const appAddress = (): string => roleAddress(APP_ROLE, 'GABRIEL_APP_PASSWORD');

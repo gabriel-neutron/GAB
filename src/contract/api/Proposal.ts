@@ -38,6 +38,8 @@ export default interface Proposal {
   proposer: string | null;
 
   decision_origin: string | null;
+
+  origin_label: string | null;
 }
 
 export const proposal = z.object({
@@ -60,4 +62,5 @@ export const proposal = z.object({
   batch_id: z.uuid().nullable(),
   proposer: z.string().nullable(),
   decision_origin: z.string().nullable(),
+  origin_label: z.string().nullable(),
 });

@@ -74,8 +74,30 @@ role cannot cross.
 The interface reads through the read API, with a read-only role and a fixed list of views. Complex
 reads, such as a graph traversal, run as SQL functions in the database. A timeout, a default limit
 and a cache protect the public read. It shows the record and the candidate layer only (PU1): no
-rejected proposal, no job, no lead and no model call. The machine roles read through their own
-grants.
+rejected proposal, no job, no lead and no model call. A fact about a person (an attribute of a
+person, or a relation that names a person) shows only when one of its sources is a public
+document, and a person with no public source does not show. A public document is one that anyone
+can open at a public address: a web page, a public registry or API, or a file that the operator
+uploaded with the address where it comes from. The upload refuses a file with no address, and an
+older upload with no address is not public. A new upload of the same bytes gives its address to
+such an upload. It never changes an address that is there: it refuses the new upload when the
+address is different. An upload stored before this rule is not public, also with an address,
+because its address can be the page where the file was bought. A new upload of the same bytes
+does not make it public, and the upload refuses it.
+A bought file is not public. A file is bought when it has a price or when its provider sells its
+filings, because an unknown price is not a free file.
+An act about a person also shows only when each person that it names is public. An entity that a
+later act retyped stays a person for the older acts about it. The rule covers an entity of the
+type person only, and not an entity with no known type. The views of the read API apply this
+rule, so a screen cannot skip it. The record keeps the fact, and the machine roles and
+the review of the operator still read it. The machine roles read through their own grants.
+
+Each public claim carries its label, in the fixed words of `decisions.md` PU1. An element carries
+the label of the act that last set its name and type, and each value carries the label of the act
+that last set it. A decider that the label does not know reads as not checked, never as a person.
+The database writes the words, so the read API, the screen and an export give the same label. The
+public read gets the name and the version of a rule, and never the inputs of the rule (S1). The read API also gives the disclaimer of
+the dataset beside the data, and an export file copies it.
 
 ## The write path
 
@@ -103,14 +125,40 @@ A machine proposes through one door, which takes a batch. Each act cites a page 
 stored text; code finds the span from a quoted excerpt. The door writes the acts and their
 citations together, refuses the whole batch on one fault, and returns a pending act that it
 already holds instead of a duplicate. The cited passage is private: only the review card of the
-operator shows it.
+operator and the AI reviewer of the MCP server read it.
 
-Before the extractor writes its acts, a model of another family checks each act against its
-passage. The act is written as disputed when the check does not support it, when a failed check
-could not read it, or when no cited passage states its value. The flag keeps a short reason. The
-reason is frozen with the act: the value that no passage states, the verdict and reason of the checker, or
-that the checker did not answer. The reason is private: the review card shows it, and the public read does not.
+Before the extractor or the research AI writes its acts, a model of another family checks each act
+against its passage. For the research AI, the MCP server asks the checker one time for each batch,
+under a hard token cap. The server does not send a batch above the cap. A batch sent again is checked again, at the
+cost of one call. A role of its own writes the checks of the research acts. The act is written as
+disputed when the check does not support it, or when no cited passage states its value. For the
+extractor, a failed check that could not read the act also disputes it. For the research AI, a
+checker failure does not dispute the act. Of the verdicts of the checker, only "not supported"
+disputes it. An act that no model checked has no check. It waits, and the same batch sent again
+checks it.
+
+The flag keeps a short reason, which is frozen with the act. The reason is the value that no
+passage states, the verdict and reason of the checker, or that the checker did not answer. The
+reason is private: the review card shows it, and the public read does not. After the write, the
+record also keeps each verdict with its act. It keeps the checker model, both families and the
+reason of the checker, so the rules can decide the unit. The review card says which check ran on
+each act: a second model, with its verdict, or code only. An act that the checker did not answer
+keeps no check until a later check. A later extraction of the document, or the same batch of the
+research AI, gives that check. The first check of an act stays.
 Every model call goes to OpenRouter and is recorded.
+
+Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
+the door and the checker never read it. Code drops a type outside the vocabulary, a group of
+countries given as a state body, a concept given as a legal act, and an entity that the job
+already proposed and that adds nothing. A later part cannot name a pending proposal by its id,
+so code keeps that entity when a kept relation names it or when it has attributes. When a
+relation names it, code sends it as the act of the earlier part, with the same passages, so the
+door returns the act that waits and the job gives one proposal for the entity. Code drops a person
+unless the same batch designates the person, or names the person as a director, an officer or an
+owner. Code drops the e-mail address of a person that stays.
+A relation that names a dropped item is dropped too. The log keeps the count of drops for each
+reason. Each rule decides from the words of the answer alone, so a live run on real documents
+measures what it costs in lost facts.
 
 The extractor reads a document in parts. When the door refuses the batch of a part a second time,
 the claims of that part are lost. The job keeps the count of refused parts and the first refusal,
@@ -122,7 +170,8 @@ Each act gets a unit of decision when the door writes it, and the unit never cha
 entity is a unit with the relations that depend on it. A relation that names an act that waits in
 another group, or names a relation, is a unit of its own, so no entity waits for another group.
 The review queue shows one line for each unit. It reads one page of units at a time through the
-writer, because the cited passages are private. Each line names who proposed the unit.
+writer, because the cited passages are private. The AI reviewer of the MCP server reads the same
+page through its own role. Each line names who proposed the unit.
 
 A group that other groups wait for comes before them. In a
 group, the units with a fault come first, then the clean units in tree order, so a parent comes
@@ -144,10 +193,11 @@ refused, and the refusal names that end. The rules do not refuse such a unit: it
 that end is decided (P11). A rejection keeps one reason from a fixed list, and a
 note when the reason is "other". The reason "end rejected" is only for a relation whose other end
 was rejected, so it never hides another reason. The reason and the note are private: only the
-operator reads the decided acts with them, through the writer. The operator can reject one
+operator, through the writer, and the AI reviewer of the MCP server read the decided acts with
+them. The operator can reject one
 relation of a unit alone, and the rest stays one unit. Each decision keeps its mode: one unit, one
-relation, or a group action. The page of an entity then names the operator and whether the
-decision was a group action.
+relation, or a group action. The page of an entity then names who decided (the operator, a
+rule or an AI reviewer) and whether the decision was a group action.
 
 A rail lists the groups that wait, with the counts of their units, of their clean units and of
 each fault. The group action promotes the clean units of one group after one confirmation, which
@@ -177,7 +227,7 @@ values of any other act. An element that an act proposed gives the key of that a
 promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
 the reason of the newest rejection. An entity matches a rejected entity only under the same
 parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
-under the same parent. The reason stays private to the operator.
+under the same parent. The reason stays private to the operator and the AI reviewer of the MCP server.
 
 
 ## The decision path
@@ -203,8 +253,9 @@ and the reference authors that the model compared with. A model never writes a s
 stores the letter that the model gives, and the database decides.
 
 The review queue shows only the units that need the operator by default. The units that wait are a
-separate list, with the source that each one needs. The page of an element shows who decided it:
-the name of the rule, "validated manually by the operator", or "decided by an AI reviewer".
+separate list, with the source that each one needs. The page of an element shows who decided it,
+in the label words of `decisions.md` PU1, and the day. A decision of an AI reviewer keeps the
+reason that the AI gives.
 
 ## The lead path
 
@@ -218,9 +269,11 @@ a lead (a short text from the operator or the research AI)
 
 A rule of S3 can give a deepening search for a unit with weak sources, inside the budget that the
 operator sets. The lead agent proposes nothing, starts no lead, and does not fetch an address that
-is already stored. It has no page limit; its token budget stops it, and it gives that reason. No
-schedule starts a lead. The text of a lead is private: only the operator reads the leads, and the
-worker reads the text of the one lead that it runs.
+is already stored. It has no page limit; its token budget stops it. A lead of the operator then
+fails with that reason. A deepening search that stops at its budget has ended, and it keeps that
+reason for the operator. The rules judge its unit again when the extraction of its pages ends. No schedule starts a lead. The text of a
+lead is private: only the operator and the research AI read the leads, and the worker reads the
+text of the one lead that it runs.
 
 ## Technical baseline
 

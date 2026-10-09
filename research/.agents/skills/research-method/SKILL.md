@@ -7,16 +7,19 @@ description: The method of a research layer in Gabriel. What a fact is, what to 
 
 ## The goal
 
-Gabriel is a record of facts that each cite a stored source. The operator reads each proposal in
-the review queue and promotes it or rejects it. Thus a good session proposes few facts, each one
+Gabriel is a record of facts that each cite a stored source. The rules of the database decide
+each proposal from its sources. A proposal with a doubt goes to a reviewer: the operator, or an AI
+reviewer in another session (the skill `review-unit`). This session never decides what it
+proposed. Thus a good session proposes few facts, each one
 on the subject of its layer, each one with the best source that exists, and each one ready to
 promote. A proposal that the operator must reject costs more than a fact that you leave out.
 
 The app is strict. Code refuses a batch when an excerpt is not on its page, when a type is not a
 word of the vocabulary, or when a relation names an entity that does not exist. Code marks an item
-as disputed when a value of the item is not in its excerpts. No model reads your facts after you,
-so read each excerpt again against its item before you send the batch. Propose only what passes
-these checks with no correction.
+as disputed when a value of the item is not in its excerpts. Then a model of another family reads
+each item with its excerpts, and marks as disputed an item that they do not support. No rule
+accepts a disputed fact, so read each excerpt again against its item before you send the batch.
+Propose only what passes these checks with no correction.
 
 ## What a fact is
 
@@ -31,7 +34,8 @@ One fact is one item of a batch:
 
 Each fact cites at least one stored document, with the page and an excerpt that states each value
 of the fact: the name, each attribute value, each date, each number. Copy the excerpt word for
-word from the stored text (`document_text`), not from the web page that you saw.
+word from the stored text (`document_text`), not from the web page that you saw. For a PNG or
+JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to cite the image.
 
 ## What never goes into Gabriel
 
@@ -104,6 +108,11 @@ exists.
 - When the tool refuses a batch, read the item and the reason, correct only that item, and send
   the batch again one time. When the answer marks an item as disputed, read its excerpt again. If
   the excerpt does not state the value, the fact has no source yet: leave it out next time.
+- When the answer gives `checkFailure`, no model checked the batch. Its facts wait with no check,
+  and no rule accepts them. If the reason names the token cap, send the same items again in
+  smaller batches. For any other reason, tell the operator, and send the same batch again when
+  the operator says that the checker is up: a batch sent again writes nothing twice and gets its
+  check.
 
 ## A blocked source
 
@@ -112,7 +121,15 @@ answer (a timeout, often a state site that refuses foreign addresses). Try these
 and stop at the first that stores the full text:
 
 1. `fetch_document` on the address. The tool renders a page with JavaScript when its text is
-   short. Check that the stored text holds the content, and not a challenge or an empty page.
+   short. It refuses a challenge page and a page with no text (also an empty 202), and it stores
+   nothing for them. Read the refusal: it names the next step.
+
+   | Refusal | Usual cause | Next step |
+   |---|---|---|
+   | The server answered 403 (or 429, 503): a bot filter | A Cloudflare challenge | Steps 2 and 3, then the browser (step 4) |
+   | A 202 or a 200 with no text, or a challenge page | AWS WAF, or a script that draws a challenge | Steps 2 and 3, then the browser (step 4) |
+   | No whole answer within the time, or no connection | A state site that refuses foreign addresses | The browser (step 4); if it gets no answer either, the list of needs (step 5) |
+   | The server answered 404 or 410, or the page says it is missing | The address is wrong or old | Steps 2 and 3 |
 2. `archive_snapshot` on the address lists the captures of the web archive. It stores nothing.
    Call `fetch_document` on the address of the newest capture, and cite that document. An address
    with a query string has no capture.

@@ -5,9 +5,17 @@
       "command": "npx",
       "args": [
         "-y",
-        "@playwright/mcp@latest"
+        "@playwright/mcp@0.0.83",
+        "--browser",
+        "chromium",
+        "--headless"
       ],
       "env": {}
+    },
+    "gab": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/packages/mcp/src/main.ts"]
     }
   }
 }

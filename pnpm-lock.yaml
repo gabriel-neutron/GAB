@@ -63,6 +63,9 @@ importers:
       '@gab/store':
         specifier: workspace:*
         version: link:packages/store
+      '@gab/tools':
+        specifier: workspace:*
+        version: link:packages/tools
       '@gab/worker':
         specifier: workspace:*
         version: link:packages/worker
@@ -165,6 +168,9 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@gab/model':
+        specifier: workspace:*
+        version: link:../model
       '@gab/store':
         specifier: workspace:*
         version: link:../store
@@ -184,6 +190,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@gab/worker':
+        specifier: workspace:*
+        version: link:../worker
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3

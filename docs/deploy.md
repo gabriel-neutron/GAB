@@ -28,11 +28,29 @@ The worker is one command with four sub-commands: `pnpm worker run` takes the qu
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout, and
 `pnpm worker reconcile` compares the raw store with the document index. They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
-start, it puts back each job that is still running.
+start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
+`--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
+For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
+so that the file stays not public.
 
 `pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
-values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families: the
-worker does not start when they are the same.
+values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and
+`CHECKER_FAMILY` must name two different model families. The worker does not start when they are
+the same.
+
+The MCP server of the research session asks the same checker for each batch that the research AI
+proposes. The server reads these values from `infra/.env`, from any start folder:
+`OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_TOKEN_CAP` and
+`GABRIEL_CHECKER_PASSWORD`. `RESEARCH_CHECK_TOKEN_CAP` is a hard cap on the tokens of one check.
+The checker gets one call, with no retry. On the Windows PC, add `GABRIEL_CHECKER_PASSWORD` and
+`RESEARCH_CHECK_TOKEN_CAP` to `infra/.env`. Then run `pnpm db:migrate`. It creates the checker
+role and sets its password. Never put that password in `research/.env`: the research AI reads that
+file. The server knows the family of the research AI from the name of its MCP client:
+`claude-code` is `anthropic`, and a name with `codex` is `openai`. A client that runs a model of
+another provider under one of these names gives a wrong family. Set a `CHECKER_FAMILY` that is
+neither. When a value is absent, the server starts. Each proposal then waits with no check, and
+the answer of the tool names the value. Propose the same batch again when the checker is up: the
+server checks it then.
 
 Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
 the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
@@ -44,6 +62,19 @@ budget of one lead, and `SEARXNG_URL`, the address of the search service. The wo
 page that a lead fetches, so it also needs the raw store values. When one of these values is
 absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
 names the value.
+
+A rule starts a deepening search for a unit with weak sources only when the deepening budget is
+above zero. The budget is a setting of the database, not of `infra/.env`, and it starts at zero.
+To set the tokens of one search, run this statement as the superuser `gabriel` on the record.
+On the local stack, type this in PowerShell at the root of the GAB checkout, on one line:
+
+```powershell
+docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel -c "UPDATE rule_config SET version = version + 1, settings = jsonb_build_object('deepening_tokens', 40000) WHERE rule = 'weak_sources';"
+```
+
+On a hosted database, run the same statement with `psql` and the connection of step 1 above.
+
+A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
 
 The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
 that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the

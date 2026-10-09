@@ -314,12 +314,17 @@ Agents, models and prompts can change freely.
 ### P5 — Text formats and images
 
 **Rule.** Text PDF, docx, txt, md, html, csv, and a PNG or JPEG image. No audio, no video. The first
-reading of an image is OCR, and a proposal cites an excerpt of that text. The image bytes stay the
-stored source. The review page shows the image next to the excerpt.
+reading of an image is OCR, and a proposal cites an excerpt of that text. When the OCR text does not
+hold what the image shows, the research AI cites the words that it read from the image itself. Such
+a proposal is always disputed. A back-end agent reads the stored text only, so it never cites words
+read from an image. The image bytes stay the stored source. The review page shows the image next to
+the excerpt, and says when the AI read the words.
 **Why.** Each new format is a new pipeline to build and keep. An investigative source, for example a
-unit tree of Tochnyi, publishes its facts as an image only.
-**Cost.** OCR can misread a character, so the operator compares the excerpt with the image before a
-promotion. A scanned PDF is converted outside the tool first.
+unit tree of Tochnyi, publishes its facts as an image only. Its OCR text mixes the columns of the
+tree and misreads the unit numbers, so it does not state the parent of a unit (operator decision,
+9 October 2026).
+**Cost.** OCR and the AI can each misread a character, so the operator compares the excerpt with the
+image before a promotion. A scanned PDF is converted outside the tool first.
 
 ### P6 — One ingestion door
 
@@ -411,3 +416,23 @@ publishes. A unit stays hidden until it has its own citation. Each page gives th
 an error" and "Right of reply".
 **Accepted.** Every name that a cited source gives can be public. The operator accepts the legal
 risk of an anonymous publisher.
+**The label (9 October 2026).** The label tells who decided a claim, in fixed words: "Proposed —
+not checked", "Accepted by rule <name> v<n> — no person read it", "Accepted by an AI reviewer —
+no person read it", "Validated manually by the operator". It shows no NATO letter and no rating digit (S1).
+- On a screen, the origin shows one time for each entity. On a claim, a number points to the
+  source card. This pointer is enough.
+- The label is part of the public data, not only of the screen. Each public claim carries it, each
+  export copies it, and each export file holds the disclaimer of the dataset. The label must
+  survive export and reuse.
+- The entity detail screen has no disclaimer of its own. The labels are enough.
+- An attribute key stays free (M11). A screen shows its readable name only by a fixed rule: each
+  underscore becomes a space, and the first letter becomes a capital.
+- A fact about a person is public only when at least one of its cited sources is a public
+  document. A bought file, or an upload with no address, does not make a fact about a person
+  public.
+- A file that the operator uploads comes from the Internet. It must carry the address where it
+  comes from, and with this address it is a public document. The upload refuses a file with no
+  address, and asks the operator where the file comes from. An older upload with no address is
+  not public. An upload stored before this ruling is not public, also with an address, because
+  its address can be the page where the file was bought. A public API, such as OpenSanctions, is
+  a public source. A bought file stays not public. The private data repository is not a source.

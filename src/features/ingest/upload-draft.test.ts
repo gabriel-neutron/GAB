@@ -27,9 +27,17 @@ test('a filled form is read into the request, trimmed', () => {
   });
 });
 
-test('the address, the provider and the cost may stay blank', () => {
-  const draft = readUploadDraft({ ...FILLED, uri: '', providerId: '', cost: ' ' });
-  expect(draft.ready && draft.fields).toMatchObject({ uri: null, providerId: null, costEur: null });
+test('the provider and the cost may stay blank', () => {
+  const draft = readUploadDraft({ ...FILLED, providerId: '', cost: ' ' });
+  expect(draft.ready && draft.fields).toMatchObject({ providerId: null, costEur: null });
+});
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet.
+test('a blank address gives no request, and the sentence asks where the file comes from', () => {
+  for (const uri of ['', '   ']) {
+    const draft = readUploadDraft({ ...FILLED, uri });
+    expect(draft.ready ? 'ready' : draft.reason).toMatch(/address where the file comes from/u);
+  }
 });
 
 test('each missing or wrong box gives its own sentence, and no request', () => {

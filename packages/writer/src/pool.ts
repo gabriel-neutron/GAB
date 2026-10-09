@@ -36,16 +36,17 @@ const IDLE_MS = 10_000;
 // Departure: the cluster holds the published record and the database the tests write. An absent
 // name is the record, and a test run names the other one.
 const secrets = z.object({
-  GABRIEL_APP_PASSWORD: z.string().min(1),
+  PASSWORD: z.string().min(1),
   GABRIEL_DATABASE: z.enum(['gabriel', 'gabriel_test']).default('gabriel'),
 });
 
-const address = (): string => {
-  const held = secrets.safeParse(process.env);
+/** The URL of one login role, from the variable of its password. It throws when it is absent. */
+export const roleAddress = (role: string, variable: string): string => {
+  const held = secrets.safeParse({ ...process.env, PASSWORD: process.env[variable] });
   if (!held.success)
     throw new Error(
-      'GABRIEL_APP_PASSWORD is empty or absent, or GABRIEL_DATABASE names no database of the ' +
-        'stack. Set them in the environment file.',
+      `${variable} is empty or absent, or GABRIEL_DATABASE names no database of the stack. ` +
+        'Set them in the environment file.',
     );
   const where = placement.safeParse(process.env);
   if (!where.success)
@@ -54,10 +55,10 @@ const address = (): string => {
         'The port is a number from 1 to 65535, and GABRIEL_DB_SSL is true or false.',
     );
   const { GABRIEL_DB_HOST, GABRIEL_DB_PORT, GABRIEL_DB_SSL } = where.data;
-  const password = encodeURIComponent(held.data.GABRIEL_APP_PASSWORD);
+  const password = encodeURIComponent(held.data.PASSWORD);
   const server = `${GABRIEL_DB_HOST}:${String(GABRIEL_DB_PORT)}`;
   const tls = GABRIEL_DB_SSL ? PG_TLS_QUERY : '';
-  return `postgresql://${ROLE}:${password}@${server}/${held.data.GABRIEL_DATABASE}${tls}`;
+  return `postgresql://${role}:${password}@${server}/${held.data.GABRIEL_DATABASE}${tls}`;
 };
 
 // Departure: a door reads less of the pool than `pg` declares. The pool of `pg` fits this shape,
@@ -74,7 +75,7 @@ export interface Session {
 /** The one way to reach the database. It throws when the password is empty or absent. */
 export const openPool = (): Pool => {
   const pool = new Pool({
-    connectionString: address(),
+    connectionString: roleAddress(ROLE, 'GABRIEL_APP_PASSWORD'),
     connectionTimeoutMillis: CONNECT_MS,
     idleTimeoutMillis: IDLE_MS,
     statement_timeout: STATEMENT_MS,

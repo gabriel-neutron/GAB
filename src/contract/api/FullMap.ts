@@ -12,6 +12,10 @@ export default interface FullMap {
   position_precision: string | null;
 
   parent_id: string | null;
+
+  origin_label: string | null;
+
+  position_precision_label: string | null;
 }
 
 export const fullMap = z.object({
@@ -21,4 +25,6 @@ export const fullMap = z.object({
   geom: z.unknown(),
   position_precision: z.string().nullable(),
   parent_id: z.uuid().nullable(),
+  origin_label: z.string().nullable(),
+  position_precision_label: z.string().nullable(),
 });

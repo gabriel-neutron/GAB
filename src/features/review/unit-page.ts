@@ -79,11 +79,23 @@ export interface Attribute {
   readonly values: readonly string[];
 }
 
+/** What a model of a second family said of an act: the model, its verdict, and whether the check
+ * passes. A check by a model of the family of the reader does not pass. */
+export interface ActCheck {
+  readonly model: string;
+  readonly verdict: 'supported' | 'not_supported' | 'unclear';
+  readonly passed: boolean;
+  /** The reason of a verdict that is not `supported`, or null when the checker gave none. */
+  readonly reason: string | null;
+}
+
 interface ActBase {
   readonly id: string;
   readonly attributes: readonly Attribute[];
   /** A check disputes the act. The fault of the dispute gives its reason. */
   readonly disputed: boolean;
+  /** The check of a second model, or null when only code checked the act. */
+  readonly check: ActCheck | null;
   /** The act is a relation whose other end was rejected, so the reason "end rejected" fits it. */
   readonly endRejected: boolean;
 }
@@ -101,7 +113,8 @@ export type UnitAct =
 
 /** The words of a page that an act cites, with up to two lines before and after them.
  * `supports` names the element of the act. `ownLine` says that the words are the whole line of the
- * unit, and that the lines around them state other units. */
+ * unit, and that the lines around them state other units. `transcribed` says that the AI read the
+ * words from a cited image, so the stored text does not hold them and no line stands around them. */
 export interface Passage {
   readonly act: string;
   readonly supports: string;
@@ -111,6 +124,7 @@ export interface Passage {
   readonly before: string;
   readonly text: string;
   readonly after: string;
+  readonly transcribed: boolean;
 }
 
 export interface SourceDocument {
@@ -209,6 +223,14 @@ const act = z.object({
   targetId: z.string().nullable(),
   dissent: z.boolean(),
   endRejected: z.boolean(),
+  check: z
+    .object({
+      model: z.string(),
+      verdict: z.enum(['supported', 'not_supported', 'unclear']),
+      passed: z.boolean(),
+      reason: z.string().nullish(),
+    })
+    .nullish(),
   target: end,
   src: end,
   dst: end,
@@ -270,6 +292,7 @@ const answer = z.object({
           before: z.string(),
           text: z.string(),
           after: z.string(),
+          transcribed: z.boolean(),
         }),
       ),
     }),
@@ -346,6 +369,10 @@ const actOf = (read: ReadAct): UnitAct => {
     id: read.id,
     attributes: attributesOf(read.payload),
     disputed: read.dissent,
+    check:
+      read.check === null || read.check === undefined
+        ? null
+        : { ...read.check, reason: read.check.reason ?? null },
     endRejected: read.endRejected,
   };
   if (read.op === 'create_entity')

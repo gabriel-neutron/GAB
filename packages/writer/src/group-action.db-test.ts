@@ -8,7 +8,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -18,9 +18,7 @@ const app = writeRoutes(pool, NO_STORE, NO_READ);
 
 // A research AI proposes a linked batch through its own door, as the MCP server does.
 const research = new Pool({
-  connectionString:
-    `postgresql://gabriel_research:${encodeURIComponent(z.string().parse(process.env['GABRIEL_RESEARCH_PASSWORD']))}` +
-    '@127.0.0.1:5432/gabriel_test',
+  connectionString: roleAddress('gabriel_research', 'GABRIEL_RESEARCH_PASSWORD'),
 });
 
 afterAll(async () => {

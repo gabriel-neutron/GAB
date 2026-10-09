@@ -14,6 +14,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from '../address.ts';
 import { makeExtractor } from '../extractor/extractor.ts';
 import {
   CHECKER,
@@ -32,13 +33,9 @@ import { leadAgentOf, makeLeadAgent } from './lead.ts';
 
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, and as gabriel_agent while the runner works.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const env = secrets.parse(process.env);
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const pool = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:5432/${env.GABRIEL_DATABASE}`,
+  connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   max: 2,
 });
 
@@ -213,12 +210,13 @@ test('the budget of a deepening search stops the lead in place of the cap of the
     await ask('UPDATE public.jobs SET token_budget = 30 WHERE id = $1', [job]);
     const router = routerOf(() => toolCallOf('web_search', { query: LEAD }));
 
-    // The cap of the worker is large, and the budget of the search is small.
-    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'failed', job });
+    // The cap of the worker is large, and the budget of the search is small. The budget is the
+    // one stop of a deepening search, so the search ends well and the rule judges the unit.
+    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'done', job });
 
     expect(router.chats()).toBe(3);
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
-      { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
+      { status: 'done', failure_reason: 'the token budget of this lead is spent' },
     ]);
   });
 });
