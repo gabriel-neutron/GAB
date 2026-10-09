@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { V1_ORIGINATOR, V1_TITLE } from './v1-orbat.ts';
+import { ORIGINATOR, TITLE } from './v1-orbat.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_queue_order';
@@ -36,7 +36,7 @@ const cited = (change: Item): Item => ({
   src: [DOC],
   names: [],
   model_call_id: null,
-  originator: V1_ORIGINATOR,
+  originator: ORIGINATOR,
   modality: 'asserts',
   citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, ...CITED }],
   ...change,
@@ -148,7 +148,7 @@ interface Seeded {
 // Two groups. The second group holds a link to the top of the first group, so the second group
 // waits for the first, and the first group comes first although its subject sorts after.
 const seed = async (ask: Ask): Promise<Seeded> => {
-  await ask(PUT, [DOC, 'raw/queue-order.txt', V1_TITLE]);
+  await ask(PUT, [DOC, 'raw/queue-order.txt', TITLE]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
   await ask(PUT, [OTHER, 'raw/queue-order-other.txt', 'A page that a session found']);
   await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { V1_ORIGINATOR, V1_TITLE } from './v1-orbat.ts';
+import { ORIGINATOR, TITLE } from './v1-orbat.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_unit_faults';
@@ -37,7 +37,7 @@ const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T>
 };
 
 const seed = async (ask: Ask): Promise<void> => {
-  await ask(PUT, [DOC, 'raw/unit-faults.txt', V1_TITLE]);
+  await ask(PUT, [DOC, 'raw/unit-faults.txt', TITLE]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
   await ask(PUT, [OTHER, 'raw/unit-faults-other.txt', 'A page that a session found']);
   await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);
@@ -62,7 +62,7 @@ const cited = (change: Item, line = OWN): Item => ({
   src: [DOC],
   names: [],
   model_call_id: null,
-  originator: V1_ORIGINATOR,
+  originator: ORIGINATOR,
   modality: 'asserts',
   citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, ...spanOf(line) }],
   ...change,
