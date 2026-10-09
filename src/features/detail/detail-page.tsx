@@ -219,6 +219,13 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           </div>
         </div>
 
+        {/* A reader cites the element in a report by this value. A double click stops at each
+            hyphen of the value, so one click selects all of it. */}
+        <p className="text-small/4 text-label" data-identifier="">
+          Identifier{' '}
+          <code className="font-mono break-all text-foreground select-all">{dossier.entityId}</code>
+        </p>
+
         {writing ? (
           <>
             <Rename
