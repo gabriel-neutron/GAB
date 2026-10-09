@@ -12,7 +12,7 @@ import { readOnce } from './once';
 export interface DecidedAct {
   readonly act: Omit<
     Proposal,
-    'status' | 'decidedAt' | 'decidedBy' | 'decidedAs' | 'decisionOrigin'
+    'status' | 'decidedAt' | 'decidedBy' | 'decidedAs' | 'decisionOrigin' | 'originLabel'
   >;
   readonly verdict: 'accepted';
   readonly decidedAt: string;
@@ -20,10 +20,12 @@ export interface DecidedAct {
   /** One unit, one relation, a group action or a rule. An older decision has none. */
   readonly decidedAs: Proposal['decidedAs'];
   readonly decisionOrigin: Proposal['decisionOrigin'];
+  /** The label of the claim, in the fixed words of the record (PU1). */
+  readonly originLabel: Proposal['originLabel'];
 }
 
 function decidedOf(row: unknown): DecidedAct {
-  const { status, decidedAt, decidedBy, decidedAs, decisionOrigin, ...act } =
+  const { status, decidedAt, decidedBy, decidedAs, decisionOrigin, originLabel, ...act } =
     toDomain.proposal(row);
   // The table pairs a decided status with an hour and a name. A row that breaks the pair broke
   // the contract of the read, and it stops here and never reaches a screen as a blank.
@@ -32,7 +34,7 @@ function decidedOf(row: unknown): DecidedAct {
       `The read API gave the decided act ${act.id} without its verdict, its hour or its name.`,
     );
   }
-  return { act, verdict: status, decidedAt, decidedBy, decidedAs, decisionOrigin };
+  return { act, verdict: status, decidedAt, decidedBy, decidedAs, decisionOrigin, originLabel };
 }
 
 async function read(): Promise<readonly DecidedAct[]> {

@@ -43,6 +43,7 @@ const PROPOSAL_ROW = {
   decided_by: null,
   decided_as: null,
   decision_origin: null,
+  origin_label: null,
   batch_id: null,
 };
 
@@ -276,6 +277,7 @@ test('an act on the name or the type keeps the columns it replaced as a row', ()
     decided_by: 'the writer door',
     decided_as: null,
     decision_origin: null,
+    origin_label: null,
   };
   expect(toDomain.proposal(row).priorValue).toStrictEqual({ kind: 'row', row: prior });
 });
