@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { ORIGINATOR, TITLE } from './import-v1.ts';
+import { V1_ORIGINATOR, V1_TITLE } from './v1-orbat.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const DOC = 'doc_unit_of_decision';
@@ -34,7 +34,7 @@ const as = async <T>(ask: Ask, role: string, work: () => Promise<T>): Promise<T>
 };
 
 const seed = async (ask: Ask): Promise<string> => {
-  await ask(PUT, [DOC, 'raw/unit-of-decision.txt', TITLE]);
+  await ask(PUT, [DOC, 'raw/unit-of-decision.txt', V1_TITLE]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
   await ask(PUT, [OTHER, 'raw/unit-of-decision-other.txt', 'A page that a session found']);
   await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);
@@ -51,7 +51,7 @@ const cited = (change: Item): Item => ({
   src: [DOC],
   names: [],
   model_call_id: null,
-  originator: ORIGINATOR,
+  originator: V1_ORIGINATOR,
   modality: 'asserts',
   citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, ...CITED }],
   ...change,
