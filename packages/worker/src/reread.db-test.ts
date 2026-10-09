@@ -257,15 +257,25 @@ test('a render is read as UTF-8, and its title follows the title of its page', a
   });
 });
 
-test('a citation whose excerpt the corrected text does not hold is listed, and it stays', async () => {
+test('a document with a citation that the new text would break stays unchanged and is listed, and the others change', async () => {
   await inTransaction(async (held) => {
-    const pages = await oldPages(CYRILLIC);
-    const id = await held.put(CYRILLIC, GARBLED_TITLE, pages);
-    const citation = await cite(held, id, 10);
+    const cited = await held.put(CYRILLIC, GARBLED_TITLE, await oldPages(CYRILLIC));
+    const citation = await cite(held, cited, 10);
+    const other = Buffer.concat([CYRILLIC, utf8('<!-- a second fetch -->')]);
+    const free = await held.put(other, GARBLED_TITLE, await oldPages(other), `${PLAIN_URI}/2`);
+    const before = await documentOf(held, cited);
+    const kept = [{ document: cited, citations: [{ citation, page: 1 }] }];
+
+    const dry = await held.run(true);
+    expect(dry.kept).toStrictEqual(kept);
+    expect(dry.changed.map((one) => one.document)).toStrictEqual([free]);
 
     const report = await held.run(false);
 
-    expect(report.lostExcerpts).toStrictEqual([{ citation, document: id, page: 1 }]);
+    expect(report.kept).toStrictEqual(kept);
+    expect(report.changed.map((one) => one.document)).toStrictEqual([free]);
+    expect(await documentOf(held, cited)).toStrictEqual(before);
+    expect((await documentOf(held, free))?.title).toBe('Форум — Тема');
     expect(
       await held.ask('SELECT text_extractor FROM public.citation WHERE id = $1::uuid', [citation]),
     ).toStrictEqual([{ text_extractor: OLD_SET }]);
