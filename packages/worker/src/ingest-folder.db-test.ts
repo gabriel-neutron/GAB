@@ -22,6 +22,9 @@ const OPTIONS = {
   retrievedAt: '2026-09-01',
   kind: 'file',
   title: undefined,
+  uri: undefined,
+  providerId: undefined,
+  costEur: undefined,
   dryRun: false,
 } as const;
 const WALK = { recursive: true, include: ['*.pdf'] };

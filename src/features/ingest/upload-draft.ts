@@ -18,7 +18,8 @@ export interface UploadForm {
 export interface UploadFields {
   readonly title: string;
   readonly retrievedAt: string;
-  readonly uri: string | null;
+  /** The address where the file comes from. It makes the file a public document (PU1). */
+  readonly uri: string;
   readonly providerId: string | null;
   readonly costEur: number | null;
 }
@@ -43,7 +44,9 @@ const EMPTY_FILE = 'The file holds no byte, and the writer does not take it.';
 const TOO_LARGE = `The file is larger than ${String(UPLOAD_FILE_BYTES / MEBIBYTE)} MiB, and the writer does not take it.`;
 const NO_TITLE = 'Write the title of the document.';
 const NO_DAY = 'Write the day the file was retrieved. The record takes no document without it.';
-const NOT_WEB = 'The purchase page is an http or an https address.';
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet.
+const NO_URI = 'Write the address where the file comes from. The record takes no file without it.';
+const NOT_WEB = 'The address where the file comes from is an http or an https address.';
 const NOT_COST = 'Write the cost in euros, as a number with at most two decimals.';
 
 const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
@@ -65,8 +68,8 @@ export function readUploadDraft(form: UploadForm): UploadDraft {
   if (retrievedAt === '') return { ready: false, reason: NO_DAY };
 
   const uri = form.uri.trim();
-  if (uri !== '' && !WEB_SCHEMES.has(URL.parse(uri)?.protocol ?? ''))
-    return { ready: false, reason: NOT_WEB };
+  if (uri === '') return { ready: false, reason: NO_URI };
+  if (!WEB_SCHEMES.has(URL.parse(uri)?.protocol ?? '')) return { ready: false, reason: NOT_WEB };
 
   const cost = form.cost.trim();
   if (cost !== '' && !EUROS.test(cost)) return { ready: false, reason: NOT_COST };
@@ -77,7 +80,7 @@ export function readUploadDraft(form: UploadForm): UploadDraft {
     fields: {
       title,
       retrievedAt,
-      uri: uri === '' ? null : uri,
+      uri,
       providerId: form.providerId === '' ? null : form.providerId,
       costEur: cost === '' ? null : Number(cost),
     },

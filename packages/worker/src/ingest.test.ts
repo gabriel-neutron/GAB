@@ -40,10 +40,61 @@ const parsed = (...argv: string[]) => parseIngestArguments(argv);
 test('the arguments hold the paths, the date, the kind and the title', () => {
   expect(parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'report')).toStrictEqual({
     paths: ['a.pdf'],
-    options: { retrievedAt: '2026-09-01', kind: 'report', title: undefined, dryRun: false },
+    options: {
+      retrievedAt: '2026-09-01',
+      kind: 'report',
+      title: undefined,
+      uri: undefined,
+      providerId: undefined,
+      costEur: undefined,
+      dryRun: false,
+    },
     walk: { recursive: false, include: ['*.pdf'] },
   });
-  expect(parsed('a.pdf', '--retrieved-at', '2026-09-01').options.kind).toBe('file');
+  const file = parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', 'https://example.org/a');
+  expect(file.options).toMatchObject({ kind: 'file', uri: 'https://example.org/a' });
+});
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
+// and the address where it comes from makes it a public document.
+test('a file with no address is refused, and the refusal asks for the address', () => {
+  expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01')).toThrow(
+    /--uri is required: give the address where the file comes from/u,
+  );
+  expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', ' ')).toThrow(/--uri/u);
+  expect(() =>
+    parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', 'ftp://example.org/a'),
+  ).toThrow(/--uri/u);
+});
+
+// A bought file stays not public, so the command records its cost and its provider as the
+// upload form does.
+test('the cost and the provider of a bought file are read and checked', () => {
+  const day = ['--retrieved-at', '2026-09-01', '--uri', 'https://example.org/a'];
+  expect(
+    parsed('a.pdf', ...day, '--cost-eur', '12.5', '--provider', ' mca21 ').options,
+  ).toMatchObject({ costEur: '12.50', providerId: 'mca21' });
+  expect(parsed('a.pdf', ...day, '--cost-eur', '0').options).toMatchObject({ costEur: '0.00' });
+  for (const cost of ['-1', 'abc', '1.234', '', '12345678901'])
+    expect(() => parsed('a.pdf', ...day, '--cost-eur', cost)).toThrow(/--cost-eur/u);
+  expect(() => parsed('a.pdf', ...day, '--provider', ' ')).toThrow(/--provider/u);
+});
+
+test('the run gives the cost and the provider to the row', async () => {
+  const { door, calls } = doorOf();
+  const bought = { ...OPTIONS, uri: 'https://example.org/a', providerId: 'mca21', costEur: '9.90' };
+  const [outcome] = await ingestFiles(door, [join(folder, 'two.txt')], bought);
+  expect(outcome?.status).toBe('stored');
+  const put = calls.find((c) => c.text.includes('put_document('));
+  expect(put?.values?.slice(-2)).toStrictEqual(['mca21', '9.90']);
+});
+
+test('an address names one file', () => {
+  const uri = ['--uri', 'https://example.org/a'];
+  expect(() => parsed('a.pdf', 'b.pdf', '--retrieved-at', '2026-09-01', ...uri)).toThrow(/--uri/u);
+  const addressed = { ...OPTIONS, uri: 'https://example.org/a' };
+  expect(() => checkedTitle(['a.pdf', 'b.pdf'], addressed)).toThrow(/--uri/u);
+  expect(() => checkedTitle(['a.pdf'], addressed)).not.toThrow();
 });
 
 test('a run with no retrieval date is refused', () => {
@@ -56,16 +107,20 @@ test('a date that is not a real day is refused', () => {
 });
 
 test('a title with more than one path is refused', () => {
-  expect(() => parsed('a.pdf', 'b.pdf', '--retrieved-at', '2026-09-01', '--title', 'T')).toThrow(
-    /--title/,
-  );
-  expect(parsed('a.pdf', '--retrieved-at', '2026-09-01', '--title', 'T').options.title).toBe('T');
+  expect(() =>
+    parsed('a.pdf', 'b.pdf', '--retrieved-at', '2026-09-01', '--kind', 'report', '--title', 'T'),
+  ).toThrow(/--title/);
+  expect(
+    parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'report', '--title', 'T').options
+      .title,
+  ).toBe('T');
 });
 
 test('a run with no path, a wrong kind or an unknown option is refused', () => {
-  expect(() => parsed('--retrieved-at', '2026-09-01')).toThrow(ANY_REFUSAL);
+  const report = ['--retrieved-at', '2026-09-01', '--kind', 'report'];
+  expect(() => parsed(...report)).toThrow(ANY_REFUSAL);
   expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01', '--kind', 'url')).toThrow(/--kind/);
-  expect(() => parsed('a.pdf', '--retrieved-at', '2026-09-01', '--wat')).toThrow(ANY_REFUSAL);
+  expect(() => parsed('a.pdf', ...report, '--wat')).toThrow(ANY_REFUSAL);
 });
 
 test('the walk flags and the dry run flag are read', () => {
@@ -73,6 +128,8 @@ test('the walk flags and the dry run flag are read', () => {
     'folder',
     '--retrieved-at',
     '2026-09-01',
+    '--kind',
+    'report',
     '--recursive',
     '--dry-run',
     '--include',
@@ -82,9 +139,17 @@ test('the walk flags and the dry run flag are read', () => {
   );
   expect(run.walk).toStrictEqual({ recursive: true, include: ['*.html', '*.txt'] });
   expect(run.options.dryRun).toBe(true);
-  expect(() => parsed('folder', '--retrieved-at', '2026-09-01', '--include', '')).toThrow(
-    /--include/,
-  );
+  expect(() =>
+    parsed(
+      'folder',
+      '--retrieved-at',
+      '2026-09-01',
+      '--uri',
+      'https://example.org/a',
+      '--include',
+      '',
+    ),
+  ).toThrow(/--include/);
 });
 
 test('a title is refused when the run takes more than one file', () => {
@@ -135,6 +200,9 @@ const OPTIONS = {
   retrievedAt: '2026-09-01',
   kind: 'file',
   title: undefined,
+  uri: undefined,
+  providerId: undefined,
+  costEur: undefined,
   dryRun: false,
 } as const;
 const only = async (door: IngestDoor, path: string): Promise<IngestOutcome> => {

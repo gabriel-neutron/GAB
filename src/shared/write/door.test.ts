@@ -176,6 +176,7 @@ const UPLOAD = {
   title: 'MGT-7',
   content: 'JVBERi0=',
   retrievedAt: '2026-10-01',
+  uri: 'https://www.mca.gov.in/x',
 };
 
 test('an upload goes to its own door, and each answer becomes its outcome', async () => {

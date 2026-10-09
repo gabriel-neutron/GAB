@@ -61,7 +61,7 @@ const bodyOf = (file: File, content: string, fields: UploadFields): UploadBody =
   content,
   title: fields.title,
   retrievedAt: fields.retrievedAt,
-  ...(fields.uri === null ? {} : { uri: fields.uri }),
+  uri: fields.uri,
   ...(fields.providerId === null ? {} : { providerId: fields.providerId }),
   ...(fields.costEur === null ? {} : { costEur: fields.costEur }),
 });

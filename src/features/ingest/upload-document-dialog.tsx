@@ -126,7 +126,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
 
           <div className="space-y-0.5">
             <label htmlFor={uriBox} className={CAPTION}>
-              Purchase or source page
+              Address where the file comes from
             </label>
             <Input
               id={uriBox}
