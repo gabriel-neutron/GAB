@@ -44,8 +44,9 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
     let asked = await askOnce(context, messages);
     let decision = decide(name, asked.value, read.authors);
     // A comparison with an author outside the reference set gets one more question, with the
-    // exact list. A second wrong answer is refused.
-    if (decision.kind === 'refused' && decision.outsideSet === true) {
+    // exact list. A second wrong answer is refused. An empty set gets no second question, because
+    // no answer can pass.
+    if (decision.kind === 'refused' && decision.outsideSet === true && references.length > 0) {
       messages.push(
         { role: 'assistant', content: JSON.stringify(asked.value) },
         { role: 'user', content: againOf(decision.reason, references) },
