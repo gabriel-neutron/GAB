@@ -6,7 +6,7 @@ import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
-import { checkedRange, documentText } from './document-text.ts';
+import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
@@ -308,6 +308,7 @@ const outputShape = z.strictObject({
   pages: z.array(z.strictObject({ page: z.number().int().min(1), text: z.string() })),
   lastPage: z.number().int().nullable(),
   truncated: z.boolean(),
+  next: nextShape,
   notice: z.string().nullable(),
   rendered: z
     .strictObject({
@@ -324,7 +325,9 @@ export const fetchDocument = defineTool({
     'Reads one web page or file at one http or https address, stores its bytes as a document, ' +
     'and returns the document id and the text of its pages. Cite the id of the document that ' +
     'gave the pages in a proposal. A page whose bytes are already stored comes back as ' +
-    '"known", and nothing is written. The pages follow the caps of document_text. An HTML page ' +
+    '"known", and nothing is written. The pages follow the caps of document_text. When "next" ' +
+    'is present, read on with document_text: give the id of the document that gave the pages, ' +
+    'and give "next" as fromPage and fromCharacter. An HTML page ' +
     'is also loaded in a headless browser when its text is shorter ' +
     `than ${String(RENDER_BELOW)} characters. The browser runs the scripts of the ` +
     'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
@@ -453,6 +456,7 @@ export const fetchDocument = defineTool({
     const text = await documentText.run(session, {
       document: rendered?.id ?? plain.id,
       fromPage: input.fromPage,
+      fromCharacter: 0,
       toPage,
     });
     return {
@@ -466,6 +470,7 @@ export const fetchDocument = defineTool({
       pages: text.pages,
       lastPage: text.lastPage,
       truncated: text.truncated,
+      next: text.next,
       notice: notices.length === 0 ? null : notices.join('; '),
       rendered:
         rendered === null
