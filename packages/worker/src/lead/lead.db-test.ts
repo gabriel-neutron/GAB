@@ -216,7 +216,7 @@ test('the budget of a deepening search stops the lead in place of the cap of the
 
     expect(router.chats()).toBe(3);
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
-      { status: 'done', failure_reason: null },
+      { status: 'done', failure_reason: 'the token budget of this lead is spent' },
     ]);
   });
 });

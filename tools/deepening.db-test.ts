@@ -327,6 +327,8 @@ test('a search that finds a source C keeps the unit', async () => {
 // the stub costs twelve tokens, so a budget of 30 tokens stops the search at its third question.
 const SMALL_BUDGET = 30;
 
+const endedJobs = z.array(jobs.element.extend({ failure_reason: z.string().nullable() }));
+
 const throughRunner = async <T>(
   work: (ask: Ask, step: () => Promise<unknown>) => Promise<T>,
 ): Promise<T> => {
@@ -373,10 +375,11 @@ const searchThroughRunner = (letter: string) =>
     // The runner takes the oldest queued job, so this search goes first.
     await ask("UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1", [search.id]);
     const stepped = await step();
-    const [ended] = jobs.parse(
-      await ask('SELECT id, status, lead, lead_by, token_budget FROM public.jobs WHERE id = $1', [
-        search.id,
-      ]),
+    const [ended] = endedJobs.parse(
+      await ask(
+        'SELECT id, status, lead, lead_by, token_budget, failure_reason FROM public.jobs WHERE id = $1',
+        [search.id],
+      ),
     );
     // The lead agent proposes nothing: no act comes from a model call of the search.
     const [proposed] = z.array(z.object({ n: z.number() })).parse(
@@ -398,7 +401,12 @@ const searchThroughRunner = (letter: string) =>
 test('a search that stops at its budget finds no new source, so the rule rejects a unit of D', async () => {
   const read = await searchThroughRunner('D');
   expect(read.stepped).toStrictEqual({ did: 'done', job: read.search });
-  expect(read.ended).toMatchObject({ status: 'done', token_budget: SMALL_BUDGET });
+  // The search ends well, and its row keeps the reason of the stop for the operator.
+  expect(read.ended).toMatchObject({
+    status: 'done',
+    token_budget: SMALL_BUDGET,
+    failure_reason: 'the token budget of this lead is spent',
+  });
   expect(read.proposed).toBe(0);
   expect(read.state.status).toBe('rejected');
   expect(read.state.decided_as).toBe('rule');
