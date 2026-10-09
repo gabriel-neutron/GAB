@@ -150,9 +150,9 @@ Every model call goes to OpenRouter and is recorded.
 Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
 the door and the checker never read it. Code drops a type outside the vocabulary, a group of
 countries given as a state body, a concept given as a legal act, and an entity that the job
-already proposed and that adds nothing. A later part cannot name a pending proposal by its id,
-so code keeps that entity when a kept relation names it or when it adds something. An attribute
-adds something, and so does a geometry that the earlier act does not have. When a relation names
+already proposed and that adds nothing. A later part cannot name a pending proposal by its id.
+So code keeps that entity when a kept relation names it or when it adds something. An attribute
+or a geometry that the earlier act does not have adds something. When a relation names
 it and it adds nothing, code sends the act of the earlier part with the same passages. The door
 then returns the act that waits, and the job gives one proposal for the entity. Code drops a person
 unless the same batch designates the person, or names the person as a director, an officer or an
