@@ -25,7 +25,7 @@ import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
-import { screenBatch } from './screen.ts';
+import { screenBatch, type ScreenItem } from './screen.ts';
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
@@ -120,7 +120,7 @@ export const makeExtractor = (
     const refusals: Refusal[] = [];
     let turns = 0;
     // The entities that the parts of this job proposed, and the count of each drop of code.
-    const seen = new Set<string>();
+    const seen = new Map<string, ScreenItem>();
     const dropped: Record<string, number> = {};
 
     const ask = async (
@@ -260,7 +260,7 @@ export const makeExtractor = (
         );
         if (made.ok) {
           await recordChecks(made.output, verdicts);
-          for (const key of screened.proposed) seen.add(key);
+          for (const [key, item] of screened.proposed) if (!seen.has(key)) seen.set(key, item);
           counted();
           return null;
         }
