@@ -196,16 +196,22 @@ export const screenBatch = (
   });
   relationsStay();
 
-  // An entity of an earlier part stays only when a kept relation names it or it has attributes.
-  // Nothing names a dropped repeat, so no relation falls with it.
+  // An entity of an earlier part stays only when a kept relation names it or it adds something:
+  // an attribute, or a geometry that the earlier act does not have. An empty attributes object
+  // adds nothing. Nothing names a dropped repeat, so no relation falls with it.
   const named = new Set(
     items.flatMap(({ act }) => (act.op === 'create_relation' ? [act.srcId, act.dstId] : [])),
   );
+  const addsTo = (act: ScreenItem['act'], earlier: ScreenItem['act']): boolean => {
+    if (act.op !== 'create_entity' || earlier.op !== 'create_entity') return false;
+    if (Object.keys(act.attrs ?? {}).length > 0) return true;
+    return act.geom !== undefined && JSON.stringify(act.geom) !== JSON.stringify(earlier.geom);
+  };
   items = items.flatMap((item) => {
     const { ref, act } = item;
     const earlier = repeats.get(ref);
     if (earlier === undefined) return [item];
-    if (act.op === 'create_entity' && act.attrs !== undefined) return [item];
+    if (addsTo(act, earlier.act)) return [item];
     if (!named.has(ref)) {
       drop('duplicate_in_job');
       return [];

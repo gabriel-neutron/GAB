@@ -151,9 +151,10 @@ Before the extractor proposes the batch of a part, code drops each item that a r
 the door and the checker never read it. Code drops a type outside the vocabulary, a group of
 countries given as a state body, a concept given as a legal act, and an entity that the job
 already proposed and that adds nothing. A later part cannot name a pending proposal by its id,
-so code keeps that entity when a kept relation names it or when it has attributes. When a
-relation names it, code sends it as the act of the earlier part, with the same passages, so the
-door returns the act that waits and the job gives one proposal for the entity. Code drops a person
+so code keeps that entity when a kept relation names it or when it adds something. An attribute
+adds something, and so does a geometry that the earlier act does not have. When a relation names
+it and it adds nothing, code sends the act of the earlier part with the same passages. The door
+then returns the act that waits, and the job gives one proposal for the entity. Code drops a person
 unless the same batch designates the person, or names the person as a director, an officer or an
 owner. Code drops the e-mail address of a person that stays.
 A relation that names a dropped item is dropped too. The log keeps the count of drops for each

@@ -142,10 +142,10 @@ test('an entity of an earlier part that adds nothing is dropped, and one that a 
 
   const screened = screenBatch(
     [
-      entity('swift', 'company', 'Swift'),
+      entity('swift_again', 'company', 'Swift'),
       entity('spfs', 'unknown', 'SPFS'),
       entity('swift_bank', 'bank', 'SWIFT'),
-      relation('r1', 'unknown', 'spfs', 'swift'),
+      relation('r1', 'unknown', 'spfs', 'swift_again'),
     ],
     WORDS,
     seen,
@@ -153,11 +153,13 @@ test('an entity of an earlier part that adds nothing is dropped, and one that a 
 
   // The later part cannot name the pending proposal of the first part, so the entity stays with
   // its relation. The same name with another type is another entity.
-  expect(refsOf(screened.items)).toStrictEqual(['swift', 'spfs', 'swift_bank', 'r1']);
+  expect(refsOf(screened.items)).toStrictEqual(['swift_again', 'spfs', 'swift_bank', 'r1']);
   expect(screened.dropped).toStrictEqual({});
   // The repeat is the act of the first part, with its label and its passages, so the door returns
-  // the act that waits and the job gives one proposal for SWIFT.
-  expect(screened.items[0]).toStrictEqual({ ...first.items[0], ref: 'swift' });
+  // the act that waits and the job gives one proposal for SWIFT. The repeat keeps its own ref,
+  // so the relation of this part names it.
+  expect(screened.items[0]).toStrictEqual({ ...first.items[0], ref: 'swift_again' });
+  expect(screened.items[3]?.act).toMatchObject({ srcId: 'spfs', dstId: 'swift_again' });
   expect(screened.items[0]?.evidence).toStrictEqual([
     { document: 'doc_a', page: 1, excerpt: 'SWIFT' },
   ]);
@@ -194,4 +196,61 @@ test('an entity of an earlier part with attributes stays', () => {
 
   expect(refsOf(screened.items)).toStrictEqual(['swift']);
   expect(screened.dropped).toStrictEqual({});
+});
+
+test('an entity of an earlier part with an empty attributes object adds nothing', () => {
+  const first = screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Map());
+  const seen = new Map(first.proposed);
+  const screened = screenBatch(
+    [
+      entity('swift', 'company', 'Swift', {}),
+      entity('spfs', 'unknown', 'SPFS'),
+      entity('swift_2', 'company', 'SWIFT', {}),
+      relation('r1', 'unknown', 'spfs', 'swift'),
+    ],
+    WORDS,
+    seen,
+  );
+
+  // The repeat that the relation names is the act of the first part. The second repeat is a
+  // duplicate in this batch.
+  expect(refsOf(screened.items)).toStrictEqual(['swift', 'spfs', 'r1']);
+  expect(screened.items[0]).toStrictEqual({ ...first.items[0], ref: 'swift' });
+  expect(screened.dropped).toStrictEqual({ duplicate_in_job: 1 });
+
+  const alone = screenBatch([entity('swift', 'company', 'Swift', {})], WORDS, seen);
+
+  expect(refsOf(alone.items)).toStrictEqual([]);
+  expect(alone.dropped).toStrictEqual({ duplicate_in_job: 1 });
+});
+
+test('an entity of an earlier part with a new geometry stays with its geometry', () => {
+  const port = (ref: string, geom?: { type: 'Point'; coordinates: [number, number] }) => {
+    const item = entity(ref, 'unknown', 'Sikka');
+    return geom === undefined ? item : ({ ...item, act: { ...item.act, geom } } as ScreenItem);
+  };
+  const point = { type: 'Point' as const, coordinates: [69.8, 22.4] as [number, number] };
+  const first = screenBatch([port('sikka')], WORDS, new Map());
+  const seen = new Map(first.proposed);
+
+  const screened = screenBatch(
+    [
+      port('sikka', point),
+      entity('spfs', 'unknown', 'SPFS'),
+      relation('r1', 'unknown', 'spfs', 'sikka'),
+    ],
+    WORDS,
+    seen,
+  );
+
+  expect(refsOf(screened.items)).toStrictEqual(['sikka', 'spfs', 'r1']);
+  expect(screened.items[0]?.act).toMatchObject({ geom: point });
+  expect(screened.dropped).toStrictEqual({});
+
+  // The same geometry again adds nothing.
+  const placed = new Map(screenBatch([port('sikka', point)], WORDS, new Map()).proposed);
+  const again = screenBatch([port('sikka', point)], WORDS, placed);
+
+  expect(refsOf(again.items)).toStrictEqual([]);
+  expect(again.dropped).toStrictEqual({ duplicate_in_job: 1 });
 });
