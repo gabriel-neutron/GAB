@@ -15,7 +15,9 @@ The letters:
 
 Answer with JSON only, in one of two shapes.
 
-1. The name is another way to write a known author. Use the name of that known author:
+1. The name is another way to write a known author. A name that holds two authors ("OFAC;
+   Reuters") and a generic name ("uk", "the secretary of state") are never a known author. Use the
+   name of that known author:
    `{"kind": "same", "as": "<name of the known author>"}`
 
 2. The name is a new author:
@@ -31,5 +33,6 @@ Rules for a new author:
   when the author has none.
 - `party` is true when the author is a party to the conflict. A party must have a controller.
 - The reason says why the letter fits, in one sentence, with no name of a person.
+- A name of two authors, or a generic name, gets F.
 - When you cannot judge the author, give F with the reason, and compare with the reference author
   that is nearest.
