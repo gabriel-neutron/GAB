@@ -13,8 +13,20 @@ export interface Resolved {
   readonly family: number;
 }
 
+/** What made the fetch fail: an answer that is not a success (with its status), or no answer. */
+export type FetchFault =
+  { readonly kind: 'status'; readonly status: number } | { readonly kind: 'silent' };
+
 /** A fetch that this module declines, with the one sentence that says why. */
-export class FetchRefusal extends Error {}
+export class FetchRefusal extends Error {
+  /** Set when the server gave an answer that is not a success, or gave no answer. */
+  readonly fault: FetchFault | undefined;
+
+  constructor(message: string, fault?: FetchFault) {
+    super(message);
+    this.fault = fault;
+  }
+}
 
 // External constraint: the special-purpose ranges of the IANA registries. A range that carries an
 // IPv4 address inside an IPv6 one (::/96, ::ffff:0:0:0/96) is refused whole, because the address
@@ -75,6 +87,8 @@ export interface GetOptions {
 export interface Got {
   /** The address that gave the bytes, after the redirects. */
   readonly url: string;
+  /** The success status of the answer (200 to 299). */
+  readonly status: number;
   readonly contentType: string | null;
   readonly bytes: Uint8Array;
 }
@@ -151,12 +165,33 @@ const guardedLookup =
 const errorCode = (fault: unknown): string =>
   typeof fault === 'object' && fault !== null && 'code' in fault ? String(fault.code) : '';
 
+const SILENT: FetchFault = { kind: 'silent' };
+
+// External constraint: the codes of Node for a server that does not answer or drops the
+// connection. A site that refuses some addresses often gives one of these, and no status.
+const SILENT_CODES: ReadonlySet<string> = new Set([
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EPIPE',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+
 const asRefusal = (fault: unknown, timeoutMs: number): FetchRefusal => {
   if (fault instanceof FetchRefusal) return fault;
   if (fault instanceof Error && (fault.name === 'AbortError' || fault.name === 'TimeoutError'))
-    return new FetchRefusal(`the address gave no whole answer within ${timeoutMs / 1000} seconds`);
+    return new FetchRefusal(
+      `the address gave no whole answer within ${timeoutMs / 1000} seconds`,
+      SILENT,
+    );
   const code = errorCode(fault);
-  return new FetchRefusal(`the address could not be reached${code === '' ? '' : ` (${code})`}`);
+  return new FetchRefusal(
+    `the address could not be reached${code === '' ? '' : ` (${code})`}`,
+    SILENT_CODES.has(code) ? SILENT : undefined,
+  );
 };
 
 const opened = (url: URL, options: RequestOptions): Promise<IncomingMessage> =>
@@ -220,10 +255,18 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
       }
       if (status < 200 || status > 299) {
         response.destroy();
-        throw new FetchRefusal(`the server answered ${status}, and only a success is kept`);
+        throw new FetchRefusal(`the server answered ${status}, and only a success is kept`, {
+          kind: 'status',
+          status,
+        });
       }
       const bytes = await bodyOf(response, options.maxBytes);
-      return { url: url.href, contentType: response.headers['content-type'] ?? null, bytes };
+      return {
+        url: url.href,
+        status,
+        contentType: response.headers['content-type'] ?? null,
+        bytes,
+      };
     } catch (fault) {
       throw asRefusal(fault, options.timeoutMs);
     }
