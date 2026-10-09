@@ -4,5 +4,6 @@
 
 /** The party that each act of the v1 import names. The review reads it to name the proposer. */
 export const ORIGINATOR = 'GAB v1 ORBAT (operator)';
-/** The title of the stored v1 ORBAT. The batch door reserves the originator for an item that cites it. */
+/** The title of the stored v1 ORBAT. The batch door reserves the originator for an item that cites
+ * only this document. */
 export const TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
