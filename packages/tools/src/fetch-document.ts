@@ -378,8 +378,6 @@ export const fetchDocument = defineTool({
     const notices: string[] = [];
     let page: Awaited<ReturnType<typeof renderedOf>> = null;
     const allText = pages.join('').trim().length;
-    let captcha =
-      isHtml(mime) && allText <= SHORT_PAGE && CAPTCHA.test(decodeHtml(got.bytes, type));
     // Bytes that are all blank hold no script to run, so the render can add nothing to them.
     const renders =
       known === undefined &&
@@ -433,7 +431,6 @@ export const fetchDocument = defineTool({
 
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
     if (usable !== null) {
-      captcha ||= usable.pages.join('').trim().length <= SHORT_PAGE && CAPTCHA.test(usable.html);
       const stored = await storeAnswer(session, reach.store, {
         kind: 'url',
         bytes: usable.bytes,
@@ -445,6 +442,11 @@ export const fetchDocument = defineTool({
       });
       rendered = { id: stored.id, status: stored.status, title: stored.title };
     }
+    // The notice is about the page that is cited: the render when it is stored, else the plain page.
+    const captcha =
+      usable === null
+        ? isHtml(mime) && allText <= SHORT_PAGE && CAPTCHA.test(decodeHtml(got.bytes, type))
+        : usable.pages.join('').trim().length <= SHORT_PAGE && CAPTCHA.test(usable.html);
     if (captcha)
       notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
 

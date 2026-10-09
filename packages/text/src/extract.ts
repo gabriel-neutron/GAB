@@ -139,13 +139,13 @@ const charsetOfBytes = (bytes: Uint8Array): string | undefined => {
   return /<\?xml\b[^>]*\bencoding\s*=\s*["']([\w.:-]+)["']/iu.exec(head)?.[1];
 };
 
-const decoderOf = (label: string | undefined) => {
+const decoderOf = (label: string | undefined, fromMeta: boolean) => {
   if (label === undefined) return undefined;
   try {
     const decoder = new TextDecoder(label);
     // External constraint: the HTML standard reads a meta that names UTF-16 as UTF-8, because the
-    // bytes that held the meta were read as ASCII.
-    return decoder.encoding.startsWith('utf-16') ? new TextDecoder('utf-8') : decoder;
+    // bytes that held the meta were read as ASCII. The charset of the header stays as it is.
+    return fromMeta && decoder.encoding.startsWith('utf-16') ? new TextDecoder('utf-8') : decoder;
   } catch {
     // An unknown label names no decoder, and the next source of the charset decides.
     return undefined;
@@ -161,8 +161,8 @@ export const decodeHtml = (bytes: Uint8Array, mime = ''): string => {
   const bom = BOMS.find(([marks]) => marks.every((mark, i) => bytes[i] === mark));
   if (bom !== undefined) return new TextDecoder(bom[1]).decode(bytes);
   const decoder =
-    decoderOf(CHARSET.exec(mime)?.[1]) ??
-    decoderOf(charsetOfBytes(bytes)) ??
+    decoderOf(CHARSET.exec(mime)?.[1], false) ??
+    decoderOf(charsetOfBytes(bytes), true) ??
     new TextDecoder('utf-8');
   return decoder.decode(bytes);
 };
