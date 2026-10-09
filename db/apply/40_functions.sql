@@ -3503,10 +3503,15 @@ END $$;
 -- A JOB THAT READS IN PARTS GIVES ITS COUNT OF PARTS, the count that the propose door refused,
 -- and the first refusal. The job keeps the count and the reason, so no lost claim is silent. A job
 -- whose every part was refused proposed nothing, so it fails with the same words as its reason.
--- The door returns the status that it wrote. The earlier signature is dropped first.
+--
+-- A JOB THAT ENDS WELL AT A STOP GIVES THE REASON OF THE STOP. A deepening search ends at its token
+-- budget, and that is a good end. The row keeps the reason, so the operator sees that the budget
+-- stopped the search and that the model did not end it. A job that ends with no stop has no reason.
+-- The door returns the status that it wrote. The earlier signatures are dropped first.
 DROP FUNCTION IF EXISTS complete_job(uuid);
+DROP FUNCTION IF EXISTS complete_job(uuid, int, int, text);
 CREATE OR REPLACE FUNCTION complete_job(p_id uuid, p_parts int DEFAULT 0, p_refused int DEFAULT 0,
-                                        p_refusal text DEFAULT NULL)
+                                        p_refusal text DEFAULT NULL, p_stop text DEFAULT NULL)
 RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -3522,7 +3527,8 @@ BEGIN
          refused_parts = p_refused,
          refusal = p_refusal,
          failure_reason = CASE WHEN v_status = 'failed'
-                               THEN public.refused_parts_said(p_refused, p_refusal) END,
+                               THEN public.refused_parts_said(p_refused, p_refusal)
+                               ELSE p_stop END,
          finished_at = now(), updated_at = now()
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
@@ -4229,10 +4235,11 @@ BEGIN
 END $$;
 
 -- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead ended well (done)
--- and no extraction of a page that it stored is open. A lead that failed, or that stopped at its
--- budget, did not finish its search, so it never rejects. The unit is weak when it has sources,
--- and each one has a letter D or E. A source whose check did not pass is no source here. An
--- author with no letter counts as F, so such a unit is kept, because a letter can come later. A
+-- and no extraction of a page that it stored is open. A search that stops at its budget ends well:
+-- the budget is its one stop, so it counts as a search that found no new source. A lead that failed
+-- for another reason did not finish its search, so it never rejects. The unit is weak when it has
+-- sources, and each one has a letter D or E. A source whose check did not pass is no source here.
+-- An author with no letter counts as F, so such a unit is kept, because a letter can come later. A
 -- fact with no passed check is not judged, so a unit with such a fact is kept. A claim that a rule
 -- rejected is not "rejected before": a later source can change a weak verdict. No role holds this
 -- step.

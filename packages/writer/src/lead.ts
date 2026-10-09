@@ -21,7 +21,8 @@ const leadRow = z.object({
 });
 
 /** One lead, as the operator reads it. `by` is the role that started it: the operator or the
- * research AI. A lead that did not fail has no reason. */
+ * research AI. A failed lead gives its reason. A deepening search that stopped at its token budget
+ * is done, and it gives that reason. Any other lead has no reason. */
 interface LeadJob {
   readonly id: string;
   readonly lead: string;

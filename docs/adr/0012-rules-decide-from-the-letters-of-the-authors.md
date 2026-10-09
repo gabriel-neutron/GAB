@@ -87,7 +87,9 @@ without the letters.
   **deepening search**: a job of the lead agent that carries a token budget. The budget is a
   setting of the rule, it starts at zero, and the operator sets it with a new version of the rule.
   At zero, no search runs, so no unit is rejected for weak sources. The lead agent proposes
-  nothing: it stores pages, the extraction proposes, and the rules decide again. When the search
+  nothing: it stores pages, the extraction proposes, and the rules decide again. The budget is the
+  one stop of a search, so a search that stops at its budget has ended, with no new source. A
+  search that fails for another reason has not ended, and it rejects nothing. When the search
   and the extraction of its pages have ended, a unit whose only sources are D or E is rejected by
   the rule, with its origin. Any other unit keeps waiting, because a source can come later.
 

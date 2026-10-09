@@ -52,6 +52,7 @@
     "@eslint/js": "^10.0.1",
     "@gab/model": "workspace:*",
     "@gab/store": "workspace:*",
+    "@gab/tools": "workspace:*",
     "@gab/worker": "workspace:*",
     "@gab/writer": "workspace:*",
     "@storybook/addon-vitest": "^10.5.7",
