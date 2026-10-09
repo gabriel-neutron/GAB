@@ -83,6 +83,12 @@ test('a designated_by relation with a valid_from promotes', async () => {
   ]);
 });
 
+test('an associated_with relation promotes as itself, with no interval', async () => {
+  await expect(promotedRelation('associated_with')).resolves.toStrictEqual([
+    { type: 'associated_with', proposed_type: null, valid_from: null },
+  ]);
+});
+
 test('an owned_by relation lands on the fallback row, and the word stays beside it', async () => {
   await expect(promotedRelation('owned_by')).resolves.toStrictEqual([
     { type: 'unknown', proposed_type: 'owned_by', valid_from: null },
@@ -117,11 +123,17 @@ test('the read role reads both directions of a relation type, and the word a rel
   const read = await probe('read', async (ask) => ({
     types: worded.parse(
       await ask(`SELECT key, label, inverse_label, takes_interval FROM api.relation_type
-                  WHERE key IN ('owns', 'unknown') ORDER BY key`),
+                  WHERE key IN ('associated_with', 'owns', 'unknown') ORDER BY key`),
     ),
     kept: await ask(`SELECT proposed_type FROM api.relation LIMIT 0`),
   }));
   expect(read.types).toStrictEqual([
+    {
+      key: 'associated_with',
+      label: 'associated with',
+      inverse_label: 'is associated with',
+      takes_interval: false,
+    },
     { key: 'owns', label: 'owns', inverse_label: 'is owned by', takes_interval: true },
     { key: 'unknown', label: 'is linked to', inverse_label: 'is linked to', takes_interval: false },
   ]);
