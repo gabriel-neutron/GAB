@@ -290,3 +290,98 @@ test('a document that cannot be read is counted with its reason, and the others 
     expect(report.changed.map((one) => one.document)).toStrictEqual([fixed]);
   });
 });
+
+// The bytes of the windows-1251 title of the fixture.
+const TITLE_BYTES = ((): Uint8Array => {
+  const ascii = new TextDecoder('latin1').decode(CYRILLIC);
+  return CYRILLIC.subarray(ascii.indexOf('<title>') + 7, ascii.indexOf('</title>'));
+})();
+
+// A page of one script: its text is empty, and only its render holds the text.
+const SHELL = new Uint8Array([
+  ...utf8('<html><head><meta charset="windows-1251"><title>'),
+  ...TITLE_BYTES,
+  ...utf8('</title></head><body><script>run()</script></body></html>'),
+]);
+
+const garbledTitleOf = (bytes: Uint8Array): string => {
+  const found = /<title>([\s\S]*?)<\/title>/u.exec(new TextDecoder('utf-8').decode(bytes))?.[1];
+  return found ?? '';
+};
+
+test('a page of one script, and its render, get their corrected titles', async () => {
+  await inTransaction(async (held) => {
+    const garbled = garbledTitleOf(SHELL);
+    const page = await held.put(SHELL, garbled, await oldPages(SHELL));
+    const html = new TextDecoder('windows-1251').decode(CYRILLIC);
+    const render = utf8(html);
+    const rendered = await held.put(
+      render,
+      `${garbled} (rendered)`,
+      (await extractText(render, 'text/html; charset=utf-8')).pages,
+    );
+
+    const report = await held.run(false);
+
+    expect(report.failed).toStrictEqual([]);
+    const titleOfPage = (await documentOf(held, page))?.title ?? '';
+    expect(titleOfPage).not.toContain('�');
+    expect(report.changed).toMatchObject([
+      { document: page, title: { from: garbled, to: titleOfPage } },
+      {
+        document: rendered,
+        text: false,
+        title: { from: `${garbled} (rendered)`, to: `${titleOfPage} (rendered)` },
+      },
+    ]);
+    expect((await held.run(false)).changed).toStrictEqual([]);
+  });
+});
+
+test('a render whose title lost its end is read as UTF-8, and its correct text stays', async () => {
+  await inTransaction(async (held) => {
+    const render = utf8(new TextDecoder('windows-1251').decode(CYRILLIC));
+    const pages = (await extractText(render, 'text/html; charset=utf-8')).pages;
+    const id = await held.put(render, `${'A long title '.repeat(40)} (rende`, pages);
+    const before = await documentOf(held, id);
+
+    const report = await held.run(false);
+
+    expect(report.changed).toStrictEqual([]);
+    expect(await documentOf(held, id)).toStrictEqual(before);
+  });
+});
+
+test('a render finds the titles of its own page when two pages have its address', async () => {
+  await inTransaction(async (held) => {
+    const other = utf8(
+      '<html><head><title>A later page</title></head><body><p>Later.</p></body></html>',
+    );
+    await held.put(CYRILLIC, GARBLED_TITLE, await oldPages(CYRILLIC));
+    await held.put(other, 'A later page', await oldPages(other));
+    const render = utf8(new TextDecoder('windows-1251').decode(CYRILLIC));
+    const id = await held.put(
+      render,
+      `${GARBLED_TITLE} (rendered)`,
+      (await extractText(render, 'text/html; charset=utf-8')).pages,
+    );
+
+    await held.run(false);
+
+    expect((await documentOf(held, id))?.title).toBe('Форум — Тема (rendered)');
+  });
+});
+
+test('a page whose reading gives no text is no fault, and it gets no new text set', async () => {
+  await inTransaction(async (held) => {
+    const id = await held.put(utf8('<html><body><script>run()</script></body></html>'), 'A shell', [
+      '',
+    ]);
+
+    const report = await held.run(false);
+
+    expect(report.failed).toStrictEqual([]);
+    expect(report.changed).toStrictEqual([]);
+    expect((await documentOf(held, id))?.sets).toBe(1);
+  });
+});

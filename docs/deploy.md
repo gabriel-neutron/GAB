@@ -118,7 +118,8 @@ local record, before the vector index is built:
 2. `pnpm worker reread-html` writes the changes.
 
 The command reads each stored HTML or XHTML document (also a saved HTML file) from the raw store,
-with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser as UTF-8. When the
+with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose bytes are valid
+UTF-8, as UTF-8. When the
 text changes, it writes the text as a new text set, and each reader then reads that set. The old
 set stays, so each citation stays valid. The command lists each citation whose excerpt is not in
 the corrected text: check these citations. The title changes only when the document still holds
