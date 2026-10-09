@@ -1061,6 +1061,34 @@ test('the writer passes the filters to the queue, and counts the units they keep
   expect(refusedFilter.status).toBe(422);
 });
 
+// The page parser of the review needs each key of the page. A key that the writer drops makes
+// every page unreadable, and the review shows the Doubts and Waiting lanes as closed.
+test('the writer gives the page of the queue as the record gives it, with the count of each lane', async () => {
+  const record = await one(
+    'SELECT public.review_units(NULL::text[], 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS page',
+    [],
+  );
+  const answer = await askUnitsFrom({ after: null, size: 5 });
+  expect(answer.status).toBe(200);
+  const given: unknown = await answer.json();
+  expect(given).toStrictEqual(record['page']);
+  const lanes = z.object({
+    decided: z.number().int(),
+    doubt: z.number().int(),
+    waiting: z.number().int(),
+  });
+  expect(lanes.safeParse((given as { counts?: unknown }).counts).success).toBe(true);
+
+  for (const lane of ['doubt', 'waiting'] as const) {
+    const kept = await askUnitsFrom({ after: null, size: 1, filter: { lane } });
+    expect(kept.status).toBe(200);
+    const page = z
+      .object({ matched: z.number(), counts: z.record(z.string(), z.number()) })
+      .parse(await kept.json());
+    expect(page.matched).toBe(page.counts[lane]);
+  }
+});
+
 test('the read of the queue refuses a page larger than the writer reads', async () => {
   const answer = await app.request('/private/review-units', {
     method: 'POST',

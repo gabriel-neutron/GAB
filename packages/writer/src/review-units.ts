@@ -43,6 +43,11 @@ const pageRow = z.object({
     total: z.number().int(),
     matched: z.number().int(),
     before: z.number().int(),
+    counts: z.object({
+      decided: z.number().int(),
+      doubt: z.number().int(),
+      waiting: z.number().int(),
+    }),
     next: z.array(z.string()).nullable(),
     choices: z.unknown(),
     units: z.array(z.unknown()),
