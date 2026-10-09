@@ -6,7 +6,7 @@ import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
-import { checkedRange, documentText } from './document-text.ts';
+import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
@@ -308,6 +308,7 @@ const outputShape = z.strictObject({
   pages: z.array(z.strictObject({ page: z.number().int().min(1), text: z.string() })),
   lastPage: z.number().int().nullable(),
   truncated: z.boolean(),
+  next: nextShape,
   notice: z.string().nullable(),
   rendered: z
     .strictObject({
@@ -453,6 +454,7 @@ export const fetchDocument = defineTool({
     const text = await documentText.run(session, {
       document: rendered?.id ?? plain.id,
       fromPage: input.fromPage,
+      fromCharacter: 0,
       toPage,
     });
     return {
@@ -466,6 +468,7 @@ export const fetchDocument = defineTool({
       pages: text.pages,
       lastPage: text.lastPage,
       truncated: text.truncated,
+      next: text.next,
       notice: notices.length === 0 ? null : notices.join('; '),
       rendered:
         rendered === null
