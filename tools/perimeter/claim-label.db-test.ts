@@ -152,6 +152,7 @@ const ALL = `
   SELECT 'proposal ' || id AS seen, origin_label AS label FROM api.proposal
   UNION ALL SELECT 'entity ' || id, origin_label FROM api.entity
   UNION ALL SELECT 'relation ' || id, origin_label FROM api.relation
+  UNION ALL SELECT 'map entity ' || id, origin_label FROM api.full_map
   UNION ALL SELECT 'entity value ' || e.id || ' ' || k.key, k.value
               FROM api.entity e, jsonb_each_text(e.attr_labels) k
   UNION ALL SELECT 'relation value ' || r.id || ' ' || k.key, k.value
@@ -166,11 +167,65 @@ test('each public claim carries its label in the fixed words, with no letter and
   expect(wrong).toStrictEqual([]);
 });
 
-test('each value of an entity carries a label', async () => {
+// The label of a value is a string in the fixed words, never a null: jsonb_object_agg keeps a key
+// with a null label, so a count of the keys cannot see a missing label.
+test('each value of an entity and of a relation carries a label', async () => {
   const missing = await probe('read', (ask) =>
-    ask(`SELECT e.id FROM api.entity e
-          WHERE (SELECT count(*) FROM jsonb_object_keys(e.attrs))
-             <> (SELECT count(*) FROM jsonb_object_keys(coalesce(e.attr_labels, '{}'::jsonb)))`),
+    ask(`SELECT e.id FROM api.entity e, jsonb_each(e.attr_labels) k
+          WHERE jsonb_typeof(k.value) <> 'string'
+         UNION ALL
+         SELECT r.id FROM api.relation r, jsonb_each(r.attr_labels) k
+          WHERE jsonb_typeof(k.value) <> 'string'`),
   );
   expect(missing).toStrictEqual([]);
+});
+
+// S1: the label hides the digits, and the origin column must not give them back. The public read
+// role sees the name and the version of the rule only, in each column of the row.
+test('the public row of a rule decision holds no rating digit in any column', async () => {
+  const text = await rolledBack('superuser', async (ask) => {
+    const id = await proposed(ask, 'create_entity', ENTITY);
+    await decided(ask, id, 'rule', 'rule strong_sources v1 (fact digits: 1, letters: B)');
+    return z
+      .array(z.object({ row: z.string(), origin: z.string().nullable() }))
+      .parse(
+        await asRead(
+          ask,
+          'SELECT to_jsonb(p)::text AS row, p.decision_origin AS origin FROM api.proposal p WHERE p.id = $1',
+          [id],
+        ),
+      );
+  });
+  expect(text).toHaveLength(1);
+  expect(text[0]?.origin).toBe('rule strong_sources v1');
+  expect(RATING.test(text[0]?.row ?? '')).toBe(false);
+});
+
+// The name, the type and the row sources of an entity come from the last act that set them. An
+// AI reviewer that accepts a change of the name must not read as a check of the operator.
+test('the row label of an entity follows the last accepted change of its name or type', async () => {
+  const row = await rolledBack('superuser', async (ask) => {
+    const made = await proposed(ask, 'create_entity', ENTITY);
+    await decided(ask, made, 'unit', 'validated manually by the operator');
+    await ask(
+      `INSERT INTO public.entities (id, type, label, attrs, sources, promoted_from)
+       SELECT p.id, 'vessel', p.payload->>'label', '{}'::jsonb, p.src, p.id
+         FROM public.proposals p WHERE p.id = $1`,
+      [made],
+    );
+    const renamed = await proposed(ask, 'update_entity', { label: 'A new test name' }, made);
+    await decided(ask, renamed, 'unit', 'decided by an AI reviewer', 'The passage states it.');
+    return asRead(ask, 'SELECT origin_label FROM api.entity WHERE id = $1', [made]);
+  });
+  expect(row).toStrictEqual([{ origin_label: `${AI}, on 2026-10-08` }]);
+});
+
+// A decider that the view does not know must never read as a person. It gets the cautious words.
+test('an accepted act with an unknown origin reads as not checked, and never as the operator', async () => {
+  const label = await rolledBack('superuser', async (ask) => {
+    const id = await proposed(ask, 'create_entity', ENTITY);
+    await decided(ask, id, 'unit', 'decided by a new machine');
+    return labelOf(ask, id);
+  });
+  expect(label).toBe(PROPOSED);
 });

@@ -77,9 +77,11 @@ and a cache protect the public read. It shows the record and the candidate layer
 rejected proposal, no job, no lead and no model call. The machine roles read through their own
 grants.
 
-Each public claim carries its label, in the fixed words of `decisions.md` PU1, and each value of
-an element carries the label of the act that last set it. The database writes the words, so the
-read API, the screen and an export give the same label. The read API also gives the disclaimer of
+Each public claim carries its label, in the fixed words of `decisions.md` PU1. An element carries
+the label of the act that last set its name and type, and each value carries the label of the act
+that last set it. A decider that the label does not know reads as not checked, never as a person.
+The database writes the words, so the read API, the screen and an export give the same label. The
+public read gets the name and the version of a rule, and never the inputs of the rule (S1). The read API also gives the disclaimer of
 the dataset beside the data, and an export file copies it.
 
 ## The write path
@@ -236,10 +238,9 @@ and the reference authors that the model compared with. A model never writes a s
 stores the letter that the model gives, and the database decides.
 
 The review queue shows only the units that need the operator by default. The units that wait are a
-separate list, with the source that each one needs. The page of an element shows who decided it:
-the name of the rule, "validated manually by the operator", or "decided by an AI reviewer". A
-decision of an AI reviewer keeps the reason that the AI gives, and the screens say that a human did
-not decide it.
+separate list, with the source that each one needs. The page of an element shows who decided it,
+in the label words of `decisions.md` PU1, and the day. A decision of an AI reviewer keeps the
+reason that the AI gives.
 
 ## The lead path
 

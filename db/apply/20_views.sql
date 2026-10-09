@@ -69,27 +69,35 @@ COMMENT ON VIEW api.relation_type IS
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
          dissent, author_role, model_call_id, status, created_at, decided_at,
-         decided_by, decided_as, batch_id, proposer, decision_origin,
+         decided_by, decided_as, batch_id, proposer,
+         -- S1: the origin of a rule carries the inputs of the rule, and they hold rating digits.
+         -- A role outside the tool roles gets the name and the version of the rule only.
+         CASE WHEN current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
+              THEN decision_origin
+              ELSE coalesce(substring(decision_origin FROM '^(rule [a-z_]+ v[0-9]+)'),
+                            decision_origin)
+         END AS decision_origin,
          -- PU1: the label of the claim, in fixed words that depend only on who decided it, and
-         -- the day of the decision in UTC. The origin of a rule can carry the inputs of the
-         -- rule, and they hold rating digits, so the label keeps the name and the version only
-         -- (S1). A decision older than the origin column is a decision of the operator, as the
-         -- review reads it. A rule always writes its origin; the words of a rule with no
-         -- readable name are a guard for a state that no door writes. A rejected act is not
-         -- a public claim and has no label.
+         -- the day of the decision in UTC. The label of a rule keeps the name and the version
+         -- only (S1). A decision older than the origin column is a decision of the operator, as
+         -- the review reads it. An origin that this list does not know never reads as a person:
+         -- it gets the cautious words of a candidate, with no day. A rejected act is not a
+         -- public claim and has no label.
          CASE
            WHEN status = 'pending' THEN 'Proposed — not checked'
-           WHEN status = 'accepted' THEN
-             CASE
-               WHEN decision_origin ~ '^rule [a-z_]+ v[0-9]+( |$)' THEN
-                 'Accepted by rule '
-                 || substring(decision_origin FROM '^rule ([a-z_]+ v[0-9]+)')
-                 || ' — no person read it'
-               WHEN decided_as = 'rule' THEN 'Accepted by a rule — no person read it'
-               WHEN decision_origin = 'decided by an AI reviewer' THEN
-                 'Accepted by an AI reviewer — no person read it'
-               ELSE 'Validated manually by the operator'
-             END || ', on ' || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN status <> 'accepted' THEN NULL
+           WHEN decision_origin ~ '^rule [a-z_]+ v[0-9]+( |$)' THEN
+             'Accepted by rule ' || substring(decision_origin FROM '^rule ([a-z_]+ v[0-9]+)')
+             || ' — no person read it, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN decision_origin = 'decided by an AI reviewer' THEN
+             'Accepted by an AI reviewer — no person read it, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN decision_origin IS NULL
+             OR decision_origin = 'validated manually by the operator' THEN
+             'Validated manually by the operator, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           ELSE 'Proposed — not checked'
          END AS origin_label
     FROM public.proposals
    -- PU1: a rejected act is not public. The public read role and any role that this list does
@@ -111,7 +119,8 @@ COMMENT ON VIEW api.proposal IS
   'decided the act: one unit, one relation, or a group action, or a named rule; an older '
   'decision and an act that the operator signed have none. decision_origin says who or what '
   'decided: the name and the version of a rule, "validated manually by the operator", or '
-  '"decided by an AI reviewer"; an older decision has none. origin_label is the label of the '
+  '"decided by an AI reviewer"; an older decision has none. The public read gets the name and '
+  'the version of a rule only, and not the inputs of the rule. origin_label is the label of the '
   'claim for a reader: fixed words that tell who decided it, and the day. It shows no rating. '
   'A copy of a row copies its label. The reason of a rejection is private. decided_by is '
   'NEVER proof of a human decision. Do not count '
@@ -138,9 +147,10 @@ COMMENT ON VIEW api.dataset IS
   'and each row of the export carries its label.';
 
 
--- PU1: each claim carries its label. The row takes the label of the act that made it, and each
--- value takes the label of the last act that set it: a later act can change one value, and a
--- different decider can decide that act. A value that no act names (a merge) keeps the label of
+-- PU1: each claim carries its label. The row takes the label of the last accepted act that set
+-- its name and type (update_entity), or else of the act that made it. Each value takes the label
+-- of the last act that set it: a later act can change one value, and a different decider can
+-- decide that act. A value that no act names (a merge) keeps the label of
 -- the row. Scalar subqueries and not a join: a join makes the view not auto-updatable, and a
 -- write through the read API then fails as a server fault (500) and not as a refusal (401).
 CREATE VIEW api.entity AS
@@ -149,7 +159,11 @@ CREATE VIEW api.entity AS
          -- src/features/map/projection.ts narrows on `geom !== null`, which a hex string passes.
          public.ST_AsGeoJSON(e.geom)::jsonb AS geom,
          e.attrs, e.sources, e.promoted_from, e.created_at, e.updated_at,
-         (SELECT c.origin_label FROM api.proposal c WHERE c.id = e.promoted_from)
+         coalesce((SELECT u.origin_label FROM api.proposal u
+                    WHERE u.status = 'accepted' AND u.op = 'update_entity'
+                      AND u.target_kind = 'entity' AND u.target_id = e.id
+                    ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+                  (SELECT c.origin_label FROM api.proposal c WHERE c.id = e.promoted_from))
            AS origin_label,
          coalesce((SELECT jsonb_object_agg(k.key, coalesce(
                      (SELECT u.origin_label FROM api.proposal u
@@ -167,8 +181,8 @@ COMMENT ON VIEW api.entity IS
   'on the THING and not on a value: it backs the label, the type and the geom of the row, and no '
   'attribute''s value. '
   'proposed_type carries the extracted word when it was not a live type. origin_label is the '
-  'label of the act that made the row, and attr_labels gives the label of each value. A copy '
-  'of a row copies its labels.';
+  'label of the last accepted act that set the name and the type, or else of the act that made '
+  'the row. attr_labels gives the label of each value. A copy of a row copies its labels.';
 
 
 CREATE VIEW api.relation AS
@@ -291,7 +305,10 @@ CREATE VIEW api.full_map AS
          CASE WHEN e.geom->>'type' = 'Point' THEN e.geom
               ELSE coalesce(i.geom, e.geom) END AS geom,
          e.attrs #>> '{position_precision,v}' AS position_precision,
-         CASE WHEN e.geom->>'type' = 'Point' THEN NULL ELSE i.parent_id END AS parent_id
+         CASE WHEN e.geom->>'type' = 'Point' THEN NULL ELSE i.parent_id END AS parent_id,
+         -- PU1: each public claim carries its label, also on the map read.
+         e.origin_label,
+         e.attr_labels->>'position_precision' AS position_precision_label
     FROM api.entity e
     LEFT JOIN inherited i ON i.entity_id = e.id;
 COMMENT ON VIEW api.full_map IS
@@ -299,6 +316,8 @@ COMMENT ON VIEW api.full_map IS
   'the point of the nearest ancestor through subordinate_to when position_precision is '
   'inherited. parent_id names that ancestor, and it is null when the entity stands at its own '
   'point. A null geom is an entity the map cannot place. The word is a claim of the analyst. It '
-  'may be absent, and a surface must then draw the cautious state and never a measured one.';
+  'may be absent, and a surface must then draw the cautious state and never a measured one. '
+  'origin_label and position_precision_label are the labels of the row and of the word, as on '
+  'api.entity.';
 
 RESET ROLE;
