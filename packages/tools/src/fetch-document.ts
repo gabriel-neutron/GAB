@@ -216,6 +216,13 @@ const unreadableRefusal = (sentence: string): string =>
 
 const blank = (pages: readonly string[]): boolean => pages.join('').trim() === '';
 
+// The text of a shell is its title at most. A page with other text holds text of its own.
+const shellOnly = (bytes: Uint8Array, pages: readonly string[]): boolean => {
+  const text = pages.join(' ').replace(/\s+/gu, ' ').trim();
+  const title = htmlTitle(bytes);
+  return (title === null ? text : text.replace(title, '').trim()) === '';
+};
+
 const blankBytes = (bytes: Uint8Array): boolean =>
   new TextDecoder('utf-8').decode(bytes).trim() === '';
 
@@ -311,8 +318,9 @@ export const fetchDocument = defineTool({
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
-    'refused, also when only its render shows it, and nothing is stored. A page with no text, also after its ' +
-    'render, is refused, and nothing is stored. Each refusal of a bot filter (a 403, an empty ' +
+    'refused, and nothing is stored. When only its render shows it, the page is refused if it ' +
+    'holds no text but its title; else its own text stays and the render is not stored. A page ' +
+    'with no text, also after its render, is refused, and nothing is stored. Each refusal of a bot filter (a 403, an empty ' +
     '202, a challenge page, no answer) names the next step: open the page in a browser and ' +
     'store it with store_saved_file, or list it in research/out/needs.md. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
@@ -369,20 +377,30 @@ export const fetchDocument = defineTool({
       // no object behind. A fault of the browser gives a notice, and the plain page stays.
       page = await renderedOf(got, mime, getOptions, notices);
     }
-    // A render that gives a challenge or a missing page shows what the short plain page is: the
-    // shell of that page. Neither one is a record of the source, so nothing is stored.
+    // A render that gives a challenge or a missing page is no record of the source. When the plain
+    // page holds no text but its title, it is the shell of that page, and nothing is stored. When
+    // the plain page holds its own text, that text stays, and only the render is not stored.
     const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
-    if (unreadableRender !== null) throw new ToolRefusal(unreadableRefusal(unreadableRender));
-    const usable = page !== null && !blank(page.pages) ? page : null;
+    if (unreadableRender !== null && shellOnly(got.bytes, pages))
+      throw new ToolRefusal(unreadableRefusal(unreadableRender));
+    if (unreadableRender !== null)
+      notices.push(
+        'the render was not stored: it shows a challenge of a bot filter or a missing page, ' +
+          'and the text comes from the plain page',
+      );
+    const usable = page !== null && unreadableRender === null && !blank(page.pages) ? page : null;
 
     // An answer with no text is no record of the source: no plain page and no render is stored.
     if (known === undefined && allText === 0 && usable === null) {
       const render: RenderState = page !== null ? 'rendered' : renders ? 'failed' : 'none';
       throw new ToolRefusal(emptyRefusal(got.status, mime, render));
     }
-    if (page !== null && usable === null)
+    if (page !== null && unreadableRender === null && usable === null)
       notices.push('the render was not stored: it holds no text');
 
+    // The bytes of the origin are stored also when their text is empty and the render has text.
+    // They are the record of what the server gave, and the render is a copy that the browser made
+    // from them. The page as a whole is not empty: its text is in the render, which is cited.
     const metadata = await metadataOf(got.bytes, mime);
     const plain =
       known ??
