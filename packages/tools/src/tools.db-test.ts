@@ -206,6 +206,7 @@ const text = z.object({
   pages: z.array(z.object({ page: z.number(), text: z.string() })),
   lastPage: z.number().nullable(),
   truncated: z.boolean(),
+  next: z.object({ page: z.number(), fromCharacter: z.number() }).nullable(),
 });
 
 test('document_text returns the pages of the range and the last page of the set', async () => {
@@ -224,6 +225,7 @@ test('document_text returns the pages of the range and the last page of the set'
     ],
     lastPage: 3,
     truncated: false,
+    next: null,
   });
 });
 
@@ -242,6 +244,62 @@ test('document_text cuts a long page at the size cap and says so', async () => {
   });
   expect(found.truncated).toBe(true);
   expect(found.pages.reduce((sum, page) => sum + page.text.length, 0)).toBeLessThanOrEqual(40_000);
+  expect(found.next).toStrictEqual({ page: 1, fromCharacter: 40_000 });
+});
+
+test('document_text reads a long page in slices that follow "next", with no character lost or read twice', async () => {
+  const long = Array.from({ length: 95_000 }, (_, at) => String.fromCharCode(97 + (at % 26))).join(
+    '',
+  );
+  const { read, slices } = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['before', long, 'after']);
+    let at: { page: number; fromCharacter: number } | null = { page: 2, fromCharacter: 0 };
+    const parts: string[] = [];
+    let count = 0;
+    while (at !== null && at.page === 2) {
+      const found = text.parse(
+        await output(ask, 'document_text', {
+          document: DOC,
+          fromPage: at.page,
+          toPage: at.page,
+          fromCharacter: at.fromCharacter,
+        }),
+      );
+      parts.push(found.pages.map((page) => page.text).join(''));
+      at = found.next;
+      count += 1;
+    }
+    return { read: parts.join(''), slices: count };
+  });
+  expect(slices).toBe(3);
+  expect(read).toBe(long);
+});
+
+test('document_text gives the next page at offset zero when the cap falls on a page boundary', async () => {
+  const found = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['x'.repeat(40_000), 'second']);
+    return text.parse(await output(ask, 'document_text', { document: DOC }));
+  });
+  expect(found.pages.map((page) => page.page)).toStrictEqual([1]);
+  expect(found.next).toStrictEqual({ page: 2, fromCharacter: 0 });
+});
+
+test('document_text never cuts a character in two', async () => {
+  const found = await rolledBack('research', async (ask) => {
+    await withDocument(ask, [`${'x'.repeat(39_999)}😀tail`]);
+    return text.parse(await output(ask, 'document_text', { document: DOC }));
+  });
+  expect(found.pages[0]?.text).toBe('x'.repeat(39_999));
+  expect(found.next).toStrictEqual({ page: 1, fromCharacter: 39_999 });
+});
+
+test('document_text refuses an offset after the end of the page, and gives its length', async () => {
+  const outcome = await rolledBack('research', async (ask) => {
+    await withDocument(ask, ['short']);
+    return call(ask, 'document_text', { document: DOC, fromCharacter: 5 });
+  });
+  expect(outcome).toMatchObject({ ok: false });
+  expect(JSON.stringify(outcome)).toContain('page 1 holds 5 characters');
 });
 
 test('document_text refuses a range above the cap', async () => {
