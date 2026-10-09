@@ -93,6 +93,23 @@ const clipped = (title: string): string => title.slice(0, MAX_TITLE);
 
 const isRender = (row: Stored): boolean => row.title.endsWith(RENDER_END);
 
+// Bytes that are valid UTF-8 gave a correct text to the old reading. A render is UTF-8 also when
+// its end " (rendered)" was cut from a long title, and its meta can still name another charset. A
+// page in windows-1251 or koi8-r with letters outside ASCII is never valid UTF-8.
+const isUtf8 = (bytes: Uint8Array): boolean => {
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** The type that the current reading uses: UTF-8 for a render and for valid UTF-8 bytes, else the
+ * stored type, so the byte order mark or the meta element names the charset. */
+const readingTypeOf = (row: Stored, bytes: Uint8Array): string =>
+  isRender(row) || isUtf8(bytes) ? AS_UTF8 : row.mime;
+
 // The name of the new set sorts after `text-1` and after an earlier run, so the newest set is
 // this one also when two sets have the same time.
 const extractorOf = (now: Date): string =>
@@ -111,9 +128,9 @@ interface TitlePair {
   readonly to: string;
 }
 
-const titlesOf = (row: Stored, bytes: Uint8Array): TitlePair | null => {
+const titlesOf = (bytes: Uint8Array, type: string): TitlePair | null => {
   const from = htmlTitle(bytes, AS_UTF8);
-  const to = htmlTitle(bytes, row.mime);
+  const to = htmlTitle(bytes, type);
   return from === null || to === null ? null : { from: clipped(from), to: clipped(to) };
 };
 
@@ -121,9 +138,19 @@ const titlesOf = (row: Stored, bytes: Uint8Array): TitlePair | null => {
  * the title of the old reading, so a title that the operator gave stays. */
 const correctedTitle = (row: Stored, pair: TitlePair | undefined | null): TitlePair | null => {
   if (pair === undefined || pair === null) return null;
-  const from = isRender(row) ? clipped(`${pair.from}${RENDER_END}`) : pair.from;
-  const to = isRender(row) ? clipped(`${pair.to}${RENDER_END}`) : pair.to;
-  return row.title === from && from !== to ? { from, to } : null;
+  return row.title === pair.from && pair.from !== pair.to ? pair : null;
+};
+
+// The titles of a render: the pair of the page at its address whose old title the render holds.
+// Two plain pages can have one address, when the page changed between two fetches.
+const renderTitle = (row: Stored, pairs: readonly TitlePair[]): TitlePair | null => {
+  const found = pairs
+    .map((pair) => ({
+      from: clipped(`${pair.from}${RENDER_END}`),
+      to: clipped(`${pair.to}${RENDER_END}`),
+    }))
+    .find((pair) => pair.from === row.title);
+  return correctedTitle(row, found);
 };
 
 /** Reads each stored HTML document again, and corrects its text and its title when they change. A
@@ -137,37 +164,43 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
 
   // The plain pages come first, so that a render finds the titles of its page.
   const ordered = [...rows.filter((row) => !isRender(row)), ...rows.filter(isRender)];
-  const titles = new Map<string, TitlePair | null>();
+  const titles = new Map<string, TitlePair[]>();
 
   for (const row of ordered) {
     let pages: readonly string[];
     let bytes: Uint8Array;
+    let type: string;
     try {
       bytes = await deps.read(row.s3_key);
-      pages = (await extractText(bytes, isRender(row) ? AS_UTF8 : row.mime)).pages;
+      type = readingTypeOf(row, bytes);
+      pages = (await extractText(bytes, type)).pages;
     } catch (fault) {
       failed.push({ document: row.id, reason: reasonOf(fault) });
       continue;
     }
-    if (pages.join('').trim() === '') {
-      failed.push({ document: row.id, reason: 'the current reading gives no text' });
-      continue;
-    }
 
-    if (!isRender(row) && row.uri !== null) titles.set(row.uri, titlesOf(row, bytes));
-    const title = correctedTitle(
-      row,
-      isRender(row) ? (row.uri === null ? null : titles.get(row.uri)) : titlesOf(row, bytes),
-    );
+    let title: TitlePair | null;
+    if (isRender(row)) {
+      title = renderTitle(row, row.uri === null ? [] : (titles.get(row.uri) ?? []));
+    } else {
+      const pair = titlesOf(bytes, type);
+      if (pair !== null && row.uri !== null)
+        titles.set(row.uri, [...(titles.get(row.uri) ?? []), pair]);
+      title = correctedTitle(row, pair);
+    }
 
     const stored =
       row.extractor === null
         ? []
         : z.array(pageRow).parse((await deps.db.query(PAGES, [row.id, row.extractor])).rows);
-    const text = !samePages(
-      stored.map((one) => one.text),
-      pages,
-    );
+    // A page with no text is stored when its render holds the text. Its text stays, and only its
+    // title can change.
+    const text =
+      pages.join('').trim() !== '' &&
+      !samePages(
+        stored.map((one) => one.text),
+        pages,
+      );
     if (!text && title === null) continue;
 
     changed.push({ document: row.id, text, title });
