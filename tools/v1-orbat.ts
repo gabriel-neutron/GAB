@@ -1,9 +1,9 @@
-// The two values that mark an act of the v1 import (#13). The import is done and its script is
-// deleted, but the record keeps its acts, and the database reserves these values: the batch door
-// gives the originator only to an item that cites the stored v1 ORBAT, and the review names the
-// proposer "v1 import". The tests that write such an act read the values here.
+// The two names that mark the v1 import. The import ran on 7 October 2026 (#13) and its script is
+// deleted, but the batch door (db/apply/40_functions.sql) still checks these names, so the tests of
+// the queue use them.
 
 /** The party that each act of the v1 import names. The review reads it to name the proposer. */
-export const V1_ORIGINATOR = 'GAB v1 ORBAT (operator)';
-/** The title of the stored v1 ORBAT. The batch door reserves the originator to an item that cites it. */
-export const V1_TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
+export const ORIGINATOR = 'GAB v1 ORBAT (operator)';
+/** The title of the stored v1 ORBAT. The batch door reserves the originator for an item that cites
+ * only this document. */
+export const TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
