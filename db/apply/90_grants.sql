@@ -60,7 +60,7 @@ GRANT SELECT (id, op, target_kind, target_id, payload, src, names, prior_value, 
 -- gabriel_read holds no grant and no view of it, because the licence of a source may be unknown.
 GRANT SELECT ON document_text TO gabriel_app, gabriel_agent, gabriel_research;
 REVOKE ALL ON FUNCTION newest_text_extractor(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION newest_text_extractor(text) TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION newest_text_extractor(text) TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- THE CITED PASSAGE IS PRIVATE FOR THE SAME REASON. The writer reads it for the review card as
 -- gabriel_app. No view of the read API shows it.
@@ -161,6 +161,7 @@ REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 
@@ -179,6 +180,9 @@ GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,d
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
 GRANT EXECUTE ON FUNCTION fill_document_uri(text,text) TO gabriel_app;
+-- THE CORRECTED TITLE OF A DOCUMENT THAT IS READ AGAIN is the operator's: the command runs as
+-- gabriel_app, on the local record.
+GRANT EXECUTE ON FUNCTION correct_document_title(text,text,text) TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
