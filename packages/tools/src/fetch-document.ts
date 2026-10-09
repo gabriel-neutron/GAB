@@ -7,11 +7,17 @@ import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
 import { checkedRange, documentText } from './document-text.ts';
-import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
+import {
+  FetchRefusal,
+  guardedGet,
+  type FetchFault,
+  type GetOptions,
+  type Got,
+} from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
 import { knownAnswer, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
-import { isHtml, unreadablePage } from './unreadable-page.ts';
+import { CHALLENGE_PAGE, isHtml, unreadablePage } from './unreadable-page.ts';
 
 // Assumptions of the first build, each one a constant. A report of a regulator runs to a few
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
@@ -153,10 +159,70 @@ const titleOf = (mime: string, bytes: Uint8Array, metadata: Metadata, url: strin
 const reasonOf = (fault: unknown): string =>
   (fault instanceof Error ? fault.message : String(fault)).split('\n')[0]?.slice(0, 200) ?? '';
 
+// The step that each refusal of a bot filter names, so the research AI and the operator know what
+// to do next. The tool itself passes no filter: it uses no scraping service and no stealth browser.
+const BROWSER_STEP =
+  "Next step: open the page in a browser on the operator's machine, save it into the inbox, and " +
+  'store it with store_saved_file (skill research-method)';
+const NEEDS_STEP =
+  "Next step: open the page in a browser on the operator's machine and store it with " +
+  'store_saved_file; if the browser gets no answer either, list the source in ' +
+  'research/out/needs.md (skill research-method)';
+
+// External constraint: the statuses that Cloudflare and the other common filters give to a
+// request that they take for a robot.
+const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
+
+/** The refusal of a failed fetch, with the step for a bot filter or a server that is silent. */
+export const refusalOfFetch = (message: string, fault: FetchFault | undefined): string => {
+  if (fault?.kind === 'silent')
+    return (
+      `${message}. A site that refuses foreign addresses or robots gives no answer, and ` +
+      `nothing is stored. ${NEEDS_STEP}.`
+    );
+  if (fault?.kind === 'status' && FILTER_STATUSES.has(fault.status))
+    return (
+      `${message}. A bot filter (for example a Cloudflare challenge) gives this answer, and ` +
+      `nothing is stored. ${BROWSER_STEP}.`
+    );
+  return message;
+};
+
+type RenderState = 'none' | 'rendered' | 'failed';
+
+const AFTER: Readonly<Record<RenderState, string>> = {
+  none: '',
+  rendered: ', also after the render with JavaScript',
+  failed: ', and the render with JavaScript failed',
+};
+
+/** The refusal of an answer that holds no text, after its render when it had one. */
+export const emptyRefusal = (status: number, mime: string, render: RenderState): string => {
+  const after = AFTER[render];
+  if (!isHtml(mime) && mime !== 'text/plain')
+    return `the answer of type ${mime} holds no text${after}, so it holds nothing to cite, and nothing is stored`;
+  const filter =
+    status === 202
+      ? `the server answered 202 with a page that holds no text${after}. A bot filter (for ` +
+        'example AWS WAF) gives this answer'
+      : `the answer holds no text${after}, so it holds nothing to cite. A bot filter can give ` +
+        'an empty page';
+  return `${filter}, and nothing is stored. ${BROWSER_STEP}.`;
+};
+
+/** The refusal of a challenge page or a missing page, with the step for a challenge. */
+const unreadableRefusal = (sentence: string): string =>
+  sentence === CHALLENGE_PAGE ? `${sentence}, and nothing is stored. ${BROWSER_STEP}.` : sentence;
+
+const blank = (pages: readonly string[]): boolean => pages.join('').trim() === '';
+
+const blankBytes = (bytes: Uint8Array): boolean =>
+  new TextDecoder('utf-8').decode(bytes).trim() === '';
+
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 // A launch fault, a crash or a timeout of the browser gives a notice and no refusal, because the
-// plain document is already stored and its text still comes back.
+// plain document can still be stored, and its text comes back.
 const renderedOf = async (
   got: Got,
   mime: string,
@@ -189,6 +255,8 @@ const renderedOf = async (
 // The text is read before any write, so an answer with no text that can be read leaves no object
 // behind.
 const checkedPages = async (bytes: Uint8Array, mime: string): Promise<readonly string[]> => {
+  // An answer with no bytes but blanks holds no text, whatever its type says. The caller refuses it.
+  if (blankBytes(bytes)) return [''];
   let pages: readonly string[];
   try {
     ({ pages } = await extractText(bytes, mime));
@@ -204,7 +272,7 @@ const checkedPages = async (bytes: Uint8Array, mime: string): Promise<readonly s
 
   // A challenge or a missing page is no record of the source, and it leaves no object behind.
   const unreadable = unreadablePage(mime, pages);
-  if (unreadable !== null) throw new ToolRefusal(unreadable);
+  if (unreadable !== null) throw new ToolRefusal(unreadableRefusal(unreadable));
   return pages;
 };
 
@@ -243,7 +311,10 @@ export const fetchDocument = defineTool({
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
     'extraction of that id. "notice" says what the render did, what it stopped, and when a ' +
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
-    'refused, and a render of that kind is not stored. A PNG or a JPEG image is stored as ' +
+    'refused, also when only its render shows it, and nothing is stored. A page with no text, also after its ' +
+    'render, is refused, and nothing is stored. Each refusal of a bot filter (a 403, an empty ' +
+    '202, a challenge page, no answer) names the next step: open the page in a browser and ' +
+    'store it with store_saved_file, or list it in research/out/needs.md. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
     'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused.',
@@ -261,7 +332,7 @@ export const fetchDocument = defineTool({
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
       maxBytes: MAX_BYTES,
-      timeoutMs: TIMEOUT_MS,
+      timeoutMs: reach.fetchTimeoutMs ?? TIMEOUT_MS,
       maxRedirects: MAX_REDIRECTS,
       ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
       ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
@@ -270,7 +341,8 @@ export const fetchDocument = defineTool({
     try {
       got = await guardedGet(input.url, getOptions);
     } catch (fault) {
-      if (fault instanceof FetchRefusal) throw new ToolRefusal(fault.message);
+      if (fault instanceof FetchRefusal)
+        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
       throw fault;
     }
 
@@ -278,6 +350,38 @@ export const fetchDocument = defineTool({
     // OCR of an image takes seconds, and bytes that are already stored have their text already.
     const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
     const pages = known === undefined ? await checkedPages(got.bytes, mime) : [];
+
+    const notices: string[] = [];
+    let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
+    let page: Awaited<ReturnType<typeof renderedOf>> = null;
+    const allText = pages.join('').trim().length;
+    // Bytes that are all blank hold no script to run, so the render can add nothing to them.
+    const renders =
+      known === undefined &&
+      mime === 'text/html' &&
+      allText < RENDER_BELOW &&
+      !blankBytes(got.bytes);
+    if (renders) {
+      notices.push(
+        `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
+      );
+      // The render comes before any write, so a page with no text, also after the render, leaves
+      // no object behind. A fault of the browser gives a notice, and the plain page stays.
+      page = await renderedOf(got, mime, getOptions, notices);
+    }
+    // A render that gives a challenge or a missing page shows what the short plain page is: the
+    // shell of that page. Neither one is a record of the source, so nothing is stored.
+    const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
+    if (unreadableRender !== null) throw new ToolRefusal(unreadableRefusal(unreadableRender));
+    const usable = page !== null && !blank(page.pages) ? page : null;
+
+    // An answer with no text is no record of the source: no plain page and no render is stored.
+    if (known === undefined && allText === 0 && usable === null) {
+      const render: RenderState = page !== null ? 'rendered' : renders ? 'failed' : 'none';
+      throw new ToolRefusal(emptyRefusal(got.status, mime, render));
+    }
+    if (page !== null && usable === null)
+      notices.push('the render was not stored: it holds no text');
 
     const metadata = await metadataOf(got.bytes, mime);
     const plain =
@@ -292,32 +396,19 @@ export const fetchDocument = defineTool({
         day,
       }));
 
-    const notices: string[] = [];
-    let captcha = isHtml(mime) && CAPTCHA.test(new TextDecoder('utf-8').decode(got.bytes));
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
-    const allText = pages.join('').trim().length;
-    if (mime === 'text/html' && allText < RENDER_BELOW) {
-      notices.push(
-        `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
-      );
-      // The plain document is stored first, so a fault of the browser loses no part of it.
-      const page = await renderedOf(got, mime, getOptions, notices);
-      // A render that gives a challenge or a missing page is not stored. The plain page stays.
-      const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
-      if (unreadableRender !== null) notices.push(`the render was not stored: ${unreadableRender}`);
-      else if (page !== null) {
-        captcha ||= CAPTCHA.test(page.html);
-        const stored = await storeAnswer(session, reach.store, {
-          kind: 'url',
-          bytes: page.bytes,
-          mime: 'text/html',
-          uri: got.url,
-          title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
-          pages: page.pages,
-          day,
-        });
-        rendered = { id: stored.id, status: stored.status, title: stored.title };
-      }
+    if (usable !== null) {
+      captcha ||= CAPTCHA.test(usable.html);
+      const stored = await storeAnswer(session, reach.store, {
+        kind: 'url',
+        bytes: usable.bytes,
+        mime: 'text/html',
+        uri: got.url,
+        title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
+        pages: usable.pages,
+        day,
+      });
+      rendered = { id: stored.id, status: stored.status, title: stored.title };
     }
     if (captcha)
       notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
