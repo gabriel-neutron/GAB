@@ -74,8 +74,17 @@ role cannot cross.
 The interface reads through the read API, with a read-only role and a fixed list of views. Complex
 reads, such as a graph traversal, run as SQL functions in the database. A timeout, a default limit
 and a cache protect the public read. It shows the record and the candidate layer only (PU1): no
-rejected proposal, no job, no lead and no model call. The machine roles read through their own
-grants.
+rejected proposal, no job, no lead and no model call. A fact about a person (an attribute of a
+person, or a relation that names a person) shows only when one of its sources is a public
+document, and a person with no public source does not show. A public document is one that anyone
+can open at a public address: a web page, or a public registry or API. An upload of the operator,
+a file of the private data repository and a bought file are not public. A file is bought when it
+has a price or when its provider sells its filings, because an unknown price is not a free file.
+An act about a person also shows only when each person that it names is public. An entity that a
+later act retyped stays a person for the older acts about it. The rule covers an entity of the
+type person only, and not an entity with no known type. The views of the read API apply this
+rule, so a screen cannot skip it. The record keeps the fact, and the machine roles and
+the review of the operator still read it. The machine roles read through their own grants.
 
 Each public claim carries its label, in the fixed words of `decisions.md` PU1. An element carries
 the label of the act that last set its name and type, and each value carries the label of the act
