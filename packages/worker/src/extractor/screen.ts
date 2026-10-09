@@ -39,7 +39,8 @@ const PUBLICATION_RELATIONS: ReadonlySet<string> = new Set(['designated_by', 'ap
 const GROUP_NOUN = /^(?:countries|states|nations|economies|governments|jurisdictions)$/u;
 const PROPER_WORD = /^(?:of|united|federated)$/u;
 // A concept in place of a named act: "Financial sanctions", "Export controls". A named act holds a
-// number or a longer title.
+// number, a longer title, or a capital letter after its first word: "Export Administration
+// Regulations".
 const CONCEPT_NOUN = /^(?:sanctions|measures|restrictions|controls|regulations|laws)$/u;
 const MAX_CONCEPT_WORDS = 3;
 
@@ -63,8 +64,15 @@ const isGenericGroup = (label: string): boolean => {
 
 const isGenericConcept = (label: string): boolean => {
   const words = wordsOf(label);
+  const given = label
+    .normalize('NFKC')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word !== '' && word.toLowerCase() !== 'the');
   return (
-    words.length <= MAX_CONCEPT_WORDS && CONCEPT_NOUN.test(words.at(-1) ?? '') && !/\d/u.test(label)
+    words.length <= MAX_CONCEPT_WORDS &&
+    CONCEPT_NOUN.test(words.at(-1) ?? '') &&
+    !/\d/u.test(label) &&
+    given.slice(1).every((word) => word === word.toLowerCase())
   );
 };
 
@@ -77,7 +85,10 @@ const isEmail = (key: string, value: Attrs[string]['v']): boolean =>
   );
 
 /** Code drops each item of one answer that a rule can refuse, before the propose tool writes it.
- * `seen` holds the keys of the entities that earlier parts of the job proposed. */
+ * `seen` holds the keys of the entities that earlier parts of the job proposed. Such an entity is
+ * still a pending proposal, so the model cannot name it by its id. Code keeps it again when a kept
+ * relation of the batch names it or when it has attributes, and drops it only when it adds
+ * nothing. */
 export const screenBatch = (
   given: readonly ScreenItem[],
   words: Vocabulary,
@@ -92,6 +103,8 @@ export const screenBatch = (
   // The ref of a duplicate in this batch, and the ref of the first item that creates the entity.
   const sameAs = new Map<string, string>();
   const firstOf = new Map<string, string>();
+  // The refs of the entities that an earlier part of the job proposed.
+  const repeats = new Set<string>();
 
   const entityStays = (item: ScreenItem): boolean => {
     const { act } = item;
@@ -100,13 +113,13 @@ export const screenBatch = (
     if (act.type === 'state_body' && isGenericGroup(act.label)) return drop('generic_group');
     if (act.type === 'legal_act' && isGenericConcept(act.label)) return drop('generic_concept');
     const key = keyOf(act.type, act.label);
-    if (seen.has(key)) return drop('duplicate_in_job');
     const first = firstOf.get(key);
     if (first !== undefined) {
       sameAs.set(item.ref, first);
       return drop('duplicate_in_job');
     }
     firstOf.set(key, item.ref);
+    if (seen.has(key)) repeats.add(item.ref);
     return true;
   };
 
@@ -178,6 +191,16 @@ export const screenBatch = (
     ];
   });
   relationsStay();
+
+  // An entity of an earlier part stays only when a kept relation names it or it has attributes.
+  // Nothing names a dropped repeat, so no relation falls with it.
+  const named = new Set(
+    items.flatMap(({ act }) => (act.op === 'create_relation' ? [act.srcId, act.dstId] : [])),
+  );
+  items = items.filter(({ ref, act }) => {
+    const addsSomething = named.has(ref) || (act.op === 'create_entity' && act.attrs !== undefined);
+    return !repeats.has(ref) || addsSomething ? true : drop('duplicate_in_job');
+  });
 
   return {
     items,

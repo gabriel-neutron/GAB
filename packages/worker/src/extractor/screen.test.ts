@@ -72,13 +72,16 @@ test('a generic concept is no legal act, and a named act stays', () => {
       entity('a2', 'legal_act', 'Export controls'),
       entity('a3', 'legal_act', 'Council Regulation (EU) No 833/2014'),
       entity('a4', 'legal_act', 'Executive Order 14024'),
+      entity('a5', 'legal_act', 'Export Administration Regulations'),
+      entity('a6', 'legal_act', 'Russia Sanctions Regulations'),
+      entity('a7', 'legal_act', 'sanctions'),
     ],
     WORDS,
     new Set(),
   );
 
-  expect(refsOf(screened.items)).toStrictEqual(['a3', 'a4']);
-  expect(screened.dropped).toStrictEqual({ generic_concept: 2 });
+  expect(refsOf(screened.items)).toStrictEqual(['a3', 'a4', 'a5', 'a6']);
+  expect(screened.dropped).toStrictEqual({ generic_concept: 3 });
 });
 
 test('a person stays only with a designation, an appointment or an ownership in the batch', () => {
@@ -133,7 +136,7 @@ test('the same entity again in one batch is dropped, and its relations name the 
   expect(screened.dropped).toStrictEqual({ duplicate_in_job: 1 });
 });
 
-test('an entity that an earlier part of the job proposed is dropped with the relations that name it', () => {
+test('an entity of an earlier part that adds nothing is dropped, and one that a kept relation names stays', () => {
   const first = screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Set());
   const seen = new Set(first.proposed);
 
@@ -148,8 +151,41 @@ test('an entity that an earlier part of the job proposed is dropped with the rel
     seen,
   );
 
-  // The same name with another type is another entity.
-  expect(refsOf(screened.items)).toStrictEqual(['spfs', 'swift_bank']);
-  expect(screened.dropped).toStrictEqual({ duplicate_in_job: 1, names_a_dropped_item: 1 });
-  expect(screened.proposed).toHaveLength(2);
+  // The later part cannot name the pending proposal of the first part, so the entity stays with
+  // its relation. The same name with another type is another entity.
+  expect(refsOf(screened.items)).toStrictEqual(['swift', 'spfs', 'swift_bank', 'r1']);
+  expect(screened.dropped).toStrictEqual({});
+
+  const bare = screenBatch(
+    [
+      entity('swift', 'company', 'SWIFT'),
+      entity('swift_2', 'company', 'SWIFT'),
+      entity('europe', 'state_body', 'European countries'),
+      relation('r1', 'settles_through', 'europe', 'swift_2'),
+    ],
+    WORDS,
+    seen,
+  );
+
+  // A repeat that only a dropped relation names adds nothing.
+  expect(refsOf(bare.items)).toStrictEqual([]);
+  expect(bare.dropped).toStrictEqual({
+    duplicate_in_job: 2,
+    generic_group: 1,
+    names_a_dropped_item: 1,
+  });
+});
+
+test('an entity of an earlier part with attributes stays', () => {
+  const seen = new Set(
+    screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Set()).proposed,
+  );
+  const screened = screenBatch(
+    [entity('swift', 'company', 'Swift', { hq_country: { v: 'BE' } })],
+    WORDS,
+    seen,
+  );
+
+  expect(refsOf(screened.items)).toStrictEqual(['swift']);
+  expect(screened.dropped).toStrictEqual({});
 });

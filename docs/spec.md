@@ -128,7 +128,8 @@ Every model call goes to OpenRouter and is recorded.
 Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
 the door and the checker never read it. Code drops a type outside the vocabulary, a group of
 countries given as a state body, a concept given as a legal act, and an entity that the job
-already proposed. Code drops a person unless the same batch designates the person, or names the
+already proposed and that adds nothing. A later part cannot name a pending proposal by its id,
+so code keeps that entity when a kept relation names it or when it has attributes. Code drops a person unless the same batch designates the person, or names the
 person as a director, an officer or an owner. Code drops the e-mail address of a person that stays.
 A relation that names a dropped item is dropped too. The log keeps the count of drops for each
 reason. Each rule decides from the words of the answer alone, so a live run on real documents
