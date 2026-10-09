@@ -80,8 +80,10 @@ document, and a person with no public source does not show. A public document is
 can open at a public address: a web page, a public registry or API, or a file that the operator
 uploaded with the address where it comes from. The upload refuses a file with no address, and an
 older upload with no address is not public. A new upload of the same bytes gives its address to
-such an upload, and never changes an address that is there. An upload stored before this rule is
-not public, also with an address, because its address can be the page where the file was bought.
+such an upload. It never changes an address that is there: it refuses the new upload when the
+address is different. An upload stored before this rule is not public, also with an address,
+because its address can be the page where the file was bought. A new upload of the same bytes
+does not make it public, and the upload refuses it.
 A bought file is not public. A file is bought when it has a price or when its provider sells its
 filings, because an unknown price is not a free file.
 An act about a person also shows only when each person that it names is public. An entity that a
