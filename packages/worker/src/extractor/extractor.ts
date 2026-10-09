@@ -1,4 +1,5 @@
 import type { Message, ToolUse } from '@gab/model';
+import { checkAnswer, verdictsOf } from '@gab/tools/check-answer';
 import { documentText } from '@gab/tools/document-text';
 import { proposeItem, proposeOf } from '@gab/tools/propose';
 import { searchGraph } from '@gab/tools/search-graph';
@@ -24,10 +25,11 @@ import { chunkPages, type Chunk } from '../chunk.ts';
 import { readNewestPages } from '../pages.ts';
 import type { ReaderConfig } from '../reader-config.ts';
 import { answerCall, offerOf, outcomeText, promptOf, withinBudget } from '../tool-turn.ts';
+import { screenBatch, type ScreenItem } from './screen.ts';
 
 /** The name of the extractor in the record of each of its model calls. */
 const EXTRACTOR_NAME = 'extractor';
-const VERSION = 'v6';
+const VERSION = 'v9';
 
 // The sentences that the operator reads in the job record when the extractor stops on its own.
 const TURN_CAP = 'the model used all the questions that one job may ask';
@@ -76,16 +78,13 @@ const vocabularyOf = async (session: Session): Promise<Vocabulary> => {
 // extractor give one shape. An empty list is a chunk that states no claim.
 const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
 
-// The checker gives one verdict for each item. Only `supported` lets an item stand undisputed.
-const checkAnswer = z.strictObject({
-  verdicts: z.array(
-    z.strictObject({
-      ref: z.string(),
-      verdict: z.enum(['supported', 'not_supported', 'unclear']),
-      // A model can give `null` for no reason, and that is not a fault of the answer.
-      reason: z.string().nullish(),
-    }),
-  ),
+// The door that keeps the verdict of the checker on one act. The rules read it, so an act with a
+// passed check can be accepted with no step by hand.
+const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5, $6)';
+
+// The part of the answer of the propose tool that names the act of each item.
+const proposed = z.object({
+  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid() })),
 });
 
 // Items that cite the same passages go to the checker in one question.
@@ -100,7 +99,8 @@ const byPassage = (items: readonly ItemToCheck[]): ItemToCheck[][] => {
 
 /** The extractor. It reads each chunk of the newest text of a document, and code proposes the
  * batch that the model gives through the same tool as the research AI. Before the write, a model
- * of another family checks each item against its passage. The models write nothing. */
+ * of another family checks each item against its passage, and code keeps each verdict with its
+ * act, so the rules can decide. The models write nothing. */
 export const makeExtractor = (
   config: ReaderConfig,
   options: ExtractorOptions = {},
@@ -119,6 +119,9 @@ export const makeExtractor = (
     const session: Session = { query: (text, values) => context.db.query(text, values) };
     const refusals: Refusal[] = [];
     let turns = 0;
+    // The entities that the parts of this job proposed, and the count of each drop of code.
+    const seen = new Map<string, ScreenItem>();
+    const dropped: Record<string, number> = {};
 
     const ask = async (
       messages: readonly Message[],
@@ -177,17 +180,7 @@ export const makeExtractor = (
         throw cause;
       }
       if (asked.kind !== 'value') return [];
-      const { verdicts } = asked.value;
-      // One verdict for each item. A second verdict on one item makes it unclear.
-      return refs.flatMap((ref): (readonly [string, CheckVerdict])[] => {
-        const said = verdicts.filter((one) => one.ref === ref);
-        const [only] = said;
-        if (only === undefined) return [];
-        if (said.length > 1)
-          return [[ref, { verdict: 'unclear', reason: 'the checker gave more than one verdict' }]];
-        if (only.verdict === 'supported') return [[ref, { verdict: 'supported' }]];
-        return [[ref, { verdict: only.verdict, reason: only.reason ?? '' }]];
-      });
+      return verdictsOf(refs, asked.value);
     };
 
     const check = async (
@@ -197,6 +190,27 @@ export const makeExtractor = (
       for (const group of byPassage(items))
         for (const [ref, verdict] of await checkGroup(group)) verdicts.set(ref, verdict);
       return verdicts;
+    };
+
+    // Each act of the batch keeps the verdict of the checker on its item, also an act that an
+    // earlier job wrote with no check. The record keeps the first check of an act, so a second
+    // call changes nothing. An item with no verdict keeps no check.
+    const recordChecks = async (
+      output: unknown,
+      verdicts: ReadonlyMap<string, CheckVerdict>,
+    ): Promise<void> => {
+      for (const one of proposed.parse(output).proposals) {
+        const said = verdicts.get(one.ref);
+        if (said === undefined) continue;
+        await context.db.query(RECORD_CHECK, [
+          one.proposalId,
+          config.checker.model,
+          config.checker.family,
+          config.reader.family,
+          said.verdict,
+          said.verdict === 'supported' ? null : said.reason,
+        ]);
+      }
     };
 
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
@@ -222,16 +236,36 @@ export const makeExtractor = (
           messages.push(...(await turnOf(asked.call)));
           continue;
         }
-        if (asked.value.items.length === 0) return null;
+        // Code drops each item that a rule can refuse, so the door and the checker never read
+        // it. The drops of an answer count once, when the answer is the last of its part.
+        const screened = screenBatch(asked.value.items, words, seen);
+        const counted = (): void => {
+          for (const [reason, count] of Object.entries(screened.dropped))
+            dropped[reason] = (dropped[reason] ?? 0) + count;
+        };
+        if (screened.items.length === 0) {
+          counted();
+          return null;
+        }
         const proposer = tools.propose(asked.callId);
+        let verdicts: ReadonlyMap<string, CheckVerdict> = new Map();
         const made = await callTool(
           proposer,
           session,
-          { items: asked.value.items },
-          { now: () => new Date(), check },
+          { items: screened.items },
+          {
+            now: () => new Date(),
+            check: async (items) => (verdicts = await check(items)),
+          },
         );
-        if (made.ok) return null;
+        if (made.ok) {
+          await recordChecks(made.output, verdicts);
+          for (const [key, item] of screened.proposed) if (!seen.has(key)) seen.set(key, item);
+          counted();
+          return null;
+        }
         if (retries === 0) {
+          counted();
           refusals.push({ tool: proposer.name, reason: made.refusal });
           return made.refusal;
         }
@@ -261,6 +295,7 @@ export const makeExtractor = (
     return {
       refusals,
       parts: { parts: chunks.length, refused: refused.length, firstRefusal: refused[0] ?? null },
+      dropped,
     };
   };
 

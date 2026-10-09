@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { openPool } from './pool.ts';
+import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
@@ -18,14 +18,8 @@ const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_
 
 // Departure: the suite reads the private tables as the owner of the database, because no api
 // view shows the text or the object key.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const held = secrets.parse(process.env);
-const owner = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(held.POSTGRES_PASSWORD)}@127.0.0.1:5432/${held.GABRIEL_DATABASE}`,
-});
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
+const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 
 const written: string[] = [];
 
@@ -169,6 +163,74 @@ test('an upload with no retrieval date is refused, and nothing is stored', async
   expect(status).toBe(422);
   expect(reply.refusal).toMatch(/retrievedAt/);
   expect(await nothingStored(bytes)).toStrictEqual(NOTHING);
+});
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet.
+test('an upload with no address is refused, and nothing is stored', async () => {
+  const bytes = freshText();
+  const [status, reply] = await send(requestOf(bytes, { uri: undefined }));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(/give the address where the file comes from/u);
+  expect(await nothingStored(bytes)).toStrictEqual(NOTHING);
+});
+
+const addressOf = async (id: string): Promise<unknown> =>
+  (
+    await owner.query<{ uri: unknown; open: boolean }>(
+      `SELECT d.uri, EXISTS (SELECT 1 FROM public.public_document p WHERE p.id = d.id) AS open
+         FROM public.documents d WHERE d.id = $1`,
+      [id],
+    )
+  ).rows[0];
+
+// An older upload of the same bytes has no address. The new upload gives it its address, and the
+// file becomes a public document.
+test('the same bytes again with an address fill the address of an older upload', async () => {
+  const bytes = freshText();
+  const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+  written.push(id);
+  const free = { providerId: undefined, costEur: undefined };
+  expect((await send(requestOf(bytes, free)))[0]).toBe(200);
+  await owner.query('UPDATE public.documents SET uri = NULL WHERE id = $1', [id]);
+
+  const page = 'https://example.org/annual-return';
+  expect(await send(requestOf(bytes, { ...free, uri: page }))).toStrictEqual([
+    200,
+    { state: 'known', documentId: id, emptyPages: [] },
+  ]);
+  expect(await addressOf(id)).toStrictEqual({ uri: page, open: true });
+});
+
+test('the same bytes again with another address are refused, and the address stays', async () => {
+  const bytes = freshText();
+  const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+  written.push(id);
+  expect((await send(requestOf(bytes)))[0]).toBe(200);
+
+  const [status, reply] = await send(requestOf(bytes, { uri: 'https://example.org/other' }));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(new RegExp(`${id}, with another address`, 'u'));
+  expect(await addressOf(id)).toStrictEqual({
+    uri: 'https://www.mca.gov.in/purchase/4711',
+    open: false,
+  });
+});
+
+test('the same bytes again are refused when the older upload has an address from before the rule', async () => {
+  const bytes = freshText();
+  const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+  written.push(id);
+  const free = { providerId: undefined, costEur: undefined };
+  expect((await send(requestOf(bytes, free)))[0]).toBe(200);
+  await owner.query('UPDATE public.documents SET uri_before_pu1 = true WHERE id = $1', [id]);
+
+  const [status, reply] = await send(requestOf(bytes, free));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(/before the address rule/u);
+  expect(await addressOf(id)).toStrictEqual({
+    uri: 'https://www.mca.gov.in/purchase/4711',
+    open: false,
+  });
 });
 
 test('a body over the cap is refused, and nothing is stored', async () => {

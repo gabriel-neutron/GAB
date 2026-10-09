@@ -41,9 +41,19 @@ test('a whole request is read into the bytes and the fields', () => {
   });
 });
 
-test('the address, the provider and the cost may be absent', () => {
-  const held = parsed({ ...WHOLE, uri: undefined, providerId: undefined, costEur: undefined });
-  expect(held.ok && held.upload).toMatchObject({ uri: null, providerId: null, costEur: null });
+test('the provider and the cost may be absent', () => {
+  const held = parsed({ ...WHOLE, providerId: undefined, costEur: undefined });
+  expect(held.ok && held.upload).toMatchObject({ providerId: null, costEur: null });
+});
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
+// and the address where it comes from makes it a public document.
+test('a file with no address is refused, and the refusal asks for the address', () => {
+  for (const uri of [undefined, '', '   ']) {
+    const refusal = refusalOf({ ...WHOLE, uri });
+    expect(refusal.status).toBe(422);
+    expect(refusal.refusal).toMatch(/^uri: give the address where the file comes from/u);
+  }
 });
 
 test('a request with no retrieval date is refused', () => {

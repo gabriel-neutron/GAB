@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./catalogue": "./src/catalogue.ts",
+    "./check-answer": "./src/check-answer.ts",
     "./csv": "./src/csv.ts",
     "./document-text": "./src/document-text.ts",
     "./enqueue-extract": "./src/enqueue-extract.ts",

@@ -12,6 +12,7 @@ const act = (extra: Partial<DecidedAct>): DecidedAct => ({
   decidedBy: 'operator',
   decidedAs: 'unit',
   decisionOrigin: null,
+  decisionReason: null,
   rejectReason: null,
   rejectNote: null,
   name: '5th Combined Arms Army',
@@ -69,6 +70,30 @@ it('names the rule that decided an act, and never calls it the operator', () => 
   expect(rows.map((row) => row.decidedHow)).toStrictEqual([
     'accepted by the rule strong sources, version 1',
     'rejected by the rule impossible, version 1',
+  ]);
+});
+
+it('says that an AI reviewer decided, that no human did, and gives its reason', () => {
+  const rows = decidedRows([
+    act({ decisionOrigin: 'decided by an AI reviewer', decisionReason: 'The passage states it.' }),
+    act({
+      status: 'rejected',
+      decidedAs: 'relation',
+      decisionOrigin: 'decided by an AI reviewer',
+      decisionReason: 'The passage names another owner.',
+      rejectReason: 'wrong_value',
+      rejectNote: 'Another owner',
+    }),
+  ]);
+  expect(rows.map((row) => [row.decidedHow, row.reason])).toStrictEqual([
+    [
+      'decided by an AI reviewer and not by a human',
+      'The AI reviewer says: The passage states it.',
+    ],
+    [
+      'decided by an AI reviewer and not by a human',
+      'Wrong value: Another owner. The AI reviewer says: The passage names another owner.',
+    ],
   ]);
 });
 

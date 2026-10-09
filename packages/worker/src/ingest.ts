@@ -20,6 +20,12 @@ export interface IngestOptions {
   readonly retrievedAt: string;
   readonly kind: Kind;
   readonly title: string | undefined;
+  /** The address where the file comes from. A run of the kind `file` names it (PU1). */
+  readonly uri: string | undefined;
+  /** The provider of a bought filing, as the record names it. */
+  readonly providerId: string | undefined;
+  /** The cost of a bought file in euros, as the decimal text the column takes. */
+  readonly costEur: string | undefined;
   readonly dryRun: boolean;
 }
 
@@ -35,6 +41,45 @@ export const checkedDay = (stated: string | undefined, field = '--retrieved-at')
     DAY.test(stated) && new Date(`${stated}T00:00:00Z`).toISOString().slice(0, 10) === stated;
   if (!real) throw new Error(`${field} "${stated}" is not a real day, as YYYY-MM-DD.`);
   return stated;
+};
+
+const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
+
+// PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
+// and the address where it comes from makes it a public document. A run of the kind `file` with
+// no address stores nothing. A load report does not come from the Internet, so it needs none.
+const checkedUri = (stated: string | undefined, kind: Kind): string | undefined => {
+  if (stated === undefined) {
+    if (kind === 'file')
+      throw new Error('--uri is required: give the address where the file comes from.');
+    return undefined;
+  }
+  const uri = stated.trim();
+  if (!WEB_SCHEMES.has(URL.parse(uri)?.protocol ?? ''))
+    throw new Error(`--uri "${stated}" is not an http or an https address.`);
+  return uri;
+};
+
+// The cost is euros with at most two decimals, and numeric(12,2) holds ten digits before the
+// point. The text goes to the column as it is, so no float reaches the record. A bought file is
+// not public (PU1), so the command records the cost as the upload form does.
+const COST = /^\d{1,10}(?:\.\d{1,2})?$/u;
+
+const checkedCost = (stated: string | undefined): string | undefined => {
+  if (stated === undefined) return undefined;
+  const cost = stated.trim();
+  if (!COST.test(cost))
+    throw new Error(
+      `--cost-eur "${stated}" is not a cost in euros: give a number that is not negative, ` +
+        'with at most two decimals.',
+    );
+  return Number(cost).toFixed(2);
+};
+
+const checkedProvider = (stated: string | undefined): string | undefined => {
+  if (stated === undefined) return undefined;
+  if (stated.trim() === '') throw new Error('--provider is blank.');
+  return stated.trim();
 };
 
 /** The paths and the options of a run. It throws before any read when an argument is wrong. */
@@ -53,6 +98,9 @@ export const parseIngestArguments = (
       'retrieved-at': { type: 'string' },
       kind: { type: 'string' },
       title: { type: 'string' },
+      uri: { type: 'string' },
+      'cost-eur': { type: 'string' },
+      provider: { type: 'string' },
       'dry-run': { type: 'boolean' },
       recursive: { type: 'boolean' },
       include: { type: 'string', multiple: true },
@@ -68,19 +116,33 @@ export const parseIngestArguments = (
       throw new Error('--title names one file, and this run names more than one.');
     if (title.trim() === '') throw new Error('--title is blank.');
   }
+  const uri = checkedUri(values.uri, kind);
+  if (uri !== undefined && positionals.length > 1)
+    throw new Error('--uri names one file, and this run names more than one.');
   const include = values.include ?? DEFAULT_INCLUDE;
   if (include.some((glob) => glob.trim() === '')) throw new Error('--include is blank.');
   return {
     paths: positionals,
-    options: { retrievedAt, kind, title, dryRun: values['dry-run'] === true },
+    options: {
+      retrievedAt,
+      kind,
+      title,
+      uri,
+      providerId: checkedProvider(values.provider),
+      costEur: checkedCost(values['cost-eur']),
+      dryRun: values['dry-run'] === true,
+    },
     walk: { recursive: values.recursive === true, include },
   };
 };
 
-/** A title names one document, and a folder gives any number, so the walk is checked too. */
+/** A title and an address name one document, and a folder gives any number, so the walk is
+ * checked too. */
 export const checkedTitle = (files: readonly string[], options: IngestOptions): void => {
   if (options.title !== undefined && files.length !== 1)
     throw new Error(`--title names one file, and this run takes ${files.length}.`);
+  if (options.uri !== undefined && files.length !== 1)
+    throw new Error(`--uri names one file, and this run takes ${files.length}.`);
 };
 
 /** What the run did with one file. In a dry run `stored` means would be stored. */
@@ -118,6 +180,7 @@ const LOOKUP = 'SELECT id FROM public.documents WHERE sha256 = $1';
 const PUT_DOCUMENT = `SELECT public.put_document($1, $2, $3, $4, $5, NULL, $6, $7, $8::date, $9,
   $10::numeric)`;
 const PUT_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
+const FILL_URI = 'SELECT public.fill_document_uri($1, $2) AS found';
 
 // External constraint: the id comes from the hash, so the second of two callers with the same
 // bytes hits the primary key before the index on the hash. Either name is the same bytes only
@@ -227,8 +290,42 @@ const pagesOf = async (bytes: Uint8Array, mime: string): Promise<readonly string
   return pages;
 };
 
+const foundOf = (rows: readonly unknown[]): unknown => {
+  const [row] = rows;
+  return typeof row === 'object' && row !== null && 'found' in row ? row.found : undefined;
+};
+
+// PU1, the ruling of 9 October 2026 after #403: the address makes an upload a public document.
+// The same bytes are stored once, so a second upload reaches the row of the first one. That row
+// gets the address when it has none. The door never changes an address, and it refuses an
+// address that it cannot record, so the operator is not told that a file is public when it is
+// not.
+const known = async (
+  session: IngestSession,
+  id: string,
+  sha256: string,
+  uri: string | null,
+): Promise<StoreResult> => {
+  if (uri !== null) {
+    const found = foundOf((await session.query(FILL_URI, [id, uri])).rows);
+    if (found === 'other')
+      throw new RefusedFile(
+        `the record holds this file already as ${id}, with another address, and it does not ` +
+          'change an address',
+      );
+    if (found === 'before_rule')
+      throw new RefusedFile(
+        `the record holds this file already as ${id}, with an address from before the address ` +
+          'rule. That address can be the page where the file was bought, so the file is not ' +
+          'public, and the record does not change it',
+      );
+  }
+  return { status: 'known', id, sha256 };
+};
+
 /** Store the bytes once: the hash, the known check, the text, the object, then the row and its
- * text. It raises RefusedFile before any write for a file it does not take. */
+ * text. It raises RefusedFile before any write for a file it does not take. A known file gets
+ * the address when its row has none. */
 export const storeBytes = async (
   door: Pick<IngestDoor, 'put'>,
   session: IngestSession,
@@ -238,8 +335,8 @@ export const storeBytes = async (
   if (mime === undefined) throw new RefusedFile('no type is read from the name of the file');
 
   const sha256 = hashOf(file.bytes);
-  const known = idOfRow((await session.query(LOOKUP, [sha256])).rows);
-  if (known !== undefined) return { status: 'known', id: known, sha256 };
+  const held = idOfRow((await session.query(LOOKUP, [sha256])).rows);
+  if (held !== undefined) return known(session, held, sha256, file.uri);
 
   const pages = await pagesOf(file.bytes, mime);
   const emptyPages = pages.flatMap((page, at) => (page.trim() === '' ? [at + 1] : []));
@@ -253,7 +350,7 @@ export const storeBytes = async (
     if (!isSameBytes(error)) throw error;
     const holder = idOfRow((await session.query(LOOKUP, [sha256])).rows);
     if (holder === undefined) throw error;
-    return { status: 'known', id: holder, sha256 };
+    return known(session, holder, sha256, file.uri);
   }
   return { status: 'stored', id, sha256, pageCount: pages.length, emptyPages };
 };
@@ -278,9 +375,9 @@ const ingestOne = async (
       title: options.title ?? basename(path),
       kind: options.kind,
       retrievedAt: options.retrievedAt,
-      uri: null,
-      providerId: null,
-      costEur: null,
+      uri: options.uri ?? null,
+      providerId: options.providerId ?? null,
+      costEur: options.costEur ?? null,
     });
     seen.add(result.sha256);
     return { path, ...result };

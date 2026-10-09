@@ -86,6 +86,9 @@ pnpm check
 ```
 
 `infra/.env` on the VPS holds test values only. Never copy the `infra/.env` of the PC to the VPS.
+A VPS checkout made before the checker role has no `GABRIEL_CHECKER_PASSWORD`. Copy its
+line from `test-stack.env.example` into `infra/.env`, as for each other role password, before
+`pnpm db:migrate`. The command stops when one role password is absent.
 The ports stay on `127.0.0.1`, as in `infra/docker-compose.yml`.
 
 The stack holds the S3 store (SeaweedFS) on `127.0.0.1:9000`, with the bucket `raw`. Its
@@ -190,6 +193,16 @@ starts an agent.
 cd ~/projects/GAB
 claude -p "Reply with the word ready." --permission-mode acceptEdits   # prints: ready
 ```
+
+The `visual-qa` agent drives a headless Chromium through the Playwright MCP server of
+`.mcp.json`. The VPS has no Google Chrome, so install the browser build that matches the pinned
+version of the server:
+
+```bash
+npx -y @playwright/mcp@0.0.83 install-browser chrome-for-testing
+```
+
+**Check:** in a session, the `visual-qa` agent opens a page and returns a screenshot.
 
 ## 7. The PC uses the VPS service
 

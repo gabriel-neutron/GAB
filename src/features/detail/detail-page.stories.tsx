@@ -304,8 +304,13 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
   },
 };
 
-// The promotion of the entity as the history of the decisions holds it.
-const readDecidedBy = (decidedAs: DecidedAct['decidedAs'], origin: string | null): Dossier => {
+// The promotion of the entity as the history of the decisions holds it. The label is the one
+// that the record writes for that origin (PU1).
+const readDecidedBy = (
+  decidedAs: DecidedAct['decidedAs'],
+  origin: string | null,
+  label: string,
+): Dossier => {
   const promotedFrom = corpus.entities.find((entity) => entity.id === VESSEL)?.promotedFrom;
   const proposal = corpus.proposals[0];
   if (promotedFrom === undefined || proposal === undefined)
@@ -333,6 +338,7 @@ const readDecidedBy = (decidedAs: DecidedAct['decidedAs'], origin: string | null
     decidedBy: origin ?? 'operator',
     decidedAs,
     decisionOrigin: origin,
+    originLabel: label,
   };
   const held = readDossier(corpus, VESSEL, entityTypes, [decided]);
   if (held === null) throw new Error('The committed corpus holds no MV Northern Ledger');
@@ -341,22 +347,91 @@ const readDecidedBy = (decidedAs: DecidedAct['decidedAs'], origin: string | null
 
 /** The page of an element says that a rule accepted it, and names the rule. */
 export const TheElementSaysThatARuleAcceptedIt: Story = {
-  args: { dossier: readDecidedBy('rule', 'rule strong_sources v1 (fact digits: 1)') },
+  args: {
+    dossier: readDecidedBy(
+      'rule',
+      'rule strong_sources v1 (fact digits: 1)',
+      'Accepted by rule strong_sources v1 — no person read it, on 2026-10-08',
+    ),
+  },
   play: async ({ canvasElement }) => {
     const decision = canvasElement.querySelector('[data-decision]');
     await expect(decision).toHaveTextContent(
-      'Accepted by the rule strong sources, version 1 on 2026-10-08',
+      'Accepted by rule strong_sources v1 — no person read it, on 2026-10-08',
     );
-    await expect(decision).not.toHaveTextContent(/operator/u);
+    await expect(decision).not.toHaveTextContent(/operator|digits/u);
   },
 };
 
+/** The page of an element says that an AI reviewer accepted it, and that no person read it. */
+export const TheElementSaysThatAnAIReviewerDecidedIt: Story = {
+  args: {
+    dossier: readDecidedBy(
+      'unit',
+      'decided by an AI reviewer',
+      'Accepted by an AI reviewer — no person read it, on 2026-10-08',
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const decision = canvasElement.querySelector('[data-decision]');
+    await expect(decision).toHaveTextContent(
+      'Accepted by an AI reviewer — no person read it, on 2026-10-08',
+    );
+    await expect(decision).not.toHaveTextContent(/operator|validated manually/u);
+  },
+};
+
+// The origin of an AI reviewer is the longest origin. On a narrow page it goes to its own line,
+// and it covers no other word of the header. Departure: no story below 780 px, because the rail of
+// the sources keeps 24 rem, and the record pane then has no width.
+const originFitsAt = (width: number): Story => ({
+  args: {
+    dossier: readDecidedBy(
+      'unit',
+      'decided by an AI reviewer',
+      'Accepted by an AI reviewer — no person read it, on 2026-10-08',
+    ),
+  },
+  render: (args) => (
+    <div style={{ width: `${String(width)}px`, height: '720px' }}>
+      <DetailPage {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const decision = canvasElement.querySelector('[data-decision]');
+    const heading = canvasElement.querySelector('h1');
+    const pane = recordPaneOf(canvasElement);
+    if (!(decision instanceof HTMLElement) || heading === null)
+      throw new Error('the header holds no origin or no heading');
+    const said = decision.getBoundingClientRect();
+    const named = heading.getBoundingClientRect();
+    const overlaps =
+      said.left < named.right &&
+      named.left < said.right &&
+      said.top < named.bottom &&
+      named.top < said.bottom;
+    await expect(overlaps).toBe(false);
+    await expect(decision.scrollWidth).toBeLessThanOrEqual(decision.clientWidth);
+    await expect(said.right).toBeLessThanOrEqual(pane.getBoundingClientRect().right + 1);
+    await expect(decision).toBeVisible();
+  },
+});
+
+/** At 780 px, the origin of an AI reviewer covers neither the name nor the type. */
+export const TheOriginOfAnAIReviewerFitsAt780Pixels: Story = originFitsAt(780);
+
 /** The page of an element says "validated manually" when the operator decided. */
 export const TheElementSaysValidatedManually: Story = {
-  args: { dossier: readDecidedBy('unit', 'validated manually by the operator') },
+  args: {
+    dossier: readDecidedBy(
+      'unit',
+      'validated manually by the operator',
+      'Validated manually by the operator, on 2026-10-08',
+    ),
+  },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.querySelector('[data-decision]')).toHaveTextContent(
-      'Validated manually by the operator on 2026-10-08',
+      'Validated manually by the operator, on 2026-10-08',
     );
   },
 };

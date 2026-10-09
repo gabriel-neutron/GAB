@@ -32,17 +32,46 @@ DROP FUNCTION IF EXISTS attrs_declared(jsonb);
 -- second witness. The originator is not part of it, because a model words the same party in more
 -- than one way, and each wording would make a second act of one claim.
 --
+-- A NEW ENTITY ALSO KEEPS ITS PASSAGES IN THE DIGEST. A label does not identify a unit: one page
+-- can name two battalions "3rd Motorized Rifle Battalion", each under a different brigade. Two
+-- creations with one type and one label, that cite different passages, are two acts. A retry
+-- cites the same passages, so it still returns the act that waits. The passages are the cited
+-- spans, which code calculated from the excerpts. A relation and new attributes have no
+-- passages in the digest: their target and their payload identify the fact.
+--
 -- An act that waited before this digest keeps the digest it was written with, because a pending
 -- act is frozen. A retry of such an act writes it once more.
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[]);
+DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text);
 DROP FUNCTION IF EXISTS act_digest_of(text,text,uuid,jsonb,text[],text,text);
 CREATE OR REPLACE FUNCTION act_digest_of(
   p_op text, p_target_kind text, p_target_id uuid, p_payload jsonb, p_src text[],
-  p_author_role text)
+  p_author_role text, p_passages jsonb DEFAULT NULL)
 RETURNS text
 LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
-  SELECT md5(jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
-                               p_author_role)::text)
+  -- With no passages, the digest is the digest of an act that waits already.
+  SELECT md5(CASE WHEN p_passages IS NULL
+                  THEN jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                                         p_author_role)
+                  ELSE jsonb_build_array(p_op, p_target_kind, p_target_id, p_payload, p_src,
+                                         p_author_role, p_passages) END::text)
+$$;
+
+-- THE PASSAGES OF A NEW ENTITY, in one order. Each citation of the item gives its document, its
+-- text, its page, and its span or its transcription. Another item gives no passages.
+CREATE OR REPLACE FUNCTION act_passages_of(p_op text, p_citations jsonb)
+RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE WHEN p_op = 'create_entity' THEN
+    (SELECT coalesce(jsonb_agg(DISTINCT x.passage ORDER BY x.passage), '[]'::jsonb)
+       FROM (SELECT jsonb_build_object(
+                      'document', c->>'document', 'text_extractor', c->>'text_extractor',
+                      'page', (c->>'page')::int, 'start', (c->>'start')::int,
+                      'end', (c->>'end')::int, 'transcription', c->>'transcription') AS passage
+               FROM jsonb_array_elements(
+                      CASE WHEN jsonb_typeof(p_citations) = 'array' THEN p_citations
+                           ELSE '[]'::jsonb END) AS c) AS x)
+  END
 $$;
 
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
@@ -67,10 +96,15 @@ BEGIN
   END IF;
   -- THE DIGEST OF A MACHINE ACT. A pending act with the same digest is the same act, and the
   -- unique index returns it to a retry. The operator gets none, so an act of the operator is
-  -- never joined to an act of a machine.
+  -- never joined to an act of a machine. The passages of a new entity come from propose_batch,
+  -- which sets them for each item before its insert. No role inserts a proposal by hand, so only
+  -- a door sets them.
   NEW.act_digest := CASE WHEN NEW.author_role = 'gabriel_app' THEN NULL
     ELSE act_digest_of(NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src::text[],
-                       NEW.author_role) END;
+                       NEW.author_role,
+                       CASE WHEN NEW.op = 'create_entity'
+                            THEN nullif(current_setting('gabriel.act_passages', true), '')::jsonb
+                       END) END;
   RETURN NEW;
 END $$;
 
@@ -534,10 +568,14 @@ END $$;
 -- identifier and its own originator, so each later item that named the minted one names the act
 -- that waits instead. The door adds to that act each citation of the item that it does not hold
 -- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
+-- A new entity keeps its passages in the digest, so a creation with the same type and the same
+-- label that cites another passage is a new act, and not a second passage of the first.
 --
 -- THE RULES OF THE DATA ARE HERE. A machine proposes a new entity, a new relation or new
 -- attributes. A machine act cites at least one page. The page exists in the text of the document,
--- the span lies in that page, and the document is a source of the act. Each refusal names the
+-- the span lies in that page, and the document is a source of the act. A citation of a PNG or JPEG
+-- document can give a transcription in place of a span: the words that the AI read from the image.
+-- Its act is disputed, so the operator compares the words with the image. Each refusal names the
 -- item. The tool finds the excerpt, and it checks that each end and each target exists, so that a
 -- model gets its fault before the write; the promotion holds those two rules too.
 --
@@ -573,6 +611,7 @@ DECLARE
   v_batch    uuid;
   v_held     uuid;
   v_written  uuid[] := '{}';
+  v_passages jsonb;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -680,6 +719,41 @@ BEGIN
           v_cite->>'page', v_cite->>'text_extractor', v_cite->>'document'
           USING ERRCODE = 'invalid_parameter_value';
       END IF;
+      -- A TRANSCRIPTION IS WORDS THAT THE AI READ FROM AN IMAGE, which the OCR text does not hold.
+      -- Only a PNG or JPEG document has one, and only an act that the operator sees as disputed.
+      IF coalesce(jsonb_typeof(v_cite->'transcription'), 'null') <> 'null' THEN
+        IF coalesce(jsonb_typeof(v_cite->'start'), 'null') <> 'null'
+           OR coalesce(jsonb_typeof(v_cite->'end'), 'null') <> 'null' THEN
+          RAISE EXCEPTION 'item %: a citation of page % of % gives a span or a transcription, '
+                          'and never both', v_no, v_cite->>'page', v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF jsonb_typeof(v_cite->'transcription') <> 'string'
+           OR btrim(v_cite->>'transcription', E' \t\n\r\f\v') = ''
+           OR char_length(v_cite->>'transcription') > 600 THEN
+          RAISE EXCEPTION 'item %: a transcription of page % of % is a text of 1 to 600 '
+                          'characters', v_no, v_cite->>'page', v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM public.documents d
+                        WHERE d.id = v_cite->>'document'
+                          AND lower(split_part(d.mime, ';', 1)) IN ('image/png', 'image/jpeg')) THEN
+          RAISE EXCEPTION 'item %: document % is no PNG or JPEG image, so its citation gives the '
+                          'span of an excerpt of its text', v_no, v_cite->>'document'
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF NOT coalesce((v_item->>'dissent')::boolean, false) THEN
+          RAISE EXCEPTION 'item %: an act that cites words read from an image is disputed, so '
+                          'the operator compares them with the image', v_no
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        IF v_item->>'model_call_id' IS NOT NULL THEN
+          RAISE EXCEPTION 'item %: an agent cites the stored text, and never words read from an '
+                          'image', v_no
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        CONTINUE;
+      END IF;
       -- char_length counts the characters of the database encoding, which is UTF-8: code points.
       IF coalesce((v_cite->>'start')::int < 0 OR (v_cite->>'start')::int >= (v_cite->>'end')::int
                   OR (v_cite->>'end')::int > v_length, true) THEN
@@ -730,6 +804,9 @@ BEGIN
                     THEN coalesce((v_batches->>v_key)::uuid, v_key::uuid) END;
 
     v_id := NULL;
+    -- The stamp trigger reads the passages of a new entity into its digest.
+    v_passages := public.act_passages_of(v_item->>'op', v_item->'citations');
+    PERFORM set_config('gabriel.act_passages', coalesce(v_passages::text, ''), true);
     -- A rule of the table refuses the act, and the caller must know which item it refused.
     BEGIN
       INSERT INTO public.proposals
@@ -758,7 +835,8 @@ BEGIN
       SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
        WHERE p.status = 'pending'
          AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text)
+                                          v_payload::jsonb, v_src, session_user::text,
+                                          v_passages)
          FOR SHARE;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
@@ -771,21 +849,35 @@ BEGIN
       v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
     END IF;
 
-    INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+    -- An act that waits already and is not disputed takes no words read from an image.
+    IF NOT written
+       AND EXISTS (SELECT 1 FROM jsonb_array_elements(v_item->'citations') AS c
+                    WHERE c->>'transcription' IS NOT NULL)
+       AND NOT (SELECT p.dissent FROM public.proposals p WHERE p.id = v_id) THEN
+      RAISE EXCEPTION 'item %: the act that this item repeats waits with no dispute, so it takes '
+                      'no words read from an image', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+
+    INSERT INTO public.citation
+      (claim_id, doc_id, text_extractor, page, start, "end", transcription, modality)
     SELECT DISTINCT v_id, c->>'document', c->>'text_extractor', (c->>'page')::int,
-           (c->>'start')::int, (c->>'end')::int, v_item->>'modality'
+           (c->>'start')::int, (c->>'end')::int, c->>'transcription', v_item->>'modality'
       FROM jsonb_array_elements(v_item->'citations') AS c
      WHERE NOT EXISTS (
              SELECT 1 FROM public.citation h
               WHERE h.claim_id = v_id AND h.doc_id = c->>'document'
                 AND h.text_extractor = c->>'text_extractor' AND h.page = (c->>'page')::int
-                AND h.start = (c->>'start')::int AND h."end" = (c->>'end')::int
+                AND h.start IS NOT DISTINCT FROM (c->>'start')::int
+                AND h."end" IS NOT DISTINCT FROM (c->>'end')::int
+                AND h.transcription IS NOT DISTINCT FROM c->>'transcription'
                 AND h.modality = v_item->>'modality');
 
     v_written := v_written || v_id;
     item := v_no; proposal_id := v_id;
     RETURN NEXT;
   END LOOP;
+  PERFORM set_config('gabriel.act_passages', '', true);
 
   -- The rules run on each unit of the batch, and on each unit that shares a claim with it: a new
   -- act can add a source to a fact of a unit that waits.
@@ -879,8 +971,9 @@ END $$;
 -- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
 -- the operator decided: one unit, or a group action. The act that the operator signs is no
 -- decision on the queue, and it has no mode.
+DROP FUNCTION IF EXISTS apply_proposal_as(uuid, text, text, text);
 CREATE OR REPLACE FUNCTION apply_proposal_as(p_id uuid, p_decided_by text, p_mode text,
-                                             p_origin text)
+                                             p_origin text, p_reason text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1113,6 +1206,7 @@ BEGIN
          decided_by  = p_decided_by,
          decided_as  = p_mode,
          decision_origin = p_origin,
+         decision_reason = p_reason,
          prior_value = v_prior
    WHERE id = p_id AND status = 'pending';
 
@@ -1205,8 +1299,9 @@ END $$;
 -- relation that names it, or it writes none: the first refusal stops the whole unit, and the
 -- sentence names the act and the reason. A relation is written only when each end is in the
 -- record or comes with the unit.
+DROP FUNCTION IF EXISTS write_unit_as(uuid, text, text, text);
 CREATE OR REPLACE FUNCTION write_unit_as(p_unit uuid, p_decided_by text, p_mode text,
-                                         p_origin text)
+                                         p_origin text, p_reason text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1232,8 +1327,8 @@ BEGIN
   -- column, so the legitimate shape — proposed now, decided later — still passes. The operator
   -- signs an act of its own in one transaction through sign_change, which proposes it there.
   -- A named rule runs in the transaction of the act, and it is no machine that decides: no role
-  -- holds the function of the rules, so the rule gives its origin and skips this test.
-  IF p_origin IS NULL AND EXISTS (SELECT 1 FROM public.proposals
+  -- holds the function of the rules, so a rule skips this test. Every other decision takes it.
+  IF p_mode IS DISTINCT FROM 'rule' AND EXISTS (SELECT 1 FROM public.proposals
               WHERE id = ANY (v_left) AND xact = pg_current_xact_id()) THEN
     RAISE EXCEPTION 'the unit % was written by this transaction, and an act is not decided by '
                     'the transaction that proposed it', p_unit
@@ -1273,7 +1368,7 @@ BEGIN
                       'circle' USING CONSTRAINT = 'unit_order';
     END IF;
     BEGIN
-      v_id := public.apply_proposal_as(p.id, p_decided_by, p_mode, p_origin);
+      v_id := public.apply_proposal_as(p.id, p_decided_by, p_mode, p_origin, p_reason);
     EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
       GET STACKED DIAGNOSTICS v_said = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
                               v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
@@ -1307,13 +1402,15 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.write_unit_as(p_unit, p_decided_by, p_mode, NULL)
 $$;
 
--- THE PROMOTION OF ONE UNIT (P11). Only the operator role holds it, and that grant is the rule
--- "a machine proposes, only the operator promotes". It runs the check of the faults that the
--- screen reads, and refuses a unit that the check blocks, or that waits for an entity of its own
--- group, with the words of each such fault. Then it writes the unit whole, or nothing.
-CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+-- THE PROMOTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
+-- and the door of an AI reviewer run it. It runs the check of the faults that the screen reads,
+-- and refuses a unit that the check blocks, or that waits for an entity of its own group, with
+-- the words of each such fault. Then it writes the unit whole, or nothing. A NULL origin is a
+-- decision of the operator.
+CREATE OR REPLACE FUNCTION promote_unit_as(p_unit uuid, p_decided_by text, p_origin text,
+                                           p_reason text)
 RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_left  uuid[];
@@ -1342,8 +1439,16 @@ BEGIN
     RAISE EXCEPTION 'nothing of the unit is promoted: %', v_stops
       USING CONSTRAINT = 'unit_blocked';
   END IF;
-  RETURN public.write_unit(p_unit, p_decided_by, 'unit');
+  RETURN public.write_unit_as(p_unit, p_decided_by, 'unit', p_origin, p_reason);
 END $$;
+
+-- THE PROMOTION OF ONE UNIT (P11), BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION promote_unit(p_unit uuid, p_decided_by text)
+RETURNS uuid
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.promote_unit_as(p_unit, p_decided_by, NULL, NULL)
+$$;
 
 -- THE REASON OF A REJECTION, CHECKED. It is one word of a fixed list, and "other" needs a note.
 -- A blank note is no note. The note is private, as the reason is. No role holds this step.
@@ -1388,13 +1493,14 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                     AND w.status = 'rejected')
 $$;
 
--- THE REJECTION OF ONE UNIT. Only the operator role holds it. It rejects every act that waits in
--- the unit, with one reason and one note, and it leaves each row: a rejected act is never
--- deleted, because it is the record of what was set aside.
-CREATE OR REPLACE FUNCTION reject_unit(p_unit uuid, p_reason text, p_note text,
-                                       p_decided_by text)
+-- THE REJECTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
+-- and the door of an AI reviewer run it. It rejects every act that waits in the unit, with one
+-- reason and one note, and it leaves each row: a rejected act is never deleted, because it is the
+-- record of what was set aside. A NULL origin is a decision of the operator.
+CREATE OR REPLACE FUNCTION reject_unit_as(p_unit uuid, p_reason text, p_note text,
+                                          p_decided_by text, p_origin text, p_why text)
 RETURNS int
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
@@ -1408,17 +1514,27 @@ BEGIN
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note
+         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note,
+         decision_origin = p_origin, decision_reason = p_why
    WHERE id = ANY (v_left);
   RETURN cardinality(v_left);
 END $$;
 
--- THE REJECTION OF ONE RELATION OF A UNIT. Only the operator role holds it. One bad link does not
--- block a correct entity: the rest of the unit waits, and it stays one unit.
-CREATE OR REPLACE FUNCTION reject_relation(p_id uuid, p_reason text, p_note text,
-                                           p_decided_by text)
+-- THE REJECTION OF ONE UNIT, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION reject_unit(p_unit uuid, p_reason text, p_note text,
+                                       p_decided_by text)
+RETURNS int
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.reject_unit_as(p_unit, p_reason, p_note, p_decided_by, NULL, NULL)
+$$;
+
+-- THE REJECTION OF ONE RELATION OF A UNIT, WITH ITS ORIGIN. No role holds this step. One bad link
+-- does not block a correct entity: the rest of the unit waits, and it stays one unit.
+CREATE OR REPLACE FUNCTION reject_relation_as(p_id uuid, p_reason text, p_note text,
+                                              p_decided_by text, p_origin text, p_why text)
 RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_note text := public.rejection_note(p_reason, p_note, p_decided_by);
@@ -1442,12 +1558,93 @@ BEGIN
   END IF;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'relation', reject_reason = p_reason, reject_note = v_note
+         decided_as = 'relation', reject_reason = p_reason, reject_note = v_note,
+         decision_origin = p_origin, decision_reason = p_why
    WHERE id = p_id;
 END $$;
 
--- THE GROUP ACTION (P11): "promote the clean proposals of this group". Only the operator role
--- holds it. It takes the group and the exact list of units that the screen showed, so a unit that
+-- THE REJECTION OF ONE RELATION OF A UNIT, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION reject_relation(p_id uuid, p_reason text, p_note text,
+                                           p_decided_by text)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.reject_relation_as(p_id, p_reason, p_note, p_decided_by, NULL, NULL)
+$$;
+
+-- THE DECISIONS OF AN AI REVIEWER. Only the research role holds them. Each one is the decision of
+-- the page, with the same check of the faults, and it records its own origin, "decided by an AI
+-- reviewer", with the reason that the AI gives. It is not a rule and it is not a decision of the
+-- operator. Which session decides is a rule of the research skills: the session that proposed a
+-- unit does not decide it. A refusal keeps its sentence and names the field to correct in its
+-- hint, and it gives what the decision took: the name and the count of its acts.
+CREATE OR REPLACE FUNCTION ai_decision(p_kind text, p_id uuid, p_reason text, p_note text,
+                                       p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  c_origin CONSTANT text := 'decided by an AI reviewer';
+  c_by     CONSTANT text := 'an AI reviewer, through the MCP server';
+  v_why    text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_said   jsonb;
+  v_text   text;
+  v_rule   text;
+  v_code   text;
+BEGIN
+  BEGIN
+    IF v_why = '' OR char_length(v_why) > 1000 THEN
+      RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+        USING CONSTRAINT = 'review_reason';
+    END IF;
+    IF p_kind = 'relation' THEN
+      v_said := public.decision_said(NULL, p_id);
+      PERFORM public.reject_relation_as(p_id, p_reason, p_note, c_by, c_origin, v_why);
+    ELSE
+      v_said := public.decision_said(p_id);
+      IF p_kind = 'promote' THEN
+        PERFORM public.promote_unit_as(p_id, c_by, c_origin, v_why);
+      ELSE
+        PERFORM public.reject_unit_as(p_id, p_reason, p_note, c_by, c_origin, v_why);
+      END IF;
+    END IF;
+  EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+              OR insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                            v_code = RETURNED_SQLSTATE;
+    RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+      HINT = CASE WHEN v_rule IN ('rejection_reason', 'rejection_end') THEN 'reason'
+                  WHEN v_rule = 'rejection_note' THEN 'note'
+                  WHEN v_rule = 'review_reason' THEN 'why'
+                  WHEN p_kind = 'relation' THEN 'relationId'
+                  ELSE 'unitId' END;
+  END;
+  RETURN v_said;
+END $$;
+
+CREATE OR REPLACE FUNCTION ai_promote_unit(p_unit uuid, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('promote', p_unit, NULL, NULL, p_why)
+$$;
+
+CREATE OR REPLACE FUNCTION ai_reject_unit(p_unit uuid, p_reason text, p_note text, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('reject', p_unit, p_reason, p_note, p_why)
+$$;
+
+CREATE OR REPLACE FUNCTION ai_reject_relation(p_id uuid, p_reason text, p_note text, p_why text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.ai_decision('relation', p_id, p_reason, p_note, p_why)
+$$;
+
+-- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
+-- the door of the operator and the door of an AI reviewer run it. It takes the group and the exact list of units that the screen showed, so a unit that
 -- came after the view is never written. It locks the acts of the list, runs the check of the
 -- faults once for the whole list, and writes only the units that are still pending, still in the
 -- group and still clean. A unit that others need is written first: a parent before its child, so
@@ -1455,9 +1652,10 @@ END $$;
 -- unit that fails rolls back only itself, and a unit whose end failed before it is refused with
 -- the name of that end. It gives one result for each unit of the list: the refused units first,
 -- in the order of the list, then the units in the order of the writes.
-CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+CREATE OR REPLACE FUNCTION promote_group_as(p_group uuid, p_units uuid[], p_decided_by text,
+                                            p_origin text, p_reason text)
 RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_units   uuid[];
@@ -1523,7 +1721,7 @@ BEGIN
     FOREACH v_unit IN ARRAY v_ready LOOP
       v_name := coalesce(public.element_name(v_unit), v_unit::text);
       BEGIN
-        PERFORM public.write_unit(v_unit, p_decided_by, 'group');
+        PERFORM public.write_unit_as(v_unit, p_decided_by, 'group', p_origin, p_reason);
         v_out := v_out || jsonb_build_object(
           'unit', v_unit, 'name', v_name, 'outcome', 'promoted', 'said', NULL);
       EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
@@ -1536,6 +1734,43 @@ BEGIN
     v_clean := ARRAY(SELECT c FROM unnest(v_clean) AS c WHERE NOT c = ANY (v_ready));
   END LOOP;
   RETURN v_out;
+END $$;
+
+-- THE GROUP ACTION, BY THE OPERATOR. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION promote_group(p_group uuid, p_units uuid[], p_decided_by text)
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.promote_group_as(p_group, p_units, p_decided_by, NULL, NULL)
+$$;
+
+-- THE GROUP ACTION OF AN AI REVIEWER. Only the research role holds it. It is the group action of
+-- the page, with the same check of the faults: each clean unit of the list is written as its own
+-- decision, with the origin "decided by an AI reviewer" and the one reason that the AI gives, and
+-- each other unit is refused with the reason. A refusal of the whole call names its field.
+CREATE OR REPLACE FUNCTION ai_promote_group(p_group uuid, p_units uuid[], p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why  text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_text text;
+  v_rule text;
+  v_code text;
+BEGIN
+  IF v_why = '' OR char_length(v_why) > 1000 THEN
+    RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+      USING CONSTRAINT = 'review_reason', HINT = 'why';
+  END IF;
+  RETURN public.promote_group_as(p_group, p_units, 'an AI reviewer, through the MCP server',
+                                 'decided by an AI reviewer', v_why);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'group_named' THEN 'unitIds'
+                ELSE 'groupId' END;
 END $$;
 
 -- THE RAIL OF THE GROUPS, FOR THE OPERATOR. The groups come in the order of the queue, with the
@@ -1725,6 +1960,7 @@ BEGIN
                 'createdAt', p.created_at, 'decidedAt', p.decided_at, 'decidedBy', p.decided_by,
                 'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
                 'rejectNote', p.reject_note, 'decisionOrigin', p.decision_origin,
+                'decisionReason', p.decision_reason,
                 'name', public.element_name(coalesce(p.target_id, p.id)))
                 ORDER BY p.no) FILTER (WHERE p.no <= v_size), '[]'::jsonb),
       'next', (SELECT jsonb_build_object('decidedAt', l.decided_at, 'id', l.id)
@@ -2050,8 +2286,16 @@ $$;
 -- its line. A substr of a long page counts the code points from its start at each call. Measured
 -- on 7 October 2026: the one page of the v1 import holds about 500,000 characters, and a substr
 -- for each citation took 2.7 s for a page of 200 units.
-CREATE OR REPLACE FUNCTION cited_passages(p_claims uuid[])
-RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text)
+--
+-- A citation with a transcription gives its words as they are, with no line before or after, and
+-- `transcribed` says that the AI read them from the image.
+--
+-- External constraint: CREATE OR REPLACE cannot change the columns of a function, so each apply
+-- drops it first. No view, no grant and no function body that the catalogue tracks depends on it.
+DROP FUNCTION IF EXISTS cited_passages(uuid[]);
+CREATE FUNCTION cited_passages(p_claims uuid[])
+RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text,
+               transcribed boolean)
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_page  record;
@@ -2062,8 +2306,13 @@ DECLARE
   v_last  int;
   v_count int;
 BEGIN
+  RETURN QUERY
+    SELECT c.claim_id, c.doc_id::text, c.page, ''::text, c.transcription, ''::text, true
+      FROM public.citation c
+     WHERE c.claim_id = ANY (p_claims) AND c.transcription IS NOT NULL;
+  transcribed := false;
   FOR v_page IN SELECT DISTINCT c.doc_id, c.text_extractor, c.page FROM public.citation c
-                 WHERE c.claim_id = ANY (p_claims) LOOP
+                 WHERE c.claim_id = ANY (p_claims) AND c.transcription IS NULL LOOP
     SELECT string_to_array(t.text, E'\n') INTO v_lines FROM public.document_text t
      WHERE t.document_id = v_page.doc_id AND t.extractor = v_page.text_extractor
        AND t.page = v_page.page;
@@ -2078,6 +2327,7 @@ BEGIN
     FOR v_cite IN SELECT c.claim_id, c.start, c."end" FROM public.citation c
                    WHERE c.claim_id = ANY (p_claims) AND c.doc_id = v_page.doc_id
                      AND c.text_extractor = v_page.text_extractor AND c.page = v_page.page
+                     AND c.transcription IS NULL
                    ORDER BY c.start, c.claim_id LOOP
       WHILE v_first < v_count AND v_at[v_first + 1] <= v_cite.start LOOP
         v_first := v_first + 1;
@@ -2679,13 +2929,15 @@ $$;
 -- comes first, because nothing else can help while it is missing. The letters come from the
 -- configuration of the strong rule, so a new threshold changes the sentence. NULL when the unit
 -- has no act that waits. The conflict of an author F that waits is told before the need. No role
--- holds this step: only the read of the operator calls it.
-CREATE OR REPLACE FUNCTION unit_said(p_unit uuid, p_rule text)
+-- holds this step: only the read of the operator calls it. The read gives the faults that it
+-- checked already, so the costly check runs once for each unit.
+DROP FUNCTION IF EXISTS unit_said(uuid, text);
+CREATE OR REPLACE FUNCTION unit_said(p_unit uuid, p_rule text, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_faults jsonb;
+  v_faults jsonb := p_faults;
   v_said   text;
   v_conflict text;
   v_need   text;
@@ -2693,7 +2945,6 @@ DECLARE
   v_pair   text;
   v_other  text;
 BEGIN
-  SELECT f.faults INTO v_faults FROM public.unit_faults(ARRAY[p_unit]) AS f;
   IF v_faults IS NULL THEN
     RETURN NULL;
   END IF;
@@ -2747,7 +2998,8 @@ END $$;
 -- with two lines of context. Each passage names the element of the act that it supports. A
 -- passage of the v1 import is the whole line of its unit, and the lines around it state other
 -- units, so the passage says so. Each act, and each unit whose every act is such a relation, says
--- whether the reason "end rejected" fits it.
+-- whether the reason "end rejected" fits it. Each act gives the check of a second model on it, or
+-- null when no model checked it.
 -- The passages and the reason of a dispute are private, so only the operator role holds this
 -- read. The page starts after the sort key of the last unit of the page before, so a long queue
 -- is never read whole. Only the units of the page read their acts, their ends and their passages.
@@ -2780,10 +3032,11 @@ END $$;
 -- unit opens a link to a unit that is not on the first page; a unit that waits no more gives no
 -- unit.
 --
--- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so a page with no fault filter checks only the
--- groups that the page can reach: the group of the key that the page starts after, and the next
--- groups until they hold one unit more than the page. A fault filter checks every unit that the
--- other filters keep.
+-- THE CHECK OF THE FAULTS IS THE COSTLY STEP, so it runs once for each unit that waits, in one
+-- call, and the lanes, the filters and the sentences read its result. A page with no fault filter
+-- sorts only the groups that the page can reach: the group of the key that the page starts after,
+-- and the next groups until they hold one unit more than the page. A fault filter sorts every
+-- unit that the other filters keep.
 --
 -- The answer also counts every unit of the queue, the units that the filters keep, and the units
 -- of the filters before the page, and it gives the choices of the filters: each group in the order
@@ -2810,12 +3063,17 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.proposals p
      WHERE p.status = 'pending'
      ORDER BY p.unit_id, (p.id <> p.unit_id), p.created_at, p.id
+  ), faulted AS (
+    -- The faults of every unit that waits, from one call. The lanes, the fault filter and the
+    -- sentence of each unit read them here, so the costly check runs once for each unit.
+    SELECT f.unit_id, f.state, f.faults
+      FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
     -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting". The faults of every unit come from one call.
+    -- other result is the lane "waiting".
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
       FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
-              FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f) AS r
+              FROM faulted f) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
@@ -2873,11 +3131,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT fa.unit_id, fa.state, fa.faults,
            p_fault IS NULL OR fa.faults @> jsonb_build_array(jsonb_build_object('kind', p_fault))
              AS hit
-      FROM public.unit_faults(ARRAY(
-             SELECT k.unit_id FROM kept k
-              WHERE p_fault IS NOT NULL OR p_lane IS NOT NULL
-                 OR k.group_key IN (SELECT group_key FROM reached)))
-           AS fa
+      FROM faulted fa
+     WHERE fa.unit_id IN (SELECT k.unit_id FROM kept k
+                           WHERE p_fault IS NOT NULL OR p_lane IS NOT NULL
+                              OR k.group_key IN (SELECT group_key FROM reached))
   ), keyed AS (
     SELECT k.*, ch.state, ch.faults, ru.rule, ru.lane,
            k.group_key || CASE WHEN ch.state = 'clean' THEN '1' ELSE '0' END || k.tail_key
@@ -2929,6 +3186,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'createdAt', a.created_at, 'dissent', a.dissent,
              'endRejected', public.end_was_rejected(a.op, a.payload),
              'dissentReason', public.dispute_said(a.dissent_reason),
+             'check', (SELECT jsonb_build_object('model', k.checker_model, 'verdict', k.verdict,
+                                                 'passed', k.passed, 'reason', k.reason)
+                         FROM public.act_check k WHERE k.proposal_id = a.id),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
            bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected
@@ -2951,7 +3211,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'supports', coalesce(public.element_name(coalesce(a.target_id, a.id)), a.op),
              'ownLine', a.proposer = 'v1_import',
              'document', q.doc_id, 'page', q.page, 'before', q.before,
-             'text', q.cited, 'after', q.after)
+             'text', q.cited, 'after', q.after, 'transcribed', q.transcribed)
              ORDER BY q.claim_id, q.doc_id, q.page) AS passages
       FROM public.cited_passages(ARRAY(SELECT id FROM acts)) AS q
       JOIN acts a ON a.id = q.claim_id
@@ -3005,7 +3265,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                'state', s.state,
                'faults', s.faults,
                'lane', s.lane,
-               'said', public.unit_said(s.unit_id, s.rule),
+               'said', public.unit_said(s.unit_id, s.rule, s.faults),
                'endRejected', ac.end_rejected,
                'acts', coalesce(ac.acts, '[]'::jsonb),
                'documents', coalesce(ci.documents, '[]'::jsonb),
@@ -3200,6 +3460,51 @@ BEGIN
   RETURN v_count;
 END $$;
 
+-- PU1, THE ADDRESS OF A KNOWN UPLOAD. The same bytes are stored once, so a second upload of a file
+-- reaches the row of the first one. An older upload can have no address, and the address makes
+-- it a public document. This door gives the address to such a row, and it never changes an
+-- address that a row holds. It answers what it found, so the caller can tell the operator:
+--   filled       the row had no address, and it holds this one now;
+--   same         the row holds this address already;
+--   other        the row holds another address, and keeps it;
+--   before_rule  the row held its address before the ruling of 9 October 2026 (migration 0066),
+--                so the address is not public, and the row keeps it;
+--   not_a_file   the row is not an upload, so its address does not come from an upload.
+-- The row lock makes two uploads of the same bytes fill the address once.
+CREATE OR REPLACE FUNCTION fill_document_uri(p_document text, p_uri text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind   text;
+  v_uri    text;
+  v_before boolean;
+BEGIN
+  IF btrim(coalesce(p_uri, ''), E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'the address is blank' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT d.kind, d.uri, d.uri_before_pu1 INTO v_kind, v_uri, v_before
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind <> 'file' THEN
+    RETURN 'not_a_file';
+  END IF;
+  IF btrim(coalesce(v_uri, ''), E' \t\n\r\f\v') = '' THEN
+    UPDATE public.documents SET uri = p_uri WHERE id = p_document::doc_id;
+    RETURN 'filled';
+  END IF;
+  IF v_before THEN
+    RETURN 'before_rule';
+  END IF;
+  IF v_uri = p_uri THEN
+    RETURN 'same';
+  END IF;
+  RETURN 'other';
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
@@ -3285,10 +3590,15 @@ END $$;
 -- A JOB THAT READS IN PARTS GIVES ITS COUNT OF PARTS, the count that the propose door refused,
 -- and the first refusal. The job keeps the count and the reason, so no lost claim is silent. A job
 -- whose every part was refused proposed nothing, so it fails with the same words as its reason.
--- The door returns the status that it wrote. The earlier signature is dropped first.
+--
+-- A JOB THAT ENDS WELL AT A STOP GIVES THE REASON OF THE STOP. A deepening search ends at its token
+-- budget, and that is a good end. The row keeps the reason, so the operator sees that the budget
+-- stopped the search and that the model did not end it. A job that ends with no stop has no reason.
+-- The door returns the status that it wrote. The earlier signatures are dropped first.
 DROP FUNCTION IF EXISTS complete_job(uuid);
+DROP FUNCTION IF EXISTS complete_job(uuid, int, int, text);
 CREATE OR REPLACE FUNCTION complete_job(p_id uuid, p_parts int DEFAULT 0, p_refused int DEFAULT 0,
-                                        p_refusal text DEFAULT NULL)
+                                        p_refusal text DEFAULT NULL, p_stop text DEFAULT NULL)
 RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -3304,7 +3614,8 @@ BEGIN
          refused_parts = p_refused,
          refusal = p_refusal,
          failure_reason = CASE WHEN v_status = 'failed'
-                               THEN public.refused_parts_said(p_refused, p_refusal) END,
+                               THEN public.refused_parts_said(p_refused, p_refusal)
+                               ELSE p_stop END,
          finished_at = now(), updated_at = now()
    WHERE id = p_id AND status = 'running';
   IF NOT FOUND THEN
@@ -3723,7 +4034,14 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT a.id,
          coalesce(public.name_key(a.controller), a.name_key),
          public.site_of(d.uri),
-         public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end"),
+         -- The words that the AI read from an image are the passage of that citation.
+         CASE WHEN c.transcription IS NOT NULL
+              THEN coalesce(array(
+                     SELECT w FROM regexp_split_to_table(
+                       lower(regexp_replace(c.transcription, '[^[:alnum:]]+', ' ', 'g')), ' ') AS w
+                     WHERE w <> ''), '{}'::text[])
+              ELSE public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end")
+         END,
          c.modality IN ('enacts', 'asserts')
     FROM public.citation c
     JOIN public.proposals p ON p.id = c.claim_id
@@ -3754,29 +4072,64 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 $$;
 
 -- ================================================================== THE CHECK AND THE DIGIT ==
--- THE DOOR FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the fact,
--- and never that the fact is true. The row names the family of the reader and the family of the
--- checker: a check by the same family does not pass. A check is written once for an act.
--- The agent role gives both names, so the rules trust the worker (ADR 0012, trust boundary).
-CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
-                                            p_checker_family text, p_reader_family text,
-                                            p_verdict text)
+-- THE DOORS FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the
+-- fact, and never that the fact is true. The row names the family of the reader and the family of
+-- the checker: a check by the same family does not pass. A check is written once for an act: a
+-- second check of the same act changes nothing, and the first one stays. So a process that writes
+-- the check again after a stop or a retry is safe. The row keeps the reason of a verdict that is
+-- not `supported`, cut to the length that the table keeps.
+--
+-- EACH DOOR CHECKS THE ACTS OF ONE AUTHOR ROLE. The worker checks the acts of gabriel_agent, and
+-- gabriel_checker checks the acts of gabriel_research. So the worker cannot check a research act,
+-- and the research AI, which holds the research password, writes no check. The roles
+-- give both family names, so the rules trust the processes (ADR 0012, trust boundary). The common
+-- step holds no grant.
+DROP FUNCTION IF EXISTS record_act_check(uuid, text, text, text, text);
+CREATE OR REPLACE FUNCTION store_act_check(p_act uuid, p_author_role text, p_checker_model text,
+                                           p_checker_family text, p_reader_family text,
+                                           p_verdict text, p_reason text)
 RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.proposals p WHERE p.id = p_act AND p.originator IS NOT NULL)
-  THEN
-    RAISE EXCEPTION 'a check belongs to an act of a machine' USING ERRCODE = 'invalid_parameter_value';
+  IF NOT EXISTS (SELECT 1 FROM public.proposals p
+                  WHERE p.id = p_act AND p.originator IS NOT NULL
+                    AND p.author_role = p_author_role) THEN
+    RAISE EXCEPTION 'a check of this door belongs to an act of a machine that % wrote', p_author_role
+      USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict)
-  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict);
+  INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict,
+                                reason)
+  VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict,
+          CASE WHEN p_verdict = 'supported' OR btrim(coalesce(p_reason, '')) = '' THEN NULL
+               ELSE left(p_reason, 1000) END)
+  ON CONFLICT (proposal_id) DO NOTHING;
   -- The end of the check makes the units that share the fact go through the rules again.
   PERFORM public.run_rules(ARRAY(
     SELECT DISTINCT q.unit_id FROM public.proposals q
      WHERE q.status = 'pending'
        AND q.claim_key = (SELECT a.claim_key FROM public.proposals a WHERE a.id = p_act)));
 END $$;
+
+CREATE OR REPLACE FUNCTION record_act_check(p_act uuid, p_checker_model text,
+                                            p_checker_family text, p_reader_family text,
+                                            p_verdict text, p_reason text DEFAULT NULL)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.store_act_check(p_act, 'gabriel_agent', p_checker_model, p_checker_family,
+                                p_reader_family, p_verdict, p_reason);
+$$;
+
+CREATE OR REPLACE FUNCTION record_research_check(p_act uuid, p_checker_model text,
+                                                 p_checker_family text, p_reader_family text,
+                                                 p_verdict text, p_reason text DEFAULT NULL)
+RETURNS void
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT public.store_act_check(p_act, 'gabriel_research', p_checker_model, p_checker_family,
+                                p_reader_family, p_verdict, p_reason);
+$$;
 
 -- THE TARGET OF THE VALUES OF AN ACT: the claim key of the entity that a new entity or a change of
 -- attributes is about. Two acts with one target and one key with two values disagree. An act of
@@ -3906,6 +4259,11 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
        AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
        AND EXISTS (SELECT 1 FROM public.citation c
                     WHERE c.claim_id = p.id AND c.modality IN ('enacts', 'asserts'))
+       -- The checker reads only the words that the AI wrote from an image, and not the image. So
+       -- such an act supports no fact until the operator compares the words with the image.
+       AND NOT (p.status = 'pending'
+                AND EXISTS (SELECT 1 FROM public.citation c
+                             WHERE c.claim_id = p.id AND c.transcription IS NOT NULL))
   ), cited AS (
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
@@ -3964,10 +4322,11 @@ BEGIN
 END $$;
 
 -- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead ended well (done)
--- and no extraction of a page that it stored is open. A lead that failed, or that stopped at its
--- budget, did not finish its search, so it never rejects. The unit is weak when it has sources,
--- and each one has a letter D or E. A source whose check did not pass is no source here. An
--- author with no letter counts as F, so such a unit is kept, because a letter can come later. A
+-- and no extraction of a page that it stored is open. A search that stops at its budget ends well:
+-- the budget is its one stop, so it counts as a search that found no new source. A lead that failed
+-- for another reason did not finish its search, so it never rejects. The unit is weak when it has
+-- sources, and each one has a letter D or E. A source whose check did not pass is no source here.
+-- An author with no letter counts as F, so such a unit is kept, because a letter can come later. A
 -- fact with no passed check is not judged, so a unit with such a fact is kept. A claim that a rule
 -- rejected is not "rejected before": a later source can change a weak verdict. No role holds this
 -- step.

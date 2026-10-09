@@ -71,11 +71,21 @@ export interface Reach {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check of an address. The default refuses the machine and each private network. */
   readonly refuses?: (address: string) => boolean;
+  /** The time in milliseconds that a fetch waits for a whole answer. The tool sets the default. */
+  readonly fetchTimeoutMs?: number;
   /** A check of each item by a model of another family, before the write. It gives the verdict
-   * on each item that the checker answered. Each item with no `supported` verdict is written as
-   * disputed. */
+   * on each item that the checker answered. `checkMarks` says which items are written as
+   * disputed. It throws a `CheckFailure` when no model could check the batch. */
   readonly check?: (items: readonly ItemToCheck[]) => Promise<ReadonlyMap<string, CheckVerdict>>;
+  /** Which answer of the check disputes an item. `dispute`, the default, disputes each item with
+   * no `supported` verdict, also after a `CheckFailure`. `refuted` disputes only an item that the
+   * checker says its passages do not support: any other item is written with no dispute, and it
+   * waits for a passed check. */
+  readonly checkMarks?: 'dispute' | 'refuted';
 }
+
+/** A check that no model could run on a batch, with the one sentence that says why. */
+export class CheckFailure extends Error {}
 
 /** A request that a tool declines, with the one sentence that says why. */
 export class ToolRefusal extends Error {}

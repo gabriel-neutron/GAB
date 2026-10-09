@@ -32,10 +32,11 @@ if (!offlineWasAsked && !(databaseIsReachable && bucketIsReachable))
   );
 
 // External constraint: the compose file publishes the read service of the test database on this
-// port. The guard above runs first, so a refused run opens no socket.
+// port, and a session stack names its own port in infra/.env. The guard above runs first, so a
+// refused run opens no socket.
 const LIVE_TARGET = {
   GABRIEL_DATABASE: testRunDatabase(process.env),
-  VITE_API_URL: 'http://127.0.0.1:3001',
+  VITE_API_URL: process.env['GABRIEL_TEST_API_URL'] ?? 'http://127.0.0.1:3001',
 };
 
 // Origin: measured on 9 September 2026 over 1,178 entities. Each view answers inside 100 ms in

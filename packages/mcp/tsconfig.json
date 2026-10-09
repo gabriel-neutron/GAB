@@ -13,11 +13,12 @@
     // Node runs the source directly and strips the types, so an import needs the real extension.
     "allowImportingTsExtensions": true
   },
-  // A test that reaches the database logs in through the helper of the schema tests, so the
-  // helper and the two files it imports are part of this project too.
+  // A test that reaches the database logs in through the helper of the schema tests, and rates an
+  // author with the fixture of the schema tests, so these helpers are part of this project too.
   "include": [
     "src",
     "../../tools/probe.ts",
+    "../../tools/author-fixture.ts",
     "../../tools/db-runtime.ts",
     "../../tools/test-database.ts"
   ]

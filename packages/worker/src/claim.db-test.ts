@@ -3,29 +3,22 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from './address.ts';
 import { claimJob } from './claim.ts';
 import { runLayout } from './layout-job.ts';
 import { reconcileCorpus } from './reconcile.ts';
 
 // Departure: the suite calls the door as the owner of the database, because it reads the row it
 // claimed to check the mark. It measures the lock and the mark, and neither one is a grant.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
+const secrets = z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') });
 
 const ownerPool = (): Pool => {
   const held = secrets.safeParse(process.env);
   if (!held.success)
     throw new Error(
-      'POSTGRES_PASSWORD is empty or absent, or GABRIEL_DATABASE is not gabriel_test. Run the ' +
-        'suite through its configuration.',
+      'GABRIEL_DATABASE is not gabriel_test. Run the suite through its configuration.',
     );
-  const password = encodeURIComponent(held.data.POSTGRES_PASSWORD);
-  const database = held.data.GABRIEL_DATABASE;
-  return new Pool({
-    connectionString: `postgresql://gabriel:${password}@127.0.0.1:5432/${database}`,
-  });
+  return new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
 };
 
 const pool = ownerPool();

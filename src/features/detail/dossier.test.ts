@@ -145,6 +145,7 @@ const ACT: Proposal = {
   decidedBy: null,
   decidedAs: null,
   decisionOrigin: null,
+  originLabel: 'Proposed — not checked',
   batchId: null,
 };
 
@@ -306,12 +307,15 @@ test('a point borrowed from a parent that the entity list holds names that paren
   expect(dossier?.positionFrom).toBe(`position from ${OWNER.label}`);
 });
 
-test('the entity says who promoted it into the record, and names a group action or a rule', () => {
+// PU1: the origin line of the screen is the label of the public data, word for word. The record
+// writes the words, so the screen adds no word and drops none, also for a group action.
+test('the entity shows the label of the act that promoted it, in the words of the record', () => {
   const { op, targetKind, targetId, payload, src, names, priorValue, dissent } = ACT;
   const act = { op, targetKind, targetId, payload, src, names, priorValue, dissent };
   const promoted = (
     decidedAs: DecidedAct['decidedAs'],
-    decisionOrigin: DecidedAct['decisionOrigin'] = null,
+    decisionOrigin: DecidedAct['decisionOrigin'],
+    originLabel: string,
   ): DecidedAct => ({
     act: {
       ...act,
@@ -326,21 +330,29 @@ test('the entity says who promoted it into the record, and names a group action 
     decidedBy: 'operator',
     decidedAs,
     decisionOrigin,
+    originLabel,
   });
-  expect(readDossier(CORPUS, VESSEL.id, [], [promoted('group')])?.decision).toBe(
-    'Validated manually by the operator, group action, on 2026-10-08',
-  );
-  expect(readDossier(CORPUS, VESSEL.id, [], [promoted('unit')])?.decision).toBe(
-    'Validated manually by the operator on 2026-10-08',
-  );
-  const byRule = readDossier(
-    CORPUS,
-    VESSEL.id,
-    [],
-    [promoted('rule', 'rule strong_sources v1 (fact digits: 1)')],
-  )?.decision;
-  expect(byRule).toBe('Accepted by the rule strong sources, version 1 on 2026-10-08');
-  expect(byRule).not.toMatch(/operator/u);
+  const LABELS = [
+    [
+      'group',
+      'validated manually by the operator',
+      'Validated manually by the operator, on 2026-10-08',
+    ],
+    [
+      'rule',
+      'rule strong_sources v1 (fact digits: 1)',
+      'Accepted by rule strong_sources v1 — no person read it, on 2026-10-08',
+    ],
+    [
+      'unit',
+      'decided by an AI reviewer',
+      'Accepted by an AI reviewer — no person read it, on 2026-10-08',
+    ],
+  ] as const;
+  for (const [mode, origin, label] of LABELS)
+    expect(readDossier(CORPUS, VESSEL.id, [], [promoted(mode, origin, label)])?.decision).toBe(
+      label,
+    );
   // An entity whose promotion the read does not hold says nothing of it.
   expect(readDossier(CORPUS, VESSEL.id, [], [])?.decision).toBeNull();
 });

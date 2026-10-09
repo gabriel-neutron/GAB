@@ -7,6 +7,7 @@ import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { roleAddress } from '../address.ts';
 import type { RunnerAgent } from '../agents.ts';
 import { makeLoader } from '../loader/loader.ts';
 import type { MapperConfig } from '../reader-config.ts';
@@ -17,13 +18,9 @@ import { makeMapper } from './mapper.ts';
 // Departure: each test runs in one transaction that rolls back, on one connection that signs as
 // the owner to seed and to read, as gabriel_app to promote, and as gabriel_agent while the runner
 // works.
-const secrets = z.object({
-  POSTGRES_PASSWORD: z.string().min(1),
-  GABRIEL_DATABASE: z.literal('gabriel_test'),
-});
-const env = secrets.parse(process.env);
+z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const pool = new Pool({
-  connectionString: `postgresql://gabriel:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:5432/${env.GABRIEL_DATABASE}`,
+  connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD'),
   max: 2,
 });
 

@@ -8,7 +8,8 @@ again 7 October 2026: OpenRouter only, with a paid key; the free gateway is gone
 superseded 7 October 2026: no rule promotes, and the operator decides each proposal. · ADR 0012,
 8 October 2026: named rules in the database decide from the letters of the authors, and the
 operator decides the doubts. · 8 October 2026: the operator AI can also read the review queue and
-accept or reject a unit (#376).
+accept or reject a unit (#376). · 8 October 2026: the propose tool of the research AI gets the
+check by a second model family (#337).
 
 ## Context
 
@@ -171,11 +172,19 @@ doubt.
   it. It answers supported, not supported or unclear: one question for each passage, one verdict
   for each item. An answer that is not "supported", or a checker that fails, marks the item as
   disputed when it is written, and the mark cannot change later. The item keeps the verdict and
-  the short reason of the checker with the mark, as a private note for the review card. A failure
-  of the checker never
-  drops an item. The two families are set in the configuration, and the worker does not start
-  when they are the same. This check replaces the blind second reading, which wrote rows that
-  nothing read. **Cost:** one more call for each passage, from the same token budget, and the
+  the short reason of the checker with the mark, as a private note for the review card. The
+  record also keeps each verdict as the check of its act, which the rules of ADR 0012 read. A
+  failure of the checker never drops an item. The two families are set in the configuration, and
+  the worker does not start when they are the same. The propose tool of the research AI gets the
+  same check from the MCP server. The server makes one call for each batch, with no retry, under a
+  hard token cap of its own. The checker is of another family than the research AI. The server
+  reads that family from the name of its client. Of the verdicts of the checker, only "not
+  supported" disputes a research item. A batch above the cap, a checker that fails, or a checker
+  that is not configured gives no dispute from the checker and no check. The item waits, and the answer of the tool
+  says why. The same batch sent again gets its check. A research item is not disputed for a
+  failure, because the dispute cannot change later. Such a dispute would send each item of a
+  failed batch to the operator. This check replaces the blind second reading, which wrote rows
+  that nothing read. **Cost:** one more call for each passage, from the same token budget, and the
   operator must keep two models of two families available on OpenRouter.
 - **A job that fails, fails at once, with its reason.** One operator runs one worker, so the queue
   has no lease and no count of attempts. At its start the worker puts back each job that a crash
@@ -202,8 +211,11 @@ code writes its proposals.
 - **A lead setting never stops the extraction.** When a lead setting is absent, the worker starts,
   and each lead fails at once with a reason that names the setting.
 - **No page limit, one token budget.** The operator decided that a lead fetches as many pages as
-  it needs. The token budget of the job is its one stop, and the job fails with that reason. The
-  pages stored before the stop stay stored.
+  it needs. The token budget of the job is its one stop. A lead of the operator then fails with
+  that reason. A deepening search ends well at its budget, because its budget is a choice of the
+  operator and not a fault, and the rules then judge its unit. It keeps the reason, so the
+  operator sees that the budget stopped it. The pages stored before the stop
+  stay stored.
 - **The lead is private.** Its text can name a party before a source supports it. Only the operator and the operator AI (through the MCP server) read the leads and what each one stored. The worker reads the text of the one lead that it claims.
 - **No schedule.** A person or the research AI starts each lead.
 
