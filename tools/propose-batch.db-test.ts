@@ -270,17 +270,40 @@ test('the same act of another role is a second act', async () => {
   expect(found.cited).toBe(1);
 });
 
+// New attributes of an entity of the record. Their target and their payload identify the fact,
+// so a second passage of the same act joins the act that waits.
+const KEYED = `SELECT e.id::text AS id, k.key, e.attrs -> k.key -> 'v' #>> '{}' AS value
+  FROM api.entity e CROSS JOIN LATERAL jsonb_object_keys(e.attrs) AS k(key)
+  WHERE jsonb_typeof(e.attrs -> k.key -> 'v') = 'string'
+  ORDER BY e.id, k.key LIMIT 1`;
+
+const attrsOf = async (ask: Ask, call: string, change: Item = {}): Promise<Item> => {
+  const [held] = z
+    .array(z.object({ id: z.uuid(), key: z.string(), value: z.string() }))
+    .parse(await ask(KEYED));
+  if (held === undefined) throw new Error('the fixture holds no string attribute');
+  return itemOf(call, {
+    op: 'update_attrs',
+    target_kind: 'entity',
+    target_id: held.id,
+    payload: { attrs: { [held.key]: { v: held.value, src: [DOC] } } },
+    ...change,
+  });
+};
+
 // A model words the originator in its own way, so the same claim of one role is one act. The act
 // that waits keeps the originator that it was written with, and takes the new passage.
 test('the same act with another wording of its originator is one act', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const call = await seed(ask);
     const [first] = outcomes.parse(
-      await batchAs(ask, 'gabriel_agent', [itemOf(call, { originator: 'Port authority' })]),
+      await batchAs(ask, 'gabriel_agent', [
+        await attrsOf(ask, call, { originator: 'Port authority' }),
+      ]),
     );
     const [again] = outcomes.parse(
       await batchAs(ask, 'gabriel_agent', [
-        itemOf(call, {
+        await attrsOf(ask, call, {
           originator: 'The port authority',
           citations: [
             { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 11, end: 17 },
@@ -308,14 +331,36 @@ test('a retry with a second passage adds its citation to the act that waits, onc
     const call = await seed(ask);
     const first = { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 11, end: 17 };
     const second = { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 0, end: 17 };
-    const [written] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
-    const both = itemOf(call, { citations: [first, second] });
+    const [written] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [await attrsOf(ask, call)]),
+    );
+    const both = await attrsOf(ask, call, { citations: [first, second] });
     const [again] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [both]));
     await batchAs(ask, 'gabriel_agent', [{ ...both, id: randomUUID() }]);
     return { written, again, cited: await citedCount(ask, written?.proposal_id) };
   });
   expect(found.again).toMatchObject({ proposal_id: found.written?.proposal_id, written: false });
   expect(found.cited).toBe(2);
+});
+
+// A label does not identify a unit: one page can name two units with one label, each under a
+// different parent. So a new entity that cites another passage is a second act, and a retry of
+// the same passage returns the act that waits.
+test('a new entity with the same label that cites another passage is a second act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const other = { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 0, end: 17 };
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
+    const [second] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [itemOf(call, { citations: [other] })]),
+    );
+    const [again] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
+    return { first, second, again, cited: await citedCount(ask, first?.proposal_id) };
+  });
+  expect(found.second?.written).toBe(true);
+  expect(found.second?.proposal_id).not.toBe(found.first?.proposal_id);
+  expect(found.again).toMatchObject({ proposal_id: found.first?.proposal_id, written: false });
+  expect(found.cited).toBe(1);
 });
 
 test('the door refuses an identifier that a row of the record already holds', async () => {
