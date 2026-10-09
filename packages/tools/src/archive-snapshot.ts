@@ -1,7 +1,9 @@
+import { setTimeout as timer } from 'node:timers/promises';
+
 import { z } from 'zod';
 
-import { defineTool, ToolRefusal, type Web } from './tool.ts';
-import { anyAnswerOf, answerOf, UpstreamFault, webFromReach } from './web-access.ts';
+import { defineTool, ToolRefusal, type Reach, type Web, type WebAnswer } from './tool.ts';
+import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
 // External constraint: the archive has one host, and each address this tool returns is built from
 // it. The archive names a capture by a timestamp of fourteen digits, so that is the one part of
@@ -17,6 +19,42 @@ const MAX_CAPTURES = 10;
 const CAPTURE_TIMEOUT_MS = 60_000;
 const CAPTURE_GAP_MS = 15_000;
 const lastCapture = new WeakMap<Web, number>();
+
+// Assumptions of the first build. The archive answers 429 to a burst, and it often takes the same
+// request a few seconds later. The tool asks at most three times. It obeys Retry-After, and with
+// no such header it waits five seconds, then ten. No wait is longer than twenty seconds.
+const ATTEMPTS = 3;
+const FIRST_WAIT_MS = 5_000;
+const MAX_WAIT_MS = 20_000;
+const LIMITED =
+  `the archive limits the requests: it answered 429 ${ATTEMPTS} times. Try again in a few ` +
+  'minutes';
+
+/** The wait before the next attempt, in milliseconds. Retry-After is a count of seconds or a
+ * date. */
+export const waitOf = (answer: WebAnswer, attempt: number, now: Date): number => {
+  const said = answer.headers['retry-after']?.trim() ?? '';
+  let wait = FIRST_WAIT_MS * 2 ** (attempt - 1);
+  if (/^\d+$/u.test(said)) wait = Number(said) * 1000;
+  else if (said !== '' && !Number.isNaN(Date.parse(said))) wait = Date.parse(said) - now.getTime();
+  return Math.min(Math.max(wait, 0), MAX_WAIT_MS);
+};
+
+/** One GET to the archive. An answer 429 is asked again after a wait, up to the fixed count of
+ * attempts. It gives the last answer, which can still be 429. */
+const archiveAnswer = async (
+  web: Web,
+  reach: Reach | undefined,
+  url: string,
+  timeoutMs?: number,
+): Promise<WebAnswer> => {
+  const sleep = reach?.sleep ?? ((ms: number) => timer(ms));
+  for (let attempt = 1; ; attempt += 1) {
+    const answer = await anyAnswerOf(web, url, timeoutMs === undefined ? {} : { timeoutMs });
+    if (answer.status !== 429 || attempt >= ATTEMPTS) return answer;
+    await sleep(waitOf(answer, attempt, reach?.now() ?? new Date()));
+  }
+};
 
 const STORED = 'SELECT 1 AS stored FROM public.documents WHERE uri = ANY($1::text[]) LIMIT 1';
 
@@ -68,14 +106,18 @@ const checked = (raw: string): { readonly given: string; readonly href: string }
   return { given, href: url.href };
 };
 
-const lookup = async (web: Web, original: string) => {
+const lookup = async (web: Web, reach: Reach | undefined, original: string) => {
   const url = new URL(`${ARCHIVE}/cdx/search/cdx`);
   url.searchParams.set('url', original);
   url.searchParams.set('output', 'json');
   url.searchParams.set('fl', 'timestamp,mimetype,statuscode');
   url.searchParams.set('filter', 'statuscode:200');
   url.searchParams.set('limit', String(-MAX_CAPTURES));
-  const { body } = await answerOf(web, url.href);
+  const answer = await archiveAnswer(web, reach, url.href);
+  if (answer.status === 429) throw new ToolRefusal(LIMITED);
+  if (answer.status < 200 || answer.status > 299)
+    throw new UpstreamFault(`the server answered ${answer.status}`);
+  const { body } = answer;
   // An address with no capture gets an empty body and not an empty list.
   if (body.trim() === '') return [];
   let rows: unknown;
@@ -102,17 +144,14 @@ const lookup = async (web: Web, original: string) => {
 };
 
 // A redirect is how the archive names the new capture. It is read and never followed.
-const save = async (web: Web, original: string): Promise<string> => {
+const save = async (web: Web, reach: Reach | undefined, original: string): Promise<string> => {
   let answer;
   try {
-    answer = await anyAnswerOf(web, `${ARCHIVE}/save/${original}`, {
-      timeoutMs: CAPTURE_TIMEOUT_MS,
-    });
+    answer = await archiveAnswer(web, reach, `${ARCHIVE}/save/${original}`, CAPTURE_TIMEOUT_MS);
   } catch {
     throw new ToolRefusal('the capture failed: no whole answer came');
   }
-  if (answer.status === 429)
-    throw new ToolRefusal('the rate limit of the archive is reached: try again later');
+  if (answer.status === 429) throw new ToolRefusal(LIMITED);
   if (answer.status < 200 || answer.status >= 400)
     throw new ToolRefusal(`the capture failed: the server answered ${answer.status}`);
   for (const named of [answer.headers['content-location'], answer.headers['location']]) {
@@ -128,7 +167,8 @@ export const archiveSnapshot = defineTool({
     'Lists the Wayback Machine captures of one https address that has no query string, newest ' +
     'first. Each capture comes with its raw address, which fetch_document can store. With ' +
     'capture true, it asks for a new capture, and only for an address that fetch_document ' +
-    'already stored; one capture is allowed each fifteen seconds. Nothing is stored here.',
+    'already stored; one capture is allowed each fifteen seconds. When the archive answers 429, ' +
+    'the tool waits and asks again, three times at most. Nothing is stored here.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     capture: z.boolean().default(false),
@@ -157,7 +197,7 @@ export const archiveSnapshot = defineTool({
 
     let captures;
     try {
-      captures = await lookup(web, given);
+      captures = await lookup(web, reach, given);
     } catch (fault) {
       if (fault instanceof UpstreamFault)
         throw new ToolRefusal(`the archive lookup failed: ${fault.message}`);
@@ -167,7 +207,7 @@ export const archiveSnapshot = defineTool({
     let newCapture: { timestamp: string; address: string } | null = null;
     if (input.capture) {
       lastCapture.set(web, reach?.now().getTime() ?? 0);
-      const timestamp = await save(web, given);
+      const timestamp = await save(web, reach, given);
       newCapture = { timestamp, address: rawAddress(timestamp, given) };
     }
 
