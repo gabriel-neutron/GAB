@@ -29,7 +29,9 @@ const FRONT =
 const BODY =
   'After 2022, the banks of Russia lost access to SWIFT. The Bank of Russia operates SPFS, a ' +
   'messaging system for payments. European countries, African countries and Asian countries ' +
-  'use SWIFT. Financial sanctions cut the trade of Russia. Alex Example wrote this section.';
+  'use SWIFT. Financial sanctions cut the trade of Russia. Alex Example wrote this section. ' +
+  'Some SPFS payments settle through SWIFT. Executive Order 14024 designates Ivan Listed, ' +
+  'the head of a bank.';
 
 // One part for each page.
 const CONFIG: ReaderConfig = {
@@ -95,6 +97,26 @@ const BODY_ANSWER = [
     2,
     'The Bank of Russia operates SPFS',
   ),
+  // A relation of this part on an entity of the first part. The entity of the first part is a
+  // pending proposal, so the model names it again in this part.
+  item(
+    'settles',
+    { op: 'create_relation', type: 'settles_through', srcId: 'spfs', dstId: 'swift_again' },
+    2,
+    'Some SPFS payments settle through SWIFT',
+  ),
+  // A person that a sanctions act designates stays, but not the e-mail address of the person.
+  entity('eo', 'legal_act', 'Executive Order 14024', 2, 'Executive Order 14024 designates'),
+  entity('listed', 'person', 'Ivan Listed', 2, 'designates Ivan Listed', {
+    email: { v: 'ivan.listed@firm.example' },
+    role: { v: 'head of a bank' },
+  }),
+  item(
+    'designates',
+    { op: 'create_relation', type: 'designated_by', srcId: 'listed', dstId: 'eo' },
+    2,
+    'Executive Order 14024 designates Ivan Listed',
+  ),
 ];
 
 const proposalRow = z.object({ op: z.string(), type: z.string(), label: z.string().nullable() });
@@ -138,16 +160,21 @@ test('of the faults of the staff report case, only the facts of the subject beco
         await client.query(
           `SELECT p.op, p.payload ->> 'type' AS type, p.payload ->> 'label' AS label
              FROM public.proposals p
-            WHERE $1 = ANY (p.src::text[]) ORDER BY p.op, p.payload ->> 'label'`,
+            WHERE $1 = ANY (p.src::text[]) ORDER BY p.op, p.payload ->> 'label', p.payload ->> 'type'`,
           [DOCUMENT],
         )
       ).rows,
     );
     expect(rows).toStrictEqual([
       { op: 'create_entity', type: 'state_body', label: 'Bank of Russia' },
+      { op: 'create_entity', type: 'legal_act', label: 'Executive Order 14024' },
+      { op: 'create_entity', type: 'person', label: 'Ivan Listed' },
       { op: 'create_entity', type: 'unknown', label: 'SPFS' },
+      // The SWIFT of the second part joins the pending act of the first part.
       { op: 'create_entity', type: 'company', label: 'SWIFT' },
+      { op: 'create_relation', type: 'designated_by', label: null },
       { op: 'create_relation', type: 'operates', label: null },
+      { op: 'create_relation', type: 'settles_through', label: null },
     ]);
     // No e-mail address reaches the record.
     const payloads = await client.query(
@@ -161,11 +188,12 @@ test('of the faults of the staff report case, only the facts of the subject beco
       job,
       dropped: {
         person_outside_publication_rule: 3,
-        duplicate_in_job: 2,
+        duplicate_in_job: 1,
         generic_group: 3,
         generic_concept: 1,
         type_outside_vocabulary: 1,
         names_a_dropped_item: 1,
+        email_address: 1,
       },
     });
   } finally {
