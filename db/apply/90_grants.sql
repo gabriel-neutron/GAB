@@ -329,8 +329,9 @@ GRANT EXECUTE ON FUNCTION record_research_check(uuid,text,text,text,text,text) T
 -- opens to nobody until a person writes it here.
 GRANT USAGE   ON SCHEMA api TO gabriel_read;
 REVOKE ALL    ON ALL TABLES IN SCHEMA api FROM gabriel_read;
-GRANT SELECT  ON api.document, api.document_provider, api.entity, api.entity_type, api.full_map,
-  api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
+-- api.dataset holds the disclaimer of the dataset, which the public data carries (PU1).
+GRANT SELECT  ON api.dataset, api.document, api.document_provider, api.entity, api.entity_type,
+  api.full_map, api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
 -- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH SEVEN VIEWS ONLY. A tool asks

@@ -24,9 +24,10 @@ SET ROLE gabriel_owner;
 DROP VIEW IF EXISTS api.full_map;
 DROP VIEW IF EXISTS api.layout;
 DROP VIEW IF EXISTS api.job;
-DROP VIEW IF EXISTS api.proposal;
 DROP VIEW IF EXISTS api.relation;
 DROP VIEW IF EXISTS api.entity;
+DROP VIEW IF EXISTS api.proposal;
+DROP VIEW IF EXISTS api.dataset;
 DROP VIEW IF EXISTS api.relation_type;
 DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
@@ -65,37 +66,39 @@ COMMENT ON VIEW api.relation_type IS
   'far end. takes_interval says whether valid_from and valid_to may be set (M6).';
 
 
-CREATE VIEW api.entity AS
-  SELECT id, type, proposed_type, label,
-         -- GeoJSON, never raw. PostgREST serialises a PostGIS geometry as hex EWKB, and
-         -- src/features/map/projection.ts narrows on `geom !== null`, which a hex string passes.
-         public.ST_AsGeoJSON(geom)::jsonb AS geom,
-         attrs, sources, promoted_from, created_at, updated_at
-    FROM public.entities;
-COMMENT ON VIEW api.entity IS
-  'An entity. `attrs` holds every attribute as {"key": {"v": value, "src": [document ids]}} — '
-  'the value and the documents that hold it up, in one row, with no join. `sources` is the list '
-  'on the THING and not on a value: it backs the label, the type and the geom of the row, and no '
-  'attribute''s value. '
-  'proposed_type carries the extracted word when it was not a live type.';
-
-
-CREATE VIEW api.relation AS
-  SELECT id, type, proposed_type, src_kind, src_id, dst_kind, dst_id, valid_from, valid_to,
-         attrs, sources, promoted_from, created_at, updated_at
-    FROM public.relations;
-COMMENT ON VIEW api.relation IS
-  'A relation. It states its claim in its own columns — the type and the two ends — and it may '
-  'carry no attribute at all, so `sources` is often the only evidence it has. An interval is '
-  'reserved for the types that take one in api.relation_type (M6). src_kind and dst_kind may say '
-  'relation: nothing writes that today and nothing prevents it (M4). proposed_type carries the '
-  'extracted word when it was not a live type.';
-
-
 CREATE VIEW api.proposal AS
   SELECT id, op, target_kind, target_id, payload, src, names, prior_value,
          dissent, author_role, model_call_id, status, created_at, decided_at,
-         decided_by, decided_as, batch_id, proposer, decision_origin
+         decided_by, decided_as, batch_id, proposer,
+         -- S1: the origin of a rule carries the inputs of the rule, and they hold rating digits.
+         -- A role outside the tool roles gets the name and the version of the rule only.
+         CASE WHEN current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
+              THEN decision_origin
+              ELSE coalesce(substring(decision_origin FROM '^(rule [a-z_]+ v[0-9]+)'),
+                            decision_origin)
+         END AS decision_origin,
+         -- PU1: the label of the claim, in fixed words that depend only on who decided it, and
+         -- the day of the decision in UTC. The label of a rule keeps the name and the version
+         -- only (S1). A decision older than the origin column is a decision of the operator, as
+         -- the review reads it. An origin that this list does not know never reads as a person:
+         -- it gets the cautious words of a candidate, with no day. A rejected act is not a
+         -- public claim and has no label.
+         CASE
+           WHEN status = 'pending' THEN 'Proposed — not checked'
+           WHEN status <> 'accepted' THEN NULL
+           WHEN decision_origin ~ '^rule [a-z_]+ v[0-9]+( |$)' THEN
+             'Accepted by rule ' || substring(decision_origin FROM '^rule ([a-z_]+ v[0-9]+)')
+             || ' — no person read it, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN decision_origin = 'decided by an AI reviewer' THEN
+             'Accepted by an AI reviewer — no person read it, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN decision_origin IS NULL
+             OR decision_origin = 'validated manually by the operator' THEN
+             'Validated manually by the operator, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           ELSE 'Proposed — not checked'
+         END AS origin_label
     FROM public.proposals
    -- PU1: a rejected act is not public. The public read role and any role that this list does
    -- not name see no rejected row, so the rule fails closed. current_user in a view is the role
@@ -116,10 +119,95 @@ COMMENT ON VIEW api.proposal IS
   'decided the act: one unit, one relation, or a group action, or a named rule; an older '
   'decision and an act that the operator signed have none. decision_origin says who or what '
   'decided: the name and the version of a rule, "validated manually by the operator", or '
-  '"decided by an AI reviewer"; an older decision has none. The reason of a rejection is '
-  'private. decided_by is '
+  '"decided by an AI reviewer"; an older decision has none. The public read gets the name and '
+  'the version of a rule only, and not the inputs of the rule. origin_label is the label of the '
+  'claim for a reader: fixed words that tell who decided it, and the day. It shows no rating. '
+  'A copy of a row copies its label. The reason of a rejection is private. decided_by is '
   'NEVER proof of a human decision. Do not count '
   'acts beside a claim: six acts on one key are not six confirmations (S3).';
+
+
+-- PU1: the disclaimer of the dataset. The read API gives it beside the data, so that a reader
+-- of the API gets it, and an export file copies it. The text is the exact text of the operator.
+-- The two links stay placeholders until the operator names them. The lines are long because
+-- the text is one literal, word for word.
+CREATE VIEW api.dataset AS
+  SELECT $disclaimer$**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
+
+- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.
+- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
+- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
+- **Validated manually by the operator:** the operator read the sources and accepted the claim.
+
+A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
+
+Report an error: `<link>`. Right of reply: `<link>`.$disclaimer$::text AS disclaimer;
+COMMENT ON VIEW api.dataset IS
+  'One row: the disclaimer of the dataset, in Markdown. Each export file of the data carries it, '
+  'and each row of the export carries its label.';
+
+
+-- PU1: each claim carries its label. The row takes the label of the last accepted act that set
+-- its name and type (update_entity), or else of the act that made it. Each value takes the label
+-- of the last act that set it: a later act can change one value, and a different decider can
+-- decide that act. A value that no act names (a merge) keeps the label of
+-- the row. Scalar subqueries and not a join: a join makes the view not auto-updatable, and a
+-- write through the read API then fails as a server fault (500) and not as a refusal (401).
+CREATE VIEW api.entity AS
+  SELECT e.id, e.type, e.proposed_type, e.label,
+         -- GeoJSON, never raw. PostgREST serialises a PostGIS geometry as hex EWKB, and
+         -- src/features/map/projection.ts narrows on `geom !== null`, which a hex string passes.
+         public.ST_AsGeoJSON(e.geom)::jsonb AS geom,
+         e.attrs, e.sources, e.promoted_from, e.created_at, e.updated_at,
+         coalesce((SELECT u.origin_label FROM api.proposal u
+                    WHERE u.status = 'accepted' AND u.op = 'update_entity'
+                      AND u.target_kind = 'entity' AND u.target_id = e.id
+                    ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+                  (SELECT c.origin_label FROM api.proposal c WHERE c.id = e.promoted_from))
+           AS origin_label,
+         coalesce((SELECT jsonb_object_agg(k.key, coalesce(
+                     (SELECT u.origin_label FROM api.proposal u
+                       WHERE u.status = 'accepted' AND u.op = 'update_attrs'
+                         AND u.target_kind = 'entity' AND u.target_id = e.id
+                         AND u.payload->'attrs' ? k.key
+                       ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+                     (SELECT c.origin_label FROM api.proposal c
+                       WHERE c.id = e.promoted_from)))
+                     FROM jsonb_object_keys(e.attrs) AS k(key)), '{}'::jsonb) AS attr_labels
+    FROM public.entities e;
+COMMENT ON VIEW api.entity IS
+  'An entity. `attrs` holds every attribute as {"key": {"v": value, "src": [document ids]}} — '
+  'the value and the documents that hold it up, in one row, with no join. `sources` is the list '
+  'on the THING and not on a value: it backs the label, the type and the geom of the row, and no '
+  'attribute''s value. '
+  'proposed_type carries the extracted word when it was not a live type. origin_label is the '
+  'label of the last accepted act that set the name and the type, or else of the act that made '
+  'the row. attr_labels gives the label of each value. A copy of a row copies its labels.';
+
+
+CREATE VIEW api.relation AS
+  SELECT r.id, r.type, r.proposed_type, r.src_kind, r.src_id, r.dst_kind, r.dst_id,
+         r.valid_from, r.valid_to, r.attrs, r.sources, r.promoted_from, r.created_at,
+         r.updated_at,
+         (SELECT c.origin_label FROM api.proposal c WHERE c.id = r.promoted_from)
+           AS origin_label,
+         coalesce((SELECT jsonb_object_agg(k.key, coalesce(
+                     (SELECT u.origin_label FROM api.proposal u
+                       WHERE u.status = 'accepted' AND u.op = 'update_relation'
+                         AND u.target_kind = 'relation' AND u.target_id = r.id
+                         AND u.payload->'attrs' ? k.key
+                       ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+                     (SELECT c.origin_label FROM api.proposal c
+                       WHERE c.id = r.promoted_from)))
+                     FROM jsonb_object_keys(r.attrs) AS k(key)), '{}'::jsonb) AS attr_labels
+    FROM public.relations r;
+COMMENT ON VIEW api.relation IS
+  'A relation. It states its claim in its own columns — the type and the two ends — and it may '
+  'carry no attribute at all, so `sources` is often the only evidence it has. An interval is '
+  'reserved for the types that take one in api.relation_type (M6). src_kind and dst_kind may say '
+  'relation: nothing writes that today and nothing prevents it (M4). proposed_type carries the '
+  'extracted word when it was not a live type. origin_label and attr_labels are the labels of '
+  'the row and of each value, as on api.entity.';
 
 
 -- ONE ROW PER ENTITY, AND NOT ONE ROW PER STORED POSITION. An entity the last layout run did not
@@ -217,7 +305,10 @@ CREATE VIEW api.full_map AS
          CASE WHEN e.geom->>'type' = 'Point' THEN e.geom
               ELSE coalesce(i.geom, e.geom) END AS geom,
          e.attrs #>> '{position_precision,v}' AS position_precision,
-         CASE WHEN e.geom->>'type' = 'Point' THEN NULL ELSE i.parent_id END AS parent_id
+         CASE WHEN e.geom->>'type' = 'Point' THEN NULL ELSE i.parent_id END AS parent_id,
+         -- PU1: each public claim carries its label, also on the map read.
+         e.origin_label,
+         e.attr_labels->>'position_precision' AS position_precision_label
     FROM api.entity e
     LEFT JOIN inherited i ON i.entity_id = e.id;
 COMMENT ON VIEW api.full_map IS
@@ -225,6 +316,8 @@ COMMENT ON VIEW api.full_map IS
   'the point of the nearest ancestor through subordinate_to when position_precision is '
   'inherited. parent_id names that ancestor, and it is null when the entity stands at its own '
   'point. A null geom is an entity the map cannot place. The word is a claim of the analyst. It '
-  'may be absent, and a surface must then draw the cautious state and never a measured one.';
+  'may be absent, and a surface must then draw the cautious state and never a measured one. '
+  'origin_label and position_precision_label are the labels of the row and of the word, as on '
+  'api.entity.';
 
 RESET ROLE;

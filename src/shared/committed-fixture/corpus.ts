@@ -779,6 +779,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: null,
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: 'Proposed — not checked',
       batchId: null,
     },
     {
@@ -810,6 +811,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: null,
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: 'Proposed — not checked',
       batchId: null,
     },
     {
@@ -837,6 +839,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: null,
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: 'Proposed — not checked',
       batchId: null,
     },
     {
@@ -863,6 +866,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: 'operator',
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: 'Validated manually by the operator, on 2026-07-22',
       batchId: null,
     },
     {
@@ -888,6 +892,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: 'operator',
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: null,
       batchId: null,
     },
     {
@@ -913,6 +918,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
       decidedBy: 'operator',
       decidedAs: null,
       decisionOrigin: null,
+      originLabel: 'Validated manually by the operator, on 2026-07-25',
       batchId: null,
     },
   ],

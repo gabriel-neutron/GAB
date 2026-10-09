@@ -19,6 +19,7 @@ const DECIDED_ROW = {
   decided_by: 'the writer door',
   decided_as: null,
   decision_origin: null,
+  origin_label: null,
   batch_id: null,
 };
 

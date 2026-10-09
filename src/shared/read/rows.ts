@@ -123,6 +123,7 @@ export const row = {
       .enum(['unit', 'relation', 'group', 'rule'], stated('proposal.decided_as'))
       .nullable(),
     decision_origin: nullableText('proposal.decision_origin'),
+    origin_label: nullableText('proposal.origin_label'),
     batch_id: nullableText('proposal.batch_id'),
     proposer: z.enum(PROPOSERS, stated('proposal.proposer')),
   }),
