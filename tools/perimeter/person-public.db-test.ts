@@ -17,6 +17,7 @@ const ADDRESSED = 'doc_pu1_upload_with_address';
 const BOUGHT_FILE = 'doc_pu1_bought_upload';
 const BOUGHT = 'doc_pu1_bought_filing';
 const PAID_FILING = 'doc_pu1_paid_filing_no_price';
+const OLD_ADDRESSED = 'doc_pu1_upload_before_rule';
 
 const VESSEL = '00000000-0000-4000-8000-0000000a0001';
 const NAMED = '00000000-0000-4000-8000-0000000a0002';
@@ -83,6 +84,14 @@ const documents = async (ask: Ask) => {
        ($6, 'file', 'An upload',         'https://example.org/upload', current_date, NULL, NULL),
        ($7, 'file', 'A bought upload',   'https://example.org/bought', current_date, 40.00, NULL)`,
     [PUBLIC_PAGE, PUBLIC_API, UPLOADED, BOUGHT, PAID_FILING, ADDRESSED, BOUGHT_FILE],
+  );
+  // An upload from before the address rule: its address can be the page where it was bought,
+  // and its cost is not known. The migration of the rule marks it.
+  await ask(
+    `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, uri_before_pu1)
+     VALUES ($1, 'file', 'An older upload', 'https://example.org/purchase', current_date, NULL,
+             true)`,
+    [OLD_ADDRESSED],
   );
 };
 
@@ -198,17 +207,19 @@ test('a person fact that cites only an upload with its address shows in the publ
   expect(shown.seen).toStrictEqual([{ entity: 1, layout: 1, map: 1 }]);
 });
 
-test('an upload with no address and a bought upload do not make a person fact public', async () => {
+test('an upload with no address, a bought upload and an upload from before the rule do not make a person fact public', async () => {
   const shown = await rolledBack('superuser', async (ask) => {
     await graph(ask);
     await entity(ask, UNSOURCED, 'person', 'A person of an old upload', [UPLOADED, ADDRESSED], {
       rank: cited('major', [ADDRESSED]),
       birth_year: cited('1960', [UPLOADED]),
       home_town: cited('Elsewhere', [BOUGHT_FILE]),
+      employer: cited('A shipyard', [OLD_ADDRESSED]),
     });
     await entity(ask, BOUGHT_ONLY, 'person', 'A person of a bought upload', [
       BOUGHT_FILE,
       UPLOADED,
+      OLD_ADDRESSED,
     ]);
     return {
       keys: await keysAs(ask, 'gabriel_read', UNSOURCED),

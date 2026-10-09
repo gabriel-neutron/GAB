@@ -79,8 +79,11 @@ person, or a relation that names a person) shows only when one of its sources is
 document, and a person with no public source does not show. A public document is one that anyone
 can open at a public address: a web page, a public registry or API, or a file that the operator
 uploaded with the address where it comes from. The upload refuses a file with no address, and an
-older upload with no address is not public. A bought file is not public. A file is bought when it
-has a price or when its provider sells its filings, because an unknown price is not a free file.
+older upload with no address is not public. A new upload of the same bytes gives its address to
+such an upload, and never changes an address that is there. An upload stored before this rule is
+not public, also with an address, because its address can be the page where the file was bought.
+A bought file is not public. A file is bought when it has a price or when its provider sells its
+filings, because an unknown price is not a free file.
 An act about a person also shows only when each person that it names is public. An entity that a
 later act retyped stays a person for the older acts about it. The rule covers an entity of the
 type person only, and not an entity with no known type. The views of the read API apply this

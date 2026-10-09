@@ -23,6 +23,8 @@ const OPTIONS = {
   kind: 'file',
   title: undefined,
   uri: undefined,
+  providerId: undefined,
+  costEur: undefined,
   dryRun: false,
 } as const;
 const WALK = { recursive: true, include: ['*.pdf'] };

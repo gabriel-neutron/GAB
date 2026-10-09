@@ -3460,6 +3460,51 @@ BEGIN
   RETURN v_count;
 END $$;
 
+-- PU1, THE ADDRESS OF A KNOWN UPLOAD. The same bytes are stored once, so a second upload of a file
+-- reaches the row of the first one. An older upload can have no address, and the address makes
+-- it a public document. This door gives the address to such a row, and it never changes an
+-- address that a row holds. It answers what it found, so the caller can tell the operator:
+--   filled       the row had no address, and it holds this one now;
+--   same         the row holds this address already;
+--   other        the row holds another address, and keeps it;
+--   before_rule  the row held its address before the ruling of 9 October 2026 (migration 0066),
+--                so the address is not public, and the row keeps it;
+--   not_a_file   the row is not an upload, so its address does not come from an upload.
+-- The row lock makes two uploads of the same bytes fill the address once.
+CREATE OR REPLACE FUNCTION fill_document_uri(p_document text, p_uri text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind   text;
+  v_uri    text;
+  v_before boolean;
+BEGIN
+  IF btrim(coalesce(p_uri, ''), E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'the address is blank' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT d.kind, d.uri, d.uri_before_pu1 INTO v_kind, v_uri, v_before
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind <> 'file' THEN
+    RETURN 'not_a_file';
+  END IF;
+  IF btrim(coalesce(v_uri, ''), E' \t\n\r\f\v') = '' THEN
+    UPDATE public.documents SET uri = p_uri WHERE id = p_document::doc_id;
+    RETURN 'filled';
+  END IF;
+  IF v_before THEN
+    RETURN 'before_rule';
+  END IF;
+  IF v_uri = p_uri THEN
+    RETURN 'same';
+  END IF;
+  RETURN 'other';
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
