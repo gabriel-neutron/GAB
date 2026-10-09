@@ -4229,10 +4229,11 @@ BEGIN
 END $$;
 
 -- IS THE SEARCH OVER AND THE UNIT STILL WEAK? The search is over when its lead ended well (done)
--- and no extraction of a page that it stored is open. A lead that failed, or that stopped at its
--- budget, did not finish its search, so it never rejects. The unit is weak when it has sources,
--- and each one has a letter D or E. A source whose check did not pass is no source here. An
--- author with no letter counts as F, so such a unit is kept, because a letter can come later. A
+-- and no extraction of a page that it stored is open. A search that stops at its budget ends well:
+-- the budget is its one stop, so it counts as a search that found no new source. A lead that failed
+-- for another reason did not finish its search, so it never rejects. The unit is weak when it has
+-- sources, and each one has a letter D or E. A source whose check did not pass is no source here.
+-- An author with no letter counts as F, so such a unit is kept, because a letter can come later. A
 -- fact with no passed check is not judged, so a unit with such a fact is kept. A claim that a rule
 -- rejected is not "rejected before": a later source can change a weak verdict. No role holds this
 -- step.

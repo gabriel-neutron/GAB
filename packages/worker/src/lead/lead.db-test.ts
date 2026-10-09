@@ -210,12 +210,13 @@ test('the budget of a deepening search stops the lead in place of the cap of the
     await ask('UPDATE public.jobs SET token_budget = 30 WHERE id = $1', [job]);
     const router = routerOf(() => toolCallOf('web_search', { query: LEAD }));
 
-    // The cap of the worker is large, and the budget of the search is small.
-    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'failed', job });
+    // The cap of the worker is large, and the budget of the search is small. The budget is the
+    // one stop of a deepening search, so the search ends well and the rule judges the unit.
+    expect(await step(CONFIG, router, reachOf())).toStrictEqual({ did: 'done', job });
 
     expect(router.chats()).toBe(3);
     expect(jobRow.parse(await ask(JOB, [job]))).toStrictEqual([
-      { status: 'failed', failure_reason: 'the token budget of this lead is spent' },
+      { status: 'done', failure_reason: null },
     ]);
   });
 });

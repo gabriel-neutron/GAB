@@ -63,6 +63,9 @@ importers:
       '@gab/store':
         specifier: workspace:*
         version: link:packages/store
+      '@gab/tools':
+        specifier: workspace:*
+        version: link:packages/tools
       '@gab/worker':
         specifier: workspace:*
         version: link:packages/worker

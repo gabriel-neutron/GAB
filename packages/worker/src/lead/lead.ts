@@ -150,14 +150,24 @@ export const makeLeadAgent = (config: LeadConfig, options: LeadOptions): RunnerA
     ];
     // No page limit and no turn limit: the token budget of the job is the one stop.
     for (;;) {
-      const asked = await withinBudget(
-        context.ask(config.model, {
-          messages: [...messages],
-          shape: finalAnswer,
-          tools: OFFER.forModel,
-        }),
-        BUDGET_SPENT,
-      );
+      let asked;
+      try {
+        asked = await withinBudget(
+          context.ask(config.model, {
+            messages: [...messages],
+            shape: finalAnswer,
+            tools: OFFER.forModel,
+          }),
+          BUDGET_SPENT,
+        );
+      } catch (cause) {
+        // A deepening search ends at its budget: that is its normal end, so the job is done and
+        // the rule judges the unit again. A lead of the operator has no budget, and the cap of
+        // the worker fails it with the reason.
+        if (job.tokenBudget !== null && cause instanceof JobStop && cause.reason === BUDGET_SPENT)
+          return { refusals };
+        throw cause;
+      }
       // An answer that costs no token never spends the budget, and the budget is the one stop.
       if (asked.tokens === 0) throw new JobStop(NO_COUNT);
       if (asked.kind === 'value') return { refusals };
