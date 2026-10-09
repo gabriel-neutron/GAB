@@ -47,12 +47,23 @@ export type Decision =
       readonly controller: string | null;
       readonly party: boolean;
     }
-  | { readonly kind: 'refused'; readonly reason: string };
+  | {
+      readonly kind: 'refused';
+      readonly reason: string;
+      /** True when the answer compares with an author outside the reference set. The rater asks
+       * the model again once for this refusal, and for no other. */
+      readonly outsideSet?: true;
+    };
 
 // The same form as name_key() in the record: one space, lower case, no edge space.
 const keyOf = (name: string): string => name.replace(/\s+/gu, ' ').trim().toLowerCase();
 
 const refuse = (reason: string): Decision => ({ kind: 'refused', reason });
+
+/** The names of the reference set, as the record gives them. The model may compare with these
+ * names only. */
+export const referenceNames = (authors: readonly KnownAuthor[]): string[] =>
+  authors.filter((one) => one.reference).map((one) => one.name);
 
 /** Judges one answer against the known authors. A refused answer stores nothing, so the author
  * stays F. The record checks the same rules again in its doors. */
@@ -87,9 +98,11 @@ export const decide = (
     return refuse('the answer names no reference author that it compared with');
   const stranger = given.references.find((_word, index) => compared[index] === undefined);
   if (stranger !== undefined)
-    return refuse(
-      `the answer compares with "${stranger}", and the reference set has no such author`,
-    );
+    return {
+      kind: 'refused',
+      reason: `the answer compares with "${stranger}", and the reference set has no such author`,
+      outsideSet: true,
+    };
 
   const controller = given.controller?.trim() ?? '';
   if (given.party && controller === '')
