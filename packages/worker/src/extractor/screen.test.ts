@@ -253,4 +253,37 @@ test('an entity of an earlier part with a new geometry stays with its geometry',
 
   expect(refsOf(again.items)).toStrictEqual([]);
   expect(again.dropped).toStrictEqual({ duplicate_in_job: 1 });
+
+  // The same geometry with its keys in another order adds nothing.
+  const turned = { coordinates: [69.8, 22.4] as [number, number], type: 'Point' as const };
+  const reordered = screenBatch([port('sikka', turned)], WORDS, placed);
+
+  expect(refsOf(reordered.items)).toStrictEqual([]);
+  expect(reordered.dropped).toStrictEqual({ duplicate_in_job: 1 });
+});
+
+test('an entity of an earlier part with the same attributes adds nothing', () => {
+  const seen = new Map(
+    screenBatch([entity('nayara', 'vessel', 'Nayara', { flag: { v: 'India' } })], WORDS, new Map())
+      .proposed,
+  );
+
+  const same = screenBatch(
+    [entity('nayara', 'vessel', 'Nayara', { flag: { v: 'India' } })],
+    WORDS,
+    seen,
+  );
+
+  expect(refsOf(same.items)).toStrictEqual([]);
+  expect(same.dropped).toStrictEqual({ duplicate_in_job: 1 });
+
+  // A new value of an attribute adds something.
+  const other = screenBatch(
+    [entity('nayara', 'vessel', 'Nayara', { flag: { v: 'Panama' } })],
+    WORDS,
+    seen,
+  );
+
+  expect(refsOf(other.items)).toStrictEqual(['nayara']);
+  expect(other.dropped).toStrictEqual({});
 });

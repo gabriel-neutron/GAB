@@ -85,13 +85,23 @@ const isEmail = (key: string, value: Attrs[string]['v']): boolean =>
     (one) => typeof one === 'string' && EMAIL.test(one),
   );
 
+// The JSON text of a value with the keys of each object in sorted order.
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_key, part: unknown) =>
+    part !== null && typeof part === 'object' && !Array.isArray(part)
+      ? Object.fromEntries(
+          Object.entries(part as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)),
+        )
+      : part,
+  );
+
 /** Code drops each item of one answer that a rule can refuse, before the propose tool writes it.
  * `seen` holds the key and the item of each entity that earlier parts of the job proposed. Such an
- * entity is still a pending proposal, so the model cannot name it by its id. Code keeps it again
- * when a kept relation of the batch names it or when it has attributes, and drops it only when it
- * adds nothing. A repeat with no attributes that a relation names is sent as the act of the earlier
- * part, with its label and its passages, so the door returns the act that waits and the job gives
- * one proposal for the entity. */
+ * entity is still a pending proposal, so the model cannot name it by its id. Code keeps it as its
+ * own item when it adds something: an attribute or a geometry that the earlier act does not have.
+ * Code drops a repeat that adds nothing, unless a kept relation of the batch names it. Such a
+ * repeat is sent as the act of the earlier part, with its label and its passages. The door then
+ * returns the act that waits, and the job gives one proposal for the entity. */
 export const screenBatch = (
   given: readonly ScreenItem[],
   words: Vocabulary,
@@ -196,16 +206,21 @@ export const screenBatch = (
   });
   relationsStay();
 
-  // An entity of an earlier part stays only when a kept relation names it or it adds something:
-  // an attribute, or a geometry that the earlier act does not have. An empty attributes object
-  // adds nothing. Nothing names a dropped repeat, so no relation falls with it.
+  // An entity of an earlier part stays only when a kept relation names it or it adds something.
+  // A repeat adds something when it has an attribute or a geometry that the earlier act does not
+  // have. Code compares the values with their keys in sorted order, so the key order of the model
+  // has no effect. An empty attributes object adds nothing. Nothing names a dropped repeat, so no
+  // relation falls with it.
   const named = new Set(
     items.flatMap(({ act }) => (act.op === 'create_relation' ? [act.srcId, act.dstId] : [])),
   );
   const addsTo = (act: ScreenItem['act'], earlier: ScreenItem['act']): boolean => {
     if (act.op !== 'create_entity' || earlier.op !== 'create_entity') return false;
-    if (Object.keys(act.attrs ?? {}).length > 0) return true;
-    return act.geom !== undefined && JSON.stringify(act.geom) !== JSON.stringify(earlier.geom);
+    const before = earlier.attrs ?? {};
+    const newAttr = Object.entries(act.attrs ?? {}).some(
+      ([key, value]) => before[key] === undefined || canonical(value) !== canonical(before[key]),
+    );
+    return newAttr || (act.geom !== undefined && canonical(act.geom) !== canonical(earlier.geom));
   };
   items = items.flatMap((item) => {
     const { ref, act } = item;
