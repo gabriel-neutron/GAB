@@ -3877,9 +3877,14 @@ END $$;
 CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text) RETURNS text
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT CASE
-    WHEN p_key ~ '[^[:space:];,][[:space:]]*[;,][[:space:]]*[^[:space:];,]'
+    WHEN p_key ~ '[^[:space:];,][[:space:]]*;[[:space:]]*[^[:space:];,]'
+      OR (p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
+          -- A legal form after a comma is a part of the name of one company.
+          AND regexp_replace(p_key, ',[[:space:]]*(inc|ltd|llc|plc|pjsc|pao|jsc|oao|ooo|zao|co|'
+                                    'corp|ag|gmbh|sa|s\.a|nv|bv|limited)\.?(?=$|[[:space:],])',
+                             '', 'g') ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]')
       THEN format('the name "%s" holds two authors and joins no author', p_key)
-    WHEN regexp_replace(p_key, '^the ', '') = ANY (ARRAY[
+    WHEN regexp_replace(replace(p_key, '.', ''), '^the ', '') = ANY (ARRAY[
            'uk', 'us', 'usa', 'eu', 'un', 'russia', 'russian federation', 'ukraine', 'china',
            'india', 'iran', 'united kingdom', 'united states', 'european union', 'government',
            'secretary of state', 'minister', 'ministry', 'authorities', 'officials', 'official',
@@ -3900,6 +3905,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_author uuid := public.author_of(p_known_name);
+  v_no_join text := public.name_joins_no_author(v_key);
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
@@ -3912,9 +3918,8 @@ BEGIN
     RAISE EXCEPTION 'the name "%" already has an author', v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF public.name_joins_no_author(v_key) IS NOT NULL THEN
-    RAISE EXCEPTION '%', public.name_joins_no_author(v_key)
-      USING ERRCODE = 'invalid_parameter_value';
+  IF v_no_join IS NOT NULL THEN
+    RAISE EXCEPTION '%', v_no_join USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.author_name (name_key, author_id, doubt)
   VALUES (v_key, v_author,

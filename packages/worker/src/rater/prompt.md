@@ -15,10 +15,10 @@ The letters:
 
 Answer with JSON only, in one of two shapes.
 
-1. The name is another way to write a known author. A name that holds two authors ("OFAC;
-   Reuters") and a generic name ("uk", "the secretary of state") are never a known author. Use the
-   name of that known author:
+1. The name is another way to write a known author. Use the name of that known author:
    `{"kind": "same", "as": "<name of the known author>"}`
+   A name that holds two authors ("OFAC; Reuters") and a generic name ("uk", "the secretary of
+   state") are never a known author.
 
 2. The name is a new author:
    `{"kind": "new", "letter": "C", "reason": "<one short sentence>", "references": ["<reference author>"], "controller": null, "party": false}`
