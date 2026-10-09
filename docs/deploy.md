@@ -116,8 +116,6 @@ each act of that name, so the name reads as F and its units are a doubt until yo
    `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
    new author. The rules then read the units of the name again. A decision is final.
 
-The review page shows the same list, with the same two actions.
-
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
 gives no result. A lead runs only when the operator or the research AI starts it: no schedule
