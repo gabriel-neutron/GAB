@@ -37,7 +37,7 @@ test('an entity or a relation with a type outside the vocabulary is dropped, and
       relation('r1', 'competes_with', 'spfs', 'swift'),
     ],
     WORDS,
-    new Set(),
+    new Map(),
   );
 
   expect(refsOf(screened.items)).toStrictEqual(['spfs', 'swift']);
@@ -58,7 +58,7 @@ test('a generic group of countries is no state body, and a named body or state s
       entity('s4', 'state_body', 'Bank of Russia'),
     ],
     WORDS,
-    new Set(),
+    new Map(),
   );
 
   expect(refsOf(screened.items)).toStrictEqual(['s1', 's2', 's3', 's4']);
@@ -77,7 +77,7 @@ test('a generic concept is no legal act, and a named act stays', () => {
       entity('a7', 'legal_act', 'sanctions'),
     ],
     WORDS,
-    new Set(),
+    new Map(),
   );
 
   expect(refsOf(screened.items)).toStrictEqual(['a3', 'a4', 'a5', 'a6']);
@@ -101,7 +101,7 @@ test('a person stays only with a designation, an appointment or an ownership in 
       relation('r3', 'operates', 'quoted', 'firm'),
     ],
     WORDS,
-    new Set(),
+    new Map(),
   );
 
   expect(refsOf(screened.items)).toStrictEqual(['listed', 'act', 'firm', 'director', 'r1', 'r2']);
@@ -128,7 +128,7 @@ test('the same entity again in one batch is dropped, and its relations name the 
       relation('r1', 'settles_through', 'bank', 'swift_2'),
     ],
     WORDS,
-    new Set(),
+    new Map(),
   );
 
   expect(refsOf(screened.items)).toStrictEqual(['swift', 'bank', 'r1']);
@@ -137,8 +137,8 @@ test('the same entity again in one batch is dropped, and its relations name the 
 });
 
 test('an entity of an earlier part that adds nothing is dropped, and one that a kept relation names stays', () => {
-  const first = screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Set());
-  const seen = new Set(first.proposed);
+  const first = screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Map());
+  const seen = new Map(first.proposed);
 
   const screened = screenBatch(
     [
@@ -155,6 +155,12 @@ test('an entity of an earlier part that adds nothing is dropped, and one that a 
   // its relation. The same name with another type is another entity.
   expect(refsOf(screened.items)).toStrictEqual(['swift', 'spfs', 'swift_bank', 'r1']);
   expect(screened.dropped).toStrictEqual({});
+  // The repeat is the act of the first part, with its label and its passages, so the door returns
+  // the act that waits and the job gives one proposal for SWIFT.
+  expect(screened.items[0]).toStrictEqual({ ...first.items[0], ref: 'swift' });
+  expect(screened.items[0]?.evidence).toStrictEqual([
+    { document: 'doc_a', page: 1, excerpt: 'SWIFT' },
+  ]);
 
   const bare = screenBatch(
     [
@@ -177,8 +183,8 @@ test('an entity of an earlier part that adds nothing is dropped, and one that a 
 });
 
 test('an entity of an earlier part with attributes stays', () => {
-  const seen = new Set(
-    screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Set()).proposed,
+  const seen = new Map(
+    screenBatch([entity('swift', 'company', 'SWIFT')], WORDS, new Map()).proposed,
   );
   const screened = screenBatch(
     [entity('swift', 'company', 'Swift', { hq_country: { v: 'BE' } })],

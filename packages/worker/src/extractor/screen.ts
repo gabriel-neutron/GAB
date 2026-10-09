@@ -19,12 +19,13 @@ interface Vocabulary {
   readonly relationTypes: readonly string[];
 }
 
-/** The items that code keeps, the count of each drop, and the key of each entity that the kept
- * items create. A later part of the same job takes these keys as the entities it already has. */
+/** The items that code keeps, the count of each drop, and the key and the item of each entity
+ * that the kept items create. A later part of the same job takes these as the entities it already
+ * has. */
 export interface Screened {
   readonly items: ScreenItem[];
   readonly dropped: Partial<Record<DropReason, number>>;
-  readonly proposed: string[];
+  readonly proposed: (readonly [string, ScreenItem])[];
 }
 
 // The publication rule: a person is named only when a sanctions act designates the person, or a
@@ -85,14 +86,16 @@ const isEmail = (key: string, value: Attrs[string]['v']): boolean =>
   );
 
 /** Code drops each item of one answer that a rule can refuse, before the propose tool writes it.
- * `seen` holds the keys of the entities that earlier parts of the job proposed. Such an entity is
- * still a pending proposal, so the model cannot name it by its id. Code keeps it again when a kept
- * relation of the batch names it or when it has attributes, and drops it only when it adds
- * nothing. */
+ * `seen` holds the key and the item of each entity that earlier parts of the job proposed. Such an
+ * entity is still a pending proposal, so the model cannot name it by its id. Code keeps it again
+ * when a kept relation of the batch names it or when it has attributes, and drops it only when it
+ * adds nothing. A repeat with no attributes that a relation names is sent as the act of the earlier
+ * part, with its label and its passages, so the door returns the act that waits and the job gives
+ * one proposal for the entity. */
 export const screenBatch = (
   given: readonly ScreenItem[],
   words: Vocabulary,
-  seen: ReadonlySet<string>,
+  seen: ReadonlyMap<string, ScreenItem>,
 ): Screened => {
   const dropped: Partial<Record<DropReason, number>> = {};
   const drop = (reason: DropReason): false => {
@@ -103,8 +106,8 @@ export const screenBatch = (
   // The ref of a duplicate in this batch, and the ref of the first item that creates the entity.
   const sameAs = new Map<string, string>();
   const firstOf = new Map<string, string>();
-  // The refs of the entities that an earlier part of the job proposed.
-  const repeats = new Set<string>();
+  // The ref of each entity that an earlier part of the job proposed, and the item of that part.
+  const repeats = new Map<string, ScreenItem>();
 
   const entityStays = (item: ScreenItem): boolean => {
     const { act } = item;
@@ -119,7 +122,8 @@ export const screenBatch = (
       return drop('duplicate_in_job');
     }
     firstOf.set(key, item.ref);
-    if (seen.has(key)) repeats.add(item.ref);
+    const earlier = seen.get(key);
+    if (earlier !== undefined) repeats.set(item.ref, earlier);
     return true;
   };
 
@@ -197,16 +201,26 @@ export const screenBatch = (
   const named = new Set(
     items.flatMap(({ act }) => (act.op === 'create_relation' ? [act.srcId, act.dstId] : [])),
   );
-  items = items.filter(({ ref, act }) => {
-    const addsSomething = named.has(ref) || (act.op === 'create_entity' && act.attrs !== undefined);
-    return !repeats.has(ref) || addsSomething ? true : drop('duplicate_in_job');
+  items = items.flatMap((item) => {
+    const { ref, act } = item;
+    const earlier = repeats.get(ref);
+    if (earlier === undefined) return [item];
+    if (act.op === 'create_entity' && act.attrs !== undefined) return [item];
+    if (!named.has(ref)) {
+      drop('duplicate_in_job');
+      return [];
+    }
+    // The door joins an act to the pending act with the same payload and the same passages.
+    return [{ ...earlier, ref }];
   });
 
   return {
     items,
     dropped,
-    proposed: items.flatMap(({ act }) =>
-      act.op === 'create_entity' ? [keyOf(act.type, act.label)] : [],
+    proposed: items.flatMap((item) =>
+      item.act.op === 'create_entity'
+        ? [[keyOf(item.act.type, item.act.label), item] as const]
+        : [],
     ),
   };
 };
