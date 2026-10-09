@@ -60,6 +60,23 @@ const HTML =
 
 const SHORT = `<html><head><title>An app</title></head><body><div id="root">Run ${RUN}</div></body></html>`;
 
+// A page of a forum in windows-1251. The server names no charset, and only the meta element does.
+// The comment makes other bytes for each run.
+let cp1251: Buffer;
+
+// The script of a wiki names a CAPTCHA for its own forms, in a long page of normal text.
+const WIKI =
+  '<html><head><title>A wiki article</title><script>var config = {"wgConfirmEditConfig":' +
+  '{"captchaType":"fancycaptcha"}};</script></head><body><article><h1>A shipping company</h1>' +
+  `<p>Run ${RUN}. ${'The company owns three tankers, and each one changed its flag in the year. '.repeat(30)}</p>` +
+  '</article></body></html>';
+
+// A short page with a CAPTCHA widget, and enough text that it is no shell and no challenge.
+const WIDGET =
+  '<html><head><title>A login</title></head><body><article><h1>Members of the forum</h1>' +
+  `<p>Run ${RUN}. ${'Only a member of the forum reads the threads of this section. '.repeat(5)}</p>` +
+  '<div class="cf-turnstile" data-sitekey="x"></div></article></body></html>';
+
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
 // Each image holds large English and Cyrillic words, so a check of whole words stays true when OCR
@@ -74,6 +91,10 @@ let base: string;
 beforeAll(async () => {
   png = await readFile(join(IMAGES, 'unit-tree.png'));
   jpeg = await readFile(join(IMAGES, 'unit-tree.jpg'));
+  cp1251 = Buffer.concat([
+    await readFile(join(IMAGES, 'windows-1251.html')),
+    Buffer.from(`<!-- Run ${RUN} -->`),
+  ]);
   fixture = await startFixture({
     // A bare file server names no type, and the type comes from the first bytes.
     '/tree': { body: png },
@@ -82,6 +103,9 @@ beforeAll(async () => {
     '/moved': { status: 301, headers: { location: '/entry.html' } },
     '/app': { headers: { 'content-type': 'text/html' }, body: SHORT },
     '/notice.pdf': { headers: { 'content-type': 'application/pdf' }, body: PDF },
+    '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
+    '/wiki': { headers: { 'content-type': 'text/html; charset=UTF-8' }, body: WIKI },
+    '/login': { headers: { 'content-type': 'text/html' }, body: WIDGET },
   });
   base = `http://${FIXTURE_HOST}:${fixture.port}`;
 });
@@ -211,6 +235,33 @@ test('an HTML page with little text is stored, and the answer says that it may n
     const got = await fetched(ask, `${base}/app`, fixtureReach(memoryStore()));
     expect(got.status).toBe('stored');
     expect(got.notice).toMatch(/JavaScript/);
+  });
+});
+
+test('a page in windows-1251 gives its title and its text in Cyrillic, and its bytes stay as they came', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/viewtopic.php`, fixtureReach(store));
+    expect(got.title).toBe('Форум — Тема');
+    expect(got.pages[0]?.text).toContain('Танкер сменил флаг три раза за один год');
+    expect(got.notice).toBeNull();
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).equals(cp1251)).toBe(true);
+  });
+});
+
+test('a long page whose script names a CAPTCHA gives no CAPTCHA notice', async () => {
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/wiki`, fixtureReach(memoryStore()));
+    expect(got.status).toBe('stored');
+    expect(got.notice).toBeNull();
+  });
+});
+
+test('a short page with a CAPTCHA widget is stored, and the answer says that it looks like a CAPTCHA', async () => {
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/login`, fixtureReach(memoryStore()));
+    expect(got.status).toBe('stored');
+    expect(got.notice).toMatch(/looks like a CAPTCHA page/);
   });
 });
 

@@ -1,6 +1,9 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { describe, expect, test } from 'vitest';
 
-import { extractText } from './extract.ts';
+import { decodeHtml, extractText } from './extract.ts';
 
 const bytesOf = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -101,5 +104,32 @@ describe('extractText', () => {
 
   test('a ZIP is refused with its reason', async () => {
     await expect(extractText(bytesOf('PK'), 'application/zip')).rejects.toThrow(/application\/zip/);
+  });
+
+  test('an HTML page in windows-1251 gives Cyrillic text, from the charset of its meta element', async () => {
+    const bytes = await readFile(join(import.meta.dirname, '../fixtures/windows-1251.html'));
+    const { pages } = await extractText(bytes, 'text/html');
+    expect(pages[0]).toContain('Танкер сменил флаг три раза за один год');
+    expect(pages[0]).toContain('Ёлка, щука, объявление');
+    expect(decodeHtml(bytes)).toContain('<title>Форум — Тема</title>');
+  });
+
+  test('the charset of the type comes before the meta element', async () => {
+    // "Танкер сменил флаг" in koi8-r, in a page whose meta element names another charset.
+    const koi8 = Uint8Array.of(
+      ...[244, 193, 206, 203, 197, 210, 32, 211, 205, 197, 206, 201, 204, 32, 198, 204, 193, 199],
+    );
+    const head = bytesOf('<html><head><meta charset="windows-1251"></head><body><p>');
+    const html = Uint8Array.of(...head, ...koi8, ...bytesOf('</p></body></html>'));
+    const { pages } = await extractText(html, 'text/html; charset="KOI8-R"');
+    expect(pages[0]).toBe('Танкер сменил флаг');
+  });
+
+  test('a page with no charset, or with an unknown one, is read as UTF-8', async () => {
+    const html = bytesOf(
+      '<html><head><meta charset="no-such-charset"></head><body><p>Київ</p></body></html>',
+    );
+    expect((await extractText(html, 'text/html')).pages[0]).toBe('Київ');
+    expect((await extractText(html, 'text/html; charset=bogus')).pages[0]).toBe('Київ');
   });
 });
