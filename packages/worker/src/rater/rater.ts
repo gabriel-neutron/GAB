@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import { readRaterConfig, type RaterConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
-import { decide, ratingAnswer, ratingContext } from './answer.ts';
+import { decide, ratingAnswer, ratingContext, referenceNames } from './answer.ts';
 
 const RATER_NAME = 'rater';
-const VERSION = 'v1';
+const VERSION = 'v2';
 
 const CONTEXT = 'SELECT public.rating_context($1::text) AS context';
 const STORE = `SELECT public.store_author_letter($1::text, $2::text, $3::text, $4::text,
@@ -36,18 +36,23 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
     const read = row?.context;
     if (read === undefined || read.resolved) return { refusals: [] };
 
+    const references = referenceNames(read.authors);
     const messages: Message[] = [
       { role: 'system', content: prompt },
-      { role: 'user', content: JSON.stringify({ name, authors: read.authors }) },
+      { role: 'user', content: JSON.stringify({ name, references, authors: read.authors }) },
     ];
-    const asked = await withinBudget(
-      context.ask(config.model, { messages, shape: ratingAnswer }),
-      'the token budget of this rating is spent',
-    );
-    if (asked.kind === 'call')
-      throw new JobStop('the model answered with a tool call, and the rater offers no tool');
-
-    const decision = decide(name, asked.value, read.authors);
+    let asked = await askOnce(context, messages);
+    let decision = decide(name, asked.value, read.authors);
+    // A comparison with an author outside the reference set gets one more question, with the
+    // exact list. A second wrong answer is refused.
+    if (decision.kind === 'refused' && decision.outsideSet === true) {
+      messages.push(
+        { role: 'assistant', content: JSON.stringify(asked.value) },
+        { role: 'user', content: againOf(decision.reason, references) },
+      );
+      asked = await askOnce(context, messages);
+      decision = decide(name, asked.value, read.authors);
+    }
     // The record keeps the name of the model that gave the answer.
     const model = asked.served;
     try {
@@ -75,6 +80,16 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
     return { refusals: [] };
   };
 
+  const askOnce = async (context: AgentContext, messages: readonly Message[]) => {
+    const asked = await withinBudget(
+      context.ask(config.model, { messages, shape: ratingAnswer }),
+      'the token budget of this rating is spent',
+    );
+    if (asked.kind === 'call')
+      throw new JobStop('the model answered with a tool call, and the rater offers no tool');
+    return asked;
+  };
+
   return {
     name: RATER_NAME,
     version: VERSION,
@@ -84,6 +99,10 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
     run,
   };
 };
+
+const againOf = (reason: string, references: readonly string[]): string =>
+  `Your answer is refused: ${reason}. Compare only with the names in this list, written as they ` +
+  `stand: ${JSON.stringify(references)}. Answer again with JSON only.`;
 
 const REFUSAL_CLASSES = ['22', '23'];
 
