@@ -4,10 +4,17 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { fixtureReach, memoryStore } from '@gab/tools/fetch-fixture';
+import { json, stubWeb } from '@gab/tools/web-stub';
+import { makeLeadAgent } from '@gab/worker/lead';
+import { openRunner } from '@gab/worker/runner';
+import { depsOf, READER, routerOf, toolCallOf } from '@gab/worker/runner-fixture';
+import { Client } from 'pg';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { as, cited, label, rate, type Cited } from './author-fixture.ts';
+import { connectionString } from './db-runtime.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const BUDGET = 40_000;
@@ -93,7 +100,7 @@ const ends = (ask: Ask, job: string, how: 'done' | 'failed'): Promise<unknown> =
   as(ask, 'gabriel_agent', () =>
     how === 'done'
       ? ask('SELECT public.complete_job($1::uuid)', [job])
-      : ask("SELECT public.fail_job($1::uuid, 'the token budget of this lead is spent')", [job]),
+      : ask("SELECT public.fail_job($1::uuid, 'the model account has no credit left')", [job]),
   );
 
 test('the budget starts at zero, so no deepening search runs', async () => {
@@ -175,7 +182,7 @@ test.each([
   }
 });
 
-test('a search that failed or stopped at its budget rejects nothing', async () => {
+test('a search that failed for a reason other than its budget rejects nothing', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     await budgeted(ask, BUDGET);
     const one = await weak(ask, 'D');
@@ -313,4 +320,95 @@ test('a search that finds a source C keeps the unit', async () => {
     return statusOf(ask, first.act);
   });
   expect(read.status).not.toBe('rejected');
+});
+
+// THE REAL PATH OF THE WORKER. The runner claims the deepening search and the lead agent runs it,
+// with a stub router in place of the model service: no call leaves the machine. Each answer of
+// the stub costs twelve tokens, so a budget of 30 tokens stops the search at its third question.
+const SMALL_BUDGET = 30;
+
+const throughRunner = async <T>(
+  work: (ask: Ask, step: () => Promise<unknown>) => Promise<T>,
+): Promise<T> => {
+  const client = new Client({ connectionString: connectionString('superuser') });
+  await client.connect();
+  const ask: Ask = async (text, values) =>
+    (await client.query(text, values === undefined ? undefined : [...values])).rows as unknown[];
+  // The search loops: it asks for a web search at each question, and the web finds nothing.
+  const router = routerOf(() => toolCallOf('web_search', { query: 'a better source' }));
+  const reach = {
+    ...fixtureReach(memoryStore()),
+    web: stubWeb(() => json({ results: [] }), { searxngUrl: 'http://searxng.test' }),
+  };
+  const lead = makeLeadAgent({ model: READER, tokenCap: 10_000 }, { reach });
+  const step = async (): Promise<unknown> => {
+    const { deps } = depsOf(client, [lead], router);
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_agent');
+    try {
+      return await (await openRunner(deps)).step();
+    } finally {
+      await ask('RESET SESSION AUTHORIZATION');
+    }
+  };
+  try {
+    await ask('BEGIN');
+    try {
+      const done = await work(ask, step);
+      expect(router.chats()).toBe(3);
+      return done;
+    } finally {
+      await ask('ROLLBACK');
+    }
+  } finally {
+    await client.end();
+  }
+};
+
+const searchThroughRunner = (letter: string) =>
+  throughRunner(async (ask, step) => {
+    await budgeted(ask, SMALL_BUDGET);
+    const one = await weak(ask, letter);
+    const [search] = await deepeningOf(ask, one.act);
+    if (search === undefined) throw new Error('the search did not start');
+    // The runner takes the oldest queued job, so this search goes first.
+    await ask("UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1", [search.id]);
+    const stepped = await step();
+    const [ended] = jobs.parse(
+      await ask('SELECT id, status, lead, lead_by, token_budget FROM public.jobs WHERE id = $1', [
+        search.id,
+      ]),
+    );
+    // The lead agent proposes nothing: no act comes from a model call of the search.
+    const [proposed] = z.array(z.object({ n: z.number() })).parse(
+      await ask(
+        `SELECT count(*)::int AS n FROM public.proposals p
+             JOIN public.model_call m ON m.id = p.model_call_id WHERE m.job_id = $1`,
+        [search.id],
+      ),
+    );
+    return {
+      search: search.id,
+      stepped,
+      ended,
+      proposed: proposed?.n,
+      state: await statusOf(ask, one.act),
+    };
+  });
+
+test('a search that stops at its budget finds no new source, so the rule rejects a unit of D', async () => {
+  const read = await searchThroughRunner('D');
+  expect(read.stepped).toStrictEqual({ did: 'done', job: read.search });
+  expect(read.ended).toMatchObject({ status: 'done', token_budget: SMALL_BUDGET });
+  expect(read.proposed).toBe(0);
+  expect(read.state.status).toBe('rejected');
+  expect(read.state.decided_as).toBe('rule');
+  expect(read.state.decided_by).toMatch(/^rule weak_sources v\d+$/u);
+  expect(read.state.decision_origin).toMatch(/^rule weak_sources v\d+ \(fact digits: /u);
+});
+
+test('a search that stops at its budget keeps a unit with a better source waiting', async () => {
+  const read = await searchThroughRunner('C');
+  expect(read.stepped).toStrictEqual({ did: 'done', job: read.search });
+  expect(read.ended).toMatchObject({ status: 'done' });
+  expect(read.state).toMatchObject({ status: 'pending', decided_by: null });
 });
