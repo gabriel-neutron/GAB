@@ -151,6 +151,7 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('flagged_falsely',   'flagged falsely',   'is flagged falsely by',        false),
   ('contradicts',       'contradicts',       'is contradicted by',           false),
   ('subordinate_to',    'subordinate to',    'is superior to',               false),
+  ('associated_with',   'associated with',   'is associated with',           false),
   ('unknown',           'is linked to',      'is linked to',                 false)
 ON CONFLICT (key) DO UPDATE SET
   label          = EXCLUDED.label,
