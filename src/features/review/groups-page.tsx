@@ -32,7 +32,8 @@ const selectedOf = (view: GroupView): string | null => {
 };
 
 /** The groups of the queue in two columns: the rail of the groups, and one group with its group
- * action. Each column scrolls on its own. */
+ * action. Each column scrolls on its own. Below a width of 48rem the columns stack: the rail keeps
+ * its own scroll at a capped height, and the page scrolls to the group below it. */
 export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
   const selected = selectedOf(group);
   const cited =
