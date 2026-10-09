@@ -24,9 +24,11 @@ The read API serves the `api` schema as `gabriel_read`. It writes nothing.
 ## The writer and the worker
 
 Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
-The worker is one command with four sub-commands: `pnpm worker run` takes the queued AI jobs,
-`pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout, and
-`pnpm worker reconcile` compares the raw store with the document index. They run as they do
+The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
+`pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
+`pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
+reference-set` manages the reference set of the authors, and `pnpm worker reread-html` reads the
+stored HTML pages again (see below). They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
@@ -104,6 +106,27 @@ the value. A rating waits in the queue until the operator approves the reference
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
 gives no result. A lead runs only when the operator or the research AI starts it: no schedule
 starts one.
+
+### Read the stored HTML pages again
+
+Before PR #416, the fetch tool read each HTML page as UTF-8. A page in windows-1251 or koi8-r got a
+garbled text and a garbled title. Its bytes in the raw store are correct. Run this once on the
+local record, before the vector index is built:
+
+1. `pnpm worker reread-html --dry-run` prints each document whose text or title would change, and
+   writes nothing.
+2. `pnpm worker reread-html` writes the changes.
+
+The command reads each stored HTML or XHTML document (also a saved HTML file) from the raw store,
+with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose bytes are valid
+UTF-8, as UTF-8. When the
+text changes, it writes the text as a new text set, and each reader then reads that set. The old
+set stays, so each citation stays valid. The command lists each citation whose excerpt is not in
+the corrected text: check these citations. The title changes only when the document still holds
+the title that the old reading gave. The command does not change the bytes, the id, the address
+or the date of a document. A second run changes nothing. It gives exit code 1 when a document could
+not be read, with the reason. A page whose charset was only in the header of the answer, and not in
+the page, stays as it is, because the record keeps the type without its charset.
 
 ## Public writes
 
