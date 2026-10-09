@@ -221,6 +221,21 @@ export const ArrivingWithASourceMarksThatCard: Story = {
   },
 };
 
+/** A reader cites the element in a report by its identifier, so the page draws it whole. */
+export const TheHeaderShowsTheIdentifierToCite: Story = {
+  play: async ({ canvasElement }) => {
+    const shown = canvasElement.querySelector<HTMLElement>('[data-identifier]');
+    if (shown === null) throw new Error('The page draws no identifier');
+
+    await expect(shown).toBeVisible();
+    await expect(shown).toHaveTextContent(`Identifier ${DOSSIER.entityId}`);
+    // One click selects the whole value, because a double click stops at each hyphen.
+    // A synthetic click makes no native selection, so the story reads the style that makes it.
+    const value = within(shown).getByText(DOSSIER.entityId);
+    await expect(getComputedStyle(value).userSelect).toBe('all');
+  },
+};
+
 export const NoPlaceholderProseIsDrawn: Story = {
   play: async ({ canvasElement }) => {
     const words = canvasElement.textContent;
