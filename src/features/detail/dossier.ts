@@ -1,7 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
-import { deciderWords } from '@/shared/decider-words';
 import { proposerWords } from '@/shared/proposer-words';
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type {
@@ -251,15 +250,10 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
   );
 }
 
-// The day is written in UTC, so two analysts in two zones read one day.
+// PU1: the origin line is the label that the public data carries, word for word. The record
+// writes the words and the day, so the screen and a copy of the data cannot say two things.
 function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
-  const promotion = decided.find((held) => held.act.id === entityFrom);
-  if (promotion === undefined) return null;
-  const how = deciderWords(promotion.decidedAs, promotion.decisionOrigin, 'accepted');
-  const day = new Date(promotion.decidedAt);
-  const on = Number.isNaN(day.getTime()) ? promotion.decidedAt : day.toISOString().slice(0, 10);
-  const said = `${how.slice(0, 1).toUpperCase()}${how.slice(1)}`;
-  return promotion.decidedAs === 'group' ? `${said}, on ${on}` : `${said} on ${on}`;
+  return decided.find((held) => held.act.id === entityFrom)?.originLabel ?? null;
 }
 
 export function readDossier(
