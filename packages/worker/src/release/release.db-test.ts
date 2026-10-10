@@ -3,7 +3,7 @@
 // in a temporary folder. The test reads the files that the release wrote.
 
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,7 @@ import { roleAddress } from '../address.ts';
 import type { Queryable } from '../queryable.ts';
 import { CriticalNodesSheetFault } from './critical-nodes-sheet.ts';
 import { natoCoverageReport } from './nato-coverage.ts';
+import { PreviousReleaseFault } from './previous-release.ts';
 import { releaseCommand } from './release-command.ts';
 import { readReleaseRecord } from './release-record.ts';
 import { writeRelease } from './release.ts';
@@ -381,6 +382,7 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(made.written.folder).toBe(folder);
   expect((await readdir(folder)).sort()).toStrictEqual([
     'alignment-matrix.csv',
+    'changelog.csv',
     'claims.csv',
     'critical-nodes.csv',
     'dataset.jsonld',
@@ -450,7 +452,12 @@ test('a release writes the public entities, relations and claims, each row with 
     'critical-nodes.csv',
     'entities.geojson',
     'dataset.jsonld',
+    'changelog.csv',
   ]);
+  // With no previous release, the changelog says so and lists no change.
+  const changelogText = await text('changelog.csv');
+  expect(changelogText).toContain('# First release: no earlier release to compare.');
+  expect(tableOf(changelogText)).toStrictEqual([]);
   for (const file of manifest.files) {
     const bytes = await readFile(join(folder, file.path));
     expect(file).toStrictEqual({
@@ -829,6 +836,163 @@ test('a release writes the log of the merges, and a moved value keeps the label 
     '@type': 'Entity',
   });
   expect(jsonld).not.toContain(BOUGHT_TWIN);
+});
+
+test('a release writes the changelog since the previous release folder', async () => {
+  const first = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const second = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const refused = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const previous = join(first, 'gab-release-2026-11-08');
+  const tampered = join(refused, 'tampered');
+  const ids = await inTransaction(async (held) => {
+    const made = await record(held);
+    // The previous release shows the NATO pair, and the new one does not.
+    await pairTheImo(held.ask, made.imoAct);
+    const callSignAct = await entity(held, ABSORBED, 'vessel', 'TEST OLD STAR', [TWO], {
+      call_sign: value('5LAB2', [SDN]),
+    });
+    await cite(held.ask, callSignAct, SDN, 'call sign 5LAB2');
+    await entity(held, UNDONE, 'vessel', 'TEST UNDONE TANKER', [TWO]);
+    const app = held.as('gabriel_app');
+    const MERGE = `SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`;
+    await mergeDoor(app, MERGE, [SECOND, UNDONE]);
+    await writeRelease(app, { ...MANIFEST, showNatoPair: true }, first);
+
+    // Between the two releases: the merge is undone, the old star merges into the second
+    // vessel, and the owner gets a new name.
+    await mergeDoor(app, `SELECT * FROM public.undo_merge('a test', $1::uuid)`, [UNDONE]);
+    await mergeDoor(app, MERGE, [SECOND, ABSORBED]);
+    await held.ask(`UPDATE public.entities SET label = 'TEST OWNER RENAMED' WHERE id = $1`, [
+      OWNER,
+    ]);
+    await writeRelease(app, { ...MANIFEST, date: '2026-12-01' }, second, previous);
+
+    // A previous release that is not earlier, and a copy of it that changed, are refused, and
+    // nothing is written.
+    await expect(writeRelease(app, MANIFEST, refused, previous)).rejects.toThrow(
+      /not before 2026-11-08/u,
+    );
+    await cp(previous, tampered, { recursive: true });
+    const claims = join(tampered, 'claims.csv');
+    await writeFile(claims, (await readFile(claims, 'utf8')).replace('9123456', '9123457'));
+    await expect(
+      writeRelease(app, { ...MANIFEST, date: '2026-12-01' }, refused, tampered),
+    ).rejects.toThrow(PreviousReleaseFault);
+    return made;
+  });
+  expect(await readdir(refused)).toStrictEqual(['tampered']);
+
+  const folder = join(second, 'gab-release-2026-12-01');
+  const text = await readFile(join(folder, 'changelog.csv'), 'utf8');
+  expect(text).toContain('# GAB dataset, version 0.1-test of 01/12/2026.');
+  expect(text).toContain('# Changes since version 0.1-test of 08/11/2026.');
+  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  // S1: the new release does not show the pair, so the changelog copies no letter and no digit
+  // of the previous release.
+  expect(text).not.toMatch(/nato|\b[A-F][1-6]\b|digits?:|letters?:/iu);
+
+  const ours = new Set([...OURS, ABSORBED, UNDONE, ids.owns.id]);
+  const rows = tableOf(text).filter((row) => ours.has((row['id'] ?? '').split('/')[0] ?? ''));
+  expect(rows).toStrictEqual([
+    {
+      kind: 'entity',
+      id: OWNER,
+      change: 'changed',
+      changed_columns: 'label',
+      label: 'TEST OWNER RENAMED',
+      survivor_id: '',
+    },
+    {
+      kind: 'entity',
+      id: ABSORBED,
+      change: 'merged',
+      changed_columns: '',
+      label: 'TEST OLD STAR',
+      survivor_id: SECOND,
+    },
+    {
+      kind: 'entity',
+      id: UNDONE,
+      change: 'unmerged',
+      changed_columns: '',
+      label: 'TEST UNDONE TANKER',
+      survivor_id: SECOND,
+    },
+    {
+      kind: 'claim',
+      id: `${SECOND}/call_sign`,
+      change: 'added',
+      changed_columns: '',
+      label: 'TEST SECOND TANKER: call_sign',
+      survivor_id: '',
+    },
+    {
+      kind: 'claim',
+      id: `${ABSORBED}/call_sign`,
+      change: 'merged',
+      changed_columns: '',
+      label: 'TEST OLD STAR: call_sign',
+      survivor_id: SECOND,
+    },
+  ]);
+
+  // The file manifest lists the changelog with its checksum, and gives a short summary.
+  const manifest = z
+    .object({
+      changelog: z.object({
+        path: z.string(),
+        previous: z.object({ version: z.string(), date: z.string() }),
+        entities: z.record(z.string(), z.number()),
+      }),
+      files: z.array(z.object({ path: z.string(), sha256: z.string() })),
+    })
+    .parse(JSON.parse(await readFile(join(folder, 'manifest.json'), 'utf8')));
+  expect(manifest.changelog).toMatchObject({
+    path: 'changelog.csv',
+    previous: { version: '0.1-test', date: '2026-11-08' },
+    entities: { changed: 1, merged: 1, unmerged: 1 },
+  });
+  expect(manifest.files.find((file) => file.path === 'changelog.csv')?.sha256).toBe(
+    createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex'),
+  );
+});
+
+test('the command refuses a previous release folder that changed after the release', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const previous = join(root, 'previous');
+  await mkdir(previous);
+  await writeFile(join(previous, 'entities.csv'), 'id\r\n');
+  await writeFile(
+    join(previous, 'manifest.json'),
+    JSON.stringify({
+      version: '0.1',
+      date: '2026-11-01',
+      files: [{ path: 'entities.csv', bytes: 4, sha256: '0'.repeat(64) }],
+    }),
+  );
+  const manifest = join(root, 'release.json');
+  await writeFile(manifest, JSON.stringify({ date: '2026-11-08', contacts: MANIFEST.contacts }));
+  const lines: string[] = [];
+  const spy = vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+    lines.push(String(line));
+  });
+  try {
+    expect(
+      await releaseCommand([
+        '--manifest',
+        manifest,
+        '--out',
+        join(root, 'out'),
+        '--previous',
+        previous,
+      ]),
+    ).toBe(2);
+  } finally {
+    spy.mockRestore();
+  }
+  expect(lines.join('\n')).toContain('entities.csv does not agree with its size and its checksum');
+  expect(lines.join('\n')).not.toContain(' at ');
+  expect((await readdir(root)).sort()).toStrictEqual(['previous', 'release.json']);
 });
 
 // The research AI wrote the act that set the IMO number, from the list of an issuer A on its own

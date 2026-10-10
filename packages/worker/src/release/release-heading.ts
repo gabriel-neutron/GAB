@@ -11,7 +11,8 @@ export interface ReleaseHeading {
   readonly disclaimer: string;
 }
 
-const dayOfRelease = (date: string): string => {
+/** The day of a release as DD/MM/YYYY, from its ISO 8601 day. */
+export const dayOfRelease = (date: string): string => {
   const [year, month, day] = date.split('-');
   return `${day ?? ''}/${month ?? ''}/${year ?? ''}`;
 };

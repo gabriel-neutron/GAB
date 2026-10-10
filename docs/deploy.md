@@ -203,8 +203,11 @@ row names a node or a claim that is not public in the release. The message gives
 Then run, on the record:
 
 ```powershell
-pnpm worker release --manifest <the manifest file> --out <a folder>
+pnpm worker release --manifest <the manifest file> --out <a folder> --previous <the previous release folder>
 ```
+
+Give `--previous` the folder of the last release that you published, as you published it. For
+the first release, do not give it.
 
 The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
 over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
@@ -212,7 +215,12 @@ the date and the disclaimer. A spreadsheet shows them as rows. A program that re
 skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
 `dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
 definition of each term. `critical-nodes.csv` is the critical nodes table, with the three conditions,
-the claims of each tick and the retained nodes first. `manifest.json` gives the size and the SHA-256 checksum of each file.
+the claims of each tick and the retained nodes first. `changelog.csv` is the changelog since the
+previous release: one row for each entity, relation and claim added, changed or removed, with the
+changed columns, and each entity merged into a survivor or unmerged. Without `--previous`, it
+says "First release" and has no row. The command refuses a previous folder whose files do not
+agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
+the size and the SHA-256 checksum of each file, and a summary of the changelog.
 
 To see the share of the public claims that have a full NATO pair (a letter and a digit) before
 you decide S1, run on the record:
