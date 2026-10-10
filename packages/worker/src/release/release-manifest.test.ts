@@ -66,8 +66,13 @@ test('a key that the manifest does not know is refused, so a wrong spelling does
   expect(() => read({ contacts: CONTACTS, showNatopair: true })).toThrow(/showNatopair/u);
 });
 
-test('the NATO pair is not built yet, so a manifest that asks to show it is refused', () => {
-  expect(() => read({ contacts: CONTACTS, showNatoPair: true })).toThrow(/NATO pair/u);
+test('the NATO pair is off by default, and the operator can turn it on', () => {
+  expect(read({ contacts: CONTACTS }).showNatoPair).toBe(false);
+  expect(read({ contacts: CONTACTS, showNatoPair: true }).showNatoPair).toBe(true);
+});
+
+test('a NATO pair parameter that is not true or false is refused', () => {
+  expect(() => read({ contacts: CONTACTS, showNatoPair: 'yes' })).toThrow(/showNatoPair/u);
 });
 
 test('a text that is not JSON is refused with a short message', () => {

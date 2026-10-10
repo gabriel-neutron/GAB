@@ -76,6 +76,7 @@ const recordOf = (claims: readonly ReleaseClaim[]): ReleaseRecord => ({
     ],
   ]),
   disclaimer: '',
+  natoPairs: null,
 });
 
 const claimsText = (claims: readonly ReleaseClaim[]): string =>
@@ -140,4 +141,27 @@ test('an undone merge resolves to nothing, and its field is empty', () => {
     `${ACT},merge,2026-10-10,${OWNER},${SHIP},,"${LABEL}"`,
     '',
   ]);
+});
+
+test('with the NATO pair off, the claims file has no column of a letter or a digit', () => {
+  const [header] = claimsText([claim({})])
+    .slice(1)
+    .split('\r\n');
+  expect(header).not.toMatch(/nato/iu);
+});
+
+test('with the NATO pair on, each claim row gives its letter and its digit, or empty fields', () => {
+  const record: ReleaseRecord = {
+    ...recordOf([claim({}), claim({ claim_id: `${SHIP}/imo`, attribute: 'imo', value: '1' })]),
+    natoPairs: new Map([[`${SHIP}/flag`, { letter: 'B', digit: 1 }]]),
+  };
+  const text = csvExport(record, '').find((file) => file.path === 'claims.csv')?.text ?? '';
+  const [header, paired, unpaired] = text.slice(1).split('\r\n');
+  expect(header?.split(',').slice(-2)).toStrictEqual(['nato_letter', 'nato_digit']);
+  expect(paired?.split(',').slice(-2)).toStrictEqual(['B', '1']);
+  expect(paired).toContain(`${SHIP}/flag`);
+  expect(unpaired?.split(',').slice(-2)).toStrictEqual(['', '']);
+  // Only the claims file shows the pair.
+  for (const file of csvExport(record, ''))
+    if (file.path !== 'claims.csv') expect(file.text).not.toMatch(/nato/iu);
 });

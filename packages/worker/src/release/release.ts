@@ -45,7 +45,7 @@ export const writeRelease = async (
       `The release folder ${folder} exists already. A release never writes over another one.`,
     );
 
-  const record = await readReleaseRecord(db);
+  const record = await readReleaseRecord(db, { natoPair: manifest.showNatoPair });
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
   const files: readonly ReleaseFile[] = [
@@ -66,6 +66,8 @@ export const writeRelease = async (
     dataset: 'GAB',
     version: manifest.version,
     date: manifest.date,
+    // The release says whether its claims show the NATO pair.
+    showNatoPair: manifest.showNatoPair,
     disclaimer,
     files: listed,
   };

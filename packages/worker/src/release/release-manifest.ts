@@ -52,8 +52,9 @@ export interface ReleaseManifest {
   readonly version: string;
   /** The day of the release, YYYY-MM-DD. */
   readonly date: string;
-  /** Always false: no file shows the NATO pair of a claim yet. */
-  readonly showNatoPair: false;
+  /** True when each claim row shows its NATO pair. False by default, because the public does not
+   * see the pair. */
+  readonly showNatoPair: boolean;
   /** The date that counts for a listing of each regime. */
   readonly dateRules: {
     readonly eu: 'entry_into_force';
@@ -88,12 +89,6 @@ export const readReleaseManifest = (text: string, now: Date): ReleaseManifest =>
   if (!read.success)
     throw new ReleaseManifestFault(`The release manifest is refused. ${said(read.error)}.`);
   const { version, date, showNatoPair, ...rest } = read.data;
-  // The release shows the pair only when the operator changes S1, and no code builds it yet.
-  if (showNatoPair)
-    throw new ReleaseManifestFault(
-      'The release manifest asks to show the NATO pair, and this release cannot show it yet. ' +
-        'Remove showNatoPair or set it to false.',
-    );
   const released = date ?? now.toISOString().slice(0, 10);
   return { version: version ?? released, date: released, showNatoPair, ...rest };
 };
