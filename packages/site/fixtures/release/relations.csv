@@ -1,0 +1,16 @@
+﻿# GAB dataset, version 1.0 of 08/11/2026.
+#
+# **About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
+#
+# - **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.
+# - **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
+# - **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
+# - **Validated manually by the operator:** the operator read the sources and accepted the claim.
+#
+# A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
+#
+# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+id,type,from_id,from_label,to_id,to_label,valid_from,valid_to,origin_label,licence,document_ids
+0a1f0000-0000-4000-8000-000000000011,owns,0a1f0000-0000-4000-8000-000000000002,Arctic Bridge Shipping,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,2024-03-01,,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",news
+0a1f0000-0000-4000-8000-000000000012,designated_by,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,0a1f0000-0000-4000-8000-000000000003,Council of the European Union,2025-05-20,,"Accepted by rule strong_sources v2 — no person read it, on 2026-10-02",CC-BY 4.0,eu_act
+0a1f0000-0000-4000-8000-000000000013,loads_at,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,0a1f0000-0000-4000-8000-000000000004,Primorsk,,,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news

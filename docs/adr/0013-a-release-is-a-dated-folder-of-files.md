@@ -25,9 +25,10 @@ and the read are costly to change after the first publication, because readers c
   of the same date. It writes in a hidden folder first and renames it at the end.
 - The folder holds the export files and a manifest of the files in JSON: the version, the date,
   whether the release shows the NATO pair, the date rule of each sanctions regime, the disclaimer,
-  and the path, the size and the SHA-256 checksum of each file. ADR 0015 gives the GeoJSON and the
-  JSON-LD files, ADR 0017 the alignment matrix of the sanctions lists, ADR 0018 the critical
-  nodes table, and ADR 0019 the changelog.
+  the two contact addresses, the base of the identifiers, and the path, the size and the SHA-256
+  checksum of each file. ADR 0015 gives the GeoJSON and the JSON-LD files, ADR 0017 the alignment
+  matrix of the sanctions lists, ADR 0018 the critical nodes table, ADR 0019 the changelog, and
+  ADR 0020 the static site that the command writes beside the folder.
 
 ### The CSV files
 

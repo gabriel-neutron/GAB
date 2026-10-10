@@ -73,7 +73,8 @@ from its style, because a mix of the two is the most frequent fault in tools of 
 ## Cost
 
 - The OpenStreetMap tile policy permits casual, low-volume use only. It is not a tile service for
-  an application. A public deployment must have a hosted plan ground first.
+  an application. A public deployment must have a hosted plan ground first. The static site of a
+  release has no plan ground (ADR 0020).
 - A hosted archive must be refreshed: a job reads the entity geometries and writes the archive
   again.
 - The non-commercial condition of the satellite imagery limits the project.

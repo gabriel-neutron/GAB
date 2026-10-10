@@ -1,7 +1,7 @@
 import { mappingDraft, missingColumns } from '@gab/proposal/mapping';
 import { z } from 'zod';
 
-import { headerSignature } from './csv.ts';
+import { headerSignature } from './header-signature.ts';
 import { documentId, rowsOf } from './fields.ts';
 import { readTablePage, tableOf } from './table.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
