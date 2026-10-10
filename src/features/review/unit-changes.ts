@@ -31,8 +31,15 @@ export interface OtherChange {
   readonly op: string;
   readonly target: string;
   readonly attributes: readonly Attribute[];
-  /** The end date that the act gives to an open relation, or null for any other change. */
-  readonly closesOn: string | null;
+}
+
+/** One act that gives the end date of an open relation: the relation, its first day today, and
+ * the end. */
+export interface CloseChange {
+  readonly id: string;
+  readonly relation: string;
+  readonly validFrom: string | null;
+  readonly validTo: string;
 }
 
 /** What one unit proposes: the entity first, then its relations, then any other act. */
@@ -49,6 +56,7 @@ export interface UnitChanges {
   } | null;
   readonly relations: readonly RelationLine[];
   readonly others: readonly OtherChange[];
+  readonly closes: readonly CloseChange[];
 }
 
 // The state of the end says where it stands, so the name stays short.
@@ -124,11 +132,23 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
             op: act.op,
             target: act.target === null ? '' : nameOf(act.target),
             attributes: act.attributes,
-            closesOn: act.closesOn,
           },
         ]
       : [],
   );
 
-  return { entity, relations, others };
+  const closes = unit.acts.flatMap((act): readonly CloseChange[] =>
+    act.kind === 'close'
+      ? [
+          {
+            id: act.id,
+            relation: nameOf(act.target),
+            validFrom: act.validFrom,
+            validTo: act.validTo,
+          },
+        ]
+      : [],
+  );
+
+  return { entity, relations, others, closes };
 }

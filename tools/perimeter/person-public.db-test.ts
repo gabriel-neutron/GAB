@@ -449,11 +449,13 @@ test('an end date on a relation that names a person is public only with a public
     const withPublic = await relation(ask, 'operates', NAMED, VESSEL, [UPLOADED]);
     const publicRow = await relation(ask, 'insures', NAMED, VESSEL, [PUBLIC_PAGE]);
     const toHidden = await relation(ask, 'owns', HIDDEN, VESSEL, [PUBLIC_PAGE]);
+    const mixedRow = await relation(ask, 'flags', NAMED, VESSEL, [UPLOADED, PUBLIC_PAGE]);
     const closes = [
       [privateOnly, UPLOADED],
       [withPublic, PUBLIC_PAGE],
       [publicRow, PUBLIC_PAGE],
       [toHidden, PUBLIC_PAGE],
+      [mixedRow, PUBLIC_PAGE],
     ] as const;
     for (const [target, doc] of closes)
       await asApp(
@@ -470,6 +472,7 @@ test('an end date on a relation that names a person is public only with a public
     const names = new Map<string, string>([
       [withPublic, 'public act'],
       [publicRow, 'public row'],
+      [mixedRow, 'mixed row'],
     ]);
     return {
       read: Object.fromEntries(
@@ -481,13 +484,18 @@ test('an end date on a relation that names a person is public only with a public
       app: app.length,
     };
   });
-  // The copy of a row that cites no public document is not public, as the copy of a deletion.
+  // The copy of a row that cites no public document is not public.
   expect(shown.read).toStrictEqual({
     'public act': { payload: { valid_to: '2024-01-31' }, prior: null },
     'public row': {
       payload: { valid_to: '2024-01-31' },
       prior: { valid_to: null, sources: [PUBLIC_PAGE] },
     },
+    // The copy names the public documents of the row alone.
+    'mixed row': {
+      payload: { valid_to: '2024-01-31' },
+      prior: { valid_to: null, sources: [PUBLIC_PAGE] },
+    },
   });
-  expect(shown.app).toBe(4);
+  expect(shown.app).toBe(5);
 });

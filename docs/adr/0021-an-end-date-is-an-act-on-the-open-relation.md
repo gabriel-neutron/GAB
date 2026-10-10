@@ -27,8 +27,15 @@ this act is costly to change.
 - A machine can send this form, and no other change of a relation. The end must be in a cited
   excerpt, as each bound of a new relation. The research AI gets a refusal when no excerpt states
   it. A back-end agent gets its item disputed, so the operator reads the page.
-- The public read applies to the copy of the act the rule of a copied row (`decisions.md` PU1): on
-  a relation that names a person, the copy is public only when the old row cites a public document.
+- The public read applies PU1 (`decisions.md`) to the copy of the act: on a relation that names a
+  person, the copy is public only when the old row cites a public document, and it names only the
+  public documents.
+- The end date carries the label of the act that gave it (PU1). A release writes it as a claim of
+  its own, a value of the relation, with the label, the documents and the passages of that act.
+  The row of the relation keeps the label of the act that made it, also for the first day. The
+  read API gives the act of the end date in the ledger.
+- The review check blocks an end date on a relation that ended already or that the record no
+  longer holds, and it marks two end dates that wait on one relation as a conflict.
 - The undo of a merge keeps a later end date (ADR 0014).
 
 ## Alternatives
@@ -41,7 +48,7 @@ this act is costly to change.
 
 ## Cost
 
-- The release labels the dates of a relation with the act that created it. The act that gave the
-  end has its own label in the ledger only.
+- A reader of the read API finds the label of an end date in the ledger, and not on the row of
+  the relation.
 - The extractor reads no relation of the record, so it does not propose an end date today. The
   research AI does it, from the relations that `read_entity` gives.

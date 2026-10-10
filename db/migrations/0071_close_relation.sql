@@ -36,7 +36,7 @@ ALTER TABLE proposals ADD CONSTRAINT proposals_close_relation_shape
 ALTER TABLE proposals DROP CONSTRAINT proposals_prior_value_shape;
 ALTER TABLE proposals ADD CONSTRAINT proposals_prior_value_shape
   CHECK (prior_value IS NULL
-         OR (op IN ('update_attrs','update_relation') AND NOT payload ? 'valid_to'
+         OR ((op = 'update_attrs' OR (op = 'update_relation' AND NOT payload ? 'valid_to'))
              AND attrs_valid(prior_value))
          OR (op = 'update_relation' AND payload ? 'valid_to'
              AND prior_value - 'valid_to' - 'sources' = '{}'::jsonb

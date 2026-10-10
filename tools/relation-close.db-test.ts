@@ -211,3 +211,80 @@ test('a machine sends the end date of an open relation, and no other change of a
   });
   expect(seen.written).toStrictEqual([{ written: true }]);
 });
+
+const pendingClose = async (ask: Ask, target: string, day: string) => {
+  const [row] = z.array(z.object({ id: z.uuid() })).parse(
+    await as(ask, 'gabriel_app', () =>
+      ask(
+        `SELECT public.propose_change('update_relation', $1::jsonb, ARRAY['manual'],
+             'relation', $2::uuid) AS id`,
+        [JSON.stringify({ valid_to: day }), target],
+      ),
+    ),
+  );
+  if (row === undefined) throw new Error('the act was not written');
+  return row.id;
+};
+
+// The doors decide no act in the transaction that proposed it, so the test calls the step that
+// they call.
+const promoted = (ask: Ask, act: string) =>
+  ask(`SELECT public.apply_proposal($1::uuid, 'a test', NULL)`, [act]);
+
+const faultsOf = async (ask: Ask, act: string) =>
+  z
+    .array(z.object({ faults: z.array(z.object({ level: z.string(), kind: z.string() })) }))
+    .parse(await ask('SELECT faults FROM public.unit_faults(ARRAY[$1::uuid])', [act]))
+    .flatMap((row) => row.faults.map((fault) => [fault.level, fault.kind]));
+
+test('two end dates that wait on one relation are a conflict, and the second is refused at its promotion', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const owns = await relation(ask, 'owns', { valid_from: '2019-05-02' });
+    const first = await pendingClose(ask, owns, '2023-11-30');
+    const second = await pendingClose(ask, owns, '2023-12-31');
+    const waiting = await faultsOf(ask, second);
+    await promoted(ask, first);
+    return {
+      waiting,
+      closed: await faultsOf(ask, second),
+      refused: await refusalOf(ask, () => promoted(ask, second)),
+      row: await stored(ask, owns),
+    };
+  });
+  expect(seen.waiting).toContainEqual(['not_clean', 'contradiction']);
+  expect(seen.closed).toContainEqual(['blocks', 'relation_closed']);
+  expect(seen.refused).toBe('relation_open');
+  expect(seen.row?.valid_to).toBe('2023-11-30');
+});
+
+test('an end date on a deleted relation blocks its unit and is refused', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const owns = await relation(ask, 'owns');
+    const act = await pendingClose(ask, owns, '2023-11-30');
+    await signed(ask, 'delete_relation', {}, owns);
+    return {
+      faults: await faultsOf(ask, act),
+      refused: await refusalOf(ask, () => promoted(ask, act)),
+    };
+  });
+  expect(seen.faults).toContainEqual(['blocks', 'end_missing']);
+  expect(seen.refused).toBe('target_exists');
+});
+
+test('the batch door refuses an end date that is no day written as year, month and day', async () => {
+  const refused = await rolledBack('superuser', async (ask) => {
+    await document(ask);
+    const owns = await relation(ask, 'owns');
+    const causes = [];
+    for (const validTo of [null, 20231130, '2023-11-30T00:00:00Z'])
+      causes.push(await batchCause(ask, itemOf(owns, { valid_to: validTo })));
+    return causes;
+  });
+  expect(refused).toMatchObject(
+    [1, 2, 3].map(() => ({
+      code: '22023',
+      constraint: 'proposals_close_relation_shape',
+      hint: 'validTo',
+    })),
+  );
+});

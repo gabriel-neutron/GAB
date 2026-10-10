@@ -125,7 +125,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
         Choose a unit in the list.
       </section>
     );
-  const { entity, relations, others } = unitChanges(unit, words);
+  const { entity, relations, others, closes } = unitChanges(unit, words);
   return (
     <section
       aria-label="The changes of the unit"
@@ -180,25 +180,28 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
           </ul>
         </>
       )}
-      {others.map((other) =>
-        other.closesOn === null ? (
-          <div key={other.id} data-change={other.id}>
-            <h3 className={HEADING}>
-              {other.op.replaceAll('_', ' ')}
-              {other.target === '' ? '' : ` of ${other.target}`}
-            </h3>
-            <Attributes attributes={other.attributes} />
-          </div>
-        ) : (
-          <div key={other.id} data-change={other.id}>
-            <h3 className={HEADING}>End of a relation</h3>
-            <p className="break-words">
-              Closes the relation on {other.closesOn}
-              {other.target === '' ? '.' : `: ${other.target}.`}
-            </p>
-          </div>
-        ),
-      )}
+      {others.map((other) => (
+        <div key={other.id} data-change={other.id}>
+          <h3 className={HEADING}>
+            {other.op.replaceAll('_', ' ')}
+            {other.target === '' ? '' : ` of ${other.target}`}
+          </h3>
+          <Attributes attributes={other.attributes} />
+        </div>
+      ))}
+      {closes.map((close) => (
+        <div key={close.id} data-change={close.id}>
+          <h3 className={HEADING}>End of a relation</h3>
+          <p className="break-words">
+            Closes the relation on {close.validTo}: {close.relation}.
+          </p>
+          <p className="text-label">
+            {close.validFrom === null
+              ? 'The relation has no first day in the record.'
+              : `The relation starts on ${close.validFrom} in the record.`}
+          </p>
+        </div>
+      ))}
       <p className="mt-3 text-small/4 text-label">
         Nothing here is written to the record until the operator decides.
       </p>
