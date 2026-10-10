@@ -16,6 +16,7 @@ const document = (id: string, licence: string | null) => ({
   uri: `https://example.org/${id}`,
   retrieved_at: '2026-10-01',
   licence,
+  provider: null,
 });
 
 const RECORD: ReleaseRecord = {
