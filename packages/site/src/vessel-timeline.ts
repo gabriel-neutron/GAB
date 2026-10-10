@@ -11,7 +11,12 @@ export type MarkTime =
       /** The claim of the act that gave the end date, when the release holds one. */
       readonly endClaim: SiteClaim | null;
     }
-  | { readonly kind: 'day'; readonly day: string }
+  | {
+      readonly kind: 'day';
+      /** The key of the value that gives the day. */
+      readonly key: string;
+      readonly day: string;
+    }
   | { readonly kind: 'no date' };
 
 /** One mark of the timeline of a vessel. It links to its claim. */
@@ -44,17 +49,27 @@ const LANES: readonly { readonly key: LaneKey; readonly words: string }[] = [
   { key: 'port calls', words: 'Port calls' },
 ];
 
-// The relation types of the vocabulary that tell the life of a vessel. The vocabulary has no
-// separate type for a manager, so `operates` holds the managers and the operators.
-const LANE_OF_RELATION: ReadonlyMap<string, LaneKey> = new Map([
-  ['flags', 'flags'],
-  ['owns', 'owners'],
-  ['operates', 'operators'],
-  ['insures', 'insurers'],
-  ['designated_by', 'designations'],
-  ['berthed_at', 'port calls'],
-  ['loads_at', 'port calls'],
-  ['discharges_at', 'port calls'],
+// The relation types of the vocabulary that tell the life of a vessel, and the end of the relation
+// that the vessel holds: the second end when a party acts on the vessel, the first end when the
+// vessel acts. A relation with the vessel at the other end tells something else, and is no mark.
+// The vocabulary has no separate type for a manager, so `operates` holds the managers and the
+// operators. An event takes its days as values of the relation, and never as an interval.
+interface LaneRule {
+  readonly lane: LaneKey;
+  readonly vesselIs: 'from' | 'to';
+  readonly event: boolean;
+}
+
+const RULES: ReadonlyMap<string, LaneRule> = new Map([
+  ['flags', { lane: 'flags', vesselIs: 'to', event: false }],
+  ['flagged_falsely', { lane: 'flags', vesselIs: 'from', event: true }],
+  ['owns', { lane: 'owners', vesselIs: 'to', event: false }],
+  ['operates', { lane: 'operators', vesselIs: 'to', event: false }],
+  ['insures', { lane: 'insurers', vesselIs: 'to', event: false }],
+  ['designated_by', { lane: 'designations', vesselIs: 'from', event: false }],
+  ['berthed_at', { lane: 'port calls', vesselIs: 'from', event: true }],
+  ['loads_at', { lane: 'port calls', vesselIs: 'from', event: true }],
+  ['discharges_at', { lane: 'port calls', vesselIs: 'from', event: true }],
 ]);
 
 const LANE_OF_VALUE: ReadonlyMap<string, LaneKey> = new Map([
@@ -63,13 +78,13 @@ const LANE_OF_VALUE: ReadonlyMap<string, LaneKey> = new Map([
   ['flag_history', 'flags'],
 ]);
 
-// An event takes its days as values of the relation, and never as an interval. Any key works, so
-// a value that is a day is the day of the event.
-const PORT_CALL_TYPES = new Set(['berthed_at', 'loads_at', 'discharges_at']);
-
 const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 const END_KEY = 'valid_to';
+
+// The day of an event is its `observed_on` value. With none, any value of the event that is a day
+// is its day, the first in the order of the release.
+const OBSERVED_KEY = 'observed_on';
 
 /** The elements of a value: a list in its JSON text gives each element, and any other text gives
  * itself. */
@@ -87,26 +102,41 @@ const elementsOf = (value: string): readonly string[] => {
   return [value];
 };
 
+const dayOf = (
+  values: readonly SiteClaim[],
+): { claim: SiteClaim; key: string; day: string } | null => {
+  const days = values.flatMap((one) =>
+    one.kind === 'attribute' && DAY.test(one.value)
+      ? [{ claim: one, key: one.attribute, day: one.value }]
+      : [],
+  );
+  return days.find((one) => one.key === OBSERVED_KEY) ?? days[0] ?? null;
+};
+
 const relationMarks = (
   release: SiteRelease,
-  vesselId: string,
   claim: SiteClaim,
   relation: SiteRelation,
+  rule: LaneRule,
 ): readonly TimelineMark[] => {
-  const fromVessel = relation.fromId === vesselId;
+  const fromVessel = rule.vesselIs === 'from';
   const otherId = fromVessel ? relation.toId : relation.fromId;
   const otherLabel = fromVessel ? relation.toLabel : relation.fromLabel;
   const values = release.valuesOfRelation.get(relation.id) ?? [];
-  if (PORT_CALL_TYPES.has(relation.type)) {
+  if (rule.event) {
     const words = `${relationWords(relation.type, !fromVessel)} ${otherLabel}`;
-    const days = values.flatMap((one): readonly TimelineMark[] =>
-      one.kind === 'attribute' && DAY.test(one.value)
-        ? [{ key: one.id, words, otherId, claim: one, time: { kind: 'day', day: one.value } }]
-        : [],
-    );
-    return days.length > 0
-      ? days
-      : [{ key: claim.id, words, otherId, claim, time: { kind: 'no date' } }];
+    const day = dayOf(values);
+    return [
+      day === null
+        ? { key: claim.id, words, otherId, claim, time: { kind: 'no date' } }
+        : {
+            key: day.claim.id,
+            words,
+            otherId,
+            claim: day.claim,
+            time: { kind: 'day', key: day.key, day: day.day },
+          },
+    ];
   }
   const endClaim =
     values.find((one) => one.kind === 'attribute' && one.attribute === END_KEY) ?? null;
@@ -151,8 +181,11 @@ export const vesselLanes = (release: SiteRelease, vesselId: string): readonly Ti
   };
   for (const claim of release.claimsAbout.get(vesselId) ?? []) {
     if (claim.kind === 'relation') {
-      const lane = LANE_OF_RELATION.get(claim.relation.type);
-      if (lane !== undefined) add(lane, relationMarks(release, vesselId, claim, claim.relation));
+      const { relation } = claim;
+      const rule = RULES.get(relation.type);
+      const vesselEnd = rule?.vesselIs === 'from' ? relation.fromId : relation.toId;
+      if (rule !== undefined && vesselEnd === vesselId)
+        add(rule.lane, relationMarks(release, claim, relation, rule));
       continue;
     }
     const lane = LANE_OF_VALUE.get(claim.attribute);

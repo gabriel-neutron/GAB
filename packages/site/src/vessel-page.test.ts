@@ -14,6 +14,10 @@ const OLD_OWNS = '0a1f0000-0000-4000-8000-000000000014';
 const OPERATES = '0a1f0000-0000-4000-8000-000000000015';
 const INSURES = '0a1f0000-0000-4000-8000-000000000016';
 const LOADS = '0a1f0000-0000-4000-8000-000000000013';
+const FLAGS = '0a1f0000-0000-4000-8000-000000000017';
+const DISCHARGES = '0a1f0000-0000-4000-8000-000000000018';
+const FALSE_FLAG = '0a1f0000-0000-4000-8000-000000000019';
+const POLAR_PAGE = 'vessel/9000003/index.html';
 const PAGE = 'vessel/9000001/index.html';
 
 const fixture = (name: string): Map<string, string> => {
@@ -49,8 +53,8 @@ const itemOf = (text: string, claimId: string): string => {
 };
 
 test('each public vessel with an IMO number has one page, at the address of its number', () => {
-  const vesselPages = [...off.keys()].filter((one) => one.startsWith('vessel/'));
-  expect(vesselPages).toStrictEqual([PAGE]);
+  const vesselPages = [...off.keys()].filter((one) => one.startsWith('vessel/')).sort();
+  expect(vesselPages).toStrictEqual([PAGE, POLAR_PAGE]);
 });
 
 test('two vessels with the same IMO number and no merge share one page that names both', () => {
@@ -62,12 +66,54 @@ test('two vessels with the same IMO number and no merge share one page that name
 
 test('a vessel with no IMO number of seven digits has no page', () => {
   const pages = pagesOf(changed(',imo,9000001,', ',imo,900001,'));
-  expect([...pages.keys()].filter((one) => one.startsWith('vessel/'))).toStrictEqual([]);
+  expect([...pages.keys()].filter((one) => one.startsWith('vessel/'))).toStrictEqual([POLAR_PAGE]);
 });
 
 test('an IMO number with its prefix gives the page of the number', () => {
-  const pages = pagesOf(changed(',imo,9000001,', ',imo,IMO 9000001,'));
-  expect(pages.has(PAGE)).toBe(true);
+  expect(off.has(POLAR_PAGE)).toBe(true);
+});
+
+test('only a wrong check digit gives the warning', () => {
+  expect(read(off, PAGE)).toContain('The check digit of this IMO number is wrong.');
+  expect(read(off, POLAR_PAGE)).not.toContain('check digit');
+});
+
+test('a flags relation goes to the flags lane, and a start after the version stays open', () => {
+  const text = read(off, POLAR_PAGE);
+  const item = itemOf(text, FLAGS);
+  expect(item).toContain('Republic of Cameroon');
+  expect(item).toContain('15/01/2027');
+  expect(item).toContain('open');
+  const bar = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/u.exec(text);
+  const arrow = /<polygon points="([\d.]+),/u.exec(text);
+  expect(Number(arrow?.[1])).toBeGreaterThanOrEqual(Number(bar?.[1]) + Number(bar?.[2]));
+});
+
+test('a relation that does not point the right way at the vessel is no mark', () => {
+  const owner = '0a1f0000-0000-4000-8000-000000000002';
+  const files = new Map(
+    [...fixture('release')].map(([path, text]) => [
+      path,
+      text
+        .replaceAll(
+          `owns,${owner},Arctic Bridge Shipping,${VESSEL},Severnaya Volna`,
+          `owns,${VESSEL},Severnaya Volna,${owner},Arctic Bridge Shipping`,
+        )
+        .replaceAll(
+          `${owner},Arctic Bridge Shipping,,,owns,${VESSEL},Severnaya Volna`,
+          `${VESSEL},Severnaya Volna,,,owns,${owner},Arctic Bridge Shipping`,
+        ),
+    ]),
+  );
+  const text = read(pagesOf(files), PAGE);
+  expect(text).not.toContain(`claim/${OWNS}/index.html`);
+  expect(text).toContain(`claim/${OLD_OWNS}/index.html`);
+});
+
+test('a label with markup stays text', () => {
+  const text = read(pagesOf(changed('Coastal Mutual', 'Coastal <Mutual> & Co')), PAGE);
+  expect(text).toContain('Coastal &lt;Mutual&gt; &amp; Co');
+  expect(text).not.toContain('<Mutual>');
 });
 
 test('each mark of the timeline links to a claim page of the site', () => {
@@ -114,9 +160,16 @@ test('a bound with no start shows as unknown', () => {
 
 test('a port call gives the day of its value claim, and a former name has no date', () => {
   const text = read(off, PAGE);
-  expect(itemOf(text, `${LOADS}/loaded_on`)).toContain('14/08/2025');
+  expect(itemOf(text, `${LOADS}/loaded_on`)).toContain('loaded_on: 14/08/2025');
+  expect(itemOf(text, DISCHARGES)).toContain('no date');
   expect(itemOf(text, `${VESSEL}/former_names`)).toContain('Volna Star');
   expect(itemOf(text, `${VESSEL}/former_names`)).toContain('no date');
+});
+
+test('a false flag is a day of the flags lane, and observed_on comes before another day', () => {
+  const text = read(off, PAGE);
+  expect(itemOf(text, `${FALSE_FLAG}/observed_on`)).toContain('observed_on: 03/02/2025');
+  expect(text).not.toContain(`claim/${FALSE_FLAG}/reported_on/`);
 });
 
 test('the timeline is drawn as a figure at build time, with no script', () => {

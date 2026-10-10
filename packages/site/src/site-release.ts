@@ -339,7 +339,9 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
   for (const claim of claims)
     if (claim.kind === 'attribute' && claim.attribute === 'imo' && vessels.has(claim.subjectId)) {
       const imo = imoOf(claim.value);
-      if (imo !== null && !imoOfVessel.has(claim.subjectId)) imoOfVessel.set(claim.subjectId, imo);
+      // The alignment matrix keeps the last number of a vessel too, so a vessel has one number on
+      // both sides. A claim identifier holds one key of one entity, so two numbers cannot come.
+      if (imo !== null) imoOfVessel.set(claim.subjectId, imo);
     }
   const vesselsByImo = new Map<string, SiteEntity[]>();
   for (const entity of entities) {
