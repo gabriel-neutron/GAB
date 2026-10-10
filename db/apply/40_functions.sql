@@ -4142,6 +4142,12 @@ BEGIN
     RAISE EXCEPTION 'the name "%" waits for no decision', v_key
       USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
   END IF;
+  -- A rating job that runs now would end on the old answer and hide the refusal.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: decide it when the job has ended', v_key
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
+  END IF;
   -- The units come first: after a refusal the name has no author.
   v_units := public.units_of_name(v_key);
   INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
