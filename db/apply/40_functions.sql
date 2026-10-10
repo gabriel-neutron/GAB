@@ -3908,9 +3908,34 @@ BEGIN
                            p_party, true);
 END $$;
 
+-- WHY A NAME CAN JOIN NO AUTHOR, or NULL when it can. A name that holds two authors ("OFAC;
+-- Reuters", "Reuters, Tass") is no name of one author. A generic name (a country, or a role with
+-- no body, such as "the secretary of state") names no author that a reader can find. Such a name
+-- goes to the rater as a new author. Inside the doors only.
+CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE
+    WHEN p_key ~ '[^[:space:];,][[:space:]]*;[[:space:]]*[^[:space:];,]'
+      OR (p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
+          -- A legal form after a comma is a part of the name of one company.
+          AND regexp_replace(p_key, ',[[:space:]]*(inc|ltd|llc|plc|pjsc|pao|jsc|oao|ooo|zao|co|'
+                                    'corp|ag|gmbh|sa|s\.a|nv|bv|limited)\.?(?=$|[[:space:],])',
+                             '', 'g') ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]')
+      THEN format('the name "%s" holds two authors and joins no author', p_key)
+    WHEN regexp_replace(replace(p_key, '.', ''), '^the ', '') = ANY (ARRAY[
+           'uk', 'us', 'usa', 'eu', 'un', 'russia', 'russian federation', 'ukraine', 'china',
+           'india', 'iran', 'united kingdom', 'united states', 'european union', 'government',
+           'secretary of state', 'minister', 'ministry', 'authorities', 'officials', 'official',
+           'court', 'company', 'president', 'police', 'state', 'department', 'prosecutor',
+           'spokesperson', 'spokesman', 'source', 'sources', 'media', 'press', 'report',
+           'reports', 'author', 'unknown'])
+      THEN format('the name "%s" is generic and joins no author', p_key)
+  END
+$$;
+
 -- THE DOOR OF THE WORKER FOR A NAME OF A KNOWN AUTHOR. A model words one author in more than one
 -- way. A join into an author A or B is a doubt, because it raises the letter of every act of the
--- name.
+-- name. A name of two authors and a generic name join no author.
 CREATE OR REPLACE FUNCTION join_author_name(p_name text, p_known_name text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
@@ -3918,6 +3943,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_author uuid := public.author_of(p_known_name);
+  v_no_join text := public.name_joins_no_author(v_key);
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
@@ -3929,6 +3955,9 @@ BEGIN
   IF (public.held_name(v_key)).held THEN
     RAISE EXCEPTION 'the name "%" already has an author', v_key
       USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_no_join IS NOT NULL THEN
+    RAISE EXCEPTION '%', v_no_join USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.author_name (name_key, author_id, doubt)
   VALUES (v_key, v_author,
