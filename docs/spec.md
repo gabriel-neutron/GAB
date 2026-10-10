@@ -104,6 +104,12 @@ absorbed identifier with the entity that holds it today, so an old link still re
 ledger holds each merge and each undo as an act, with the full copy of what the merge changed.
 ADR 0014 gives the rules of a merge and of its undo.
 
+Two vessels with one IMO number are one ship. The number is seven digits, with or without the
+prefix "IMO". A new vessel with the number of a vessel in the record or in the queue is a
+duplicate that is not clean, and the fault names the other vessel. The review page lists each
+pair of vessels of the record with one number. The operator keeps one vessel of a pair: the other
+merges into it, and its name becomes a former name.
+
 ## The release path
 
 A release is how the data leaves Gabriel. The operator runs one worker command on the PC, with a
