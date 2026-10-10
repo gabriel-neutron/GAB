@@ -27,12 +27,12 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   rate the name as a new author.
 - A name that joins an author A or B is a doubt, because it would raise the letter of every act
   of that name. Until the operator decides it, the name reads as F, and each unit with a fact of
-  that name is a doubt. The operator confirms or refuses the name, on the review page or with a
-  command of the worker, and the decision is written once. A confirmation gives the name the
+  that name is a doubt. The operator confirms or refuses the name with a command of the worker, and
+  the decision is written once. A confirmation gives the name the
   letter of its author. A refusal makes the name F and gives it back to the rater, which cannot
   join it again to the same author. After each decision the rules run again on the units of the
-  name. A dry-run gives, for each name, the number of units whose rule each decision would
-  change. No machine role can decide a name: the decision raises a letter.
+  name. A dry-run gives, for each name, the number of units whose state each decision would
+  change: a rule decides the unit, or another rule matches it. No machine role can decide a name: the decision raises a letter.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no

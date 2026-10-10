@@ -2812,8 +2812,9 @@ $$;
 
 -- WHY A UNIT IS A DOUBT WHEN NO FAULT SAYS IT. The doubt rule reads three causes beside the faults:
 -- a check that disputes a fact, a denial by a party to the conflict, and a source whose name
--- joined an author A or B and waits for the decision of the operator. The first one that holds gives its key, and NULL means none holds. The
--- rule and the sentence of the review page read this one function. No role holds this step.
+-- joined an author A or B and waits for the decision of the operator. The first one that holds
+-- gives its key, and NULL means none holds. The rule and the sentence of the review page read
+-- this one function. No role holds this step.
 CREATE OR REPLACE FUNCTION unit_doubt_cause(p_unit uuid)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -3743,6 +3744,14 @@ BEGIN
     CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
+-- THE LOCK OF ONE NAME, until the end of the transaction. The key of the name table no longer
+-- keeps one live row for each name, so each door that writes a row of a name takes this lock
+-- before its check. Inside the doors only.
+CREATE OR REPLACE FUNCTION lock_name(p_key text) RETURNS void
+LANGUAGE sql SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT pg_advisory_xact_lock(hashtextextended('author_name:' || p_key, 0))
+$$;
+
 -- THE LIVE ROW OF A NAME. A name that the operator refused keeps its row, and it is no name of
 -- that author for any reader. The doors keep one live row for each name. `waits` is true while a
 -- name that joined an author A or B has no decision of the operator. Inside the doors only.
@@ -3796,6 +3805,8 @@ BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a letter names its author' USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- One live row for each name: two writers of one name wait for each other.
+  PERFORM public.lock_name(v_key);
   SELECT * INTO v_held FROM public.held_name(v_key);
   IF v_held.held THEN
     -- The reference build leaves a name that a worker rated: the rated author stands.
@@ -3922,6 +3933,8 @@ BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- One live row for each name: two writers of one name wait for each other.
+  PERFORM public.lock_name(v_key);
   IF v_author IS NULL THEN
     RAISE EXCEPTION 'the name "%" is the name of no known author',
       public.name_key(coalesce(p_known_name, '')) USING ERRCODE = 'invalid_parameter_value';
@@ -3935,7 +3948,8 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM public.author_name_decision d
               WHERE d.name_key = v_key AND d.author_id = v_author AND NOT d.confirmed) THEN
-    RAISE EXCEPTION 'the operator refused the name "%" for this author', v_key
+    RAISE EXCEPTION 'the operator refused the name "%" for this author, so it joins no author',
+      v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.author_name (name_key, author_id, doubt)
@@ -4082,6 +4096,7 @@ BEGIN
     RAISE EXCEPTION 'a decision on a name confirms it or refuses it'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  PERFORM public.lock_name(v_key);
   SELECT * INTO v_row FROM public.name_row(v_key);
   IF NOT coalesce(v_row.waits, false) THEN
     RAISE EXCEPTION 'the name "%" waits for no decision', v_key
@@ -4095,17 +4110,26 @@ BEGIN
     UPDATE public.jobs j
        SET status = 'queued', failure_reason = NULL, refused_parts = 0, refusal = NULL,
            claimed_by = NULL, claimed_at = NULL, finished_at = NULL, updated_at = now()
-     WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status <> 'running';
+     WHERE j.kind = 'rate_author' AND j.author = v_key
+       AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
     INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
   END IF;
   PERFORM public.run_rules(v_units);
   RETURN cardinality(v_units);
 END $$;
 
+-- THE STATE OF A UNIT, for the dry-run: "decided" when no act of it waits, else the rule that
+-- matches it. A unit that leaves the doubts for the wait changes state, as a unit that a rule
+-- accepts or rejects. Inside the doors only.
+CREATE OR REPLACE FUNCTION unit_state(p_unit uuid) RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(public.unit_rule(p_unit), 'decided')
+$$;
+
 -- THE DRY-RUN OF THE DECISIONS ON THE NAMES. For each name that waits, the number of its units
--- whose rule would change if the operator confirmed it, and if the operator refused it. Each
--- decision is made inside a sub-transaction and undone, so the function writes nothing. The
--- faults of a unit do not read a name, so they are checked once for each name.
+-- whose state would change if the operator confirmed it, and if the operator refused it. Each
+-- decision runs through the door of the operator inside a sub-transaction, with the rules, and is
+-- undone. So the function writes nothing.
 CREATE OR REPLACE FUNCTION author_names_dry_run()
 RETURNS TABLE (name_key text, author text, letter char(1), units int, change_if_confirmed int,
                change_if_refused int)
@@ -4114,31 +4138,23 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_name record;
   v_units uuid[];
-  v_faults jsonb;
   v_before jsonb;
   v_choice boolean;
   v_changed int;
 BEGIN
   FOR v_name IN SELECT * FROM public.author_names_waiting() LOOP
     v_units := public.units_of_name(v_name.name_key);
-    SELECT coalesce(jsonb_object_agg(f.unit_id, f.faults), '{}') INTO v_faults
-      FROM public.unit_faults(v_units) AS f;
-    SELECT coalesce(jsonb_object_agg(u, public.rule_of_faults(u, v_faults->(u::text))), '{}')
-      INTO v_before FROM unnest(v_units) AS u;
+    SELECT coalesce(jsonb_object_agg(u, public.unit_state(u)), '{}') INTO v_before
+      FROM unnest(v_units) AS u;
     name_key := v_name.name_key;
     author := v_name.author;
     letter := v_name.letter;
     units := cardinality(v_units);
     FOREACH v_choice IN ARRAY ARRAY[true, false] LOOP
       BEGIN
-        INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
-        SELECT n.name_key, n.author_id, v_choice
-          FROM public.author_name n
-         WHERE n.name_key = v_name.name_key AND n.doubt
-           AND NOT EXISTS (SELECT 1 FROM public.author_name_decision d
-                            WHERE (d.name_key, d.author_id) = (n.name_key, n.author_id));
+        PERFORM public.decide_author_name(v_name.name_key, v_choice);
         SELECT count(*)::int INTO v_changed FROM unnest(v_units) AS u
-         WHERE public.rule_of_faults(u, v_faults->(u::text)) IS DISTINCT FROM v_before->>(u::text);
+         WHERE public.unit_state(u) IS DISTINCT FROM v_before->>(u::text);
         RAISE EXCEPTION USING ERRCODE = 'GAB01';
       EXCEPTION WHEN SQLSTATE 'GAB01' THEN
         NULL;
