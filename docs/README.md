@@ -37,3 +37,4 @@ rules of the code review.
 | [0016](adr/0016-the-nato-pair-of-a-claim.md) | The NATO pair of a claim | Accepted |
 | [0017](adr/0017-the-alignment-matrix-reads-the-regime-from-the-provider.md) | The alignment matrix reads the regime of a designation from the provider of its document | Accepted |
 | [0018](adr/0018-the-critical-nodes-table-comes-from-a-sheet-and-the-record.md) | The critical nodes table comes from a sheet of the operator and the record | Accepted |
+| [0019](adr/0019-the-changelog-is-a-diff-of-two-release-folders.md) | The changelog is a diff of two release folders | Accepted |

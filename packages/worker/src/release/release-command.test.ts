@@ -37,6 +37,7 @@ test.each([
   [['--manifest', 'a.json']],
   [['--out', 'x', '--manifest']],
   [['--x', 'a', '--out', 'b']],
+  [['--manifest', 'a', '--out', 'b', '--previous', 'c', '--previous', 'd']],
 ])('the words %j give the usage', async (args) => {
   const { code, text } = await run(args);
   expect(code).toBe(2);
