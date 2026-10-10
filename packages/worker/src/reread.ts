@@ -1,4 +1,5 @@
 import { extractText } from '@gab/text';
+import { findExcerpt } from '@gab/tools/excerpt';
 import { htmlTitle } from '@gab/tools/fetch-document';
 import { z } from 'zod';
 
@@ -187,12 +188,16 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
     }
 
     let title: TitlePair | null;
+    // A render follows the title of its page only when that page is not kept for its citations,
+    // so a kept page and its render keep the same title.
+    let remember = (): void => undefined;
     if (isRender(row)) {
       title = renderTitle(row, row.uri === null ? [] : (titles.get(row.uri) ?? []));
     } else {
       const pair = titlesOf(bytes, type);
-      if (pair !== null && row.uri !== null)
-        titles.set(row.uri, [...(titles.get(row.uri) ?? []), pair]);
+      const { uri } = row;
+      if (pair !== null && uri !== null)
+        remember = () => titles.set(uri, [...(titles.get(uri) ?? []), pair]);
       title = correctedTitle(row, pair);
     }
 
@@ -208,12 +213,16 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
         stored.map((one) => one.text),
         pages,
       );
-    if (!text && title === null) continue;
+    if (!text && title === null) {
+      remember();
+      continue;
+    }
 
     if (text) {
       const cited = z.array(citedRow).parse((await deps.db.query(CITED, [row.id])).rows);
       const broken = cited
-        .filter((one) => !(pages[one.page - 1] ?? '').includes(one.excerpt))
+        // The same check as the propose tool makes for an excerpt.
+        .filter((one) => findExcerpt(pages[one.page - 1] ?? '', one.excerpt) === null)
         .map((one) => ({ citation: one.citation, page: one.page }));
       if (broken.length > 0) {
         kept.push({ document: row.id, citations: broken });
@@ -221,6 +230,7 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
       }
     }
 
+    remember();
     changed.push({ document: row.id, text, title });
     if (dryRun) continue;
     await deps.db.query(WRITE, [
