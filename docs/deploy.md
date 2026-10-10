@@ -28,10 +28,10 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
-names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed by a fault again,
-and `pnpm worker reread-html` reads the stored HTML pages again (see below). They run as they do
-against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
-start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
+names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
+by a fault again, and `pnpm worker reread-html` reads the stored HTML pages again (see below).
+They run as they do against the local stack. Only the values change. Run one `pnpm worker run` at
+a time: at its start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
 For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
 so that the file stays not public.
