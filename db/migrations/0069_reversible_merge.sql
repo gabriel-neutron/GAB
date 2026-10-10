@@ -23,13 +23,15 @@ ALTER TABLE proposals ADD CONSTRAINT proposals_op_check
                 'create_relation','update_relation','delete_relation',
                 'merge_entities','undo_merge','map_document'));
 
--- A merge and its undo each name one entity beside their target, and carry no value.
+-- A merge and its undo each name one entity beside their target. A merge can ask to keep the
+-- name of the absorbed entity as a former name of the survivor, and an undo carries nothing.
 ALTER TABLE proposals ADD CONSTRAINT proposals_merge_shape
   CHECK (op NOT IN ('merge_entities','undo_merge')
          OR (target_kind IS NOT NULL AND target_kind = 'entity'
              AND cardinality(names) = 1
              AND names[1] IS DISTINCT FROM target_id
-             AND payload = '{}'::jsonb));
+             AND (payload = '{}'::jsonb
+                  OR (op = 'merge_entities' AND payload = '{"keep_name": true}'::jsonb))));
 
 ALTER TABLE proposals DROP CONSTRAINT proposals_prior_value_shape;
 ALTER TABLE proposals ADD CONSTRAINT proposals_prior_value_shape
@@ -50,6 +52,9 @@ CREATE TABLE entity_alias (
                CONSTRAINT entity_alias_merged_by_key UNIQUE
                CONSTRAINT entity_alias_merged_by_fkey REFERENCES proposals(id)
                ON UPDATE RESTRICT ON DELETE RESTRICT,
+  -- The hour of the merge, also inside one transaction, so the last merge into a survivor is
+  -- known: only that one can be undone.
+  merged_at    timestamptz NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT entity_alias_not_self CHECK (absorbed_id <> survivor_id)
 );
 

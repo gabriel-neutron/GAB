@@ -568,8 +568,7 @@ COMMENT ON VIEW api.full_map IS
 -- stands, with the survivor of today: a later merge of the survivor moves the row to its own
 -- survivor. A survivor that the reader cannot read gives no row (PU1).
 CREATE VIEW api.entity_alias AS
-  SELECT a.absorbed_id, a.survivor_id,
-         (SELECT m.decided_at FROM public.proposals m WHERE m.id = a.merged_by) AS merged_at
+  SELECT a.absorbed_id, a.survivor_id, a.merged_at
     FROM public.entity_alias a
    WHERE EXISTS (SELECT 1 FROM api.entity e WHERE e.id = a.survivor_id);
 COMMENT ON VIEW api.entity_alias IS

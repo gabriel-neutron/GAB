@@ -106,6 +106,8 @@ const LISTED_BY_BOUGHT = '00000000-0000-4000-8000-00000000e008';
 const LISTED_BY_PERSON = '00000000-0000-4000-8000-00000000e009';
 const ABSORBED = '00000000-0000-4000-8000-00000000e00a';
 const UNDONE = '00000000-0000-4000-8000-00000000e00b';
+const BOUGHT_SHIP = '00000000-0000-4000-8000-00000000e00c';
+const BOUGHT_TWIN = '00000000-0000-4000-8000-00000000e00d';
 
 const documents = async (ask: Ask) => {
   await ask(
@@ -622,6 +624,10 @@ test('a release writes the log of the merges, and a moved value keeps the label 
     ]);
     // A merge of two persons is not in the log of a release.
     await mergeDoor(app, MERGE, [PERSON, OTHER_PERSON]);
+    // Two vessels that only a bought filing holds up are not in the release, nor is their merge.
+    await entity(held, BOUGHT_SHIP, 'vessel', 'TEST BOUGHT SHIP', [BOUGHT]);
+    await entity(held, BOUGHT_TWIN, 'vessel', 'TEST BOUGHT TWIN', [BOUGHT]);
+    await mergeDoor(app, MERGE, [BOUGHT_SHIP, BOUGHT_TWIN]);
     await writeRelease(app, MANIFEST, root);
     return {
       absorbedAct,
@@ -636,6 +642,9 @@ test('a release writes the log of the merges, and a moved value keeps the label 
   const merges = tableOf(await readFile(join(folder, 'merges.csv'), 'utf8'));
   const today = new Date().toISOString().slice(0, 10);
   const label = `Validated manually by the operator, on ${today}`;
+  const mergesText = await readFile(join(folder, 'merges.csv'), 'utf8');
+  expect(mergesText).not.toContain(BOUGHT_SHIP);
+  expect(mergesText).not.toContain(BOUGHT_TWIN);
   expect(merges.filter((row) => [SECOND, PERSON].includes(row['survivor_id'] ?? ''))).toStrictEqual(
     [
       {

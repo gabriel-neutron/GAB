@@ -343,12 +343,10 @@ export function readDossier(
       case 'update_relation':
       case 'delete_relation':
         return namesATouchingRelation(proposal);
+      // A merge and its undo name the other entity in `names`, and carry no end in the payload.
       case 'merge_entities':
       case 'undo_merge':
-        return (
-          payload.kind === 'merge' &&
-          (payload.keep_id === entityId || payload.merge_ids.includes(entityId))
-        );
+        return proposal.names.includes(entityId);
       case 'create_entity':
       case 'update_entity':
       case 'delete_entity':

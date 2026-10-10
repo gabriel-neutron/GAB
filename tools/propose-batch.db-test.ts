@@ -446,3 +446,40 @@ test('a passed check of words read from an image makes no fact strong while the 
     }),
   ).toStrictEqual([{ strong: false }]);
 });
+
+test('a machine act that names an entity that a merge absorbed is refused, and names the survivor', async () => {
+  const refusal = await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const made = z.array(z.object({ target_id: z.uuid() }));
+    const ids = await as(ask, 'gabriel_app', async () => {
+      const created = [];
+      for (const label of ['Nayara survivor', 'Nayara absorbed'])
+        created.push(
+          made.parse(
+            await ask(
+              `SELECT target_id FROM public.sign_change('a test', 'create_entity', $1::jsonb,
+                 ARRAY['manual'], NULL, NULL, '{}')`,
+              [JSON.stringify({ type: 'vessel', label, sources: ['manual'] })],
+            ),
+          )[0]?.target_id ?? '',
+        );
+      await ask(`SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`, created);
+      return created;
+    });
+    const [survivor, absorbed] = ids;
+    return batchAs(ask, 'gabriel_agent', [
+      itemOf(call, {
+        op: 'update_attrs',
+        target_kind: 'entity',
+        target_id: absorbed,
+        payload: { attrs: { call_sign: { v: 'Nayara', src: [DOC] } } },
+      }),
+    ]).then(
+      () => null,
+      (cause: unknown) => ({ cause, survivor }),
+    );
+  });
+  const said = z.object({ constraint: z.string(), message: z.string() }).parse(refusal?.cause);
+  expect(said.constraint).toBe('entity_merged');
+  expect(said.message).toContain(`into the entity ${refusal?.survivor ?? ''}`);
+});

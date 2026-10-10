@@ -228,7 +228,8 @@ test('a pending merge stands on the kept entity and on each absorbed entity', ()
     op: 'merge_entities',
     targetKind: 'entity',
     targetId: OWNER.id,
-    payload: { kind: 'merge', keep_id: OWNER.id, merge_ids: [VESSEL.id] },
+    payload: { kind: 'merge', keep_id: null, merge_ids: [] },
+    names: [VESSEL.id],
     dissent: true,
   });
 

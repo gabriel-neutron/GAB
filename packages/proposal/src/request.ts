@@ -24,9 +24,14 @@ export const MERGE_OPS = ['merge_entities', 'undo_merge'] as const;
 export type MergeOp = (typeof MERGE_OPS)[number];
 
 /** The body of each merge door. A merge names the entity that stays and the entity that it
- * absorbs. An undo names the absorbed entity alone, and the record finds its merge. */
+ * absorbs, and `keepName` adds the name of the absorbed entity to the former names of the
+ * survivor. An undo names the absorbed entity alone, and the record finds its merge. */
 export const mergeRequest = {
-  merge_entities: z.strictObject({ survivorId: z.uuid(), absorbedId: z.uuid() }),
+  merge_entities: z.strictObject({
+    survivorId: z.uuid(),
+    absorbedId: z.uuid(),
+    keepName: z.boolean().optional(),
+  }),
   undo_merge: z.strictObject({ absorbedId: z.uuid() }),
 } as const satisfies Readonly<Record<MergeOp, z.ZodType>>;
 

@@ -16,11 +16,13 @@ interface Door {
 const DOORS: Readonly<Record<MergeOp, Door>> = {
   merge_entities: {
     statement:
-      'SELECT proposal_id, target_id FROM public.merge_entities($1::text, $2::uuid, $3::uuid)',
+      'SELECT proposal_id, target_id FROM public.merge_entities($1::text, $2::uuid, $3::uuid, ' +
+      '$4::boolean)',
     values: mergeRequest.merge_entities.transform((body) => [
       DECIDED_BY,
       body.survivorId,
       body.absorbedId,
+      body.keepName ?? false,
     ]),
     unread: 'the body names no survivor and no absorbed entity',
   },
