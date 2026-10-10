@@ -103,6 +103,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "store_saved_file: write",
       "telegram_channel: write",
       "ofac_sdn: write",
+      "uk_sanctions_list: write",
       "eu_act: write",
       "gleif_lookup: write",
       "companies_house: write",

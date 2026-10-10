@@ -53,6 +53,10 @@ licence, not redistributed". A document with no provider, and a licence word tha
 does not know, give the fixed text. The map is in the release code. The tools that store an
 official act or list give its provider.
 
+The UK Sanctions List is under the Open Government Licence v3.0. That licence asks for an
+attribution only, and its terms are compatible with CC-BY 4.0, so a row that rests on the UK list
+takes CC-BY 4.0.
+
 ### The read
 
 - The release reads the record through functions in the database. Each function runs with the

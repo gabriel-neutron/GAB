@@ -28,6 +28,7 @@
       "mcp__gab__search_graph",
       "mcp__gab__store_saved_file",
       "mcp__gab__telegram_channel",
+      "mcp__gab__uk_sanctions_list",
       "mcp__gab__vessel_events",
       "mcp__gab__web_search",
       "mcp__gab__wikidata_ids"
