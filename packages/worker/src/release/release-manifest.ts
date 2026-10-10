@@ -19,6 +19,17 @@ const contact = z
 
 const day = z.iso.date();
 
+// The identifiers of the linked data are paths under this base, and a reuser links to them, so
+// the base is a full https address that ends with a slash, with no query and no fragment.
+const IRI_BASE = 'https://github.com/gabriel-neutron/GAB/id/';
+const iriBase = z
+  .string()
+  .trim()
+  .refine((value) => /^https:\/\/[^\s?#"]+\/$/u.test(value), {
+    message: 'give an https:// address that ends with a slash, with no query and no fragment',
+  })
+  .default(IRI_BASE);
+
 const shape = z.strictObject({
   version: z.string().trim().min(1).refine(plain, { message: PLAIN }).optional(),
   date: day.optional(),
@@ -32,6 +43,7 @@ const shape = z.strictObject({
     .prefault({}),
   contacts: z.strictObject({ reportError: contact, rightOfReply: contact }),
   criticalNodes: z.string().trim().min(1).nullable().default(null),
+  iriBase,
 });
 
 /** What the operator gives for one release. Each value has a default, except the two contact
@@ -51,6 +63,8 @@ export interface ReleaseManifest {
   readonly contacts: { readonly reportError: string; readonly rightOfReply: string };
   /** The sheet of the candidate nodes, or null. */
   readonly criticalNodes: string | null;
+  /** The base of the identifiers and of the vocabulary of the linked data. */
+  readonly iriBase: string;
 }
 
 const said = (error: z.ZodError): string =>

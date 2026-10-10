@@ -4,7 +4,7 @@
 
 ## Context
 
-The FNF investigation promises an open dataset with exports. A file that leaves Gabriel is copied
+The FNF investigation promises open exports. A file that leaves Gabriel is copied
 and used again with no control, so it must carry the label of each claim, the disclaimer and the
 licence (`decisions.md` PU1), and it must never hold what the public read hides. The format of
 the folder and the read are costly to change after the first publication, because readers cite
@@ -20,12 +20,12 @@ the files.
   key that it does not know, and a character that would break a line of a file.
 - The parameter that shows the NATO pair is off by default. Until the pair is built, the command
   refuses a manifest that turns it on.
-- The command reads the record in one read-only snapshot, so each file shows the same record.
+- The command reads one read-only snapshot, so each file shows the same record.
 - The command writes one folder, named by the date of the release, and never writes over a folder
   of the same date. It writes in a hidden folder first and renames it at the end.
 - The folder holds the export files and a manifest of the files in JSON: the version, the date,
-  the disclaimer, and the path, the size and the SHA-256 checksum of each file. A later file is one
-  more entry in this list.
+  the disclaimer, and the path, the size and the SHA-256 checksum of each file. ADR 0015 gives the
+  GeoJSON and the JSON-LD files.
 
 ### The CSV files
 
@@ -45,36 +45,6 @@ the files.
   act in a document that hold the value, compared on the letters and digits alone. When no passage
   holds it, the value keeps each passage of its act in that document.
 
-### The GeoJSON file
-
-- One GeoJSON file (RFC 7946) holds one feature for each entity of the release that has its own
-  position. The properties of a feature are the columns of the entity CSV, with the same values,
-  so the origin label and the licence are on each feature.
-- The database keeps each position in WGS84, and its GeoJSON gives the longitude first, as RFC 7946
-  asks. The file names no coordinate system, because RFC 7946 removed that member.
-- The name of the release and the disclaimer are foreign members of the collection. GDAL, and so
-  QGIS, takes the name as the name of the layer.
-- A position that the map borrows from a parent entity is not in the file, because it is not a
-  position of the entity.
-
-### The JSON-LD file
-
-- One JSON-LD 1.1 file holds one graph: a node for the release, and a node for each entity,
-  relation, claim and public document. Each entity, relation and claim keeps its origin label, its
-  licence and its sources. Each claim also keeps its passages. A CC licence also has the address of
-  its licence text.
-- The context names each term that the graph uses, and uses no default vocabulary, so a key with
-  no term cannot be in the file unseen. A term takes an existing vocabulary when one fits:
-  schema.org (the dataset, the name, the version, the dates of validity), Dublin Core (the title,
-  the identifier, the licence, the source of a passage) and PROV-O (the sources). The other terms
-  are in a release vocabulary. The graph holds the definition of each term of that vocabulary, with
-  a label and a comment, so the file documents itself.
-- The identifiers and the release vocabulary are under the address of the public repository, which
-  the project controls: an entity, a relation, a claim and a document each get one path under one
-  base. The identifier of a claim is its identifier in the CSV, so it stays the same from one
-  release to the next.
-- A value keeps its JSON type, so a number stays a number.
-
 ### The licence of a row
 
 The licence of a row comes from the providers of its public documents, and the row takes the most
@@ -83,15 +53,13 @@ licence, not redistributed". A document with no provider, and a licence word tha
 does not know, give the fixed text. The map is in the release code. The tools that store an
 official act or list give its provider.
 
-The UK Sanctions List is under the Open Government Licence v3.0. That licence asks for an
-attribution only, and its terms are compatible with CC-BY 4.0, so a row that rests on the UK list
-takes CC-BY 4.0.
+The UK Sanctions List is under the Open Government Licence v3.0, which asks for an attribution
+only, so a row that rests on it takes CC-BY 4.0.
 
 ### The read
 
-- The release reads the record through functions in the database. Each function runs with the
-  rights of its owner. Only the roles that run a tool can call them, and the public read role
-  cannot.
+- The release reads the record through functions in the database that run with the rights of
+  their owner. Only the roles that run a tool can call them.
 - Each function reads the views of the read API as their owner. The views give the whole record to
   a role that runs a tool and the public read to every other role, so the functions get the public
   read of PU1 with no copy of its rules. They add the rules of a release: each row has a public
@@ -99,8 +67,8 @@ takes CC-BY 4.0.
   holds a designation of that person by an element that is not a person, with a public source; a
   relation is in the release only when its two ends are.
 - The release holds the record only. A candidate, a held act and a rejected act made no row.
-- The functions turn off the compiled plan (jit), as the public read role does. Measured on 10
-  October 2026 on the test database: the claims in 14.4 s with it and 0.28 s without it.
+- The functions turn off the compiled plan (jit), as the public read role does (measured on 10
+  October 2026: the claims in 14.4 s with it, 0.28 s without it).
 
 ## Alternatives
 
@@ -110,21 +78,12 @@ takes CC-BY 4.0.
 - **The disclaimer in a column, or in its own file.** A column repeats a long text in each row, and
   PU1 asks each file to hold it. Refused.
 
-- **The position of a parent entity in the GeoJSON.** It is a claim of the analyst about the map,
-  not about the entity. Refused.
-- **The identifiers as `urn:uuid:` addresses.** A claim and a document have no UUID. Refused.
-- **A default vocabulary in the context.** Each unknown key would become a term with no
-  definition. Refused.
-
 ## Cost
 
-- A program that reads a CSV file must skip the lines that start with `#`.
+- A program that reads a CSV file skips the lines that start with `#`.
 - The tier of a document in the database and the map of the release code both name the open
   licences. A new licence word goes into both.
 - A passage under a restrictive licence is in the release as a short quote.
 - A document with no provider gives the restrictive text, also when its real licence is open.
 - A value can show a passage of its act that states another value of the same act, when no passage
   holds the value word for word.
-- The addresses of the identifiers and of the release vocabulary do not open a page. A reuser reads
-  the definitions in the file.
-- A change of the base address breaks each link of a reuser to an earlier release.

@@ -1,11 +1,17 @@
 import { rowLicence, type RowLicence } from './licence.ts';
-import type { ReleaseDocument, ReleaseRecord, ReleaseRelation } from './release-record.ts';
+import type {
+  ReleaseDocument,
+  ReleaseEntity,
+  ReleaseRecord,
+  ReleaseRelation,
+} from './release-record.ts';
 
 /** The reads that each file of a release makes in the record. */
 export interface ReleaseLookup {
   readonly documentOf: (id: string) => ReleaseDocument;
   /** The licence of a row from the identifiers of its public documents. */
   readonly licenceOf: (sources: readonly string[]) => RowLicence;
+  readonly entityOf: (id: string) => ReleaseEntity;
   /** The label of an entity. */
   readonly labelOf: (id: string) => string;
   readonly relationOf: (id: string) => ReleaseRelation;
@@ -23,12 +29,14 @@ const held = <T>(found: T | undefined, what: string): T => {
 export const releaseLookup = (record: ReleaseRecord): ReleaseLookup => {
   const documentOf = (id: string): ReleaseDocument =>
     held(record.documents.get(id), `document ${id}`);
-  const entityLabel = new Map(record.entities.map((one) => [one.id, one.label]));
+  const entities = new Map(record.entities.map((one) => [one.id, one]));
+  const entityOf = (id: string): ReleaseEntity => held(entities.get(id), `element ${id}`);
   const relations = new Map(record.relations.map((one) => [one.id, one]));
   return {
     documentOf,
     licenceOf: (sources) => rowLicence(sources.map((id) => documentOf(id).licence)),
-    labelOf: (id) => held(entityLabel.get(id), `element ${id}`),
+    entityOf,
+    labelOf: (id) => entityOf(id).label,
     relationOf: (id) => held(relations.get(id), `relation ${id}`),
   };
 };
