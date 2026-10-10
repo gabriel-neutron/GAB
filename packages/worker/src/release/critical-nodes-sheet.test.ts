@@ -50,7 +50,11 @@ test.each([
   [`${HEADER}\n${NODE},d,,,`, /Line 2: give the condition b, c or nothing/u],
   [`${HEADER}\nnot-an-id,b,,,`, /Line 2: give the entity identifier/u],
   [`${HEADER}\n${NODE},,x,,`, /Line 2: a row with claim identifiers gives its condition/u],
-  [`${HEADER}\n${NODE},b,,\n`, /Line 2: give 5 fields, not 4/u],
+  [`${HEADER}\n${NODE},b,,,,x\n`, /Line 2: give 5 fields, not 6/u],
+  [
+    'node_id;condition;claim_ids;controller;bypass_pattern\n',
+    /Line 1: the columns are separated by ";"/u,
+  ],
   [
     `${HEADER}\n# a note\n${NODE},b,x,,\n${NODE},b,y,,`,
     /Line 4: the node .* condition \(b\) already/u,
@@ -59,4 +63,37 @@ test.each([
 ])('the sheet %j is refused', (text, message) => {
   expect(() => readCriticalNodesSheet(text)).toThrow(CriticalNodesSheetFault);
   expect(() => readCriticalNodesSheet(text)).toThrow(message);
+});
+
+test('a sheet that is not UTF-8 is refused', () => {
+  // "Société" as a spreadsheet saves it in the code page of Western Europe.
+  const bytes = Uint8Array.from([
+    ...Buffer.from(`${HEADER}\n${NODE},,,Soci`, 'utf8'),
+    0xe9,
+    ...Buffer.from('t\u00e9,\n', 'latin1'),
+  ]);
+  expect(() => readCriticalNodesSheet(bytes)).toThrow(CriticalNodesSheetFault);
+  expect(() => readCriticalNodesSheet(bytes)).toThrow(
+    'the sheet is not UTF-8, save it as CSV UTF-8',
+  );
+  expect(
+    readCriticalNodesSheet(Buffer.from(`${HEADER}\n${NODE},,,Soci\u00e9t\u00e9,\n`, 'utf8'))[0]
+      ?.controller,
+  ).toBe('Soci\u00e9t\u00e9');
+});
+
+test('a row can leave out its empty fields at the end, and a header can end with empty columns', () => {
+  const rows = readCriticalNodesSheet(`${HEADER},,\n${NODE},b\n${NODE},c,,,,,\n`);
+  expect(rows.map((row) => [row.condition, row.controller, row.bypassPattern])).toStrictEqual([
+    ['b', '', ''],
+    ['c', '', ''],
+  ]);
+});
+
+test('the claim identifiers take spaces, commas or semicolons, a lower case UUID, and count once', () => {
+  const upper = NODE.toUpperCase();
+  const [row] = readCriticalNodesSheet(
+    `${HEADER}\n${NODE},b,"${upper}/Flag; ${NODE}/Flag,${NODE}/imo  ${upper}",,\n`,
+  );
+  expect(row?.claimIds).toStrictEqual([`${NODE}/Flag`, `${NODE}/imo`, NODE]);
 });

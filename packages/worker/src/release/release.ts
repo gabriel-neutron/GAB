@@ -38,13 +38,13 @@ const exists = async (path: string): Promise<boolean> =>
  * none. */
 const readSheet = async (path: string | null) => {
   if (path === null) return null;
-  let text;
+  let bytes;
   try {
-    text = await readFile(path, 'utf8');
+    bytes = await readFile(path);
   } catch {
     throw new CriticalNodesSheetFault(`Cannot read the sheet of the candidate nodes ${path}.`);
   }
-  return readCriticalNodesSheet(text);
+  return readCriticalNodesSheet(bytes);
 };
 
 /** Reads the public part of the record and writes one release folder, named by its date, in

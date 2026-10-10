@@ -1022,6 +1022,35 @@ test('a release refuses a sheet that cites a claim that is not public, and write
   expect(await readdir(root)).toStrictEqual(['nodes.csv']);
 });
 
+// A person that no authority designates is not in the release, so the sheet cannot name it as a
+// node, nor cite the relation that names it.
+test.each([
+  [
+    'the person as the node',
+    () => `${OTHER_PERSON},,,,`,
+    `the node ${OTHER_PERSON} is not a public entity`,
+  ],
+  ['a claim of the person', (works: string) => `${OWNER},b,${works},,`, 'is not a public claim'],
+])('a release refuses a sheet that names a hidden person: %s', async (_, line, message) => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const sheet = join(root, 'nodes.csv');
+  await inTransaction(async (held) => {
+    const { otherWorks } = await record(held);
+    await writeFile(
+      sheet,
+      `node_id,condition,claim_ids,controller,bypass_pattern\n${line(otherWorks.id)}\n`,
+    );
+    await expect(
+      writeRelease(
+        held.as('gabriel_app'),
+        { ...MANIFEST, criticalNodes: sheet },
+        join(root, 'out'),
+      ),
+    ).rejects.toThrow(new RegExp(`Line 2: .*${message}`, 'u'));
+  });
+  expect(await readdir(root)).toStrictEqual(['nodes.csv']);
+});
+
 test.each([
   [
     'a node that is not in the release',
