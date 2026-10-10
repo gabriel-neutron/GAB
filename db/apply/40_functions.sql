@@ -4087,6 +4087,44 @@ BEGIN
                              p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
 END $$;
 
+-- THE PROVIDER OF A KNOWN OFFICIAL FILE. The same bytes are stored once, so a tool that reads an
+-- official file again reaches the row of the first read. A row that a tool stored before the tools
+-- gave a provider has none, and so it stays internal. This door gives the provider to such a row,
+-- and it never changes a provider that a row holds. Only a fetched row takes it, because only a
+-- tool that reads the address of the publisher names the provider. It answers what it found:
+--   filled       the row had no provider, and it holds this one now;
+--   same         the row holds this provider already;
+--   other        the row holds another provider, and keeps it;
+--   not_fetched  the row is not a fetched document, so it keeps no provider.
+-- The row lock makes two reads of the same bytes fill the provider once.
+CREATE OR REPLACE FUNCTION fill_document_provider(p_document text, p_provider text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind     text;
+  v_provider text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.document_provider p WHERE p.id = p_provider) THEN
+    RAISE EXCEPTION 'provider % does not exist', coalesce(p_provider, 'nothing')
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  SELECT d.kind, d.provider_id INTO v_kind, v_provider
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_provider IS NULL THEN
+    UPDATE public.documents SET provider_id = p_provider WHERE id = p_document::doc_id;
+    RETURN 'filled';
+  END IF;
+  RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
+END $$;
+
 -- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
 -- cannot be marked done by hand.
 --
