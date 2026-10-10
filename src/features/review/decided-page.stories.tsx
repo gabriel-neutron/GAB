@@ -186,3 +186,37 @@ export const TheHistoryHoldsInTheDarkTheme: Story = {
     await expect(getComputedStyle(head).color).toBe(DARK_LABEL);
   },
 };
+
+/** An act that gave the end date of a relation reads as the end of a relation. */
+export const AnEndDateReadsAsTheEndOfARelation: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: decidedRows([
+        {
+          id: '7c8d9e0f-1a2b-4c3d-8e4f-5a6b7c8d9e0f',
+          op: 'update_relation',
+          payload: { valid_to: '2023-11-30' },
+          proposer: 'research_ai',
+          status: 'accepted',
+          decidedAt: '2026-10-10T09:30:00Z',
+          decidedBy: 'operator',
+          decidedAs: 'unit',
+          decisionOrigin: null,
+          decisionReason: null,
+          rejectReason: null,
+          rejectNote: null,
+          name: 'Rosneft owns Nayara',
+        },
+      ]),
+      unread: 0,
+      why: null,
+      more: 'none',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const [row] = canvasElement.querySelectorAll('[data-decided]');
+    await expect(row).toHaveTextContent('End of a relation');
+    await expect(row).toHaveTextContent('Rosneft owns Nayara');
+  },
+};
