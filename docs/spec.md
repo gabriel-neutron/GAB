@@ -110,8 +110,8 @@ the record  →  the release functions of the database (the public rules)
             →  the worker command  →  one dated folder of files, and a manifest of the files
 ```
 
-- **The read.** The command reads through functions that only the three roles that run a tool can
-  call. The public read role cannot call them. They apply the rules of the public read (PU1) and
+- **The read.** The command reads one snapshot of the record, through functions that only the
+  roles that run a tool can call. The public read role cannot call them. They apply the rules of the public read (PU1) and
   the rules of a release: each row has at least one public document, and a row names only its
   public documents; a person is in the release only when the record holds a designation of that
   person; a relation is in the release only when its two ends are. The release holds the record

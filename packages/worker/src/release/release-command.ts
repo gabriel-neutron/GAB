@@ -4,8 +4,9 @@ import { Client } from 'pg';
 
 import { appAddress } from '../address.ts';
 import type { SubCommand } from '../command.ts';
-import { writeRelease } from './release.ts';
+import { ReleaseFolderExists, writeRelease } from './release.ts';
 import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts';
+import { inOneSnapshot } from './snapshot.ts';
 
 const USAGE = 'Usage: pnpm worker release --manifest <file> --out <folder>';
 
@@ -26,7 +27,8 @@ const flagsOf = (args: readonly string[]): { manifest: string; out: string } | n
 };
 
 /** Writes one release folder from the record, with the release manifest that the operator
- * gives. A usage fault or a refused manifest gives 2, and nothing is read or written. */
+ * gives. A usage fault, a refused manifest or a release of the same date gives 2, and nothing is
+ * written. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
   if (flags === null) {
@@ -46,12 +48,16 @@ export const releaseCommand: SubCommand = async (args) => {
   await client.connect();
   try {
     await client.query(`SET statement_timeout = '${RELEASE_TIMEOUT}'`);
-    const written = await writeRelease(client, manifest, flags.out);
+    const written = await inOneSnapshot(client, () => writeRelease(client, manifest, flags.out));
     console.log(
       `The release ${manifest.version} is in ${written.folder}: ${String(written.entities)} ` +
         `entities, ${String(written.relations)} relations, ${String(written.claims)} claims.`,
     );
     return 0;
+  } catch (fault) {
+    if (!(fault instanceof ReleaseFolderExists)) throw fault;
+    console.error(fault.message);
+    return 2;
   } finally {
     await client.end();
   }

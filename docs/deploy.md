@@ -171,7 +171,8 @@ the GAB checkout, because it holds your contact addresses. It is a JSON file:
 Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
 the release takes the date of the day (UTC). With no `version`, the version is the date.
 `showNatoPair` stays `false`: the command refuses `true`, because no file can show the pair yet.
-The command also refuses a key that it does not know, so check the spelling.
+The command also refuses a key that it does not know, and a quote, a comma or a control
+character in the version or an address.
 
 Then run, on the record:
 

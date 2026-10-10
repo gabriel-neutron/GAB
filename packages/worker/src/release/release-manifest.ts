@@ -5,17 +5,22 @@ export class ReleaseManifestFault extends Error {}
 
 // A contact link opens a page or a mail program from any copy of the files, so it is a full
 // address on https or mailto.
+// A quote, a comma or a control character would break a line of a file that holds the value.
+const plain = (value: string): boolean => !/[",\p{Cc}]/u.test(value);
+const PLAIN = 'give no quote, no comma and no control character';
+
 const contact = z
   .string()
   .trim()
   .refine((value) => /^(https:\/\/\S+|mailto:\S+@\S+)$/u.test(value), {
     message: 'give an https:// or a mailto: address',
-  });
+  })
+  .refine(plain, { message: PLAIN });
 
 const day = z.iso.date();
 
 const shape = z.strictObject({
-  version: z.string().trim().min(1).optional(),
+  version: z.string().trim().min(1).refine(plain, { message: PLAIN }).optional(),
   date: day.optional(),
   showNatoPair: z.boolean().default(false),
   dateRules: z
