@@ -36,7 +36,8 @@ decide the unit.
 - `read_leads`: the leads and the documents that each one stored.
 - `promote_unit`, `reject_unit`, `reject_relation`: the decisions of the review page on one
   unit. `promote_clean_proposals`: the group action, which promotes the clean units of one group,
-  each as its own decision with your reason. Each one asks the operator before it runs.
+  each as its own decision with your reason. In a session that starts in `research/`,
+  each one asks the operator before it runs.
 - `document_text`: the whole page of a cited document, when the passage is not enough.
 
 ## Steps

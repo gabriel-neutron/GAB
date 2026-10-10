@@ -124,7 +124,10 @@ test('the dry-run gives the changes of each decision and writes nothing', async 
     return {
       key: key(alias),
       rows,
-      decisions: await ask('SELECT count(*)::int AS n FROM public.author_name_decision'),
+      decisions: await ask(
+        'SELECT count(*)::int AS n FROM public.author_name_decision WHERE name_key = $1',
+        [key(alias)],
+      ),
       rule: await ruleOf(ask, one.act),
       status: await statusOf(ask, one.act),
       letter: await letter(ask, alias),
@@ -236,3 +239,57 @@ test.each(['gabriel_agent', 'gabriel_research', 'gabriel_checker'])(
     expect(read.list).toContain('permission denied');
   },
 );
+
+test('the dry-run counts equal the changes that each real decision makes', async () => {
+  const states = (ask: Ask, act: string) =>
+    as(ask, 'gabriel_app', () =>
+      ask(
+        `SELECT coalesce(public.unit_rule(unit_id), 'decided') AS state
+           FROM public.proposals WHERE id = $1`,
+        [act],
+      ),
+    );
+  for (const confirm of [true, false]) {
+    const read = await rolledBack('superuser', async (ask) => {
+      const { alias, one } = await joined(ask);
+      const before = await states(ask, one.act);
+      const [row] = dryRun.parse(
+        await as(ask, 'gabriel_app', () =>
+          ask('SELECT * FROM public.author_names_dry_run() WHERE name_key = $1', [key(alias)]),
+        ),
+      );
+      await decide(ask, alias, confirm);
+      const after = await states(ask, one.act);
+      return {
+        counted: confirm ? row?.change_if_confirmed : row?.change_if_refused,
+        changed: JSON.stringify(before) === JSON.stringify(after) ? 0 : 1,
+      };
+    });
+    expect(read.counted).toBe(read.changed);
+  }
+});
+
+test('a refusal queues the rating again also when the name holds a job that failed by a fault', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const { alias } = await joined(ask);
+    // A fault of the service ended the first job, and a later act queued a second one, which the
+    // rater ended with the join.
+    await ask(
+      `UPDATE public.jobs SET status = 'failed', failure_reason = 'the service failed',
+              claimed_by = 'gabriel_agent', claimed_at = now(), finished_at = now()
+        WHERE kind = 'rate_author' AND author = $1`,
+      [key(alias)],
+    );
+    await ask(
+      `INSERT INTO public.jobs (kind, author, status, claimed_by, claimed_at, finished_at)
+       VALUES ('rate_author', $1, 'done', 'gabriel_agent', now(), now())`,
+      [key(alias)],
+    );
+    await decide(ask, alias, false);
+    return ask(
+      `SELECT status FROM public.jobs WHERE kind = 'rate_author' AND author = $1 ORDER BY status`,
+      [key(alias)],
+    );
+  });
+  expect(read).toStrictEqual([{ status: 'failed' }, { status: 'queued' }]);
+});
