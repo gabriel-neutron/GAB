@@ -14,6 +14,8 @@ import { createWorker, type Worker } from 'tesseract.js';
 import TurndownService from 'turndown';
 import { extractText as readPdf, getDocumentProxy } from 'unpdf';
 
+import { xmlText } from './xml-text.ts';
+
 export interface Extracted {
   readonly pages: readonly string[];
 }
@@ -30,6 +32,7 @@ export class UnsupportedTypeError extends Error {
 const withoutNul = (text: string): string => text.replaceAll('\u0000', '');
 
 const PLAIN = new Set(['text/plain', 'text/markdown', 'text/csv']);
+const XML = new Set(['application/xml', 'text/xml']);
 
 const pdfPages = async (bytes: Uint8Array): Promise<string[]> => {
   // External constraint: unpdf hands the buffer to a worker that may detach it, so it gets a copy.
@@ -193,6 +196,7 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.html': 'text/html',
   '.htm': 'text/html',
   '.xhtml': 'application/xhtml+xml',
+  '.xml': 'application/xml',
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
@@ -384,6 +388,7 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   // act in it.
   if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, mime, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
+  if (XML.has(type)) return { pages: [withoutNul(xmlText(decodeHtml(bytes, mime)))] };
   if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);
 };

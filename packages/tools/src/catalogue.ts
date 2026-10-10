@@ -2,6 +2,7 @@ import { archiveSnapshot } from './archive-snapshot.ts';
 import { companiesHouse } from './companies-house.ts';
 import { documentText } from './document-text.ts';
 import { enqueueExtract } from './enqueue-extract.ts';
+import { euAct } from './eu-act.ts';
 import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
@@ -56,6 +57,7 @@ export const CATALOGUE = [
   newsSearch,
   archiveSnapshot,
   fetchDocument,
+  euAct,
   storeSavedFile,
   telegramChannel,
   gleifLookup,

@@ -82,6 +82,9 @@ export interface GetOptions {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check. The default is refusedAddress. */
   readonly refuses?: (address: string) => boolean;
+  /** The format and the language that the caller asks for. The user agent and the encoding stay
+   * those of the project. */
+  readonly ask?: { readonly accept?: string; readonly 'accept-language'?: string };
 }
 
 export interface Got {
@@ -90,6 +93,8 @@ export interface Got {
   /** The success status of the answer (200 to 299). */
   readonly status: number;
   readonly contentType: string | null;
+  /** The date that the server gives for the last change of the answer, as it gives it. */
+  readonly lastModified: string | null;
   readonly bytes: Uint8Array;
 }
 
@@ -241,7 +246,12 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
     const host = url.hostname.replace(/^\[(.*)\]$/u, '$1');
     if (isIP(host) !== 0 && refuses(host)) throw refusedSentence(host);
     try {
-      const response = await opened(url, { method: 'GET', headers: HEADERS, lookup, signal });
+      const response = await opened(url, {
+        method: 'GET',
+        headers: { ...HEADERS, ...options.ask },
+        lookup,
+        signal,
+      });
       const status = response.statusCode ?? 0;
       if (REDIRECTS.has(status)) {
         response.destroy();
@@ -265,6 +275,7 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         url: url.href,
         status,
         contentType: response.headers['content-type'] ?? null,
+        lastModified: response.headers['last-modified'] ?? null,
         bytes,
       };
     } catch (fault) {
