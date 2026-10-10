@@ -45,8 +45,8 @@ export interface Answer {
   readonly title: string;
   readonly pages: readonly string[];
   readonly day: string;
-  /** The publisher of an official file, whose licence makes the document public. A tool names it
-   * only for a file that it reads at the address of that publisher. */
+  /** The publisher of an official file. Its licence gives the tier of the document. A tool names
+   * it only for a file that it reads at the address of that publisher. */
   readonly provider?: 'eu_eurlex' | 'ofac_sdn';
 }
 
