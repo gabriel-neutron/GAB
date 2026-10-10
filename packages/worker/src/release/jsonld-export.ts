@@ -4,16 +4,11 @@ import type { ReleaseHeading } from './release-heading.ts';
 import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
-// The identifiers of a release and the terms of its vocabulary are under the address of the
-// public repository, which the project controls. A release never changes them, because a reuser
-// links to them.
-const BASE = 'https://github.com/gabriel-neutron/GAB/id/';
-const VOCABULARY = 'https://github.com/gabriel-neutron/GAB/vocabulary#';
-
-const CONTEXT = {
+// The identifiers and the terms of the vocabulary are under the base that the manifest gives.
+const contextOf = (base: string) => ({
   '@version': 1.1,
-  '@base': BASE,
-  gab: VOCABULARY,
+  '@base': base,
+  gab: `${base}vocabulary#`,
   schema: 'https://schema.org/',
   dct: 'http://purl.org/dc/terms/',
   prov: 'http://www.w3.org/ns/prov#',
@@ -44,8 +39,9 @@ const CONTEXT = {
   attribute: 'gab:attribute',
   value: { '@id': 'gab:value', '@type': '@json' },
   originLabel: 'gab:originLabel',
-  licence: 'gab:licence',
+  licenceText: 'gab:licenceText',
   license: { '@id': 'dct:license', '@type': '@id' },
+  isReplacedBy: { '@id': 'dct:isReplacedBy', '@type': '@id' },
   sources: { '@id': 'prov:wasDerivedFrom', '@type': '@id', '@container': '@set' },
   passages: { '@id': 'gab:passage', '@container': '@set' },
   Passage: 'gab:Passage',
@@ -56,9 +52,9 @@ const CONTEXT = {
   transcribed: 'gab:transcribed',
   Document: 'gab:Document',
   title: 'dct:title',
-  address: 'schema:url',
-  readOn: 'gab:readOn',
-} as const;
+  address: { '@id': 'schema:url', '@type': 'xsd:anyURI' },
+  readOn: { '@id': 'gab:readOn', '@type': 'xsd:date' },
+});
 
 const term = (
   id: string,
@@ -125,9 +121,9 @@ const VOCABULARY_TERMS = [
     'Who or what decided the row, and on which day, in fixed words. A row that no person read says so.',
   ),
   term(
-    'licence',
+    'licenceText',
     'Property',
-    'licence',
+    'licence text',
     'The licence of the row, from the providers of its public documents: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the provider licence, not redistributed".',
   ),
   term('passage', 'Property', 'passage', 'A passage of a source document that holds the claim.'),
@@ -150,12 +146,13 @@ const VOCABULARY_TERMS = [
     'transcribed',
     'true when an AI read the passage from an image of the page.',
   ),
-  term('readOn', 'Property', 'read on', 'When the project read the document.'),
+  term('readOn', 'Property', 'read on', 'The day when the project read the document.'),
 ];
 
 // The address of a licence that has one. The fixed text of a derived fact names no licence.
+const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
 const LICENCE_ADDRESS: Record<RowLicence, string | null> = {
-  'CC-BY 4.0': 'https://creativecommons.org/licenses/by/4.0/',
+  'CC-BY 4.0': CC_BY,
   'CC-BY-NC 4.0': 'https://creativecommons.org/licenses/by-nc/4.0/',
   'derived fact; source under the provider licence, not redistributed': null,
 };
@@ -168,29 +165,32 @@ const present = (fields: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(fields).filter(([, one]) => one !== null && one !== undefined));
 
 /** The JSON-LD file of a release: one graph with the dataset, each entity, relation, claim and
- * public document, and the definition of each term of the vocabulary of a release. Each row
- * keeps its origin label, its licence and its sources, and each claim its passages. */
-export const jsonldExport = (record: ReleaseRecord, heading: ReleaseHeading): ReleaseFile => {
-  const { documentOf, licenceOf, labelOf, relationOf } = releaseLookup(record);
-  const entityId = (id: string): string => {
-    labelOf(id);
-    return path('entity', id);
-  };
+ * cited document, each absorbed entity with the entity that replaces it, and the definition of
+ * each term of the vocabulary of a release. Each row keeps its origin label, its licence and its
+ * sources, and each claim its passages. The identifiers are paths under `base`. */
+export const jsonldExport = (
+  record: ReleaseRecord,
+  heading: ReleaseHeading,
+  base: string,
+): ReleaseFile => {
+  const { documentOf, entityOf, licenceOf, relationOf } = releaseLookup(record);
+  const entityId = (id: string): string => path('entity', entityOf(id).id);
   const relationId = (id: string): string => path('relation', relationOf(id).id);
   const documentId = (id: string): string => path('document', documentOf(id).id);
   const trust = (row: { origin_label: string; sources: readonly string[] }) => {
     const licence = licenceOf(row.sources);
     return present({
       originLabel: row.origin_label,
-      licence,
+      licenceText: licence,
       license: LICENCE_ADDRESS[licence],
       sources: row.sources.map(documentId),
     });
   };
 
   const dataset = {
-    '@id': `release/${heading.date}`,
+    '@id': path('release', heading.version),
     '@type': 'Dataset',
+    license: CC_BY,
     name: heading.title,
     version: heading.version,
     datePublished: heading.date,
@@ -234,6 +234,17 @@ export const jsonldExport = (record: ReleaseRecord, heading: ReleaseHeading): Re
       transcribed: passage.transcribed,
     })),
   });
+  // An absorbed identifier resolves to one entity while its merge stands. An undone merge has no
+  // node, because the entity is back.
+  const replaced = new Map(
+    record.merges.flatMap((one) =>
+      one.resolves_to === null ? [] : [[one.absorbed_id, entityId(one.resolves_to)] as const],
+    ),
+  );
+  const replacements = [...replaced].map(([absorbed, survivor]) => ({
+    '@id': path('entity', absorbed),
+    isReplacedBy: survivor,
+  }));
   const documents = [...record.documents.values()].map((one) => ({
     '@id': path('document', one.id),
     '@type': 'Document',
@@ -247,10 +258,11 @@ export const jsonldExport = (record: ReleaseRecord, heading: ReleaseHeading): Re
     ...relations,
     ...record.claims.map(claim),
     ...documents,
+    ...replacements,
     ...VOCABULARY_TERMS,
   ];
   return {
     path: 'dataset.jsonld',
-    text: `${JSON.stringify({ '@context': CONTEXT, '@graph': graph })}\n`,
+    text: `${JSON.stringify({ '@context': contextOf(base), '@graph': graph })}\n`,
   };
 };

@@ -51,7 +51,7 @@ export const writeRelease = async (
   const files: readonly ReleaseFile[] = [
     ...csvExport(record, `${heading.title}\n\n${disclaimer}`),
     geojsonExport(record, heading),
-    jsonldExport(record, heading),
+    jsonldExport(record, heading, manifest.iriBase),
   ];
 
   const listed = files.map((file) => {

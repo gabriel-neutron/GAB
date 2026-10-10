@@ -10,7 +10,9 @@ const OWNS = '00000000-0000-4000-8000-000000000003';
 const ACT = '00000000-0000-4000-8000-000000000004';
 const LABEL = 'Validated manually by the operator, on 2026-10-08';
 const RULE = 'Accepted by rule strong_sources v1 — no person read it, on 2026-10-09';
-const BASE = 'https://github.com/gabriel-neutron/GAB/id/';
+const BASE = 'https://data.example.org/gab/';
+const ABSORBED = '00000000-0000-4000-8000-000000000005';
+const UNDONE = '00000000-0000-4000-8000-000000000006';
 
 const RECORD: ReleaseRecord = {
   entities: [
@@ -76,7 +78,7 @@ const RECORD: ReleaseRecord = {
     },
     {
       claim_id: OWNS,
-      subject_kind: 'entity',
+      subject_kind: 'relation',
       subject_id: OWNS,
       attribute: null,
       value: null,
@@ -86,7 +88,26 @@ const RECORD: ReleaseRecord = {
       passages: [],
     },
   ],
-  merges: [],
+  merges: [
+    {
+      act_id: ACT,
+      action: 'merge',
+      day: '2026-10-10',
+      absorbed_id: ABSORBED,
+      survivor_id: SHIP,
+      resolves_to: SHIP,
+      origin_label: LABEL,
+    },
+    {
+      act_id: ACT,
+      action: 'merge',
+      day: '2026-10-10',
+      absorbed_id: UNDONE,
+      survivor_id: SHIP,
+      resolves_to: null,
+      origin_label: LABEL,
+    },
+  ],
   documents: new Map([
     [
       'doc_a',
@@ -119,7 +140,7 @@ const document = z.object({
 });
 
 const read = () => {
-  const file = jsonldExport(RECORD, HEADING);
+  const file = jsonldExport(RECORD, HEADING, BASE);
   expect(file.path).toBe('dataset.jsonld');
   return document.parse(JSON.parse(file.text));
 };
@@ -167,9 +188,10 @@ test('the graph documents each term of the release vocabulary with a label and a
   for (const iri of ours) expect(definitions).toContain(iri);
 });
 
-test('the dataset node gives the version, the date and the disclaimer', () => {
-  expect(node(`release/2026-11-08`)).toMatchObject({
+test('the dataset node gives the version, the date, the licence and the disclaimer', () => {
+  expect(node(`release/1.0`)).toMatchObject({
     '@type': 'Dataset',
+    license: 'https://creativecommons.org/licenses/by/4.0/',
     name: 'GAB dataset, version 1.0 of 08/11/2026.',
     version: '1.0',
     datePublished: '2026-11-08',
@@ -184,7 +206,7 @@ test('an entity and a relation keep their label, licence and sources', () => {
     entityType: 'vessel',
     name: 'A ship',
     originLabel: LABEL,
-    licence: 'CC-BY 4.0',
+    licenceText: 'CC-BY 4.0',
     license: 'https://creativecommons.org/licenses/by/4.0/',
     sources: ['document/doc_a'],
   });
@@ -196,7 +218,7 @@ test('an entity and a relation keep their label, licence and sources', () => {
     to: `entity/${SHIP}`,
     validFrom: '2024-01-02',
     originLabel: LABEL,
-    licence: 'CC-BY-NC 4.0',
+    licenceText: 'CC-BY-NC 4.0',
     license: 'https://creativecommons.org/licenses/by-nc/4.0/',
     sources: ['document/doc%20b'],
   });
@@ -212,7 +234,7 @@ test('each claim keeps its sources, its passages, its label and its licence', ()
     attribute: 'flag',
     value: 'Panama',
     originLabel: RULE,
-    licence: 'CC-BY 4.0',
+    licenceText: 'CC-BY 4.0',
     license: 'https://creativecommons.org/licenses/by/4.0/',
     sources: ['document/doc_a', 'document/doc%20b'],
     passages: [
@@ -239,6 +261,10 @@ test('a document gives its title, its address and its day of reading', () => {
     address: 'https://example.org/a',
     readOn: '2026-10-01',
   });
+  expect(read()['@context']).toMatchObject({
+    address: { '@id': 'schema:url', '@type': 'xsd:anyURI' },
+    readOn: { '@id': 'gab:readOn', '@type': 'xsd:date' },
+  });
   expect(node('document/doc%20b')).toStrictEqual({
     '@id': 'document/doc%20b',
     '@type': 'Document',
@@ -246,6 +272,14 @@ test('a document gives its title, its address and its day of reading', () => {
   });
 });
 
-test('the identifiers resolve against the base of the release', () => {
-  expect(read()['@context']).toMatchObject({ '@base': BASE });
+test('the identifiers and the vocabulary are under the base that the manifest gives', () => {
+  expect(read()['@context']).toMatchObject({ '@base': BASE, gab: `${BASE}vocabulary#` });
+});
+
+test('an absorbed entity is replaced by the entity that it resolves to, while the merge stands', () => {
+  expect(node(`entity/${ABSORBED}`)).toStrictEqual({
+    '@id': `entity/${ABSORBED}`,
+    isReplacedBy: `entity/${SHIP}`,
+  });
+  expect(node(`entity/${UNDONE}`)).toBeUndefined();
 });
