@@ -92,6 +92,31 @@ test('an owns relation with a start and an end promotes with both bounds', async
   ]);
 });
 
+test('a second open owns relation between the same two ends is refused at the promotion', async () => {
+  const refused = probe('app', async (ask) => {
+    const src = await promoted(ask, await idOf(ask, PROPOSE_ENTITY));
+    const dst = await promoted(ask, await idOf(ask, PROPOSE_ENTITY));
+    try {
+      const first = await promoted(
+        ask,
+        await idOf(ask, PROPOSE_RELATION, ['owns', src, dst, '2019-05-02', null]),
+      );
+      try {
+        await promoted(
+          ask,
+          await idOf(ask, PROPOSE_RELATION, ['owns', src, dst, '2021-01-01', null]),
+        );
+      } finally {
+        await deleted(ask, 'relation', first);
+      }
+    } finally {
+      await deleted(ask, 'entity', src);
+      await deleted(ask, 'entity', dst);
+    }
+  });
+  await expect(refused).rejects.toMatchObject({ constraint: 'relations_one_open_per_type' });
+});
+
 test('an associated_with relation promotes as itself, with no interval', async () => {
   await expect(promotedRelation('associated_with')).resolves.toStrictEqual([
     { type: 'associated_with', proposed_type: null, valid_from: null, valid_to: null },

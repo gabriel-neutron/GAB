@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
+import type { ProposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import { plainText } from './check-answer.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { statedBounds, unstatedValues, withoutBounds } from './stated-value.ts';
+import { statedBounds, unstatedValues, withoutBounds, type BoundName } from './stated-value.ts';
 import {
   CheckFailure,
   defineTool,
@@ -333,6 +334,7 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 const disputeReason = (
   transcribed: boolean,
   unstated: readonly UnstatedValue[],
+  lostEnd: string | null,
   verdict: CheckVerdict | 'unchecked' | undefined,
   names: ReadonlyMap<string, string>,
 ): string | null => {
@@ -345,6 +347,7 @@ const disputeReason = (
         .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
         .join(', ')}`,
     );
+  if (lostEnd !== null) parts.push(`the end date ${lostEnd} is in no excerpt`);
   if (verdict === undefined) parts.push('the checker did not answer');
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
@@ -358,6 +361,18 @@ const disputeReason = (
   const plain = plainText(parts.join('; '));
   return Array.from(plain).slice(0, MAX_REASON).join('');
 };
+
+// One item of the batch, ready for the check and the write.
+interface Prepared {
+  readonly given: ProposeItem;
+  readonly act: ProposalAct;
+  readonly cited: readonly Cited[];
+  readonly unstated: readonly UnstatedValue[];
+  readonly dropped: BoundName[];
+  readonly lostEnd: string | null;
+  readonly transcribed: boolean;
+  readonly id: string | undefined;
+}
 
 const outcome = z.strictObject({
   ref: z.string(),
@@ -382,8 +397,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'the item. For a PNG or JPEG document whose OCR text misreads the image, give the words ' +
       'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
       'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. A start ' +
-      '(validFrom) or an end (validTo) of a relation that no excerpt states is not proposed, and ' +
-      'droppedBounds names it. Before the write, a ' +
+      '(validFrom) of a relation that no excerpt states is not proposed, and droppedBounds names ' +
+      'it; an end (validTo) that no excerpt states refuses the batch. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
@@ -405,7 +420,7 @@ export const proposeOf = (modelCallId: string | null) =>
         minted.set(given.ref, { id: randomUUID(), kind: KIND_OF_OP[given.act.op] ?? null, index });
       });
 
-      const prepared = [];
+      const prepared: Prepared[] = [];
       for (const [index, given] of input.items.entries()) {
         const resolved = await resolvedAct(session, given, index, minted);
         // A back-end agent reads the stored text only, so it never gives words read from an image.
@@ -417,6 +432,19 @@ export const proposeOf = (modelCallId: string | null) =>
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
         const { act: request, dropped } = statedBounds(resolved, passages);
+        // An end that is not proposed makes an ended relation look current. The research AI can
+        // cite the passage that states it, so its batch is refused. An agent cannot, so its item
+        // is disputed and the operator reads the page.
+        const lostEnd =
+          resolved.op === 'create_relation' && dropped.includes('validTo')
+            ? (resolved.validTo ?? null)
+            : null;
+        if (lostEnd !== null && modelCallId === null)
+          refuse(
+            given.ref,
+            `no excerpt states the end date ${lostEnd} (validTo): cite the passage that states ` +
+              'it, or give no validTo',
+          );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
         const unstated = unstatedValues(request, passages);
@@ -427,6 +455,7 @@ export const proposeOf = (modelCallId: string | null) =>
           cited,
           unstated,
           dropped,
+          lostEnd,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -437,10 +466,7 @@ export const proposeOf = (modelCallId: string | null) =>
         ref: given.ref,
         claim: {
           // The checker reads the act that is written, so a dropped bound is not in the claim.
-          act:
-            dropped.length === 0 || given.act.op !== 'create_relation'
-              ? given.act
-              : withoutBounds(given.act, dropped),
+          act: given.act.op === 'create_relation' ? withoutBounds(given.act, dropped) : given.act,
           originator: given.originator,
           modality: given.modality,
         },
@@ -474,14 +500,12 @@ export const proposeOf = (modelCallId: string | null) =>
         if (reach?.checkMarks !== 'refuted') return said;
         return said?.verdict === 'not_supported' ? said : 'unchecked';
       };
-      const reasonOf = (
-        ref: string,
-        transcribed: boolean,
-        unstated: readonly UnstatedValue[],
-      ): string | null => disputeReason(transcribed, unstated, verdictOf(ref), names);
+      const reasonOf = (one: Prepared): string | null =>
+        disputeReason(one.transcribed, one.unstated, one.lostEnd, verdictOf(one.given.ref), names);
 
-      const items = prepared.map(({ given, act, cited, unstated, transcribed, id }) => {
-        const reason = reasonOf(given.ref, transcribed, unstated);
+      const items = prepared.map((one) => {
+        const { given, act, cited, id } = one;
+        const reason = reasonOf(one);
         return {
           id,
           op: act.op,
@@ -521,14 +545,15 @@ export const proposeOf = (modelCallId: string | null) =>
       }
 
       return {
-        proposals: prepared.map(({ given, unstated, dropped, transcribed }, index) => {
+        proposals: prepared.map((one, index) => {
+          const { given, unstated, dropped } = one;
           const row = rows.find((one) => one.item === index + 1);
           if (row === undefined) throw new Error(`the door returned no proposal for ${given.ref}`);
           return {
             ref: given.ref,
             proposalId: row.proposal_id,
             written: row.written,
-            disputed: reasonOf(given.ref, transcribed, unstated) !== null,
+            disputed: reasonOf(one) !== null,
             unstated: [...new Set(unstated.map((one) => one.name))],
             droppedBounds: dropped,
           };
