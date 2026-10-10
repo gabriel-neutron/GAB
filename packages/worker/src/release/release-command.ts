@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 
 import { Client } from 'pg';
 
 import { appAddress } from '../address.ts';
 import type { SubCommand } from '../command.ts';
+import { CriticalNodesSheetFault } from './critical-nodes-sheet.ts';
 import { ReleaseFolderExists, writeRelease } from './release.ts';
 import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts';
 import { inOneSnapshot } from './snapshot.ts';
@@ -27,8 +29,9 @@ const flagsOf = (args: readonly string[]): { manifest: string; out: string } | n
 };
 
 /** Writes one release folder from the record, with the release manifest that the operator
- * gives. A usage fault, a refused manifest or a release of the same date gives 2, and nothing is
- * written. */
+ * gives. A usage fault, a refused manifest, a refused sheet of the candidate nodes or a release of
+ * the same date gives 2, and nothing is written. The path of the sheet is relative to the folder
+ * of the manifest. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
   if (flags === null) {
@@ -37,7 +40,12 @@ export const releaseCommand: SubCommand = async (args) => {
   }
   let manifest;
   try {
-    manifest = readReleaseManifest(await readFile(flags.manifest, 'utf8'), new Date());
+    const read = readReleaseManifest(await readFile(flags.manifest, 'utf8'), new Date());
+    const sheet = read.criticalNodes;
+    manifest = {
+      ...read,
+      criticalNodes: sheet === null ? null : resolve(dirname(flags.manifest), sheet),
+    };
   } catch (fault) {
     if (fault instanceof ReleaseManifestFault) console.error(fault.message);
     else console.error(`Cannot read the release manifest ${flags.manifest}.`);
@@ -55,7 +63,8 @@ export const releaseCommand: SubCommand = async (args) => {
     );
     return 0;
   } catch (fault) {
-    if (!(fault instanceof ReleaseFolderExists)) throw fault;
+    if (!(fault instanceof ReleaseFolderExists || fault instanceof CriticalNodesSheetFault))
+      throw fault;
     console.error(fault.message);
     return 2;
   } finally {

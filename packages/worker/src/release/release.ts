@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
-import { access, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { Queryable } from '../queryable.ts';
 import { alignmentMatrix } from './alignment-matrix.ts';
+import { criticalNodes } from './critical-nodes.ts';
+import { CriticalNodesSheetFault, readCriticalNodesSheet } from './critical-nodes-sheet.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
 import { geojsonExport } from './geojson-export.ts';
@@ -32,9 +34,23 @@ const exists = async (path: string): Promise<boolean> =>
     () => false,
   );
 
+/** Reads the sheet of the candidate nodes at its path, or gives null when the manifest names
+ * none. */
+const readSheet = async (path: string | null) => {
+  if (path === null) return null;
+  let bytes;
+  try {
+    bytes = await readFile(path);
+  } catch {
+    throw new CriticalNodesSheetFault(`Cannot read the sheet of the candidate nodes ${path}.`);
+  }
+  return readCriticalNodesSheet(bytes);
+};
+
 /** Reads the public part of the record and writes one release folder, named by its date, in
  * `root`. The folder holds each file, then the file manifest with the checksum of each file. A
- * folder of the same date is never overwritten. */
+ * folder of the same date is never overwritten. A sheet of the candidate nodes that is refused
+ * stops the release before it writes a file. */
 export const writeRelease = async (
   db: Queryable,
   manifest: ReleaseManifest,
@@ -46,6 +62,7 @@ export const writeRelease = async (
       `The release folder ${folder} exists already. A release never writes over another one.`,
     );
 
+  const sheet = await readSheet(manifest.criticalNodes);
   const record = await readReleaseRecord(db, { natoPair: manifest.showNatoPair });
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
@@ -53,6 +70,7 @@ export const writeRelease = async (
   const files: readonly ReleaseFile[] = [
     ...csvExport(record, preamble),
     alignmentMatrix(record, manifest.dateRules, preamble),
+    criticalNodes(record, sheet, preamble),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];
