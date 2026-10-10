@@ -125,8 +125,10 @@ the record  →  the release functions of the database (the public rules)
   two contact addresses of the manifest. Each row carries its label in the fixed words of PU1 and
   its licence. A claim is a value of an element or a relation, and each claim names its public
   documents, with the page and the passage that the reader cited. The log of the merges gives
-  each merge and each undo, and the entity that each absorbed identifier resolves to. The manifest
-  of the files gives the size and the checksum of each file.
+  each merge and each undo, and the entity that each absorbed identifier resolves to. The same
+  entities, relations and claims are in three formats: CSV for a spreadsheet, GeoJSON for a map
+  tool (the entities with a position), and JSON-LD for linked data. The manifest of the files
+  gives the size and the checksum of each file.
 - **The licence.** The licence of a row comes from the providers of its public documents. A row
   takes the most permissive one: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the
   provider licence, not redistributed". A document with no provider gives the last one. The tools
