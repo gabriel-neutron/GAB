@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { COVERAGE_HEADER, coverageLine, natoCoverage } from './nato-coverage.ts';
+import { natoCoverageLines } from './nato-coverage.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
 const SHIP = '00000000-0000-4000-8000-000000000001';
@@ -65,7 +65,7 @@ const RECORD: ReleaseRecord = {
 const PAIR = { letter: 'B', digit: 1 } as const;
 
 test('the coverage counts the claims with a full pair, in all and by entity and relation type', () => {
-  const rows = natoCoverage(
+  const lines = natoCoverageLines(
     RECORD,
     new Map([
       [`${SHIP}/imo`, PAIR],
@@ -73,23 +73,17 @@ test('the coverage counts the claims with a full pair, in all and by entity and 
       [`${OWNS}/share`, PAIR],
     ]),
   );
-  expect(rows).toStrictEqual([
-    { group: 'all', claims: 5, paired: 3 },
-    { group: 'entity company', claims: 1, paired: 0 },
-    { group: 'entity vessel', claims: 2, paired: 1 },
-    { group: 'relation owns', claims: 2, paired: 2 },
-  ]);
-  expect(rows.map(coverageLine)).toStrictEqual([
+  expect(lines).toStrictEqual([
+    'group\twith a full pair\tpublic claims\tshare',
     'all\t3\t5\t60.0%',
     'entity company\t0\t1\t0.0%',
     'entity vessel\t1\t2\t50.0%',
     'relation owns\t2\t2\t100.0%',
   ]);
-  expect(COVERAGE_HEADER.split('\t')).toHaveLength(4);
 });
 
 test('a release with no claim has a coverage of zero, and no group', () => {
-  const rows = natoCoverage({ ...RECORD, claims: [] }, new Map());
-  expect(rows).toStrictEqual([{ group: 'all', claims: 0, paired: 0 }]);
-  expect(rows.map(coverageLine)).toStrictEqual(['all\t0\t0\t0.0%']);
+  expect(natoCoverageLines({ ...RECORD, claims: [] }, new Map()).slice(1)).toStrictEqual([
+    'all\t0\t0\t0.0%',
+  ]);
 });

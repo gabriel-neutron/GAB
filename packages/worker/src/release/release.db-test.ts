@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 import { roleAddress } from '../address.ts';
 import type { Queryable } from '../queryable.ts';
-import { natoCoverageReport } from './nato-coverage-command.ts';
+import { natoCoverageReport } from './nato-coverage.ts';
 import { releaseCommand } from './release-command.ts';
 import { readReleaseRecord } from './release-record.ts';
 import { writeRelease } from './release.ts';

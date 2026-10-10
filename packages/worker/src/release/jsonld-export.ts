@@ -56,7 +56,6 @@ const contextOf = (base: string) => ({
   readOn: { '@id': 'gab:readOn', '@type': 'xsd:date' },
 });
 
-// The two terms of the NATO pair. The file has them only when the release shows the pair.
 const NATO_CONTEXT = {
   natoLetter: 'gab:natoLetter',
   natoDigit: { '@id': 'gab:natoDigit', '@type': 'xsd:integer' },
@@ -197,7 +196,6 @@ export const jsonldExport = (
 ): ReleaseFile => {
   const { documentOf, entityOf, licenceOf, relationOf } = releaseLookup(record);
   const { natoPairs } = record;
-  // A claim with no pair has no field of the pair.
   const nato = (one: ReleaseClaim) => {
     const pair = natoPairs?.get(one.claim_id);
     return pair === undefined ? {} : { natoLetter: pair.letter, natoDigit: pair.digit };

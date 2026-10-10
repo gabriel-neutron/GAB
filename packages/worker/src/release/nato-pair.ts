@@ -21,8 +21,7 @@ export const readNatoPairs = async (
 ): Promise<ReadonlyMap<string, NatoPair>> => {
   const acts = [...new Set(claims.map((one) => one.act_id))];
   const { rows } = await db.query(
-    `SELECT a.act, p.letter, p.digit::int AS digit
-       FROM unnest($1::uuid[]) AS a(act) CROSS JOIN LATERAL public.nato_pair(a.act) p`,
+    'SELECT act, letter, digit::int AS digit FROM public.nato_pair($1::uuid[])',
     [acts],
   );
   const byAct = new Map(

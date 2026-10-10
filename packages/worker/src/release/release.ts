@@ -66,7 +66,6 @@ export const writeRelease = async (
     dataset: 'GAB',
     version: manifest.version,
     date: manifest.date,
-    // The release says whether its claims show the NATO pair.
     showNatoPair: manifest.showNatoPair,
     disclaimer,
     files: listed,

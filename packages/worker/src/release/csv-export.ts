@@ -48,7 +48,6 @@ const CLAIM_HEADER = [
   'transcribed',
 ];
 
-// The two columns of the NATO pair. The claims file has them only when the release shows the pair.
 const NATO_HEADER = ['nato_letter', 'nato_digit'];
 
 const MERGE_HEADER = [
@@ -145,8 +144,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     one.origin_label,
   ]);
 
-  // A claim with no pair has two empty fields, and a release that does not show the pair has no
-  // field at all.
+  // S1: with the pair off, the file has no column of the pair, not even an empty one.
   const { natoPairs } = record;
   const natoFields = (claim: ReleaseClaim): string[] => {
     if (natoPairs === null) return [];

@@ -4,35 +4,28 @@
 
 ## Context
 
-The FNF investigation promises open exports. A file that leaves Gabriel is copied
-and used again with no control, so it must carry the label of each claim, the disclaimer and the
-licence (`decisions.md` PU1), and it must never hold what the public read hides. The format of
-the folder and the read are costly to change after the first publication, because readers cite
-the files.
+The FNF investigation promises open exports. A file that leaves Gabriel is copied and used again
+with no control, so it must carry the label of each claim, the disclaimer and the licence
+(`decisions.md` PU1), and it must never hold what the public read hides. The format of the folder
+and the read are costly to change after the first publication, because readers cite the files.
 
 ## Decision
 
 ### One command, one folder
 
 - One worker command writes one release, from the record and a release manifest that the operator
-  gives at run time. The manifest is not in the public repository, because it holds the contact
+  gives at run time. The manifest is not in the public repository: it holds the contact
   addresses. Each value has a default, except the two contact addresses. The manifest refuses a
   key that it does not know, and a character that would break a line of a file.
-- The parameter that shows the NATO pair (ADR 0012) is off by default, because the public does not
-  see the pair (`decisions.md` S1). When it is off, the release does not read the pair, and no file
-  holds a letter, a digit or a column of the pair. When it is on, each claim row that has a pair
-  gives its letter and its digit, and the manifest of the files says that the release shows the
-  pair. So a change of S1 is one parameter.
-- A second worker command reports the coverage of the pair before that decision: the number and
-  the share of the claims of a release with a full pair, in all and by entity type and relation
-  type. It reads the claims as the release reads them, and it writes nothing.
-- The command reads one read-only snapshot, so each file shows the same record.
+- The parameter that shows the NATO pair (ADR 0016) is off by default (`decisions.md` S1). Off, no
+  file holds a letter, a digit or a column of the pair. On, each claim row with a pair gives it,
+  and the manifest of the files says so.
+- The command reads one read-only snapshot, so all files show one record.
 - The command writes one folder, named by the date of the release, and never writes over a folder
   of the same date. It writes in a hidden folder first and renames it at the end.
 - The folder holds the export files and a manifest of the files in JSON: the version, the date,
   whether the release shows the NATO pair, the disclaimer, and the path, the size and the SHA-256
-  checksum of each file. ADR 0015 gives the
-  GeoJSON and the JSON-LD files.
+  checksum of each file. ADR 0015 gives the GeoJSON and the JSON-LD files.
 
 ### The CSV files
 
@@ -73,21 +66,20 @@ only, so a row that rests on it takes CC-BY 4.0.
   document and names only its public documents; a person is in the release only when the record
   holds a designation of that person by an element that is not a person, with a public source; a
   relation is in the release only when its two ends are.
-- The release holds the record only. A candidate, a held act and a rejected act made no row.
-- The functions turn off the compiled plan (jit), as the public read role does (measured on 10
-  October 2026: the claims in 14.4 s with it, 0.28 s without it).
+- The release holds the record only: no candidate, no held act, no rejected act.
+- The functions turn off the compiled plan (jit), as the public read role does (10 October 2026:
+  14.4 s with it, 0.28 s without it).
 
 ## Alternatives
 
-- **Read the views as the operator role.** That role reads every row whole. Refused.
+- **Read the views as the operator role.** It reads every row whole. Refused.
 - **Read the views as the public read role.** It reads no passage. Refused.
-- **A list of sources in one cell.** A spreadsheet cannot filter it. Refused.
-- **The disclaimer in a column, or in its own file.** A column repeats a long text in each row, and
-  PU1 asks each file to hold it. Refused.
+- **The sources in one cell.** A spreadsheet cannot filter them. Refused.
+- **The disclaimer in a column, or in its own file.** PU1 asks each file to hold it. Refused.
 
 ## Cost
 
-- A program that reads a CSV file skips the lines that start with `#`.
+- A program that reads a CSV file skips the `#` lines.
 - The tier of a document in the database and the map of the release code both name the open
   licences. A new licence word goes into both.
 - A passage under a restrictive licence is in the release as a short quote.

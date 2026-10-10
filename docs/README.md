@@ -34,3 +34,4 @@ rules of the code review.
 | [0013](adr/0013-a-release-is-a-dated-folder-of-files.md) | A release is a dated folder of files, read through the release functions | Accepted |
 | [0014](adr/0014-a-merge-is-an-act-with-an-alias-and-a-copy.md) | A merge is an act of the ledger, with an alias and a full copy | Accepted |
 | [0015](adr/0015-a-release-gives-three-formats-of-the-same-rows.md) | A release gives three formats of the same rows | Accepted |
+| [0016](adr/0016-the-nato-pair-of-a-claim.md) | The NATO pair of a claim | Accepted |

@@ -5235,6 +5235,7 @@ DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
 DROP FUNCTION IF EXISTS nato_pair(uuid);
+DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
 -- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
 -- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
@@ -5396,23 +5397,26 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                    AND p.names[1] IN (SELECT e.id FROM public.release_entities() e) END
 $$;
 
--- THE NATO PAIR OF A CLAIM, from the act that a claim of a release names. The digit is the digit
+-- THE NATO PAIR OF EACH CLAIM, from the act that a claim of a release names. The digit is the digit
 -- of its fact (fact_digit). The letter is the best letter among the known authors of the support
--- of the fact (fact_support), which is the list that the rules read. A rule reads the two marks
--- only after each one is judged apart, and so does this function. A claim with no digit, or with no
--- known author in its support, has no pair: the function gives no row. The pair is computed on
--- read, so it never goes stale. The public does not see the pair: only the roles that run a tool
--- hold this function, and a release shows it only when its manifest asks for it.
-CREATE FUNCTION nato_pair(p_act uuid)
-RETURNS TABLE (letter char(1), digit smallint)
+-- of the fact (fact_support), which is the list that the rules read. The two marks are judged
+-- apart, and this function only puts them side by side. A claim with no digit, or with no known
+-- author in its support, has no row. Many claims share one fact, so each fact is judged once.
+CREATE FUNCTION nato_pair(p_acts uuid[])
+RETURNS TABLE (act uuid, letter char(1), digit smallint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT b.letter, d.digit
-    FROM public.proposals p
-   CROSS JOIN LATERAL (SELECT public.fact_digit(p.claim_key) AS digit) d
-   CROSS JOIN LATERAL (SELECT min(s.letter) AS letter FROM public.fact_support(p.claim_key) s
-                        WHERE s.author IS NOT NULL) b
-   WHERE p.id = p_act AND d.digit IS NOT NULL AND b.letter IS NOT NULL
+  WITH asked AS (
+    SELECT p.id, p.claim_key FROM public.proposals p WHERE p.id = ANY (p_acts)
+  ), judged AS (
+    SELECT k.claim_key, public.fact_digit(k.claim_key) AS digit,
+           (SELECT min(s.letter) FROM public.fact_support(k.claim_key) s
+             WHERE s.author IS NOT NULL) AS letter
+      FROM (SELECT DISTINCT a.claim_key FROM asked a) k
+  )
+  SELECT a.id, j.letter, j.digit
+    FROM asked a JOIN judged j ON j.claim_key = a.claim_key
+   WHERE j.digit IS NOT NULL AND j.letter IS NOT NULL
 $$;
 
 -- The disclaimer of the dataset, which each file of a release holds (PU1).

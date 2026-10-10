@@ -15,19 +15,24 @@ const check = (ask: Ask, one: Cited, verdict: 'supported' | 'not_supported' = 's
     ask(CHECK, [one.act, 'a-checker', 'openai', 'anthropic', verdict]),
   );
 
-const pairShape = z.array(z.object({ letter: z.string(), digit: z.number() }));
+const pairShape = z.array(z.object({ act: z.uuid(), letter: z.string(), digit: z.number() }));
 
-/** The pair of the claim of an act, as a tool role reads it, or null when there is none. */
-const pairOf = async (ask: Ask, act: string, role = 'gabriel_app'): Promise<string | null> => {
+/** The pair of the claim of each act, as the operator role reads it, or null when there is none. */
+const pairsOf = async (ask: Ask, acts: readonly string[]): Promise<(string | null)[]> => {
   const rows = pairShape.parse(
-    await as(ask, role, () =>
-      ask('SELECT letter, digit::int AS digit FROM public.nato_pair($1::uuid)', [act]),
+    await as(ask, 'gabriel_app', () =>
+      ask('SELECT act, letter, digit::int AS digit FROM public.nato_pair($1::uuid[])', [acts]),
     ),
   );
-  expect(rows.length).toBeLessThanOrEqual(1);
-  const [row] = rows;
-  return row === undefined ? null : `${row.letter}${String(row.digit)}`;
+  expect(rows.length).toBeLessThanOrEqual(acts.length);
+  return acts.map((act) => {
+    const row = rows.find((one) => one.act === act);
+    return row === undefined ? null : `${row.letter}${String(row.digit)}`;
+  });
 };
+
+const pairOf = async (ask: Ask, act: string): Promise<string | null> =>
+  (await pairsOf(ask, [act]))[0] ?? null;
 
 // Two sources that differ in every way that the proof of independence reads.
 const ONE = {
@@ -123,19 +128,37 @@ test('an act that is not in the record gives no pair', async () => {
   expect(read).toBeNull();
 });
 
-test('the tool roles can read a pair, and the public read role cannot', async () => {
+test('two claims of one fact get one pair, also when one source gave only one of the values', async () => {
+  // Known cost: the fact of a new entity is the entity, and not each of its values. So a value
+  // that a weak author gave takes the letter of a strong author that gave another value.
+  const read = await rolledBack('superuser', async (ask) => {
+    await reference(ask, 'Registry', 'A');
+    await rate(ask, 'Local Blog', 'E');
+    const fact = label();
+    const registry = await cited(ask, { author: 'Registry', label: fact, ...ONE });
+    await check(ask, registry);
+    const blog = await cited(ask, { author: 'Local Blog', label: fact, value: '100', ...TWO });
+    await check(ask, blog);
+    return pairsOf(ask, [registry.act, blog.act]);
+  });
+  expect(read).toStrictEqual(['A1', 'A1']);
+});
+
+test('only the operator role can read a pair: the AI roles and the public read role cannot', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     await rate(ask, 'Author One', 'C');
     const one = await cited(ask, { author: 'Author One', label: label(), ...ONE });
     await check(ask, one);
-    const tools: (string | null)[] = [];
-    for (const role of ['gabriel_app', 'gabriel_agent', 'gabriel_research'])
-      tools.push(await pairOf(ask, one.act, role));
-    const read = await refusal(ask, () =>
-      as(ask, 'gabriel_read', () => ask('SELECT * FROM public.nato_pair($1::uuid)', [one.act])),
-    );
-    return { tools, read };
+    const app = await pairOf(ask, one.act);
+    const refused: (string | null)[] = [];
+    for (const role of ['gabriel_agent', 'gabriel_research', 'gabriel_checker', 'gabriel_read'])
+      refused.push(
+        await refusal(ask, () =>
+          as(ask, role, () => ask('SELECT * FROM public.nato_pair($1::uuid[])', [[one.act]])),
+        ),
+      );
+    return { app, refused };
   });
-  expect(said.tools).toStrictEqual(['C3', 'C3', 'C3']);
-  expect(said.read).toMatch(/permission denied/u);
+  expect(said.app).toBe('C3');
+  for (const one of said.refused) expect(one).toMatch(/permission denied/u);
 });
