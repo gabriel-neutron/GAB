@@ -32,7 +32,8 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   letter of its author. A refusal makes the name F and gives it back to the rater, which cannot
   join it again to the same author. After each decision the rules run again on the units of the
   name. A dry-run gives, for each name, the number of units whose state each decision would
-  change: a rule decides the unit, or another rule matches it. No machine role can decide a name: the decision raises a letter.
+  change: a rule decides the unit, or another rule matches it. No machine role can decide a
+  name: the decision raises a letter. A decision waits while the rating job of the name runs.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
