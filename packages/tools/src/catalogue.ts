@@ -32,6 +32,7 @@ import { searchGraph } from './search-graph.ts';
 import { startLead } from './start-lead.ts';
 import { storeSavedFile } from './store-saved-file.ts';
 import { telegramChannel } from './telegram-channel.ts';
+import { ukSanctionsList } from './uk-sanctions-list.ts';
 import { vesselEvents } from './vessel-events.ts';
 import { webSearch } from './web-search.ts';
 import { wikidataIds } from './wikidata-ids.ts';
@@ -66,6 +67,7 @@ export const CATALOGUE = [
   wikidataIds,
   sanctionsMatch,
   ofacSdn,
+  ukSanctionsList,
   vesselEvents,
   enqueueExtract,
   enqueueMapping,
