@@ -4094,13 +4094,13 @@ DECLARE
 BEGIN
   IF p_confirm IS NULL THEN
     RAISE EXCEPTION 'a decision on a name confirms it or refuses it'
-      USING ERRCODE = 'invalid_parameter_value';
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
   END IF;
   PERFORM public.lock_name(v_key);
   SELECT * INTO v_row FROM public.name_row(v_key);
   IF NOT coalesce(v_row.waits, false) THEN
     RAISE EXCEPTION 'the name "%" waits for no decision', v_key
-      USING ERRCODE = 'invalid_parameter_value';
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
   END IF;
   -- The units come first: after a refusal the name has no author.
   v_units := public.units_of_name(v_key);
