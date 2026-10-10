@@ -41,13 +41,15 @@ const readSheet = async (path: string | null) => {
 /** Reads the public part of the record and writes one release folder, named by its date, in
  * `root`. The folder holds each file, the changelog since the release in `previousFolder` (or a
  * first release with none), then the file manifest with the checksum of each file. A folder of
- * the same date is never overwritten. A sheet of the candidate nodes that is refused, or a
+ * the same date is never overwritten. `finish` gets the hidden folder with each file, before the
+ * folder takes its name: when it fails, no release folder is left. A sheet of the candidate nodes that is refused, or a
  * previous release that is refused or not earlier, stops the release before it writes a file. */
 export const writeRelease = async (
   db: Queryable,
   manifest: ReleaseManifest,
   root: string,
   previousFolder: string | null = null,
+  finish: ((folder: string) => Promise<void>) | null = null,
 ): Promise<WrittenRelease> => {
   const folder = join(root, `gab-release-${manifest.date}`);
   if (await exists(folder))
@@ -70,6 +72,7 @@ export const writeRelease = async (
   const partial = await mkdtemp(join(root, '.gab-release-'));
   try {
     for (const file of files) await writeFile(join(partial, file.path), file.text);
+    if (finish !== null) await finish(partial);
     await rename(partial, folder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });

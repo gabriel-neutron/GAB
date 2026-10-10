@@ -1,5 +1,17 @@
+import { safeHref } from './safe-href.ts';
 import type { SiteSource } from './site-release.ts';
 import { LINK } from './site-style.ts';
+
+function SourceAddress({ address }: { readonly address: string | null }) {
+  if (address === null) return null;
+  const href = safeHref(address);
+  if (href === null) return <span>{address}</span>;
+  return (
+    <a className={LINK} href={href} rel="noreferrer">
+      {address}
+    </a>
+  );
+}
 
 export interface SourceListProps {
   readonly sources: readonly SiteSource[];
@@ -16,14 +28,10 @@ export function SourceList({ sources, withPassages }: SourceListProps) {
       {sources.map((source) => (
         <li key={source.documentId} className="flex flex-col gap-1 border-l border-border pl-2">
           <p className="font-medium">{source.title}</p>
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5">
+          <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-0.5">
             <dt className="text-label">Address</dt>
             <dd className="break-all">
-              {source.address === null ? null : (
-                <a className={LINK} href={source.address} rel="noreferrer">
-                  {source.address}
-                </a>
-              )}
+              <SourceAddress address={source.address} />
             </dd>
             <dt className="text-label">Read on</dt>
             <dd className="font-mono tabular-nums">{source.readOn}</dd>

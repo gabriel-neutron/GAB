@@ -3,9 +3,9 @@ import { Map as MapLibre, Popup, type StyleSpecification } from 'maplibre-gl';
 import { FEATURES_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
 
 // External constraint: MapLibre parses no oklch colour, so the map takes the hex of three tokens
-// of the light theme: the muted ground, the border and the primary.
+// of the light theme: the muted ground, the edge of a control and the primary.
 const GROUND = '#eceef0';
-const LINE = '#d2d6da';
+const LINE = '#8b9196';
 const MARK = '#0b6aa2';
 
 // A plain ground with lines every 10 degrees. A tile server would need a host or a key, and the
@@ -90,6 +90,11 @@ if (container !== null) {
     ],
   };
   const map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
+  // The page can change width after the map starts, for example when a scroll bar comes, and
+  // MapLibre follows only the window.
+  new ResizeObserver(() => {
+    map.resize();
+  }).observe(container);
 
   const all = features.flatMap((one: unknown) =>
     isRecord(one) && isRecord(one['geometry']) ? positions(one['geometry']['coordinates']) : [],
@@ -105,7 +110,9 @@ if (container !== null) {
         [west, south],
         [east, north],
       ],
-      { padding: 60, maxZoom: 8, duration: 0 },
+      // Origin of the number: at zoom 4 the map shows about 20 degrees, so two lines of the
+      // grid are in view also around one point.
+      { padding: 60, maxZoom: 4, duration: 0 },
     );
   }
 

@@ -30,6 +30,8 @@ const MAP_ENTRY = resolve(import.meta.dirname, 'map-script.ts');
 // no second palette exists. Tailwind builds the classes that the repository uses.
 const STYLESHEET = '/src/index.css?inline';
 
+const V1_PROJECT = 'project.gpkg';
+
 // External constraint: MapLibre loads its worker from the address of its own module, beside it,
 // so its three modules and its stylesheet go to the assets folder as they are.
 const MAPLIBRE_FILES = [
@@ -128,7 +130,8 @@ const mapScript = async (): Promise<string> => {
 
 /** Writes the static site of the release in `releaseFolder` to `siteFolder`: each page, a copy of
  * each file of the release, the stylesheet, the map script with MapLibre, and the old site of
- * version 1 from `v1Folder` under `v1/` when it is given. The site is written in a hidden folder
+ * version 1 from `v1Folder` under `v1/` when it is given, with its demonstration project at the
+ * root. The site is written in a hidden folder
  * first and never over an existing folder. */
 export const writeSite = async (
   releaseFolder: string,
@@ -153,10 +156,17 @@ export const writeSite = async (
       await mkdir(dirname(join(partial, file.path)), { recursive: true });
       await writeFile(join(partial, file.path), file.text);
     }
+    for (const path of files.keys()) await copyFile(join(releaseFolder, path), join(partial, path));
     await writeFile(join(partial, MAP_SCRIPT), script);
     for (const name of MAPLIBRE_FILES)
       await copyFile(join(maplibre, name), join(partial, dirname(MAP_SCRIPT), name));
-    if (v1Folder !== null) await cp(v1Folder, join(partial, dirname(V1)), { recursive: true });
+    if (v1Folder !== null) {
+      await cp(v1Folder, join(partial, dirname(V1)), { recursive: true });
+      // External constraint: the build of version 1 reads its demonstration project at the root
+      // of the host, so the root holds a copy of it.
+      const project = join(v1Folder, V1_PROJECT);
+      if (await exists(project)) await copyFile(project, join(partial, V1_PROJECT));
+    }
     await rename(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });

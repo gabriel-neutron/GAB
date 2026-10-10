@@ -44,8 +44,8 @@ const flagsOf = (
  * gives, and the changelog since the previous release folder when the operator gives one. Then it
  * writes the static site of the release beside it, with the build of version 1 under `v1/` when
  * the operator gives its folder. A usage fault, a refused manifest, a refused sheet of the
- * candidate nodes, a refused previous release or a release of the same date gives 2, and nothing
- * is written. A site that cannot be written gives 2 after the release folder is written. The path
+ * candidate nodes, a refused previous release, a release of the same date or a site that cannot be
+ * written gives 2, and no release folder is written. The path
  * of the sheet is relative to the folder of the manifest. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
@@ -71,16 +71,17 @@ export const releaseCommand: SubCommand = async (args) => {
   await client.connect();
   try {
     await client.query(`SET statement_timeout = '${RELEASE_TIMEOUT}'`);
+    const site = join(flags.out, `gab-site-${manifest.date}`);
     const written = await inOneSnapshot(client, () =>
-      writeRelease(client, manifest, flags.out, flags.previous),
+      writeRelease(client, manifest, flags.out, flags.previous, (folder) =>
+        writeSite(folder, site, flags.v1),
+      ),
     );
     console.log(
       `The release ${manifest.version} is in ${written.folder}: ${String(written.entities)} ` +
-        `entities, ${String(written.relations)} relations, ${String(written.claims)} claims.`,
+        `entities, ${String(written.relations)} relations, ${String(written.claims)} claims. ` +
+        `Its static site is in ${site}.`,
     );
-    const site = join(flags.out, `gab-site-${manifest.date}`);
-    await writeSite(written.folder, site, flags.v1);
-    console.log(`The static site of the release is in ${site}.`);
     return 0;
   } catch (fault) {
     if (!(

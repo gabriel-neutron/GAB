@@ -6,7 +6,9 @@ import { DOWNLOADS, hrefFrom } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 
-const LICENCE = 'CC-BY 4.0 for the dataset. Each row gives its own licence.';
+// The licence of each file is the licence of the dataset. The paragraph above the table says that
+// each row also gives its own licence.
+const LICENCE = 'CC-BY 4.0';
 const NUMBER = `${CELL} text-right font-mono tabular-nums`;
 
 const CHANGES: readonly (keyof ChangeCounts)[] = [
@@ -30,10 +32,11 @@ export function DownloadsPage({ release }: { readonly release: SiteRelease }) {
   return (
     <SiteFrame release={release} page={{ path: DOWNLOADS, title: 'Downloads' }}>
       <p className="max-w-prose">
-        Each file holds the disclaimer of the dataset, and each row its label and its licence. The
-        file manifest gives the SHA-256 checksum of each file, so you can check a copy.
+        Each file is under CC-BY 4.0, and each row of a file gives its own licence. Each file holds
+        the disclaimer of the dataset, and each row its label. The file manifest gives the SHA-256
+        checksum of each file, so you can check a copy.
       </p>
-      <div className="overflow-x-auto">
+      <div className="max-w-full overflow-x-auto">
         <table className={TABLE}>
           <thead className={TABLE_HEAD}>
             <tr>
@@ -52,10 +55,10 @@ export function DownloadsPage({ release }: { readonly release: SiteRelease }) {
                     {file.path}
                   </a>
                 </td>
-                <td className={CELL}>{FILE_WORDS[file.path]}</td>
+                <td className={`${CELL} min-w-48`}>{FILE_WORDS[file.path]}</td>
                 <td className={NUMBER}>{file.bytes}</td>
-                <td className={`${CELL} font-mono break-all`}>{file.sha256}</td>
-                <td className={CELL}>{LICENCE}</td>
+                <td className={`${CELL} font-mono whitespace-nowrap`}>{file.sha256}</td>
+                <td className={`${CELL} whitespace-nowrap`}>{LICENCE}</td>
               </tr>
             ))}
             <tr className="border-b border-border">
@@ -68,10 +71,10 @@ export function DownloadsPage({ release }: { readonly release: SiteRelease }) {
                   manifest.json
                 </a>
               </td>
-              <td className={CELL}>{FILE_WORDS['manifest.json']}</td>
+              <td className={`${CELL} min-w-48`}>{FILE_WORDS['manifest.json']}</td>
               <td className={NUMBER} />
               <td className={CELL} />
-              <td className={CELL}>{LICENCE}</td>
+              <td className={`${CELL} whitespace-nowrap`}>{LICENCE}</td>
             </tr>
           </tbody>
         </table>
@@ -87,30 +90,32 @@ export function DownloadsPage({ release }: { readonly release: SiteRelease }) {
             Download the changelog ({changelog.path})
           </a>
         </p>
-        <table className={TABLE}>
-          <thead className={TABLE_HEAD}>
-            <tr>
-              <th className={HEAD}>Kind</th>
-              {CHANGES.map((change) => (
-                <th key={change} className={`${HEAD} text-right`}>
-                  {change}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {kinds.map((kind) => (
-              <tr key={kind.words} className="border-b border-border">
-                <td className={CELL}>{kind.words}</td>
+        <div className="max-w-full overflow-x-auto">
+          <table className={TABLE}>
+            <thead className={TABLE_HEAD}>
+              <tr>
+                <th className={HEAD}>Kind</th>
                 {CHANGES.map((change) => (
-                  <td key={change} className={NUMBER}>
-                    {kind.counts[change]}
-                  </td>
+                  <th key={change} className={`${HEAD} text-right`}>
+                    {change}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {kinds.map((kind) => (
+                <tr key={kind.words} className="border-b border-border">
+                  <td className={CELL}>{kind.words}</td>
+                  {CHANGES.map((change) => (
+                    <td key={change} className={NUMBER}>
+                      {kind.counts[change]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </SiteFrame>
   );

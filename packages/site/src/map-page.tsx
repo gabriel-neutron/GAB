@@ -22,28 +22,30 @@ export function MapPage({ release }: { readonly release: SiteRelease }) {
         aria-label="Map of the entities with a position"
         className="h-120 w-full border border-border bg-muted"
       />
-      <table className={TABLE}>
-        <thead className={TABLE_HEAD}>
-          <tr>
-            <th className={HEAD}>Entity</th>
-            <th className={HEAD}>Type</th>
-            <th className={HEAD}>Geometry</th>
-          </tr>
-        </thead>
-        <tbody>
-          {features.map((one) => (
-            <tr key={one.id} className="border-b border-border">
-              <td className={CELL}>
-                <a className={LINK} href={hrefFrom(MAP, entityPage(one.id))}>
-                  {one.label}
-                </a>
-              </td>
-              <td className={CELL}>{one.type}</td>
-              <td className={CELL}>{one.geometry}</td>
+      <div className="max-w-full overflow-x-auto">
+        <table className={TABLE}>
+          <thead className={TABLE_HEAD}>
+            <tr>
+              <th className={HEAD}>Entity</th>
+              <th className={HEAD}>Type</th>
+              <th className={HEAD}>Geometry</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {features.map((one) => (
+              <tr key={one.id} className="border-b border-border">
+                <td className={CELL}>
+                  <a className={LINK} href={hrefFrom(MAP, entityPage(one.id))}>
+                    {one.label}
+                  </a>
+                </td>
+                <td className={CELL}>{one.type}</td>
+                <td className={CELL}>{one.geometry}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </SiteFrame>
   );
 }
