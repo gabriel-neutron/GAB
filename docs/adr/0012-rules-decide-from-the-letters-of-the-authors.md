@@ -74,6 +74,10 @@ without the letters.
   known author. Code tries 5, then 4, 1, 2, 3 and 6. It computes the digit when it reads the fact,
   so the digit never goes stale.
 
+### The pair of a claim
+
+ADR 0016 gives the NATO pair of a claim, which reads the digit and the support of the rules.
+
 ### The rules
 
 - The rules of S3 run **in the database**, as one function. Every writer gets the same decision,

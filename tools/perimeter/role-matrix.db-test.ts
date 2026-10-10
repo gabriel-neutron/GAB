@@ -61,6 +61,7 @@ test('the role matrix of the doors', async () => {
       "public.lead_jobs": "app research",
       "public.letter_of": "app",
       "public.merge_entities": "app",
+      "public.nato_pair": "app",
       "public.promote_group": "app",
       "public.promote_unit": "app",
       "public.propose_batch": "agent research",

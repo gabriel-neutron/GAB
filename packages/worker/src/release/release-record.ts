@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { Queryable } from '../queryable.ts';
+import { readNatoPairs, type NatoPair } from './nato-pair.ts';
 
 // PU1: an origin that the label does not know reads as not checked, never as a person.
 const CAUTIOUS = 'Proposed — not checked';
@@ -92,14 +93,21 @@ export interface ReleaseRecord {
   readonly documents: ReadonlyMap<string, ReleaseDocument>;
   /** The disclaimer of the dataset, in Markdown, with its two contact links still to fill. */
   readonly disclaimer: string;
+  /** The NATO pair of each claim that has one, by the identifier of the claim, when the release
+   * shows the pair. Null when it does not, so no file can hold a letter or a digit. */
+  readonly natoPairs: ReadonlyMap<string, NatoPair> | null;
 }
 
 const rowsOf = async <T extends z.ZodType>(db: Queryable, shape: T, text: string) =>
   z.array(shape).parse((await db.query(text)).rows);
 
 /** Reads the public part of the record. The release functions apply the public rules, so this
- * read cannot show what the public read hides. The caller gives one snapshot for the reads. */
-export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> => {
+ * read cannot show what the public read hides. The NATO pair of each claim is read only when
+ * `natoPair` is true. The caller gives one snapshot for the reads. */
+export const readReleaseRecord = async (
+  db: Queryable,
+  { natoPair }: { readonly natoPair: boolean },
+): Promise<ReleaseRecord> => {
   const entities = await rowsOf(
     db,
     entityRow,
@@ -151,5 +159,6 @@ export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> =
     merges,
     documents: new Map(documents.filter((one) => cited.has(one.id)).map((one) => [one.id, one])),
     disclaimer: said.disclaimer,
+    natoPairs: natoPair ? await readNatoPairs(db, claims) : null,
   };
 };

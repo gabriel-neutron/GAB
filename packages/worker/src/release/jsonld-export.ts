@@ -56,6 +56,11 @@ const contextOf = (base: string) => ({
   readOn: { '@id': 'gab:readOn', '@type': 'xsd:date' },
 });
 
+const NATO_CONTEXT = {
+  natoLetter: 'gab:natoLetter',
+  natoDigit: { '@id': 'gab:natoDigit', '@type': 'xsd:integer' },
+};
+
 const term = (
   id: string,
   type: 'Class' | 'Property',
@@ -149,6 +154,21 @@ const VOCABULARY_TERMS = [
   term('readOn', 'Property', 'read on', 'The day when the project read the document.'),
 ];
 
+const NATO_TERMS = [
+  term(
+    'natoLetter',
+    'Property',
+    'NATO letter',
+    'The reliability of the author, from A (reliable) to F (cannot be judged), as in the NATO rating (STANAG 2511). It is the best letter among the authors whose sources support the fact. It rates the author, never the fact.',
+  ),
+  term(
+    'natoDigit',
+    'Property',
+    'NATO digit',
+    'The credibility of the fact, from 1 (confirmed by independent sources) to 6 (cannot be judged), as in the NATO rating (STANAG 2511). It comes from the number of independent authors that give the fact and from the conflicts between the values of its sources. It never reads a letter.',
+  ),
+];
+
 // The address of a licence that has one. The fixed text of a derived fact names no licence.
 const CC_BY = 'https://creativecommons.org/licenses/by/4.0/';
 const LICENCE_ADDRESS: Record<RowLicence, string | null> = {
@@ -167,13 +187,19 @@ const present = (fields: Record<string, unknown>): Record<string, unknown> =>
 /** The JSON-LD file of a release: one graph with the dataset, each entity, relation, claim and
  * cited document, each absorbed entity with the entity that replaces it, and the definition of
  * each term of the vocabulary of a release. Each row keeps its origin label, its licence and its
- * sources, and each claim its passages. The identifiers are paths under `base`. */
+ * sources, and each claim its passages. When the release shows the NATO pair, each claim that has
+ * one also gives its letter and its digit. The identifiers are paths under `base`. */
 export const jsonldExport = (
   record: ReleaseRecord,
   heading: ReleaseHeading,
   base: string,
 ): ReleaseFile => {
   const { documentOf, entityOf, licenceOf, relationOf } = releaseLookup(record);
+  const { natoPairs } = record;
+  const nato = (one: ReleaseClaim) => {
+    const pair = natoPairs?.get(one.claim_id);
+    return pair === undefined ? {} : { natoLetter: pair.letter, natoDigit: pair.digit };
+  };
   const entityId = (id: string): string => path('entity', entityOf(id).id);
   const relationId = (id: string): string => path('relation', relationOf(id).id);
   const documentId = (id: string): string => path('document', documentOf(id).id);
@@ -225,6 +251,7 @@ export const jsonldExport = (
           ...present({ attribute: one.attribute, value: one.value }),
         }),
     ...trust(one),
+    ...nato(one),
     passages: one.passages.map((passage) => ({
       '@type': 'Passage',
       document: documentId(passage.document),
@@ -260,9 +287,11 @@ export const jsonldExport = (
     ...documents,
     ...replacements,
     ...VOCABULARY_TERMS,
+    ...(natoPairs === null ? [] : NATO_TERMS),
   ];
+  const context = { ...contextOf(base), ...(natoPairs === null ? {} : NATO_CONTEXT) };
   return {
     path: 'dataset.jsonld',
-    text: `${JSON.stringify({ '@context': contextOf(base), '@graph': graph })}\n`,
+    text: `${JSON.stringify({ '@context': context, '@graph': graph })}\n`,
   };
 };
