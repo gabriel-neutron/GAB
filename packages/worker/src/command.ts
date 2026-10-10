@@ -3,10 +3,13 @@ export type SubCommand = (args: readonly string[]) => Promise<number>;
 
 // Each sub-command loads only when it is picked, so a run of one opens no module of another.
 const COMMANDS = {
+  'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  'requeue-ratings': async () =>
+    (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;

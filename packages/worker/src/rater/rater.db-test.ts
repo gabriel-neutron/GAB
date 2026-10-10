@@ -205,7 +205,8 @@ test('a name of a known author joins that author, and a join into A or B is a do
     await held.actOf('Reuters Wire');
     expect(await held.rate({ kind: 'same', as: 'Reuters' })).toBe('done');
 
-    expect(await held.letter('reuters wire')).toBe('B');
+    // The name reads as F until the operator confirms it.
+    expect(await held.letter('reuters wire')).toBe('F');
     expect(
       await held.ask(`SELECT doubt FROM public.author_name WHERE name_key = 'reuters wire'`),
     ).toStrictEqual([{ doubt: true }]);
@@ -474,5 +475,21 @@ test.each([
       .parse(await held.ask('SELECT public.name_joins_no_author($1) AS said', [name]));
     if (said === null) expect(row?.said).toBeNull();
     else expect(row?.said).toContain(said);
+  });
+});
+
+test('a name that the operator refused is rated again as a new author', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Reuters Wire');
+    expect(await held.rate({ kind: 'same', as: 'Reuters' })).toBe('done');
+    await held.ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await held.ask(`SELECT public.decide_author_name('Reuters Wire', false)`);
+    await held.ask('RESET SESSION AUTHORIZATION');
+
+    const { did, bodies } = await held.rateInTurn([{ kind: 'same', as: 'Reuters' }, NEW]);
+
+    expect(did).toBe('done');
+    expect(bodies[1]).toContain('the operator refused the name');
+    expect(await held.letter('reuters wire')).toBe('D');
   });
 });
