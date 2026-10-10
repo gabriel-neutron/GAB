@@ -19,6 +19,8 @@ that state it.
   identifier. Each answer is stored as a document, and the tool gives its document id.
 - `sanctions_match`, `vessel_events`: read one OpenSanctions entity, or the events of one vessel
   in Global Fishing Watch. Each answer is stored as a document, and the tool gives its id.
+- `eu_act`, `ofac_sdn`, `uk_sanctions_list`: store the official file of an EU act, of the OFAC
+  SDN list or of the UK Sanctions List, and give the text or the line of one entry.
 - `document_text`: read the stored text of a document again, page by page.
 - `search_graph`: find the entity that already holds an identifier.
 - `list_proposals`: find the proposals that wait for the operator.
@@ -73,11 +75,16 @@ misread a number, so the text can miss a fact that the image shows clearly.
 
 ## A sanctions status
 
-- Cite a sanctions status from the official entry, stored with `fetch_document`: the OFAC entry
-  page, the EU act in EUR-Lex (`legal_act`), or the UK list entry.
+- Cite a sanctions status from the official file: the EU act from `eu_act` (`legal_act`), the
+  line of the entry from `ofac_sdn`, or the line of the entry from `uk_sanctions_list`. The
+  release reads the regime of a designation from these files only.
+- Give a "designated by" relation the start date that the release compares across the regimes:
+  for the EU, the entry into force of the act that added the vessel; for OFAC, the date of the
+  Recent Actions notice (store that page with `fetch_document` and cite it beside the SDN line);
+  for the UK, the "Date designated" column of the entry.
 - Never cite OpenSanctions or a news article as the source of a listing. `sanctions_match`
-  stores the OpenSanctions entity and gives the address of each official entry: fetch that
-  address with `fetch_document`, and cite the document of the official entry.
+  stores the OpenSanctions entity and gives the address of each official entry: store that
+  entry with the official tool of its regime, and cite that document.
 - A match list is a lead, and not a source. Fetch the official entry and cite that.
 - Write the status in this form: "listed by the EU on <date> under Regulation <n>; status
   checked on <snapshot date>".
