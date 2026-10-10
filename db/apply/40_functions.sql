@@ -2330,14 +2330,15 @@ $$;
 -- for each citation took 2.7 s for a page of 200 units.
 --
 -- A citation with a transcription gives its words as they are, with no line before or after, and
--- `transcribed` says that the AI read them from the image.
+-- `transcribed` says that the AI read them from the image. `modality` says how the passage
+-- supports the act.
 --
 -- External constraint: CREATE OR REPLACE cannot change the columns of a function, so each apply
 -- drops it first. No view, no grant and no function body that the catalogue tracks depends on it.
 DROP FUNCTION IF EXISTS cited_passages(uuid[]);
 CREATE FUNCTION cited_passages(p_claims uuid[])
 RETURNS TABLE (claim_id uuid, doc_id text, page int, before text, cited text, after text,
-               transcribed boolean)
+               transcribed boolean, modality text)
 LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_page  record;
@@ -2349,7 +2350,8 @@ DECLARE
   v_count int;
 BEGIN
   RETURN QUERY
-    SELECT c.claim_id, c.doc_id::text, c.page, ''::text, c.transcription, ''::text, true
+    SELECT c.claim_id, c.doc_id::text, c.page, ''::text, c.transcription, ''::text, true,
+           c.modality
       FROM public.citation c
      WHERE c.claim_id = ANY (p_claims) AND c.transcription IS NOT NULL;
   transcribed := false;
@@ -2366,7 +2368,7 @@ BEGIN
       v_at := v_at || (v_at[i] + char_length(v_lines[i]) + 1);
     END LOOP;
     v_first := 1;
-    FOR v_cite IN SELECT c.claim_id, c.start, c."end" FROM public.citation c
+    FOR v_cite IN SELECT c.claim_id, c.start, c."end", c.modality FROM public.citation c
                    WHERE c.claim_id = ANY (p_claims) AND c.doc_id = v_page.doc_id
                      AND c.text_extractor = v_page.text_extractor AND c.page = v_page.page
                      AND c.transcription IS NULL
@@ -2379,6 +2381,7 @@ BEGIN
         v_last := v_last + 1;
       END LOOP;
       claim_id := v_cite.claim_id;
+      modality := v_cite.modality;
       doc_id := v_page.doc_id;
       page := v_page.page;
       before := array_to_string(
@@ -4744,12 +4747,13 @@ DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 
+-- The position is GeoJSON, as the read API gives it.
 CREATE FUNCTION release_entities()
-RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[])
+RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH shown AS (
-    SELECT e.id, e.type, e.label, e.origin_label,
+    SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
                   ORDER BY 1) AS sources
@@ -4757,7 +4761,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
-  SELECT h.id, h.type, h.label, h.origin_label, h.sources
+  SELECT h.id, h.type, h.label, h.origin_label, h.sources, h.geom
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
@@ -4784,10 +4788,16 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
 $$;
 
 -- The identifier of a value is the identifier of its element, a slash and the key, so it stays
--- the same from one release to the next while the value lives.
+-- the same from one release to the next while the value lives. `act_id` names the act that the
+-- label and the passages come from.
+--
+-- A CITATION BELONGS TO AN ACT, AND NOT TO ONE VALUE OF THE ACT. So a value keeps the passages of
+-- its act in a document that hold the value, compared in lower case on the letters and digits
+-- alone. When no passage of that document holds it, the value keeps each passage of the act in
+-- that document. A relation keeps each passage of its act in its documents.
 CREATE FUNCTION release_claims()
 RETURNS TABLE (claim_id text, subject_kind text, subject_id uuid, attribute text, value jsonb,
-               origin_label text, sources text[], passages jsonb)
+               origin_label text, sources text[], act_id uuid, passages jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH ent AS (SELECT e.id FROM public.release_entities() e),
@@ -4828,19 +4838,34 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
-                  ORDER BY 1) AS public_sources
+                  ORDER BY 1) AS public_sources,
+           CASE WHEN jsonb_typeof(c.value) IN ('string', 'number', 'boolean')
+                THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
+           END AS words
       FROM claim c
   ), passage AS (
     SELECT p.* FROM public.cited_passages(ARRAY(SELECT k.act FROM kept k
                                                  WHERE cardinality(k.public_sources) > 0)) p
+  ), matched AS (
+    SELECT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
+           coalesce(k.words <> '' AND strpos(
+             ' ' || btrim(lower(regexp_replace(p.cited, '[^[:alnum:]]+', ' ', 'g'))) || ' ',
+             ' ' || k.words || ' ') > 0, false) AS holds
+      FROM kept k
+      JOIN passage p ON p.claim_id = k.act AND p.doc_id = ANY (k.public_sources)
+  ), chosen AS (
+    SELECT m.*, bool_or(m.holds) OVER (PARTITION BY m.claim_id, m.doc_id) AS some_hold
+      FROM matched m
   )
   SELECT k.claim_id, k.subject_kind, k.subject_id, k.attribute, k.value, k.origin_label,
-         k.public_sources,
+         k.public_sources, k.act,
          coalesce((SELECT jsonb_agg(jsonb_build_object('document', p.doc_id, 'page', p.page,
-                                                       'excerpt', p.cited)
+                                                       'excerpt', p.cited,
+                                                       'modality', p.modality,
+                                                       'transcribed', p.transcribed)
                                     ORDER BY p.doc_id, p.page, p.cited)
-                     FROM passage p
-                    WHERE p.claim_id = k.act AND p.doc_id = ANY (k.public_sources)),
+                     FROM chosen p
+                    WHERE p.claim_id = k.claim_id AND (p.holds OR NOT p.some_hold)),
                   '[]'::jsonb)
     FROM kept k
    WHERE cardinality(k.public_sources) > 0

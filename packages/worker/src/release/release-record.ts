@@ -16,6 +16,8 @@ const entityRow = z.object({
   label: z.string(),
   origin_label: label,
   sources: z.array(z.string()),
+  // GeoJSON, as the read API gives it.
+  geom: z.record(z.string(), z.unknown()).nullable(),
 });
 
 const relationRow = z.object({
@@ -29,7 +31,13 @@ const relationRow = z.object({
   sources: z.array(z.string()),
 });
 
-const passage = z.object({ document: z.string(), page: z.number().int(), excerpt: z.string() });
+const passage = z.object({
+  document: z.string(),
+  page: z.number().int(),
+  excerpt: z.string(),
+  modality: z.string(),
+  transcribed: z.boolean(),
+});
 
 const claimRow = z.object({
   claim_id: z.string(),
@@ -39,6 +47,8 @@ const claimRow = z.object({
   value: z.unknown(),
   origin_label: label,
   sources: z.array(z.string()),
+  /** The act that the label and the passages come from. */
+  act_id: z.uuid(),
   passages: z.array(passage),
 });
 
@@ -73,12 +83,12 @@ const rowsOf = async <T extends z.ZodType>(db: Queryable, shape: T, text: string
   z.array(shape).parse((await db.query(text)).rows);
 
 /** Reads the public part of the record. The release functions apply the public rules, so this
- * read cannot show what the public read hides. */
+ * read cannot show what the public read hides. The caller gives one snapshot for the reads. */
 export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> => {
   const entities = await rowsOf(
     db,
     entityRow,
-    'SELECT id, type, label, origin_label, sources FROM public.release_entities() ORDER BY id',
+    'SELECT id, type, label, origin_label, sources, geom FROM public.release_entities() ORDER BY id',
   );
   const relations = await rowsOf(
     db,
@@ -90,7 +100,8 @@ export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> =
   const claims = await rowsOf(
     db,
     claimRow,
-    `SELECT claim_id, subject_kind, subject_id, attribute, value, origin_label, sources, passages
+    `SELECT claim_id, subject_kind, subject_id, attribute, value, origin_label, sources, act_id,
+            passages
        FROM public.release_claims() ORDER BY claim_id`,
   );
   const documents = await rowsOf(

@@ -40,6 +40,12 @@ test.each([
   ['a blank contact address', { contacts: { ...CONTACTS, rightOfReply: ' ' } }],
   ['a contact address that is not a link', { contacts: { ...CONTACTS, reportError: 'a team' } }],
   ['a contact address on plain http', { contacts: { ...CONTACTS, reportError: 'http://x.org' } }],
+  ['a quote in a contact address', { contacts: { ...CONTACTS, reportError: 'https://x.org/"a' } }],
+  ['a comma in a contact address', { contacts: { ...CONTACTS, reportError: 'https://x.org/a,b' } }],
+  [
+    'a control character in a contact address',
+    { contacts: { ...CONTACTS, rightOfReply: 'https://x.org/\u0007' } },
+  ],
 ])('the manifest is refused with %s', (_, manifest) => {
   expect(() => read(manifest)).toThrow(ReleaseManifestFault);
   expect(() => read(manifest)).toThrow(/contacts/u);
@@ -60,3 +66,10 @@ test('the NATO pair is not built yet, so a manifest that asks to show it is refu
 test('a text that is not JSON is refused with a short message', () => {
   expect(() => readReleaseManifest('not json', TODAY)).toThrow(/not valid JSON/u);
 });
+
+test.each(['1,0', 'the "first"', 'one\ntwo', 'a\u0000b'])(
+  'a version with a quote, a comma or a control character (%j) is refused',
+  (version) => {
+    expect(() => read({ contacts: CONTACTS, version })).toThrow(/version/u);
+  },
+);

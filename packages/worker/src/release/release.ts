@@ -9,7 +9,10 @@ import type { ReleaseManifest } from './release-manifest.ts';
 import { readReleaseRecord } from './release-record.ts';
 
 /** The file that lists each file of a release with its checksum. */
-export const FILE_MANIFEST = 'manifest.json';
+const FILE_MANIFEST = 'manifest.json';
+
+/** A release of the same date is in the folder already. */
+export class ReleaseFolderExists extends Error {}
 
 /** A release that the command wrote. */
 export interface WrittenRelease {
@@ -39,7 +42,10 @@ export const writeRelease = async (
   root: string,
 ): Promise<WrittenRelease> => {
   const folder = join(root, `gab-release-${manifest.date}`);
-  if (await exists(folder)) throw new Error(`the release folder ${folder} exists already`);
+  if (await exists(folder))
+    throw new ReleaseFolderExists(
+      `The release folder ${folder} exists already. A release never writes over another one.`,
+    );
 
   const record = await readReleaseRecord(db);
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
