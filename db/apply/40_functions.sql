@@ -2069,6 +2069,46 @@ BEGIN
   RETURN v_requeued;
 END $$;
 
+-- THE OPERATOR TRIES A FAILED RATING AGAIN. A rating that failed by a fault leaves its name F
+-- until a new act of the name, and a refused answer keeps the name F for ever. The operator puts
+-- each such job back in the queue in one call, and the door gives the names.
+--
+-- A JOB BACK IN THE QUEUE STARTS WITH NO ATTEMPT: no taker, no end, no reason and no refusal.
+-- The row keeps no record of the earlier attempt, so the door returns the reason and the refusal
+-- of that attempt with each name, and the command prints them. A refused rating goes back too:
+-- each job costs one call to the model at the next run.
+--
+-- ONE JOB FOR ONE NAME. Only the newest failed job of a name goes back, and only when no other
+-- job of the name waits, runs, is done or holds a refusal. The unique index of the jobs would
+-- refuse a second one, and that refusal would stop the whole call.
+CREATE OR REPLACE FUNCTION requeue_failed_ratings()
+RETURNS TABLE (author text, failure_reason text, refusal text)
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH newest AS (
+    SELECT DISTINCT ON (f.author) f.id, f.author, f.failure_reason, f.refusal
+      FROM public.jobs f
+     WHERE f.kind = 'rate_author' AND f.status = 'failed'
+     ORDER BY f.author, f.created_at DESC, f.id DESC
+  )
+  UPDATE public.jobs j
+     SET status         = 'queued',
+         failure_reason = NULL,
+         refusal        = NULL,
+         refused_parts  = 0,
+         claimed_by     = NULL,
+         claimed_at     = NULL,
+         finished_at    = NULL,
+         updated_at     = now()
+    FROM newest n
+   WHERE j.id = n.id
+     AND NOT EXISTS (SELECT 1 FROM public.jobs o
+                      WHERE o.kind = 'rate_author' AND o.author = n.author AND o.id <> n.id
+                        AND (o.status IN ('queued','running','done')
+                             OR (o.status = 'failed' AND o.refusal IS NOT NULL)))
+  RETURNING j.author, n.failure_reason, n.refusal
+$$;
+
 -- THE WAIT OF THE RUNNER ON AN EMPTY QUEUE, AS ONE STRICT READ. The number is a row, and a row
 -- that is absent stops the runner loudly. The door returns this number and no other row of the
 -- table. The earlier signature returned three numbers, so it is dropped first.
