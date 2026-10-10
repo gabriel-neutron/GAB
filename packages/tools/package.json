@@ -9,6 +9,7 @@
     "./csv": "./src/csv.ts",
     "./document-text": "./src/document-text.ts",
     "./enqueue-extract": "./src/enqueue-extract.ts",
+    "./excerpt": "./src/excerpt.ts",
     "./fetch-document": "./src/fetch-document.ts",
     "./fetch-fixture": "./src/fetch-fixture.ts",
     "./fetch-guard": "./src/fetch-guard.ts",

@@ -2,26 +2,26 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
-/** The pages of the review: the queue of the units, the groups of the queue, and the history.
- * The history is reached from here and from no other page. */
-export type ReviewView = 'queue' | 'groups' | 'decided';
+/** The pages of the review: the queue of the units, the groups of the queue, the history, and
+ * the names that joined an author A or B. The history is reached from here and from no other
+ * page. */
+export type ReviewView = 'queue' | 'groups' | 'decided' | 'names';
 
 export interface ReviewSurfaceProps {
   readonly view: ReviewView;
   readonly onView: (view: ReviewView) => void;
   readonly queue: ReactNode;
-  /** The page of the groups. It is drawn only while it is open. */
-  readonly groups: ReactNode;
-  /** The page of the decided acts. It is drawn only while it is open. */
-  readonly decided: ReactNode;
+  /** The page of the open view when it is not the queue. It is drawn only while it is open. */
+  readonly page: ReactNode;
 }
 
-const VIEWS: readonly ReviewView[] = ['queue', 'groups', 'decided'];
+const VIEWS: readonly ReviewView[] = ['queue', 'groups', 'decided', 'names'];
 
 const VIEW_WORDS: Readonly<Record<ReviewView, string>> = {
   queue: 'Waiting',
   groups: 'Groups',
   decided: 'Decided',
+  names: 'Names',
 };
 
 const TAB = cn(
@@ -30,7 +30,7 @@ const TAB = cn(
   'focus-visible:ring-ring/50',
 );
 
-export function ReviewSurface({ view, onView, queue, groups, decided }: ReviewSurfaceProps) {
+export function ReviewSurface({ view, onView, queue, page }: ReviewSurfaceProps) {
   return (
     <div className="flex h-full flex-col">
       <nav
@@ -57,8 +57,7 @@ export function ReviewSurface({ view, onView, queue, groups, decided }: ReviewSu
       <div hidden={view !== 'queue'} className="min-h-0 flex-1">
         {queue}
       </div>
-      {view === 'groups' ? <div className="min-h-0 flex-1">{groups}</div> : null}
-      {view === 'decided' ? <div className="min-h-0 flex-1">{decided}</div> : null}
+      {view === 'queue' ? null : <div className="min-h-0 flex-1">{page}</div>}
     </div>
   );
 }
