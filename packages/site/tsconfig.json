@@ -1,0 +1,18 @@
+{
+  // The static site of a release. The pages are React components that the release renders to
+  // HTML in Node, and the stories render them in the browser, so the target has the DOM and JSX.
+  // Nothing is built: Vite loads the source when the release writes the site.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "preserve",
+    "types": ["node", "vite/client"],
+
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.site.tsbuildinfo",
+
+    // Node runs a workspace package as it stands, so an import needs the real extension.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}

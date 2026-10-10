@@ -1,23 +1,12 @@
-import { createHash } from 'node:crypto';
 import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { Queryable } from '../queryable.ts';
-import { alignmentMatrix } from './alignment-matrix.ts';
-import { releaseChangelog } from './changelog.ts';
-import { criticalNodes } from './critical-nodes.ts';
 import { CriticalNodesSheetFault, readCriticalNodesSheet } from './critical-nodes-sheet.ts';
-import { csvExport, type ReleaseFile } from './csv-export.ts';
-import { releaseDisclaimer } from './disclaimer.ts';
-import { geojsonExport } from './geojson-export.ts';
-import { jsonldExport } from './jsonld-export.ts';
 import { PreviousReleaseFault, readPreviousRelease } from './previous-release.ts';
-import { releaseHeading } from './release-heading.ts';
+import { releaseFiles } from './release-files.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import { readReleaseRecord } from './release-record.ts';
-
-/** The file that lists each file of a release with its checksum. */
-const FILE_MANIFEST = 'manifest.json';
 
 /** A release of the same date is in the folder already. */
 export class ReleaseFolderExists extends Error {}
@@ -52,13 +41,15 @@ const readSheet = async (path: string | null) => {
 /** Reads the public part of the record and writes one release folder, named by its date, in
  * `root`. The folder holds each file, the changelog since the release in `previousFolder` (or a
  * first release with none), then the file manifest with the checksum of each file. A folder of
- * the same date is never overwritten. A sheet of the candidate nodes that is refused, or a
+ * the same date is never overwritten. `finish` gets the hidden folder with each file, before the
+ * folder takes its name: when it fails, no release folder is left. A sheet of the candidate nodes that is refused, or a
  * previous release that is refused or not earlier, stops the release before it writes a file. */
 export const writeRelease = async (
   db: Queryable,
   manifest: ReleaseManifest,
   root: string,
   previousFolder: string | null = null,
+  finish: ((folder: string) => Promise<void>) | null = null,
 ): Promise<WrittenRelease> => {
   const folder = join(root, `gab-release-${manifest.date}`);
   if (await exists(folder))
@@ -73,37 +64,7 @@ export const writeRelease = async (
 
   const sheet = await readSheet(manifest.criticalNodes);
   const record = await readReleaseRecord(db, { natoPair: manifest.showNatoPair });
-  const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
-  const heading = releaseHeading(manifest, disclaimer);
-  const preamble = `${heading.title}\n\n${disclaimer}`;
-  const exports: readonly ReleaseFile[] = [
-    ...csvExport(record, preamble),
-    alignmentMatrix(record, manifest.dateRules, preamble),
-    criticalNodes(record, sheet, preamble),
-    geojsonExport(record, heading),
-    jsonldExport(record, heading, manifest.iriBase),
-  ];
-  const changelog = releaseChangelog(previous, exports, heading);
-  const files = [...exports, changelog.file];
-
-  const listed = files.map((file) => {
-    const bytes = Buffer.from(file.text, 'utf8');
-    return {
-      path: file.path,
-      bytes: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-    };
-  });
-  const fileManifest = {
-    dataset: 'GAB',
-    version: manifest.version,
-    date: manifest.date,
-    showNatoPair: manifest.showNatoPair,
-    dateRules: manifest.dateRules,
-    disclaimer,
-    changelog: changelog.summary,
-    files: listed,
-  };
+  const files = releaseFiles(record, manifest, sheet, previous);
 
   // The files go to a hidden folder first, so a run that stops leaves no half release under the
   // name of the date.
@@ -111,7 +72,7 @@ export const writeRelease = async (
   const partial = await mkdtemp(join(root, '.gab-release-'));
   try {
     for (const file of files) await writeFile(join(partial, file.path), file.text);
-    await writeFile(join(partial, FILE_MANIFEST), `${JSON.stringify(fileManifest, null, 2)}\n`);
+    if (finish !== null) await finish(partial);
     await rename(partial, folder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });

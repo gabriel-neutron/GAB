@@ -145,6 +145,9 @@ the record  →  the release functions of the database (the public rules)
   that store an official list or act give the provider of what they store.
 - **The rating.** No file shows a NATO letter or a rating digit (S1). The release manifest holds
   the parameter that would show them, and it is off.
+- **The site.** The command also writes a static site beside the folder, from its files only: the
+  critical nodes table, a page for each entity and each claim at the path of its identifier, a
+  map, the downloads and the method. No page reads an API. ADR 0020 gives the reasons.
 
 ADR 0013 gives the reasons for the format of the folder and for the read.
 

@@ -1,0 +1,92 @@
+{
+  "dataset": "GAB",
+  "version": "1.0",
+  "date": "2026-11-08",
+  "showNatoPair": false,
+  "dateRules": {
+    "eu": "entry_into_force",
+    "ofac": "recent_actions_notice",
+    "uk": "date_designated"
+  },
+  "disclaimer": "**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.\n\n- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.\n- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.\n- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.\n- **Validated manually by the operator:** the operator read the sources and accepted the claim.\n\nA claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.\n\nReport an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.",
+  "contacts": {
+    "reportError": "https://example.org/report-an-error",
+    "rightOfReply": "mailto:reply@example.org"
+  },
+  "iriBase": "https://gab.example.org/",
+  "changelog": {
+    "path": "changelog.csv",
+    "previous": {
+      "version": "0.9",
+      "date": "2026-10-01"
+    },
+    "entities": {
+      "added": 1,
+      "changed": 0,
+      "removed": 0,
+      "merged": 0,
+      "unmerged": 0
+    },
+    "relations": {
+      "added": 1,
+      "changed": 0,
+      "removed": 0,
+      "merged": 0,
+      "unmerged": 0
+    },
+    "claims": {
+      "added": 1,
+      "changed": 0,
+      "removed": 0,
+      "merged": 0,
+      "unmerged": 0
+    }
+  },
+  "files": [
+    {
+      "path": "entities.csv",
+      "bytes": 1742,
+      "sha256": "612918e093b11395b42b141299c247ccb87f7182680a69fcec00459143a3d1e0"
+    },
+    {
+      "path": "relations.csv",
+      "bytes": 1958,
+      "sha256": "c32bd5365683a80a1283f51f1dac45548655f34131e6e27fed46c2527086bcd8"
+    },
+    {
+      "path": "claims.csv",
+      "bytes": 3715,
+      "sha256": "844d2c6c421b54b5a607d8e688f726bd975f7f1171570deb0f74cab7298213cc"
+    },
+    {
+      "path": "merges.csv",
+      "bytes": 1331,
+      "sha256": "51a93818377802bd320e39880cd007dc43ed26fad0eb602cb5f5e80f1ef9a854"
+    },
+    {
+      "path": "alignment-matrix.csv",
+      "bytes": 3091,
+      "sha256": "ba0c5988fa72c531299cdf0f403ef6159f31cca43067de6a4c84bbd55d4c1bda"
+    },
+    {
+      "path": "critical-nodes.csv",
+      "bytes": 2711,
+      "sha256": "0e04ac51c28d58e23e28d79710c9d8e5cde6186b155e1d8f45b3f3a8d9cb30f7"
+    },
+    {
+      "path": "entities.geojson",
+      "bytes": 1793,
+      "sha256": "faf6747a91014801e2230ea71ce2f7eb0e57d2f0ca07070d19b4db023e744702"
+    },
+    {
+      "path": "dataset.jsonld",
+      "bytes": 11992,
+      "sha256": "d07f13edab1653df8d26c01fd952059469439c145b6b94c422b1ca23fe94efb4"
+    },
+    {
+      "path": "changelog.csv",
+      "bytes": 1379,
+      "sha256": "37073d41f09a6cc2c0b5451ade6098faa6661a3a51deba7b4836e1e7f447a853"
+    }
+  ]
+}

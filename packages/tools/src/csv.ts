@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 /** One record of a CSV page: its fields, and where it stands in the page. */
 export interface CsvRecord {
   readonly fields: readonly string[];
@@ -72,8 +70,3 @@ export const readCsv = (page: string): CsvRecord[] => {
   }
   return records;
 };
-
-/** The signature of a header: the digest of its column names, in their order. Two files with the
- * same signature have the same columns in the same order. */
-export const headerSignature = (header: readonly string[]): string =>
-  createHash('sha256').update(JSON.stringify(header)).digest('hex');
