@@ -378,6 +378,7 @@ test('a release writes the public entities, relations and claims, each row with 
   const folder = join(root, 'gab-release-2026-11-08');
   expect(made.written.folder).toBe(folder);
   expect((await readdir(folder)).sort()).toStrictEqual([
+    'alignment-matrix.csv',
     'claims.csv',
     'dataset.jsonld',
     'entities.csv',
@@ -403,7 +404,15 @@ test('a release writes the public entities, relations and claims, each row with 
   for (const one of [entitiesText, relationsText, claimsText])
     expect(one).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
   // Each file holds the version, the day and the disclaimer with the two contact addresses.
-  for (const one of [entitiesText, relationsText, claimsText, geojsonText, jsonldText]) {
+  const matrixText = await text('alignment-matrix.csv');
+  for (const one of [
+    entitiesText,
+    relationsText,
+    claimsText,
+    geojsonText,
+    jsonldText,
+    matrixText,
+  ]) {
     expect(one).toContain('GAB dataset, version 0.1-test of 08/11/2026.');
     expect(one).toContain('**About this data.**');
     expect(one).toContain('Report an error: https://example.org/report-an-error');
@@ -434,6 +443,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'relations.csv',
     'claims.csv',
     'merges.csv',
+    'alignment-matrix.csv',
     'entities.geojson',
     'dataset.jsonld',
   ]);
@@ -902,6 +912,209 @@ test('a release shows the NATO pair only when its manifest asks for it', async (
   expect(report[1]?.split('\t').slice(0, 3)).toStrictEqual(['all', '1', String(claimCount)]);
   expect(report.find((line) => line.startsWith('entity vessel\t'))?.split('\t')[1]).toBe('1');
   expect(report.find((line) => line.startsWith('relation owns\t'))?.split('\t')[1]).toBe('0');
+});
+
+// The three official lists, each stored by its tool with its provider.
+const EU_ACT_DOC = 'doc_release_eu_act';
+const EU_AMENDMENT_DOC = 'doc_release_eu_amendment';
+const SDN_FILE = 'doc_release_sdn_file';
+const UK_FILE = 'doc_release_uk_file';
+const MATRIX_SHIP = '00000000-0000-4000-8000-00000000f001';
+const MATRIX_RENAMED = '00000000-0000-4000-8000-00000000f002';
+const MATRIX_EU_ONLY = '00000000-0000-4000-8000-00000000f003';
+const MATRIX_NO_IMO = '00000000-0000-4000-8000-00000000f004';
+const MATRIX_EU_ACT = '00000000-0000-4000-8000-00000000f005';
+const MATRIX_EU_AMENDMENT = '00000000-0000-4000-8000-00000000f006';
+const MATRIX_SDN = '00000000-0000-4000-8000-00000000f007';
+const MATRIX_UK = '00000000-0000-4000-8000-00000000f008';
+const MATRIX_BOUGHT_SHIP = '00000000-0000-4000-8000-00000000f009';
+
+const dated = async (ask: Ask, made: { id: string }, day: string | null) => {
+  await ask('UPDATE public.relations SET valid_from = $2::date WHERE id = $1', [made.id, day]);
+  return made.id;
+};
+
+test('a release writes the alignment matrix of the EU, OFAC and UK lists, one row for each IMO number', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const ids = await inTransaction(async (held) => {
+    const { ask } = held;
+    await documents(ask);
+    await ask(
+      `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, provider_id) VALUES
+         ($1, 'url', 'Council Regulation', 'https://example.org/eu-act', '2026-10-01', 'eu_eurlex'),
+         ($2, 'url', 'Council Implementing Regulation', 'https://example.org/eu-amendment',
+          '2026-10-01', 'eu_eurlex'),
+         ($3, 'url', 'SDN list', 'https://example.org/sdn-file', '2026-10-01', 'ofac_sdn'),
+         ($4, 'url', 'UK Sanctions List', 'https://example.org/uk-file', '2026-10-01',
+          'uk_sanctions_list')`,
+      [EU_ACT_DOC, EU_AMENDMENT_DOC, SDN_FILE, UK_FILE],
+    );
+    // One vessel and its renamed twin carry one IMO number. The record has not merged them yet.
+    await entity(held, MATRIX_SHIP, 'vessel', 'TEST MATRIX TANKER', [SDN_FILE], {
+      imo: value('9811000', [SDN_FILE]),
+    });
+    await entity(held, MATRIX_RENAMED, 'vessel', 'TEST MATRIX NEW NAME', [UK_FILE], {
+      imo: value('IMO 9811000', [UK_FILE]),
+    });
+    await entity(held, MATRIX_EU_ONLY, 'vessel', 'TEST MATRIX EU SHIP', [EU_AMENDMENT_DOC], {
+      imo: value('9822000', [EU_AMENDMENT_DOC]),
+    });
+    await entity(held, MATRIX_NO_IMO, 'vessel', 'TEST MATRIX NO IMO', [EU_ACT_DOC]);
+    // A vessel that only a bought filing holds up is not public, so its IMO number is not either.
+    await entity(held, MATRIX_BOUGHT_SHIP, 'vessel', 'TEST MATRIX BOUGHT SHIP', [BOUGHT], {
+      imo: value('9833000', [BOUGHT]),
+    });
+    await entity(held, MATRIX_EU_ACT, 'legal_act', 'TEST COUNCIL REGULATION', [EU_ACT_DOC]);
+    // The amendment states its entry into force, and its designation has no start date.
+    await entity(
+      held,
+      MATRIX_EU_AMENDMENT,
+      'legal_act',
+      'TEST IMPLEMENTING REGULATION',
+      [EU_AMENDMENT_DOC],
+      { entry_into_force: value('2025-05-20', [EU_AMENDMENT_DOC]) },
+    );
+    await entity(held, MATRIX_SDN, 'legal_act', 'TEST SDN LIST', [SDN_FILE]);
+    await entity(held, MATRIX_UK, 'legal_act', 'TEST UK LIST', [UK_FILE]);
+
+    const relationOf = (src: string, dst: string, sources: readonly string[]) =>
+      relation(held, 'designated_by', src, dst, sources);
+    return {
+      eu: await dated(
+        ask,
+        await relationOf(MATRIX_SHIP, MATRIX_EU_ACT, [EU_ACT_DOC]),
+        '2024-06-24',
+      ),
+      ofac: await dated(ask, await relationOf(MATRIX_SHIP, MATRIX_SDN, [SDN_FILE]), '2024-02-23'),
+      uk: await dated(ask, await relationOf(MATRIX_RENAMED, MATRIX_UK, [UK_FILE]), '2024-05-09'),
+      euOnly: await dated(
+        ask,
+        await relationOf(MATRIX_EU_ONLY, MATRIX_EU_AMENDMENT, [EU_AMENDMENT_DOC]),
+        null,
+      ),
+      noImo: await dated(
+        ask,
+        await relationOf(MATRIX_NO_IMO, MATRIX_EU_ACT, [EU_ACT_DOC]),
+        '2024-06-24',
+      ),
+      // A designation that cites the files of two regimes counts in no regime.
+      twoRegimes: await dated(
+        ask,
+        await relationOf(MATRIX_EU_ONLY, MATRIX_SDN, [SDN_FILE, UK_FILE]),
+        '2024-02-23',
+      ),
+      bought: await dated(
+        ask,
+        await relationOf(MATRIX_BOUGHT_SHIP, MATRIX_SDN, [SDN_FILE]),
+        '2024-02-23',
+      ),
+      written: await writeRelease(held.as('gabriel_app'), MANIFEST, root),
+    };
+  });
+  const folder = join(root, 'gab-release-2026-11-08');
+  const matrixText = await readFile(join(folder, 'alignment-matrix.csv'), 'utf8');
+  const ours = new Set([MATRIX_SHIP, MATRIX_RENAMED, MATRIX_EU_ONLY, MATRIX_NO_IMO]);
+  const rows = tableOf(matrixText).filter((row) =>
+    (row['vessel_ids'] ?? '').split(' ').some((one) => ours.has(one)),
+  );
+
+  // The vessel and its renamed twin give one row. The vessel with no IMO number is not in the
+  // matrix, and the vessel that only a bought filing holds up is not either.
+  expect(rows).toStrictEqual([
+    {
+      imo: '9811000',
+      imo_check_digit_ok: 'true',
+      vessel_ids: `${MATRIX_SHIP} ${MATRIX_RENAMED}`,
+      vessel_labels: '["TEST MATRIX TANKER","TEST MATRIX NEW NAME"]',
+      imo_claim_ids: `${MATRIX_SHIP}/imo ${MATRIX_RENAMED}/imo`,
+      eu_listed_on: '2024-06-24',
+      eu_date_from: 'designation_start',
+      eu_date_claim_id: ids.eu,
+      eu_ended_on: '',
+      eu_act_id: MATRIX_EU_ACT,
+      eu_act_label: 'TEST COUNCIL REGULATION',
+      eu_document_ids: EU_ACT_DOC,
+      eu_claim_id: ids.eu,
+      ofac_listed_on: '2024-02-23',
+      ofac_date_from: 'designation_start',
+      ofac_date_claim_id: ids.ofac,
+      ofac_ended_on: '',
+      ofac_act_id: MATRIX_SDN,
+      ofac_act_label: 'TEST SDN LIST',
+      ofac_document_ids: SDN_FILE,
+      ofac_claim_id: ids.ofac,
+      uk_listed_on: '2024-05-09',
+      uk_date_from: 'designation_start',
+      uk_date_claim_id: ids.uk,
+      uk_ended_on: '',
+      uk_act_id: MATRIX_UK,
+      uk_act_label: 'TEST UK LIST',
+      uk_document_ids: UK_FILE,
+      uk_claim_id: ids.uk,
+      days_eu_after_ofac: '122',
+      days_eu_after_uk: '46',
+      days_uk_after_ofac: '76',
+      ofac_or_uk_not_eu: 'false',
+      eu_not_ofac: 'false',
+    },
+    // The EU lists this vessel and OFAC does not. Its designation has no start date, so the date
+    // is the entry into force of the act.
+    expect.objectContaining({
+      imo: '9822000',
+      imo_check_digit_ok: 'false',
+      eu_listed_on: '2025-05-20',
+      eu_date_from: 'act_entry_into_force',
+      eu_date_claim_id: `${MATRIX_EU_AMENDMENT}/entry_into_force`,
+      eu_claim_id: ids.euOnly,
+      ofac_claim_id: '',
+      uk_claim_id: '',
+      days_eu_after_ofac: '',
+      ofac_or_uk_not_eu: 'false',
+      eu_not_ofac: 'true',
+    }),
+  ]);
+  expect(matrixText).not.toContain('9833000');
+  expect(matrixText).not.toContain(ids.noImo);
+  expect(matrixText).not.toContain(ids.bought);
+  expect(matrixText).not.toContain(ids.twoRegimes);
+  expect(matrixText).toMatch(
+    /# Designations that cite the official files of more than one regime, and count in no regime: [1-9]/u,
+  );
+  expect(matrixText).toContain('The release does not check the date against the rule.');
+
+  // Each claim that a row names is a claim of the release.
+  const claimIds = new Set(
+    tableOf(await readFile(join(folder, 'claims.csv'), 'utf8')).map((row) => row['claim_id']),
+  );
+  const named = rows.flatMap((row) =>
+    [
+      ...(row['imo_claim_ids'] ?? '').split(' '),
+      ...['eu', 'ofac', 'uk'].flatMap((regime) => [
+        row[`${regime}_claim_id`],
+        row[`${regime}_date_claim_id`],
+      ]),
+    ].filter((one) => one !== undefined && one !== ''),
+  );
+  expect(named.length).toBeGreaterThan(0);
+  for (const one of named) expect(claimIds).toContain(one);
+
+  // The file states the date rule of each regime and holds the disclaimer, and the file manifest
+  // gives the rules and the checksum of the file.
+  expect(matrixText).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
+  expect(matrixText).toContain('Right of reply: mailto:reply@example.org');
+  expect(matrixText).toContain(
+    'EU: the date of entry into force. OFAC: the date of the Recent Actions notice. UK: the date designated.',
+  );
+  const manifest = z
+    .object({
+      dateRules: z.record(z.string(), z.string()),
+      files: z.array(z.object({ path: z.string(), sha256: z.string() })),
+    })
+    .parse(JSON.parse(await readFile(join(folder, 'manifest.json'), 'utf8')));
+  expect(manifest.dateRules).toStrictEqual(MANIFEST.dateRules);
+  expect(manifest.files.find((file) => file.path === 'alignment-matrix.csv')?.sha256).toBe(
+    createHash('sha256').update(Buffer.from(matrixText, 'utf8')).digest('hex'),
+  );
 });
 
 test('the command refuses a release of a date that the folder holds already', async () => {
