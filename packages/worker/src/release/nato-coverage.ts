@@ -1,28 +1,31 @@
+import type { Queryable } from '../queryable.ts';
 import { releaseLookup } from './release-lookup.ts';
-import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
+import { readReleaseRecord, type ReleaseClaim, type ReleaseRecord } from './release-record.ts';
 
-/** The claims of one group, and how many of them have a full NATO pair. */
-export interface CoverageRow {
-  /** "all", or "entity" or "relation" with the type of what the claims are about. */
-  readonly group: string;
+interface Count {
   readonly claims: number;
   readonly paired: number;
 }
 
-/** The coverage of the NATO pair over the public claims of a release: the whole set first, then
- * one row for each entity type and each relation type, in the order of their names. A value of an
- * entity counts under the type of the entity. A relation and a value of a relation count under the
- * type of the relation. */
-export const natoCoverage = (
+const line = (group: string, count: Count): string => {
+  const share = count.claims === 0 ? 0 : (100 * count.paired) / count.claims;
+  return `${group}\t${String(count.paired)}\t${String(count.claims)}\t${share.toFixed(1)}%`;
+};
+
+/** The report on the NATO pair as lines of tab-separated columns: a heading, the whole set of the
+ * claims of a release, then one line for each entity type and each relation type, in the order of
+ * their names. A value of an entity counts under the type of the entity. A relation and a value of
+ * a relation count under the type of the relation. */
+export const natoCoverageLines = (
   record: ReleaseRecord,
   pairs: ReadonlyMap<string, unknown>,
-): readonly CoverageRow[] => {
+): readonly string[] => {
   const { entityOf, relationOf } = releaseLookup(record);
   const groupOf = (claim: ReleaseClaim): string =>
     claim.subject_kind === 'entity'
       ? `entity ${entityOf(claim.subject_id).type}`
       : `relation ${relationOf(claim.subject_id).type}`;
-  const counts = new Map<string, { claims: number; paired: number }>();
+  const counts = new Map<string, Count>();
   for (const claim of record.claims) {
     const group = groupOf(claim);
     const held = counts.get(group) ?? { claims: 0, paired: 0 };
@@ -31,25 +34,22 @@ export const natoCoverage = (
       paired: held.paired + (pairs.has(claim.claim_id) ? 1 : 0),
     });
   }
-  const groups = [...counts]
-    .sort(([one], [two]) => one.localeCompare(two))
-    .map(([group, count]) => ({ group, ...count }));
+  const all = {
+    claims: record.claims.length,
+    paired: record.claims.filter((one) => pairs.has(one.claim_id)).length,
+  };
   return [
-    {
-      group: 'all',
-      claims: record.claims.length,
-      paired: record.claims.filter((one) => pairs.has(one.claim_id)).length,
-    },
-    ...groups,
+    'group\twith a full pair\tpublic claims\tshare',
+    line('all', all),
+    ...[...counts]
+      .sort(([one], [two]) => one.localeCompare(two))
+      .map(([group, count]) => line(group, count)),
   ];
 };
 
-const share = (row: CoverageRow): string =>
-  row.claims === 0 ? '0.0%' : `${((100 * row.paired) / row.claims).toFixed(1)}%`;
-
-/** One line of the report: the group, the claims with a full pair, all the claims, the share. */
-export const coverageLine = (row: CoverageRow): string =>
-  `${row.group}\t${String(row.paired)}\t${String(row.claims)}\t${share(row)}`;
-
-/** The heading of the columns of the report. */
-export const COVERAGE_HEADER = 'group\twith a full pair\tpublic claims\tshare';
+/** The report on the NATO pair of the public claims, as the release reads them. The caller gives
+ * one snapshot for the reads. */
+export const natoCoverageReport = async (db: Queryable): Promise<readonly string[]> => {
+  const record = await readReleaseRecord(db, { natoPair: true });
+  return natoCoverageLines(record, record.natoPairs ?? new Map());
+};

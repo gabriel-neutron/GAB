@@ -30,7 +30,8 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
 names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
 by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
-`pnpm worker release` writes a release (see below). They run as they do against the local stack.
+`pnpm worker release` writes a release and `pnpm worker nato-coverage` reports the share of
+claims with a NATO pair (see below). They run as they do against the local stack.
 Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
 that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.

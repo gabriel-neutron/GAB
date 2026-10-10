@@ -180,7 +180,7 @@ REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_merges()         FROM PUBLIC;
-REVOKE ALL ON FUNCTION nato_pair(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION nato_pair(uuid[])        FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
@@ -326,9 +326,10 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
   release_documents(), release_disclaimer(), release_merges()
   TO gabriel_app, gabriel_agent, gabriel_research;
--- THE NATO PAIR IS HELD BY THE SAME THREE ROLES, and the public read role holds none, so the public
--- read path never sees a letter or a digit. A release shows the pair only when its manifest asks.
-GRANT EXECUTE ON FUNCTION nato_pair(uuid) TO gabriel_app, gabriel_agent, gabriel_research;
+-- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY, as the letter and the digit are. A machine role
+-- that read the pair would read the letters and the digits that the rules decide from, and the
+-- public does not see them.
+GRANT EXECUTE ON FUNCTION nato_pair(uuid[]) TO gabriel_app;
 
 -- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
 -- check call the function of the rules inside the database, so it holds no grant. The operator

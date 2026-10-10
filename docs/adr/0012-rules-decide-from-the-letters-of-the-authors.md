@@ -76,19 +76,7 @@ without the letters.
 
 ### The pair of a claim
 
-- One function in the database gives the NATO pair of one claim: the digit of its fact, and the
-  best letter among the known authors of the support of the fact. The support is the list that
-  the rule "strong sources" reads: each act of the fact that is not rejected, has a passed check,
-  and states or enacts the fact. The rules and the pair read one list, so they cannot disagree on
-  what supports a fact.
-- The two marks are judged apart, and the function only puts them side by side. A claim with no
-  digit, or with no known author in its support, has no pair.
-- The pair is computed on read, so it never goes stale. Only the roles that run a tool can read it.
-  The public read role cannot, because the public does not see the pair (`decisions.md` S1). A
-  release shows it only when its manifest asks (ADR 0013).
-- **Why the best letter.** The letter says how reliable the best author of the fact is, and the
-  digit already counts the other authors and the conflicts. **Cost:** one author A beside many
-  authors F shows A.
+ADR 0016 gives the NATO pair of a claim, which reads the digit and the support of the rules.
 
 ### The rules
 
