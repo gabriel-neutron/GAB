@@ -13,6 +13,7 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   end_relation_waits: 'waits for a relation',
   end_rejected: 'end rejected',
   end_missing: 'end missing',
+  relation_closed: 'relation ended',
   self: 'points to itself',
   no_source: 'no passage',
   end_waits_in_group: 'waits for a unit of its group',

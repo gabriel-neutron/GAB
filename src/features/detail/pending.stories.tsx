@@ -47,6 +47,37 @@ const MIXED: readonly PendingLine[] =
         [],
       )?.pending ?? []);
 
+const CLOSE_ACT_ID = '6b7c8d9e-0f1a-4b2c-9d3e-4f5a6b7c8d9e';
+
+const TOUCHING = corpus.relations.find(
+  (relation) => relation.srcId === FACILITY || relation.dstId === FACILITY,
+);
+
+// The research AI gives the end date of an open relation of the facility. The fixture holds no
+// such act, so this story adds one.
+const CLOSING: readonly PendingLine[] =
+  AGENT_ACT === undefined || TOUCHING === undefined
+    ? []
+    : (readDossier(
+        {
+          ...corpus,
+          proposals: [
+            {
+              ...AGENT_ACT,
+              id: CLOSE_ACT_ID,
+              op: 'update_relation',
+              targetKind: 'relation',
+              targetId: TOUCHING.id,
+              payload: { kind: 'close', valid_to: '2023-11-30' },
+              proposer: 'research_ai',
+            },
+          ],
+        },
+        FACILITY,
+        entityTypes,
+        [],
+      )?.pending ?? []);
+
 const rows = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-proposal]'));
 
@@ -150,5 +181,15 @@ export const EachCandidateStatesItsOrigin: Story = {
     await expect(operator.getByText('candidate')).toBeInTheDocument();
     await expect(operator.getByText('operator')).toBeInTheDocument();
     await expect(operator.queryByText('extractor')).toBeNull();
+  },
+};
+
+/** An act that gives the end date of an open relation says the day on which it closes it. */
+export const AnEndDateSaysTheDayItClosesTheRelation: Story = {
+  args: { proposals: CLOSING },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(rows(canvasElement)).toHaveLength(1);
+    await expect(canvas.getByText(/Closes the relation on 2023-11-30/u)).toBeInTheDocument();
+    await expect(canvas.getByText('candidate')).toBeInTheDocument();
   },
 };

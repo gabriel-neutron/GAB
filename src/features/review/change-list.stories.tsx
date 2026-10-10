@@ -35,6 +35,7 @@ const closing =
             op: 'update_relation',
             payload: { valid_to: '2023-11-30' },
             targetId: OWNS,
+            targetFrom: '2019-05-02',
             dissent: false,
             endRejected: false,
             dissentReason: null,
@@ -172,6 +173,7 @@ export const AnEndDateClosesTheRelation: Story = {
     await expect(change).toHaveTextContent(
       'Closes the relation on 2023-11-30: Rosneft owns Nayara.',
     );
+    await expect(change).toHaveTextContent('The relation starts on 2019-05-02 in the record.');
     await expect(canvas.queryByText('valid to:')).toBeNull();
   },
 };

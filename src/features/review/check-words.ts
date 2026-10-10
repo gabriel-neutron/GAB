@@ -18,6 +18,7 @@ const nameOf = (act: UnitAct): string => {
   if (act.kind === 'entity') return act.label;
   if (act.kind === 'relation')
     return `${act.src.name ?? NO_NAME} ${act.type} ${act.dst.name ?? NO_NAME}`;
+  if (act.kind === 'close') return `end of ${act.target.name ?? NO_NAME}`;
   return act.target === null ? act.op : `${act.op} ${act.target.name ?? NO_NAME}`;
 };
 

@@ -388,19 +388,81 @@ test('an undo keeps a document that a later end date cites, also when the merge 
   });
 });
 
-test('an undo keeps the first day of the merge when a later end date stands before the old first day', async () => {
+test('an undo leaves a twin as it is when a later end date stands before its old first day', async () => {
   const after = await rolledBack('app', async (ask) => {
     const keep = await entity(ask, 'vessel', 'EARLY TWIN TEST KEEP');
     const gone = await entity(ask, 'vessel', 'EARLY TWIN TEST GONE');
     const owner = await entity(ask, 'company', 'EARLY TWIN TEST OWNER');
     const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
-    await relation(ask, 'operates', owner, gone, { validFrom: '2019-01-01' });
+    await relation(ask, 'operates', owner, gone, {
+      validFrom: '2019-01-01',
+      sources: [FIXTURE_DOCUMENT],
+    });
     await merge(ask, keep, gone);
     await closed(ask, stays, '2019-06-30', ['manual']);
     await undo(ask, gone);
     return relationRow(ask, stays);
   });
-  expect(after).toMatchObject({ valid_from: '2019-01-01', valid_to: '2019-06-30' });
+  // The first day of the merge stays, and the document that holds it up stays with it.
+  expect(after).toMatchObject({
+    sources: ['manual', FIXTURE_DOCUMENT],
+    valid_from: '2019-01-01',
+    valid_to: '2019-06-30',
+  });
+});
+
+test('an undo leaves a twin as it is when a document came to it from no end date', async () => {
+  const after = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const keep = await entity(ask, 'vessel', 'OTHER DOC TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'OTHER DOC TEST GONE');
+    const owner = await entity(ask, 'company', 'OTHER DOC TEST OWNER');
+    const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
+    await relation(ask, 'operates', owner, gone, {
+      validFrom: '2019-01-01',
+      sources: [FIXTURE_DOCUMENT],
+    });
+    await merge(ask, keep, gone);
+    // No door adds a document to a relation outside a merge and an end date, so the test writes
+    // it as such a writer would.
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask(
+      `INSERT INTO public.documents (id, kind, title) VALUES ('doc_merge_other', 'manual',
+         'Another document of the merge test')`,
+    );
+    await ask(
+      `UPDATE public.relations SET sources = sources || ARRAY['doc_merge_other']::doc_id[]
+        WHERE id = $1`,
+      [stays],
+    );
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await undo(ask, gone);
+    return relationRow(ask, stays);
+  });
+  expect(after).toMatchObject({
+    sources: ['manual', FIXTURE_DOCUMENT, 'doc_merge_other'],
+    valid_from: '2019-01-01',
+  });
+});
+
+test('a merge is refused while an end date waits on a relation that it removes', async () => {
+  const refused = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'WAITING CLOSE TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'WAITING CLOSE TEST GONE');
+    const owner = await entity(ask, 'company', 'WAITING CLOSE TEST OWNER');
+    await relation(ask, 'operates', owner, keep);
+    const twin = await relation(ask, 'operates', owner, gone);
+    await ask(
+      `SELECT public.propose_change('update_relation', '{"valid_to":"2023-11-30"}'::jsonb,
+         ARRAY['manual'], 'relation', $1::uuid)`,
+      [twin],
+    );
+    return refusalOf(ask, `SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`, [
+      keep,
+      gone,
+    ]);
+  });
+  expect(refused).toBe('merge_absorbed_free');
 });
 
 test('only the last merge into a survivor is undone, so the survivor gets back what it held', async () => {

@@ -333,10 +333,12 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     refuse(ref, `the target ${act.targetId} does not exist`);
 };
 
-// The checker reads no record, so an act that ends a relation names that relation in words.
-const RELATION_WORDS = `SELECT concat_ws(' ', coalesce(s.label, r.src_id::text), r.type,
-    coalesce(d.label, r.dst_id::text)) AS words
+// The checker reads no record, so an act that ends a relation names that relation in the words
+// of the vocabulary. The tool roles read the views and not the name function of the review.
+const RELATION_WORDS = `SELECT concat_ws(' ', coalesce(s.label, 'an element'),
+    coalesce(t.label, r.type), coalesce(d.label, 'an element')) AS words
   FROM api.relation r
+  LEFT JOIN api.relation_type t ON t.key = r.type
   LEFT JOIN api.entity s ON r.src_kind = 'entity' AND s.id = r.src_id
   LEFT JOIN api.entity d ON r.dst_kind = 'entity' AND d.id = r.dst_id
   WHERE r.id = $1`;
