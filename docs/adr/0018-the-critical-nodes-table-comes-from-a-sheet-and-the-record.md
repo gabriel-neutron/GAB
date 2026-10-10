@@ -34,7 +34,8 @@ the node and the bypass pattern, as short texts.
 ### Condition (a) comes from the record
 
 - Condition (a) is ticked when the node itself has a public designation in the release, of any
-  regime. The claims of the tick are those designations.
+  regime. An ended designation counts too: it documents an exposure. The claims of the tick are
+  those designations.
 - A designation of an entity that the node controls, for example a vessel of a company, does not
   count. The sheet ticks the conditions of one node, and a reader must find the designation on
   that node. The operator can add the controlled entity as its own candidate.
@@ -46,7 +47,8 @@ the node and the bypass pattern, as short texts.
   not sourced (a tick with no claim), or no tick, with the claim identifiers.
 - A node is retained when it has two ticks or more, sourced or not. The row
   also gives the count of the sourced ticks, so a reader sees a retained node that rests on a gap.
-- The texts of the operator are public text of the release.
+- The texts of the operator are public text of the release. The how-to guide tells the operator
+  not to name a person that the release does not show; the release cannot check free text.
 - The parameter that shows the NATO pair (ADR 0016) adds, for each condition, the pair of each
   claim of the tick in the order of the claims. Off, the file holds no column and no word of the
   pair.

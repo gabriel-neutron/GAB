@@ -79,7 +79,7 @@ const note = (sheet: boolean, nodes: readonly Node[], natoPair: boolean): string
   [
     'Critical nodes table.',
     'One row for each candidate node of the sheet that the operator keeps. A node is retained when it meets two conditions of three.',
-    '(a) documented sanctions exposure: a public designation of the node itself, from the record. A designation of an entity that the node controls does not count.',
+    '(a) documented sanctions exposure: a public designation of the node itself, from the record, ended or not. A designation of an entity that the node controls does not count.',
     '(b) documented production or throughput in 2024-2026, and (c) presence in a bypass routing across jurisdictions: the operator ticks them, with the claims that support each tick.',
     `Each condition cell is "${SOURCED}" (a tick with at least one public claim of this release), "${NOT_SOURCED}" (a tick with no public claim) or "${NO_TICK}". The claim identifiers are claims of this release, separated by spaces. The release checks that each claim is public. It does not check that the claim supports the condition.`,
     'ticks counts each tick, sourced or not. sourced_ticks counts the ticks with a public claim. retained is true when ticks is two or more.',

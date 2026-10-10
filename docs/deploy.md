@@ -184,20 +184,21 @@ character in the version or an address.
 manifest. Keep the sheet outside the GAB checkout too. It is a CSV file with these five columns,
 in any order:
 
-| Column | What you type |
-|---|---|
-| `node_id` | The entity identifier of the node. |
-| `condition` | `b` (documented production or throughput in 2024-2026), `c` (presence in a bypass routing across jurisdictions), or nothing for a row that only names the node and its texts. |
-| `claim_ids` | The claim identifiers that support the tick, as `claims.csv` gives them, separated by spaces. Nothing gives a tick that shows "not sourced". |
-| `controller` | A short text: who controls the node. |
-| `bypass_pattern` | A short text: the bypass pattern. |
+- `node_id`: the entity identifier of the node.
+- `condition`: `b` (documented production or throughput in 2024-2026), `c` (presence in a bypass
+  routing across jurisdictions), or nothing for a row that only names the node and its texts.
+- `claim_ids`: the claim identifiers that support the tick, as `claims.csv` gives them, separated
+  by spaces. Nothing gives a tick that shows "not sourced".
+- `controller`: a short text, who controls the node.
+- `bypass_pattern`: a short text, the bypass pattern.
 
 Give one row for each node and condition. Give the texts of a node on one of its rows, or the same
-texts on each row. A line that starts with `#` is a note. You do not tick condition (a): the
-release ticks it from the public designations of the node itself. A node with two ticks or more is
-retained. The release refuses the sheet, and writes nothing, when a row names a node or a claim
-that is not public in the release. The message gives the line. With no `criticalNodes`, the table
-has no row.
+texts on each row. The two texts are public: do not name a person that the release does not show.
+Save the sheet as CSV UTF-8, with commas. A line that starts with `#` is a note. You do not tick
+condition (a): the release ticks it from the public designations of the node itself, ended or not. A
+node with two ticks or more is retained. The release refuses the sheet, and writes nothing, when a
+row names a node or a claim that is not public in the release. The message gives the line. With no
+`criticalNodes`, the table has no row.
 
 Then run, on the record:
 
