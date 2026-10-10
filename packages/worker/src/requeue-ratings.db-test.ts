@@ -60,7 +60,7 @@ const jobOf = (ask: (text: string, values?: unknown[]) => Promise<Row[]>, author
     [author],
   );
 
-test('a failed rating goes back to the queue with no attempt, and an open or done job stays', async () => {
+test('a failed rating goes back to the queue with no attempt, and a refused, open or done job stays', async () => {
   await inTransaction(async ({ as, ask }) => {
     const at = '2026-01-01';
     await ask(ENDED, ['fault name', 'failed', 'the service did not answer', null, 0, at]);
@@ -70,14 +70,13 @@ test('a failed rating goes back to the queue with no attempt, and an open or don
 
     const requeued = await requeueFailedRatings(as('gabriel_app'));
 
-    // The job row starts again with no attempt, so the door gives the record of the earlier one.
+    // The job row starts again with no attempt, so the door gives the reason of the earlier one.
+    // The model refused the other name, so its job stays failed.
     expect(requeued).toEqual([
-      { author: 'fault name', failureReason: 'the service did not answer', refusal: null },
-      { author: 'refused name', failureReason: '1 of 1 parts refused', refusal: 'no reason' },
+      { author: 'fault name', failureReason: 'the service did not answer' },
     ]);
     expect(requeued.map(requeuedLine)).toEqual([
       'fault name | earlier reason: the service did not answer',
-      'refused name | earlier reason: 1 of 1 parts refused | earlier refusal: no reason',
     ]);
     const fresh = {
       status: 'queued',
@@ -89,7 +88,9 @@ test('a failed rating goes back to the queue with no attempt, and an open or don
       finished_at: null,
     };
     expect(await jobOf(ask, 'fault name')).toEqual([fresh]);
-    expect(await jobOf(ask, 'refused name')).toEqual([fresh]);
+    expect(await jobOf(ask, 'refused name')).toEqual([
+      expect.objectContaining({ status: 'failed', refusal: 'no reason', refused_parts: 1 }),
+    ]);
     expect((await jobOf(ask, 'done name'))[0]).toMatchObject({ status: 'done' });
     expect((await jobOf(ask, 'running name'))[0]).toMatchObject({ status: 'running' });
   });
@@ -103,7 +104,7 @@ test('a name with a job that waits keeps its old failed job as it is', async () 
     await ask(ENDED, ['waits', 'failed', 'an old fault', null, 0, '2026-01-01']);
 
     expect(await requeueFailedRatings(as('gabriel_app'))).toEqual([
-      { author: 'twice', failureReason: 'the second fault', refusal: null },
+      { author: 'twice', failureReason: 'the second fault' },
     ]);
     expect((await jobOf(ask, 'twice')).map((one) => one['status'])).toEqual(['failed', 'queued']);
     expect((await jobOf(ask, 'waits')).map((one) => one['status']).sort()).toEqual([
@@ -120,6 +121,26 @@ test('a name with a done job and an older failed job is skipped', async () => {
 
     expect(await requeueFailedRatings(as('gabriel_app'))).toEqual([]);
     expect((await jobOf(ask, 'rated')).map((one) => one['status'])).toEqual(['failed', 'done']);
+  });
+});
+
+test('a name with a refused job after an older fault is skipped', async () => {
+  await inTransaction(async ({ as, ask }) => {
+    await ask(ENDED, ['refused later', 'failed', 'an old fault', null, 0, '2026-01-01']);
+    await ask(ENDED, [
+      'refused later',
+      'failed',
+      '1 of 1 parts refused',
+      'no reason',
+      1,
+      '2026-01-02',
+    ]);
+
+    expect(await requeueFailedRatings(as('gabriel_app'))).toEqual([]);
+    expect((await jobOf(ask, 'refused later')).map((one) => one['status'])).toEqual([
+      'failed',
+      'failed',
+    ]);
   });
 });
 

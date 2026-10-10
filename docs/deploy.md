@@ -28,7 +28,7 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
-names that joined an author A or B, `pnpm worker requeue-ratings` tries the failed ratings again,
+names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed by a fault again,
 and `pnpm worker reread-html` reads the stored HTML pages again (see below). They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
@@ -103,11 +103,11 @@ the value. A rating waits in the queue until the operator approves the reference
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 
-A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each failed rating job
-back in the queue with no attempt, and prints each name with the reason and the refusal of the
-earlier attempt: the job keeps no record of them. The next `pnpm worker run` rates them, and each
-job costs one call to the model. The command also puts back a rating that the model refused. A
-refusal is asked again only here and after you refuse a joined name.
+A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that
+failed by a fault back in the queue with no attempt, and prints each name with the reason of the
+earlier attempt: the job keeps no record of it. The next `pnpm worker run` rates them, and each
+job costs one call to the model. A rating that the model refused stays failed: the command does
+not put it back. A refusal is asked again only after you refuse a joined name.
 
 ### Decide the names that joined an author A or B
 
