@@ -213,8 +213,9 @@ author by hand, and a model has no track record of an unknown author, so it cann
 **Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference set
 moves every later letter. Few authors reach B, so few facts pass at the start.
 
-**A failed rating (10 October 2026).** The operator can put every failed rating back in the
-queue, also a rating that the model refused. Each one costs one model call.
+**A failed rating (10 October 2026).** The operator can put each rating that failed by a fault
+back in the queue. A rating that the model refused stays failed, because the same question gets the
+same refusal. Each rating back in the queue costs one model call.
 
 ### S2 — The source is listed at each level
 
