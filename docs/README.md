@@ -31,3 +31,4 @@ rules of the code review.
 | [0010](adr/0010-three-ais-one-tool-catalogue.md) | Three AIs share one tool catalogue | Accepted |
 | [0011](adr/0011-trust-and-rating-method.md) | A decision table decides the public state of a claim; a letter rates only the originator | Superseded by 0012 |
 | [0012](adr/0012-rules-decide-from-the-letters-of-the-authors.md) | Named rules in the database decide from the letters of the authors | Accepted |
+| [0013](adr/0013-a-release-is-a-dated-folder-of-files.md) | A release is a dated folder of files, read through the release functions | Accepted |
