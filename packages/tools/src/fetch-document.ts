@@ -6,6 +6,7 @@ import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
+import { binaryBytes, declaredMime, decodedBody, GENERIC, textType } from './compressed-body.ts';
 import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
@@ -112,13 +113,13 @@ const sniffedMime = (bytes: Uint8Array): string | undefined => {
 };
 
 // A server that names no type, or names only "bytes", says nothing of the file, so its first
-// bytes decide.
-const GENERIC = 'application/octet-stream';
-
+// bytes decide. A file with the signature of a PDF or an image is that file, also when the server
+// names it as text.
 const mimeOf = (contentType: string | null, bytes: Uint8Array): string => {
-  const given = (contentType?.split(';')[0] ?? '').trim().toLowerCase();
-  if (given !== '' && given !== GENERIC) return given;
+  const given = declaredMime(contentType);
   const sniffed = sniffedMime(bytes);
+  if (sniffed !== undefined && textType(given)) return sniffed;
+  if (given !== '' && given !== GENERIC) return given;
   if (sniffed !== undefined) return sniffed;
   if (given !== '') return given;
   throw new ToolRefusal('the server named no type for the answer, and no type is read from it');
@@ -339,7 +340,10 @@ export const fetchDocument = defineTool({
     'holds no text but its title; else its own text stays and the render is not stored. A page ' +
     'with no text, also after its render, is refused, and nothing is stored. Each refusal of a bot filter (a 403, an empty ' +
     '202, a challenge page, no answer) names the next step: open the page in a browser and ' +
-    'store it with store_saved_file, or list it in research/out/needs.md. A PNG or a JPEG image is stored as ' +
+    'store it with store_saved_file, or list it in research/out/needs.md. A compressed answer ' +
+    '(gzip, deflate or brotli, also with no Content-Encoding header, as a raw capture of the ' +
+    'Wayback Machine) is decoded, and the decoded bytes are stored. An answer of a text type ' +
+    'whose bytes are not text is refused. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
     'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused.',
@@ -362,7 +366,7 @@ export const fetchDocument = defineTool({
       ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
       ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
     };
-    let got;
+    let got: Got;
     try {
       got = await guardedGet(input.url, getOptions);
     } catch (fault) {
@@ -370,8 +374,20 @@ export const fetchDocument = defineTool({
         throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
       throw fault;
     }
+    // The stored bytes are the page that the server encoded, not its compressed form, so their
+    // text is read and an excerpt is checked on them.
+    got = {
+      ...got,
+      bytes: decodedBody(got.bytes, got.contentEncoding, got.contentType, MAX_BYTES),
+    };
 
     const mime = mimeOf(got.contentType, got.bytes);
+    // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
+    if (textType(mime) && binaryBytes(got.bytes, got.contentType))
+      throw new ToolRefusal(
+        `the answer of type ${mime} holds no readable text: its bytes are compressed in a format ` +
+          `that this tool does not decode, or they are binary. Nothing is stored. ${BROWSER_STEP}.`,
+      );
     // The type with its parameters, so the charset that the server names decodes an HTML page.
     const type = isHtml(mime) && got.contentType !== null ? got.contentType : mime;
     // OCR of an image takes seconds, and bytes that are already stored have their text already.

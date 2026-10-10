@@ -3,6 +3,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 
 import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -53,6 +54,23 @@ const CHALLENGE_PAGE_HTML =
   'Checking if the site connection is secure</div><script src="/cdn-cgi/challenge-platform/' +
   'h/b/orchestrate/chl_page/v1"></script></body></html>';
 
+// The Radware Bot Manager challenge, as a page of a German ministry gave it with a 200.
+const RADWARE_PAGE_HTML =
+  '<html><head><title>Radware Page</title><script src="https://cdn.perfdrive.com/aperture/' +
+  'aperture.js"></script></head><body><div class="loader"></div><p>Verifying your browser ' +
+  'before proceeding...</p></body></html>';
+
+// Bytes that are no text and no format that the tool decodes: a sequence of a fixed generator.
+const NOISE = ((): Uint8Array => {
+  const bytes = new Uint8Array(4096);
+  let state = 12_345;
+  for (let at = 0; at < bytes.length; at += 1) {
+    state = (state * 1_103_515_245 + 12_345) % 2_147_483_648;
+    bytes[at] = state >> 16;
+  }
+  return bytes;
+})();
+
 let fixture: Fixture;
 let base: string;
 
@@ -94,6 +112,37 @@ beforeAll(async () => {
     '/missing': { status: 404, headers: { 'content-type': 'text/html' }, body: 'absent' },
     '/silent': { silent: true },
     '/drop': { drop: true },
+    '/radware': { headers: { 'content-type': 'text/html' }, body: RADWARE_PAGE_HTML },
+    // Raw captures of the Wayback Machine ("id_"): the original bytes, with or without the
+    // header that names their encoding.
+    '/gzip-named': {
+      headers: { 'content-type': 'text/html', 'content-encoding': 'gzip' },
+      body: gzipSync(RADWARE_PAGE_HTML),
+    },
+    '/gzip-unnamed': {
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+      body: gzipSync(RADWARE_PAGE_HTML),
+    },
+    '/br-named': {
+      headers: { 'content-type': 'text/html', 'content-encoding': 'br' },
+      body: brotliCompressSync(RADWARE_PAGE_HTML),
+    },
+    '/br-unnamed': {
+      headers: { 'content-type': 'text/html' },
+      body: brotliCompressSync(RADWARE_PAGE_HTML),
+    },
+    '/noise': { headers: { 'content-type': 'text/html' }, body: NOISE },
+    '/noise.rss': { headers: { 'content-type': 'application/rss+xml' }, body: NOISE },
+    // A PNG image that the server names as text: the signature decides.
+    '/png-as-text': { headers: { 'content-type': 'text/plain' }, body: HUGE_PNG },
+    '/false-gzip': {
+      headers: { 'content-type': 'text/html', 'content-encoding': 'gzip' },
+      body: HTML,
+    },
+    '/compress': {
+      headers: { 'content-type': 'text/html', 'content-encoding': 'compress' },
+      body: HTML,
+    },
     '/soft-404': {
       headers: { 'content-type': 'text/html' },
       body: '<html><head><title>Example Port</title></head><body><h1>Page not found</h1><p>The register entry does not exist.</p></body></html>',
@@ -237,6 +286,14 @@ describe('a bot filter or a silent server gives a refusal that names the next st
     const refusal = await refusalOf(`${base}/cloudflare`, fixtureReach(store));
     expect(refusal).toMatch(/answered 403/);
     expect(refusal).toMatch(/bot filter/);
+    expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a 200 with a Radware challenge: open the page in a browser, store_saved_file', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/radware`, fixtureReach(store));
+    expect(refusal).toMatch(/challenge of a bot filter/);
     expect(refusal).toMatch(/open the page in a browser .*store_saved_file/);
     expect(store.puts).toStrictEqual([]);
   });
@@ -406,4 +463,48 @@ test('an image whose bytes are already stored is known, and OCR never reads it',
   );
   expect(outcome).toMatchObject({ ok: true, output: { document: stored.id, status: 'known' } });
   expect(store.puts).toStrictEqual([]);
+});
+
+describe('a compressed answer is decoded before its text is read', () => {
+  // Each body is the Radware challenge, so the refusal shows that its text was read.
+  test.each(['/gzip-named', '/gzip-unnamed', '/br-named', '/br-unnamed'])(
+    'the text of %s is read after the decode',
+    async (path) => {
+      const store = memoryStore();
+      const refusal = await refusalOf(`${base}${path}`, fixtureReach(store));
+      expect(refusal).toMatch(/challenge of a bot filter/);
+      expect(store.puts).toStrictEqual([]);
+    },
+  );
+
+  test('a body of a text type with no readable text is refused, and nothing is stored', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/noise`, fixtureReach(store));
+    expect(refusal).toMatch(/holds no readable text/);
+    expect(refusal).toMatch(/store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a body of an XML type with no readable text is refused', async () => {
+    expect(await refusalOf(`${base}/noise.rss`, fixtureReach(memoryStore()))).toMatch(
+      /holds no readable text/,
+    );
+  });
+
+  test('a file with the signature of an image is read as that image, not as text', async () => {
+    // The image is looked up by its hash, and then refused for its size: no text check came first.
+    expect(
+      await refusalOf(`${base}/png-as-text`, fixtureReach(memoryStore()), unknownBytes),
+    ).toMatch(/pixels/);
+  });
+
+  test('a body that does not decode as the encoding that the server names is refused', async () => {
+    expect(await refusalOf(`${base}/false-gzip`, fixtureReach(memoryStore()))).toMatch(
+      /does not decode as gzip/,
+    );
+  });
+
+  test('an encoding that the tool does not know is refused', async () => {
+    expect(await refusalOf(`${base}/compress`, fixtureReach(memoryStore()))).toMatch(/"compress"/);
+  });
 });
