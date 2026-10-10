@@ -18,6 +18,8 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Find leads on the web: `web_search`, `news_search`.
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
+- Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
+  Publications Office as a document. `fetch_document` also reads an XML file.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
