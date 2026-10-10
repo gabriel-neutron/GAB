@@ -27,7 +27,7 @@ const flagsOf = (
   const given = new Map<string, string>();
   for (let at = 0; at < args.length; at += 2) {
     const [name, value] = [args[at] ?? '', args[at + 1] ?? ''];
-    if (!FLAGS.has(name) || given.has(name)) return null;
+    if (!FLAGS.has(name) || given.has(name) || value === '') return null;
     given.set(name, value);
   }
   const manifest = given.get('--manifest');

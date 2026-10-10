@@ -43,14 +43,17 @@ interface Side {
 }
 
 const sideOf = (table: ReleaseTable, key: string): Side => {
+  const index = new Map(table.header.map((column, at) => [column, at]));
   const cell = (row: readonly string[], column: string): string => {
-    const at = table.header.indexOf(column);
-    return at < 0 ? '' : (row[at] ?? '');
+    const at = index.get(column);
+    return at === undefined ? '' : (row[at] ?? '');
   };
   const rows = new Map<string, (readonly string[])[]>();
   for (const row of table.rows) {
     const id = cell(row, key);
-    rows.set(id, [...(rows.get(id) ?? []), row]);
+    const group = rows.get(id);
+    if (group === undefined) rows.set(id, [row]);
+    else group.push(row);
   }
   return { table, rows, cell };
 };
@@ -66,8 +69,51 @@ const standingMerges = (merges: ReleaseTable): ReadonlyMap<string, string> => {
   return standing;
 };
 
-const sameValues = (one: readonly string[], two: readonly string[]): boolean =>
-  JSON.stringify([...one].sort()) === JSON.stringify([...two].sort());
+// A row repeats the name of each entity that it names. A new name is a change of that entity, so
+// it shows once, on the entity row, and not again on each row that copies it.
+const COPIED_NAMES = new Set(['from_label', 'to_label', 'subject_label', 'object_label']);
+
+const byText = (one: string, two: string): number => (one < two ? -1 : one > two ? 1 : 0);
+
+const sameSet = (one: readonly string[], two: readonly string[]): boolean => {
+  const first = new Set(one);
+  const second = new Set(two);
+  return first.size === second.size && [...first].every((value) => second.has(value));
+};
+
+/** The columns that changed between the rows of one identifier in two releases, or none. Each
+ * column compares the set of its values. When the sets agree and the rows do not, the rows
+ * exchanged values, and the columns that differ between the sorted rows changed. */
+const changedColumns = (
+  columns: readonly string[],
+  before: Side,
+  old: readonly (readonly string[])[],
+  after: Side,
+  fresh: readonly (readonly string[])[],
+): readonly string[] => {
+  const project = (side: Side, rows: readonly (readonly string[])[]) =>
+    rows.map((row) => columns.map((column) => side.cell(row, column)));
+  const sorted = (rows: readonly (readonly string[])[]) =>
+    [...rows].sort((one, two) => byText(JSON.stringify(one), JSON.stringify(two)));
+  const first = sorted(project(before, old));
+  const second = sorted(project(after, fresh));
+  if (JSON.stringify(first) === JSON.stringify(second)) return [];
+  const bySet = columns.filter(
+    (_column, at) =>
+      !sameSet(
+        first.map((row) => row[at] ?? ''),
+        second.map((row) => row[at] ?? ''),
+      ),
+  );
+  if (bySet.length > 0) return bySet;
+  const byRow = columns.filter((_column, at) =>
+    Array.from(
+      { length: Math.max(first.length, second.length) },
+      (_row, line) => (first[line]?.[at] ?? '') !== (second[line]?.[at] ?? ''),
+    ).some(Boolean),
+  );
+  return byRow.length > 0 ? byRow : columns;
+};
 
 const TABLES: readonly {
   readonly kind: Kind;
@@ -95,7 +141,8 @@ const TABLES: readonly {
 
 /** The changelog of a release: each entity, relation and claim added, changed or removed since
  * the previous release, by identifier, read from the files of the two releases only. A changed
- * row names its changed columns. An entity that a merge absorbed shows as merged into its
+ * row names its changed columns; a name that a row copies from an entity is no change of the
+ * row. An entity that a merge absorbed shows as merged into its
  * survivor, and an entity that an undo restored as unmerged; the claims of that entity show the
  * same way. Only a column of both releases counts, so a column that only one release holds,
  * such as the NATO pair, is no change and the changelog copies none of its values. */
@@ -113,7 +160,8 @@ export const releaseChangelog = (
       const before = sideOf(previous.tables[name], key);
       const after = sideOf(now[name], key);
       const columns = after.table.header.filter(
-        (column) => column !== key && before.table.header.includes(column),
+        (column) =>
+          column !== key && !COPIED_NAMES.has(column) && before.table.header.includes(column),
       );
       const ids = new Set([...before.rows.keys(), ...after.rows.keys()]);
       for (const id of ids) {
@@ -131,16 +179,9 @@ export const releaseChangelog = (
             label: first === undefined ? '' : label((column) => side.cell(first, column)),
             survivor,
           });
-        // The subject of a claim is the identifier before its slash.
         const subject = id.split('/')[0] ?? id;
         if (old !== undefined && fresh !== undefined) {
-          const changed = columns.filter(
-            (column) =>
-              !sameValues(
-                old.map((row) => before.cell(row, column)),
-                fresh.map((row) => after.cell(row, column)),
-              ),
-          );
+          const changed = changedColumns(columns, before, old, after, fresh);
           if (changed.length > 0) line('changed', changed);
         } else if (fresh !== undefined) {
           const survivor = mergedBefore.get(subject);
@@ -157,7 +198,7 @@ export const releaseChangelog = (
 
   const order = (one: Line): string =>
     `${String(TABLES.findIndex((table) => table.kind === one.kind))} ${String(CHANGES.indexOf(one.change))}`;
-  lines.sort((one, two) => order(one).localeCompare(order(two)) || one.id.localeCompare(two.id));
+  lines.sort((one, two) => byText(order(one), order(two)) || byText(one.id, two.id));
 
   const counts = (kind: Kind): ChangeCounts => {
     const of = (change: Change) =>

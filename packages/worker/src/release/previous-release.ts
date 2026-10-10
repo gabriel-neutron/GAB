@@ -4,7 +4,12 @@ import { join } from 'node:path';
 
 import { z } from 'zod';
 
-import { readReleaseTables, ReleaseTableFault, type ReleaseTables } from './release-table.ts';
+import {
+  readReleaseTables,
+  TABLE_COLUMNS,
+  ReleaseTableFault,
+  type ReleaseTables,
+} from './release-table.ts';
 
 /** The folder of the previous release is refused. The message names the file to check. */
 export class PreviousReleaseFault extends Error {}
@@ -19,8 +24,6 @@ export interface PreviousRelease {
 
 const FILE_MANIFEST = 'manifest.json';
 
-// A path of the file manifest names a file of the folder itself. A path with a separator could
-// read a file out of the folder.
 const fileManifest = z.object({
   version: z.string(),
   date: z.iso.date(),
@@ -33,6 +36,8 @@ const fileManifest = z.object({
   ),
 });
 
+// A path of the file manifest names a file of the folder itself. A path with a separator could
+// read a file out of the folder.
 const PLAIN_NAME = /^[\w-][\w.-]*$/u;
 
 const refuse = (folder: string, why: string): never => {
@@ -41,7 +46,7 @@ const refuse = (folder: string, why: string): never => {
 
 /** Reads the previous release from its folder. Each file of its file manifest must agree with
  * its size and its checksum, so a copy that changed after the release is refused. The folder
- * must hold the entities, the relations, the claims and the merges. */
+ * must hold the entities, the relations and the claims. */
 export const readPreviousRelease = async (folder: string): Promise<PreviousRelease> => {
   let json: unknown;
   try {
@@ -65,6 +70,7 @@ export const readPreviousRelease = async (folder: string): Promise<PreviousRelea
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     if (bytes.length !== file.bytes || sha256 !== file.sha256)
       refuse(folder, `${file.path} does not agree with its size and its checksum`);
+    if (!Object.hasOwn(TABLE_COLUMNS, file.path)) continue;
     try {
       texts.set(file.path, new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     } catch {

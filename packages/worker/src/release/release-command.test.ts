@@ -38,6 +38,7 @@ test.each([
   [['--out', 'x', '--manifest']],
   [['--x', 'a', '--out', 'b']],
   [['--manifest', 'a', '--out', 'b', '--previous', 'c', '--previous', 'd']],
+  [['--manifest', 'a', '--out', 'b', '--previous', '']],
 ])('the words %j give the usage', async (args) => {
   const { code, text } = await run(args);
   expect(code).toBe(2);

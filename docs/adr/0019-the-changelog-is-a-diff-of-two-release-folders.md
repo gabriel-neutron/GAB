@@ -25,18 +25,22 @@ its columns are costly to change after the first publication.
 ### The comparison
 
 - The rows match by identifier: the entity, the relation, or the claim (ADR 0013 makes the claim
-  identifier stable). A claim has one row for each cited passage, so the release compares the set
-  of the values of each column over the rows of the claim.
-- A row is added, changed or removed. A changed row names each column that changed. No column of
-  these files changes at each release, because the version and the date are in the preamble, so
-  the release ignores no column.
+  identifier stable). A claim has one row for each cited passage.
+- A row is added, changed or removed. The release sorts the rows of each identifier and compares
+  them whole, so a value that two rows exchange is a change. A changed row names each column
+  whose set of values changed. When no set changed, it names each column that differs between
+  the sorted rows.
+- No column of these files changes at each release, because the version and the date are in the
+  preamble. The release ignores the names that a row copies from the entities that it names: a
+  new name is a change of the entity, and it shows once, on the row of that entity.
 - Only a column that the two releases hold counts. A column that only one release holds is no
   change. So when the previous release shows the NATO pair and the new one does not, the
   changelog holds no letter, no digit and no name of the pair (`decisions.md` S1).
 - An entity that a merge absorbed shows as merged, with its survivor, and not as removed. An
   entity that an undo restored shows as unmerged, with its old survivor, and not as added. The
   claims of that entity show the same way. The log of the merges of each release gives the
-  survivor of each absorbed identifier (ADR 0014).
+  survivor of each absorbed identifier, also at the end of a chain of merges (ADR 0014). A
+  release with no log of the merges reads as a release with no merge.
 
 ### The output
 
@@ -63,7 +67,7 @@ its columns are costly to change after the first publication.
 - A merge and its undo between two releases leave no row in the changelog. The log of the merges
   holds them.
 - A relation that a merge removed shows as removed.
-- When the rows of a claim exchange their values, and each column keeps the same set of values,
-  the changelog shows no change.
+- A new claim of a restored entity shows as unmerged. A value that a merge moved to the survivor
+  shows as a claim added to the survivor.
 - The file manifest itself has no checksum, so a copy that changes a file and its checksum
   together is not found.
