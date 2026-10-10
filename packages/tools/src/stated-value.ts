@@ -232,3 +232,37 @@ export const unstatedValues = (act: WriteRequest, passages: readonly string[]): 
   const text = passages.join('\n');
   return valuesOf(act).filter((named) => !stated(named.value, text));
 };
+
+/** The name of a bound of a relation. */
+export type BoundName = 'validFrom' | 'validTo';
+
+/** The act with no value for each bound that `dropped` names. */
+export const withoutBounds = <
+  Act extends { readonly validFrom?: string | undefined; readonly validTo?: string | undefined },
+>(
+  act: Act,
+  dropped: readonly BoundName[],
+): Act => {
+  const { validFrom, validTo, ...rest } = act;
+  return {
+    ...rest,
+    ...(validFrom === undefined || dropped.includes('validFrom') ? {} : { validFrom }),
+    ...(validTo === undefined || dropped.includes('validTo') ? {} : { validTo }),
+  } as Act;
+};
+
+/** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
+ * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
+ * other values of the act stay, and an unstated one marks the item as disputed. */
+export const statedBounds = (
+  act: WriteRequest,
+  passages: readonly string[],
+): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
+  if (act.op !== 'create_relation') return { act, dropped: [] };
+  const text = passages.join('\n');
+  const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
+    const day = act[name];
+    return day !== undefined && !stated(day, text);
+  });
+  return { act: dropped.length === 0 ? act : withoutBounds(act, dropped), dropped };
+};

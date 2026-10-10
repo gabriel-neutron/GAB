@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { plainText } from './check-answer.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { unstatedValues } from './stated-value.ts';
+import { statedBounds, unstatedValues, withoutBounds } from './stated-value.ts';
 import {
   CheckFailure,
   defineTool,
@@ -41,7 +41,9 @@ const ATTRIBUTES =
   'value is a text, a number, true or false, or a flat list of them; a key is lower case words ' +
   'joined by one underscore, with the unit in the key, as capacity_dwt';
 
-const DAY = 'a day of the calendar, written as 2026-01-31';
+const BOUND =
+  'only for a type whose takesInterval is true in list_vocabulary, and only when an excerpt ' +
+  'states the day; write it as 2026-01-31';
 
 const ENTITY_TYPE = 'the key of an entity type; list_vocabulary gives each one';
 
@@ -67,8 +69,8 @@ const batchAct = z.discriminatedUnion('op', [
     srcId: z.string().describe(END),
     dstKind: z.enum(['entity', 'relation']).optional(),
     dstId: z.string().describe(END),
-    validFrom: z.string().optional().describe(DAY),
-    validTo: z.string().optional().describe(DAY),
+    validFrom: z.string().optional().describe(`the first day of the relation; ${BOUND}`),
+    validTo: z.string().optional().describe(`the last day of the relation; ${BOUND}`),
     attrs: attributeEdit.optional().describe(ATTRIBUTES),
   }),
   z.strictObject({
@@ -363,6 +365,8 @@ const outcome = z.strictObject({
   written: z.boolean(),
   disputed: z.boolean(),
   unstated: z.array(z.string()),
+  // The bounds of a relation that no cited passage states. Code did not propose them.
+  droppedBounds: z.array(z.enum(['validFrom', 'validTo'])),
 });
 
 /** The propose tool. A back-end agent gives the model call of each batch, which is known to its
@@ -377,7 +381,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
       'the item. For a PNG or JPEG document whose OCR text misreads the image, give the words ' +
       'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
-      'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. Before the write, a ' +
+      'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. A start ' +
+      '(validFrom) or an end (validTo) of a relation that no excerpt states is not proposed, and ' +
+      'droppedBounds names it. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
@@ -401,27 +407,43 @@ export const proposeOf = (modelCallId: string | null) =>
 
       const prepared = [];
       for (const [index, given] of input.items.entries()) {
-        const request = await resolvedAct(session, given, index, minted);
+        const resolved = await resolvedAct(session, given, index, minted);
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         const documents = [...new Set(cited.map((one) => one.document))];
+        const passages = cited.map((one) => one.passage);
+        // A start or an end of a relation comes from a cited passage, or it is not proposed.
+        const { act: request, dropped } = statedBounds(resolved, passages);
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(
-          request,
-          cited.map((one) => one.passage),
-        );
+        const unstated = unstatedValues(request, passages);
         const transcribed = cited.some((one) => one.span === null);
-        prepared.push({ given, act, cited, unstated, transcribed, id: minted.get(given.ref)?.id });
+        prepared.push({
+          given,
+          act,
+          cited,
+          unstated,
+          dropped,
+          transcribed,
+          id: minted.get(given.ref)?.id,
+        });
       }
 
       // The check runs before the insert, because the door freezes the dispute flag at insert.
-      const toCheck: ItemToCheck[] = prepared.map(({ given, cited }) => ({
+      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, dropped }) => ({
         ref: given.ref,
-        claim: { act: given.act, originator: given.originator, modality: given.modality },
+        claim: {
+          // The checker reads the act that is written, so a dropped bound is not in the claim.
+          act:
+            dropped.length === 0 || given.act.op !== 'create_relation'
+              ? given.act
+              : withoutBounds(given.act, dropped),
+          originator: given.originator,
+          modality: given.modality,
+        },
         passages: cited.map((one) => ({
           document: one.document,
           page: one.page,
@@ -499,7 +521,7 @@ export const proposeOf = (modelCallId: string | null) =>
       }
 
       return {
-        proposals: prepared.map(({ given, unstated, transcribed }, index) => {
+        proposals: prepared.map(({ given, unstated, dropped, transcribed }, index) => {
           const row = rows.find((one) => one.item === index + 1);
           if (row === undefined) throw new Error(`the door returned no proposal for ${given.ref}`);
           return {
@@ -508,6 +530,7 @@ export const proposeOf = (modelCallId: string | null) =>
             written: row.written,
             disputed: reasonOf(given.ref, transcribed, unstated) !== null,
             unstated: [...new Set(unstated.map((one) => one.name))],
+            droppedBounds: dropped,
           };
         }),
         ...(failure === null ? {} : { checkFailure: failure }),
