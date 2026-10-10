@@ -74,7 +74,9 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 const isDay = (text: unknown): text is string =>
   typeof text === 'string' && DAY.test(text) && !Number.isNaN(Date.parse(text));
 
-// An IMO number is seven digits. A writer can give it as a number, or with the prefix "IMO".
+// An IMO number is seven digits. A writer can give it as a number, or with the prefix "IMO". A
+// list or any other shape gives no number. The check of the faults reads the number with the
+// same rule.
 const imoOf = (value: unknown): string | null => {
   const text =
     typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
