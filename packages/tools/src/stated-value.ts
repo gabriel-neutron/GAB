@@ -13,19 +13,20 @@ interface ActValue {
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/u;
 
 // The words of a month in the languages of the corpus. A short form is a prefix of three letters.
+// Russian writes a day with the month in the genitive: "2 мая 2019 г.".
 const MONTHS: readonly (readonly string[])[] = [
-  ['january', 'janvier', 'janv'],
-  ['february', 'février', 'fevrier', 'févr', 'fevr'],
-  ['march', 'mars'],
-  ['april', 'avril', 'avr'],
-  ['may', 'mai'],
-  ['june', 'juin'],
-  ['july', 'juillet', 'juil'],
-  ['august', 'août', 'aout'],
-  ['september', 'septembre', 'sept'],
-  ['october', 'octobre'],
-  ['november', 'novembre'],
-  ['december', 'décembre', 'decembre'],
+  ['january', 'janvier', 'janv', 'январь', 'января'],
+  ['february', 'février', 'fevrier', 'févr', 'fevr', 'февраль', 'февраля'],
+  ['march', 'mars', 'март', 'марта'],
+  ['april', 'avril', 'avr', 'апрель', 'апреля'],
+  ['may', 'mai', 'май', 'мая'],
+  ['june', 'juin', 'июнь', 'июня'],
+  ['july', 'juillet', 'juil', 'июль', 'июля'],
+  ['august', 'août', 'aout', 'август', 'августа'],
+  ['september', 'septembre', 'sept', 'сентябрь', 'сентября'],
+  ['october', 'octobre', 'октябрь', 'октября'],
+  ['november', 'novembre', 'ноябрь', 'ноября'],
+  ['december', 'décembre', 'decembre', 'декабрь', 'декабря'],
 ];
 
 const monthOf = (word: string): number | null => {
@@ -39,17 +40,22 @@ const monthOf = (word: string): number | null => {
 const dayText = (year: number, month: number, day: number): string =>
   `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-const WORD_DAY = /(?<!\d)(\d{1,2})(?:st|nd|rd|th|er)?\s+([\p{L}.]+)\s+(\d{4})(?!\d)/gu;
+// Between the day and the month: a space, "of", a comma or a hyphen ("2nd of May, 2019",
+// "02-May-2019"). Between the month and the year: a space, a comma or a hyphen.
+const WORD_DAY =
+  /(?<!\d)(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s*,\s*|\s+|-)([\p{L}.]+)(?:\s*,\s*|\s+|-)(\d{4})(?!\d)/gu;
 const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!\d)/gu;
-const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})(?![\d.,/-]?\d)/gu;
+const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
-// Origin: decided. 03/04/2024 is the third of April in Europe and the fourth of March in the
-// United States, and the text does not say which. Such a day states neither, so the item is
-// disputed and the operator reads the page. A part above 12 can only be the day.
-const numericDays = (first: string, second: string, third: string): string[] => {
+// Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
+// writes it so (the EU, Russia). 03/04/2024 is the third of April in Europe and the fourth of
+// March in the United States, and the text does not say which: such a day states neither, so a
+// value with it is not stated. A part above 12 can only be the day.
+const numericDays = (first: string, mark: string, second: string, third: string): string[] => {
   if (first.length === 4) return [dayText(Number(first), Number(second), Number(third))];
   if (third.length !== 4) return [];
   const [one, two, year] = [Number(first), Number(second), Number(third)];
+  if (mark === '.') return [dayText(year, two, one)];
   if (one > 12) return [dayText(year, two, one)];
   if (two > 12) return [dayText(year, one, two)];
   return one === two ? [dayText(year, one, one)] : [];
@@ -67,8 +73,8 @@ const daysIn = (text: string): Set<string> => {
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
   }
-  for (const [, first = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
-    for (const day of numericDays(first, second, third)) found.add(day);
+  for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
+    for (const day of numericDays(first, mark, second, third)) found.add(day);
   return found;
 };
 
@@ -231,4 +237,36 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
 export const unstatedValues = (act: WriteRequest, passages: readonly string[]): ActValue[] => {
   const text = passages.join('\n');
   return valuesOf(act).filter((named) => !stated(named.value, text));
+};
+
+/** The name of a bound of a relation. */
+export type BoundName = 'validFrom' | 'validTo';
+
+/** The act with no value for each bound that `dropped` names. */
+export const withoutBounds = <
+  Act extends { validFrom?: string | undefined; validTo?: string | undefined },
+>(
+  act: Act,
+  dropped: readonly BoundName[],
+): Act => {
+  const kept = { ...act };
+  if (dropped.includes('validFrom')) delete kept.validFrom;
+  if (dropped.includes('validTo')) delete kept.validTo;
+  return kept;
+};
+
+/** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
+ * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
+ * other values of the act stay, and an unstated one marks the item as disputed. */
+export const statedBounds = (
+  act: WriteRequest,
+  passages: readonly string[],
+): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
+  if (act.op !== 'create_relation') return { act, dropped: [] };
+  const text = passages.join('\n');
+  const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
+    const day = act[name];
+    return day !== undefined && !stated(day, text);
+  });
+  return { act: withoutBounds(act, dropped), dropped };
 };
