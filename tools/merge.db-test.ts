@@ -9,12 +9,21 @@ import { rolledBack, type Ask } from './probe.ts';
 const made = z.array(z.object({ target_id: z.uuid(), proposal_id: z.uuid() }));
 const rowOf = z.array(z.object({ row: z.record(z.string(), z.unknown()) }));
 
-const signed = async (ask: Ask, op: string, payload: object, names: readonly string[] = []) => {
+// A document of the committed fixture, which each test database holds.
+const FIXTURE_DOCUMENT = 'doc_3c1104';
+
+const signed = async (
+  ask: Ask,
+  op: string,
+  payload: object,
+  names: readonly string[] = [],
+  src: readonly string[] = ['manual'],
+) => {
   const [row] = made.parse(
     await ask(
-      `SELECT * FROM public.sign_change('a test', $1, $2::jsonb, ARRAY['manual'], NULL, NULL,
+      `SELECT * FROM public.sign_change('a test', $1, $2::jsonb, $4::text[], NULL, NULL,
          $3::uuid[])`,
-      [op, JSON.stringify(payload), names],
+      [op, JSON.stringify(payload), names, src],
     ),
   );
   if (row === undefined) throw new Error('the act was not signed');
@@ -26,19 +35,40 @@ const manual = (v: string) => ({ v, src: ['manual'] });
 const entity = (ask: Ask, type: string, label: string, attrs: object = {}) =>
   signed(ask, 'create_entity', { type, label, attrs, sources: ['manual'] });
 
-const relation = (ask: Ask, type: string, from: string, to: string) =>
+const relation = (
+  ask: Ask,
+  type: string,
+  from: string,
+  to: string,
+  more: { readonly validFrom?: string; readonly sources?: readonly string[] } = {},
+) =>
   signed(
     ask,
     'create_relation',
-    { type, src_id: from, dst_id: to, src_kind: 'entity', dst_kind: 'entity', sources: ['manual'] },
+    {
+      type,
+      src_id: from,
+      dst_id: to,
+      src_kind: 'entity',
+      dst_kind: 'entity',
+      sources: more.sources ?? ['manual'],
+      ...(more.validFrom === undefined ? {} : { valid_from: more.validFrom }),
+    },
     [from, to],
+    more.sources ?? ['manual'],
   );
 
-const merge = async (ask: Ask, survivor: string, absorbed: string): Promise<string> => {
+const merge = async (
+  ask: Ask,
+  survivor: string,
+  absorbed: string,
+  keepName = false,
+): Promise<string> => {
   const [row] = made.parse(
-    await ask(`SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`, [
+    await ask(`SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid, $3)`, [
       survivor,
       absorbed,
+      keepName,
     ]),
   );
   if (row === undefined) throw new Error('the merge was not written');
@@ -248,4 +278,125 @@ test('a merge of two types, of one entity with itself, or of a missing entity is
     'target_exists',
     'merge_stands',
   ]);
+});
+
+const relationRow = async (ask: Ask, id: string) =>
+  rowOf.parse(
+    await ask('SELECT to_jsonb(r) AS row FROM public.relations r WHERE r.id = $1', [id]),
+  )[0]?.row;
+
+test('a removed twin gives its documents and its earlier first day to the relation that stays, and an undo takes them back', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'TWIN TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'TWIN TEST GONE');
+    const owner = await entity(ask, 'company', 'TWIN TEST OWNER');
+    const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
+    await relation(ask, 'operates', owner, gone, {
+      validFrom: '2019-01-01',
+      sources: [FIXTURE_DOCUMENT],
+    });
+    const before = await relationRow(ask, stays);
+    await merge(ask, keep, gone);
+    const merged = await relationRow(ask, stays);
+    await undo(ask, gone);
+    return { before, merged, after: await relationRow(ask, stays) };
+  });
+  expect(seen.merged).toMatchObject({
+    sources: ['manual', FIXTURE_DOCUMENT],
+    valid_from: '2019-01-01',
+  });
+  expect(seen.after).toMatchObject({ sources: ['manual'], valid_from: '2020-01-01' });
+  expect(seen.before).toMatchObject({ sources: ['manual'], valid_from: '2020-01-01' });
+});
+
+test('only the last merge into a survivor is undone, so the survivor gets back what it held', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const lei = (src: string) => ({ lei: { v: 'LEI-TEST-1', src: [src] } });
+    const first = await entity(ask, 'company', 'LAST TEST FIRST', lei('manual'));
+    const second = await signed(
+      ask,
+      'create_entity',
+      {
+        type: 'company',
+        label: 'LAST TEST SECOND',
+        attrs: lei(FIXTURE_DOCUMENT),
+        sources: [FIXTURE_DOCUMENT],
+      },
+      [],
+      [FIXTURE_DOCUMENT],
+    );
+    const survivor = await entity(ask, 'company', 'LAST TEST SURVIVOR');
+    const before = (await entityRow(ask, survivor))?.['attrs'];
+    await merge(ask, survivor, first);
+    await merge(ask, survivor, second);
+    const refused = await refusalOf(ask, `SELECT * FROM public.undo_merge('a test', $1)`, [first]);
+    await undo(ask, second);
+    await undo(ask, first);
+    return { before, refused, after: (await entityRow(ask, survivor))?.['attrs'] };
+  });
+  expect(seen.refused).toBe('merge_last');
+  expect(seen.after).toStrictEqual(seen.before);
+});
+
+test('a merge can keep the absorbed name as a former name, and the undo takes it away', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'NAME TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'NAME TEST OLD NAME');
+    await merge(ask, keep, gone, true);
+    const merged = (await entityRow(ask, keep))?.['attrs'];
+    await undo(ask, gone);
+    return { merged, after: (await entityRow(ask, keep))?.['attrs'] };
+  });
+  expect(seen.merged).toStrictEqual({
+    former_names: { v: ['NAME TEST OLD NAME'], src: ['manual'] },
+  });
+  expect(seen.after).toStrictEqual({});
+});
+
+test('a merge is refused while an act waits on the absorbed entity or on a relation that it removes, or while a removed relation is an end', async () => {
+  const refusals = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'WAIT TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'WAIT TEST GONE');
+    const owner = await entity(ask, 'company', 'WAIT TEST OWNER');
+    await relation(ask, 'operates', owner, keep);
+    const twin = await relation(ask, 'operates', owner, gone);
+    const door = `SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`;
+
+    await ask('SAVEPOINT waiting');
+    await ask(
+      `SELECT public.propose_change('update_relation',
+         '{"attrs":{"note":{"v":"a test","src":["manual"]}}}'::jsonb, ARRAY['manual'],
+         'relation', $1::uuid)`,
+      [twin],
+    );
+    const onRelation = await refusalOf(ask, door, [keep, gone]);
+    await ask('ROLLBACK TO SAVEPOINT waiting');
+
+    await ask(
+      `SELECT public.propose_change('update_attrs',
+         '{"attrs":{"note":{"v":"a test","src":["manual"]}}}'::jsonb, ARRAY['manual'],
+         'entity', $1::uuid)`,
+      [gone],
+    );
+    const onEntity = await refusalOf(ask, door, [keep, gone]);
+    await ask('ROLLBACK TO SAVEPOINT waiting');
+
+    const between = await relation(ask, 'associated_with', gone, keep);
+    await signed(
+      ask,
+      'create_relation',
+      {
+        type: 'contradicts',
+        src_kind: 'relation',
+        src_id: between,
+        dst_kind: 'entity',
+        dst_id: owner,
+        sources: ['manual'],
+      },
+      [between, owner],
+    );
+    const anEnd = await refusalOf(ask, door, [keep, gone]);
+    return [onRelation, onEntity, anEnd];
+  });
+  expect(refusals).toStrictEqual(['merge_absorbed_free', 'merge_absorbed_free', 'endpoint_free']);
 });

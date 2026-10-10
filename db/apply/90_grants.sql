@@ -109,9 +109,9 @@ REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION merge_entities(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entities(text,uuid,uuid,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION undo_merge(text,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION merge_entity(uuid,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entity(uuid,uuid,uuid,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION restore_entity(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_act(uuid,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
@@ -229,7 +229,7 @@ GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
 -- A merge and its undo are judgements of the operator on identity (M12). A machine role holds
 -- neither door.
-GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid,boolean) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION undo_merge(text,uuid) TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
