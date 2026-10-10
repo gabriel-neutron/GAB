@@ -293,3 +293,26 @@ test('a refusal queues the rating again also when the name holds a job that fail
   });
   expect(read).toStrictEqual([{ status: 'failed' }, { status: 'queued' }]);
 });
+
+test('a decision waits while the rating job of the name runs', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const { alias } = await joined(ask);
+    await ask(
+      `UPDATE public.jobs SET status = 'running', claimed_by = 'gabriel_agent', claimed_at = now()
+        WHERE kind = 'rate_author' AND author = $1`,
+      [key(alias)],
+    );
+    return {
+      refused: await refusal(ask, () => decide(ask, alias, false)),
+      dry: await as(ask, 'gabriel_app', () =>
+        ask(
+          `SELECT change_if_confirmed, change_if_refused FROM public.author_names_dry_run()
+            WHERE name_key = $1`,
+          [key(alias)],
+        ),
+      ),
+    };
+  });
+  expect(read.refused).toContain('runs now');
+  expect(read.dry).toStrictEqual([{ change_if_confirmed: null, change_if_refused: null }]);
+});

@@ -23,6 +23,12 @@ test('the dry-run gives the changes of each decision and says that it wrote noth
   ]);
 });
 
+test('a name whose rating runs gives no count', () => {
+  expect(dryRunLines([{ ...ROW, change_if_confirmed: null, change_if_refused: null }])[0]).toBe(
+    'reuters wire  ->  reuters (B)  12 units: its rating runs now, so the dry-run gives no count',
+  );
+});
+
 test.each([[[]], [['confirm']], [['refuse', ' ']], [['list', 'x']], [['undo', 'x']]])(
   'the words %j give the usage and open no connection',
   async (words) => {

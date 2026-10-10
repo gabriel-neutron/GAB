@@ -38,6 +38,7 @@ test('the name of a property of every object is not a sub-command', () => {
 });
 
 test.each([
+  'author-names',
   'ingest',
   'layout',
   'reconcile',
