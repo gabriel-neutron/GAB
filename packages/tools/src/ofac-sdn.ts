@@ -52,7 +52,13 @@ export const entryLine = (page: string, entNum: number): string | null => {
   const from = at === 0 ? 0 : at + 1;
   const end = page.indexOf('\n', from);
   const line = page.slice(from, end === -1 ? undefined : end).replace(/\r$/u, '');
-  return Array.from(line).slice(0, MAX_EXCERPT).join('');
+  // The cap of a proposal counts UTF-16 units, and a clip never splits a character.
+  let clipped = '';
+  for (const character of line) {
+    if (clipped.length + character.length > MAX_EXCERPT) break;
+    clipped += character;
+  }
+  return clipped;
 };
 
 /** The tool on one address of the file. A test gives the address of a local server. */

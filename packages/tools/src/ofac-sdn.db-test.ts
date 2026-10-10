@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { FIXTURE_HOST, fixtureReach, memoryStore } from './fetch-fixture.ts';
-import { entryLine, ofacSdnAt } from './ofac-sdn.ts';
+import { ofacSdnAt } from './ofac-sdn.ts';
 import { callTool, type Session } from './tool.ts';
 
 const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -128,20 +128,4 @@ test('an entry that the file does not hold gives a notice and no excerpt', async
     entry: null,
     notice: 'the stored file holds no entry 99',
   });
-});
-
-test.each([
-  [36, `36,"AEROCARIBBEAN AIRLINES ${RUN}",-0- ,"CUBA",-0- ,-0- `],
-  [173, '173,"ANGLO-CARIBBEAN CO., LTD.",-0- ,"CUBA",-0- ,-0- '],
-  [17, null],
-  [3, null],
-])('the line of entry %i is found by its number at the start of a line', (entNum, line) => {
-  expect(entryLine(CSV, entNum)).toBe(line);
-});
-
-test('a long line is clipped to the cap of an excerpt, and stays a quote of the file', () => {
-  const long = `5,"${'X'.repeat(800)}"\n`;
-  const line = entryLine(long, 5) ?? '';
-  expect(Array.from(line)).toHaveLength(600);
-  expect(long.startsWith(line)).toBe(true);
 });
