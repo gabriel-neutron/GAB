@@ -63,6 +63,7 @@ const RECORD: ReleaseRecord = {
     ['doc_b', document('doc_b', null)],
   ]),
   disclaimer: '',
+  natoPairs: null,
 };
 
 const HEADING = {

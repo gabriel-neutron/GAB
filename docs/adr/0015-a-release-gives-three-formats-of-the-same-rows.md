@@ -49,6 +49,8 @@ publication, because reusers link to them.
   (the sources). The other terms are in a release vocabulary. The graph holds the definition of
   each term of that vocabulary, with a label and a comment, so the file documents itself.
 - A value keeps its JSON type, so a number stays a number. A date has its XML Schema type.
+- The two terms of the NATO pair, with their definitions, are in the file only when the release
+  shows the pair (ADR 0013).
 
 ### The base of the identifiers
 

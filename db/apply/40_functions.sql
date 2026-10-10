@@ -4966,31 +4966,41 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
                             AND public.author_of(a.originator) = p_author)
 $$;
 
--- DOES A FACT HAVE ENOUGH SOURCE? Only an act with a passed check of a second model family is a
--- source here, because the check proves that its passage says the fact. The fact needs one source
--- with a letter as good as "single" and a known author, or two citations that code proves
+-- THE SUPPORT OF A FACT: each act that the rules count as a source of it, with its author and the
+-- letter of its author. Only an act with a passed check of a second model family is a source,
+-- because the check proves that its passage says the fact. A source counts only when it states or
+-- enacts the fact: one that denies it, or only reports what another party says, is no support. A
+-- rejected act is no source. The author of a source is the issuer of the record that it cites, so
+-- a source A is a source A on its own record. The rules and the NATO pair of a claim read this one
+-- list, so they cannot disagree on what supports a fact. No role holds this step.
+CREATE OR REPLACE FUNCTION fact_support(p_claim_key text)
+RETURNS TABLE (act uuid, author uuid, letter char(1))
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT p.id, public.author_of(p.originator), public.letter_of(p.originator)
+    FROM public.proposals p
+   WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
+     AND EXISTS (SELECT 1 FROM public.citation c
+                  WHERE c.claim_id = p.id AND c.modality IN ('enacts', 'asserts'))
+     -- The checker reads only the words that the AI wrote from an image, and not the image. So
+     -- such an act supports no fact until the operator compares the words with the image.
+     AND NOT (p.status = 'pending'
+              AND EXISTS (SELECT 1 FROM public.citation c
+                           WHERE c.claim_id = p.id AND c.transcription IS NOT NULL))
+$$;
+
+-- DOES A FACT HAVE ENOUGH SOURCE? Its sources are its support (fact_support). The fact needs one
+-- source with a letter as good as "single" and a known author, or two citations that code proves
 -- independent (citations_independent), one with a letter as good as "pair" and the other as good
 -- as "other". A letter is as good as another when it comes before it in the alphabet. The
--- independence is the proof of the digit: this function never compares two authors by itself. A
--- source counts only when it states or enacts the fact: one that denies it, or only reports what
--- another party says, is no support. The author of a source is the issuer of the record that it
--- cites, so a source A is a source A on its own record. No role holds this step.
+-- independence is the proof of the digit: this function never compares two authors by itself. No
+-- role holds this step.
 CREATE OR REPLACE FUNCTION fact_is_strong(p_claim_key text, p_single text, p_pair text,
                                           p_other text)
 RETURNS boolean
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   WITH support AS (
-    SELECT p.id, public.author_of(p.originator) AS author, public.letter_of(p.originator) AS letter
-      FROM public.proposals p
-     WHERE p.claim_key = p_claim_key AND p.status <> 'rejected' AND p.originator IS NOT NULL
-       AND EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = p.id AND k.passed)
-       AND EXISTS (SELECT 1 FROM public.citation c
-                    WHERE c.claim_id = p.id AND c.modality IN ('enacts', 'asserts'))
-       -- The checker reads only the words that the AI wrote from an image, and not the image. So
-       -- such an act supports no fact until the operator compares the words with the image.
-       AND NOT (p.status = 'pending'
-                AND EXISTS (SELECT 1 FROM public.citation c
-                             WHERE c.claim_id = p.id AND c.transcription IS NOT NULL))
+    SELECT s.act AS id, s.author, s.letter FROM public.fact_support(p_claim_key) s
   ), cited AS (
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
@@ -5224,6 +5234,8 @@ DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
+DROP FUNCTION IF EXISTS nato_pair(uuid);
+DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
 -- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
 -- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
@@ -5383,6 +5395,28 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                    IN (SELECT e.id FROM public.release_entities() e)
               ELSE p.target_id IN (SELECT e.id FROM public.release_entities() e)
                    AND p.names[1] IN (SELECT e.id FROM public.release_entities() e) END
+$$;
+
+-- THE NATO PAIR OF EACH CLAIM, from the act that a claim of a release names. The digit is the digit
+-- of its fact (fact_digit). The letter is the best letter among the known authors of the support
+-- of the fact (fact_support), which is the list that the rules read. The two marks are judged
+-- apart, and this function only puts them side by side. A claim with no digit, or with no known
+-- author in its support, has no row. Many claims share one fact, so each fact is judged once.
+CREATE FUNCTION nato_pair(p_acts uuid[])
+RETURNS TABLE (act uuid, letter char(1), digit smallint)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH asked AS (
+    SELECT p.id, p.claim_key FROM public.proposals p WHERE p.id = ANY (p_acts)
+  ), judged AS (
+    SELECT k.claim_key, public.fact_digit(k.claim_key) AS digit,
+           (SELECT min(s.letter) FROM public.fact_support(k.claim_key) s
+             WHERE s.author IS NOT NULL) AS letter
+      FROM (SELECT DISTINCT a.claim_key FROM asked a) k
+  )
+  SELECT a.id, j.letter, j.digit
+    FROM asked a JOIN judged j ON j.claim_key = a.claim_key
+   WHERE j.digit IS NOT NULL AND j.letter IS NOT NULL
 $$;
 
 -- The disclaimer of the dataset, which each file of a release holds (PU1).

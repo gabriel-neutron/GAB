@@ -48,6 +48,8 @@ const CLAIM_HEADER = [
   'transcribed',
 ];
 
+const NATO_HEADER = ['nato_letter', 'nato_digit'];
+
 const MERGE_HEADER = [
   'act_id',
   'action',
@@ -68,7 +70,8 @@ const valueText = (value: unknown): string =>
 /** The four CSV files of a release. Each file starts with the preamble, and each row carries
  * its label, and each row of the data its licence. The claims file has one row for each claim and
  * each cited passage of a public document, and one row for a public document with no cited
- * passage. The log of the merges gives the entity that each absorbed identifier resolves to. */
+ * passage. When the release shows the NATO pair, each claim row also gives its letter and its
+ * digit. The log of the merges gives the entity that each absorbed identifier resolves to. */
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
   const { documentOf, licenceOf, labelOf, relationOf } = lookup;
@@ -141,6 +144,14 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     one.origin_label,
   ]);
 
+  // S1: with the pair off, the file has no column of the pair, not even an empty one.
+  const { natoPairs } = record;
+  const natoFields = (claim: ReleaseClaim): string[] => {
+    if (natoPairs === null) return [];
+    const pair = natoPairs.get(claim.claim_id);
+    return pair === undefined ? ['', ''] : [pair.letter, String(pair.digit)];
+  };
+
   const claimRows = (claim: ReleaseClaim): string[][] => {
     const head = [
       claim.claim_id,
@@ -148,12 +159,13 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
       claim.origin_label,
       licenceOf(claim.sources),
     ];
+    const nato = natoFields(claim);
     return claim.sources.flatMap((id) => {
       const document = documentOf(id);
       const source = [id, document.title, document.uri ?? '', document.retrieved_at ?? ''];
       const cited = claim.passages.filter((one) => one.document === id);
       return cited.length === 0
-        ? [[...head, ...source, '', '', '', '']]
+        ? [[...head, ...source, '', '', '', '', ...nato]]
         : cited.map((one) => [
             ...head,
             ...source,
@@ -161,14 +173,16 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
             one.excerpt,
             one.modality,
             String(one.transcribed),
+            ...nato,
           ]);
     });
   };
+  const claimHeader = natoPairs === null ? CLAIM_HEADER : [...CLAIM_HEADER, ...NATO_HEADER];
 
   return [
     { path: 'entities.csv', text: csvFile(preamble, ENTITY_COLUMNS, entities) },
     { path: 'relations.csv', text: csvFile(preamble, RELATION_HEADER, relationRows) },
-    { path: 'claims.csv', text: csvFile(preamble, CLAIM_HEADER, record.claims.flatMap(claimRows)) },
+    { path: 'claims.csv', text: csvFile(preamble, claimHeader, record.claims.flatMap(claimRows)) },
     { path: 'merges.csv', text: csvFile(preamble, MERGE_HEADER, mergeRows) },
   ];
 };
