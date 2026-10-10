@@ -116,7 +116,7 @@ of entities of one type where a Latin name and a Cyrillic name give one key. The
 each pair with both labels, the key and both identifiers. The operator keeps one entity of a pair,
 and the other merges into it with its name as a former name, or refuses the pair. A refused pair
 is never proposed again, also after a merge of one of its entities. No model proposes a pair.
-ADR 0021 gives the table and the storage of the pairs.
+ADR 0022 gives the table and the storage of the pairs.
 
 ## The release path
 

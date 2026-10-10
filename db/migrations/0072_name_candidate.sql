@@ -1,5 +1,5 @@
 -- =============================================================================================
--- 0071 — the merge candidates across a Latin and a Cyrillic spelling                     ORDERED
+-- 0072 — the merge candidates across a Latin and a Cyrillic spelling                     ORDERED
 --
 -- A PAIR OF ENTITIES WITH ONE NAME IN TWO SCRIPTS WAITS FOR THE OPERATOR. A worker command finds
 -- the pairs of one type whose Latin and Cyrillic names give one transliteration key, and stores
