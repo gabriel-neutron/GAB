@@ -26,7 +26,13 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   state") joins no author. The door refuses the join, and the worker asks the model once more to
   rate the name as a new author.
 - A name that joins an author A or B is a doubt, because it would raise the letter of every act
-  of that name. In the first build, the join only records a doubt flag. Nothing reads the flag yet.
+  of that name. Until the operator decides it, the name reads as F, and each unit with a fact of
+  that name is a doubt. The operator confirms or refuses the name with a command of the worker, and
+  the decision is written once. A confirmation gives the name the
+  letter of its author. A refusal makes the name F and gives it back to the rater, which cannot
+  join it again to the same author. After each decision the rules run again on the units of the
+  name. A dry-run gives, for each name, the number of units whose state each decision would
+  change: a rule decides the unit, or another rule matches it. No machine role can decide a name: the decision raises a letter.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
@@ -73,8 +79,8 @@ without the letters.
   and no machine role can call this function in place of a rule. An AI reviewer decides through the
   MCP server as a separate act, with its own origin "decided by an AI reviewer" (ADR 0010, #376).
 - The function runs on a unit when its acts are written, when the check by the second model ends,
-  when one of its authors gets a letter, when a name joins a known author, and when a new act
-  cites a new source for one of its facts.
+  when one of its authors gets a letter, when a name joins a known author, when the operator
+  decides a joined name, and when a new act cites a new source for one of its facts.
 - The **first rule that matches** decides: impossible, doubt, strong sources, weak sources.
 - **Doubt** holds the cases of S3 (`decisions.md`). A contradiction from an author F is not a doubt:
   the unit waits, and the card shows the conflict.

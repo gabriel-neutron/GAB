@@ -27,7 +27,8 @@ Run `pnpm writer` and the worker on the operator's machine, with the same `infra
 The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
-reference-set` manages the reference set of the authors, and `pnpm worker reread-html` reads the
+reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
+names that joined an author A or B, and `pnpm worker reread-html` reads the
 stored HTML pages again (see below). They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
@@ -101,6 +102,19 @@ the value. A rating waits in the queue until the operator approves the reference
 2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
+
+### Decide the names that joined an author A or B
+
+The rater can join a new name to a known author. A join into an author A or B raises the letter of
+each act of that name, so the name reads as F and its units are a doubt until you decide it:
+
+1. `pnpm worker author-names list` prints each name that waits, with its author, the letter and
+   the number of its units.
+2. `pnpm worker author-names dry-run` prints, for each name, how many units would change state if
+   you confirm it and if you refuse it. It writes nothing.
+3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
+   `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
+   new author. The rules then read the units of the name again. A decision is final.
 
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
