@@ -133,6 +133,13 @@ REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boole
 REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_row(text)              FROM PUBLIC;
+REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION units_of_name(text)         FROM PUBLIC;
+REVOKE ALL ON FUNCTION author_names_waiting()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
@@ -283,6 +290,11 @@ GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
 -- The operator tries a failed rating again. The worker role never queues a failed job again.
 GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;
+-- THE OPERATOR DECIDES A NAME THAT JOINED AN AUTHOR A OR B, AND NO MACHINE ROLE CAN. The decision
+-- raises a letter, so the worker, the research AI, the checker and the AI reviewer hold no grant.
+GRANT EXECUTE ON FUNCTION author_names_waiting()   TO gabriel_app;
+GRANT EXECUTE ON FUNCTION decide_author_name(text,boolean) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;

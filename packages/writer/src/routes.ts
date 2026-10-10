@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import { admitOwnSiteJson } from './admission.ts';
+import { decideAuthorName, readAuthorNames } from './author-names.ts';
 import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
 import { promoteGroup } from './group-action.ts';
@@ -43,7 +44,8 @@ const capped = (maxSize: number) =>
 
 /** The doors of the operator, and the private reads: the status of the jobs of a document,
  * the page of the review queue with its cited passages, the groups of the queue, the decided acts
- * with the reasons of the rejections, the image of a cited document, and the leads. The public
+ * with the reasons of the rejections, the image of a cited document, the leads, and the names
+ * that joined an author A or B. The public
  * read never shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
@@ -90,6 +92,17 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
   app.post('/private/leads', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readLeads(pool);
     return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // A name that joined an author can be a false join, so the operator decides it, and only here.
+  app.post('/private/author-names', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readAuthorNames(pool);
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  app.post('/write/decide-author-name', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await decideAuthorName(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
   });
 
   // The worker searches and stores the sources of a lead. It proposes nothing.
