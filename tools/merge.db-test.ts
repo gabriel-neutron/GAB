@@ -353,6 +353,16 @@ test('a merge can keep the absorbed name as a former name, and the undo takes it
   expect(seen.after).toStrictEqual({});
 });
 
+test('a merge keeps no former name that is the name of the survivor in another case or spacing', async () => {
+  const merged = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'Kestrel Arrow');
+    const gone = await entity(ask, 'vessel', ' KESTREL  ARROW');
+    await merge(ask, keep, gone, true);
+    return (await entityRow(ask, keep))?.['attrs'];
+  });
+  expect(merged).toStrictEqual({});
+});
+
 test('a merge is refused while an act waits on the absorbed entity or on a relation that it removes, or while a removed relation is an end', async () => {
   const refusals = await rolledBack('app', async (ask) => {
     const keep = await entity(ask, 'vessel', 'WAIT TEST KEEP');

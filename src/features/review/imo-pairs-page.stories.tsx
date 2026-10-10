@@ -18,8 +18,8 @@ const TWICE: ImoPair = {
 const PAIR_ROW = '[data-pair]';
 
 const REFUSAL =
-  'absorbedId: an act that waits names the absorbed entity, or a relation that the merge ' +
-  'removes: decide it first, and then merge the two entities';
+  'an act that waits names the absorbed entity, or a relation that the merge removes: decide it ' +
+  'first, and then merge the two entities';
 
 interface Reply {
   readonly status: number;
@@ -91,7 +91,7 @@ export const EachPairShowsBothNamesAndIdentifiers: Story = {
     ]);
     await expect(
       canvas.getByRole('button', {
-        name: 'Keep MV Arctic Ledger and merge MV Northern Ledger into it',
+        name: `Keep this vessel, MV Arctic Ledger (${RENAMED.second.id}), and merge MV Northern Ledger into it`,
       }),
     ).toBeEnabled();
   },
@@ -121,7 +121,7 @@ export const AMergeTakesThePairOffTheList: Story = {
     );
     await userEvent.click(
       canvas.getByRole('button', {
-        name: 'Keep MV Arctic Ledger and merge MV Northern Ledger into it',
+        name: `Keep this vessel, MV Arctic Ledger (${RENAMED.second.id}), and merge MV Northern Ledger into it`,
       }),
     );
 
@@ -145,15 +145,18 @@ export const AMergeTakesThePairOffTheList: Story = {
   },
 };
 
-/** A refused merge says the sentence of the writer, and the pair stays on the list. */
+/** A refused merge says the sentence of the writer with no name of a field, and the pair stays
+ * on the list. */
 export const ARefusedMergeSaysWhy: Story = {
   play: async ({ canvas, canvasElement }) => {
     writerAnswers(
-      { status: 422, body: { refusal: REFUSAL } },
+      { status: 422, body: { refusal: `absorbedId: ${REFUSAL}` } },
       { status: 200, body: { pairs: [RENAMED, TWICE] } },
     );
     await userEvent.click(
-      canvas.getByRole('button', { name: 'Keep MV Kestrel Arrow and merge KESTREL ARROW into it' }),
+      canvas.getByRole('button', {
+        name: `Keep this vessel, MV Kestrel Arrow (${TWICE.first.id}), and merge KESTREL ARROW into it`,
+      }),
     );
 
     await waitFor(async () => {

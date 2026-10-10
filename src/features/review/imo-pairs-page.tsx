@@ -85,7 +85,7 @@ export function ImoPairsPage({ read }: ImoPairsPageProps) {
         <span>
           <button
             type="button"
-            aria-label={`Keep ${vessel.label} and merge ${other.label} into it`}
+            aria-label={`Keep this vessel, ${vessel.label} (${vessel.id}), and merge ${other.label} into it`}
             disabled={working}
             onClick={() => {
               keep(vessel, other);

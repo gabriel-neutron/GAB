@@ -949,3 +949,47 @@ test('two new vessels with one IMO number in the queue are duplicates of each ot
   ]);
   expect(said(read.get(other))).toStrictEqual([]);
 });
+
+test('a decided vessel, an IMO number with a hyphen and a number of eight digits give no duplicate', async () => {
+  const imo = freshImo();
+  const [rejected, fresh, hyphen, eight] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [vessel(rejected, 'MV Rejected Name', imo)]);
+    await ask("SELECT public.reject_unit($1::uuid, 'duplicate', NULL, 'a test')", [rejected]);
+    await batch(ask, [vessel(fresh, 'MV Fresh Name', imo)]);
+    await batch(ask, [vessel(hyphen, 'MV Hyphen Name', `IMO-${imo}`)]);
+    await batch(ask, [vessel(eight, 'MV Eight Digits', `${imo}0`)]);
+    return faultsOf(ask, [fresh, hyphen, eight]);
+  });
+  expect(said(read.get(fresh))).toStrictEqual([]);
+  expect(said(read.get(hyphen))).toStrictEqual([]);
+  expect(said(read.get(eight))).toStrictEqual([]);
+});
+
+test('each vessel of one group names only the vessel with its own IMO number', async () => {
+  const [one, two] = [freshImo(), freshImo()];
+  const [a, b, c, d] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    // One call gives one group: a vessel is a unit of its own, so a group holds two vessels.
+    await batch(ask, [vessel(a, 'MV Group One', one), vessel(b, 'MV Group Two', two)]);
+    await batch(ask, [vessel(c, 'MV Twin One', one)]);
+    await batch(ask, [vessel(d, 'MV Twin Two', two)]);
+    return faultsOf(ask, [a, b]);
+  });
+  expect(said(read.get(a))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${one} as another vessel: MV Twin One (${c}) waits in the queue (no group)`,
+    ],
+  ]);
+  expect(said(read.get(b))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${two} as another vessel: MV Twin Two (${d}) waits in the queue (no group)`,
+    ],
+  ]);
+});
