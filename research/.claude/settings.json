@@ -14,6 +14,7 @@
       "mcp__gab__list_vocabulary",
       "mcp__gab__neighbourhood",
       "mcp__gab__news_search",
+      "mcp__gab__ofac_sdn",
       "mcp__gab__propose",
       "mcp__gab__read_decided",
       "mcp__gab__read_doubts",
