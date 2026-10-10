@@ -10,7 +10,7 @@ export interface ReleaseTable {
 export class ReleaseTableFault extends Error {}
 
 /** The files that the changelog compares, each with the columns that it must hold. */
-const TABLE_COLUMNS = {
+export const TABLE_COLUMNS = {
   'entities.csv': ['id'],
   'relations.csv': ['id'],
   'claims.csv': ['claim_id'],
@@ -47,10 +47,14 @@ export const readReleaseTable = (text: string): ReleaseTable => {
 };
 
 /** Reads the four tables that the changelog compares. `textOf` gives the text of a file of the
- * release, or undefined when the release has no such file. */
+ * release, or undefined when the release has no such file. A release with no log of the merges
+ * reads as a release with no merge. */
 export const readReleaseTables = (textOf: (path: string) => string | undefined): ReleaseTables => {
   const read = (name: ReleaseTableName): ReleaseTable => {
     const text = textOf(name);
+    // A release before the log of the merges has no such file, and it had no merge.
+    if (text === undefined && name === 'merges.csv')
+      return { header: [...TABLE_COLUMNS[name]], rows: [] };
     if (text === undefined) throw new ReleaseTableFault(`${name}: the release lists no such file`);
     let table;
     try {

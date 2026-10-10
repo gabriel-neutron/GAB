@@ -65,11 +65,11 @@ test.each([
     'a file that the manifest does not list',
     (_files: Record<string, string>, listed: Record<string, unknown>[]) => {
       listed.splice(
-        listed.findIndex((one) => one['path'] === 'merges.csv'),
+        listed.findIndex((one) => one['path'] === 'claims.csv'),
         1,
       );
     },
-    /merges\.csv/u,
+    /claims\.csv/u,
   ],
   [
     'a path out of the folder',
@@ -77,6 +77,13 @@ test.each([
       listed.push({ path: '../manifest.json', bytes: 1, sha256: sha256('x') });
     },
     /\.\.\/manifest\.json/u,
+  ],
+  [
+    'a listed file that is not in the folder',
+    (files: Record<string, string>) => {
+      delete files['relations.csv'];
+    },
+    /relations\.csv cannot be read/u,
   ],
   [
     'a file with no identifier column',
@@ -99,4 +106,24 @@ test.each([
 test('a folder with no file manifest is refused', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'gab-previous-release-'));
   await expect(readPreviousRelease(folder)).rejects.toThrow(PreviousReleaseFault);
+});
+
+test('a release with no log of the merges reads as a release with no merge', async () => {
+  const folder = await folderWith((files, listed) => {
+    delete files['merges.csv'];
+    listed.splice(
+      listed.findIndex((one) => one['path'] === 'merges.csv'),
+      1,
+    );
+  });
+  expect((await readPreviousRelease(folder)).tables['merges.csv'].rows).toStrictEqual([]);
+});
+
+test('a manifest with a date that is not ISO 8601 is refused', async () => {
+  const folder = await folderWith();
+  await writeFile(
+    join(folder, 'manifest.json'),
+    JSON.stringify({ version: '1.0', date: '08/11/2026', files: [] }),
+  );
+  await expect(readPreviousRelease(folder)).rejects.toThrow(/not the manifest of a release/u);
 });

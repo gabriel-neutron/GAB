@@ -190,7 +190,7 @@ test('the changelog lists each entity, relation and claim that changed, by ident
       kind: 'relation',
       id: OWNS,
       change: 'changed',
-      changed_columns: 'from_label valid_to',
+      changed_columns: 'valid_to',
       label: 'TEST OWNER RENAMED owns TEST TANKER',
       survivor_id: '',
     },
@@ -198,7 +198,7 @@ test('the changelog lists each entity, relation and claim that changed, by ident
       kind: 'relation',
       id: FLAGS,
       change: 'changed',
-      changed_columns: 'from_id from_label to_label',
+      changed_columns: 'from_id',
       label: 'TEST TANKER flagged_in TEST OWNER RENAMED',
       survivor_id: '',
     },
@@ -274,4 +274,94 @@ test('with the NATO pair off, the changelog copies no letter and no digit from a
     HEADING,
   );
   expect(rowsOf(on.file)).toStrictEqual([]);
+});
+
+test('a value that two rows of a claim exchange is a change', () => {
+  const header = [...CLAIM, 'page'];
+  const claim = (document: string, page: string) => [
+    `${SHIP}/imo`,
+    'attribute',
+    SHIP,
+    'TEST TANKER',
+    'imo',
+    '9123456',
+    '',
+    '',
+    document,
+    page,
+  ];
+  const before = previousOf({
+    ...AFTER,
+    claimHeader: header,
+    claims: [claim('doc_a', '1'), claim('doc_b', '2')],
+  });
+  const after = filesOf({
+    ...AFTER,
+    claimHeader: header,
+    claims: [claim('doc_b', '1'), claim('doc_a', '2')],
+  });
+  expect(rowsOf(releaseChangelog(before, after, HEADING).file)).toMatchObject([
+    { kind: 'claim', id: `${SHIP}/imo`, change: 'changed', changed_columns: 'page' },
+  ]);
+});
+
+test('a name that a row copies from another entity is no change of the row', () => {
+  const renamed = (rows: readonly string[][]) =>
+    rows.map((row) => row.map((cell) => (cell === 'TEST TANKER' ? 'TEST TANKER II' : cell)));
+  const after: Folder = {
+    ...AFTER,
+    entities: renamed(AFTER.entities),
+    relations: renamed(AFTER.relations),
+    claims: renamed(AFTER.claims),
+  };
+  expect(rowsOf(releaseChangelog(previousOf(AFTER), filesOf(after), HEADING).file)).toStrictEqual([
+    {
+      kind: 'entity',
+      id: SHIP,
+      change: 'changed',
+      changed_columns: 'label',
+      label: 'TEST TANKER II',
+      survivor_id: '',
+    },
+  ]);
+});
+
+test('a column that only the previous release holds is no change', () => {
+  const before = previousOf({
+    ...AFTER,
+    claimHeader: [...CLAIM, 'modality', 'transcribed'],
+    claims: AFTER.claims.map((row) => [...row, 'asserts', 'false']),
+  });
+  expect(rowsOf(releaseChangelog(before, filesOf(AFTER), HEADING).file)).toStrictEqual([]);
+});
+
+test('two merges in a chain show each absorbed entity merged into the last survivor', () => {
+  const before: Folder = {
+    entities: [entity(SHIP, 'TEST A'), entity(OWNER, 'TEST B'), entity(NEW, 'TEST C')],
+    relations: [],
+    claims: [[`${SHIP}/imo`, 'attribute', SHIP, 'TEST A', 'imo', '1', '', '', 'doc_a']],
+    merges: [],
+  };
+  const after: Folder = {
+    entities: [entity(NEW, 'TEST C')],
+    relations: [],
+    claims: [[`${NEW}/imo`, 'attribute', NEW, 'TEST C', 'imo', '1', '', '', 'doc_a']],
+    merges: [
+      [MERGE_ACT, 'merge', SHIP, OWNER, NEW],
+      [UNDO_ACT, 'merge', OWNER, NEW, NEW],
+    ],
+  };
+  expect(
+    rowsOf(releaseChangelog(previousOf(before), filesOf(after), HEADING).file).map((row) => [
+      row['kind'],
+      row['id'],
+      row['change'],
+      row['survivor_id'],
+    ]),
+  ).toStrictEqual([
+    ['entity', SHIP, 'merged', NEW],
+    ['entity', OWNER, 'merged', NEW],
+    ['claim', `${NEW}/imo`, 'added', ''],
+    ['claim', `${SHIP}/imo`, 'merged', NEW],
+  ]);
 });
