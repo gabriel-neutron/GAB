@@ -60,11 +60,14 @@ const VOCABULARY = `SELECT
   (SELECT coalesce(json_agg(key ORDER BY ord, key), '[]') FROM api.entity_type WHERE NOT retired)
     AS "entityTypes",
   (SELECT coalesce(json_agg(key ORDER BY key), '[]') FROM api.relation_type WHERE NOT retired)
-    AS "relationTypes"`;
+    AS "relationTypes",
+  (SELECT coalesce(json_agg(key ORDER BY key), '[]') FROM api.relation_type
+    WHERE NOT retired AND takes_interval) AS "datedRelationTypes"`;
 
 const vocabulary = z.strictObject({
   entityTypes: z.array(z.string()),
   relationTypes: z.array(z.string()),
+  datedRelationTypes: z.array(z.string()),
 });
 
 type Vocabulary = z.output<typeof vocabulary>;

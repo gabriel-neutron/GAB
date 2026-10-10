@@ -14,6 +14,7 @@ const landed = z.array(
     type: z.string(),
     proposed_type: z.string().nullable(),
     valid_from: z.string().nullable(),
+    valid_to: z.string().nullable(),
   }),
 );
 
@@ -37,14 +38,15 @@ const PROPOSE_ENTITY = `SELECT public.propose_change('create_entity',
 
 const PROPOSE_RELATION = `SELECT public.propose_change('create_relation',
   jsonb_strip_nulls(jsonb_build_object('type', $1::text, 'src_kind', 'entity',
-    'src_id', $2::uuid, 'dst_kind', 'entity', 'dst_id', $3::uuid, 'valid_from', $4::text)),
+    'src_id', $2::uuid, 'dst_kind', 'entity', 'dst_id', $3::uuid, 'valid_from', $4::text,
+    'valid_to', $5::text)),
   ARRAY['manual']::text[], NULL, NULL, ARRAY[$2::uuid, $3::uuid]) AS id`;
 
 const DELETE = `SELECT public.propose_change($1::text, '{}'::jsonb, ARRAY['manual']::text[],
   $2::text, $3::uuid) AS id`;
 
-const LANDED = `SELECT type, proposed_type, valid_from::text AS valid_from
-  FROM public.relations WHERE id = $1::uuid`;
+const LANDED = `SELECT type, proposed_type, valid_from::text AS valid_from,
+    valid_to::text AS valid_to FROM public.relations WHERE id = $1::uuid`;
 
 // Each statement runs in its own transaction: an act is not decided by the transaction that
 // proposed it. The proposals stay, because the ledger is append-only, and the rows go.
@@ -59,12 +61,13 @@ const deleted = async (ask: Ask, kind: 'entity' | 'relation', target: string): P
 const promotedRelation = (
   type: string,
   validFrom: string | null = null,
+  validTo: string | null = null,
 ): Promise<z.infer<typeof landed>> =>
   probe('app', async (ask) => {
     const src = await promoted(ask, await idOf(ask, PROPOSE_ENTITY));
     const dst = await promoted(ask, await idOf(ask, PROPOSE_ENTITY));
     try {
-      const act = await idOf(ask, PROPOSE_RELATION, [type, src, dst, validFrom]);
+      const act = await idOf(ask, PROPOSE_RELATION, [type, src, dst, validFrom, validTo]);
       const relation = await promoted(ask, act);
       try {
         return landed.parse(await ask(LANDED, [relation]));
@@ -79,19 +82,25 @@ const promotedRelation = (
 
 test('a designated_by relation with a valid_from promotes', async () => {
   await expect(promotedRelation('designated_by', '2022-06-03')).resolves.toStrictEqual([
-    { type: 'designated_by', proposed_type: null, valid_from: '2022-06-03' },
+    { type: 'designated_by', proposed_type: null, valid_from: '2022-06-03', valid_to: null },
+  ]);
+});
+
+test('an owns relation with a start and an end promotes with both bounds', async () => {
+  await expect(promotedRelation('owns', '2019-05-02', '2023-11-30')).resolves.toStrictEqual([
+    { type: 'owns', proposed_type: null, valid_from: '2019-05-02', valid_to: '2023-11-30' },
   ]);
 });
 
 test('an associated_with relation promotes as itself, with no interval', async () => {
   await expect(promotedRelation('associated_with')).resolves.toStrictEqual([
-    { type: 'associated_with', proposed_type: null, valid_from: null },
+    { type: 'associated_with', proposed_type: null, valid_from: null, valid_to: null },
   ]);
 });
 
 test('an owned_by relation lands on the fallback row, and the word stays beside it', async () => {
   await expect(promotedRelation('owned_by')).resolves.toStrictEqual([
-    { type: 'unknown', proposed_type: 'owned_by', valid_from: null },
+    { type: 'unknown', proposed_type: 'owned_by', valid_from: null, valid_to: null },
   ]);
 });
 
@@ -112,7 +121,7 @@ const actOf = async (ask: Ask, text: string, values: readonly unknown[]): Promis
 test('a type that a dated relation holds cannot stop taking an interval', async () => {
   const flipped = rolledBack('superuser', async (ask) => {
     const end = await idOf(ask, INSERT_ENTITY, [await actOf(ask, PROPOSE_ENTITY, [])]);
-    const act = await actOf(ask, PROPOSE_RELATION, ['owns', end, end, null]);
+    const act = await actOf(ask, PROPOSE_RELATION, ['owns', end, end, null, null]);
     await idOf(ask, INSERT_DATED, [end, act]);
     return ask(`UPDATE public.relation_type SET takes_interval = false WHERE key = 'owns'`);
   });

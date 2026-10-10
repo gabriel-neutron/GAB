@@ -346,6 +346,7 @@ const proposedBatch = z.object({
       written: z.boolean(),
       disputed: z.boolean(),
       unstated: z.array(z.string()),
+      droppedBounds: z.array(z.string()),
     }),
   ),
 });
@@ -372,8 +373,8 @@ const proposeAgain = async (ask: Ask, items: readonly unknown[]) => {
   return outcome;
 };
 
-const proposeOnPage = async (ask: Ask, items: readonly unknown[]) => {
-  await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+const proposeOnPage = async (ask: Ask, items: readonly unknown[], page = PAGE_ONE) => {
+  await asResearch(ask, () => withDocument(ask, [page]));
   return proposeAgain(ask, items);
 };
 
@@ -836,6 +837,67 @@ test('propose refuses an act that the write contract refuses, and names the item
   });
 });
 
+// A page that states the two bounds of an ownership, and two days that the record refuses.
+const DATED =
+  'Rosneft owned the tanker from 2 May 2019 to 30 November 2023. A charter ran from 12 March ' +
+  '2024 to 1 January 2024, and a licence since 30 February 2024.';
+
+const owns = (held: string, bounds: Readonly<Record<string, string>>) => ({
+  op: 'create_relation',
+  type: 'owns',
+  srcId: held,
+  dstId: held,
+  ...bounds,
+});
+
+test('a relation keeps the start and the end that its excerpt states', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        item(
+          'owner',
+          owns(held.id, { validFrom: '2019-05-02', validTo: '2023-11-30' }),
+          'Rosneft owned the tanker from 2 May 2019 to 30 November 2023.',
+        ),
+      ],
+      DATED,
+    );
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'owner', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toMatchObject({
+    valid_from: '2019-05-02',
+    valid_to: '2023-11-30',
+  });
+});
+
+test('a bound that no excerpt states is not proposed, and the output names it', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        item(
+          'owner',
+          owns(held.id, { validFrom: '2019-05-02', validTo: '2024-06-30' }),
+          'Rosneft owned the tanker from 2 May 2019',
+        ),
+      ],
+      DATED,
+    );
+    return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { written: true, disputed: false, unstated: [], droppedBounds: ['validTo'] },
+  ]);
+  expect(found.rows[0]?.payload).toMatchObject({ valid_from: '2019-05-02' });
+  expect(found.rows[0]?.payload).not.toHaveProperty('valid_to');
+});
+
 // The record holds these rules at the insert, so a bad act never waits in the review queue. The
 // refusal names the item, the field and the sentence of the rule.
 test.for([
@@ -857,13 +919,17 @@ test.for([
 ] as const)('propose refuses %s at the insert', async ([, change, said]) => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await connected(ask);
-    const outcome = await proposeOnPage(ask, [
-      item(
-        'owner',
-        { op: 'create_relation', type: 'owns', srcId: held.id, dstId: held.id, ...change },
-        'On 12 March 2024',
-      ),
-    ]);
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        item(
+          'owner',
+          { op: 'create_relation', type: 'owns', srcId: held.id, dstId: held.id, ...change },
+          'A charter ran from 12 March 2024 to 1 January 2024, and a licence since 30 February 2024.',
+        ),
+      ],
+      DATED,
+    );
     return { outcome, rows: await rowsOfDocument(ask) };
   });
   expect(found.outcome).toMatchObject({

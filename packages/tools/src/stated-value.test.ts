@@ -4,7 +4,7 @@
 import { writeRequest } from '@gab/proposal/request';
 import { expect, test } from 'vitest';
 
-import { unstatedValues } from './stated-value.ts';
+import { statedBounds, unstatedValues } from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -178,4 +178,37 @@ test.each([
   expect(unstatedValues(unitWith(value), [`regiment ${passage}`])).toStrictEqual([
     { name: 'attrs.military_unit_number', value },
   ]);
+});
+
+const relationBetween = (bounds: { validFrom?: string; validTo?: string }) =>
+  writeRequest.parse({
+    op: 'create_relation',
+    type: 'owns',
+    srcId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    dstId: '4f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    ...bounds,
+  });
+
+test('a relation keeps the start and the end that its passage states', () => {
+  const act = relationBetween({ validFrom: '2019-05-02', validTo: '2023-11-30' });
+  expect(
+    statedBounds(act, ['Rosneft owned her from 2 May 2019 to 30 November 2023.']),
+  ).toStrictEqual({ act, dropped: [] });
+});
+
+test('a bound that no passage states is not proposed, and the other bound stays', () => {
+  const act = relationBetween({ validFrom: '2019-05-02', validTo: '2023-11-30' });
+  expect(statedBounds(act, ['Rosneft owned her from 2 May 2019.'])).toStrictEqual({
+    act: relationBetween({ validFrom: '2019-05-02' }),
+    dropped: ['validTo'],
+  });
+  expect(statedBounds(act, ['She left Rosneft on 30 November 2023.'])).toStrictEqual({
+    act: relationBetween({ validTo: '2023-11-30' }),
+    dropped: ['validFrom'],
+  });
+});
+
+test('an act with no bound is kept as it is', () => {
+  const act = writeRequest.parse({ op: 'create_entity', type: 'vessel', label: 'Nayara' });
+  expect(statedBounds(act, ['the tanker NAYARA'])).toStrictEqual({ act, dropped: [] });
 });

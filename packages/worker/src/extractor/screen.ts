@@ -4,8 +4,9 @@ import type { z } from 'zod';
 /** One item of the answer of the model, in the shape of the propose tool. */
 export type ScreenItem = z.output<typeof proposeItem>;
 
-/** Why code dropped an item before the write. */
+/** Why code dropped an item, or a part of an item, before the write. */
 export type DropReason =
+  | 'bound_on_undated_type'
   | 'type_outside_vocabulary'
   | 'generic_group'
   | 'generic_concept'
@@ -17,6 +18,8 @@ export type DropReason =
 interface Vocabulary {
   readonly entityTypes: readonly string[];
   readonly relationTypes: readonly string[];
+  /** The relation types that take a start date and an end date. */
+  readonly datedRelationTypes: readonly string[];
 }
 
 /** The items that code keeps, the count of each drop, and the key and the item of each entity
@@ -177,6 +180,18 @@ export const screenBatch = (
     }
   };
   relationsStay();
+
+  // Only a dated type takes a start and an end. A bound on another type makes the door refuse the
+  // whole batch, so code drops the bound and keeps the relation.
+  items = items.map((item) => {
+    const { act } = item;
+    if (act.op !== 'create_relation' || words.datedRelationTypes.includes(act.type)) return item;
+    if (act.validFrom === undefined && act.validTo === undefined) return item;
+    const { validFrom, validTo, ...bare } = act;
+    for (const bound of [validFrom, validTo])
+      if (bound !== undefined) drop('bound_on_undated_type');
+    return { ...item, act: bare };
+  });
 
   const published = new Set(
     items.flatMap(({ act }) =>
