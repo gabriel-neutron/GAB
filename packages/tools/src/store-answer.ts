@@ -22,7 +22,7 @@ const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS
 // One statement is one transaction, and it holds inside the transaction of a caller too. The row
 // is written first and its text second, so a document never exists with no text.
 const STORE = `WITH stored AS (
-    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date)::text AS id)
+    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
 
 const knownRow = z.object({
@@ -45,6 +45,9 @@ export interface Answer {
   readonly title: string;
   readonly pages: readonly string[];
   readonly day: string;
+  /** The publisher of an official file, whose licence makes the document public. A tool names it
+   * only for a file that it reads at the address of that publisher. */
+  readonly provider?: 'eu_eurlex' | 'ofac_sdn';
 }
 
 const isUniqueViolation = (fault: unknown): boolean =>
@@ -88,6 +91,7 @@ export const storeAnswer = async (
         JSON.stringify(answer.pages),
         EXTRACTOR,
         answer.kind,
+        answer.provider ?? null,
       ]);
       status = 'stored';
     } catch (fault) {
