@@ -50,7 +50,7 @@ const meta = {
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
-    <div className="h-[480px] w-[1280px]">
+    <div className="h-[480px] w-full max-w-[1280px]">
       <NamesPage {...args} />
     </div>
   ),
