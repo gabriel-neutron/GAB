@@ -1182,8 +1182,9 @@ BEGIN
   END LOOP;
 
   -- The name of the absorbed entity, kept as a former name of the survivor. The documents of the
-  -- absorbed row hold the name up, and the merge is the act that set the value.
-  IF p_keep_name THEN
+  -- absorbed row hold the name up, and the merge is the act that set the value. The name of the
+  -- survivor in another case or spacing is no former name.
+  IF p_keep_name AND public.name_key(v_gone.label) <> public.name_key(v_keep.label) THEN
     v_val := v_attrs->'former_names';
     v_list := CASE WHEN v_val IS NULL THEN '[]'::jsonb
                    WHEN jsonb_typeof(v_val->'v') = 'array' THEN v_val->'v'
@@ -3197,11 +3198,11 @@ BEGIN
      GROUP BY t.unit_id
     UNION ALL
     SELECT d.unit_id, 'not_clean', 'duplicate', NULL::uuid,
-           'Same IMO number ' || min(d.imo) || ' as another vessel: '
+           'Same IMO number ' || d.imo || ' as another vessel: '
            || string_agg(d.label || ' (' || d.other || ') ' || d.place, '; '
                          ORDER BY d.place, d.label, d.other)
       FROM same_imo d
-     GROUP BY d.unit_id
+     GROUP BY d.unit_id, d.imo
     UNION ALL
     SELECT a.unit_id, 'not_clean', 'unknown_type', a.id,
            CASE WHEN a.op = 'create_entity' THEN 'The entity type ' ELSE 'The relation type ' END

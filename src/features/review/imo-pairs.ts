@@ -48,12 +48,18 @@ export async function readImoPairs(): Promise<PairsRead> {
 
 /** Merge the absorbed vessel into the survivor, and keep the absorbed name as a former name of
  * the survivor. A lost answer is a doubt: the merge may stand. */
-export const mergeImoPair = (
+export async function mergeImoPair(
   survivorId: string,
   absorbedId: string,
-): Promise<WriteResult<{ readonly proposalId: string }>> =>
-  askWriter(
+): Promise<WriteResult<{ readonly proposalId: string }>> {
+  const result = await askWriter(
     '/write/merge-entities',
     { survivorId, absorbedId, keepName: true },
     z.object({ proposalId: z.string() }),
   );
+  // The writer starts a refusal with the field of the body to correct. The page sends the body
+  // itself, so the operator has no field to correct and reads the sentence alone.
+  return result.step === 'refused'
+    ? { ...result, refusal: result.refusal.replace(/^(?:survivorId|absorbedId): /u, '') }
+    : result;
+}

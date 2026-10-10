@@ -111,3 +111,29 @@ test.each(['gabriel_agent', 'gabriel_research', 'gabriel_checker', 'gabriel_read
     expect(refusal).toContain('permission denied');
   },
 );
+
+// The release reads an IMO number with the same rule: a JSON number with a zero fraction is the
+// whole number, and a list or any other shape gives no number.
+test.each([
+  ['"9482137"', '9482137'],
+  ['" imo 9482137 "', '9482137'],
+  ['"IMO9482137"', '9482137'],
+  ['9482137', '9482137'],
+  ['9482137.0', '9482137'],
+  ['9482137.5', null],
+  ['"IMO-9482137"', null],
+  ['"94821370"', null],
+  ['"948213"', null],
+  ['["9482137"]', null],
+  ['{"v": "9482137"}', null],
+  ['null', null],
+])('the IMO key of %s is %s', async (value, key) => {
+  const [row] = z
+    .array(z.object({ key: z.string().nullable() }))
+    .parse(
+      await rolledBack('superuser', (ask) =>
+        ask('SELECT public.imo_key($1::jsonb) AS key', [value]),
+      ),
+    );
+  expect(row?.key).toBe(key);
+});
