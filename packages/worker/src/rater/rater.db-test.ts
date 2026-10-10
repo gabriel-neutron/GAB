@@ -205,7 +205,8 @@ test('a name of a known author joins that author, and a join into A or B is a do
     await held.actOf('Reuters Wire');
     expect(await held.rate({ kind: 'same', as: 'Reuters' })).toBe('done');
 
-    expect(await held.letter('reuters wire')).toBe('B');
+    // The name reads as F until the operator confirms it.
+    expect(await held.letter('reuters wire')).toBe('F');
     expect(
       await held.ask(`SELECT doubt FROM public.author_name WHERE name_key = 'reuters wire'`),
     ).toStrictEqual([{ doubt: true }]);
@@ -322,6 +323,13 @@ test('a refused rating keeps its call of the model in the record', async () => {
   });
 });
 
+const callsOfName = async (held: Held, name: string) =>
+  held.ask(
+    `SELECT count(*)::int AS n FROM public.model_call m JOIN public.jobs j ON j.id = m.job_id
+      WHERE j.kind = 'rate_author' AND j.author = $1`,
+    [name],
+  );
+
 const callsOf = async (held: Held) =>
   held.ask(
     `SELECT count(*)::int AS n FROM public.model_call m JOIN public.jobs j ON j.id = m.job_id
@@ -381,5 +389,107 @@ test('another refusal is not asked again', async () => {
     expect(did).toBe('failed');
     expect(bodies).toHaveLength(1);
     expect(await callsOf(held)).toStrictEqual([{ n: 1 }]);
+  });
+});
+
+test.each([['OFAC; Reuters'], ['Reuters, State Register'], ['UK'], ['The Secretary of State']])(
+  'a join of "%s" is refused, and the rater rates the name as a new author',
+  async (name) => {
+    await inTransaction(async (held) => {
+      await held.actOf(name);
+      const key = name.toLowerCase();
+      const { did, bodies } = await held.rateInTurn([
+        { kind: 'same', as: 'Reuters' },
+        { ...NEW, letter: 'F' },
+      ]);
+
+      expect(did).toBe('done');
+      expect(bodies).toHaveLength(2);
+      expect(bodies[1]).toContain('Rate the name as a new author');
+      expect(await held.letter(key)).toBe('F');
+      expect(await callsOfName(held, key)).toStrictEqual([{ n: 2 }]);
+      expect(
+        await held.ask(
+          `SELECT a.name_key, n.doubt FROM public.author_name n
+             JOIN public.author a ON a.id = n.author_id WHERE n.name_key = $1`,
+          [key],
+        ),
+      ).toStrictEqual([{ name_key: key, doubt: false }]);
+    });
+  },
+);
+
+test('a second join after a refused join is refused, and the author stays F', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('UK');
+    const join = { kind: 'same', as: 'Reuters' };
+    const { did, bodies } = await held.rateInTurn([join, join]);
+
+    expect(did).toBe('failed');
+    expect(bodies).toHaveLength(2);
+    expect((await jobOf(held, 'uk'))[0]?.failure_reason).toContain('is generic');
+    expect(await held.letter('uk')).toBe('F');
+    expect(await callsOfName(held, 'uk')).toStrictEqual([{ n: 2 }]);
+  });
+});
+
+test('a second answer that code refuses fails the job, and the author stays F', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('U.K.');
+    const { did } = await held.rateInTurn([
+      { kind: 'same', as: 'Reuters' },
+      { ...NEW, letter: 'A' },
+    ]);
+
+    expect(did).toBe('failed');
+    expect((await jobOf(held, 'u.k.'))[0]?.failure_reason).toContain('A and B come from');
+    expect(await held.letter('u.k.')).toBe('F');
+  });
+});
+
+test('a join that the door refuses for another cause is not asked again', async () => {
+  await inTransaction(async (held) => {
+    await held.storeUnapproved('Trade Journal');
+    await held.actOf('Trade Journal');
+    const { did, bodies } = await held.rateInTurn([{ kind: 'same', as: 'Reuters' }, NEW]);
+
+    expect(did).toBe('failed');
+    expect(bodies).toHaveLength(1);
+  });
+});
+
+test.each([
+  ['reuters', null],
+  ['ministry of defence of russia', null],
+  ['rosneft, pjsc', null],
+  ['co., ltd', null],
+  ['ofac; reuters', 'holds two authors'],
+  ['reuters, tass', 'holds two authors'],
+  ['rosneft, pjsc, tass', 'holds two authors'],
+  ['u.s.', 'is generic'],
+  ['the ministry', 'is generic'],
+])('the name "%s" joins an author unless it is refused: %s', async (name, said) => {
+  await inTransaction(async (held) => {
+    const [row] = z
+      .array(z.object({ said: z.string().nullable() }))
+      .parse(await held.ask('SELECT public.name_joins_no_author($1) AS said', [name]));
+    if (said === null) expect(row?.said).toBeNull();
+    else expect(row?.said).toContain(said);
+  });
+});
+
+test('a name that the operator refused is rated again as a new author', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Reuters Wire');
+    expect(await held.rate({ kind: 'same', as: 'Reuters' })).toBe('done');
+    await held.ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await held.ask(`SELECT public.decide_author_name('Reuters Wire', false)`);
+    await held.ask('RESET SESSION AUTHORIZATION');
+
+    const { did, bodies } = await held.rateInTurn([{ kind: 'same', as: 'Reuters' }, NEW]);
+
+    expect(did).toBe('done');
+    expect(bodies[1]).toContain('the operator refused the name');
+    expect(await held.letter('reuters wire')).toBe('D');
   });
 });

@@ -2069,6 +2069,46 @@ BEGIN
   RETURN v_requeued;
 END $$;
 
+-- THE OPERATOR TRIES A FAILED RATING AGAIN. A rating that failed by a fault leaves its name F
+-- until a new act of the name, and a refused answer keeps the name F for ever. The operator puts
+-- each such job back in the queue in one call, and the door gives the names.
+--
+-- A JOB BACK IN THE QUEUE STARTS WITH NO ATTEMPT: no taker, no end, no reason and no refusal.
+-- The row keeps no record of the earlier attempt, so the door returns the reason and the refusal
+-- of that attempt with each name, and the command prints them. A refused rating goes back too:
+-- each job costs one call to the model at the next run.
+--
+-- ONE JOB FOR ONE NAME. Only the newest failed job of a name goes back, and only when no other
+-- job of the name waits, runs, is done or holds a refusal. The unique index of the jobs would
+-- refuse a second one, and that refusal would stop the whole call.
+CREATE OR REPLACE FUNCTION requeue_failed_ratings()
+RETURNS TABLE (author text, failure_reason text, refusal text)
+LANGUAGE sql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH newest AS (
+    SELECT DISTINCT ON (f.author) f.id, f.author, f.failure_reason, f.refusal
+      FROM public.jobs f
+     WHERE f.kind = 'rate_author' AND f.status = 'failed'
+     ORDER BY f.author, f.created_at DESC, f.id DESC
+  )
+  UPDATE public.jobs j
+     SET status         = 'queued',
+         failure_reason = NULL,
+         refusal        = NULL,
+         refused_parts  = 0,
+         claimed_by     = NULL,
+         claimed_at     = NULL,
+         finished_at    = NULL,
+         updated_at     = now()
+    FROM newest n
+   WHERE j.id = n.id
+     AND NOT EXISTS (SELECT 1 FROM public.jobs o
+                      WHERE o.kind = 'rate_author' AND o.author = n.author AND o.id <> n.id
+                        AND (o.status IN ('queued','running','done')
+                             OR (o.status = 'failed' AND o.refusal IS NOT NULL)))
+  RETURNING j.author, n.failure_reason, n.refusal
+$$;
+
 -- THE WAIT OF THE RUNNER ON AN EMPTY QUEUE, AS ONE STRICT READ. The number is a row, and a row
 -- that is absent stops the runner loudly. The door returns this number and no other row of the
 -- table. The earlier signature returned three numbers, so it is dropped first.
@@ -2812,8 +2852,9 @@ $$;
 
 -- WHY A UNIT IS A DOUBT WHEN NO FAULT SAYS IT. The doubt rule reads three causes beside the faults:
 -- a check that disputes a fact, a denial by a party to the conflict, and a source whose name
--- joined an author A or B. The first one that holds gives its key, and NULL means none holds. The
--- rule and the sentence of the review page read this one function. No role holds this step.
+-- joined an author A or B and waits for the decision of the operator. The first one that holds
+-- gives its key, and NULL means none holds. The rule and the sentence of the review page read
+-- this one function. No role holds this step.
 CREATE OR REPLACE FUNCTION unit_doubt_cause(p_unit uuid)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -2827,8 +2868,8 @@ BEGIN
                           JOIN public.author w ON w.id = public.author_of(f.originator)
                          WHERE c.claim_id = f.id AND c.modality = 'denies' AND w.party)
              THEN 'party_denies'
-           WHEN EXISTS (SELECT 1 FROM public.author_name n
-                         WHERE n.name_key = public.name_key(f.originator) AND n.doubt)
+           WHEN EXISTS (SELECT 1 FROM public.name_row(public.name_key(f.originator)) n
+                         WHERE n.waits)
              THEN 'name_joins'
          END
     FROM public.proposals a
@@ -2840,8 +2881,8 @@ BEGIN
           OR EXISTS (SELECT 1 FROM public.citation c
                        JOIN public.author w ON w.id = public.author_of(f.originator)
                       WHERE c.claim_id = f.id AND c.modality = 'denies' AND w.party)
-          OR EXISTS (SELECT 1 FROM public.author_name n
-                      WHERE n.name_key = public.name_key(f.originator) AND n.doubt))
+          OR EXISTS (SELECT 1 FROM public.name_row(public.name_key(f.originator)) n
+                      WHERE n.waits))
    LIMIT 1);
 END $$;
 
@@ -3743,15 +3784,36 @@ BEGIN
     CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
 
+-- THE LOCK OF ONE NAME, until the end of the transaction. The key of the name table no longer
+-- keeps one live row for each name, so each door that writes a row of a name takes this lock
+-- before its check. Inside the doors only.
+CREATE OR REPLACE FUNCTION lock_name(p_key text) RETURNS void
+LANGUAGE sql SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT pg_advisory_xact_lock(hashtextextended('author_name:' || p_key, 0))
+$$;
+
+-- THE LIVE ROW OF A NAME. A name that the operator refused keeps its row, and it is no name of
+-- that author for any reader. The doors keep one live row for each name. `waits` is true while a
+-- name that joined an author A or B has no decision of the operator. Inside the doors only.
+CREATE OR REPLACE FUNCTION name_row(p_key text)
+RETURNS TABLE (author_id uuid, doubt boolean, waits boolean)
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT n.author_id, n.doubt, n.doubt AND d.name_key IS NULL
+    FROM public.author_name n
+    LEFT JOIN public.author_name_decision d
+      ON (d.name_key, d.author_id) = (n.name_key, n.author_id)
+   WHERE n.name_key = p_key AND d.confirmed IS DISTINCT FROM false
+   LIMIT 1
+$$;
+
 -- THE AUTHOR OF A NAME, or NULL when no worker answer has resolved the name. A reference author is
 -- no author until the operator approves the reference set. Inside the doors only, so no role holds
 -- EXECUTE on it.
 CREATE OR REPLACE FUNCTION author_of(p_name text) RETURNS uuid
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT n.author_id
-    FROM public.author_name n JOIN public.author a ON a.id = n.author_id
-   WHERE n.name_key = public.name_key(p_name)
-     AND (NOT a.reference_set
+    FROM public.name_row(public.name_key(p_name)) n JOIN public.author a ON a.id = n.author_id
+   WHERE (NOT a.reference_set
           OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id))
 $$;
 
@@ -3761,8 +3823,7 @@ $$;
 CREATE OR REPLACE FUNCTION held_name(p_name text, OUT held boolean, OUT in_reference_set boolean)
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT true, a.reference_set
-    FROM public.author_name n JOIN public.author a ON a.id = n.author_id
-   WHERE n.name_key = public.name_key(p_name)
+    FROM public.name_row(public.name_key(p_name)) n JOIN public.author a ON a.id = n.author_id
   UNION ALL SELECT false, false
   LIMIT 1
 $$;
@@ -3784,6 +3845,8 @@ BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a letter names its author' USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- One live row for each name: two writers of one name wait for each other.
+  PERFORM public.lock_name(v_key);
   SELECT * INTO v_held FROM public.held_name(v_key);
   IF v_held.held THEN
     -- The reference build leaves a name that a worker rated: the rated author stands.
@@ -3841,10 +3904,10 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM unnest(p_references) AS r(name)
      WHERE r.name IS NULL OR NOT EXISTS (
-       SELECT 1 FROM public.author_name n
+       SELECT 1 FROM public.name_row(public.name_key(r.name)) n
          JOIN public.author a ON a.id = n.author_id
          JOIN public.reference_approval x ON x.author_id = a.id
-        WHERE n.name_key = public.name_key(r.name) AND a.reference_set))
+        WHERE a.reference_set))
   THEN
     RAISE EXCEPTION 'a reference author is an approved author of the reference set'
       USING ERRCODE = 'invalid_parameter_value';
@@ -3870,9 +3933,34 @@ BEGIN
                            p_party, true);
 END $$;
 
+-- WHY A NAME CAN JOIN NO AUTHOR, or NULL when it can. A name that holds two authors ("OFAC;
+-- Reuters", "Reuters, Tass") is no name of one author. A generic name (a country, or a role with
+-- no body, such as "the secretary of state") names no author that a reader can find. Such a name
+-- goes to the rater as a new author. Inside the doors only.
+CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text) RETURNS text
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE
+    WHEN p_key ~ '[^[:space:];,][[:space:]]*;[[:space:]]*[^[:space:];,]'
+      OR (p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
+          -- A legal form after a comma is a part of the name of one company.
+          AND regexp_replace(p_key, ',[[:space:]]*(inc|ltd|llc|plc|pjsc|pao|jsc|oao|ooo|zao|co|'
+                                    'corp|ag|gmbh|sa|s\.a|nv|bv|limited)\.?(?=$|[[:space:],])',
+                             '', 'g') ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]')
+      THEN format('the name "%s" holds two authors and joins no author', p_key)
+    WHEN regexp_replace(replace(p_key, '.', ''), '^the ', '') = ANY (ARRAY[
+           'uk', 'us', 'usa', 'eu', 'un', 'russia', 'russian federation', 'ukraine', 'china',
+           'india', 'iran', 'united kingdom', 'united states', 'european union', 'government',
+           'secretary of state', 'minister', 'ministry', 'authorities', 'officials', 'official',
+           'court', 'company', 'president', 'police', 'state', 'department', 'prosecutor',
+           'spokesperson', 'spokesman', 'source', 'sources', 'media', 'press', 'report',
+           'reports', 'author', 'unknown'])
+      THEN format('the name "%s" is generic and joins no author', p_key)
+  END
+$$;
+
 -- THE DOOR OF THE WORKER FOR A NAME OF A KNOWN AUTHOR. A model words one author in more than one
 -- way. A join into an author A or B is a doubt, because it raises the letter of every act of the
--- name.
+-- name. A name of two authors and a generic name join no author.
 CREATE OR REPLACE FUNCTION join_author_name(p_name text, p_known_name text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
@@ -3880,16 +3968,28 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_author uuid := public.author_of(p_known_name);
+  v_no_join text := public.name_joins_no_author(v_key);
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- One live row for each name: two writers of one name wait for each other.
+  PERFORM public.lock_name(v_key);
   IF v_author IS NULL THEN
     RAISE EXCEPTION 'the name "%" is the name of no known author',
       public.name_key(coalesce(p_known_name, '')) USING ERRCODE = 'invalid_parameter_value';
   END IF;
   IF (public.held_name(v_key)).held THEN
     RAISE EXCEPTION 'the name "%" already has an author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_no_join IS NOT NULL THEN
+    RAISE EXCEPTION '%', v_no_join USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_author AND NOT d.confirmed) THEN
+    RAISE EXCEPTION 'the operator refused the name "%" for this author, so it joins no author',
+      v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.author_name (name_key, author_id, doubt)
@@ -3899,16 +3999,17 @@ BEGIN
 END $$;
 
 -- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
--- F. A party to the conflict reads as C at most on every fact, because the graph holds no side
--- yet (decisions.md S1). The digit of a fact never calls this function.
+-- F. A name that joined an author A or B reads as F until the operator confirms it. A party to
+-- the conflict reads as C at most on every fact, because the graph holds no side yet
+-- (decisions.md S1). The digit of a fact never calls this function.
 CREATE OR REPLACE FUNCTION letter_of(p_name text) RETURNS char(1)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT coalesce(
-    (SELECT CASE WHEN a.party AND a.letter IN ('A','B') THEN 'C' ELSE a.letter END
-       FROM public.author_name n JOIN public.author a ON a.id = n.author_id
-      WHERE n.name_key = public.name_key(p_name)
-        AND (NOT a.reference_set
+    (SELECT CASE WHEN n.waits THEN 'F'
+                 WHEN a.party AND a.letter IN ('A','B') THEN 'C' ELSE a.letter END
+       FROM public.name_row(public.name_key(p_name)) n JOIN public.author a ON a.id = n.author_id
+      WHERE (NOT a.reference_set
              OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id))),
     'F')::char(1)
 $$;
@@ -3964,7 +4065,12 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                          'names', (SELECT coalesce(jsonb_agg(n.name_key ORDER BY n.name_key),
                                                    '[]'::jsonb)
                                      FROM public.author_name n
-                                    WHERE n.author_id = a.id AND n.name_key <> a.name_key))
+                                    WHERE n.author_id = a.id AND n.name_key <> a.name_key
+                                      AND NOT EXISTS (
+                                        SELECT 1 FROM public.author_name_decision d
+                                         WHERE (d.name_key, d.author_id)
+                                               = (n.name_key, n.author_id)
+                                           AND NOT d.confirmed)))
                        ORDER BY a.reference_set DESC, a.letter, a.name_key)
                   FROM public.author a
                  WHERE NOT a.reference_set
@@ -3985,6 +4091,127 @@ BEGIN
     ON CONFLICT DO NOTHING;
   END IF;
   RETURN NULL;
+END $$;
+
+-- THE UNITS OF A NAME: each unit that waits and states a fact that an act of the name gives.
+-- Inside the doors only.
+CREATE OR REPLACE FUNCTION units_of_name(p_key text) RETURNS uuid[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(array_agg(DISTINCT q.unit_id), '{}')
+    FROM public.proposals q
+   WHERE q.status = 'pending'
+     AND q.claim_key IN (SELECT a.claim_key FROM public.proposals a
+                          WHERE a.originator IS NOT NULL
+                            AND public.name_key(a.originator) = p_key)
+$$;
+
+-- THE NAMES THAT WAIT FOR THE OPERATOR, with the author that each one joined, the letter of that
+-- author and the number of units that the name holds in doubt. The largest come first.
+CREATE OR REPLACE FUNCTION author_names_waiting()
+RETURNS TABLE (name_key text, author text, letter char(1), units int)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT n.name_key, a.name_key, a.letter, cardinality(public.units_of_name(n.name_key))
+    FROM public.author_name n
+    JOIN public.author a ON a.id = n.author_id
+   WHERE n.doubt
+     AND NOT EXISTS (SELECT 1 FROM public.author_name_decision d
+                      WHERE (d.name_key, d.author_id) = (n.name_key, n.author_id))
+   ORDER BY 4 DESC, 1
+$$;
+
+-- THE DECISION OF THE OPERATOR ON A NAME THAT WAITS. The row is written once. A confirmation gives
+-- the name the letter of its author. A refusal makes the name F, and the rating job of the name
+-- goes back to the queue, so the rater rates it again. In both cases the rules
+-- run again on the units of the name. It gives the number of these units. The door refuses while
+-- the rating job of the name runs.
+CREATE OR REPLACE FUNCTION decide_author_name(p_name text, p_confirm boolean) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_row record;
+  v_units uuid[];
+BEGIN
+  IF p_confirm IS NULL THEN
+    RAISE EXCEPTION 'a decision on a name confirms it or refuses it'
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT * INTO v_row FROM public.name_row(v_key);
+  IF NOT coalesce(v_row.waits, false) THEN
+    RAISE EXCEPTION 'the name "%" waits for no decision', v_key
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
+  END IF;
+  -- A rating job that runs now would end on the old answer and hide the refusal.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: decide it when the job has ended', v_key
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'author_name_waits';
+  END IF;
+  -- The units come first: after a refusal the name has no author.
+  v_units := public.units_of_name(v_key);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_row.author_id, p_confirm);
+  IF NOT p_confirm THEN
+    UPDATE public.jobs j
+       SET status = 'queued', failure_reason = NULL, refused_parts = 0, refusal = NULL,
+           claimed_by = NULL, claimed_at = NULL, finished_at = NULL, updated_at = now()
+     WHERE j.kind = 'rate_author' AND j.author = v_key
+       AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
+    INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
+  END IF;
+  PERFORM public.run_rules(v_units);
+  RETURN cardinality(v_units);
+END $$;
+
+-- THE STATE OF A UNIT, for the dry-run: "decided" when no act of it waits, else the rule that
+-- matches it. A unit that leaves the doubts for the wait changes state, as a unit that a rule
+-- accepts or rejects. Inside the doors only.
+CREATE OR REPLACE FUNCTION unit_state(p_unit uuid) RETURNS text
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(public.unit_rule(p_unit), 'decided')
+$$;
+
+-- THE DRY-RUN OF THE DECISIONS ON THE NAMES. For each name that waits, the number of its units
+-- whose state would change if the operator confirmed it, and if the operator refused it. Each
+-- decision runs through the door of the operator inside a sub-transaction, with the rules, and is
+-- undone. So the function writes nothing. A name whose rating runs now gives no count.
+CREATE OR REPLACE FUNCTION author_names_dry_run()
+RETURNS TABLE (name_key text, author text, letter char(1), units int, change_if_confirmed int,
+               change_if_refused int)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_name record;
+  v_units uuid[];
+  v_before jsonb;
+  v_choice boolean;
+  v_changed int;
+BEGIN
+  FOR v_name IN SELECT * FROM public.author_names_waiting() LOOP
+    v_units := public.units_of_name(v_name.name_key);
+    SELECT coalesce(jsonb_object_agg(u, public.unit_state(u)), '{}') INTO v_before
+      FROM unnest(v_units) AS u;
+    name_key := v_name.name_key;
+    author := v_name.author;
+    letter := v_name.letter;
+    units := cardinality(v_units);
+    FOREACH v_choice IN ARRAY ARRAY[true, false] LOOP
+      BEGIN
+        PERFORM public.decide_author_name(v_name.name_key, v_choice);
+        SELECT count(*)::int INTO v_changed FROM unnest(v_units) AS u
+         WHERE public.unit_state(u) IS DISTINCT FROM v_before->>(u::text);
+        RAISE EXCEPTION USING ERRCODE = 'GAB01';
+      EXCEPTION
+        WHEN SQLSTATE 'GAB01' THEN NULL;
+        -- The door refuses while the rating of the name runs: the count of that name is NULL.
+        WHEN invalid_parameter_value THEN v_changed := NULL;
+      END;
+      IF v_choice THEN change_if_confirmed := v_changed; ELSE change_if_refused := v_changed; END IF;
+    END LOOP;
+    RETURN NEXT;
+  END LOOP;
 END $$;
 
 -- ========================================================================= INDEPENDENCE ==
