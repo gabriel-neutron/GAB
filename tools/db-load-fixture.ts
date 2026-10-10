@@ -46,6 +46,7 @@ const TEXT_SET = 'fixture@1';
 const ORIGINATOR_NAME = 'Fixture agency';
 const RECORD_CALL = "SELECT record_model_call('fixture', 'v0', 'none', 'none', $1, 0, 'ok') AS id";
 const PROMOTE = 'SELECT promote_unit($1, $2) AS id';
+const MERGE = 'SELECT target_id AS id FROM merge_entities($1, $2::uuid, $3::uuid)';
 
 interface Act {
   readonly op: string;
@@ -188,6 +189,29 @@ const loadEntities = async (client: Client): Promise<Translation> => {
     }
   }
   return ids;
+};
+
+// A second spelling of the first entity, which a merge absorbs at once, so the record holds one
+// merge that stands and the read of the aliases has a row. It carries no value and no relation,
+// so the graph that the surfaces draw stays the fixture.
+const loadMerge = async (client: Client, entities: Translation): Promise<number> => {
+  const [first] = corpus.entities;
+  const survivor = first === undefined ? undefined : entities.get(first.id);
+  if (first === undefined || survivor === undefined) return 0;
+  const absorbed = await promote(
+    client,
+    await propose(client, {
+      op: 'create_entity',
+      payload: { type: first.type, label: `${first.label} (second spelling)`, sources: ['manual'] },
+      src: ['manual'],
+      targetKind: null,
+      targetId: null,
+      names: [],
+      dissent: false,
+    }),
+  );
+  await call(client, MERGE, [DECIDED_BY, survivor, absorbed]);
+  return 1;
 };
 
 const endpointId = (
@@ -368,6 +392,7 @@ export const loadCommittedFixture = async (): Promise<void> => {
     const documents = await loadDocuments(operator);
     const entities = await loadEntities(operator);
     const relations = await loadRelations(operator, entities);
+    const merges = await loadMerge(operator, entities);
     const candidates = await loadCandidates(machine, owner, entities, relations);
     // The corpus moved, so the picture is computed here. gabriel_agent alone holds EXECUTE on
     // the layout door, and the machine connection is the one that has it.
@@ -376,6 +401,7 @@ export const loadCommittedFixture = async (): Promise<void> => {
     console.log(`documents  ${documents}`);
     console.log(`entities   ${entities.size}`);
     console.log(`relations  ${relations.size}`);
+    console.log(`merges     ${merges}`);
     console.log(`candidates ${candidates}`);
     console.log(`placed     ${placed}`);
   } finally {

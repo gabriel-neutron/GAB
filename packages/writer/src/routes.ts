@@ -1,4 +1,4 @@
-import { DECISION_OPS, WRITE_OPS } from '@gab/proposal/request';
+import { DECISION_OPS, MERGE_OPS, WRITE_OPS } from '@gab/proposal/request';
 import { LARGEST_UPLOAD_BODY } from '@gab/proposal/upload-limit';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -10,6 +10,7 @@ import { documentJobs, queueExtraction } from './extraction.ts';
 import { promoteGroup } from './group-action.ts';
 import { readDocumentImage, type ObjectReader } from './image.ts';
 import { readLeads, startLead } from './lead.ts';
+import { merge } from './merge.ts';
 import { readReviewDecided } from './review-decided.ts';
 import { readReviewGroup, readReviewGroups } from './review-groups.ts';
 import { readReviewUnits } from './review-units.ts';
@@ -121,6 +122,13 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
   for (const op of DECISION_OPS)
     app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
       const act = await decide(pool, op, await context.req.text());
+      return context.json(act.reply, STATUS[act.outcome]);
+    });
+
+  // A merge and its undo are judgements of the operator on identity. Each one writes its act.
+  for (const op of MERGE_OPS)
+    app.post(doorOf(op), capped(LARGEST_BODY_BYTES), async (context) => {
+      const act = await merge(pool, op, await context.req.text());
       return context.json(act.reply, STATUS[act.outcome]);
     });
 

@@ -86,7 +86,8 @@ const BOUGHT = 'doc_release_bought';
 const TWO = 'doc_release_two';
 
 const TEXT: Record<string, string> = {
-  [SDN]: 'The vessel TEST TANKER, IMO 9123456, is designated. TEST PERSON is designated.',
+  [SDN]:
+    'The vessel TEST TANKER, IMO 9123456, is designated. TEST PERSON is designated. TEST OLD STAR has the call sign 5LAB2.',
   [TWO]: 'TEST SECOND TANKER, former name OLD STAR, IMO 9999999, is listed.',
   [GFW]: 'TEST TANKER sails under the flag of Panama.',
   [SHIPS]: 'TEST TANKER makes 12 knots. TEST OWNER LTD owns TEST TANKER. It holds 51 percent.',
@@ -103,6 +104,8 @@ const OTHER_PERSON = '00000000-0000-4000-8000-00000000e006';
 const SECOND = '00000000-0000-4000-8000-00000000e007';
 const LISTED_BY_BOUGHT = '00000000-0000-4000-8000-00000000e008';
 const LISTED_BY_PERSON = '00000000-0000-4000-8000-00000000e009';
+const ABSORBED = '00000000-0000-4000-8000-00000000e00a';
+const UNDONE = '00000000-0000-4000-8000-00000000e00b';
 
 const documents = async (ask: Ask) => {
   await ask(
@@ -356,6 +359,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'claims.csv',
     'entities.csv',
     'manifest.json',
+    'merges.csv',
     'relations.csv',
   ]);
 
@@ -396,6 +400,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'entities.csv',
     'relations.csv',
     'claims.csv',
+    'merges.csv',
   ]);
   for (const file of manifest.files) {
     const bytes = await readFile(join(folder, file.path));
@@ -580,6 +585,102 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(claims.some((row) => row['claim_id'] === made.ids.otherWorks.id)).toBe(false);
 });
 
+const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]) => {
+  const { rows } = await db.query(text, [...values]);
+  const id = z.array(z.object({ proposal_id: z.uuid() })).parse(rows)[0]?.proposal_id;
+  if (id === undefined) throw new Error('the door wrote no act');
+  return id;
+};
+
+test('a release writes the log of the merges, and a moved value keeps the label of its act', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const made = await inTransaction(async (held) => {
+    await record(held);
+    // A rule set the call sign of the absorbed vessel, and the merge moves it to the survivor.
+    const absorbedAct = await entity(held, ABSORBED, 'vessel', 'TEST OLD STAR', [TWO]);
+    const callSignAct = await decidedAct(
+      held,
+      'update_attrs',
+      { attrs: { call_sign: value('5LAB2', [SDN]) } },
+      { kind: 'entity', id: ABSORBED },
+      'rule strong_sources v1 (fact digits: 1, letters: B)',
+      '2026-10-09',
+      [SDN],
+    );
+    await cite(held.ask, callSignAct, SDN, 'call sign 5LAB2');
+    await held.ask(`UPDATE public.entities SET attrs = $2::jsonb WHERE id = $1`, [
+      ABSORBED,
+      JSON.stringify({ call_sign: value('5LAB2', [SDN]) }),
+    ]);
+    await entity(held, UNDONE, 'vessel', 'TEST UNDONE TANKER', [TWO]);
+    const app = held.as('gabriel_app');
+    const MERGE = `SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`;
+    const merged = await mergeDoor(app, MERGE, [SECOND, ABSORBED]);
+    const undoneMerge = await mergeDoor(app, MERGE, [SECOND, UNDONE]);
+    const undo = await mergeDoor(app, `SELECT * FROM public.undo_merge('a test', $1::uuid)`, [
+      UNDONE,
+    ]);
+    // A merge of two persons is not in the log of a release.
+    await mergeDoor(app, MERGE, [PERSON, OTHER_PERSON]);
+    await writeRelease(app, MANIFEST, root);
+    return {
+      absorbedAct,
+      callSignAct,
+      merged,
+      undoneMerge,
+      undo,
+      read: await readReleaseRecord(app),
+    };
+  });
+  const folder = join(root, 'gab-release-2026-11-08');
+  const merges = tableOf(await readFile(join(folder, 'merges.csv'), 'utf8'));
+  const today = new Date().toISOString().slice(0, 10);
+  const label = `Validated manually by the operator, on ${today}`;
+  expect(merges.filter((row) => [SECOND, PERSON].includes(row['survivor_id'] ?? ''))).toStrictEqual(
+    [
+      {
+        act_id: made.merged,
+        action: 'merge',
+        day: today,
+        absorbed_id: ABSORBED,
+        survivor_id: SECOND,
+        resolves_to: SECOND,
+        origin_label: label,
+      },
+      {
+        act_id: made.undoneMerge,
+        action: 'merge',
+        day: today,
+        absorbed_id: UNDONE,
+        survivor_id: SECOND,
+        resolves_to: '',
+        origin_label: label,
+      },
+      {
+        act_id: made.undo,
+        action: 'undo',
+        day: today,
+        absorbed_id: UNDONE,
+        survivor_id: SECOND,
+        resolves_to: '',
+        origin_label: label,
+      },
+    ].sort((one, two) => one.act_id.localeCompare(two.act_id)),
+  );
+
+  // The value that the merge moved keeps the label, the act and the passage of the rule.
+  const claims = tableOf(await readFile(join(folder, 'claims.csv'), 'utf8'));
+  expect(claims.filter((row) => row['claim_id'] === `${SECOND}/call_sign`)).toMatchObject([
+    { value: '5LAB2', origin_label: RULE, document_id: SDN, excerpt: 'call sign 5LAB2' },
+  ]);
+  expect(made.read.claims.find((one) => one.claim_id === `${SECOND}/call_sign`)?.act_id).toBe(
+    made.callSignAct,
+  );
+  const entities = tableOf(await readFile(join(folder, 'entities.csv'), 'utf8'));
+  expect(entities.map((row) => row['id'])).not.toContain(ABSORBED);
+  expect(entities.map((row) => row['id'])).toContain(UNDONE);
+});
+
 test('the command refuses a release of a date that the folder holds already', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
   await mkdir(join(root, 'gab-release-2026-11-08'));
@@ -613,6 +714,7 @@ test.each([
   'release_claims()',
   'release_documents()',
   'release_disclaimer()',
+  'release_merges()',
 ])('the public read role cannot execute %s', async (call) => {
   await inTransaction(async ({ ask }) => {
     await ask('SET LOCAL ROLE gabriel_read');

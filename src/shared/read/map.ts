@@ -79,6 +79,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   update_relation: 'attrs',
   delete_relation: 'delete',
   merge_entities: 'merge',
+  undo_merge: 'merge',
   map_document: 'mapping',
 };
 
@@ -193,6 +194,7 @@ function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
     case 'create_entity':
     case 'create_relation':
     case 'merge_entities':
+    case 'undo_merge':
     case 'map_document':
       return null;
   }

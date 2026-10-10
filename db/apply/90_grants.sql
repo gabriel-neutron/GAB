@@ -109,6 +109,11 @@ REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entities(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION undo_merge(text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entity(uuid,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION restore_entity(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION value_act(uuid,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
@@ -173,6 +178,7 @@ REVOKE ALL ON FUNCTION release_relations()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_merges()         FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
@@ -221,6 +227,10 @@ GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
+-- A merge and its undo are judgements of the operator on identity (M12). A machine role holds
+-- neither door.
+GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION undo_merge(text,uuid) TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
@@ -309,7 +319,8 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 -- whole through the views already, so the grant shows them nothing new. The public read role holds
 -- none: a release is a set of files, and no public reader calls the database for it.
 GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
-  release_documents(), release_disclaimer() TO gabriel_app, gabriel_agent, gabriel_research;
+  release_documents(), release_disclaimer(), release_merges()
+  TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
 -- check call the function of the rules inside the database, so it holds no grant. The operator
@@ -365,17 +376,18 @@ GRANT EXECUTE ON FUNCTION record_research_check(uuid,text,text,text,text,text) T
 GRANT USAGE   ON SCHEMA api TO gabriel_read;
 REVOKE ALL    ON ALL TABLES IN SCHEMA api FROM gabriel_read;
 -- api.dataset holds the disclaimer of the dataset, which the public data carries (PU1).
-GRANT SELECT  ON api.dataset, api.document, api.document_provider, api.entity, api.entity_type,
-  api.full_map, api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
+GRANT SELECT  ON api.dataset, api.document, api.document_provider, api.entity, api.entity_alias,
+  api.entity_type, api.full_map, api.layout, api.proposal, api.relation, api.relation_type
+  TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
--- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH SEVEN VIEWS ONLY. A tool asks
--- for an entity, a relation, a proposal, a document, a job or a word of the two vocabularies, and
--- for the neighbourhood of one entity. The list is written by name and never as ALL TABLES. A
--- view added later opens to nobody by default.
+-- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH EIGHT VIEWS ONLY. A tool asks
+-- for an entity, the survivor of a merged entity, a relation, a proposal, a document, a job or a
+-- word of the two vocabularies, and for the neighbourhood of one entity. The list is written by
+-- name and never as ALL TABLES. A view added later opens to nobody by default.
 GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
-GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job, api.entity_type,
-  api.relation_type TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT SELECT ON api.entity, api.entity_alias, api.relation, api.proposal, api.document, api.job,
+  api.entity_type, api.relation_type TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
   TO gabriel_app, gabriel_agent, gabriel_research;
 
