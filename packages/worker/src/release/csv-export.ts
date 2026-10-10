@@ -49,6 +49,16 @@ const CLAIM_HEADER = [
   'transcribed',
 ];
 
+const MERGE_HEADER = [
+  'act_id',
+  'action',
+  'day',
+  'absorbed_id',
+  'survivor_id',
+  'resolves_to',
+  'origin_label',
+];
+
 const valueText = (value: unknown): string =>
   value === null || value === undefined
     ? ''
@@ -56,9 +66,10 @@ const valueText = (value: unknown): string =>
       ? value
       : JSON.stringify(value);
 
-/** The three CSV files of a release. Each file starts with the preamble, and each row carries
- * its label and its licence. The claims file has one row for each claim and each cited passage
- * of a public document, and one row for a public document with no cited passage. */
+/** The four CSV files of a release. Each file starts with the preamble, and each row carries
+ * its label, and each row of the data its licence. The claims file has one row for each claim and
+ * each cited passage of a public document, and one row for a public document with no cited
+ * passage. The log of the merges gives the entity that each absorbed identifier resolves to. */
 // A row that names what the release does not hold is a fault of the read, and a file with an
 // empty field in its place would hide it.
 const held = <T>(found: T | undefined, what: string): T => {
@@ -138,6 +149,16 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     ];
   };
 
+  const mergeRows = record.merges.map((one) => [
+    one.act_id,
+    one.action,
+    one.day,
+    one.absorbed_id,
+    one.survivor_id,
+    one.resolves_to ?? '',
+    one.origin_label,
+  ]);
+
   const claimRows = (claim: ReleaseClaim): string[][] => {
     const head = [
       claim.claim_id,
@@ -166,5 +187,6 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     { path: 'entities.csv', text: csvFile(preamble, ENTITY_HEADER, entities) },
     { path: 'relations.csv', text: csvFile(preamble, RELATION_HEADER, relationRows) },
     { path: 'claims.csv', text: csvFile(preamble, CLAIM_HEADER, record.claims.flatMap(claimRows)) },
+    { path: 'merges.csv', text: csvFile(preamble, MERGE_HEADER, mergeRows) },
   ];
 };

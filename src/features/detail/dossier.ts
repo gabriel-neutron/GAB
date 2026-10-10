@@ -131,6 +131,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   update_relation: 'Changes a relation',
   delete_relation: 'Deletes a relation',
   merge_entities: 'Merges entities',
+  undo_merge: 'Undoes a merge',
   map_document: 'Maps the columns of a table',
 };
 
@@ -343,6 +344,7 @@ export function readDossier(
       case 'delete_relation':
         return namesATouchingRelation(proposal);
       case 'merge_entities':
+      case 'undo_merge':
         return (
           payload.kind === 'merge' &&
           (payload.keep_id === entityId || payload.merge_ids.includes(entityId))
