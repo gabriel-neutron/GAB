@@ -479,6 +479,9 @@ BEGIN
      'of 64 hexadecimal characters, a modality of enacts, asserts, attributes, alleges or '
      'denies, its rows as an object and its relations as a list, and no other key'),
     ('proposals_src_shape', 'documents', 'the act cites at least one document'),
+    ('proposals_merge_shape', 'absorbedId',
+     'a merge or its undo names one entity beside its target, and the two are not the same '
+     'entity'),
     ('proposals_machine_not_reserved', 'documents',
      'a machine cannot cite the reserved documents manual and inherited'),
     ('proposals_src_within', 'documents',
@@ -604,6 +607,8 @@ DECLARE
   v_code     text;
   v_said     text;
   v_valid    boolean;
+  v_absorbed uuid;
+  v_survivor uuid;
   v_group    jsonb := '{}'::jsonb;
   v_joined   text[];
   v_key      text;
@@ -666,6 +671,18 @@ BEGIN
       v_names   := array_replace(v_names, v_from::uuid, v_to::uuid);
       IF v_target = v_from::uuid THEN v_target := v_to::uuid; END IF;
     END LOOP;
+
+    -- An entity that a merge absorbed is no longer in the graph: the act names its survivor.
+    SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
+      FROM public.entity_alias a
+     WHERE a.absorbed_id = v_target OR a.absorbed_id = ANY (v_names)
+        OR a.absorbed_id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+     LIMIT 1;
+    IF FOUND THEN
+      RAISE EXCEPTION 'item %: a merge absorbed the entity % into the entity %, so the act names '
+                      'the entity %', v_no, v_absorbed, v_survivor, v_survivor
+        USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'entity_merged';
+    END IF;
 
     IF btrim(coalesce(v_item->>'originator', ''), E' \t\n\r\f\v') = '' THEN
       RAISE EXCEPTION 'item %: a machine act names the party that first stated it', v_no
@@ -967,6 +984,369 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE ACT THAT SET A VALUE OF AN ENTITY: the last accepted act that named the key on the entity,
+-- or else the act that made the entity. A merge names each value that it moved to the survivor,
+-- with the act that set it on the absorbed entity, so a moved value keeps its act. The label of
+-- the views reads the same rule. No role holds this step.
+CREATE OR REPLACE FUNCTION value_act(p_entity uuid, p_key text) RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(
+    (SELECT CASE WHEN u.op = 'update_attrs' THEN u.id
+                 ELSE (u.prior_value->'acts'->>p_key)::uuid END
+       FROM public.proposals u
+      WHERE u.status = 'accepted' AND u.target_kind = 'entity' AND u.target_id = p_entity
+        AND ((u.op = 'update_attrs' AND u.payload->'attrs' ? p_key)
+             OR (u.op = 'merge_entities' AND u.prior_value->'acts' ? p_key))
+      ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+    (SELECT e.promoted_from FROM public.entities e WHERE e.id = p_entity))
+$$;
+
+-- THE MERGE (M12). The survivor takes each relation and each value of the absorbed entity, and
+-- the absorbed row leaves the graph. The answer is the full copy that an undo restores: the
+-- absorbed row and its position, each relation that named it, the relations and the values of the
+-- survivor that the merge changed (before and after), the act of each value that it moved, and
+-- the aliases that it moved to the survivor. No role holds this step: it runs inside the
+-- promotion.
+--
+-- A RELATION THAT WOULD STAND TWICE LEAVES THE GRAPH, and the copy keeps it: a relation between
+-- the two entities, and a relation that the survivor holds already with the same type, the same
+-- other end and the same last day. That twin of the survivor takes its documents and the earlier
+-- first day. A value that the survivor holds already stays as the survivor holds it. When the two
+-- values are equal, the value keeps the documents of both.
+DROP FUNCTION IF EXISTS merge_entity(uuid, uuid, uuid);
+CREATE OR REPLACE FUNCTION merge_entity(p_act uuid, p_survivor uuid, p_absorbed uuid,
+                                        p_keep_name boolean)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_keep     public.entities%ROWTYPE;
+  v_gone     public.entities%ROWTYPE;
+  v_twin     public.relations%ROWTYPE;
+  v_rel      record;
+  v_rels     jsonb;
+  v_dropped  uuid[];
+  v_moved    uuid[];
+  v_aliases  uuid[];
+  v_kept     jsonb := '{}'::jsonb;
+  v_pairs    jsonb;
+  v_attrs    jsonb;
+  v_changed  jsonb := '{}'::jsonb;
+  v_acts     jsonb := '{}'::jsonb;
+  v_key      text;
+  v_val      jsonb;
+  v_joined   jsonb;
+  v_list     jsonb;
+BEGIN
+  -- The order of the identifiers, so two merges of one pair wait for each other and never lock
+  -- each other out.
+  PERFORM 1 FROM public.entities WHERE id IN (p_survivor, p_absorbed) ORDER BY id FOR UPDATE;
+  SELECT * INTO v_keep FROM public.entities WHERE id = p_survivor;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the survivor % does not exist, and nothing was merged', p_survivor
+      USING CONSTRAINT = 'target_exists', HINT = 'survivorId';
+  END IF;
+  SELECT * INTO v_gone FROM public.entities WHERE id = p_absorbed;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the absorbed entity % does not exist, and nothing was merged', p_absorbed
+      USING CONSTRAINT = 'target_exists', HINT = 'absorbedId';
+  END IF;
+  IF v_keep.type <> v_gone.type THEN
+    RAISE EXCEPTION 'the two entities have two types, % and %: give them one type first, and '
+                    'then merge them', v_keep.type, v_gone.type
+      USING CONSTRAINT = 'merge_one_type', HINT = 'absorbedId';
+  END IF;
+
+  PERFORM 1 FROM public.relations r
+   WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+      OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed)
+   ORDER BY r.id FOR UPDATE;
+  SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.id), '[]'::jsonb) INTO v_rels
+    FROM public.relations r
+   WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+      OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed);
+
+  -- Each relation that leaves the graph, with the twin of the survivor that it would double. A
+  -- relation between the two entities has no twin.
+  SELECT coalesce(jsonb_agg(jsonb_build_object('dropped', c.id, 'twin', c.twin) ORDER BY c.id),
+                  '[]'::jsonb)
+    INTO v_pairs
+    FROM (SELECT r.id, m.self,
+                 CASE WHEN NOT m.self
+                      THEN (SELECT o.id FROM public.relations o
+                             WHERE o.id <> r.id AND o.type = r.type
+                               AND o.src_kind = r.src_kind AND o.src_id = m.src
+                               AND o.dst_kind = r.dst_kind AND o.dst_id = m.dst
+                               AND o.valid_to IS NOT DISTINCT FROM r.valid_to
+                               AND NOT ((o.src_kind = 'entity' AND o.src_id = p_absorbed)
+                                        OR (o.dst_kind = 'entity' AND o.dst_id = p_absorbed))
+                             ORDER BY o.id LIMIT 1) END AS twin
+            FROM public.relations r
+           CROSS JOIN LATERAL (
+             SELECT x.src, x.dst,
+                    (r.src_kind = 'entity' AND r.dst_kind = 'entity'
+                     AND x.src = p_survivor AND x.dst = p_survivor) AS self
+               FROM (SELECT CASE WHEN r.src_kind = 'entity' AND r.src_id = p_absorbed
+                                 THEN p_survivor ELSE r.src_id END AS src,
+                            CASE WHEN r.dst_kind = 'entity' AND r.dst_id = p_absorbed
+                                 THEN p_survivor ELSE r.dst_id END AS dst) AS x) AS m
+           WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+              OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed)) AS c
+   WHERE c.self OR c.twin IS NOT NULL;
+  SELECT coalesce(array_agg((x->>'dropped')::uuid ORDER BY x->>'dropped'), '{}'::uuid[])
+    INTO v_dropped FROM jsonb_array_elements(v_pairs) AS x;
+
+  -- An act that waits and names the absorbed entity, or a relation that the merge removes, could
+  -- never apply after the merge.
+  IF EXISTS (SELECT 1 FROM public.proposals o
+              WHERE o.status = 'pending' AND o.id <> p_act
+                AND ((o.target_kind = 'entity' AND o.target_id = p_absorbed)
+                     OR (o.target_kind = 'relation' AND o.target_id = ANY (v_dropped))
+                     OR p_absorbed = ANY (o.names)
+                     OR o.payload->>'src_id' = p_absorbed::text
+                     OR o.payload->>'dst_id' = p_absorbed::text)) THEN
+    RAISE EXCEPTION 'an act that waits names the absorbed entity, or a relation that the merge '
+                    'removes: decide it first, and then merge the two entities'
+      USING CONSTRAINT = 'merge_absorbed_free', HINT = 'absorbedId';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.relations u
+              WHERE (u.src_kind = 'relation' AND u.src_id = ANY (v_dropped))
+                 OR (u.dst_kind = 'relation' AND u.dst_id = ANY (v_dropped))) THEN
+    RAISE EXCEPTION 'the merge removes a relation that stands twice, and that relation is an end '
+                    'of another relation: delete that other relation first'
+      USING CONSTRAINT = 'endpoint_free', HINT = 'absorbedId';
+  END IF;
+
+  -- The twin of the survivor takes the documents of the removed relation, and the earlier first
+  -- day.
+  FOR v_rel IN SELECT (x->>'twin')::uuid AS twin, r.sources, r.valid_from
+                 FROM jsonb_array_elements(v_pairs) AS x
+                 JOIN public.relations r ON r.id = (x->>'dropped')::uuid
+                WHERE x->>'twin' IS NOT NULL ORDER BY x->>'twin', x->>'dropped' LOOP
+    SELECT * INTO v_twin FROM public.relations WHERE id = v_rel.twin FOR UPDATE;
+    IF NOT v_kept ? v_twin.id::text THEN
+      v_kept := v_kept || jsonb_build_object(v_twin.id::text, jsonb_build_object('before',
+                  jsonb_build_object('sources', to_jsonb(v_twin.sources),
+                                     'valid_from', v_twin.valid_from)));
+    END IF;
+    UPDATE public.relations o
+       SET sources = o.sources || ARRAY(SELECT d FROM unnest(v_rel.sources) WITH ORDINALITY AS x(d, n)
+                                        WHERE NOT d = ANY (o.sources) ORDER BY n),
+           valid_from = CASE WHEN o.valid_from IS NULL OR v_rel.valid_from IS NULL
+                             THEN coalesce(o.valid_from, v_rel.valid_from)
+                             ELSE least(o.valid_from, v_rel.valid_from) END,
+           updated_at = now()
+     WHERE o.id = v_rel.twin;
+  END LOOP;
+  SELECT coalesce(jsonb_object_agg(k.key, k.value || jsonb_build_object('after',
+           jsonb_build_object('sources', to_jsonb(r.sources), 'valid_from', r.valid_from))),
+         '{}'::jsonb)
+    INTO v_kept
+    FROM jsonb_each(v_kept) AS k(key, value) JOIN public.relations r ON r.id = k.key::uuid;
+
+  DELETE FROM public.relations WHERE id = ANY (v_dropped);
+
+  WITH moved AS (
+    UPDATE public.relations r
+       SET src_id = CASE WHEN r.src_kind = 'entity' AND r.src_id = p_absorbed
+                         THEN p_survivor ELSE r.src_id END,
+           dst_id = CASE WHEN r.dst_kind = 'entity' AND r.dst_id = p_absorbed
+                         THEN p_survivor ELSE r.dst_id END,
+           updated_at = now()
+     WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+        OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed)
+    RETURNING r.id)
+  SELECT coalesce(array_agg(moved.id ORDER BY moved.id), '{}'::uuid[]) INTO v_moved FROM moved;
+
+  v_attrs := v_keep.attrs;
+  FOR v_key, v_val IN SELECT a.key, a.value FROM jsonb_each(v_gone.attrs) AS a LOOP
+    IF NOT v_attrs ? v_key THEN
+      v_changed := v_changed || jsonb_build_object(v_key,
+                     jsonb_build_object('before', NULL, 'after', v_val));
+      v_acts := v_acts || jsonb_build_object(v_key, public.value_act(p_absorbed, v_key));
+      v_attrs := v_attrs || jsonb_build_object(v_key, v_val);
+    ELSIF v_attrs->v_key->'v' = v_val->'v' THEN
+      v_joined := jsonb_build_object('v', v_attrs->v_key->'v', 'src',
+                    (v_attrs->v_key->'src') || coalesce(
+                      (SELECT jsonb_agg(y.doc ORDER BY y.ord)
+                         FROM jsonb_array_elements(v_val->'src') WITH ORDINALITY AS y(doc, ord)
+                        WHERE NOT (v_attrs->v_key->'src') @> jsonb_build_array(y.doc)),
+                      '[]'::jsonb));
+      IF v_joined IS DISTINCT FROM v_attrs->v_key THEN
+        v_changed := v_changed || jsonb_build_object(v_key,
+                       jsonb_build_object('before', v_attrs->v_key, 'after', v_joined));
+        v_attrs := v_attrs || jsonb_build_object(v_key, v_joined);
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- The name of the absorbed entity, kept as a former name of the survivor. The documents of the
+  -- absorbed row hold the name up, and the merge is the act that set the value.
+  IF p_keep_name THEN
+    v_val := v_attrs->'former_names';
+    v_list := CASE WHEN v_val IS NULL THEN '[]'::jsonb
+                   WHEN jsonb_typeof(v_val->'v') = 'array' THEN v_val->'v'
+                   ELSE jsonb_build_array(v_val->'v') END;
+    IF NOT v_list @> jsonb_build_array(v_gone.label) THEN
+      v_list := v_list || jsonb_build_array(v_gone.label);
+    END IF;
+    v_joined := jsonb_build_object('v', v_list, 'src',
+                  coalesce(v_val->'src', '[]'::jsonb) || coalesce(
+                    (SELECT jsonb_agg(to_jsonb(d) ORDER BY n)
+                       FROM unnest(v_gone.sources) WITH ORDINALITY AS x(d, n)
+                      WHERE NOT coalesce(v_val->'src', '[]'::jsonb) @> jsonb_build_array(d)),
+                    '[]'::jsonb));
+    IF v_joined IS DISTINCT FROM v_val THEN
+      v_changed := v_changed || jsonb_build_object('former_names', jsonb_build_object(
+                     'before', CASE WHEN v_changed ? 'former_names'
+                                    THEN v_changed->'former_names'->'before' ELSE v_val END,
+                     'after', v_joined));
+      v_acts := v_acts || jsonb_build_object('former_names', p_act);
+      v_attrs := v_attrs || jsonb_build_object('former_names', v_joined);
+    END IF;
+  END IF;
+
+  IF v_changed <> '{}'::jsonb THEN
+    UPDATE public.entities SET attrs = v_attrs, updated_at = now() WHERE id = p_survivor;
+  END IF;
+
+  -- An entity that the absorbed one absorbed before now resolves to the survivor.
+  WITH moved AS (
+    UPDATE public.entity_alias a SET survivor_id = p_survivor
+     WHERE a.survivor_id = p_absorbed
+    RETURNING a.absorbed_id)
+  SELECT coalesce(array_agg(moved.absorbed_id ORDER BY moved.absorbed_id), '{}'::uuid[])
+    INTO v_aliases FROM moved;
+
+  -- The position is kept as the text of the geometry, which the restore reads back with no loss.
+  -- The place on the graph is kept too, before the delete takes it.
+  v_val := jsonb_build_object(
+    'entity', (to_jsonb(v_gone) - 'geom') || jsonb_build_object('geom', v_gone.geom::text),
+    'layout', (SELECT to_jsonb(l) FROM public.entity_layout l WHERE l.entity_id = p_absorbed),
+    'relations', v_rels,
+    'moved', to_jsonb(v_moved),
+    'dropped', to_jsonb(v_dropped),
+    'kept', v_kept,
+    'survivor_attrs', v_changed,
+    'acts', v_acts,
+    'aliases', to_jsonb(v_aliases));
+
+  DELETE FROM public.entities WHERE id = p_absorbed;
+  INSERT INTO public.entity_alias (absorbed_id, survivor_id, merged_by)
+  VALUES (p_absorbed, p_survivor, p_act);
+  RETURN v_val;
+END $$;
+
+-- THE UNDO OF A MERGE. The absorbed row and its place come back from the copy, as they were.
+-- Each relation that the merge moved goes back to it, and each relation that the merge removed
+-- comes back while its two ends stand. Each relation and each value of the survivor that the
+-- merge changed goes back, while it is still what the merge wrote. A later act stands: a relation
+-- that a later act deleted stays deleted, and a value that a later act changed stays changed.
+-- Only the last merge into a survivor can be undone, because a later merge wrote over what the
+-- earlier one wrote. No role holds this step: it runs inside the promotion.
+CREATE OR REPLACE FUNCTION restore_entity(p_absorbed uuid, p_survivor uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_alias   public.entity_alias%ROWTYPE;
+  v_copy    jsonb;
+  v_target  uuid;
+  v_attrs   jsonb;
+  v_key     text;
+  v_val     jsonb;
+BEGIN
+  -- The survivor is locked first, as the merge locks it, so a merge and an undo of one survivor
+  -- wait for each other and never lock each other out.
+  PERFORM 1 FROM public.entities e
+   WHERE e.id = (SELECT a.survivor_id FROM public.entity_alias a WHERE a.absorbed_id = p_absorbed)
+   FOR UPDATE;
+  SELECT * INTO v_alias FROM public.entity_alias WHERE absorbed_id = p_absorbed FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no merge that stands absorbed the entity %', p_absorbed
+      USING CONSTRAINT = 'merge_stands', HINT = 'absorbedId';
+  END IF;
+  SELECT m.prior_value, m.target_id INTO v_copy, v_target
+    FROM public.proposals m WHERE m.id = v_alias.merged_by;
+  IF v_alias.survivor_id <> v_target THEN
+    RAISE EXCEPTION 'a later merge absorbed the survivor % into %: undo that merge first',
+                    v_target, v_alias.survivor_id
+      USING CONSTRAINT = 'merge_last', HINT = 'absorbedId';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.entity_alias x
+              WHERE x.survivor_id = v_target AND x.merged_at > v_alias.merged_at) THEN
+    RAISE EXCEPTION 'a later merge into the survivor % stands: undo that merge first', v_target
+      USING CONSTRAINT = 'merge_last', HINT = 'absorbedId';
+  END IF;
+  IF p_survivor IS DISTINCT FROM v_target THEN
+    RAISE EXCEPTION 'the undo names the survivor %, and the merge kept the entity %',
+                    p_survivor, v_target
+      USING CONSTRAINT = 'merge_survivor', HINT = 'absorbedId';
+  END IF;
+  SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_target;
+
+  INSERT INTO public.entities
+  SELECT * FROM jsonb_populate_record(NULL::public.entities, v_copy->'entity');
+  IF jsonb_typeof(v_copy->'layout') = 'object' THEN
+    INSERT INTO public.entity_layout
+    SELECT * FROM jsonb_populate_record(NULL::public.entity_layout, v_copy->'layout');
+  END IF;
+
+  UPDATE public.relations r
+     SET src_id = CASE WHEN o.src_kind = 'entity' AND o.src_id = p_absorbed
+                        AND r.src_kind = 'entity' AND r.src_id = v_target
+                       THEN p_absorbed ELSE r.src_id END,
+         dst_id = CASE WHEN o.dst_kind = 'entity' AND o.dst_id = p_absorbed
+                        AND r.dst_kind = 'entity' AND r.dst_id = v_target
+                       THEN p_absorbed ELSE r.dst_id END,
+         -- A relation that no later act changed is as it was, also in its day of change.
+         updated_at = CASE WHEN (r.type, r.valid_from, r.valid_to, r.attrs, r.sources)
+                                IS NOT DISTINCT FROM
+                                (o.type, o.valid_from, o.valid_to, o.attrs, o.sources)
+                           THEN o.updated_at ELSE now() END
+    FROM jsonb_populate_recordset(NULL::public.relations, v_copy->'relations') AS o
+   WHERE r.id = o.id
+     AND o.id IN (SELECT x::uuid FROM jsonb_array_elements_text(v_copy->'moved') AS x);
+
+  UPDATE public.relations r
+     SET sources = ARRAY(SELECT jsonb_array_elements_text(k.value->'before'->'sources'))::doc_id[],
+         valid_from = (k.value->'before'->>'valid_from')::date,
+         updated_at = now()
+    FROM jsonb_each(coalesce(v_copy->'kept', '{}'::jsonb)) AS k(key, value)
+   WHERE r.id = k.key::uuid
+     AND to_jsonb(r.sources) = k.value->'after'->'sources'
+     AND r.valid_from IS NOT DISTINCT FROM (k.value->'after'->>'valid_from')::date;
+
+  INSERT INTO public.relations
+  SELECT o.* FROM jsonb_populate_recordset(NULL::public.relations, v_copy->'relations') AS o
+   WHERE o.id IN (SELECT x::uuid FROM jsonb_array_elements_text(v_copy->'dropped') AS x)
+     AND NOT EXISTS (SELECT 1 FROM public.relations x WHERE x.id = o.id)
+     AND CASE WHEN o.src_kind = 'entity'
+              THEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = o.src_id)
+              ELSE EXISTS (SELECT 1 FROM public.relations x WHERE x.id = o.src_id) END
+     AND CASE WHEN o.dst_kind = 'entity'
+              THEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = o.dst_id)
+              ELSE EXISTS (SELECT 1 FROM public.relations x WHERE x.id = o.dst_id) END;
+
+  FOR v_key, v_val IN SELECT a.key, a.value FROM jsonb_each(v_copy->'survivor_attrs') AS a LOOP
+    IF v_attrs->v_key IS NOT DISTINCT FROM v_val->'after' THEN
+      v_attrs := CASE WHEN jsonb_typeof(v_val->'before') = 'object'
+                      THEN v_attrs || jsonb_build_object(v_key, v_val->'before')
+                      ELSE v_attrs - v_key END;
+    END IF;
+  END LOOP;
+  UPDATE public.entities e SET attrs = v_attrs, updated_at = now()
+   WHERE e.id = v_target AND e.attrs IS DISTINCT FROM v_attrs;
+
+  UPDATE public.entity_alias a SET survivor_id = p_absorbed
+   WHERE a.survivor_id = v_target
+     AND a.absorbed_id IN (SELECT x::uuid FROM jsonb_array_elements_text(v_copy->'aliases') AS x);
+  DELETE FROM public.entity_alias WHERE absorbed_id = p_absorbed;
+
+  RETURN jsonb_build_object('merge', v_alias.merged_by);
+END $$;
+
 -- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the doors below,
 -- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
 -- the operator decided: one unit, or a group action. The act that the operator signs is no
@@ -1157,6 +1537,12 @@ BEGIN
                         v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
           USING CONSTRAINT = 'endpoint_free', HINT = 'targetId';
       END IF;
+      -- M12: an old identifier always resolves, so a survivor stays while its alias stands.
+      IF EXISTS (SELECT 1 FROM public.entity_alias a WHERE a.survivor_id = p.target_id) THEN
+        RAISE EXCEPTION 'the entity absorbed another entity in a merge, and it is not deleted. '
+                        'Undo each of those merges first'
+          USING CONSTRAINT = 'survivor_kept', HINT = 'targetId';
+      END IF;
       DELETE FROM public.entities WHERE id = p.target_id;
     ELSE
       SELECT to_jsonb(r) INTO v_prior FROM public.relations r WHERE id = p.target_id FOR UPDATE;
@@ -1192,12 +1578,25 @@ BEGIN
         USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
     END;
 
+  -- ------------------------------------------------------------------- a merge, an undo --
+  -- M12: identity is a judgement of the operator. A rule, an AI reviewer and a decision on the
+  -- queue give a mode or an origin, so only the merge doors of the operator reach the write.
+  ELSIF p.op IN ('merge_entities','undo_merge') THEN
+    IF p_mode IS NOT NULL OR p_origin IS NOT NULL THEN
+      RAISE EXCEPTION 'only the operator merges two entities or undoes a merge, through the '
+                      'merge doors'
+        USING CONSTRAINT = 'merge_by_operator';
+    END IF;
+    IF p.op = 'merge_entities' THEN
+      v_prior := public.merge_entity(p.id, p.target_id, p.names[1],
+                                     coalesce((p.payload->>'keep_name')::boolean, false));
+    ELSE
+      v_prior := public.restore_entity(p.target_id, p.names[1]);
+    END IF;
+    v_id := p.target_id;
+
   ELSE
-    -- M12 makes a merge reversible through an alias table and a full snapshot. Neither table
-    -- exists, so a merge cannot land, and it must not half-land.
-    RAISE EXCEPTION 'the act % has no write path yet: a merge cannot be undone until the record '
-                    'holds an alias table and a snapshot', p.op
-      USING CONSTRAINT = 'op_has_path';
+    RAISE EXCEPTION 'the act % has no write path', p.op USING CONSTRAINT = 'op_has_path';
   END IF;
 
   UPDATE public.proposals
@@ -1996,6 +2395,46 @@ EXCEPTION WHEN integrity_constraint_violation THEN
   GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_table = TABLE_NAME, v_code = RETURNED_SQLSTATE;
   PERFORM public.raise_rule(v_rule, v_table, v_code);
   RAISE;
+END $$;
+
+-- THE MERGE DOORS OF THE OPERATOR (M12). Each one writes its act and promotes it in one
+-- transaction, as the signed act does, and only the operator role holds them. A merge names the
+-- survivor and the absorbed entity, and an undo names the absorbed entity alone: the door reads
+-- the survivor from the merge that stands. Each act cites the hand-entered document, because the
+-- identity of two entities is a judgement of the operator. A merge can keep the name of the
+-- absorbed entity as a former name of the survivor, and its undo takes that name away again.
+DROP FUNCTION IF EXISTS merge_entities(text, uuid, uuid);
+CREATE OR REPLACE FUNCTION merge_entities(p_decided_by text, p_survivor uuid, p_absorbed uuid,
+                                          p_keep_name boolean DEFAULT false)
+RETURNS TABLE (proposal_id uuid, target_id uuid)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  proposal_id := public.propose_change('merge_entities',
+                   CASE WHEN p_keep_name THEN '{"keep_name": true}'::jsonb ELSE '{}'::jsonb END,
+                   ARRAY['manual'], 'entity', p_survivor, ARRAY[p_absorbed]);
+  target_id := public.apply_proposal(proposal_id, p_decided_by, NULL);
+  RETURN NEXT;
+END $$;
+
+CREATE OR REPLACE FUNCTION undo_merge(p_decided_by text, p_absorbed uuid)
+RETURNS TABLE (proposal_id uuid, target_id uuid)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_survivor uuid;
+BEGIN
+  SELECT m.target_id INTO v_survivor
+    FROM public.entity_alias a JOIN public.proposals m ON m.id = a.merged_by
+   WHERE a.absorbed_id = p_absorbed;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no merge that stands absorbed the entity %', p_absorbed
+      USING CONSTRAINT = 'merge_stands', HINT = 'absorbedId';
+  END IF;
+  proposal_id := public.propose_change('undo_merge', '{}'::jsonb, ARRAY['manual'], 'entity',
+                                       p_absorbed, ARRAY[v_survivor]);
+  target_id := public.apply_proposal(proposal_id, p_decided_by, NULL);
+  RETURN NEXT;
 END $$;
 
 -- THE CLAIM. It is a door and not a table write, because no role holds UPDATE on any table, and
@@ -4746,6 +5185,7 @@ DROP FUNCTION IF EXISTS release_relations();
 DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
+DROP FUNCTION IF EXISTS release_merges();
 
 -- The position is GeoJSON, as the read API gives it.
 CREATE FUNCTION release_entities()
@@ -4806,12 +5246,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     SELECT e.id::text || '/' || a.key AS claim_id, 'entity'::text AS subject_kind,
            e.id AS subject_id, a.key AS attribute, a.value->'v' AS value,
            e.attr_labels->>a.key AS origin_label, a.value->'src' AS src,
-           coalesce((SELECT u.id FROM public.proposals u
-                      WHERE u.status = 'accepted' AND u.op = 'update_attrs'
-                        AND u.target_kind = 'entity' AND u.target_id = e.id
-                        AND u.payload->'attrs' ? a.key
-                      ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
-                    e.promoted_from) AS act
+           public.value_act(e.id, a.key) AS act
       FROM api.entity e
      CROSS JOIN LATERAL jsonb_each(e.attrs) AS a(key, value)
      WHERE e.id IN (SELECT x.id FROM ent x)
@@ -4880,6 +5315,33 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
+$$;
+
+-- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each
+-- absorbed identifier resolves to today. An undone merge resolves to nothing. A merge or an undo
+-- that names a person is not in the release (PU1), and a row names only entities of the release.
+CREATE FUNCTION release_merges()
+RETURNS TABLE (act_id uuid, action text, decided_at timestamptz, absorbed_id uuid,
+               survivor_id uuid, resolves_to uuid, origin_label text)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
+  SELECT p.id,
+         CASE p.op WHEN 'merge_entities' THEN 'merge' ELSE 'undo' END,
+         p.decided_at,
+         CASE p.op WHEN 'merge_entities' THEN p.names[1] ELSE p.target_id END,
+         CASE p.op WHEN 'merge_entities' THEN p.target_id ELSE p.names[1] END,
+         (SELECT a.survivor_id FROM public.entity_alias a WHERE a.merged_by = p.id),
+         p.origin_label
+    FROM api.proposal p
+   WHERE p.status = 'accepted' AND p.op IN ('merge_entities', 'undo_merge')
+     AND NOT EXISTS (SELECT 1 FROM public.person_ref r WHERE r.id IN (p.target_id, p.names[1]))
+     -- A row names only entities of the release: the survivor of today of a merge that stands,
+     -- or else both ends.
+     AND CASE WHEN EXISTS (SELECT 1 FROM public.entity_alias a WHERE a.merged_by = p.id)
+              THEN (SELECT a.survivor_id FROM public.entity_alias a WHERE a.merged_by = p.id)
+                   IN (SELECT e.id FROM public.release_entities() e)
+              ELSE p.target_id IN (SELECT e.id FROM public.release_entities() e)
+                   AND p.names[1] IN (SELECT e.id FROM public.release_entities() e) END
 $$;
 
 -- The disclaimer of the dataset, which each file of a release holds (PU1).

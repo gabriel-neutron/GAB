@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
 
-/** The six acts the operator may sign. A merge is absent: no promotion path applies one. */
+/** The six acts the operator may sign. A merge and its undo have doors of their own. */
 export const WRITE_OPS = [
   'create_entity',
   'create_relation',
@@ -17,6 +17,23 @@ export const WRITE_OPS = [
 export const DECISION_OPS = ['promote_unit', 'reject_unit', 'reject_relation'] as const;
 
 export type DecisionOp = (typeof DECISION_OPS)[number];
+
+/** The two merge doors of the operator. Each one writes its act and promotes it at once. */
+export const MERGE_OPS = ['merge_entities', 'undo_merge'] as const;
+
+export type MergeOp = (typeof MERGE_OPS)[number];
+
+/** The body of each merge door. A merge names the entity that stays and the entity that it
+ * absorbs, and `keepName` adds the name of the absorbed entity to the former names of the
+ * survivor. An undo names the absorbed entity alone, and the record finds its merge. */
+export const mergeRequest = {
+  merge_entities: z.strictObject({
+    survivorId: z.uuid(),
+    absorbedId: z.uuid(),
+    keepName: z.boolean().optional(),
+  }),
+  undo_merge: z.strictObject({ absorbedId: z.uuid() }),
+} as const satisfies Readonly<Record<MergeOp, z.ZodType>>;
 
 // The reason and the note are a shape here. The database holds the list of reasons and the rule
 // on the note, and it words its own refusal.

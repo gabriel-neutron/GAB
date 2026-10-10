@@ -314,6 +314,7 @@ const READ_VIEWS = [
   'api.document SELECT',
   'api.document_provider SELECT',
   'api.entity SELECT',
+  'api.entity_alias SELECT',
   'api.entity_type SELECT',
   'api.full_map SELECT',
   'api.layout SELECT',
@@ -322,7 +323,7 @@ const READ_VIEWS = [
   'api.relation_type SELECT',
 ];
 
-test('gabriel_read holds SELECT on the ten public api views and nothing else', async () => {
+test('gabriel_read holds SELECT on the eleven public api views and nothing else', async () => {
   expect(await foundBy(READ_HOLDS)).toStrictEqual(READ_VIEWS);
 });
 
@@ -354,6 +355,7 @@ const MACHINE_HOLDS = `
 const MACHINE_VIEWS = [
   'document',
   'entity',
+  'entity_alias',
   'entity_type',
   'job',
   'proposal',
@@ -361,9 +363,9 @@ const MACHINE_VIEWS = [
   'relation_type',
 ];
 
-// A departure: the seven views are named, and ALL TABLES is not used, so a view added later opens
+// A departure: the eight views are named, and ALL TABLES is not used, so a view added later opens
 // to no tool until a person writes it in.
-test('the three tool roles hold SELECT on seven api views and on nothing else of api', async () => {
+test('the three tool roles hold SELECT on eight api views and on nothing else of api', async () => {
   const expected = ['gabriel_agent', 'gabriel_app', 'gabriel_research'].flatMap((role) =>
     MACHINE_VIEWS.map((view) => `${role} api.${view} SELECT`),
   );

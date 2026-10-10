@@ -3,7 +3,7 @@ import { expect, fn, userEvent } from 'storybook/test';
 
 import { decidedRows } from './decided';
 import { DecidedPage } from './decided-page';
-import { AI_DECIDED, DECIDED_SAMPLE, RULE_DECIDED } from './decided-sample';
+import { AI_DECIDED, DECIDED_SAMPLE, MERGE_DECIDED, RULE_DECIDED } from './decided-sample';
 
 const ROWS = decidedRows(DECIDED_SAMPLE);
 
@@ -94,6 +94,27 @@ export const AnAIReviewerDecisionSaysThatAHumanDidNotDecide: Story = {
         'of this name.',
     );
     await expect(row).not.toHaveTextContent(/operator|validated manually/u);
+  },
+};
+
+/** A merge and its undo each stand on one row, named as what they are. */
+export const AMergeAndItsUndoAreNamed: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: decidedRows(MERGE_DECIDED),
+      unread: 0,
+      why: null,
+      more: 'none',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const [undo, merge] = canvasElement.querySelectorAll('[data-decided]');
+    await expect(undo).toHaveTextContent('Undo of a merge');
+    await expect(undo).toHaveTextContent('OLD STAR');
+    await expect(merge).toHaveTextContent('Merge');
+    await expect(merge).toHaveTextContent('NORTHERN STAR');
+    await expect(merge?.querySelector('[data-verdict="promoted"]')).toBeInTheDocument();
   },
 };
 

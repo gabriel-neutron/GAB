@@ -1554,3 +1554,44 @@ test.for([
     }
   },
 );
+
+test('the operator merges two entities through the writer, and undoes the merge', async () => {
+  const survivor = await signedEntity('Writer test merge survivor');
+  const absorbed = await signedEntity('Writer test merge absorbed');
+  let undone = false;
+  try {
+    const [status, reply] = await post('merge-entities', {
+      survivorId: survivor,
+      absorbedId: absorbed,
+    });
+    expect([status, reply.targetId, reply.state]).toStrictEqual([200, survivor, 'signed']);
+    expect(await liveRows(absorbed)).toBe(0);
+
+    // The survivor of a merge that stands is not deleted, so the old identifier still resolves.
+    const [refusedStatus, refused] = await post('delete-entity', { targetId: survivor });
+    expect([refusedStatus, refused.refusal]).toStrictEqual([
+      422,
+      'targetId: the entity absorbed another entity in a merge, and it is not deleted. Undo each' +
+        ' of those merges first',
+    ]);
+
+    const [undoStatus, undo] = await post('undo-merge', { absorbedId: absorbed });
+    expect([undoStatus, undo.targetId, undo.state]).toStrictEqual([200, absorbed, 'signed']);
+    undone = true;
+    expect(await liveRows(absorbed)).toBe(1);
+  } finally {
+    if (!undone) await post('undo-merge', { absorbedId: absorbed });
+    await removed(survivor, absorbed);
+  }
+});
+
+test('a merge door refuses a body that names no absorbed entity before the record is reached', async () => {
+  expect(await post('merge-entities', { survivorId: randomUUID() })).toStrictEqual([
+    422,
+    { refusal: 'the body names no survivor and no absorbed entity' },
+  ]);
+  expect(await post('undo-merge', {})).toStrictEqual([
+    422,
+    { refusal: 'the body names no absorbed entity' },
+  ]);
+});

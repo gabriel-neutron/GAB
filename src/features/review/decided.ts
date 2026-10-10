@@ -69,6 +69,7 @@ const ACT_WORDS: Readonly<Record<string, string>> = {
   delete_entity: 'Deletion',
   delete_relation: 'Deletion of a relation',
   merge_entities: 'Merge',
+  undo_merge: 'Undo of a merge',
   map_document: 'Mapping of a table',
 };
 

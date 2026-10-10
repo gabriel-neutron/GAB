@@ -50,9 +50,9 @@ flowchart LR
 
 | Actor | Can | Cannot |
 |---|---|---|
-| Operator | Upload, edit, promote, reject, start a lead. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Write a table directly. |
-| Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
+| Operator | Upload, edit, promote, reject, start a lead. Merge two entities, and undo a merge. | — |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Merge. Write a table directly. |
+| Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Merge. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database holds these limits, not the application.
@@ -99,6 +99,11 @@ The database writes the words, so the read API, the screen and an export give th
 public read gets the name and the version of a rule, and never the inputs of the rule (S1). The read API also gives the disclaimer of
 the dataset beside the data, and an export file copies it.
 
+A merge keeps the identifier of the entity that it absorbs (M12). The read API gives each
+absorbed identifier with the entity that holds it today, so an old link still resolves. The
+ledger holds each merge and each undo as an act, with the full copy of what the merge changed.
+ADR 0014 gives the rules of a merge and of its undo.
+
 ## The release path
 
 A release is how the data leaves Gabriel. The operator runs one worker command on the PC, with a
@@ -119,8 +124,9 @@ the record  →  the release functions of the database (the public rules)
 - **The files.** Each file holds the version, the date and the disclaimer of the dataset, with the
   two contact addresses of the manifest. Each row carries its label in the fixed words of PU1 and
   its licence. A claim is a value of an element or a relation, and each claim names its public
-  documents, with the page and the passage that the reader cited. The manifest of the files gives
-  the size and the checksum of each file.
+  documents, with the page and the passage that the reader cited. The log of the merges gives
+  each merge and each undo, and the entity that each absorbed identifier resolves to. The manifest
+  of the files gives the size and the checksum of each file.
 - **The licence.** The licence of a row comes from the providers of its public documents. A row
   takes the most permissive one: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the
   provider licence, not redistributed". A document with no provider gives the last one. The tools
