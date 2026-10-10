@@ -19,7 +19,8 @@ const FILE_MANIFEST = 'manifest.json';
 /** Each file of one release, the file manifest last: the exports, the changelog since
  * `previous` (or a first release with none), and the file manifest with the size and the checksum
  * of each other file. The static site reads the contact addresses and the base of the
- * identifiers from the file manifest. */
+ * identifiers from the file manifest. The file manifest also gives the number of merge candidates
+ * across a Latin and a Cyrillic spelling that wait, that the operator confirmed and refused. */
 export const releaseFiles = (
   record: ReleaseRecord,
   manifest: ReleaseManifest,
@@ -57,6 +58,7 @@ export const releaseFiles = (
     contacts: manifest.contacts,
     iriBase: manifest.iriBase,
     changelog: changelog.summary,
+    nameCandidates: record.nameCandidates,
     files: listed,
   };
   return [...files, { path: FILE_MANIFEST, text: `${JSON.stringify(fileManifest, null, 2)}\n` }];

@@ -110,6 +110,14 @@ duplicate that is not clean, and the fault names the other vessel. The review pa
 pair of vessels of the record with one number. The operator keeps one vessel of a pair: the other
 merges into it, and its name becomes a former name.
 
+One company or place can have a Latin and a Cyrillic spelling. A worker command transliterates
+each name of the record (the label and the other names) with one fixed table, and finds the pairs
+of entities of one type where a Latin name and a Cyrillic name give one key. The review page lists
+each pair with both labels, the key and both identifiers. The operator keeps one entity of a pair,
+and the other merges into it with its name as a former name, or refuses the pair. A refused pair
+is never proposed again, also after a merge of one of its entities. No model proposes a pair.
+ADR 0021 gives the table and the storage of the pairs.
+
 ## The release path
 
 A release is how the data leaves Gabriel. The operator runs one worker command on the PC, with a
@@ -134,7 +142,8 @@ the record  →  the release functions of the database (the public rules)
   each merge and each undo, and the entity that each absorbed identifier resolves to. The same
   entities, relations and claims are in three formats: CSV for a spreadsheet, GeoJSON for a map
   tool (the entities with a position), and JSON-LD for linked data. The manifest of the files
-  gives the size and the checksum of each file.
+  gives the size and the checksum of each file, and the number of merge candidates across two
+  scripts that wait, that the operator confirmed and that the operator refused.
 - **The changelog.** With the folder of the previous release, the release compares the two
   folders by identifier: each entity, relation and claim added, changed or removed, and each
   entity merged or unmerged. It refuses a previous folder that does not agree with its checksums.

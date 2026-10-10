@@ -24,8 +24,9 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
 names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
 by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
-`pnpm worker release` writes a release and `pnpm worker nato-coverage` reports the share of
-claims with a NATO pair (see below). They run as they do against the local stack.
+`pnpm worker release` writes a release, `pnpm worker nato-coverage` reports the share of
+claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the merge candidates
+across a Latin and a Cyrillic spelling. They run as they do against the local stack.
 Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
 that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
@@ -256,6 +257,16 @@ pnpm worker nato-coverage
 
 It prints one line for all the claims of a release, then one line for each entity type and each
 relation type: the claims with a full pair, all the claims, and the share. It writes nothing.
+
+Before a release, find the merge candidates across a Latin and a Cyrillic spelling, then confirm
+or refuse each one in the "Two scripts" tab of the review page:
+
+```powershell
+pnpm worker name-candidates
+```
+
+It prints the number of names that it read and of pairs that it found, new and known. A pair that
+you refused or confirmed stays decided. The release gives the three counts in its manifest.
 
 ## Public writes
 
