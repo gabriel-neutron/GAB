@@ -2,6 +2,7 @@ import { archiveSnapshot } from './archive-snapshot.ts';
 import { companiesHouse } from './companies-house.ts';
 import { documentText } from './document-text.ts';
 import { enqueueExtract } from './enqueue-extract.ts';
+import { euAct } from './eu-act.ts';
 import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
@@ -11,6 +12,7 @@ import { jobStatus } from './job-status.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
+import { ofacSdn } from './ofac-sdn.ts';
 import { newsSearch } from './news-search.ts';
 import { promoteCleanProposals } from './promote-clean-proposals.ts';
 import { promoteUnit } from './promote-unit.ts';
@@ -56,12 +58,14 @@ export const CATALOGUE = [
   newsSearch,
   archiveSnapshot,
   fetchDocument,
+  euAct,
   storeSavedFile,
   telegramChannel,
   gleifLookup,
   companiesHouse,
   wikidataIds,
   sanctionsMatch,
+  ofacSdn,
   vesselEvents,
   enqueueExtract,
   enqueueMapping,

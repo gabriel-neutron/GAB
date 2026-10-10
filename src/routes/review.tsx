@@ -1,6 +1,7 @@
 import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
+import { readAuthorNames } from '@/features/review/author-names';
 import type { DecisionState } from '@/features/review/decision-bar';
 import { decisionDone } from '@/features/review/decision-done';
 import { DecidedPage, type DecidedView } from '@/features/review/decided-page';
@@ -15,6 +16,7 @@ import {
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { linkedUnit } from '@/features/review/linked-unit';
+import { NamesPage } from '@/features/review/names-page';
 import { nextGroup } from '@/features/review/next-group';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { openQueue } from '@/features/review/queue-start';
@@ -46,7 +48,7 @@ export const Route = createFileRoute('/review')({
     const { unit, view, group } = search;
     return {
       unit: typeof unit === 'string' ? unit : '',
-      view: view === 'decided' || view === 'groups' ? view : 'queue',
+      view: view === 'decided' || view === 'groups' || view === 'names' ? view : 'queue',
       group: typeof group === 'string' ? group : '',
     };
   },
@@ -56,9 +58,9 @@ export const Route = createFileRoute('/review')({
   // The queue reads one page of units, with the filter and from the place that the workspace
   // holds, so a reload keeps both. A unit of the address that the first page does not hold is
   // read by its identifier. The history and the rail of the groups are read only when their page
-  // is open. The rail is read when its page opens and after a group action, and never at the
-  // choice of a group: the group in the address is read here once, and each later choice reads
-  // its own group alone.
+  // is open, and so are the names that wait. The rail is read when its page opens and after a
+  // group action, and never at the choice of a group: the group in the address is read here once,
+  // and each later choice reads its own group alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps, location }) => {
     const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
@@ -77,6 +79,7 @@ export const Route = createFileRoute('/review')({
       entityTypes,
       history: null,
       groups: null,
+      names: null,
     };
     if (deps.view === 'groups') {
       const asked: unknown = Reflect.get(location.search, 'group');
@@ -87,6 +90,7 @@ export const Route = createFileRoute('/review')({
       ]);
       return { ...held, groups: { rail, group: read === null ? null : { groupId, read } } };
     }
+    if (deps.view === 'names') return { ...held, names: await readAuthorNames() };
     if (deps.view !== 'decided') return held;
     return { ...held, history: await readDecidedPage(null) };
   },
@@ -129,7 +133,7 @@ interface HeldHistory {
 function ReviewRoute() {
   const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { first, filter, linked, relationTypes, entityTypes, history, groups } =
+  const { first, filter, linked, relationTypes, entityTypes, history, groups, names } =
     Route.useLoaderData();
   const router = useRouter();
 
@@ -360,14 +364,15 @@ function ReviewRoute() {
       onView={(next) => {
         void navigate({ search: (search) => ({ ...search, view: next }), replace: true });
       }}
-      decided={
-        decidedView === null ? null : <DecidedPage view={decidedView} onMore={readMoreDecided} />
-      }
       queue={<UnitsPage view={queue} selectedId={unit} words={words} onAct={onAct} />}
-      groups={
-        groups === null ? null : (
+      page={
+        view === 'groups' && groups !== null ? (
           <GroupsPage rail={groups.rail} group={groupView} words={words} onAct={onGroupAct} />
-        )
+        ) : view === 'decided' && decidedView !== null ? (
+          <DecidedPage view={decidedView} onMore={readMoreDecided} />
+        ) : view === 'names' && names !== null ? (
+          <NamesPage read={names} />
+        ) : null
       }
     />
   );

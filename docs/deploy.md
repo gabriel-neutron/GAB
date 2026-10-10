@@ -27,8 +27,9 @@ Run `pnpm writer` and the worker on the operator's machine, with the same `infra
 The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
-reference-set` manages the reference set of the authors, and `pnpm worker reread-html` reads the
-stored HTML pages again (see below). They run as they do
+reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
+names that joined an author A or B, `pnpm worker requeue-ratings` tries the failed ratings again,
+and `pnpm worker reread-html` reads the stored HTML pages again (see below). They run as they do
 against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
 start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
@@ -102,6 +103,27 @@ the value. A rating waits in the queue until the operator approves the reference
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 
+A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each failed rating job
+back in the queue with no attempt, and prints each name with the reason and the refusal of the
+earlier attempt: the job keeps no record of them. The next `pnpm worker run` rates them, and each
+job costs one call to the model. The command also puts back a rating that the model refused. A
+refusal is asked again only here and after you refuse a joined name.
+
+### Decide the names that joined an author A or B
+
+The rater can join a new name to a known author. A join into an author A or B raises the letter of
+each act of that name, so the name reads as F and its units are a doubt until you decide it:
+
+1. `pnpm worker author-names list` prints each name that waits, with its author, the letter and
+   the number of its units.
+2. `pnpm worker author-names dry-run` prints, for each name, how many units would change state if
+   you confirm it and if you refuse it. It writes nothing.
+3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
+   `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
+   new author. The rules then read the units of the name again. A decision is final.
+
+The review page shows the same list on its Names page, with the same two actions.
+
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
 gives no result. A lead runs only when the operator or the research AI starts it: no schedule
@@ -118,15 +140,16 @@ local record, before the vector index is built:
 2. `pnpm worker reread-html` writes the changes.
 
 The command reads each stored HTML or XHTML document (also a saved HTML file) from the raw store,
-with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose bytes are valid
-UTF-8, as UTF-8. When the
-text changes, it writes the text as a new text set, and each reader then reads that set. The old
-set stays, so each citation stays valid. The command lists each citation whose excerpt is not in
-the corrected text: check these citations. The title changes only when the document still holds
-the title that the old reading gave. The command does not change the bytes, the id, the address
-or the date of a document. A second run changes nothing. It gives exit code 1 when a document could
-not be read, with the reason. A page whose charset was only in the header of the answer, and not in
-the page, stays as it is, because the record keeps the type without its charset.
+with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose
+bytes are valid UTF-8, as UTF-8. When the text changes, it writes the text as a new text set, and
+each reader then reads that set. The old set stays, so each citation stays valid. When the corrected
+text does not hold the excerpt of a citation of a document, the command keeps the text and the title
+of that document as they are. The report and the dry run list each such document with these
+citations: read them. A render of a kept page keeps its title too. The title changes only when the
+document still holds the title that the old reading gave. The command does not change the bytes, the
+id, the address or the date of a document. A second run changes nothing. It gives exit code 1 when a
+document could not be read, with the reason. A page whose charset was only in the header of the
+answer, and not in the page, stays as it is, because the record keeps the type without its charset.
 
 ## Public writes
 
