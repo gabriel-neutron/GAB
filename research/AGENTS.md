@@ -28,9 +28,9 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `store_saved_file`,
-  `telegram_channel`, `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question,
-  except `enqueue_extract`, `enqueue_mapping` and `start_lead`: they spend model credit, so in a
-  session that starts in `research/`, Claude Code asks the operator first.
+  `telegram_channel`, `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write
+  runs with no question, except `enqueue_extract`, `enqueue_mapping` and `start_lead`: they spend
+  model credit, so in a session that starts in `research/`, Claude Code asks the operator first.
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
   `promote_clean_proposals`. In a session that starts in `research/`,
   Claude Code asks the operator before each decision. Follow the skill `review-unit`.

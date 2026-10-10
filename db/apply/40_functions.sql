@@ -4123,7 +4123,8 @@ $$;
 -- THE DECISION OF THE OPERATOR ON A NAME THAT WAITS. The row is written once. A confirmation gives
 -- the name the letter of its author. A refusal makes the name F, and the rating job of the name
 -- goes back to the queue, so the rater rates it again. In both cases the rules
--- run again on the units of the name. It gives the number of these units.
+-- run again on the units of the name. It gives the number of these units. The door refuses while
+-- the rating job of the name runs.
 CREATE OR REPLACE FUNCTION decide_author_name(p_name text, p_confirm boolean) RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -4175,7 +4176,7 @@ $$;
 -- THE DRY-RUN OF THE DECISIONS ON THE NAMES. For each name that waits, the number of its units
 -- whose state would change if the operator confirmed it, and if the operator refused it. Each
 -- decision runs through the door of the operator inside a sub-transaction, with the rules, and is
--- undone. So the function writes nothing.
+-- undone. So the function writes nothing. A name whose rating runs now gives no count.
 CREATE OR REPLACE FUNCTION author_names_dry_run()
 RETURNS TABLE (name_key text, author text, letter char(1), units int, change_if_confirmed int,
                change_if_refused int)
@@ -4202,8 +4203,10 @@ BEGIN
         SELECT count(*)::int INTO v_changed FROM unnest(v_units) AS u
          WHERE public.unit_state(u) IS DISTINCT FROM v_before->>(u::text);
         RAISE EXCEPTION USING ERRCODE = 'GAB01';
-      EXCEPTION WHEN SQLSTATE 'GAB01' THEN
-        NULL;
+      EXCEPTION
+        WHEN SQLSTATE 'GAB01' THEN NULL;
+        -- The door refuses while the rating of the name runs: the count of that name is NULL.
+        WHEN invalid_parameter_value THEN v_changed := NULL;
       END;
       IF v_choice THEN change_if_confirmed := v_changed; ELSE change_if_refused := v_changed; END IF;
     END LOOP;
