@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import { roleAddress } from '../address.ts';
 import type { Queryable } from '../queryable.ts';
+import { natoCoverageReport } from './nato-coverage-command.ts';
 import { releaseCommand } from './release-command.ts';
 import { readReleaseRecord } from './release-record.ts';
 import { writeRelease } from './release.ts';
@@ -371,7 +372,7 @@ test('a release writes the public entities, relations and claims, each row with 
   const made = await inTransaction(async (held) => {
     const ids = await record(held);
     const written = await writeRelease(held.as('gabriel_app'), MANIFEST, root);
-    const read = await readReleaseRecord(held.as('gabriel_app'));
+    const read = await readReleaseRecord(held.as('gabriel_app'), { natoPair: false });
     return { ids, written, read };
   });
   const folder = join(root, 'gab-release-2026-11-08');
@@ -747,7 +748,7 @@ test('a release writes the log of the merges, and a moved value keeps the label 
       merged,
       undoneMerge,
       undo,
-      read: await readReleaseRecord(app),
+      read: await readReleaseRecord(app, { natoPair: false }),
     };
   });
   const folder = join(root, 'gab-release-2026-11-08');
@@ -814,6 +815,93 @@ test('a release writes the log of the merges, and a moved value keeps the label 
     '@type': 'Entity',
   });
   expect(jsonld).not.toContain(BOUGHT_TWIN);
+});
+
+// The research AI wrote the act that set the IMO number, from the list of an issuer A on its own
+// record, and a second model family checked it. So its claim has the pair A3: one known author.
+const PAIRED_AUTHOR = 'TEST SANCTIONS ISSUER';
+const pairTheImo = async (ask: Ask, imoAct: string) => {
+  await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+  await ask(
+    `UPDATE public.proposals
+        SET author_role = 'gabriel_research', originator = $2, src = ARRAY[$3]::doc_id[],
+            payload = jsonb_build_object('attrs', jsonb_build_object(
+                        'imo', jsonb_build_object('v', '9123456', 'src', jsonb_build_array($3))))
+      WHERE id = $1`,
+    [imoAct, PAIRED_AUTHOR, SDN],
+  );
+  await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+  await ask(
+    `WITH made AS (
+       INSERT INTO public.author (name_key, letter, model, reason, reference_set)
+       VALUES (public.name_key($1), 'A', 'a-seed-model', 'the issuer of the list', true)
+       RETURNING id, name_key
+     ), named AS (
+       INSERT INTO public.author_name (name_key, author_id) SELECT name_key, id FROM made
+     )
+     INSERT INTO public.reference_approval (author_id) SELECT id FROM made`,
+    [PAIRED_AUTHOR],
+  );
+  await ask(
+    `INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family,
+                                   verdict)
+     VALUES ($1, 'a-checker', 'openai', 'anthropic', 'supported')`,
+    [imoAct],
+  );
+};
+
+test('a release shows the NATO pair only when its manifest asks for it', async () => {
+  const off = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const on = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const report = await inTransaction(async (held) => {
+    const ids = await record(held);
+    await pairTheImo(held.ask, ids.imoAct);
+    await writeRelease(held.as('gabriel_app'), MANIFEST, off);
+    await writeRelease(held.as('gabriel_app'), { ...MANIFEST, showNatoPair: true }, on);
+    return natoCoverageReport(held.as('gabriel_app'));
+  });
+  const folderOf = (root: string) => join(root, 'gab-release-2026-11-08');
+  const files = (await readdir(folderOf(off))).sort();
+  expect(files).toStrictEqual((await readdir(folderOf(on))).sort());
+
+  // Off: no file holds a letter, a digit or a term of the pair.
+  for (const name of files) {
+    const text = await readFile(join(folderOf(off), name), 'utf8');
+    expect(text).not.toMatch(/nato_|natoLetter|natoDigit|NATO/u);
+    expect(text).not.toMatch(/\b[A-F][1-6]\b|digits?:|letters?:/u);
+  }
+  const manifestOf = async (root: string) =>
+    z
+      .object({ showNatoPair: z.boolean() })
+      .parse(JSON.parse(await readFile(join(folderOf(root), 'manifest.json'), 'utf8')));
+  expect(await manifestOf(off)).toMatchObject({ showNatoPair: false });
+
+  // On: the manifest says so, and each claim row that has a pair gives it.
+  expect(await manifestOf(on)).toMatchObject({ showNatoPair: true });
+  const claims = tableOf(await readFile(join(folderOf(on), 'claims.csv'), 'utf8'));
+  const paired = claims.filter((row) => row['nato_letter'] !== '');
+  expect(
+    paired.map((row) => [row['claim_id'], row['nato_letter'], row['nato_digit']]),
+  ).toStrictEqual([[`${VESSEL}/imo`, 'A', '3']]);
+  expect(claims.filter((row) => row['nato_digit'] !== '')).toHaveLength(1);
+  const graph = z
+    .object({ '@graph': z.array(z.record(z.string(), z.unknown())) })
+    .parse(JSON.parse(await readFile(join(folderOf(on), 'dataset.jsonld'), 'utf8')))['@graph'];
+  expect(graph.find((one) => one['@id'] === `claim/${VESSEL}/imo`)).toMatchObject({
+    natoLetter: 'A',
+    natoDigit: 3,
+  });
+  expect(graph.filter((one) => 'natoLetter' in one)).toHaveLength(1);
+  // Only the claims show the pair.
+  for (const name of ['entities.csv', 'relations.csv', 'merges.csv', 'entities.geojson'])
+    expect(await readFile(join(folderOf(on), name), 'utf8')).not.toMatch(/nato/iu);
+
+  // The report counts the public claims of the release and those with a full pair.
+  const claimCount = new Set(claims.map((row) => row['claim_id'])).size;
+  expect(report[0]).toBe('group\twith a full pair\tpublic claims\tshare');
+  expect(report[1]?.split('\t').slice(0, 3)).toStrictEqual(['all', '1', String(claimCount)]);
+  expect(report.find((line) => line.startsWith('entity vessel\t'))?.split('\t')[1]).toBe('1');
+  expect(report.find((line) => line.startsWith('relation owns\t'))?.split('\t')[1]).toBe('0');
 });
 
 test('the command refuses a release of a date that the folder holds already', async () => {

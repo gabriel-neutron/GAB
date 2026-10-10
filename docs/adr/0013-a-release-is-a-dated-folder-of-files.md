@@ -18,13 +18,20 @@ the files.
   gives at run time. The manifest is not in the public repository, because it holds the contact
   addresses. Each value has a default, except the two contact addresses. The manifest refuses a
   key that it does not know, and a character that would break a line of a file.
-- The parameter that shows the NATO pair is off by default. Until the pair is built, the command
-  refuses a manifest that turns it on.
+- The parameter that shows the NATO pair (ADR 0012) is off by default, because the public does not
+  see the pair (`decisions.md` S1). When it is off, the release does not read the pair, and no file
+  holds a letter, a digit or a column of the pair. When it is on, each claim row that has a pair
+  gives its letter and its digit, and the manifest of the files says that the release shows the
+  pair. So a change of S1 is one parameter.
+- A second worker command reports the coverage of the pair before that decision: the number and
+  the share of the claims of a release with a full pair, in all and by entity type and relation
+  type. It reads the claims as the release reads them, and it writes nothing.
 - The command reads one read-only snapshot, so each file shows the same record.
 - The command writes one folder, named by the date of the release, and never writes over a folder
   of the same date. It writes in a hidden folder first and renames it at the end.
 - The folder holds the export files and a manifest of the files in JSON: the version, the date,
-  the disclaimer, and the path, the size and the SHA-256 checksum of each file. ADR 0015 gives the
+  whether the release shows the NATO pair, the disclaimer, and the path, the size and the SHA-256
+  checksum of each file. ADR 0015 gives the
   GeoJSON and the JSON-LD files.
 
 ### The CSV files

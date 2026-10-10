@@ -125,6 +125,7 @@ const RECORD: ReleaseRecord = {
     ],
   ]),
   disclaimer: '',
+  natoPairs: null,
 };
 
 const HEADING = {
@@ -282,4 +283,30 @@ test('an absorbed entity is replaced by the entity that it resolves to, while th
     isReplacedBy: `entity/${SHIP}`,
   });
   expect(node(`entity/${UNDONE}`)).toBeUndefined();
+});
+
+test('with the NATO pair off, the file holds no letter, no digit and no term of the pair', () => {
+  const text = jsonldExport(RECORD, HEADING, BASE).text;
+  expect(text).not.toMatch(/nato/iu);
+});
+
+test('with the NATO pair on, a claim gives its letter and its digit, and the terms are documented', () => {
+  const file = jsonldExport(
+    { ...RECORD, natoPairs: new Map([[`${SHIP}/flag`, { letter: 'B', digit: 1 }]]) },
+    HEADING,
+    BASE,
+  );
+  const { '@context': context, '@graph': graph } = document.parse(JSON.parse(file.text));
+  const claimOf = (id: string) => graph.find((one) => one['@id'] === id);
+  expect(claimOf(`claim/${SHIP}/flag`)).toMatchObject({ natoLetter: 'B', natoDigit: 1 });
+  expect(claimOf(`claim/${SHIP}/speed_knots`)).not.toHaveProperty('natoLetter');
+  expect(claimOf(`claim/${SHIP}/speed_knots`)).not.toHaveProperty('natoDigit');
+  for (const key of ['natoLetter', 'natoDigit']) {
+    const iri = iriOf(context[key]);
+    expect(iri).toBe(`gab:${key}`);
+    const defined = graph.find((one) => one['@id'] === iri);
+    expect(defined).toHaveProperty('@type', 'Property');
+    expect(typeof defined?.['label']).toBe('string');
+    expect(typeof defined?.['comment']).toBe('string');
+  }
 });

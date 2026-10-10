@@ -170,7 +170,9 @@ the GAB checkout, because it holds your contact addresses. It is a JSON file:
 
 Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
 the release takes the date of the day (UTC). With no `version`, the version is the date.
-`showNatoPair` stays `false`: the command refuses `true`, because no file can show the pair yet.
+`showNatoPair` is `false` by default, and the public does not see the pair (`decisions.md` S1).
+Set it to `true` only after a change of S1: then each claim row of `claims.csv` and
+`dataset.jsonld` gives its NATO letter and digit, and `manifest.json` says that the pair is shown.
 `iriBase` is the base of the identifiers of the JSON-LD file: an `https://` address that ends with
 a slash. Set it once, to the address of the public site, before the first public release, and
 never change it after, because reusers link to these identifiers.
@@ -189,6 +191,16 @@ the date and the disclaimer. A spreadsheet shows them as rows. A program that re
 skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
 `dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
 definition of each term. `manifest.json` gives the size and the SHA-256 checksum of each file.
+
+To see the share of the public claims that have a full NATO pair (a letter and a digit) before
+you decide S1, run on the record:
+
+```powershell
+pnpm worker nato-coverage
+```
+
+It prints one line for all the claims of a release, then one line for each entity type and each
+relation type: the claims with a full pair, all the claims, and the share. It writes nothing.
 
 ## Public writes
 
