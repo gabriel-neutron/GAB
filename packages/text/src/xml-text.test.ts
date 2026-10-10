@@ -41,10 +41,24 @@ test('each element that holds a value is one line, and each record starts with i
   );
 });
 
-test('a prefix of a name is dropped, and an attribute gives no text', () => {
-  expect(xmlText('<a:root x="1"><a:item kind="b">One &#x41;&#66;</a:item></a:root>')).toBe(
-    'root\n  item: One AB',
+test('a prefix of a name is dropped, and each attribute is a line under its element', () => {
+  expect(
+    xmlText('<a:root xmlns:a="u"><a:item a:kind="b > c">One &#x41;&#66;</a:item></a:root>'),
+  ).toBe('root\n  item\n    @kind: b > c\n    One AB');
+});
+
+test('an element with attributes alone gives them, as the EU list writes a name', () => {
+  expect(xmlText('<e><nameAlias wholeName="ROSNEFT" lang="EN"/></e>')).toBe(
+    'e\n  nameAlias\n    @wholeName: ROSNEFT\n    @lang: EN',
   );
+});
+
+test('the text between the children of an element stays, in its order', () => {
+  expect(xmlText('<P>The <HT>Council</HT> decided.</P>')).toBe('P: The\n  HT: Council\n  decided.');
+});
+
+test('a number outside Unicode stays as it stands, and an element never closed keeps its text', () => {
+  expect(xmlText('<r><a>x &#99999999; y')).toBe('r\n  a: x &#99999999; y');
 });
 
 test.each(['application/xml', 'text/xml', 'text/xml; charset=utf-8'])(
