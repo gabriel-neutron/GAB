@@ -406,6 +406,7 @@ test('a second caller that stored the same bytes at the same instant makes the a
     title: 'A page',
     mime: 'text/html',
     retrieved_at: '2026-10-04',
+    provider_id: null,
   };
   const raced: Session = {
     query: (text) => {
@@ -440,6 +441,7 @@ test('an image whose bytes are already stored is known, and OCR never reads it',
     title: 'A unit tree',
     mime: 'image/png',
     retrieved_at: '2026-10-01',
+    provider_id: null,
   };
   const knownImage: Session = {
     query: (text) => {

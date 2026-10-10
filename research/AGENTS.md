@@ -24,7 +24,9 @@ session: each proposal waits in the review queue, and the operator decides it th
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on page 1 of the stored file. Never store one entry alone.
 - Cite an entry of the UK Sanctions List: `uk_sanctions_list` does the same with the official file
-  of the FCDO, and gives the first line of one entry by its Unique ID.
+  of the FCDO. By its Unique ID, it gives two parts of the line of one entry: the identity (to the
+  source of the designation) and the identifiers (from the date of designation, with the IMO
+  number of a ship). Cite each part on page 1 of the stored file.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,

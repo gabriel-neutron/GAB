@@ -4,7 +4,7 @@ import { extractText } from '@gab/text';
 import { z } from 'zod';
 
 import { FetchRefusal, guardedGet } from './fetch-guard.ts';
-import { lineExcerpt } from './line-excerpt.ts';
+import { dayOf, lineExcerpt } from './official-list.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 
@@ -34,12 +34,6 @@ const outputShape = z.strictObject({
     .nullable(),
   notice: z.string().nullable(),
 });
-
-const dayOf = (date: string | null): string | null => {
-  if (date === null) return null;
-  const read = new Date(date);
-  return Number.isNaN(read.getTime()) ? null : read.toISOString().slice(0, 10);
-};
 
 /** The line of one entry: the line of the file that starts with its number, clipped to the cap of
  * an excerpt. */
