@@ -8,13 +8,16 @@ const counts = z.object({
   unmerged: z.number().int(),
 });
 
+// The release refuses any other contact address, so a copy that holds one was changed.
+const contact = z.string().regex(/^(https:\/\/\S+|mailto:\S+@\S+)$/u);
+
 /** The shape of the file manifest of a release, as the site reads it. */
 export const siteManifestShape = z.object({
   version: z.string(),
   date: z.iso.date(),
   showNatoPair: z.boolean(),
   disclaimer: z.string(),
-  contacts: z.object({ reportError: z.string(), rightOfReply: z.string() }),
+  contacts: z.object({ reportError: contact, rightOfReply: contact }),
   iriBase: z.string(),
   changelog: z.object({
     path: z.string(),

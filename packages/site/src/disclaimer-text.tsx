@@ -1,13 +1,15 @@
 import { disclaimerBlocks, type DisclaimerRun } from './disclaimer-blocks.ts';
+import { safeHref } from './safe-href.ts';
 import { LINK } from './site-style.ts';
 
 function Runs({ runs }: { readonly runs: readonly DisclaimerRun[] }) {
   return runs.map((run, index) => {
     const key = `${String(index)} ${run.text}`;
     if (run.kind === 'strong') return <strong key={key}>{run.text}</strong>;
-    if (run.kind === 'link')
+    const href = run.kind === 'link' ? safeHref(run.text) : null;
+    if (href !== null)
       return (
-        <a key={key} className={LINK} href={run.text}>
+        <a key={key} className={LINK} href={href}>
           {run.text}
         </a>
       );

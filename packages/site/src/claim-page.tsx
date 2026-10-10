@@ -3,7 +3,7 @@ import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from './relation-words.ts';
 import { SiteFrame } from './site-frame.tsx';
-import { claimPage, entityPage, hrefFrom, type SitePath } from './site-paths.ts';
+import { claimPage, entityPage, hrefFrom, permanentAddress, type SitePath } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
 import { LINK } from './site-style.ts';
 import { SourceList } from './source-list.tsx';
@@ -37,7 +37,7 @@ export function ClaimPage({ release, claimId }: ClaimPageProps) {
   const here = claimPage(claim.id);
   return (
     <SiteFrame release={release} page={{ path: here, title: claimText(claim) }}>
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1">
         {claim.kind === 'relation' ? (
           <>
             <dt className="text-label">From</dt>
@@ -88,7 +88,9 @@ export function ClaimPage({ release, claimId }: ClaimPageProps) {
         <dt className="text-label">Claim identifier</dt>
         <dd className="font-mono break-all">{claim.id}</dd>
         <dt className="text-label">Permanent address</dt>
-        <dd className="font-mono break-all">{`${release.manifest.iriBase}claim/${claim.id}`}</dd>
+        <dd className="font-mono break-all">
+          {permanentAddress(release.manifest.iriBase, 'claim', claim.id)}
+        </dd>
       </dl>
       <section className="flex flex-col gap-1">
         <h2 className="font-medium">Sources</h2>

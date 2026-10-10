@@ -55,7 +55,8 @@ and their form are costly to change after the first publication.
 
 ### The old site
 
-The operator can give the folder of the build of version 1. The release copies it under `v1/`.
+The operator can give the folder of the build of version 1. The release copies it under `v1/`, and
+its demonstration project also to the root of the site.
 With none, the address `v1/` gives a page that says that this copy holds no build of version 1.
 
 ## Alternatives
@@ -72,11 +73,15 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
 ## Cost
 
 - The release command needs the development dependencies (Vite, Tailwind) on the machine of the
-  operator.
+  operator. The release writes the site before its folder takes its name, so a site that fails
+  leaves no release folder.
 - The site builds a page for each entity and each claim, in memory. A record many times larger
   needs a writer that streams.
 - With no basemap, a reader sees the points and the grid only.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
-- The build of version 1 reads its demonstration file at the root of the host. Under `v1/` it does
-  not find the file until version 1 reads it from its own base path.
+- The build of version 1 reads its demonstration project at the root of the host, so the release
+  copies that project to the root of the site too. Version 1 works only when the site is at the
+  root of its host, or when the host sends the root address of the project to `v1/`.
+- A page address is a folder. The host must send the address of a folder with no final slash to
+  the same address with the slash, or the relative links of the page break.
 - A quoted passage can hold the word "live". The test checks the pages of a fixed release.

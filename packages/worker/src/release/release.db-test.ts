@@ -1495,3 +1495,16 @@ test.each([
     await expect(ask(`SELECT * FROM public.${call}`)).rejects.toThrow(/permission denied/u);
   });
 });
+
+test('a step after the files that fails leaves no release folder, so the release can run again', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  await inTransaction(async (held) => {
+    await expect(
+      writeRelease(held.as('gabriel_app'), MANIFEST, root, null, async (folder) => {
+        expect(await readdir(folder)).toContain('manifest.json');
+        throw new Error('the site cannot be written');
+      }),
+    ).rejects.toThrow('the site cannot be written');
+  });
+  expect(await readdir(root)).toStrictEqual([]);
+});

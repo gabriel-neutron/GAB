@@ -81,7 +81,7 @@ describe.each([
     const { files, pages, read } = site();
     for (const page of pages)
       for (const [, address = ''] of read(page).matchAll(/(?:href|src)="([^"]*)"/gu)) {
-        if (/^(https:|mailto:)/u.test(address)) continue;
+        if (/^(https:|mailto:|data:image\/svg\+xml,)/u.test(address)) continue;
         const target = posix.normalize(
           posix.join(posix.dirname(page), decodeURIComponent(address)),
         );

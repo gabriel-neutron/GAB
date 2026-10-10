@@ -54,7 +54,7 @@ function NodeTable({
 }) {
   if (nodes.length === 0) return null;
   return (
-    <div className="overflow-x-auto">
+    <div className="max-w-full overflow-x-auto">
       <table className={TABLE}>
         <caption className="pb-1 text-left font-medium">{caption}</caption>
         <thead className={TABLE_HEAD}>

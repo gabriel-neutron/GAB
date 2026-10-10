@@ -217,13 +217,16 @@ says "First release" and has no row. The command refuses a previous folder whose
 agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
 the size and the SHA-256 checksum of each file, and a summary of the changelog.
 
-The command then writes the static site of the release in the folder `gab-site-<date>`, beside
-the release folder. It needs the development dependencies of the GAB checkout (`pnpm install`).
+The command also writes the static site of the release in the folder `gab-site-<date>`, beside
+the release folder. It writes the site before the release folder takes its name, so when the site
+fails, no release folder is left and you can run the command again. It needs the development dependencies of the GAB checkout (`pnpm install`).
 
 ### Publish the site
 
 1. Put the content of `gab-site-<date>` at the root of a static host. Any host that serves files
-   works, also from a sub-path. Set `iriBase` of the manifest to that address before the first
+   works, also from a sub-path. The host must send the address of a folder with no final slash
+   (`/map`) to the same address with the slash (`/map/`), because each page is a folder and its
+   links are relative. Most static hosts do this by default. Set `iriBase` of the manifest to that address before the first
    public release, so each identifier of `dataset.jsonld` opens its page.
 2. The pages also open from the disk, except the map: MapLibre needs an `http` or `https` address.
    To look at a site on your machine, run `python -m http.server 8000` in the site folder and open
@@ -236,8 +239,9 @@ the release folder. It needs the development dependencies of the GAB checkout (`
    npx vite build --base=/v1/
    ```
 
-   Give the `dist` folder. The version 1 site reads its demonstration file at the root of the host,
-   so under `/v1` it opens with no project until it reads that file from its own base path.
+   Give the `dist` folder. The version 1 site reads its demonstration project at `/project.gpkg`,
+   at the root of the host, so the release also copies that file to the root of the site. Put the
+   site at the root of the host, or make the host send `/project.gpkg` to `/v1/project.gpkg`.
 
 The site holds a copy of each file of the release, the critical nodes table as its home page, a
 page for each entity and each claim, a map, a downloads page and a method page. Each page gives

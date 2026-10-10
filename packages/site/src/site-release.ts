@@ -1,5 +1,6 @@
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
+import { claimPage, entityPage, relationPage, SitePathFault } from './site-paths.ts';
 import { siteManifestShape, type SiteManifest } from './site-manifest.ts';
 
 /** The NATO pair of a claim. A release holds it only when its manifest shows the pair. */
@@ -322,6 +323,23 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       about(claim.relation.fromId, claim);
       if (claim.relation.toId !== claim.relation.fromId) about(claim.relation.toId, claim);
     } else if (claim.subjectKind === 'entity') about(claim.subjectId, claim);
+
+  // Each page is written before the first one, so an identifier that cannot be a path stops the
+  // release before a file is written. Two paths that differ only by case are one file on Windows.
+  const paths = [
+    ...entities.map((one) => entityPage(one.id)),
+    ...claims.map((one) => claimPage(one.id)),
+    ...relations.map((one) => relationPage(one.id)),
+    ...[...aliases].flatMap(([absorbed, survivor]) => [entityPage(absorbed), entityPage(survivor)]),
+    ...criticalNodes.map((one) => entityPage(one.id)),
+  ];
+  const folded = new Map<string, string>();
+  for (const path of new Set(paths)) {
+    const other = folded.get(path.toLowerCase());
+    if (other !== undefined)
+      throw new SitePathFault(`The addresses ${other} and ${path} differ only by case.`);
+    folded.set(path.toLowerCase(), path);
+  }
 
   return {
     manifest,

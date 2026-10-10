@@ -38,11 +38,15 @@ const html = (
   path: SitePath,
   title: string,
   page: ReactElement,
-  redirect: SitePath | null = null,
+  head: { readonly redirect?: SitePath; readonly stylesheets?: readonly SitePath[] } = {},
 ): SiteFile => ({
   path,
   text: `<!doctype html>\n${renderToStaticMarkup(
-    <SiteDocument path={path} title={title} redirect={redirect}>
+    <SiteDocument
+      page={{ path, title }}
+      redirect={head.redirect ?? null}
+      stylesheets={head.stylesheets ?? []}
+    >
       {page}
     </SiteDocument>,
   )}\n`,
@@ -52,8 +56,8 @@ const html = (
 // and a label comes from an untrusted page.
 const scriptSafe = (json: string): string => json.replaceAll('<', '\\u003c');
 
-/** The static site of one release, from the files of its folder: the pages, a copy of each file
- * of the release beside them, and the stylesheet. `style` is the stylesheet of the site. With
+/** The static site of one release, from the files of its folder: the pages and the stylesheet.
+ * The site also needs a copy of each file of the release at its root. `style` is the stylesheet of the site. With
  * `withV1` false, the address of the old site gives a page that says that this copy holds none.
  * The map page needs the map script and MapLibre in its assets folder. */
 export const buildSite = (
@@ -69,7 +73,6 @@ export const buildSite = (
       'Map',
       <>
         <MapPage release={release} />
-        <link rel="stylesheet" href={hrefFrom(MAP, MAP_STYLE)} />
         <script
           type="application/json"
           id={FEATURES_ELEMENT}
@@ -77,6 +80,7 @@ export const buildSite = (
         />
         <script type="module" src={hrefFrom(MAP, MAP_SCRIPT)} />
       </>,
+      { stylesheets: [MAP_STYLE] },
     ),
     html(DOWNLOADS, 'Downloads', <DownloadsPage release={release} />),
     html(METHOD, 'Method', <MethodPage release={release} />),
@@ -111,7 +115,7 @@ export const buildSite = (
           target={{ path: entityPage(survivor), words: target.label }}
           reason="A merge joined this entity to another entity, which now holds its claims:"
         />,
-        entityPage(survivor),
+        { redirect: entityPage(survivor) },
       ),
     );
   }
@@ -128,7 +132,7 @@ export const buildSite = (
           target={{ path: claimPage(relation.id), words: 'the claim of this relation' }}
           reason="A relation has its page at its claim:"
         />,
-        claimPage(relation.id),
+        { redirect: claimPage(relation.id) },
       ),
     );
   }
@@ -147,6 +151,5 @@ export const buildSite = (
       ),
     );
   }
-  const copies = [...files].map(([path, text]) => ({ path, text }));
-  return [...pages, ...copies, { path: STYLE, text: style }];
+  return [...pages, { path: STYLE, text: style }];
 };
