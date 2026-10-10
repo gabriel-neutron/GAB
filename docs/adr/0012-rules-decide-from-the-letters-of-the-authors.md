@@ -22,6 +22,9 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   holding, a channel network). A party to the conflict must have a controller, or the answer is
   refused. A rating that names no reference author is refused. A refused or missing answer leaves
   the author F.
+- A name that holds two authors ("OFAC; Reuters") or a generic name ("uk", "the secretary of
+  state") joins no author. The door refuses the join, and the worker asks the model once more to
+  rate the name as a new author.
 - A name that joins an author A or B is a doubt, because it would raise the letter of every act
   of that name. In the first build, the join only records a doubt flag. Nothing reads the flag yet.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
