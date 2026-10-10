@@ -281,7 +281,7 @@ GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 -- grant here lets the worker role give a letter A or B, or approve a set.
 GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
--- The operator tries a failed rating again. The worker role ends a job and never queues it again.
+-- The operator tries a failed rating again. The worker role never queues a failed job again.
 GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
