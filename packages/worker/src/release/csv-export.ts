@@ -1,14 +1,13 @@
 import { csvFile } from './csv-file.ts';
-import { rowLicence } from './licence.ts';
-import type { ReleaseClaim, ReleaseDocument, ReleaseRecord } from './release-record.ts';
+import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
+import { releaseLookup } from './release-lookup.ts';
+import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
 /** One file of a release: its path in the release folder and its text. */
 export interface ReleaseFile {
   readonly path: string;
   readonly text: string;
 }
-
-const ENTITY_HEADER = ['id', 'type', 'label', 'origin_label', 'licence', 'document_ids'];
 
 const RELATION_HEADER = [
   'id',
@@ -70,31 +69,14 @@ const valueText = (value: unknown): string =>
  * its label, and each row of the data its licence. The claims file has one row for each claim and
  * each cited passage of a public document, and one row for a public document with no cited
  * passage. The log of the merges gives the entity that each absorbed identifier resolves to. */
-// A row that names what the release does not hold is a fault of the read, and a file with an
-// empty field in its place would hide it.
-const held = <T>(found: T | undefined, what: string): T => {
-  if (found === undefined) throw new Error(`the release does not hold the ${what}`);
-  return found;
-};
-
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
-  const documentOf = (id: string): ReleaseDocument =>
-    held(record.documents.get(id), `document ${id}`);
-  const licenceOf = (sources: readonly string[]) =>
-    rowLicence(sources.map((id) => documentOf(id).licence));
-  const entityLabel = new Map(record.entities.map((one) => [one.id, one.label]));
-  const labelOf = (id: string): string => held(entityLabel.get(id), `element ${id}`);
-  const relations = new Map(record.relations.map((one) => [one.id, one]));
-  const relationOf = (id: string) => held(relations.get(id), `relation ${id}`);
+  const lookup = releaseLookup(record);
+  const { documentOf, licenceOf, labelOf, relationOf } = lookup;
 
-  const entities = record.entities.map((one) => [
-    one.id,
-    one.type,
-    one.label,
-    one.origin_label,
-    licenceOf(one.sources),
-    one.sources.join(' '),
-  ]);
+  const entities = record.entities.map((one) => {
+    const columns = entityColumns(one, lookup);
+    return ENTITY_COLUMNS.map((name) => columns[name]);
+  });
 
   const relationRows = record.relations.map((one) => [
     one.id,
@@ -184,7 +166,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
   };
 
   return [
-    { path: 'entities.csv', text: csvFile(preamble, ENTITY_HEADER, entities) },
+    { path: 'entities.csv', text: csvFile(preamble, ENTITY_COLUMNS, entities) },
     { path: 'relations.csv', text: csvFile(preamble, RELATION_HEADER, relationRows) },
     { path: 'claims.csv', text: csvFile(preamble, CLAIM_HEADER, record.claims.flatMap(claimRows)) },
     { path: 'merges.csv', text: csvFile(preamble, MERGE_HEADER, mergeRows) },

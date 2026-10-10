@@ -5225,7 +5225,8 @@ DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
 
--- The position is GeoJSON, as the read API gives it.
+-- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
+-- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
 CREATE FUNCTION release_entities()
 RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -5239,7 +5240,9 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
-  SELECT h.id, h.type, h.label, h.origin_label, h.sources, h.geom
+  SELECT h.id, h.type, h.label, h.origin_label, h.sources,
+         public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
+           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id

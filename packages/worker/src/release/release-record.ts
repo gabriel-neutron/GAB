@@ -88,7 +88,7 @@ export interface ReleaseRecord {
   readonly claims: readonly ReleaseClaim[];
   /** Each merge and each undo, in the order of the decisions. */
   readonly merges: readonly ReleaseMerge[];
-  /** Each public document, by its identifier. */
+  /** Each public document that a row of the release cites, by its identifier. */
   readonly documents: ReadonlyMap<string, ReleaseDocument>;
   /** The disclaimer of the dataset, in Markdown, with its two contact links still to fill. */
   readonly disclaimer: string;
@@ -138,12 +138,18 @@ export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> =
     'SELECT public.release_disclaimer() AS disclaimer',
   );
   if (said === undefined) throw new Error('the database gave no disclaimer');
+  // PU1: a release names a document only when a row of the release cites it, so a document that
+  // only a hidden row cites does not show what that row was about.
+  const cited = new Set([
+    ...[...entities, ...relations, ...claims].flatMap((one) => one.sources),
+    ...claims.flatMap((one) => one.passages.map((passage) => passage.document)),
+  ]);
   return {
     entities,
     relations,
     claims,
     merges,
-    documents: new Map(documents.map((one) => [one.id, one])),
+    documents: new Map(documents.filter((one) => cited.has(one.id)).map((one) => [one.id, one])),
     disclaimer: said.disclaimer,
   };
 };

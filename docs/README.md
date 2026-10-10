@@ -33,3 +33,4 @@ rules of the code review.
 | [0012](adr/0012-rules-decide-from-the-letters-of-the-authors.md) | Named rules in the database decide from the letters of the authors | Accepted |
 | [0013](adr/0013-a-release-is-a-dated-folder-of-files.md) | A release is a dated folder of files, read through the release functions | Accepted |
 | [0014](adr/0014-a-merge-is-an-act-with-an-alias-and-a-copy.md) | A merge is an act of the ledger, with an alias and a full copy | Accepted |
+| [0015](adr/0015-a-release-gives-three-formats-of-the-same-rows.md) | A release gives three formats of the same rows | Accepted |
