@@ -85,7 +85,7 @@ test('the whole file is stored once with its hash and its date, and an entry is 
       got,
       again: answer.parse(second.output),
       row: await ask(
-        `SELECT d.uri, d.mime, d.sha256,
+        `SELECT d.uri, d.mime, d.sha256, d.provider_id,
                 (SELECT count(*) FROM public.document_text t WHERE t.document_id = d.id)::int AS pages
            FROM public.documents d WHERE d.id = $1`,
         [got.document],
@@ -112,7 +112,9 @@ test('the whole file is stored once with its hash and its date, and an entry is 
   });
   expect(read.again).toMatchObject({ status: 'known', document: read.got.document, entry: null });
   // The record keeps the address of the Treasury, and never the signed address with its token.
-  expect(read.row).toStrictEqual([{ uri: address, mime: 'text/csv', sha256: sha, pages: 1 }]);
+  expect(read.row).toStrictEqual([
+    { uri: address, mime: 'text/csv', sha256: sha, provider_id: 'ofac_sdn', pages: 1 },
+  ]);
   expect(JSON.stringify(read)).not.toContain('a-secret-token');
   expect(read.cited).toStrictEqual([{ found: true }]);
   expect(store.puts.map((put) => put.mime)).toStrictEqual(['text/csv']);

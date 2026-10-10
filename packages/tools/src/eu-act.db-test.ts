@@ -98,7 +98,11 @@ test('eu_act asks for the format and the language, and stores the official text 
     return {
       got,
       puts: store.puts.map((put) => put.mime),
-      row: await ask('SELECT kind, uri, mime FROM public.documents WHERE id = $1', [got.document]),
+      row: await ask(
+        `SELECT kind, uri, mime, provider_id
+           FROM public.documents WHERE id = $1`,
+        [got.document],
+      ),
     };
   });
   expect(read.got.status).toBe('stored');
@@ -111,6 +115,7 @@ test('eu_act asks for the format and the language, and stores the official text 
       kind: 'url',
       uri: `${base}/resource/cellar/65b0.0006.03/DOC_1`,
       mime: 'application/xhtml+xml',
+      provider_id: 'eu_eurlex',
     },
   ]);
   const first = asked.find((headers) => headers.accept === 'application/xhtml+xml');
