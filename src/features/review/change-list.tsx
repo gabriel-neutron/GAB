@@ -180,15 +180,25 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
           </ul>
         </>
       )}
-      {others.map((other) => (
-        <div key={other.id} data-change={other.id}>
-          <h3 className={HEADING}>
-            {other.op.replaceAll('_', ' ')}
-            {other.target === '' ? '' : ` of ${other.target}`}
-          </h3>
-          <Attributes attributes={other.attributes} />
-        </div>
-      ))}
+      {others.map((other) =>
+        other.closesOn === null ? (
+          <div key={other.id} data-change={other.id}>
+            <h3 className={HEADING}>
+              {other.op.replaceAll('_', ' ')}
+              {other.target === '' ? '' : ` of ${other.target}`}
+            </h3>
+            <Attributes attributes={other.attributes} />
+          </div>
+        ) : (
+          <div key={other.id} data-change={other.id}>
+            <h3 className={HEADING}>End of a relation</h3>
+            <p className="break-words">
+              Closes the relation on {other.closesOn}
+              {other.target === '' ? '.' : `: ${other.target}.`}
+            </p>
+          </div>
+        ),
+      )}
       <p className="mt-3 text-small/4 text-label">
         Nothing here is written to the record until the operator decides.
       </p>

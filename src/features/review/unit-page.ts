@@ -109,7 +109,13 @@ export type UnitAct =
       readonly src: UnitEnd;
       readonly dst: UnitEnd;
     })
-  | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null });
+  | (ActBase & {
+      readonly kind: 'change';
+      readonly op: string;
+      readonly target: UnitEnd | null;
+      /** The end date that the act gives to an open relation, or null for any other change. */
+      readonly closesOn: string | null;
+    });
 
 /** The words of a page that an act cites, with up to two lines before and after them.
  * `supports` names the element of the act. `ownLine` says that the words are the whole line of the
@@ -395,6 +401,7 @@ const actOf = (read: ReadAct): UnitAct => {
     kind: 'change',
     op: read.op,
     target: read.targetId === null ? null : endOf(read.targetId, read.target),
+    closesOn: read.op === 'update_relation' ? (read.payload.valid_to ?? null) : null,
   };
 };
 

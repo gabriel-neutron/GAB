@@ -358,7 +358,10 @@ export function readDossier(
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
-      const head = OP_WORDS[proposal.op];
+      const head =
+        proposal.payload.kind === 'close'
+          ? `Closes the relation on ${proposal.payload.valid_to}`
+          : OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {

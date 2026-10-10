@@ -309,6 +309,100 @@ test('a removed twin gives its documents and its earlier first day to the relati
   expect(seen.before).toMatchObject({ sources: ['manual'], valid_from: '2020-01-01' });
 });
 
+// An end date that an act gives after the merge is a later act, so the undo keeps it.
+const closed = (ask: Ask, target: string, day: string, src: readonly string[]) =>
+  ask(
+    `SELECT * FROM public.sign_change('a test', 'update_relation', $1::jsonb, $3::text[],
+       'relation', $2::uuid, '{}')`,
+    [JSON.stringify({ valid_to: day }), target, src],
+  );
+
+test('an undo after an end date moves the relation back and keeps its end date and its documents', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'company', 'CLOSE TEST KEEP');
+    const gone = await entity(ask, 'company', 'CLOSE TEST GONE');
+    const vessel = await entity(ask, 'vessel', 'CLOSE TEST VESSEL');
+    const owns = await relation(ask, 'owns', gone, vessel, { validFrom: '2019-05-02' });
+    await merge(ask, keep, gone);
+    await closed(ask, owns, '2023-11-30', [FIXTURE_DOCUMENT]);
+    await undo(ask, gone);
+    return { gone, after: await relationRow(ask, owns) };
+  });
+  expect(seen.after).toMatchObject({
+    src_id: seen.gone,
+    valid_from: '2019-05-02',
+    valid_to: '2023-11-30',
+    sources: ['manual', FIXTURE_DOCUMENT],
+  });
+});
+
+test('an undo after an end date on a twin takes back what the merge gave and keeps the end date', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'CLOSE TWIN TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'CLOSE TWIN TEST GONE');
+    const owner = await entity(ask, 'company', 'CLOSE TWIN TEST OWNER');
+    const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
+    const removed = await relation(ask, 'operates', owner, gone, {
+      validFrom: '2019-01-01',
+      sources: [FIXTURE_DOCUMENT],
+    });
+    await merge(ask, keep, gone);
+    await closed(ask, stays, '2023-11-30', ['manual']);
+    await undo(ask, gone);
+    return {
+      stays: await relationRow(ask, stays),
+      removed: await relationRow(ask, removed),
+    };
+  });
+  expect(seen.stays).toMatchObject({
+    sources: ['manual'],
+    valid_from: '2020-01-01',
+    valid_to: '2023-11-30',
+  });
+  expect(seen.removed).toMatchObject({
+    sources: [FIXTURE_DOCUMENT],
+    valid_from: '2019-01-01',
+    valid_to: null,
+  });
+});
+
+test('an undo keeps a document that a later end date cites, also when the merge brought it', async () => {
+  const after = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'CITED TWIN TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'CITED TWIN TEST GONE');
+    const owner = await entity(ask, 'company', 'CITED TWIN TEST OWNER');
+    const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
+    await relation(ask, 'operates', owner, gone, {
+      validFrom: '2019-01-01',
+      sources: [FIXTURE_DOCUMENT],
+    });
+    await merge(ask, keep, gone);
+    await closed(ask, stays, '2023-11-30', [FIXTURE_DOCUMENT]);
+    await undo(ask, gone);
+    return relationRow(ask, stays);
+  });
+  expect(after).toMatchObject({
+    sources: ['manual', FIXTURE_DOCUMENT],
+    valid_from: '2020-01-01',
+    valid_to: '2023-11-30',
+  });
+});
+
+test('an undo keeps the first day of the merge when a later end date stands before the old first day', async () => {
+  const after = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'EARLY TWIN TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'EARLY TWIN TEST GONE');
+    const owner = await entity(ask, 'company', 'EARLY TWIN TEST OWNER');
+    const stays = await relation(ask, 'operates', owner, keep, { validFrom: '2020-01-01' });
+    await relation(ask, 'operates', owner, gone, { validFrom: '2019-01-01' });
+    await merge(ask, keep, gone);
+    await closed(ask, stays, '2019-06-30', ['manual']);
+    await undo(ask, gone);
+    return relationRow(ask, stays);
+  });
+  expect(after).toMatchObject({ valid_from: '2019-01-01', valid_to: '2019-06-30' });
+});
+
 test('only the last merge into a survivor is undone, so the survivor gets back what it held', async () => {
   const seen = await rolledBack('app', async (ask) => {
     const lei = (src: string) => ({ lei: { v: 'LEI-TEST-1', src: [src] } });
