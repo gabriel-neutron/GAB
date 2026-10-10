@@ -183,7 +183,9 @@ pnpm worker release --manifest <the manifest file> --out <a folder>
 The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
 over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
 the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
-skip them. `manifest.json` gives the size and the SHA-256 checksum of each file.
+skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
+`dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
+definition of each term. `manifest.json` gives the size and the SHA-256 checksum of each file.
 
 ## Public writes
 

@@ -45,6 +45,36 @@ the files.
   act in a document that hold the value, compared on the letters and digits alone. When no passage
   holds it, the value keeps each passage of its act in that document.
 
+### The GeoJSON file
+
+- One GeoJSON file (RFC 7946) holds one feature for each entity of the release that has its own
+  position. The properties of a feature are the columns of the entity CSV, with the same values,
+  so the origin label and the licence are on each feature.
+- The database keeps each position in WGS84, and its GeoJSON gives the longitude first, as RFC 7946
+  asks. The file names no coordinate system, because RFC 7946 removed that member.
+- The name of the release and the disclaimer are foreign members of the collection. GDAL, and so
+  QGIS, takes the name as the name of the layer.
+- A position that the map borrows from a parent entity is not in the file, because it is not a
+  position of the entity.
+
+### The JSON-LD file
+
+- One JSON-LD 1.1 file holds one graph: a node for the release, and a node for each entity,
+  relation, claim and public document. Each entity, relation and claim keeps its origin label, its
+  licence and its sources. Each claim also keeps its passages. A CC licence also has the address of
+  its licence text.
+- The context names each term that the graph uses, and uses no default vocabulary, so a key with
+  no term cannot be in the file unseen. A term takes an existing vocabulary when one fits:
+  schema.org (the dataset, the name, the version, the dates of validity), Dublin Core (the title,
+  the identifier, the licence, the source of a passage) and PROV-O (the sources). The other terms
+  are in a release vocabulary. The graph holds the definition of each term of that vocabulary, with
+  a label and a comment, so the file documents itself.
+- The identifiers and the release vocabulary are under the address of the public repository, which
+  the project controls: an entity, a relation, a claim and a document each get one path under one
+  base. The identifier of a claim is its identifier in the CSV, so it stays the same from one
+  release to the next.
+- A value keeps its JSON type, so a number stays a number.
+
 ### The licence of a row
 
 The licence of a row comes from the providers of its public documents, and the row takes the most
@@ -80,6 +110,12 @@ takes CC-BY 4.0.
 - **The disclaimer in a column, or in its own file.** A column repeats a long text in each row, and
   PU1 asks each file to hold it. Refused.
 
+- **The position of a parent entity in the GeoJSON.** It is a claim of the analyst about the map,
+  not about the entity. Refused.
+- **The identifiers as `urn:uuid:` addresses.** A claim and a document have no UUID. Refused.
+- **A default vocabulary in the context.** Each unknown key would become a term with no
+  definition. Refused.
+
 ## Cost
 
 - A program that reads a CSV file must skip the lines that start with `#`.
@@ -89,3 +125,6 @@ takes CC-BY 4.0.
 - A document with no provider gives the restrictive text, also when its real licence is open.
 - A value can show a passage of its act that states another value of the same act, when no passage
   holds the value word for word.
+- The addresses of the identifiers and of the release vocabulary do not open a page. A reuser reads
+  the definitions in the file.
+- A change of the base address breaks each link of a reuser to an earlier release.
