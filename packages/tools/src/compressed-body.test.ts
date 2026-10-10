@@ -73,7 +73,14 @@ describe('binary bytes are told apart from text', () => {
   test('a page in UTF-8, in a charset of one byte and in UTF-16 is text', () => {
     expect(binaryBytes(PAGE)).toBe(false);
     expect(binaryBytes(new Uint8Array(400).fill(0xcf))).toBe(false);
-    expect(binaryBytes(Buffer.from('﻿A page of text', 'utf16le'))).toBe(false);
+    const marked = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('A page', 'utf16le')]);
+    expect(binaryBytes(marked)).toBe(false);
+  });
+
+  test('UTF-16 with no byte order mark is text when the charset names it', () => {
+    const page = Buffer.from('<html><body>A page of text</body></html>', 'utf16le');
+    expect(binaryBytes(page)).toBe(true);
+    expect(binaryBytes(page, 'text/html; charset=UTF-16LE')).toBe(false);
   });
 
   test('compressed bytes are binary', () => {
