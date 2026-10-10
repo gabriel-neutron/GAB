@@ -1,4 +1,4 @@
-# ADR 0021 — Merge candidates across two scripts come from one fixed table and a stored pair
+# ADR 0022 — Merge candidates across two scripts come from one fixed table and a stored pair
 
 **Status** Accepted · 10 October 2026
 

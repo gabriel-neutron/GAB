@@ -40,4 +40,4 @@ rules of the code review.
 | [0019](adr/0019-the-changelog-is-a-diff-of-two-release-folders.md) | The changelog is a diff of two release folders | Accepted |
 | [0020](adr/0020-a-release-publishes-files-and-a-static-site.md) | A release publishes files and a static site, with no public API | Accepted |
 | [0021](adr/0021-an-end-date-is-an-act-on-the-open-relation.md) | An end date is an act on the open relation | Accepted |
-| [0021](adr/0021-merge-candidates-across-two-scripts.md) | Merge candidates across two scripts come from one fixed table and a stored pair | Accepted |
+| [0022](adr/0022-merge-candidates-across-two-scripts.md) | Merge candidates across two scripts come from one fixed table and a stored pair | Accepted |
