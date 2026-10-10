@@ -1,4 +1,4 @@
-import { scriptOf, transliterationKey } from './transliteration-key.ts';
+import { readName } from './transliteration-key.ts';
 
 /** One name of an entity of the record: its label, or one of its other names. */
 export interface EntityName {
@@ -29,8 +29,9 @@ const before = (a: CandidatePair, b: CandidatePair): boolean =>
 export const candidatePairs = (names: readonly EntityName[]): readonly CandidatePair[] => {
   const groups = new Map<string, { latin: EntityName[]; cyrillic: EntityName[]; key: string }>();
   for (const one of names) {
-    const script = scriptOf(one.name);
-    const key = transliterationKey(one.name);
+    // The names of a person can come in any order: family name first in a register, last in a
+    // list.
+    const { key, script } = readName(one.name, { sortWords: one.type === 'person' });
     if (key === null || (script !== 'latin' && script !== 'cyrillic')) continue;
     const group = `${one.type}\u0000${key}`;
     const held = groups.get(group) ?? { latin: [], cyrillic: [], key };

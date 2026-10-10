@@ -1710,6 +1710,14 @@ const candidatePair = async (latin: string, cyrillic: string, key: string) => {
   return { latin: a, cyrillic: b };
 };
 
+// The operator role holds no delete on the pairs, so the superuser deletes the pair of a test.
+const candidateGone = async (a: string, b: string): Promise<void> => {
+  await superuser.query(
+    'DELETE FROM public.name_candidate WHERE first_id = ANY($1::uuid[]) OR second_id = ANY($1::uuid[])',
+    [[a, b]],
+  );
+};
+
 test('the operator reads a candidate across two scripts and refuses it, and it leaves the list', async () => {
   const { latin, cyrillic } = await candidatePair(
     'Writer test Primorsk',
@@ -1726,6 +1734,7 @@ test('the operator reads a candidate across two scripts and refuses it, and it l
       await askWriter('/write/refuse-name-candidate', { firstId: cyrillic, secondId: latin }),
     ).toStrictEqual([422, { refusal: 'no candidate that waits joins these two entities' }]);
   } finally {
+    await candidateGone(latin, cyrillic);
     await removed(latin, cyrillic);
   }
 });
@@ -1752,6 +1761,7 @@ test('the operator confirms a candidate, the other label becomes a former name o
     expect(await candidatesOf([latin, cyrillic])).toStrictEqual([]);
   } finally {
     if (merged) await post('undo-merge', { absorbedId: cyrillic });
+    await candidateGone(latin, cyrillic);
     await removed(latin, cyrillic);
   }
 });

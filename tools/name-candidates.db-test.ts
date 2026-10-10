@@ -296,3 +296,39 @@ test.each([
   expect(Object.keys(refusals)).toStrictEqual(roles);
   for (const said of Object.values(refusals)) expect(said).toContain('permission denied');
 });
+
+test('a confirmed pair counts while its merge stands, and an undo does not bring the pair back', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const latin = await entity(ask, 'company', 'Tuapse test');
+    const cyrillic = await entity(ask, 'company', 'Туапсе тест');
+    const pair = pairOf(latin, 'Tuapse test', cyrillic, 'Туапсе тест', 'tuapse test');
+    await store(ask, [pair]);
+    const before = await counts(ask);
+    await ask(`SELECT * FROM public.confirm_name_candidate('a test', $1::uuid, $2::uuid)`, [
+      cyrillic,
+      latin,
+    ]);
+    const merged = await counts(ask);
+    await ask(`SELECT * FROM public.undo_merge('a test', $1::uuid)`, [latin]);
+    const undone = await counts(ask);
+    return {
+      before,
+      merged,
+      undone,
+      again: await store(ask, [pair]),
+      list: await listOf(ask, [latin, cyrillic]),
+    };
+  });
+  expect(seen.merged).toStrictEqual({
+    proposed: (seen.before?.proposed ?? 0) - 1,
+    confirmed: (seen.before?.confirmed ?? 0) + 1,
+    refused: seen.before?.refused,
+  });
+  expect(seen.undone).toStrictEqual({
+    proposed: (seen.before?.proposed ?? 0) - 1,
+    confirmed: seen.before?.confirmed,
+    refused: seen.before?.refused,
+  });
+  expect(seen.again).toMatchObject({ added: 0, kept: 1 });
+  expect(seen.list).toStrictEqual([]);
+});
