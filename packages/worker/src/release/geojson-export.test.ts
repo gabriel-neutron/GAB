@@ -63,6 +63,7 @@ const RECORD: ReleaseRecord = {
     ['doc_a', document('doc_a', 'public-domain')],
     ['doc_b', document('doc_b', null)],
   ]),
+  nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
   natoPairs: null,
 };

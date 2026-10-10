@@ -42,6 +42,11 @@
       "unmerged": 0
     }
   },
+  "nameCandidates": {
+    "proposed": 3,
+    "confirmed": 2,
+    "refused": 1
+  },
   "files": [
     {
       "path": "entities.csv",

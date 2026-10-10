@@ -58,6 +58,7 @@ const RECORD: ReleaseRecord = {
   ],
   merges: [],
   documents: new Map(),
+  nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
   natoPairs: null,
 };

@@ -77,11 +77,18 @@ const mergeRow = z.object({
 
 const disclaimerRow = z.object({ disclaimer: z.string() });
 
+const candidateCounts = z.object({
+  proposed: z.number().int(),
+  confirmed: z.number().int(),
+  refused: z.number().int(),
+});
+
 export type ReleaseEntity = z.output<typeof entityRow>;
 export type ReleaseRelation = z.output<typeof relationRow>;
 export type ReleaseClaim = z.output<typeof claimRow>;
 export type ReleaseDocument = z.output<typeof documentRow>;
 export type ReleaseMerge = z.output<typeof mergeRow>;
+export type NameCandidateCounts = z.output<typeof candidateCounts>;
 
 /** What a release publishes: the public part of the record, as the release functions of the
  * database give it, each list in the order of its identifiers. */
@@ -93,6 +100,8 @@ export interface ReleaseRecord {
   readonly merges: readonly ReleaseMerge[];
   /** Each public document that a row of the release cites, by its identifier. */
   readonly documents: ReadonlyMap<string, ReleaseDocument>;
+  /** The number of merge candidates across a Latin and a Cyrillic spelling in each state. */
+  readonly nameCandidates: NameCandidateCounts;
   /** The disclaimer of the dataset, in Markdown, with its two contact links still to fill. */
   readonly disclaimer: string;
   /** The NATO pair of each claim that has one, by the identifier of the claim, when the release
@@ -148,6 +157,12 @@ export const readReleaseRecord = async (
     'SELECT public.release_disclaimer() AS disclaimer',
   );
   if (said === undefined) throw new Error('the database gave no disclaimer');
+  const [nameCandidates] = await rowsOf(
+    db,
+    candidateCounts,
+    'SELECT proposed, confirmed, refused FROM public.name_candidate_counts()',
+  );
+  if (nameCandidates === undefined) throw new Error('the database gave no candidate counts');
   // PU1: a release names a document only when a row of the release cites it, so a document that
   // only a hidden row cites does not show what that row was about.
   const cited = new Set([
@@ -159,6 +174,7 @@ export const readReleaseRecord = async (
     relations,
     claims,
     merges,
+    nameCandidates,
     documents: new Map(documents.filter((one) => cited.has(one.id)).map((one) => [one.id, one])),
     disclaimer: said.disclaimer,
     natoPairs: natoPair ? await readNatoPairs(db, claims) : null,

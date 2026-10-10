@@ -18,6 +18,8 @@ import { afterDecision, queueUnits } from '@/features/review/held-pages';
 import { readImoPairs } from '@/features/review/imo-pairs';
 import { ImoPairsPage } from '@/features/review/imo-pairs-page';
 import { linkedUnit } from '@/features/review/linked-unit';
+import { readNameCandidates } from '@/features/review/name-candidates';
+import { NameCandidatesPage } from '@/features/review/name-candidates-page';
 import { NamesPage } from '@/features/review/names-page';
 import { nextGroup } from '@/features/review/next-group';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
@@ -51,7 +53,11 @@ export const Route = createFileRoute('/review')({
     return {
       unit: typeof unit === 'string' ? unit : '',
       view:
-        view === 'decided' || view === 'groups' || view === 'names' || view === 'imo'
+        view === 'decided' ||
+        view === 'groups' ||
+        view === 'names' ||
+        view === 'imo' ||
+        view === 'scripts'
           ? view
           : 'queue',
       group: typeof group === 'string' ? group : '',
@@ -63,9 +69,10 @@ export const Route = createFileRoute('/review')({
   // The queue reads one page of units, with the filter and from the place that the workspace
   // holds, so a reload keeps both. A unit of the address that the first page does not hold is
   // read by its identifier. The history and the rail of the groups are read only when their page
-  // is open, and so are the names that wait and the pairs of vessels. The rail is read when its page opens and after a
-  // group action, and never at the choice of a group: the group in the address is read here once,
-  // and each later choice reads its own group alone.
+  // is open, and so are the names that wait, the pairs of vessels and the merge candidates. The
+  // rail is read when its page opens and after a group action, and never at the choice of a
+  // group: the group in the address is read here once, and each later choice reads its own group
+  // alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps, location }) => {
     const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([
@@ -86,6 +93,7 @@ export const Route = createFileRoute('/review')({
       groups: null,
       names: null,
       imoPairs: null,
+      nameCandidates: null,
     };
     if (deps.view === 'groups') {
       const asked: unknown = Reflect.get(location.search, 'group');
@@ -98,6 +106,7 @@ export const Route = createFileRoute('/review')({
     }
     if (deps.view === 'names') return { ...held, names: await readAuthorNames() };
     if (deps.view === 'imo') return { ...held, imoPairs: await readImoPairs() };
+    if (deps.view === 'scripts') return { ...held, nameCandidates: await readNameCandidates() };
     if (deps.view !== 'decided') return held;
     return { ...held, history: await readDecidedPage(null) };
   },
@@ -140,8 +149,18 @@ interface HeldHistory {
 function ReviewRoute() {
   const { unit, view, group } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { first, filter, linked, relationTypes, entityTypes, history, groups, names, imoPairs } =
-    Route.useLoaderData();
+  const {
+    first,
+    filter,
+    linked,
+    relationTypes,
+    entityTypes,
+    history,
+    groups,
+    names,
+    imoPairs,
+    nameCandidates,
+  } = Route.useLoaderData();
   const router = useRouter();
 
   // The pages and the decision die with the view: a reload reads the first page again.
@@ -381,6 +400,8 @@ function ReviewRoute() {
           <NamesPage read={names} />
         ) : view === 'imo' && imoPairs !== null ? (
           <ImoPairsPage read={imoPairs} />
+        ) : view === 'scripts' && nameCandidates !== null ? (
+          <NameCandidatesPage read={nameCandidates} />
         ) : null
       }
     />

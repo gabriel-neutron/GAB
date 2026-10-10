@@ -81,6 +81,7 @@ const record = (natoPairs: ReadonlyMap<string, NatoPair> | null = null): Release
   ],
   merges: [],
   documents: new Map(),
+  nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: 'The disclaimer.',
   natoPairs,
 });
