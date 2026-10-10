@@ -119,6 +119,7 @@ export const ofacSdnAt = (address: string) =>
         title: `OFAC SDN list (CSV), published ${publishedAt ?? 'on an unknown date'}`,
         pages,
         day,
+        provider: 'ofac_sdn',
       });
       const excerpt = input.entNum === undefined ? null : entryLine(page, input.entNum);
       return {

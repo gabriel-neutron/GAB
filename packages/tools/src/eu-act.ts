@@ -124,6 +124,7 @@ export const euActAt = (cellar: string) =>
         title,
         pages,
         day,
+        provider: 'eu_eurlex',
       });
       const text = await documentText.run(session, {
         document: stored.id,
