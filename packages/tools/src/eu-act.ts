@@ -9,8 +9,8 @@ import { defineTool, ToolRefusal } from './tool.ts';
 
 // External constraint: the Cellar of the Publications Office gives an act by its CELEX number and
 // picks the format and the language from the Accept headers. It answers 303 to the address of the
-// file. The tool sends the user agent of the project and nothing else, and it never asks again
-// after a refusal.
+// file. The tool sends the true user agent of the project, never another one, and it never asks
+// again after a refusal. A 300 (an act in more than one file) is a refusal too.
 export const CELLAR = 'https://publications.europa.eu/resource/celex/';
 const TIMEOUT_MS = 20_000;
 const MAX_REDIRECTS = 5;
