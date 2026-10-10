@@ -115,8 +115,8 @@ export function NamesPage({ read }: NamesPageProps) {
                   <td className={cn(CELL, 'break-words')}>{one.author}</td>
                   <td className={cn(CELL, 'font-mono')}>{one.letter}</td>
                   <td className={cn(CELL, 'font-mono text-right tabular-nums')}>{one.units}</td>
-                  <td className={cn(CELL, 'whitespace-nowrap')}>
-                    <span className="inline-flex gap-1">
+                  <td className={CELL}>
+                    <span className="inline-flex flex-wrap gap-1">
                       <button
                         type="button"
                         aria-label={`Confirm ${one.name}`}
