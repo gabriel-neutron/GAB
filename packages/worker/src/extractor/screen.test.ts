@@ -5,6 +5,7 @@ import { screenBatch, type ScreenItem } from './screen.ts';
 const WORDS = {
   entityTypes: ['vessel', 'company', 'person', 'bank', 'state_body', 'legal_act', 'unknown'],
   relationTypes: ['owns', 'operates', 'appoints', 'designated_by', 'settles_through', 'unknown'],
+  datedRelationTypes: ['owns', 'operates', 'appoints', 'designated_by'],
 };
 
 type Attrs = Record<string, { v: string }>;
@@ -286,4 +287,54 @@ test('an entity of an earlier part with the same attributes adds nothing', () =>
 
   expect(refsOf(other.items)).toStrictEqual(['nayara']);
   expect(other.dropped).toStrictEqual({});
+});
+
+const dated = (ref: string, type: string, bounds: { validFrom?: string; validTo?: string }) => {
+  const item = relation(ref, type, 'a', 'b');
+  return { ...item, act: { ...item.act, ...bounds } };
+};
+
+test('a relation of a dated type keeps its two bounds, and another type loses them', () => {
+  const screened = screenBatch(
+    [
+      entity('a', 'company', 'Rosneft'),
+      entity('b', 'vessel', 'Nayara'),
+      dated('r1', 'owns', { validFrom: '2019-05-02', validTo: '2023-11-30' }),
+      dated('r2', 'settles_through', { validFrom: '2019-05-02', validTo: '2023-11-30' }),
+    ],
+    WORDS,
+    new Map(),
+  );
+  expect(screened.items.map((item) => item.act)).toStrictEqual([
+    { op: 'create_entity', type: 'company', label: 'Rosneft' },
+    { op: 'create_entity', type: 'vessel', label: 'Nayara' },
+    {
+      op: 'create_relation',
+      type: 'owns',
+      srcId: 'a',
+      dstId: 'b',
+      validFrom: '2019-05-02',
+      validTo: '2023-11-30',
+    },
+    { op: 'create_relation', type: 'settles_through', srcId: 'a', dstId: 'b' },
+  ]);
+  expect(screened.dropped).toStrictEqual({ bound_on_undated_type: 2 });
+});
+
+test('a bound that is no day of the calendar, and an end before the start, are dropped', () => {
+  const screened = screenBatch(
+    [
+      entity('a', 'company', 'Rosneft'),
+      entity('b', 'vessel', 'Nayara'),
+      dated('r1', 'owns', { validFrom: '2019-02-30', validTo: 'May 2023' }),
+      dated('r2', 'operates', { validFrom: '2023-11-30', validTo: '2019-05-02' }),
+    ],
+    WORDS,
+    new Map(),
+  );
+  expect(screened.items.slice(2).map((item) => item.act)).toStrictEqual([
+    { op: 'create_relation', type: 'owns', srcId: 'a', dstId: 'b' },
+    { op: 'create_relation', type: 'operates', srcId: 'a', dstId: 'b', validFrom: '2023-11-30' },
+  ]);
+  expect(screened.dropped).toStrictEqual({ bound_not_a_day: 2, end_before_start: 1 });
 });

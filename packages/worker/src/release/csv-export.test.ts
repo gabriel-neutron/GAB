@@ -166,3 +166,23 @@ test('with the NATO pair on, each claim row gives its letter and its digit, or e
   for (const file of csvExport(record, ''))
     if (file.path !== 'claims.csv') expect(file.text).not.toMatch(/nato/iu);
 });
+
+test('a relation row gives its start and its end under valid_from and valid_to', () => {
+  const record = recordOf([]);
+  const dated: ReleaseRecord = {
+    ...record,
+    relations: record.relations.map((one) => ({
+      ...one,
+      valid_from: '2019-05-02',
+      valid_to: '2023-11-30',
+    })),
+  };
+  const text = csvExport(dated, '').find((file) => file.path === 'relations.csv')?.text ?? '';
+  const [header, row] = text
+    .slice(1)
+    .split('\r\n')
+    .map((line) => line.split(','));
+  const at = (name: string): string | undefined => row?.[header?.indexOf(name) ?? -1];
+  expect(at('valid_from')).toBe('2019-05-02');
+  expect(at('valid_to')).toBe('2023-11-30');
+});

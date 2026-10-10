@@ -73,6 +73,17 @@ misread a number, so the text can miss a fact that the image shows clearly.
 - A lookup by name is a list of leads, and nothing is stored. Never cite it. Read the record
   with its identifier, and cite the document of that record.
 
+## A dated relation
+
+- A relation type with `takesInterval` true in `list_vocabulary` (for example `owns`,
+  `operates`, `flags`, `insures`, `designated_by`) has two bounds: `validFrom`, the first day,
+  and `validTo`, the last day. Give each bound that the page states as a full day, and put the
+  words that state it in an excerpt. Never guess a day from a month, a year or another page.
+- Code removes a start that no excerpt states, and `droppedBounds` in the answer names it. An end
+  that no excerpt states refuses the batch: cite the passage that states it, or give no end.
+- A change of flag, owner, operator or insurer is two relations: the old one, which ends, and
+  the new one, which starts. Give each bound that the page states.
+
 ## A sanctions status
 
 - Cite a sanctions status from the official file: the EU act from `eu_act` (`legal_act`), the

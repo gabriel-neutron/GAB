@@ -187,11 +187,19 @@ test('the text goes to the model as it is, and each item becomes a proposal with
       .parse(JSON.parse(bodies[0] ?? '{}'))
       .messages.at(-1);
     const words = z
-      .object({ entityTypes: z.array(z.string()), relationTypes: z.array(z.string()) })
+      .object({
+        entityTypes: z.array(z.string()),
+        relationTypes: z.array(z.string()),
+        datedRelationTypes: z.array(z.string()),
+      })
       .parse(JSON.parse(asked?.content ?? '{}'));
     expect(words.entityTypes).toEqual(expect.arrayContaining(['vessel', 'state_body']));
     expect(words.entityTypes.at(-1)).toBe('unknown');
     expect(words.relationTypes).toContain('owns');
+    expect(words.datedRelationTypes).toEqual(
+      expect.arrayContaining(['owns', 'operates', 'flags', 'insures', 'designated_by']),
+    );
+    expect(words.datedRelationTypes).not.toContain('berthed_at');
     expect(await citedOf(held)).toStrictEqual([
       {
         label: 'Nayara',
@@ -647,5 +655,56 @@ test('a worker with no extractor settings starts, and each extraction fails with
     });
   } finally {
     log.mockRestore();
+  }
+});
+
+test('an end date that no excerpt states is dropped, the relation is disputed, and the job counts it', async () => {
+  const logged = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  try {
+    await inTransaction(async (held) => {
+      const owns = {
+        ref: 'owns',
+        act: {
+          op: 'create_relation',
+          type: 'owns',
+          srcId: 'rosneft',
+          dstId: 'nayara',
+          validTo: '2023-11-30',
+        },
+        originator: 'The port authority',
+        modality: 'asserts',
+        evidence: [{ document: DOCUMENT, page: 1, excerpt: 'Rosneft owns it' }],
+      };
+      const router = routerOf(
+        (call) => answerOf(call === 1 ? [NAYARA, ROSNEFT, owns] : []),
+        (_call, body) => verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const)),
+      );
+
+      expect(await held.step(makeExtractor(CONFIG), router)).toStrictEqual({
+        did: 'done',
+        job: held.job,
+      });
+      const rows = z
+        .array(z.object({ payload: z.record(z.string(), z.unknown()), reason: z.string() }))
+        .parse(
+          (
+            await held.client.query(
+              `SELECT payload, dissent_reason AS reason FROM public.proposals
+                WHERE op = 'create_relation' AND $1 = ANY (src::text[])`,
+              [DOCUMENT],
+            )
+          ).rows,
+        );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.payload).not.toHaveProperty('valid_to');
+      expect(rows[0]?.reason).toBe('the end date 2023-11-30 is in no excerpt');
+      expect(logged).toHaveBeenCalledWith('the agent dropped items', {
+        agent: 'extractor',
+        job: held.job,
+        dropped: { bound_not_in_excerpt: 1 },
+      });
+    });
+  } finally {
+    logged.mockRestore();
   }
 });
