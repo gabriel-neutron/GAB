@@ -24,9 +24,13 @@ change after the operator decides the first pairs.
   any place; y, j and i; x and ks; w and v; c and k (not in ch); and a doubled letter and one
   letter. So е and ё, and и, й and ы, are one letter in the key.
 - The key is in lower case, with no punctuation and no apostrophe, and with no legal form: the
-  Russian forms (ООО, ОАО, ПАО, ЗАО, АО, НАО, ИП, as the table writes them) and the English forms
-  (LLC, JSC, OJSC, PJSC, CJSC, Ltd, plc, Inc). A key with fewer than three letters or digits is no
-  key.
+  Russian forms, short (ООО, ПАО, АО, ИП, ГУП) and in full words as a register writes them
+  (общество с ограниченной ответственностью, публичное акционерное общество), and the English
+  forms, short (LLC, PJSC, JSC, Ltd, Inc) and in full words (limited liability company, public
+  joint stock company, company). The forms are folded as a name is, so the spelling of another
+  table matches too. A key with fewer than three letters or digits is no key.
+- The key of a person has its words in order, because a register gives the family name first and
+  a list can give it last.
 - The key is a pure function of the worker, with offline tests on a fixed list of names in both
   scripts. It is not the name key of the database, which only puts a name in lower case.
 
@@ -34,7 +38,10 @@ change after the operator decides the first pairs.
 
 - A pair is two entities of one type where a Latin name of one and a Cyrillic name of the other
   give one key. A name is the label, or a text of the former names, the aliases or the Cyrillic
-  label. A name with letters of both scripts is in no pair. Two names in one script are not a
+  label.
+- The script of a name is the script of at least two thirds of its letters, with the legal form
+  removed. So "ООО Sovcomflot" is Latin, and a Latin name with one Cyrillic letter that looks the
+  same is Latin. A name with less than two thirds in each script is in no pair. Two names in one script are not a
   candidate: the duplicate check of the review compares them already.
 - The fold makes more pairs than one table, and some are false. The operator decides each pair,
   and no rule and no model decides one.
@@ -73,6 +80,9 @@ change after the operator decides the first pairs.
   letters, and matches no Latin name.
 - A Latin name in English words (Shipping, Oil, Refinery) matches a Cyrillic name only when the
   Cyrillic name spells the same English word.
-- An undo of a confirmed merge leaves the pair confirmed, so the command does not propose it
-  again.
+- An undo of a confirmed merge leaves the pair decided, so the command does not propose it again.
+  The release counts a confirmed pair only while its merge stands.
+- Some spellings are not folded, because the fold would join other names: ё written yo or io
+  (Pyotr and Пётр), ч written tch (Tchaika and Чайка), and ц written cz (Czar and Царь). Such a
+  pair is not found.
 - A change of the table or of a fold can give new pairs, and leave some refused pairs unused.

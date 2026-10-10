@@ -2702,13 +2702,16 @@ BEGIN
 END $$;
 
 -- The number of pairs in each state, for the release. A pair that waits counts when the list of
--- the operator holds it.
+-- the operator holds it, and a confirmed pair while its merge stands: an undo leaves the pair
+-- decided, so it does not come back, and it counts in no state.
 CREATE OR REPLACE FUNCTION name_candidate_counts()
 RETURNS TABLE (proposed integer, confirmed integer, refused integer)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT (SELECT count(*)::integer FROM public.name_candidates()),
-         (SELECT count(*)::integer FROM public.name_candidate c WHERE c.state = 'confirmed'),
+         (SELECT count(*)::integer FROM public.name_candidate c
+           WHERE c.state = 'confirmed'
+             AND EXISTS (SELECT 1 FROM public.entity_alias a WHERE a.merged_by = c.merged_by)),
          (SELECT count(*)::integer FROM public.name_candidate c WHERE c.state = 'refused')
 $$;
 

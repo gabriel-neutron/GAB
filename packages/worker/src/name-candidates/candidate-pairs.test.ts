@@ -77,3 +77,21 @@ test('a name with no key and a name in two scripts make no pair', () => {
     ]),
   ).toStrictEqual([]);
 });
+
+test('the names of two persons pair in any order of the words', () => {
+  expect(
+    candidatePairs([
+      { entityId: A, type: 'person', name: 'Ivanov Ivan' },
+      { entityId: B, type: 'person', name: 'Иван Иванов' },
+    ]),
+  ).toStrictEqual([
+    {
+      firstId: A,
+      secondId: B,
+      type: 'person',
+      key: 'ivan ivanov',
+      firstName: 'Ivanov Ivan',
+      secondName: 'Иван Иванов',
+    },
+  ]);
+});

@@ -215,6 +215,30 @@ export const ARefusedConfirmationSaysWhy: Story = {
   },
 };
 
+/** A refused refusal says the sentence of the writer with no name of a field, and the pair stays
+ * on the list. */
+export const ARefusedRefusalSaysWhy: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    writerAnswers(
+      {
+        status: 422,
+        body: { refusal: 'firstId: no candidate that waits joins these two entities' },
+      },
+      { status: 200, body: { candidates: [SHIPPER, REFINERY] } },
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Refuse the pair PJSC Sovcomflot and ПАО «Совкомфлот»' }),
+    );
+
+    await waitFor(async () => {
+      await expect(canvas.getByRole('status')).toHaveTextContent(
+        'Nothing was written. no candidate that waits joins these two entities.',
+      );
+    });
+    await expect(canvasElement.querySelectorAll(PAIR_ROW)).toHaveLength(2);
+  },
+};
+
 /** With no writer, the page says why it holds no candidate. */
 export const NoWriterSaysWhy: Story = {
   args: {

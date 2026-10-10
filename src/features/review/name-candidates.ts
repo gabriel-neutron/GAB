@@ -55,7 +55,10 @@ export async function readNameCandidates(): Promise<CandidatesRead> {
 // itself, so the operator has no field to correct and reads the sentence alone.
 const withoutField = <Done extends object>(result: WriteResult<Done>): WriteResult<Done> =>
   result.step === 'refused'
-    ? { ...result, refusal: result.refusal.replace(/^(?:survivorId|absorbedId): /u, '') }
+    ? {
+        ...result,
+        refusal: result.refusal.replace(/^(?:survivorId|absorbedId|firstId|secondId): /u, ''),
+      }
     : result;
 
 /** Confirm one candidate: the absorbed entity merges into the survivor, and its label becomes a
@@ -75,9 +78,11 @@ export async function confirmNameCandidate(
 
 /** Refuse one candidate. The command never proposes the pair again. */
 export async function refuseNameCandidate(firstId: string, secondId: string): Promise<WriteResult> {
-  return askWriter(
-    '/write/refuse-name-candidate',
-    { firstId, secondId },
-    z.object({ refused: z.number() }),
+  return withoutField(
+    await askWriter(
+      '/write/refuse-name-candidate',
+      { firstId, secondId },
+      z.object({ refused: z.number() }),
+    ),
   );
 }
