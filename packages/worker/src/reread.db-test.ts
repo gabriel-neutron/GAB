@@ -263,6 +263,13 @@ test('a document with a citation that the new text would break stays unchanged a
     const citation = await cite(held, cited, 10);
     const other = Buffer.concat([CYRILLIC, utf8('<!-- a second fetch -->')]);
     const free = await held.put(other, GARBLED_TITLE, await oldPages(other), `${PLAIN_URI}/2`);
+    // The render of the kept page keeps its title too.
+    const render = utf8(new TextDecoder('windows-1251').decode(CYRILLIC));
+    await held.put(
+      render,
+      `${GARBLED_TITLE} (rendered)`,
+      (await extractText(render, 'text/html; charset=utf-8')).pages,
+    );
     const before = await documentOf(held, cited);
     const kept = [{ document: cited, citations: [{ citation, page: 1 }] }];
 
@@ -276,6 +283,26 @@ test('a document with a citation that the new text would break stays unchanged a
     expect(report.changed.map((one) => one.document)).toStrictEqual([free]);
     expect(await documentOf(held, cited)).toStrictEqual(before);
     expect((await documentOf(held, free))?.title).toBe('Форум — Тема');
+    expect(
+      await held.ask('SELECT text_extractor FROM public.citation WHERE id = $1::uuid', [citation]),
+    ).toStrictEqual([{ text_extractor: OLD_SET }]);
+  });
+});
+
+test('a cited document whose excerpt the corrected text still holds changes', async () => {
+  await inTransaction(async (held) => {
+    // The old text starts with a heading that the corrected text also holds.
+    const fresh = (await extractText(CYRILLIC, 'text/html')).pages;
+    const id = await held.put(CYRILLIC, GARBLED_TITLE, [`${fresh[0] ?? ''} garbled`]);
+    const citation = await cite(held, id, 10);
+
+    const report = await held.run(false);
+
+    expect(report.kept).toStrictEqual([]);
+    expect(report.changed).toStrictEqual([
+      { document: id, text: true, title: { from: GARBLED_TITLE, to: 'Форум — Тема' } },
+    ]);
+    expect((await documentOf(held, id))?.sets).toBe(2);
     expect(
       await held.ask('SELECT text_extractor FROM public.citation WHERE id = $1::uuid', [citation]),
     ).toStrictEqual([{ text_extractor: OLD_SET }]);
