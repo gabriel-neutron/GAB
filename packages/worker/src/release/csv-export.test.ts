@@ -72,6 +72,7 @@ const recordOf = (claims: readonly ReleaseClaim[]): ReleaseRecord => ({
         uri: 'https://example.org/a',
         retrieved_at: '2026-10-01',
         licence: null,
+        provider: null,
       },
     ],
   ]),

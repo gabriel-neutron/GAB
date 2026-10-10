@@ -35,3 +35,4 @@ rules of the code review.
 | [0014](adr/0014-a-merge-is-an-act-with-an-alias-and-a-copy.md) | A merge is an act of the ledger, with an alias and a full copy | Accepted |
 | [0015](adr/0015-a-release-gives-three-formats-of-the-same-rows.md) | A release gives three formats of the same rows | Accepted |
 | [0016](adr/0016-the-nato-pair-of-a-claim.md) | The NATO pair of a claim | Accepted |
+| [0017](adr/0017-the-alignment-matrix-reads-the-regime-from-the-provider.md) | The alignment matrix reads the regime of a designation from the provider of its document | Accepted |

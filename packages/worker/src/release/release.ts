@@ -3,6 +3,7 @@ import { access, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path';
 
 import type { Queryable } from '../queryable.ts';
+import { alignmentMatrix } from './alignment-matrix.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
 import { geojsonExport } from './geojson-export.ts';
@@ -48,8 +49,10 @@ export const writeRelease = async (
   const record = await readReleaseRecord(db, { natoPair: manifest.showNatoPair });
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
+  const preamble = `${heading.title}\n\n${disclaimer}`;
   const files: readonly ReleaseFile[] = [
-    ...csvExport(record, `${heading.title}\n\n${disclaimer}`),
+    ...csvExport(record, preamble),
+    alignmentMatrix(record, manifest.dateRules, preamble),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];
@@ -67,6 +70,7 @@ export const writeRelease = async (
     version: manifest.version,
     date: manifest.date,
     showNatoPair: manifest.showNatoPair,
+    dateRules: manifest.dateRules,
     disclaimer,
     files: listed,
   };
