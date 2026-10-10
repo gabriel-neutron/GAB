@@ -104,7 +104,10 @@ the value. A rating waits in the queue until the operator approves the reference
    gets a rating job by itself.
 
 A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each failed rating job
-back in the queue with no attempt, and prints the names. The next `pnpm worker run` rates them.
+back in the queue with no attempt, and prints each name with the reason and the refusal of the
+earlier attempt: the job keeps no record of them. The next `pnpm worker run` rates them, and each
+job costs one call to the model. The command also puts back a rating that the model refused: this
+is the one exception to the rule that a refusal is not asked again.
 
 `BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
 that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
