@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import { readRaterConfig, type RaterConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
-import { decide, ratingAnswer, ratingContext, referenceNames } from './answer.ts';
+import { decide, ratingAnswer, ratingContext, referenceNames, type Decision } from './answer.ts';
 
 const RATER_NAME = 'rater';
-const VERSION = 'v2';
+const VERSION = 'v3';
 
 const CONTEXT = 'SELECT public.rating_context($1::text) AS context';
 const STORE = `SELECT public.store_author_letter($1::text, $2::text, $3::text, $4::text,
@@ -54,8 +54,31 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
       asked = await askOnce(context, messages);
       decision = decide(name, asked.value, read.authors);
     }
-    // The record keeps the name of the model that gave the answer.
-    const model = asked.served;
+    // A name of two authors or a generic name joins no author. The door refuses the join, and the
+    // model gets one more question: the name is a new author. No other refusal is asked again.
+    let stored = await storeOf(context, name, decision, asked.served);
+    if (stored?.includes(JOINS_NO_AUTHOR) === true && decision.kind === 'join') {
+      messages.push(
+        { role: 'assistant', content: JSON.stringify(asked.value) },
+        { role: 'user', content: newAuthorOf(stored) },
+      );
+      asked = await askOnce(context, messages);
+      decision = decide(name, asked.value, read.authors);
+      stored = await storeOf(context, name, decision, asked.served);
+    }
+    if (stored !== null) return refused(stored);
+    if (decision.kind === 'refused') return refused(decision.reason);
+    return { refusals: [] };
+  };
+
+  /** Calls the door of the decision. It gives the sentence of a refusal of the door, or null. The
+   * record keeps the name of the model that gave the answer. */
+  const storeOf = async (
+    context: AgentContext,
+    name: string,
+    decision: Decision,
+    model: string,
+  ): Promise<string | null> => {
     try {
       if (decision.kind === 'join') {
         await context.db.query(JOIN, [name, decision.known]);
@@ -75,10 +98,9 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
       // an invalid value (class 22) or a broken rule of a table (class 23). Another error, such as
       // a lost connection or a deadlock, reaches the runner as it is, and the name stays free.
       if (!isRefusal(fault)) throw fault;
-      return refused(fault.message);
+      return fault.message;
     }
-    if (decision.kind === 'refused') return refused(decision.reason);
-    return { refusals: [] };
+    return null;
   };
 
   const askOnce = async (context: AgentContext, messages: readonly Message[]) => {
@@ -104,6 +126,13 @@ export const makeRater = (config: RaterConfig, options: RaterOptions = {}): Runn
 const againOf = (reason: string, references: readonly string[]): string =>
   `Your answer is refused: ${reason}. Compare only with the names in this list, written as they ` +
   `stand: ${JSON.stringify(references)}. Answer again with JSON only.`;
+
+// The end of the sentence of the join door when a name joins no author.
+const JOINS_NO_AUTHOR = 'joins no author';
+
+const newAuthorOf = (reason: string): string =>
+  `The join is refused: ${reason}. Rate the name as a new author. A name of two authors, or a ` +
+  `generic name, gets F. Answer again with JSON only.`;
 
 const REFUSAL_CLASSES = ['22', '23'];
 
