@@ -320,3 +320,21 @@ test('a relation of a dated type keeps its two bounds, and another type loses th
   ]);
   expect(screened.dropped).toStrictEqual({ bound_on_undated_type: 2 });
 });
+
+test('a bound that is no day of the calendar, and an end before the start, are dropped', () => {
+  const screened = screenBatch(
+    [
+      entity('a', 'company', 'Rosneft'),
+      entity('b', 'vessel', 'Nayara'),
+      dated('r1', 'owns', { validFrom: '2019-02-30', validTo: 'May 2023' }),
+      dated('r2', 'operates', { validFrom: '2023-11-30', validTo: '2019-05-02' }),
+    ],
+    WORDS,
+    new Map(),
+  );
+  expect(screened.items.slice(2).map((item) => item.act)).toStrictEqual([
+    { op: 'create_relation', type: 'owns', srcId: 'a', dstId: 'b' },
+    { op: 'create_relation', type: 'operates', srcId: 'a', dstId: 'b', validFrom: '2023-11-30' },
+  ]);
+  expect(screened.dropped).toStrictEqual({ bound_not_a_day: 2, end_before_start: 1 });
+});

@@ -87,7 +87,13 @@ const RECORD_CHECK = 'SELECT public.record_act_check($1::uuid, $2, $3, $4, $5, $
 
 // The part of the answer of the propose tool that names the act of each item.
 const proposed = z.object({
-  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid() })),
+  proposals: z.array(
+    z.object({
+      ref: z.string(),
+      proposalId: z.uuid(),
+      droppedBounds: z.array(z.string()).default([]),
+    }),
+  ),
 });
 
 // Items that cite the same passages go to the checker in one question.
@@ -263,6 +269,11 @@ export const makeExtractor = (
         );
         if (made.ok) {
           await recordChecks(made.output, verdicts);
+          // The propose tool drops a bound that no excerpt states, and the job counts it.
+          for (const one of proposed.parse(made.output).proposals)
+            if (one.droppedBounds.length > 0)
+              dropped['bound_not_in_excerpt'] =
+                (dropped['bound_not_in_excerpt'] ?? 0) + one.droppedBounds.length;
           for (const [key, item] of screened.proposed) if (!seen.has(key)) seen.set(key, item);
           counted();
           return null;

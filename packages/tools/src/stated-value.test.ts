@@ -27,6 +27,14 @@ test.each([
   ['Listed on 25/03/2024.', '2024-03-25'],
   ['Listed on 03/25/2024.', '2024-03-25'],
   ['Listed on 05.05.2024.', '2024-05-05'],
+  ['Listed on 05.03.2024.', '2024-03-05'],
+  ['В силу с 5.3.2024.', '2024-03-05'],
+  ['Судно продано 2 мая 2019 г.', '2019-05-02'],
+  ['с 30 ноября 2023 года', '2023-11-30'],
+  ['On the 2nd of May, 2019 she was sold.', '2019-05-02'],
+  ['Sold on 2 May, 2019.', '2019-05-02'],
+  ['Listed 02-May-2019.', '2019-05-02'],
+  ['Listed 02-MAY-2019.', '2019-05-02'],
 ])('the passage %j states the day %s', (passage, day) => {
   expect(unstatedValues(relationFrom(day), [passage])).toStrictEqual([]);
 });
@@ -37,6 +45,8 @@ test.each([
   ['On 12 March 2024 the tanker left.', '2024-03-13'],
   ['On 112 March 2024 the tanker left.', '2024-03-12'],
   ['Listed on 2024-03-12.', '2024-12-03'],
+  ['Listed on 05.03.2024.', '2024-05-03'],
+  ['Listed on 05-03-2024.', '2024-03-05'],
 ])('the passage %j does not state the day %s', (passage, day) => {
   expect(unstatedValues(relationFrom(day), [passage])).toStrictEqual([
     { name: 'validFrom', value: day },
