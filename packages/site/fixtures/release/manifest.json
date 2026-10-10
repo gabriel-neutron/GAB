@@ -21,21 +21,21 @@
       "date": "2026-10-01"
     },
     "entities": {
-      "added": 1,
+      "added": 7,
       "changed": 0,
       "removed": 0,
       "merged": 0,
       "unmerged": 0
     },
     "relations": {
-      "added": 1,
+      "added": 7,
       "changed": 0,
       "removed": 0,
       "merged": 0,
       "unmerged": 0
     },
     "claims": {
-      "added": 1,
+      "added": 14,
       "changed": 0,
       "removed": 0,
       "merged": 0,
@@ -50,18 +50,18 @@
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 1742,
-      "sha256": "612918e093b11395b42b141299c247ccb87f7182680a69fcec00459143a3d1e0"
+      "bytes": 2721,
+      "sha256": "e2f3a2a051167679f154c5f32436c33f054ae54901a44eb38768d26a0d4b1b45"
     },
     {
       "path": "relations.csv",
-      "bytes": 1958,
-      "sha256": "c32bd5365683a80a1283f51f1dac45548655f34131e6e27fed46c2527086bcd8"
+      "bytes": 3573,
+      "sha256": "c99ec3e959a6e446e777250c2cbf8b1f281eaf4034bdd783bb5870584a08e975"
     },
     {
       "path": "claims.csv",
-      "bytes": 3715,
-      "sha256": "844d2c6c421b54b5a607d8e688f726bd975f7f1171570deb0f74cab7298213cc"
+      "bytes": 8970,
+      "sha256": "f65e33b91fe110963b987b62a90fea585572c774d425b5d3c0bd94db801c173b"
     },
     {
       "path": "merges.csv",
@@ -85,13 +85,13 @@
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 11992,
-      "sha256": "d07f13edab1653df8d26c01fd952059469439c145b6b94c422b1ca23fe94efb4"
+      "bytes": 23156,
+      "sha256": "d660580a4ac6e18e8a2da77ce34d39a3defe20cdd7803c99c51f97ea7fc2d82f"
     },
     {
       "path": "changelog.csv",
-      "bytes": 1379,
-      "sha256": "37073d41f09a6cc2c0b5451ade6098faa6661a3a51deba7b4836e1e7f447a853"
+      "bytes": 3690,
+      "sha256": "d484a32135ce83b52fca93f1e5391c0ed3c423800cd37aa13c38919d2feb5871"
     }
   ]
 }

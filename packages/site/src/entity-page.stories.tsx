@@ -21,7 +21,8 @@ export const AnEntityGivesItsValuesRelationsAndSources: Story = {
     await expect(canvas.getByRole('heading', { name: 'Severnaya Volna' })).toBeVisible();
     await expect(canvas.getByText('9000001')).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Arctic Bridge Shipping' })).toBeVisible();
-    await expect(canvas.getByText('is owned by')).toBeVisible();
+    await expect(canvas.getAllByText('is owned by')).toHaveLength(2);
+    await expect(canvas.getByRole('link', { name: 'IMO 9000001' })).toBeVisible();
     await expect(canvas.getByText('Council Implementing Regulation (EU) 2025/0000')).toBeVisible();
   },
 };

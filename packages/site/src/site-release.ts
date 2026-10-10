@@ -1,7 +1,8 @@
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
-import { claimPage, entityPage, relationPage, SitePathFault } from './site-paths.ts';
+import { claimPage, entityPage, relationPage, SitePathFault, vesselPage } from './site-paths.ts';
 import { siteManifestShape, type SiteManifest } from './site-manifest.ts';
+import { imoOf } from './vessel-imo.ts';
 
 /** The NATO pair of a claim. A release holds it only when its manifest shows the pair. */
 export interface NatoPair {
@@ -103,6 +104,13 @@ export interface SiteRelease {
   readonly claimById: ReadonlyMap<string, SiteClaim>;
   /** The claims of each entity: its values, and each relation that starts or ends at it. */
   readonly claimsAbout: ReadonlyMap<string, readonly SiteClaim[]>;
+  /** The value claims of each relation, such as the act that gives its end date. */
+  readonly valuesOfRelation: ReadonlyMap<string, readonly SiteClaim[]>;
+  /** The public vessels of each IMO number, in the order of the entities file. Two vessels share
+   * a number while no merge joins them. */
+  readonly vesselsByImo: ReadonlyMap<string, readonly SiteEntity[]>;
+  /** The IMO number of each public vessel that has one. */
+  readonly imoOfVessel: ReadonlyMap<string, string>;
   /** The survivor of each absorbed identifier while its merge stands. */
   readonly aliases: ReadonlyMap<string, string>;
   readonly criticalNodes: readonly CriticalNode[];
@@ -315,6 +323,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
   }));
 
   const claimsAbout = new Map<string, SiteClaim[]>();
+  const valuesOfRelation = new Map<string, SiteClaim[]>();
   const about = (id: string, claim: SiteClaim) => {
     addTo(claimsAbout, id, claim);
   };
@@ -323,6 +332,22 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       about(claim.relation.fromId, claim);
       if (claim.relation.toId !== claim.relation.fromId) about(claim.relation.toId, claim);
     } else if (claim.subjectKind === 'entity') about(claim.subjectId, claim);
+    else addTo(valuesOfRelation, claim.subjectId, claim);
+
+  const vessels = new Set(entities.filter((one) => one.type === 'vessel').map((one) => one.id));
+  const imoOfVessel = new Map<string, string>();
+  for (const claim of claims)
+    if (claim.kind === 'attribute' && claim.attribute === 'imo' && vessels.has(claim.subjectId)) {
+      const imo = imoOf(claim.value);
+      // The alignment matrix keeps the last number of a vessel too, so a vessel has one number on
+      // both sides. A claim identifier holds one key of one entity, so two numbers cannot come.
+      if (imo !== null) imoOfVessel.set(claim.subjectId, imo);
+    }
+  const vesselsByImo = new Map<string, SiteEntity[]>();
+  for (const entity of entities) {
+    const imo = imoOfVessel.get(entity.id);
+    if (imo !== undefined) addTo(vesselsByImo, imo, entity);
+  }
 
   // Each page is written before the first one, so an identifier that cannot be a path stops the
   // release before a file is written. Two paths that differ only by case are one file on Windows.
@@ -332,6 +357,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     ...relations.map((one) => relationPage(one.id)),
     ...[...aliases].flatMap(([absorbed, survivor]) => [entityPage(absorbed), entityPage(survivor)]),
     ...criticalNodes.map((one) => entityPage(one.id)),
+    ...[...vesselsByImo.keys()].map(vesselPage),
   ];
   const folded = new Map<string, string>();
   for (const path of new Set(paths)) {
@@ -349,6 +375,9 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     entityById: new Map(entities.map((one) => [one.id, one])),
     claimById: new Map(claims.map((one) => [one.id, one])),
     claimsAbout,
+    valuesOfRelation,
+    vesselsByImo,
+    imoOfVessel,
     aliases,
     criticalNodes,
     geojson: fileOf('entities.geojson'),

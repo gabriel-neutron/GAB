@@ -36,6 +36,21 @@ and their form are costly to change after the first publication.
   identifier opens its page. The page of a relation sends the reader to the page of its claim.
 - The address of an entity that a merge absorbed gives a page that sends the reader to the
   survivor (ADR 0014), so an old citation still opens a page.
+- A vessel with an IMO number of seven digits also has a page at the path of its number, under
+  `vessel/`. The number names the ship for its whole life, through a new name, a new flag and a
+  merge, so the address does not change when the record changes. The join reads the number with
+  the rule of the alignment matrix (ADR 0017). A number with a wrong check digit still has its
+  page, and the page says that the digit is wrong.
+- Two public vessels with one IMO number and no merge share the page of the number, and the page
+  gives the timeline of each vessel apart. The page does not join them, because only the operator
+  merges (ADR 0014). A merged vessel has one page, and the page names each absorbed identifier.
+- The page of a vessel draws a timeline of its former names, flags, owners, managers and
+  operators, insurers, designations and port calls, from the bounds of the relations and the
+  dated claims of the release. The release renders the drawing as SVG, with no script. A bound
+  with no end is open: its bar goes to the line of the version, with an arrow, and it never reads
+  as ended. A bound with no start reads as unknown. A list in words gives each mark, also the
+  marks with no date, for a screen reader and for a small screen. Each mark links to its claim,
+  and an end date that an act gave (ADR 0021) links to the claim of that act.
 - A page is a folder with an index file, and each link is relative and names the index file. So
   the site works under any base path, and its pages open from the files on a disk.
 - Each page says "Version of DD/MM/YYYY" and gives the two contact links of the release manifest.
@@ -79,6 +94,13 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
   needs a writer that streams.
 - With no basemap, a reader sees the points and the grid only.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
+- A vessel with no IMO number has no timeline page. Its entity page gives its relations.
+- The timeline draws only the dates that the sources give (`decisions.md` M5). A port call and a
+  false flag take their day from their `observed_on` value, or else from another value of the
+  relation that is a day. A former name and a flag value have no date.
+- A relation counts only when the vessel is at its expected end: the second end of an owner, an
+  operator, an insurer and a flag, and the first end of a designation, a port call and a false
+  flag.
 - The build of version 1 reads its demonstration project at the root of the host, so the release
   copies that project to the root of the site too. Version 1 works only when the site is at the
   root of its host, or when the host sends the root address of the project to `v1/`.
