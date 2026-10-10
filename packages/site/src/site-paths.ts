@@ -37,6 +37,9 @@ export const entityPage = pageOf('entity');
 export const relationPage = pageOf('relation');
 export const claimPage = pageOf('claim');
 
+/** The page of the vessels with one IMO number. */
+export const vesselPage = pageOf('vessel');
+
 /** The identifier of an entity or a claim in the JSON-LD file: its path under the base. */
 export const permanentAddress = (base: string, kind: 'entity' | 'claim', id: string): string =>
   `${base}${kind}/${segmentsOf(id).map(encodeURIComponent).join('/')}`;

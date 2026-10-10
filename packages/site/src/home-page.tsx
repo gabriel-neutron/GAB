@@ -1,7 +1,7 @@
 import { ClaimLink } from './claim-link.tsx';
 import { SiteFrame } from './site-frame.tsx';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
-import { entityPage, HOME, hrefFrom } from './site-paths.ts';
+import { entityPage, HOME, hrefFrom, vesselPage } from './site-paths.ts';
 import type { CriticalNode, NodeCondition, SiteRelease } from './site-release.ts';
 
 const CONDITIONS = [
@@ -43,6 +43,15 @@ function ConditionCell({
   );
 }
 
+function VesselLink({ imo }: { readonly imo: string | undefined }) {
+  if (imo === undefined) return null;
+  return (
+    <a className={LINK} href={hrefFrom(HOME, vesselPage(imo))}>
+      Timeline of IMO {imo}
+    </a>
+  );
+}
+
 function NodeTable({
   release,
   nodes,
@@ -78,6 +87,7 @@ function NodeTable({
                   {node.label}
                 </a>
                 <p className="text-muted-foreground">{node.type}</p>
+                <VesselLink imo={release.imoOfVessel.get(node.id)} />
               </td>
               {CONDITIONS.map((one) => (
                 <ConditionCell
