@@ -3,7 +3,7 @@ import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from './relation-words.ts';
 import { SiteFrame } from './site-frame.tsx';
-import { claimPage, entityPage, hrefFrom, permanentAddress } from './site-paths.ts';
+import { claimPage, entityPage, hrefFrom, permanentAddress, vesselPage } from './site-paths.ts';
 import type { SiteClaim, SiteRelease, SiteSource } from './site-release.ts';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 import { SourceList } from './source-list.tsx';
@@ -23,6 +23,7 @@ export function EntityPage({ release, entityId }: EntityPageProps) {
   const values = claims.filter((one) => one.kind === 'attribute');
   const relations = claims.filter((one) => one.kind === 'relation');
   const merged = [...release.aliases].filter(([, survivor]) => survivor === entity.id);
+  const imo = release.imoOfVessel.get(entity.id);
 
   // Each document once, in the order of the claims.
   const sources = new Map<string, SiteSource>();
@@ -60,6 +61,16 @@ export function EntityPage({ release, entityId }: EntityPageProps) {
         <dd className="font-mono break-all">
           {permanentAddress(release.manifest.iriBase, 'entity', entity.id)}
         </dd>
+        {imo === undefined ? null : (
+          <>
+            <dt className="text-label">Timeline</dt>
+            <dd>
+              <a className={LINK} href={hrefFrom(here, vesselPage(imo))}>
+                IMO {imo}
+              </a>
+            </dd>
+          </>
+        )}
         {merged.length === 0 ? null : (
           <>
             <dt className="text-label">Merged identifiers</dt>

@@ -11,6 +11,7 @@ import { MapPage } from './map-page.tsx';
 import { MethodPage } from './method-page.tsx';
 import { RedirectPage } from './redirect-page.tsx';
 import { SiteDocument } from './site-document.tsx';
+import { VesselPage } from './vessel-page.tsx';
 import {
   claimPage,
   DOWNLOADS,
@@ -25,6 +26,7 @@ import {
   STYLE,
   V1,
   type SitePath,
+  vesselPage,
 } from './site-paths.ts';
 import { readSiteRelease } from './site-release.ts';
 
@@ -93,6 +95,8 @@ export const buildSite = (
         <EntityPage release={release} entityId={entity.id} />,
       ),
     );
+  for (const imo of release.vesselsByImo.keys())
+    pages.push(html(vesselPage(imo), `IMO ${imo}`, <VesselPage release={release} imo={imo} />));
   for (const claim of release.claims)
     pages.push(
       html(
