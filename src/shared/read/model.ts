@@ -168,6 +168,8 @@ export type ProposalPayload =
       readonly attrs: Attributes;
     }
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
+  /** The end date of an open relation, and no other value. */
+  | { readonly kind: 'close'; readonly valid_to: string }
   | { readonly kind: 'columns'; readonly label: string | null; readonly type: string | null }
   | {
       readonly kind: 'relation';
@@ -189,8 +191,9 @@ export type ProposalPayload =
   | { readonly kind: 'mapping'; readonly table: string | null };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds
- * every other one. A deletion copies the whole row it destroyed, and an act on the name or the
- * type copies the columns it replaced. Neither of those two is attributes. */
+ * every other one. A deletion copies the whole row it destroyed, an act on the name or the type
+ * copies the columns it replaced, and an end date copies the end and the documents of the row.
+ * None of those three is attributes. */
 export type PriorValue =
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
   | { readonly kind: 'row'; readonly row: Readonly<Record<string, unknown>> };

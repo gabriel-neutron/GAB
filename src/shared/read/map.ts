@@ -68,8 +68,8 @@ function areaOf(value: unknown): Area | null {
 }
 
 // The act carries no kind of its own, so the operation states which payload it wrote.
-// `update_relation` writes an attribute object and never two ends: the promotion reads
-// `payload->'attrs'` for it, in the branch of `update_attrs`, and the check on a snapshot agrees.
+// `update_relation` writes an attribute object and never two ends, or an end date alone: the
+// key `valid_to` tells the two forms apart, in the promotion and in the check on a snapshot.
 const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   create_entity: 'entity',
   update_attrs: 'attrs',
@@ -103,6 +103,10 @@ const entityPayload = z.looseObject({
   attrs: z.unknown().optional(),
 });
 const attrsPayload = z.looseObject({ attrs: z.unknown().optional() });
+const closePayload = z.looseObject({ valid_to: z.string() });
+
+const isClose = (op: ProposalOp, value: unknown): boolean =>
+  op === 'update_relation' && closePayload.safeParse(value).success;
 const columnsPayload = z.looseObject({
   label: z.string().nullish(),
   type: z.string().nullish(),
@@ -125,7 +129,7 @@ const deletePayload = z.looseObject({ reason: z.string().nullish() });
 const mappingPayload = z.looseObject({ table: z.string().nullish() });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
-  const kind = KIND_OF_OP[op];
+  const kind = isClose(op, value) ? 'close' : KIND_OF_OP[op];
   switch (kind) {
     case 'entity': {
       const held = entityPayload.parse(value);
@@ -141,6 +145,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = attrsPayload.parse(value);
       return { kind, attrs: attributesOf(held.attrs) };
     }
+    case 'close':
+      return { kind, valid_to: closePayload.parse(value).valid_to };
     case 'columns': {
       const held = columnsPayload.parse(value);
       return { kind, label: held.label ?? null, type: held.type ?? null };
@@ -181,8 +187,9 @@ const priorRow = z.record(z.string(), z.unknown());
 
 // A snapshot stands on an update and on a delete, and on no other act: the check on the column
 // permits it there alone.
-function priorValueOf(op: ProposalOp, value: unknown): PriorValue | null {
+function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorValue | null {
   if (value === undefined || value === null) return null;
+  if (isClose(op, payload)) return { kind: 'row', row: priorRow.parse(value) };
   switch (op) {
     case 'update_attrs':
     case 'update_relation':
@@ -287,7 +294,7 @@ function proposal(row: unknown): Proposal {
     payload: payloadOf(read.op, read.payload),
     src: read.src,
     names: read.names,
-    priorValue: priorValueOf(read.op, read.prior_value),
+    priorValue: priorValueOf(read.op, read.payload, read.prior_value),
     dissent: read.dissent,
     authorRole: read.author_role,
     proposer: read.proposer,

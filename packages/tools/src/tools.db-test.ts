@@ -951,6 +951,111 @@ test('an end that no excerpt states refuses the batch of the research AI, and na
   expect(found.rows).toStrictEqual([]);
 });
 
+// An open owns relation of the record, which the operator signs in the transaction of the test.
+const openOwns = async (ask: Ask, validFrom: string): Promise<string> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  const signed = z.array(z.object({ target_id: z.uuid() }));
+  const sign = async (op: string, payload: object, names: readonly string[] = []) => {
+    const [row] = signed.parse(
+      await ask(
+        `SELECT target_id FROM public.sign_change('a test', $1, $2::jsonb, ARRAY['manual'],
+           NULL, NULL, $3::uuid[])`,
+        [op, JSON.stringify(payload), names],
+      ),
+    );
+    if (row === undefined) throw new Error('the act was not signed');
+    return row.target_id;
+  };
+  const owner = await sign('create_entity', {
+    type: 'company',
+    label: 'Rosneft',
+    sources: ['manual'],
+  });
+  const vessel = await sign('create_entity', {
+    type: 'vessel',
+    label: 'A tanker',
+    sources: ['manual'],
+  });
+  const owns = await sign(
+    'create_relation',
+    { type: 'owns', src_id: owner, dst_id: vessel, valid_from: validFrom, sources: ['manual'] },
+    [owner, vessel],
+  );
+  await ask('RESET SESSION AUTHORIZATION');
+  return owns;
+};
+
+const closing = (target: string, validTo: string, excerpt: string) =>
+  item('close', { op: 'update_relation', targetId: target, validTo }, excerpt);
+
+test('propose gives an open relation the end date that its excerpt states', async () => {
+  claimsRead.length = 0;
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, '2019-05-02');
+    await asResearch(ask, () => withDocument(ask, [DATED]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      {
+        items: [
+          closing(
+            owns,
+            '2023-11-30',
+            'Rosneft owned the tanker from 2 May 2019 to 30 November 2023.',
+          ),
+        ],
+      },
+      reading,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { owns, batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'close', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toStrictEqual({ valid_to: '2023-11-30' });
+  // The checker reads the relation in words, because it reads no record.
+  expect(claimsRead).toStrictEqual([
+    {
+      op: 'update_relation',
+      targetId: found.owns,
+      validTo: '2023-11-30',
+      relation: 'Rosneft owns A tanker',
+    },
+  ]);
+});
+
+test.for([
+  [
+    'an end that no excerpt states',
+    '2024-06-30',
+    'Rosneft owned the tanker from 2 May 2019',
+    'item close: no excerpt states the end date 2024-06-30 (validTo)',
+  ],
+  [
+    'an end before the start',
+    '2019-05-01',
+    'It changed hands on 1 May 2019.',
+    'item close: act.validTo: the relation starts on 2019-05-02, and it cannot end before',
+  ],
+] as const)('propose refuses %s of an open relation', async ([, validTo, excerpt, said]) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, '2019-05-02');
+    const outcome = await proposeOnPage(
+      ask,
+      [closing(owns, validTo, excerpt)],
+      `${DATED} It changed hands on 1 May 2019.`,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(said) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
 // The record holds these rules at the insert, so a bad act never waits in the review queue. The
 // refusal names the item, the field and the sentence of the rule.
 test.for([

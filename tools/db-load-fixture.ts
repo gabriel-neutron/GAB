@@ -292,6 +292,8 @@ const candidatePayload = (
       return { type: payload.type, label: payload.label, attrs: payload.attrs };
     case 'attrs':
       return { attrs: payload.attrs };
+    case 'close':
+      return { valid_to: payload.valid_to };
     case 'columns':
       return {
         ...(payload.label === null ? {} : { label: payload.label }),

@@ -31,6 +31,8 @@ export interface OtherChange {
   readonly op: string;
   readonly target: string;
   readonly attributes: readonly Attribute[];
+  /** The end date that the act gives to an open relation, or null for any other change. */
+  readonly closesOn: string | null;
 }
 
 /** What one unit proposes: the entity first, then its relations, then any other act. */
@@ -122,6 +124,7 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
             op: act.op,
             target: act.target === null ? '' : nameOf(act.target),
             attributes: act.attributes,
+            closesOn: act.closesOn,
           },
         ]
       : [],

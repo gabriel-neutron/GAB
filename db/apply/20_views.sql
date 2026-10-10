@@ -222,7 +222,9 @@ CREATE VIEW api.proposal AS
               WHEN prior_value IS NULL
                 OR (SELECT r.reading FROM public.proposal_reading r WHERE r.id = p.id) = 'whole'
               THEN prior_value
-              WHEN op IN ('update_attrs', 'update_relation') THEN
+              -- An end date replaced no value: its copy is the documents of the row, so it
+              -- takes the rule of a row below.
+              WHEN op IN ('update_attrs', 'update_relation') AND NOT payload ? 'valid_to' THEN
                 (SELECT coalesce(jsonb_object_agg(a.key, a.value), '{}'::jsonb)
                    FROM jsonb_each(prior_value) AS a(key, value)
                   WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.value->'src') s(id)
@@ -287,7 +289,8 @@ COMMENT ON VIEW api.proposal IS
   'values that cite a public document (PU1). '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
-  'holds it. A merge holds the full copy of what it changed, and only a tool role reads the copy '
+  'holds it. An update_relation that gives an end date holds valid_to in its payload, and its '
+  'copy holds no end and the documents of the relation before the act. A merge holds the full copy of what it changed, and only a tool role reads the copy '
   'of a merge or an undo. `names` lists the other elements the act touches. author_role is the '
   'connection '
   'role and never a person. model_call_id names the call that made a machine act. It is NULL '

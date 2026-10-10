@@ -436,3 +436,58 @@ test('the review of the operator still shows a person fact that the public read 
   expect(text.public).toBe(0);
   expect(text.review).toContain('A private person');
 });
+
+const closeRows = z.array(
+  z.object({ target_id: z.uuid(), payload: z.unknown(), prior_value: z.unknown() }),
+);
+
+// An end date on a relation that names a person follows the same rule as any act about a person.
+test('an end date on a relation that names a person is public only with a public source', async () => {
+  const shown = await rolledBack('superuser', async (ask) => {
+    await graph(ask);
+    const privateOnly = await relation(ask, 'owns', NAMED, VESSEL, [UPLOADED]);
+    const withPublic = await relation(ask, 'operates', NAMED, VESSEL, [UPLOADED]);
+    const publicRow = await relation(ask, 'insures', NAMED, VESSEL, [PUBLIC_PAGE]);
+    const toHidden = await relation(ask, 'owns', HIDDEN, VESSEL, [PUBLIC_PAGE]);
+    const closes = [
+      [privateOnly, UPLOADED],
+      [withPublic, PUBLIC_PAGE],
+      [publicRow, PUBLIC_PAGE],
+      [toHidden, PUBLIC_PAGE],
+    ] as const;
+    for (const [target, doc] of closes)
+      await asApp(
+        ask,
+        `SELECT * FROM public.sign_change('a test', 'update_relation',
+           '{"valid_to":"2024-01-31"}'::jsonb, $1::text[], 'relation', $2::uuid, '{}')`,
+        [[doc], target],
+      );
+    const asked = closes.map(([target]) => target);
+    const query = `SELECT target_id, payload, prior_value FROM api.proposal
+      WHERE op = 'update_relation' AND target_id = ANY ($1) ORDER BY target_id`;
+    const read = closeRows.parse(await readAs(ask, 'gabriel_read', query, [asked]));
+    const app = closeRows.parse(await readAs(ask, 'gabriel_app', query, [asked]));
+    const names = new Map<string, string>([
+      [withPublic, 'public act'],
+      [publicRow, 'public row'],
+    ]);
+    return {
+      read: Object.fromEntries(
+        read.map((row): [string, unknown] => [
+          names.get(row.target_id) ?? row.target_id,
+          { payload: row.payload, prior: row.prior_value },
+        ]),
+      ),
+      app: app.length,
+    };
+  });
+  // The copy of a row that cites no public document is not public, as the copy of a deletion.
+  expect(shown.read).toStrictEqual({
+    'public act': { payload: { valid_to: '2024-01-31' }, prior: null },
+    'public row': {
+      payload: { valid_to: '2024-01-31' },
+      prior: { valid_to: null, sources: [PUBLIC_PAGE] },
+    },
+  });
+  expect(shown.app).toBe(4);
+});

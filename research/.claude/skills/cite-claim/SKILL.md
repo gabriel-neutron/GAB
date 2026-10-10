@@ -83,6 +83,12 @@ misread a number, so the text can miss a fact that the image shows clearly.
   that no excerpt states refuses the batch: cite the passage that states it, or give no end.
 - A change of flag, owner, operator or insurer is two relations: the old one, which ends, and
   the new one, which starts. Give each bound that the page states.
+- When the old relation is in the record with no end, do not create it again. Read it with
+  `read_entity`: it has `validTo` null. Propose its end with
+  `{"op": "update_relation", "targetId": "<id of the relation>", "validTo": "2023-11-30"}`, and
+  put the words that state the end day in an excerpt. The relation keeps its documents and gets
+  the documents of your act. The record refuses an end on a relation that ended already, on a
+  type that takes no interval, and before the first day of the relation.
 
 ## A sanctions status
 

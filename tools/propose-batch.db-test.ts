@@ -172,7 +172,7 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
         `the operation ${op}`,
         (call: string) =>
           itemOf(call, { op, target_kind: op === 'delete_relation' ? 'relation' : 'entity' }),
-        /^item 1: a machine proposes a new entity, a new relation or new attributes/u,
+        /^item 1: a machine proposes a new entity, a new relation, new attributes or the end date/u,
       ] as const,
   ),
 ];

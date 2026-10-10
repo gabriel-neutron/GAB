@@ -80,6 +80,21 @@ const batchAct = z.discriminatedUnion('op', [
     targetId: z.uuid(),
     attrs: attributeEdit.describe(ATTRIBUTES),
   }),
+  z.strictObject({
+    op: z.literal('update_relation'),
+    targetId: z
+      .uuid()
+      .describe(
+        'the id of an open relation of the record (validTo is null in read_entity), of a type ' +
+          'whose takesInterval is true',
+      ),
+    validTo: z
+      .string()
+      .describe(
+        'the last day of the relation, on or after its first day, written as 2026-01-31; an ' +
+          'excerpt must state it',
+      ),
+  }),
 ]);
 
 const evidence = z.strictObject({
@@ -242,6 +257,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   create_entity: 'entity',
   create_relation: 'relation',
   update_attrs: null,
+  update_relation: null,
 };
 
 const present = async (session: Session, kind: Kind, id: string): Promise<boolean> =>
@@ -311,9 +327,32 @@ const resolvedAct = async (
 };
 
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
-  if (act.op !== 'update_attrs') return;
-  if (!(await present(session, act.targetKind, act.targetId)))
+  if (act.op !== 'update_attrs' && act.op !== 'update_relation') return;
+  const kind = act.op === 'update_attrs' ? act.targetKind : 'relation';
+  if (!(await present(session, kind, act.targetId)))
     refuse(ref, `the target ${act.targetId} does not exist`);
+};
+
+// The checker reads no record, so an act that ends a relation names that relation in words.
+const RELATION_WORDS = `SELECT concat_ws(' ', coalesce(s.label, r.src_id::text), r.type,
+    coalesce(d.label, r.dst_id::text)) AS words
+  FROM api.relation r
+  LEFT JOIN api.entity s ON r.src_kind = 'entity' AND s.id = r.src_id
+  LEFT JOIN api.entity d ON r.dst_kind = 'entity' AND d.id = r.dst_id
+  WHERE r.id = $1`;
+
+const claimActOf = async (
+  session: Session,
+  given: ProposeItem,
+  dropped: readonly BoundName[],
+): Promise<unknown> => {
+  const { act } = given;
+  if (act.op === 'create_relation') return withoutBounds(act, dropped);
+  if (act.op !== 'update_relation') return act;
+  const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
+    act.targetId,
+  ]);
+  return { ...act, relation: named?.words ?? null };
 };
 
 type UnstatedValue = ReturnType<typeof unstatedValues>[number];
@@ -366,6 +405,8 @@ const disputeReason = (
 interface Prepared {
   readonly given: ProposeItem;
   readonly act: ProposalAct;
+  /** The act that the checker reads: the act that is written, in words where it names a row. */
+  readonly claimAct: unknown;
   readonly cited: readonly Cited[];
   readonly unstated: readonly UnstatedValue[];
   readonly dropped: BoundName[];
@@ -390,7 +431,9 @@ export const proposeOf = (modelCallId: string | null) =>
   defineTool({
     name: 'propose',
     description:
-      'Proposes a batch of linked facts: new entities, new relations, and attributes to add. Each ' +
+      'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
+      'end date of an open relation of the record (update_relation, when a page states that an ' +
+      'owner, a flag, an operator or an insurer changed). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
@@ -398,7 +441,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
       'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. A start ' +
       '(validFrom) of a relation that no excerpt states is not proposed, and droppedBounds names ' +
-      'it; an end (validTo) that no excerpt states refuses the batch. Before the write, a ' +
+      'it; an end (validTo) that no excerpt states refuses the batch. The record refuses an end ' +
+      'date on a relation that ended already, on a type that takes no interval, and before the ' +
+      'first day. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
@@ -432,11 +477,13 @@ export const proposeOf = (modelCallId: string | null) =>
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
         const { act: request, dropped } = statedBounds(resolved, passages);
-        // An end that is not proposed makes an ended relation look current. The research AI can
-        // cite the passage that states it, so its batch is refused. An agent cannot, so its item
-        // is disputed and the operator reads the page.
+        // An end that is not proposed makes an ended relation look current, and an end that is
+        // the whole act has no value that a passage states. The research AI can cite the passage
+        // that states it, so its batch is refused. An agent cannot, so its item is disputed and
+        // the operator reads the page.
         const lostEnd =
-          resolved.op === 'create_relation' && dropped.includes('validTo')
+          (resolved.op === 'create_relation' || resolved.op === 'update_relation') &&
+          dropped.includes('validTo')
             ? (resolved.validTo ?? null)
             : null;
         if (lostEnd !== null && modelCallId === null)
@@ -452,9 +499,11 @@ export const proposeOf = (modelCallId: string | null) =>
         prepared.push({
           given,
           act,
+          claimAct: await claimActOf(session, given, dropped),
           cited,
           unstated,
-          dropped,
+          // The end of a close stays in its act, so code removed no bound of it.
+          dropped: resolved.op === 'update_relation' ? [] : dropped,
           lostEnd,
           transcribed,
           id: minted.get(given.ref)?.id,
@@ -462,11 +511,11 @@ export const proposeOf = (modelCallId: string | null) =>
       }
 
       // The check runs before the insert, because the door freezes the dispute flag at insert.
-      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, dropped }) => ({
+      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct }) => ({
         ref: given.ref,
         claim: {
           // The checker reads the act that is written, so a dropped bound is not in the claim.
-          act: given.act.op === 'create_relation' ? withoutBounds(given.act, dropped) : given.act,
+          act: claimAct,
           originator: given.originator,
           modality: given.modality,
         },

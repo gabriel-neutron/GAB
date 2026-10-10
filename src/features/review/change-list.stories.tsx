@@ -10,6 +10,46 @@ const units = unitPageOf(UNIT_ANSWER, null)?.units ?? [];
 
 const unitOf = (id: string) => units.find((unit) => unit.id === id) ?? null;
 
+const CLOSING = '5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f';
+const OWNS = '6e7f8091-a2b3-4c4d-9e5f-6a7b8c9d0e1f';
+
+// The research AI gives the end date of an open relation of the record. The unit is that one act,
+// and the read names the relation by its two ends.
+const closing =
+  unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: UNIT_ANSWER.units.slice(0, 1).map((unit) => ({
+        ...unit,
+        unit: CLOSING,
+        kind: 'change',
+        name: 'Rosneft owns Nayara',
+        type: null,
+        proposer: 'research_ai',
+        group: null,
+        faults: [],
+        endRejected: null,
+        acts: [
+          {
+            id: CLOSING,
+            op: 'update_relation',
+            payload: { valid_to: '2023-11-30' },
+            targetId: OWNS,
+            dissent: false,
+            endRejected: false,
+            dissentReason: null,
+            check: null,
+            target: { name: 'Rosneft owns Nayara', state: 'record', group: null },
+            src: null,
+            dst: null,
+          },
+        ],
+        passages: [],
+      })),
+    },
+    null,
+  )?.units[0] ?? null;
+
 const WORDS = unitWords(
   [
     {
@@ -119,5 +159,19 @@ export const TheColumnScrollsOnItsOwn: Story = {
   play: async ({ canvas }) => {
     const column = canvas.getByRole('region', { name: 'The changes of the unit' });
     await expect(column.scrollHeight).toBeGreaterThan(column.clientHeight);
+  },
+};
+
+/** An act that gives the end date of an open relation reads "closes the relation on <date>", and
+ * names the relation by its two ends. */
+export const AnEndDateClosesTheRelation: Story = {
+  args: { unit: closing },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'End of a relation' })).toBeVisible();
+    const change = canvasElement.querySelector(`[data-change="${CLOSING}"]`);
+    await expect(change).toHaveTextContent(
+      'Closes the relation on 2023-11-30: Rosneft owns Nayara.',
+    );
+    await expect(canvas.queryByText('valid to:')).toBeNull();
   },
 };
