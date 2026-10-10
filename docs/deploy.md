@@ -141,15 +141,16 @@ local record, before the vector index is built:
 2. `pnpm worker reread-html` writes the changes.
 
 The command reads each stored HTML or XHTML document (also a saved HTML file) from the raw store,
-with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose bytes are valid
-UTF-8, as UTF-8. When the
-text changes, it writes the text as a new text set, and each reader then reads that set. The old
-set stays, so each citation stays valid. The command lists each citation whose excerpt is not in
-the corrected text: check these citations. The title changes only when the document still holds
-the title that the old reading gave. The command does not change the bytes, the id, the address
-or the date of a document. A second run changes nothing. It gives exit code 1 when a document could
-not be read, with the reason. A page whose charset was only in the header of the answer, and not in
-the page, stays as it is, because the record keeps the type without its charset.
+with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose
+bytes are valid UTF-8, as UTF-8. When the text changes, it writes the text as a new text set, and
+each reader then reads that set. The old set stays, so each citation stays valid. When the corrected
+text does not hold the excerpt of a citation of a document, the command keeps the text and the title
+of that document as they are. The report and the dry run list each such document with these
+citations: read them. A render of a kept page keeps its title too. The title changes only when the
+document still holds the title that the old reading gave. The command does not change the bytes, the
+id, the address or the date of a document. A second run changes nothing. It gives exit code 1 when a
+document could not be read, with the reason. A page whose charset was only in the header of the
+answer, and not in the page, stays as it is, because the record keeps the type without its charset.
 
 ## Public writes
 
