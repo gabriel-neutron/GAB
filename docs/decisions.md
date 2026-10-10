@@ -213,6 +213,9 @@ author by hand, and a model has no track record of an unknown author, so it cann
 **Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference set
 moves every later letter. Few authors reach B, so few facts pass at the start.
 
+**A failed rating (10 October 2026).** The operator can put every failed rating back in the
+queue, also a rating that the model refused. Each one costs one model call.
+
 ### S2 — The source is listed at each level
 
 **Rule.** An entity and a relation carry a list of sources for their typed fields (name, type,
@@ -436,3 +439,6 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   not public. An upload stored before this ruling is not public, also with an address, because
   its address can be the page where the file was bought. A public API, such as OpenSanctions, is
   a public source. A bought file stays not public. The private data repository is not a source.
+- **Official files (10 October 2026).** An official file that a tool reads at the address of its
+  publisher, such as an act of the Official Journal of the EU or the OFAC SDN list, is a public
+  document.
