@@ -37,9 +37,16 @@ const BINARY_SHARE = 0.05;
 const opensWithUtf16Mark = (bytes: Uint8Array): boolean =>
   (bytes[0] === 0xfe && bytes[1] === 0xff) || (bytes[0] === 0xff && bytes[1] === 0xfe);
 
-/** True when the bytes are not text: a share of control bytes that no text holds. */
-export const binaryBytes = (bytes: Uint8Array): boolean => {
-  if (bytes.length === 0 || opensWithUtf16Mark(bytes)) return false;
+// A charset of two or four bytes for each Latin letter, named in the Content-Type.
+const wideCharset = (contentType: string | null): boolean =>
+  /;\s*charset\s*=\s*"?utf-?(?:16|32)/iu.test(contentType ?? '');
+
+/**
+ * True when the bytes are not text: a share of control bytes that no text holds. A body in UTF-16
+ * or UTF-32 is text when a byte order mark or the charset of the Content-Type names it.
+ */
+export const binaryBytes = (bytes: Uint8Array, contentType: string | null = null): boolean => {
+  if (bytes.length === 0 || opensWithUtf16Mark(bytes) || wideCharset(contentType)) return false;
   const sample = bytes.subarray(0, SAMPLE);
   let control = 0;
   for (const byte of sample)
@@ -51,13 +58,16 @@ export const binaryBytes = (bytes: Uint8Array): boolean => {
 /** True for a type that names text: a page of HTML, a text file, XML or JSON. */
 export const textType = (mime: string): boolean =>
   mime.startsWith('text/') ||
-  mime === 'application/xhtml+xml' ||
   mime === 'application/xml' ||
-  mime === 'application/json';
+  mime === 'application/json' ||
+  mime.endsWith('+xml') ||
+  mime.endsWith('+json');
 
-const GENERIC = 'application/octet-stream';
+/** The type that says nothing of the file: only "bytes". */
+export const GENERIC = 'application/octet-stream';
 
-const declaredMime = (contentType: string | null): string =>
+/** The type of a Content-Type with no parameter, in lower case, or "" when it names none. */
+export const declaredMime = (contentType: string | null): string =>
   (contentType?.split(';')[0] ?? '').trim().toLowerCase();
 
 // A body is decoded on its first bytes only when its type names text or names nothing. A gzip
@@ -164,11 +174,11 @@ export const decodedBody = (
   for (let layer = 0; layer < MAX_LAYERS; layer += 1) {
     let next: Uint8Array | null = null;
     if (opensWithGzip(body)) next = attempt(body, 'gzip', gunzipSync, maxBytes);
-    else if (opensWithZlib(body) && binaryBytes(body))
+    else if (opensWithZlib(body) && binaryBytes(body, contentType))
       next = attempt(body, 'deflate', inflateSync, maxBytes);
-    else if (binaryBytes(body)) {
+    else if (binaryBytes(body, contentType)) {
       const text = attempt(body, 'br', brotliDecompressSync, maxBytes);
-      next = text !== null && text.length > 0 && !binaryBytes(text) ? text : null;
+      next = text !== null && text.length > 0 && !binaryBytes(text, contentType) ? text : null;
     }
     if (next === null) return body;
     body = next;

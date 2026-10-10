@@ -6,7 +6,7 @@ import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
-import { binaryBytes, decodedBody, textType } from './compressed-body.ts';
+import { binaryBytes, declaredMime, decodedBody, GENERIC, textType } from './compressed-body.ts';
 import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
@@ -113,13 +113,13 @@ const sniffedMime = (bytes: Uint8Array): string | undefined => {
 };
 
 // A server that names no type, or names only "bytes", says nothing of the file, so its first
-// bytes decide.
-const GENERIC = 'application/octet-stream';
-
+// bytes decide. A file with the signature of a PDF or an image is that file, also when the server
+// names it as text.
 const mimeOf = (contentType: string | null, bytes: Uint8Array): string => {
-  const given = (contentType?.split(';')[0] ?? '').trim().toLowerCase();
-  if (given !== '' && given !== GENERIC) return given;
+  const given = declaredMime(contentType);
   const sniffed = sniffedMime(bytes);
+  if (sniffed !== undefined && textType(given)) return sniffed;
+  if (given !== '' && given !== GENERIC) return given;
   if (sniffed !== undefined) return sniffed;
   if (given !== '') return given;
   throw new ToolRefusal('the server named no type for the answer, and no type is read from it');
@@ -279,12 +279,6 @@ const checkedPages = async (
 ): Promise<readonly string[]> => {
   // An answer with no bytes but blanks holds no text, whatever its type says. The caller refuses it.
   if (blankBytes(bytes)) return [''];
-  // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
-  if (textType(mime) && binaryBytes(bytes))
-    throw new ToolRefusal(
-      `the answer of type ${mime} holds no readable text: its bytes are compressed in a format ` +
-        `that this tool does not decode, or they are binary. Nothing is stored. ${BROWSER_STEP}.`,
-    );
   let pages: readonly string[];
   try {
     ({ pages } = await extractText(bytes, type));
@@ -388,6 +382,12 @@ export const fetchDocument = defineTool({
     };
 
     const mime = mimeOf(got.contentType, got.bytes);
+    // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
+    if (textType(mime) && binaryBytes(got.bytes, got.contentType))
+      throw new ToolRefusal(
+        `the answer of type ${mime} holds no readable text: its bytes are compressed in a format ` +
+          `that this tool does not decode, or they are binary. Nothing is stored. ${BROWSER_STEP}.`,
+      );
     // The type with its parameters, so the charset that the server names decodes an HTML page.
     const type = isHtml(mime) && got.contentType !== null ? got.contentType : mime;
     // OCR of an image takes seconds, and bytes that are already stored have their text already.

@@ -132,6 +132,9 @@ beforeAll(async () => {
       body: brotliCompressSync(RADWARE_PAGE_HTML),
     },
     '/noise': { headers: { 'content-type': 'text/html' }, body: NOISE },
+    '/noise.rss': { headers: { 'content-type': 'application/rss+xml' }, body: NOISE },
+    // A PNG image that the server names as text: the signature decides.
+    '/png-as-text': { headers: { 'content-type': 'text/plain' }, body: HUGE_PNG },
     '/false-gzip': {
       headers: { 'content-type': 'text/html', 'content-encoding': 'gzip' },
       body: HTML,
@@ -480,6 +483,19 @@ describe('a compressed answer is decoded before its text is read', () => {
     expect(refusal).toMatch(/holds no readable text/);
     expect(refusal).toMatch(/store_saved_file/);
     expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a body of an XML type with no readable text is refused', async () => {
+    expect(await refusalOf(`${base}/noise.rss`, fixtureReach(memoryStore()))).toMatch(
+      /holds no readable text/,
+    );
+  });
+
+  test('a file with the signature of an image is read as that image, not as text', async () => {
+    // The image is looked up by its hash, and then refused for its size: no text check came first.
+    expect(
+      await refusalOf(`${base}/png-as-text`, fixtureReach(memoryStore()), unknownBytes),
+    ).toMatch(/pixels/);
   });
 
   test('a body that does not decode as the encoding that the server names is refused', async () => {
