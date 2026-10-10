@@ -80,6 +80,16 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         targetId: request.targetId,
       };
 
+    case 'update_relation':
+      return {
+        op: request.op,
+        payload: { valid_to: request.validTo },
+        src: [MANUAL],
+        names: [],
+        targetKind: 'relation',
+        targetId: request.targetId,
+      };
+
     case 'update_entity':
       return {
         op: request.op,
