@@ -19,6 +19,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
     'layout',
     'reconcile',
     'reference-set',
+    'release',
     'requeue-ratings',
     'reread-html',
     'run',
@@ -29,7 +30,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <author-names|ingest|layout|reconcile|reference-set|requeue-ratings|reread-html|run> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <author-names|ingest|layout|reconcile|reference-set|release|requeue-ratings|reread-html|run> [arguments]',
   });
 });
 
@@ -43,6 +44,7 @@ test.each([
   'layout',
   'reconcile',
   'reference-set',
+  'release',
   'requeue-ratings',
   'reread-html',
   'run',

@@ -168,6 +168,12 @@ REVOKE ALL ON FUNCTION start_deepening(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
+REVOKE ALL ON FUNCTION release_entities()       FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_relations()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
+
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
@@ -298,6 +304,12 @@ GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
+
+-- THE READ OF A RELEASE IS HELD BY THE THREE ROLES THAT RUN A TOOL. These roles read every row
+-- whole through the views already, so the grant shows them nothing new. The public read role holds
+-- none: a release is a set of files, and no public reader calls the database for it.
+GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
+  release_documents(), release_disclaimer() TO gabriel_app, gabriel_agent, gabriel_research;
 
 -- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
 -- check call the function of the rules inside the database, so it holds no grant. The operator
