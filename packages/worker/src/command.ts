@@ -8,6 +8,7 @@ const COMMANDS = {
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
