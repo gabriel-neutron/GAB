@@ -170,6 +170,75 @@ export const decodeHtml = (bytes: Uint8Array, mime = ''): string => {
   return decoder.decode(bytes);
 };
 
+// External constraint: Node.js has no DOM, so the number of a text node is written here.
+const TEXT_NODE = 3;
+
+interface Piece {
+  readonly nodeName: string;
+  readonly nodeType: number;
+  readonly textContent: string | null;
+}
+
+interface Block extends Piece {
+  readonly childNodes: ArrayLike<Piece>;
+  replaceWith(...pieces: Piece[]): void;
+  cloneNode(deep: false): Block;
+  append(...pieces: Piece[]): void;
+}
+
+interface Page {
+  querySelectorAll(selector: string): ArrayLike<Block>;
+}
+
+const isBreak = (piece: Piece): boolean => piece.nodeName === 'BR';
+const isBlank = (piece: Piece): boolean =>
+  piece.nodeType === TEXT_NODE && (piece.textContent ?? '').trim() === '';
+
+// The pieces of a paragraph between each run of two or more "br" elements, with no empty part.
+const partsAtBreaks = (pieces: readonly Piece[]): Piece[][] => {
+  const parts: Piece[][] = [[]];
+  let run: Piece[] = [];
+  for (const piece of pieces) {
+    if (isBreak(piece) || isBlank(piece)) {
+      run.push(piece);
+      continue;
+    }
+    if (run.filter(isBreak).length >= 2) parts.push([]);
+    else parts.at(-1)?.push(...run);
+    parts.at(-1)?.push(piece);
+    run = [];
+  }
+  return parts.filter((part) => part.length > 0);
+};
+
+// Departure: Readability reads the text of each "a" element as link text, and it removes a block
+// that is mostly link text. An "a" element with no href is no link (HTML standard), so in a
+// paragraph it is replaced by its content. An OFAC page of recent actions puts each SDN entry of an
+// entity or a vessel in one, and Readability removed every such entry. Outside a paragraph such an
+// element is often a tab or a button of a script, so it stays.
+// Departure: Readability changes a "p" element that holds two or more "br" elements in a row into
+// a "div" element of paragraphs. That "div" element then gets the best score, and Readability keeps
+// it and only the strong blocks next to it. On an OFAC page of recent actions each SDN section is
+// one such "p" element, so the headings and the short sentences between the sections were lost.
+// Each part between such breaks becomes a copy of the "p" element with its attributes, next to the
+// others, so the block that holds all the sections gets the best score, and a hidden paragraph
+// stays hidden.
+const asBlocks = (document: Page): void => {
+  for (const anchor of Array.from(document.querySelectorAll('p a:not([href])')))
+    anchor.replaceWith(...Array.from(anchor.childNodes));
+  for (const paragraph of Array.from(document.querySelectorAll('p'))) {
+    const parts = partsAtBreaks(Array.from(paragraph.childNodes));
+    if (parts.length < 2) continue;
+    paragraph.replaceWith(
+      ...parts.map((part) => {
+        const made = paragraph.cloneNode(false);
+        made.append(...part);
+        return made;
+      }),
+    );
+  }
+};
+
 // Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
 // alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
 // acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
@@ -183,6 +252,7 @@ const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
     document.querySelectorAll(FRAME).forEach((part: { remove(): void }) => {
       part.remove();
     });
+  asBlocks(document);
   // Readability finds nothing in a page with no article, and the whole body is then the text.
   const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
