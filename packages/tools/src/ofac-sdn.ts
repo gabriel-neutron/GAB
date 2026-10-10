@@ -4,6 +4,7 @@ import { extractText } from '@gab/text';
 import { z } from 'zod';
 
 import { FetchRefusal, guardedGet } from './fetch-guard.ts';
+import { lineExcerpt } from './line-excerpt.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 
@@ -19,9 +20,6 @@ export const SDN_CSV =
 const MAX_BYTES = 24 * 1024 * 1024;
 const TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 3;
-
-// The same cap as the excerpt of a proposal, so the excerpt is cited as it is given.
-const MAX_EXCERPT = 600;
 
 const outputShape = z.strictObject({
   document: z.string(),
@@ -44,21 +42,12 @@ const dayOf = (date: string | null): string | null => {
 };
 
 /** The line of one entry: the line of the file that starts with its number, clipped to the cap of
- * an excerpt. A line is a part of the page, so the clipped line is still a quote of it. */
+ * an excerpt. */
 export const entryLine = (page: string, entNum: number): string | null => {
   const start = `${String(entNum)},`;
   const at = page.startsWith(start) ? 0 : page.indexOf(`\n${start}`);
   if (at === -1) return null;
-  const from = at === 0 ? 0 : at + 1;
-  const end = page.indexOf('\n', from);
-  const line = page.slice(from, end === -1 ? undefined : end).replace(/\r$/u, '');
-  // The cap of a proposal counts UTF-16 units, and a clip never splits a character.
-  let clipped = '';
-  for (const character of line) {
-    if (clipped.length + character.length > MAX_EXCERPT) break;
-    clipped += character;
-  }
-  return clipped;
+  return lineExcerpt(page, at === 0 ? 0 : at + 1);
 };
 
 /** The tool on one address of the file. A test gives the address of a local server. */
