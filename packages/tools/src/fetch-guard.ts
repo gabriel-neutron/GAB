@@ -93,6 +93,8 @@ export interface Got {
   /** The success status of the answer (200 to 299). */
   readonly status: number;
   readonly contentType: string | null;
+  /** The Content-Encoding that the server names, as it gives it. The bytes are not decoded. */
+  readonly contentEncoding: string | null;
   /** The date that the server gives for the last change of the answer, as it gives it. */
   readonly lastModified: string | null;
   readonly bytes: Uint8Array;
@@ -100,7 +102,8 @@ export interface Got {
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
-// The bytes stored are the bytes of the origin, so no compression is asked for.
+// No compression is asked for. A server that sends a compressed body all the same names it in
+// contentEncoding, and the caller decodes it.
 const HEADERS = {
   'user-agent': 'gabriel-fetch/1',
   accept: 'text/html, application/pdf, text/plain;q=0.9, */*;q=0.5',
@@ -275,6 +278,7 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         url: url.href,
         status,
         contentType: response.headers['content-type'] ?? null,
+        contentEncoding: response.headers['content-encoding'] ?? null,
         lastModified: response.headers['last-modified'] ?? null,
         bytes,
       };
