@@ -12,6 +12,7 @@ import { jobStatus } from './job-status.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
+import { ofacSdn } from './ofac-sdn.ts';
 import { newsSearch } from './news-search.ts';
 import { promoteCleanProposals } from './promote-clean-proposals.ts';
 import { promoteUnit } from './promote-unit.ts';
@@ -64,6 +65,7 @@ export const CATALOGUE = [
   companiesHouse,
   wikidataIds,
   sanctionsMatch,
+  ofacSdn,
   vesselEvents,
   enqueueExtract,
   enqueueMapping,
