@@ -195,24 +195,26 @@ const partsAtBreaks = (pieces: readonly ChildNode[]): ChildNode[][] => {
 };
 
 // Departure: Readability reads the text of each "a" element as link text, and it removes a block
-// that is mostly link text. An "a" element with no href is no link (HTML standard), so it is
-// replaced by its content. An OFAC page of recent actions puts each SDN entry of an entity or a
-// vessel in one, and Readability removed every such entry.
+// that is mostly link text. An "a" element with no href is no link (HTML standard), so in a
+// paragraph it is replaced by its content. An OFAC page of recent actions puts each SDN entry of an
+// entity or a vessel in one, and Readability removed every such entry. Outside a paragraph such an
+// element is often a tab or a button of a script, so it stays.
 // Departure: Readability changes a "p" element that holds two or more "br" elements in a row into
 // a "div" element of paragraphs. That "div" element then gets the best score, and Readability keeps
 // it and only the strong blocks next to it. On an OFAC page of recent actions each SDN section is
 // one such "p" element, so the headings and the short sentences between the sections were lost.
-// Each part between such breaks becomes a "p" element of its own, next to the others, so the block
-// that holds all the sections gets the best score.
+// Each part between such breaks becomes a copy of the "p" element with its attributes, next to the
+// others, so the block that holds all the sections gets the best score, and a hidden paragraph
+// stays hidden.
 const asBlocks = (document: Document): void => {
-  for (const anchor of Array.from(document.querySelectorAll('a:not([href])')))
+  for (const anchor of Array.from(document.querySelectorAll('p a:not([href])')))
     anchor.replaceWith(...Array.from(anchor.childNodes));
   for (const paragraph of Array.from(document.querySelectorAll('p'))) {
     const parts = partsAtBreaks(Array.from(paragraph.childNodes));
     if (parts.length < 2) continue;
     paragraph.replaceWith(
       ...parts.map((part) => {
-        const made = document.createElement('p');
+        const made = paragraph.cloneNode(false) as Element;
         made.append(...part);
         return made;
       }),

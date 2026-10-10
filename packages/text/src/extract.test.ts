@@ -132,6 +132,22 @@ describe('extractText', () => {
     expect(page).not.toContain('Home page link');
   });
 
+  test('a split paragraph keeps its attributes, and an anchor with no href outside a paragraph stays', async () => {
+    const body = `<p>${'The tanker changed its flag three times in one year, and each owner was a shell. '.repeat(6)}</p>`;
+    const html = `<html><body><article>
+      <div class="tabs"><a data-tab="1">Overview tab</a> <a data-tab="2">Details tab</a></div>
+      ${body}
+      <p style="display:none">Hidden first part<br><br>Hidden second part</p>
+      <p aria-hidden="true">Muted first part<br><br>Muted second part</p>
+      <p class="share-social">Share on X<br><br>Share on Facebook</p>
+      ${body}
+      </article></body></html>`;
+    const [page] = (await extractText(bytesOf(html), 'text/html')).pages;
+    expect(page).toContain('changed its flag');
+    for (const noise of ['Overview tab', 'Hidden first part', 'Muted second part', 'Share on X'])
+      expect(page).not.toContain(noise);
+  });
+
   test('an XHTML act gives its whole text, with each article and each annex', async () => {
     const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
       <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Regulation</title></head><body>
