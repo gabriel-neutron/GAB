@@ -47,7 +47,7 @@ const DECIDED = (
 
 const meta = {
   component: ReviewSurface,
-  args: { view: 'queue', onView, queue: QUEUE, groups: null, decided: DECIDED },
+  args: { view: 'queue', onView, queue: QUEUE, page: DECIDED },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-[720px] w-[1280px]">
