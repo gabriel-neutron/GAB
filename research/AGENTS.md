@@ -20,6 +20,9 @@ session: each proposal waits in the review queue, and the operator decides it th
   as a document.
 - Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
   Publications Office as a document. `fetch_document` also reads an XML file.
+- Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, with its
+  hash and its date of publication, and gives the line of one entry by its ent_num. Cite that
+  line on page 1 of the stored file. Never store one entry alone.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
