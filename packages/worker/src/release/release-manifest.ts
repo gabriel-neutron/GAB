@@ -62,7 +62,8 @@ export interface ReleaseManifest {
     readonly uk: 'date_designated';
   };
   readonly contacts: { readonly reportError: string; readonly rightOfReply: string };
-  /** The sheet of the candidate nodes, or null. */
+  /** The path of the sheet of the candidate nodes, or null. The command reads a relative path
+   * from the folder of the manifest. */
   readonly criticalNodes: string | null;
   /** The base of the identifiers and of the vocabulary of the linked data. */
   readonly iriBase: string;
