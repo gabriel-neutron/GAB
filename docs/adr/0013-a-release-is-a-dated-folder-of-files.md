@@ -26,8 +26,8 @@ and the read are costly to change after the first publication, because readers c
 - The folder holds the export files and a manifest of the files in JSON: the version, the date,
   whether the release shows the NATO pair, the date rule of each sanctions regime, the disclaimer,
   and the path, the size and the SHA-256 checksum of each file. ADR 0015 gives the GeoJSON and the
-  JSON-LD files, ADR 0017 the alignment matrix of the sanctions lists, and ADR 0018 the critical
-  nodes table.
+  JSON-LD files, ADR 0017 the alignment matrix of the sanctions lists, ADR 0018 the critical
+  nodes table, and ADR 0019 the changelog.
 
 ### The CSV files
 

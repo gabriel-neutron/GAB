@@ -135,6 +135,10 @@ the record  →  the release functions of the database (the public rules)
   entities, relations and claims are in three formats: CSV for a spreadsheet, GeoJSON for a map
   tool (the entities with a position), and JSON-LD for linked data. The manifest of the files
   gives the size and the checksum of each file.
+- **The changelog.** With the folder of the previous release, the release compares the two
+  folders by identifier: each entity, relation and claim added, changed or removed, and each
+  entity merged or unmerged. It refuses a previous folder that does not agree with its checksums.
+  With no previous folder, the changelog says "first release". ADR 0019 gives the reasons.
 - **The licence.** The licence of a row comes from the providers of its public documents. A row
   takes the most permissive one: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the
   provider licence, not redistributed". A document with no provider gives the last one. The tools
