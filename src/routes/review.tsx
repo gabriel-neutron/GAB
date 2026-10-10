@@ -1,6 +1,7 @@
 import { createFileRoute, stripSearchParams, useRouter } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
+import { readAuthorNames } from '@/features/review/author-names';
 import type { DecisionState } from '@/features/review/decision-bar';
 import { decisionDone } from '@/features/review/decision-done';
 import { DecidedPage, type DecidedView } from '@/features/review/decided-page';
@@ -14,9 +15,8 @@ import {
 } from '@/features/review/groups';
 import { GroupsPage, type GroupsAct } from '@/features/review/groups-page';
 import { afterDecision, queueUnits } from '@/features/review/held-pages';
-import { readAuthorNames } from '@/features/review/author-names';
-import { NamesPage } from '@/features/review/names-page';
 import { linkedUnit } from '@/features/review/linked-unit';
+import { NamesPage } from '@/features/review/names-page';
 import { nextGroup } from '@/features/review/next-group';
 import { ReviewSurface, type ReviewView } from '@/features/review/review-surface';
 import { openQueue } from '@/features/review/queue-start';
@@ -58,9 +58,9 @@ export const Route = createFileRoute('/review')({
   // The queue reads one page of units, with the filter and from the place that the workspace
   // holds, so a reload keeps both. A unit of the address that the first page does not hold is
   // read by its identifier. The history and the rail of the groups are read only when their page
-  // is open, and so are the names that wait. The rail is read when its page opens and after a group action, and never at the
-  // choice of a group: the group in the address is read here once, and each later choice reads
-  // its own group alone.
+  // is open, and so are the names that wait. The rail is read when its page opens and after a
+  // group action, and never at the choice of a group: the group in the address is read here once,
+  // and each later choice reads its own group alone.
   loaderDeps: ({ search }) => ({ view: search.view }),
   loader: async ({ deps, location }) => {
     const [{ first, filter }, relationTypes, entityTypes] = await Promise.all([

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, restoreAllMocks, spyOn, userEvent, waitFor } from 'storybook/test';
+import { expect, restoreAllMocks, spyOn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { WaitingName } from './author-names';
 import { NamesPage } from './names-page';
@@ -66,12 +66,18 @@ export const EachNameShowsItsAuthorLetterAndUnits: Story = {
     await expect(
       canvas.getByRole('region', { name: 'Names that joined an author A or B' }),
     ).toBeVisible();
-    const rows = canvasElement.querySelectorAll('[data-name]');
+    const rows = [...canvasElement.querySelectorAll<HTMLElement>('[data-name]')];
     await expect(rows).toHaveLength(2);
-    await expect(rows[0]).toHaveTextContent('ministry of defence of ukraine');
-    await expect(rows[0]).toHaveTextContent('ministry of defence');
-    await expect(rows[0]).toHaveTextContent('A');
-    await expect(rows[0]).toHaveTextContent('3');
+    const cells = rows.map((row) =>
+      within(row)
+        .getAllByRole('cell')
+        .slice(0, 4)
+        .map((cell) => cell.textContent),
+    );
+    await expect(cells).toStrictEqual([
+      ['ministry of defence of ukraine', 'ministry of defence', 'A', '3'],
+      ['ofac', 'office of foreign assets control', 'B', '1'],
+    ]);
     await expect(canvas.getByRole('button', { name: 'Confirm ofac' })).toBeEnabled();
     await expect(canvas.getByRole('button', { name: 'Refuse ofac' })).toBeEnabled();
   },
@@ -119,17 +125,59 @@ export const ARefusalReadsTheListAgain: Story = {
 export const ARefusedDecisionSaysWhy: Story = {
   play: async ({ canvas, canvasElement }) => {
     writerAnswers(
-      { status: 422, body: { refusal: 'the database refused the act' } },
+      { status: 422, body: { refusal: 'the name "ofac" waits for no decision' } },
       { status: 200, body: { names: [MOD, OFAC] } },
     );
     await userEvent.click(canvas.getByRole('button', { name: 'Confirm ofac' }));
 
     await waitFor(async () => {
       await expect(canvas.getByRole('status')).toHaveTextContent(
-        'Nothing was written. the database refused the act.',
+        'Nothing was written. the name "ofac" waits for no decision.',
       );
     });
     await expect(canvasElement.querySelectorAll('[data-name]')).toHaveLength(2);
+  },
+};
+
+/** The buttons stay disabled until the list is read again after a decision. */
+export const TheButtonsWaitForTheListReadAgain: Story = {
+  play: async ({ canvas }) => {
+    let readAgain = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      readAgain = resolve;
+    });
+    spyOn(globalThis, 'fetch').mockImplementation(async (address) => {
+      if (address === '/private/author-names') await held;
+      const body = address === '/private/author-names' ? { names: [OFAC] } : { units: 3 };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    await userEvent.click(canvas.getByRole('button', { name: `Confirm ${MOD.name}` }));
+
+    await expect(canvas.getByRole('button', { name: 'Refuse ofac' })).toBeDisabled();
+    await expect(canvas.getByRole('status')).toHaveTextContent(`Confirming "${MOD.name}".`);
+    readAgain();
+    await waitFor(async () => {
+      await expect(canvas.getByRole('button', { name: 'Refuse ofac' })).toBeEnabled();
+    });
+    await expect(canvas.queryByRole('button', { name: `Confirm ${MOD.name}` })).toBeNull();
+  },
+};
+
+/** When the writer stops after a decision, the page still says what the decision did. */
+export const AWriterLostAfterADecisionKeepsTheResult: Story = {
+  play: async ({ canvas }) => {
+    writerAnswers({ status: 200, body: { units: 1 } }, { status: 503, body: {} });
+    await userEvent.click(canvas.getByRole('button', { name: 'Refuse ofac' }));
+
+    await waitFor(async () => {
+      await expect(canvas.getByRole('status')).toHaveTextContent(
+        '"ofac" was refused. The rules decided 1 unit again.',
+      );
+    });
+    await expect(canvas.queryByRole('table')).toBeNull();
   },
 };
 
