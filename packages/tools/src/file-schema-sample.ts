@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { headerSignature } from './csv.ts';
+import { headerSignature } from './header-signature.ts';
 import { documentId } from './fields.ts';
 import { readTablePage, tableOf } from './table.ts';
 import { defineTool } from './tool.ts';

@@ -15,6 +15,7 @@
     "./fetch-guard": "./src/fetch-guard.ts",
     "./file-schema-sample": "./src/file-schema-sample.ts",
     "./find-document": "./src/find-document.ts",
+    "./header-signature": "./src/header-signature.ts",
     "./news-search": "./src/news-search.ts",
     "./propose": "./src/propose.ts",
     "./propose-mapping": "./src/propose-mapping.ts",

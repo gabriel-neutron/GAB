@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
-import { CsvFault, headerSignature, readCsv } from './csv.ts';
+import { CsvFault, readCsv } from './csv.ts';
+import { headerSignature } from './header-signature.ts';
 
 const slice = (page: string, start: number, end: number): string =>
   Array.from(page).slice(start, end).join('');

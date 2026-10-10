@@ -79,7 +79,8 @@ publication, because reusers link to them.
 
 ## Cost
 
-- Until the site serves the paths, an identifier does not open a page. A reuser reads the
+- The static site of a release serves the paths of the entities, the relations and the claims
+  (ADR 0020). A document, the release and the vocabulary have no page: a reuser reads their
   definitions in the file.
 - A change of the base after a public release breaks each link of a reuser to an earlier release.
 - The release builds each file in memory before it writes it. A record many times larger than the

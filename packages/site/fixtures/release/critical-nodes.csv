@@ -1,0 +1,24 @@
+﻿# GAB dataset, version 1.0 of 08/11/2026.
+#
+# **About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
+#
+# - **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.
+# - **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
+# - **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
+# - **Validated manually by the operator:** the operator read the sources and accepted the claim.
+#
+# A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
+#
+# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+#
+# Critical nodes table.
+# One row for each candidate node of the sheet that the operator keeps. A node is retained when it meets two conditions of three.
+# (a) documented sanctions exposure: a public designation of the node itself, from the record, ended or not. A designation of an entity that the node controls does not count.
+# (b) documented production or throughput in 2024-2026, and (c) presence in a bypass routing across jurisdictions: the operator ticks them, with the claims that support each tick.
+# Each condition cell is "sourced" (a tick with at least one public claim of this release), "not sourced" (a tick with no public claim) or "no tick". The claim identifiers are claims of this release, separated by spaces. The release checks that each claim is public. It does not check that the claim supports the condition.
+# ticks counts each tick, sourced or not. sourced_ticks counts the ticks with a public claim. retained is true when ticks is two or more.
+# controller and bypass_pattern are short texts of the operator.
+# Candidate nodes: 2. Retained: 1.
+node_id,node_label,node_type,controller,bypass_pattern,a_sanctions_exposure,a_claim_ids,b_production_or_throughput,b_claim_ids,c_bypass_routing,c_claim_ids,ticks,sourced_ticks,retained
+0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,vessel,Arctic Bridge Shipping,Ship-to-ship transfer off Gabon,sourced,0a1f0000-0000-4000-8000-000000000012,sourced,0a1f0000-0000-4000-8000-000000000013,not sourced,,3,2,true
+0a1f0000-0000-4000-8000-000000000002,Arctic Bridge Shipping,company,Unknown beneficial owner,Shell company in a second jurisdiction,no tick,,no tick,,no tick,,0,0,false

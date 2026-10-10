@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import type { z } from 'zod';
 
-import { headerSignature } from './csv.ts';
+import { headerSignature } from './header-signature.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
 import { callTool, ToolRefusal, type Session, type ToolOutcome } from './tool.ts';
 import { tableOf } from './table.ts';
