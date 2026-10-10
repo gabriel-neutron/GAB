@@ -173,14 +173,31 @@ export const decodeHtml = (bytes: Uint8Array, mime = ''): string => {
 // External constraint: Node.js has no DOM, so the number of a text node is written here.
 const TEXT_NODE = 3;
 
-const isBreak = (piece: ChildNode): boolean => piece.nodeName === 'BR';
-const isBlank = (piece: ChildNode): boolean =>
+interface Piece {
+  readonly nodeName: string;
+  readonly nodeType: number;
+  readonly textContent: string | null;
+}
+
+interface Block extends Piece {
+  readonly childNodes: ArrayLike<Piece>;
+  replaceWith(...pieces: Piece[]): void;
+  cloneNode(deep: false): Block;
+  append(...pieces: Piece[]): void;
+}
+
+interface Page {
+  querySelectorAll(selector: string): ArrayLike<Block>;
+}
+
+const isBreak = (piece: Piece): boolean => piece.nodeName === 'BR';
+const isBlank = (piece: Piece): boolean =>
   piece.nodeType === TEXT_NODE && (piece.textContent ?? '').trim() === '';
 
 // The pieces of a paragraph between each run of two or more "br" elements, with no empty part.
-const partsAtBreaks = (pieces: readonly ChildNode[]): ChildNode[][] => {
-  const parts: ChildNode[][] = [[]];
-  let run: ChildNode[] = [];
+const partsAtBreaks = (pieces: readonly Piece[]): Piece[][] => {
+  const parts: Piece[][] = [[]];
+  let run: Piece[] = [];
   for (const piece of pieces) {
     if (isBreak(piece) || isBlank(piece)) {
       run.push(piece);
@@ -206,7 +223,7 @@ const partsAtBreaks = (pieces: readonly ChildNode[]): ChildNode[][] => {
 // Each part between such breaks becomes a copy of the "p" element with its attributes, next to the
 // others, so the block that holds all the sections gets the best score, and a hidden paragraph
 // stays hidden.
-const asBlocks = (document: Document): void => {
+const asBlocks = (document: Page): void => {
   for (const anchor of Array.from(document.querySelectorAll('p a:not([href])')))
     anchor.replaceWith(...Array.from(anchor.childNodes));
   for (const paragraph of Array.from(document.querySelectorAll('p'))) {
@@ -214,7 +231,7 @@ const asBlocks = (document: Document): void => {
     if (parts.length < 2) continue;
     paragraph.replaceWith(
       ...parts.map((part) => {
-        const made = paragraph.cloneNode(false) as Element;
+        const made = paragraph.cloneNode(false);
         made.append(...part);
         return made;
       }),
