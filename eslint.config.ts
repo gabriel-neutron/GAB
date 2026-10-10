@@ -5,9 +5,9 @@ import boundaries from 'eslint-plugin-boundaries';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
-// The workspace packages that run in Node and hold a secret or reach the database. The browser
-// imports none of them.
-const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp'] as const;
+// The workspace packages that run in Node: each one holds a secret, reaches the database, or
+// writes files. The browser imports none of them.
+const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp', 'site'] as const;
 
 const CANVAS =
   'No story mounts a live canvas: a browser drops the oldest WebGL context after about sixteen. Story the panels';
@@ -167,7 +167,11 @@ export default defineConfig(
   { files: ['src/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
 
   {
-    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
+    files: [
+      '**/*.{test,db-test,e2e-test}.{ts,tsx}',
+      'src/**/*.stories.tsx',
+      'packages/site/src/**/*.stories.tsx',
+    ],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',

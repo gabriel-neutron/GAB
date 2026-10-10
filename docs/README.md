@@ -5,7 +5,7 @@
 | `prd.md` | Operator | You need the purpose, the uses, or what Gabriel refuses to do. |
 | `decisions.md` | Operator | A file names a product rule such as M8 or P1, or you need its reason. |
 | `spec.md` | Agent | You need the general view: the parts, who can do what, the rules on every path. |
-| `deploy.md` | Agent | You deploy the read surface, or point the writer at a remote database. |
+| `deploy.md` | Agent | You write and publish a release, or point the writer at a remote database. |
 | `authoring.md` | Agent | You write or change a document. |
 | `agents/issue-tracker.md` | Agent | You write to GitHub. |
 | `agents/domain.md` | Agent | You need the domain words, or your change disagrees with a decision. |
@@ -38,3 +38,4 @@ rules of the code review.
 | [0017](adr/0017-the-alignment-matrix-reads-the-regime-from-the-provider.md) | The alignment matrix reads the regime of a designation from the provider of its document | Accepted |
 | [0018](adr/0018-the-critical-nodes-table-comes-from-a-sheet-and-the-record.md) | The critical nodes table comes from a sheet of the operator and the record | Accepted |
 | [0019](adr/0019-the-changelog-is-a-diff-of-two-release-folders.md) | The changelog is a diff of two release folders | Accepted |
+| [0020](adr/0020-a-release-publishes-files-and-a-static-site.md) | A release publishes files and a static site, with no public API | Accepted |

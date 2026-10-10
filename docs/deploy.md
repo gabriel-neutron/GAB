@@ -1,7 +1,8 @@
 # Deploy
 
-The public deployment is read-only. The deployment target is open. The writer and the worker jobs
-stay on the operator's machine.
+The public surface is the static site of a release: plain files, with no API and no server
+(ADR 0020). The database, the read API, the writer and the worker jobs stay on the operator's
+machine. To publish, write a release (below), then put its site on any static host.
 
 ## The database and the raw store
 
@@ -11,15 +12,8 @@ stay on the operator's machine.
 3. Any S3 provider can hold the raw store. Set `RAW_STORE_ENDPOINT` to its S3 endpoint and
    `RAW_STORE_REGION` to its region.
 
-The read API serves the `api` schema as `gabriel_read`. It writes nothing.
-
-## Vercel
-
-1. Deploy the repository root.
-2. Set `VITE_API_URL` to the URL of the read API.
-
-`vercel.json` sends every path to the application, except `/assets/` and `/write`. A request to
-`/write` gets a 404.
+The read API serves the `api` schema as `gabriel_read` to the application of the operator. It
+writes nothing, and it is not public.
 
 ## The writer and the worker
 
@@ -207,7 +201,8 @@ pnpm worker release --manifest <the manifest file> --out <a folder> --previous <
 ```
 
 Give `--previous` the folder of the last release that you published, as you published it. For
-the first release, do not give it.
+the first release, do not give it. Add `--v1 <folder>` to copy the build of the version 1 site
+under `v1/` (see "Publish the site" below).
 
 The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
 over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
@@ -221,6 +216,32 @@ changed columns, and each entity merged into a survivor or unmerged. Without `--
 says "First release" and has no row. The command refuses a previous folder whose files do not
 agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
 the size and the SHA-256 checksum of each file, and a summary of the changelog.
+
+The command then writes the static site of the release in the folder `gab-site-<date>`, beside
+the release folder. It needs the development dependencies of the GAB checkout (`pnpm install`).
+
+### Publish the site
+
+1. Put the content of `gab-site-<date>` at the root of a static host. Any host that serves files
+   works, also from a sub-path. Set `iriBase` of the manifest to that address before the first
+   public release, so each identifier of `dataset.jsonld` opens its page.
+2. The pages also open from the disk, except the map: MapLibre needs an `http` or `https` address.
+   To look at a site on your machine, run `python -m http.server 8000` in the site folder and open
+   `http://localhost:8000/`.
+3. To keep the old ORBAT site under `/v1`, build it once from the GABRIEL repository with its
+   base path, and give the folder to `--v1`:
+
+   ```powershell
+   npm ci
+   npx vite build --base=/v1/
+   ```
+
+   Give the `dist` folder. The version 1 site reads its demonstration file at the root of the host,
+   so under `/v1` it opens with no project until it reads that file from its own base path.
+
+The site holds a copy of each file of the release, the critical nodes table as its home page, a
+page for each entity and each claim, a map, a downloads page and a method page. Each page gives
+"Report an error" and "Right of reply" with the addresses of the manifest.
 
 To see the share of the public claims that have a full NATO pair (a letter and a digit) before
 you decide S1, run on the record:
