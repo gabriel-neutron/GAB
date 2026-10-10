@@ -4,8 +4,8 @@ import { appAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
 import { requeuedLine, requeueFailedRatings } from './requeue-ratings.ts';
 
-/** Puts each failed rating job back in the queue as the operator role, and prints the names with
- * the reason and the refusal of the earlier attempt. */
+/** Puts each rating job that failed by a fault back in the queue as the operator role, and prints
+ * the names with the reason of the earlier attempt. A job that the model refused stays failed. */
 export const requeueRatingsCommand: SubCommand = async (args) => {
   if (args.length > 0) {
     console.error('Usage: pnpm worker requeue-ratings');
