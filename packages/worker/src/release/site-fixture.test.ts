@@ -20,12 +20,17 @@ const OLD_OWNER = '0a1f0000-0000-4000-8000-000000000006';
 const MANAGER = '0a1f0000-0000-4000-8000-000000000007';
 const INSURER = '0a1f0000-0000-4000-8000-000000000008';
 const TWIN = '0a1f0000-0000-4000-8000-000000000009';
+const POLAR = '0a1f0000-0000-4000-8000-00000000000a';
+const FLAG_STATE = '0a1f0000-0000-4000-8000-00000000000b';
 const OWNS = '0a1f0000-0000-4000-8000-000000000011';
 const DESIGNATED = '0a1f0000-0000-4000-8000-000000000012';
 const LOADS = '0a1f0000-0000-4000-8000-000000000013';
 const OLD_OWNS = '0a1f0000-0000-4000-8000-000000000014';
 const OPERATES = '0a1f0000-0000-4000-8000-000000000015';
 const INSURES = '0a1f0000-0000-4000-8000-000000000016';
+const FLAGS = '0a1f0000-0000-4000-8000-000000000017';
+const DISCHARGES = '0a1f0000-0000-4000-8000-000000000018';
+const FALSE_FLAG = '0a1f0000-0000-4000-8000-000000000019';
 const ACT = '0a1f0000-0000-4000-8000-000000000021';
 const MERGE = '0a1f0000-0000-4000-8000-000000000022';
 
@@ -116,7 +121,9 @@ const CLAIMS: readonly ReleaseClaim[] = [
 
 // The claims that the previous release does not hold: a vessel with a former name, a closed
 // owner with the act that ended it, a manager with no start, a closed insurer, a port call with
-// its day, and a second vessel with the same IMO number that no merge joined.
+// its day, a port call with no day, a false flag with two days, a second vessel with the same IMO
+// number that no merge joined, and a vessel with a right check digit and a flag that starts after
+// the day of the version.
 const NEW_CLAIMS: readonly ReleaseClaim[] = [
   claim({
     claim_id: `${VESSEL}/former_names`,
@@ -179,6 +186,42 @@ const NEW_CLAIMS: readonly ReleaseClaim[] = [
     sources: ['news'],
     passages: [passage('news', 5, 'the Northern Wave, IMO 9000001')],
   }),
+  claim({
+    claim_id: `${POLAR}/imo`,
+    subject_id: POLAR,
+    attribute: 'imo',
+    value: 'IMO 9000003',
+    origin_label: CANDIDATE,
+    sources: ['news'],
+    passages: [passage('news', 6, 'the Polar Spirit, IMO 9000003')],
+  }),
+  ...[FLAGS, DISCHARGES, FALSE_FLAG].map((id) =>
+    claim({
+      claim_id: id,
+      subject_kind: 'relation',
+      subject_id: id,
+      origin_label: CANDIDATE,
+      sources: ['news'],
+      passages: [passage('news', 6, 'the news names the flag and the port of the tanker')],
+    }),
+  ),
+  ...(
+    [
+      ['observed_on', '2025-02-03'],
+      ['reported_on', '2025-03-01'],
+    ] as const
+  ).map(([key, day]) =>
+    claim({
+      claim_id: `${FALSE_FLAG}/${key}`,
+      subject_kind: 'relation',
+      subject_id: FALSE_FLAG,
+      attribute: key,
+      value: day,
+      origin_label: CANDIDATE,
+      sources: ['news'],
+      passages: [passage('news', 7, 'the tanker sailed under a false flag of Cameroon')],
+    }),
+  ),
 ];
 
 const company = (id: string, label: string) => ({
@@ -255,6 +298,22 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
             sources: ['news'],
             geom: null,
           },
+          {
+            id: POLAR,
+            type: 'vessel',
+            label: 'Polar Spirit',
+            origin_label: CANDIDATE,
+            sources: ['news'],
+            geom: null,
+          },
+          {
+            id: FLAG_STATE,
+            type: 'organisation',
+            label: 'Republic of Cameroon',
+            origin_label: CANDIDATE,
+            sources: ['news'],
+            geom: null,
+          },
         ]
       : []),
   ],
@@ -294,6 +353,9 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
           control(OLD_OWNS, 'owns', OLD_OWNER, '2019-06-01', '2024-03-01', OPERATOR),
           control(OPERATES, 'operates', MANAGER, null, null),
           control(INSURES, 'insures', INSURER, '2023-01-01', '2025-06-30'),
+          { ...control(FLAGS, 'flags', FLAG_STATE, '2027-01-15', null), dst_id: POLAR },
+          { ...control(DISCHARGES, 'discharges_at', VESSEL, null, null), dst_id: PORT },
+          { ...control(FALSE_FLAG, 'flagged_falsely', VESSEL, null, null), dst_id: FLAG_STATE },
         ]
       : []),
   ],

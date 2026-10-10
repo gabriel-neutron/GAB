@@ -95,8 +95,12 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
 - With no basemap, a reader sees the points and the grid only.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
 - A vessel with no IMO number has no timeline page. Its entity page gives its relations.
-- The timeline draws only the dates that the sources give (`decisions.md` M5). A port call takes its day from a
-  value of its relation that is a day. A former name and a flag value have no date.
+- The timeline draws only the dates that the sources give (`decisions.md` M5). A port call and a
+  false flag take their day from their `observed_on` value, or else from another value of the
+  relation that is a day. A former name and a flag value have no date.
+- A relation counts only when the vessel is at its expected end: the second end of an owner, an
+  operator, an insurer and a flag, and the first end of a designation, a port call and a false
+  flag.
 - The build of version 1 reads its demonstration project at the root of the host, so the release
   copies that project to the root of the site too. Version 1 works only when the site is at the
   root of its host, or when the host sends the root address of the project to `v1/`.

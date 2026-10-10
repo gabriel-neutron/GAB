@@ -16,7 +16,7 @@ export interface VesselPageProps {
 }
 
 const timeText = (time: MarkTime): string => {
-  if (time.kind === 'day') return `On ${releaseDay(time.day)}.`;
+  if (time.kind === 'day') return `On ${time.key}: ${releaseDay(time.day)}.`;
   if (time.kind === 'no date') return 'The release gives no date.';
   const from = time.from === null ? 'Start unknown.' : `From ${releaseDay(time.from)}`;
   const to =
@@ -123,7 +123,13 @@ function VesselTimeline({
         <>
           <TimelineFigure lanes={lanes} versionDate={release.manifest.date} here={here} />
           {undated === 0 ? null : (
-            <p className="text-muted-foreground">
+            <p
+              className={
+                undated === marks
+                  ? 'text-muted-foreground'
+                  : 'hidden text-muted-foreground md:block'
+              }
+            >
               {undated === marks
                 ? 'No mark has a date, so the release draws no timeline. The list gives each mark.'
                 : `${String(undated)} of ${String(marks)} marks have no date. The list gives them, and the drawing does not.`}
@@ -157,8 +163,11 @@ export function VesselPage({ release, imo }: VesselPageProps) {
     <SiteFrame release={release} page={{ path: here, title: `IMO ${imo}` }}>
       <p className="max-w-prose">
         The life of the vessel as the claims of this release give it. Each mark links to its claim.
-        A bar with an arrow is open: the release gives no end date, and the bar goes to the line of
-        the version of {version}. A dashed bar has no known start. A dot is a day.
+        <span className="hidden md:inline">
+          {' '}
+          A bar with an arrow is open: the release gives no end date, and the bar goes to the line
+          of the version of {version}. A dashed bar has no known start. A dot is a day.
+        </span>
       </p>
       {isValidImo(imo) ? null : (
         <p className="text-dissent">The check digit of this IMO number is wrong.</p>

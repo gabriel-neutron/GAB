@@ -19,3 +19,5 @@ id,type,label,origin_label,licence,document_ids
 0a1f0000-0000-4000-8000-000000000007,company,Gulf Ship Management,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
 0a1f0000-0000-4000-8000-000000000008,company,Coastal Mutual,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
 0a1f0000-0000-4000-8000-000000000009,vessel,Northern Wave,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
+0a1f0000-0000-4000-8000-00000000000a,vessel,Polar Spirit,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
+0a1f0000-0000-4000-8000-00000000000b,organisation,Republic of Cameroon,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news

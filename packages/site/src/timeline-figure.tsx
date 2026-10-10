@@ -26,7 +26,7 @@ const cut = (text: string): string =>
   text.length > MOST_CHARACTERS ? `${text.slice(0, MOST_CHARACTERS - 1)}…` : text;
 
 const timeWords = (time: MarkTime): string => {
-  if (time.kind === 'day') return releaseDay(time.day);
+  if (time.kind === 'day') return `${time.key}: ${releaseDay(time.day)}`;
   if (time.kind === 'no date') return 'no date';
   const from = time.from === null ? 'start unknown' : releaseDay(time.from);
   const to = time.to === null ? 'open' : releaseDay(time.to);
@@ -48,12 +48,14 @@ export function TimelineFigure({ lanes, versionDate, here }: TimelineFigureProps
   const bottom = AXIS + rows.length * ROW + 4;
   const height = bottom + FOOT;
   const version = x(versionDate);
+  // An open bar goes to the line of the version, or stays at its start when it starts later.
+  const openEnd = (from: string | null) => (from === null ? version : Math.max(version, x(from)));
   const href = (mark: TimelineMark) => hrefFrom(here, claimPage(mark.claim.id));
 
   return (
     <svg
       viewBox={`0 0 ${String(WIDTH)} ${String(height)}`}
-      className="hidden w-full text-xs sm:block"
+      className="hidden w-full text-xs md:block"
       aria-hidden="true"
       data-timeline=""
     >
@@ -114,7 +116,7 @@ export function TimelineFigure({ lanes, versionDate, here }: TimelineFigureProps
               ) : time.kind === 'interval' ? (
                 <IntervalBar
                   start={time.from === null ? PLOT_LEFT : x(time.from)}
-                  end={time.to === null ? version : x(time.to)}
+                  end={time.to === null ? openEnd(time.from) : x(time.to)}
                   top={bar}
                   knownStart={time.from !== null}
                   open={time.to === null}
@@ -153,6 +155,7 @@ function IntervalBar({
   readonly open: boolean;
 }) {
   const width = Math.max(end - start, 2);
+  const tip = start + width;
   return (
     <>
       {knownStart ? (
@@ -170,7 +173,7 @@ function IntervalBar({
       )}
       {open ? (
         <polygon
-          points={`${String(end)},${String(top - 3)} ${String(end + ARROW)},${String(top + BAR / 2)} ${String(end)},${String(top + BAR + 3)}`}
+          points={`${String(tip)},${String(top - 3)} ${String(tip + ARROW)},${String(top + BAR / 2)} ${String(tip)},${String(top + BAR + 3)}`}
           className="fill-foreground"
         />
       ) : null}
