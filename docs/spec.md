@@ -99,6 +99,37 @@ The database writes the words, so the read API, the screen and an export give th
 public read gets the name and the version of a rule, and never the inputs of the rule (S1). The read API also gives the disclaimer of
 the dataset beside the data, and an export file copies it.
 
+## The release path
+
+A release is how the data leaves Gabriel. The operator runs one worker command on the PC, with a
+release manifest that stays outside the public repository. The command reads the record and writes
+one folder, named by the date of the release. It never writes over an earlier folder.
+
+```
+the record  →  the release functions of the database (the public rules)
+            →  the worker command  →  one dated folder of files, and a manifest of the files
+```
+
+- **The read.** The command reads one snapshot of the record, through functions that only the
+  roles that run a tool can call. The public read role cannot call them. They apply the rules of the public read (PU1) and
+  the rules of a release: each row has at least one public document, and a row names only its
+  public documents; a person is in the release only when the record holds a designation of that
+  person; a relation is in the release only when its two ends are. The release holds the record
+  only, and no candidate.
+- **The files.** Each file holds the version, the date and the disclaimer of the dataset, with the
+  two contact addresses of the manifest. Each row carries its label in the fixed words of PU1 and
+  its licence. A claim is a value of an element or a relation, and each claim names its public
+  documents, with the page and the passage that the reader cited. The manifest of the files gives
+  the size and the checksum of each file.
+- **The licence.** The licence of a row comes from the providers of its public documents. A row
+  takes the most permissive one: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the
+  provider licence, not redistributed". A document with no provider gives the last one. The tools
+  that store an official list or act give the provider of what they store.
+- **The rating.** No file shows a NATO letter or a rating digit (S1). The release manifest holds
+  the parameter that would show them, and it is off.
+
+ADR 0013 gives the reasons for the format of the folder and for the read.
+
 ## The write path
 
 ```

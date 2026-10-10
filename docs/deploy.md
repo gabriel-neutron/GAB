@@ -29,9 +29,10 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
 names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
-by a fault again, and `pnpm worker reread-html` reads the stored HTML pages again (see below).
-They run as they do against the local stack. Only the values change. Run one `pnpm worker run` at
-a time: at its start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
+by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
+`pnpm worker release` writes a release (see below). They run as they do against the local stack.
+Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
+that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
 For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
 so that the file stays not public.
@@ -150,6 +151,39 @@ document still holds the title that the old reading gave. The command does not c
 id, the address or the date of a document. A second run changes nothing. It gives exit code 1 when a
 document could not be read, with the reason. A page whose charset was only in the header of the
 answer, and not in the page, stays as it is, because the record keeps the type without its charset.
+
+### Write a release
+
+A release is one folder of files that you can publish. Write the release manifest first, outside
+the GAB checkout, because it holds your contact addresses. It is a JSON file:
+
+```json
+{
+  "version": "1.0",
+  "date": "2026-11-08",
+  "contacts": {
+    "reportError": "https://example.org/report-an-error",
+    "rightOfReply": "mailto:reply@example.org"
+  }
+}
+```
+
+Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
+the release takes the date of the day (UTC). With no `version`, the version is the date.
+`showNatoPair` stays `false`: the command refuses `true`, because no file can show the pair yet.
+The command also refuses a key that it does not know, and a quote, a comma or a control
+character in the version or an address.
+
+Then run, on the record:
+
+```powershell
+pnpm worker release --manifest <the manifest file> --out <a folder>
+```
+
+The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
+over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
+the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
+skip them. `manifest.json` gives the size and the SHA-256 checksum of each file.
 
 ## Public writes
 
