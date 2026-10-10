@@ -1,4 +1,5 @@
 import { extractText } from '@gab/text';
+import { findExcerpt } from '@gab/tools/excerpt';
 import { htmlTitle } from '@gab/tools/fetch-document';
 import { z } from 'zod';
 
@@ -8,7 +9,8 @@ import type { Queryable } from './queryable.ts';
 // page in windows-1251 or koi8-r got a garbled text and a garbled title. The bytes in the raw store
 // are correct. This module reads them again with the current extraction. It writes the corrected
 // text as a new text set, because each citation names the set and the offsets that it cites, and
-// a citation must stay valid. The newest set is the one that each reader reads.
+// a citation must stay valid. The newest set is the one that each reader reads, so a document
+// whose new text would not hold the excerpt of one of its citations keeps its text and its title.
 
 // The same limit as the fetch tool gives to a title.
 const MAX_TITLE = 500;
@@ -72,11 +74,17 @@ export interface Changed {
   readonly title: { readonly from: string; readonly to: string } | null;
 }
 
-/** A citation whose excerpt the corrected text no longer holds. It stays as it is. */
-export interface LostExcerpt {
+/** A citation whose excerpt the corrected text would not hold. */
+export interface HeldCitation {
   readonly citation: string;
-  readonly document: string;
   readonly page: number;
+}
+
+/** A document that keeps its text and its title, because the corrected text would break the
+ * citations listed here. */
+export interface Kept {
+  readonly document: string;
+  readonly citations: readonly HeldCitation[];
 }
 
 export interface RereadReport {
@@ -86,7 +94,7 @@ export interface RereadReport {
   readonly extractor: string;
   readonly changed: readonly Changed[];
   readonly failed: readonly { readonly document: string; readonly reason: string }[];
-  readonly lostExcerpts: readonly LostExcerpt[];
+  readonly kept: readonly Kept[];
 }
 
 const clipped = (title: string): string => title.slice(0, MAX_TITLE);
@@ -160,7 +168,7 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
   const extractor = extractorOf(deps.now());
   const changed: Changed[] = [];
   const failed: { document: string; reason: string }[] = [];
-  const lostExcerpts: LostExcerpt[] = [];
+  const kept: Kept[] = [];
 
   // The plain pages come first, so that a render finds the titles of its page.
   const ordered = [...rows.filter((row) => !isRender(row)), ...rows.filter(isRender)];
@@ -180,12 +188,16 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
     }
 
     let title: TitlePair | null;
+    // A render follows the title of its page only when that page is not kept for its citations,
+    // so a kept page and its render keep the same title.
+    let remember = (): void => undefined;
     if (isRender(row)) {
       title = renderTitle(row, row.uri === null ? [] : (titles.get(row.uri) ?? []));
     } else {
       const pair = titlesOf(bytes, type);
-      if (pair !== null && row.uri !== null)
-        titles.set(row.uri, [...(titles.get(row.uri) ?? []), pair]);
+      const { uri } = row;
+      if (pair !== null && uri !== null)
+        remember = () => titles.set(uri, [...(titles.get(uri) ?? []), pair]);
       title = correctedTitle(row, pair);
     }
 
@@ -201,15 +213,25 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
         stored.map((one) => one.text),
         pages,
       );
-    if (!text && title === null) continue;
+    if (!text && title === null) {
+      remember();
+      continue;
+    }
 
-    changed.push({ document: row.id, text, title });
     if (text) {
       const cited = z.array(citedRow).parse((await deps.db.query(CITED, [row.id])).rows);
-      for (const one of cited)
-        if (!(pages[one.page - 1] ?? '').includes(one.excerpt))
-          lostExcerpts.push({ citation: one.citation, document: row.id, page: one.page });
+      const broken = cited
+        // The same check as the propose tool makes for an excerpt.
+        .filter((one) => findExcerpt(pages[one.page - 1] ?? '', one.excerpt) === null)
+        .map((one) => ({ citation: one.citation, page: one.page }));
+      if (broken.length > 0) {
+        kept.push({ document: row.id, citations: broken });
+        continue;
+      }
     }
+
+    remember();
+    changed.push({ document: row.id, text, title });
     if (dryRun) continue;
     await deps.db.query(WRITE, [
       row.id,
@@ -220,7 +242,7 @@ export const rereadHtml = async (deps: RereadDeps, dryRun: boolean): Promise<Rer
     ]);
   }
 
-  return { dryRun, read: rows.length - failed.length, extractor, changed, failed, lostExcerpts };
+  return { dryRun, read: rows.length - failed.length, extractor, changed, failed, kept };
 };
 
 /** The lines that the command prints. */
@@ -236,14 +258,18 @@ export const reportLines = (report: RereadReport): string[] => {
   }
   for (const one of report.failed)
     lines.push(`could not read document ${one.document}: ${one.reason}`);
-  for (const one of report.lostExcerpts)
+  for (const one of report.kept) {
     lines.push(
-      `check citation ${one.citation} of document ${one.document}, page ${String(one.page)}: ` +
-        'the corrected text does not hold its excerpt. The citation stays on the old text.',
+      `${report.dryRun ? 'would keep' : 'kept'} document ${one.document} as it is: ` +
+        'the corrected text does not hold the excerpt of these citations.',
     );
+    for (const held of one.citations)
+      lines.push(`  citation ${held.citation}, page ${String(held.page)}`);
+  }
   lines.push(
     `${report.dryRun ? 'Dry run: ' : ''}${String(report.read)} HTML documents read, ` +
       `${String(report.changed.length)} ${report.dryRun ? 'to change' : 'changed'}, ` +
+      `${String(report.kept.length)} kept for their citations, ` +
       `${String(report.failed.length)} not read.` +
       (report.changed.some((one) => one.text) && !report.dryRun
         ? ` The new text set is ${report.extractor}.`
