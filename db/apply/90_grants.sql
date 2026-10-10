@@ -144,6 +144,14 @@ REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_name(text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_waiting()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION imo_duplicate_pairs()       FROM PUBLIC;
+REVOKE ALL ON FUNCTION entity_today(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidates_today()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidates()           FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_name_candidates(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidate_rows(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION confirm_name_candidate(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
@@ -239,6 +247,13 @@ GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid,boolean) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION undo_merge(text,uuid) TO gabriel_app;
 -- The pairs of vessels to merge are a list of the review page, which only the operator opens.
 GRANT EXECUTE ON FUNCTION imo_duplicate_pairs()    TO gabriel_app;
+-- THE MERGE CANDIDATES ACROSS TWO SCRIPTS ARE A JUDGEMENT OF THE OPERATOR ON IDENTITY. The command
+-- that finds them runs as the operator role, and the review page confirms or refuses each pair. No
+-- machine role reads or writes a pair. The release reads the three counts as the operator role.
+GRANT EXECUTE ON FUNCTION name_candidates(), store_name_candidates(jsonb),
+  confirm_name_candidate(text,uuid,uuid), refuse_name_candidate(text,uuid,uuid),
+  name_candidate_counts()
+  TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The

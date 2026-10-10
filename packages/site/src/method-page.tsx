@@ -6,7 +6,8 @@ import type { SiteRelease } from './site-release.ts';
 const SECTION = 'flex max-w-prose flex-col gap-2';
 
 /** The method page: the disclaimer with the meaning of each label, the licences, the rule of the
- * critical nodes, the permanent addresses and the rating method. The NATO pair is explained only
+ * critical nodes, the merge candidates across two scripts, the permanent addresses and the rating
+ * method. The NATO pair is explained only
  * when the release shows it. */
 export function MethodPage({ release }: { readonly release: SiteRelease }) {
   const { manifest } = release;
@@ -57,6 +58,21 @@ export function MethodPage({ release }: { readonly release: SiteRelease }) {
           claims that support each tick, and the release refuses a tick that cites a claim that is
           not public. The release does not check that a claim supports its condition: that is the
           judgement of the operator. A tick with no public claim shows "not sourced".
+        </p>
+      </section>
+
+      <section className={SECTION}>
+        <h2 className="font-medium">One name in two scripts</h2>
+        <p>
+          A company or a place can have a Latin and a Cyrillic spelling. GAB transliterates each
+          Russian name with the table of ICAO Doc 9303, folds the common variants of a few letters
+          and drops the legal form. Two entities of one type with the same result are a merge
+          candidate, and the operator confirms or refuses each candidate. No model proposes a
+          candidate.
+        </p>
+        <p data-name-candidates="">
+          Candidates at this release: {manifest.nameCandidates.proposed} waiting,{' '}
+          {manifest.nameCandidates.confirmed} confirmed, {manifest.nameCandidates.refused} refused.
         </p>
       </section>
 

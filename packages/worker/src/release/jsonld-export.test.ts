@@ -132,6 +132,7 @@ const RECORD: ReleaseRecord = {
       },
     ],
   ]),
+  nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
   natoPairs: null,
 };

@@ -1570,3 +1570,60 @@ test('a step after the files that fails leaves no release folder, so the release
   });
   expect(await readdir(root)).toStrictEqual([]);
 });
+
+test('the file manifest gives the number of merge candidates across two scripts in each state', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const counts = z.object({ proposed: z.number(), confirmed: z.number(), refused: z.number() });
+  const countsOf = async (db: Queryable) =>
+    counts.parse(
+      (await db.query('SELECT proposed, confirmed, refused FROM public.name_candidate_counts()'))
+        .rows[0],
+    );
+  const seen = await inTransaction(async (held) => {
+    const operator = held.as('gabriel_app');
+    const before = await countsOf(operator);
+    const ids = [
+      '0c4d0000-0000-4000-8000-000000000001',
+      '0c4d0000-0000-4000-8000-000000000002',
+      '0c4d0000-0000-4000-8000-000000000003',
+      '0c4d0000-0000-4000-8000-000000000004',
+    ] as const;
+    await documents(held.ask);
+    await entity(held, ids[0], 'company', 'TEST SOVCOMFLOT', [SHIPS]);
+    await entity(held, ids[1], 'company', 'ТЕСТ СОВКОМФЛОТ', [SHIPS]);
+    await entity(held, ids[2], 'port', 'TEST PRIMORSK', [SHIPS]);
+    await entity(held, ids[3], 'port', 'ТЕСТ ПРИМОРСК', [SHIPS]);
+    const pair = (first: string, second: string, key: string) => ({
+      first_id: first,
+      second_id: second,
+      key,
+      first_name: 'a',
+      second_name: 'b',
+    });
+    // The store keeps only the pairs of this run, so the pairs that waited before leave.
+    await operator.query('SELECT * FROM public.store_name_candidates($1::jsonb)', [
+      JSON.stringify([
+        pair(ids[0], ids[1], 'test sovkomflot'),
+        pair(ids[2], ids[3], 'test primorsk'),
+      ]),
+    ]);
+    await operator.query(`SELECT public.refuse_name_candidate('a test', $1::uuid, $2::uuid)`, [
+      ids[2],
+      ids[3],
+    ]);
+    const after = await countsOf(operator);
+    await writeRelease(operator, MANIFEST, root);
+    return { before, after };
+  });
+  const manifest = z
+    .object({ nameCandidates: counts })
+    .parse(
+      JSON.parse(await readFile(join(root, 'gab-release-2026-11-08', 'manifest.json'), 'utf8')),
+    );
+  expect(seen.after).toStrictEqual({
+    proposed: 1,
+    confirmed: seen.before.confirmed,
+    refused: seen.before.refused + 1,
+  });
+  expect(manifest.nameCandidates).toStrictEqual(seen.after);
+});

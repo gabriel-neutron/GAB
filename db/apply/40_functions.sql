@@ -2531,6 +2531,190 @@ SET search_path = pg_catalog, public, pg_temp AS $$
    ORDER BY a.imo, a.id, b.id
 $$;
 
+-- THE MERGE CANDIDATES ACROSS A LATIN AND A CYRILLIC SPELLING. A worker command computes the
+-- transliteration key of each name and stores the pairs, and the operator confirms or refuses each
+-- one. A pair holds the identifiers of the day it was found. A merge deletes an absorbed row, so
+-- each read resolves an identifier to its survivor of today first: a refusal then still holds
+-- after a merge of one of its two entities.
+CREATE OR REPLACE FUNCTION entity_today(p_id uuid) RETURNS uuid
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT a.survivor_id FROM public.entity_alias a WHERE a.absorbed_id = p_id),
+                  p_id)
+$$;
+
+-- Each stored pair with the identifiers of today, the smaller one first, and the name of each.
+CREATE OR REPLACE FUNCTION name_candidates_today()
+RETURNS TABLE (stored_first uuid, stored_second uuid, first_id uuid, second_id uuid, key text,
+               first_name text, second_name text, state text, found_at timestamptz)
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT r.first_id, r.second_id,
+         CASE WHEN r.a < r.b THEN r.a ELSE r.b END,
+         CASE WHEN r.a < r.b THEN r.b ELSE r.a END,
+         r.key,
+         CASE WHEN r.a < r.b THEN r.first_name ELSE r.second_name END,
+         CASE WHEN r.a < r.b THEN r.second_name ELSE r.first_name END,
+         r.state, r.found_at
+    FROM (SELECT c.*, public.entity_today(c.first_id) AS a, public.entity_today(c.second_id) AS b
+            FROM public.name_candidate c) r
+$$;
+
+-- The pairs that wait for the operator: two entities of the record of one type, that no merge
+-- joined, and that no refusal or confirmation names today.
+CREATE OR REPLACE FUNCTION name_candidates()
+RETURNS TABLE (key text, type text, first_id uuid, first_label text, first_name text,
+               second_id uuid, second_label text, second_name text)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT w.key, w.type, w.first_id, w.first_label, w.first_name, w.second_id, w.second_label,
+         w.second_name
+    FROM (SELECT DISTINCT ON (t.first_id, t.second_id)
+                 t.key, f.type, f.id AS first_id, f.label AS first_label, t.first_name,
+                 s.id AS second_id, s.label AS second_label, t.second_name
+            FROM public.name_candidates_today() t
+            JOIN public.entities f ON f.id = t.first_id
+            JOIN public.entities s ON s.id = t.second_id AND s.type = f.type
+           WHERE t.state = 'proposed' AND t.first_id <> t.second_id
+             AND NOT EXISTS (SELECT 1 FROM public.name_candidates_today() d
+                              WHERE d.state <> 'proposed'
+                                AND (d.first_id, d.second_id) = (t.first_id, t.second_id))
+           ORDER BY t.first_id, t.second_id, t.found_at, t.key) w
+   ORDER BY w.type, w.key, w.first_id, w.second_id
+$$;
+
+-- THE COMMAND STORES WHAT IT FOUND. A pair that a row names today, in any state, stays as it is,
+-- so a refused or confirmed pair never comes back. A pair that waits and that the command did not
+-- find again leaves the table: a name changed, or an entity left the record. The two entities of
+-- a new pair stand in the record and have one type.
+CREATE OR REPLACE FUNCTION store_name_candidates(p_pairs jsonb)
+RETURNS TABLE (added integer, kept integer, dropped integer)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_bad text;
+BEGIN
+  IF jsonb_typeof(p_pairs) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'the pairs are not a list' USING CONSTRAINT = 'name_candidate_shape';
+  END IF;
+
+  SELECT coalesce(g.first_id::text, '?') || ' ' || coalesce(g.second_id::text, '?') INTO v_bad
+    FROM jsonb_to_recordset(p_pairs)
+         AS g(first_id uuid, second_id uuid, key text, first_name text, second_name text)
+    LEFT JOIN public.entities f ON f.id = g.first_id
+    LEFT JOIN public.entities s ON s.id = g.second_id
+   WHERE g.first_id IS NULL OR g.second_id IS NULL OR g.first_id >= g.second_id
+      OR btrim(coalesce(g.key, '')) = '' OR g.first_name IS NULL OR g.second_name IS NULL
+      OR f.id IS NULL OR s.id IS NULL OR f.type <> s.type
+   LIMIT 1;
+  IF FOUND THEN
+    RAISE EXCEPTION 'the pair % is not two entities of the record of one type, in order, with a key',
+      v_bad USING CONSTRAINT = 'name_candidate_shape';
+  END IF;
+
+  WITH seen AS (
+    SELECT DISTINCT ON (g.first_id, g.second_id) g.*
+      FROM jsonb_to_recordset(p_pairs)
+           AS g(first_id uuid, second_id uuid, key text, first_name text, second_name text)
+     ORDER BY g.first_id, g.second_id, g.key
+  ), gone AS (
+    DELETE FROM public.name_candidate c
+     USING public.name_candidates_today() t
+     WHERE (t.stored_first, t.stored_second) = (c.first_id, c.second_id)
+       AND c.state = 'proposed'
+       AND NOT EXISTS (SELECT 1 FROM seen g
+                        WHERE (g.first_id, g.second_id) = (t.first_id, t.second_id))
+    RETURNING 1
+  ), fresh AS (
+    INSERT INTO public.name_candidate (first_id, second_id, key, first_name, second_name)
+    SELECT g.first_id, g.second_id, g.key, g.first_name, g.second_name
+      FROM seen g
+     WHERE NOT EXISTS (SELECT 1 FROM public.name_candidates_today() t
+                        WHERE (t.first_id, t.second_id) = (g.first_id, g.second_id))
+    RETURNING 1
+  )
+  SELECT (SELECT count(*) FROM fresh)::integer,
+         (SELECT count(*) FROM seen)::integer - (SELECT count(*) FROM fresh)::integer,
+         (SELECT count(*) FROM gone)::integer
+    INTO added, kept, dropped;
+  RETURN NEXT;
+END $$;
+
+-- The stored rows of the pair that waits between two entities of today, locked, or a refusal.
+CREATE OR REPLACE FUNCTION name_candidate_rows(p_one uuid, p_other uuid)
+RETURNS TABLE (first_id uuid, second_id uuid)
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.name_candidates() n
+                  WHERE (n.first_id, n.second_id) = (LEAST(p_one, p_other), GREATEST(p_one, p_other)))
+  THEN
+    RAISE EXCEPTION 'no candidate that waits joins these two entities'
+      USING CONSTRAINT = 'name_candidate_waits';
+  END IF;
+  RETURN QUERY
+    SELECT c.first_id, c.second_id
+      FROM public.name_candidate c
+      JOIN public.name_candidates_today() t
+        ON (t.stored_first, t.stored_second) = (c.first_id, c.second_id)
+     WHERE c.state = 'proposed'
+       AND (t.first_id, t.second_id) = (LEAST(p_one, p_other), GREATEST(p_one, p_other))
+       FOR UPDATE OF c;
+END $$;
+
+-- THE OPERATOR CONFIRMS A PAIR: the absorbed entity merges into the survivor that the operator
+-- chose, and its name becomes a former name of the survivor. The merge and the state of the pair
+-- are written in one transaction. The rows are read before the merge, because after it both
+-- identifiers resolve to the survivor.
+CREATE OR REPLACE FUNCTION confirm_name_candidate(p_decided_by text, p_survivor uuid,
+                                                  p_absorbed uuid)
+RETURNS TABLE (proposal_id uuid, target_id uuid)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_firsts uuid[];
+  v_seconds uuid[];
+BEGIN
+  SELECT array_agg(r.first_id), array_agg(r.second_id) INTO v_firsts, v_seconds
+    FROM public.name_candidate_rows(p_survivor, p_absorbed) r;
+  SELECT m.proposal_id, m.target_id INTO proposal_id, target_id
+    FROM public.merge_entities(p_decided_by, p_survivor, p_absorbed, true) m;
+  UPDATE public.name_candidate c
+     SET state = 'confirmed', decided_at = now(), decided_by = p_decided_by,
+         merged_by = confirm_name_candidate.proposal_id
+   WHERE (c.first_id, c.second_id) IN (SELECT * FROM unnest(v_firsts, v_seconds));
+  RETURN NEXT;
+END $$;
+
+-- THE OPERATOR REFUSES A PAIR. The row stays, so the command never proposes the pair again.
+CREATE OR REPLACE FUNCTION refuse_name_candidate(p_decided_by text, p_one uuid, p_other uuid)
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  UPDATE public.name_candidate c
+     SET state = 'refused', decided_at = now(), decided_by = p_decided_by
+    FROM public.name_candidate_rows(p_one, p_other) r
+   WHERE (c.first_id, c.second_id) = (r.first_id, r.second_id);
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END $$;
+
+-- The number of pairs in each state, for the release. A pair that waits counts when the list of
+-- the operator holds it, and a confirmed pair while its merge stands: an undo leaves the pair
+-- decided, so it does not come back, and it counts in no state.
+CREATE OR REPLACE FUNCTION name_candidate_counts()
+RETURNS TABLE (proposed integer, confirmed integer, refused integer)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT (SELECT count(*)::integer FROM public.name_candidates()),
+         (SELECT count(*)::integer FROM public.name_candidate c
+           WHERE c.state = 'confirmed'
+             AND EXISTS (SELECT 1 FROM public.entity_alias a WHERE a.merged_by = c.merged_by)),
+         (SELECT count(*)::integer FROM public.name_candidate c WHERE c.state = 'refused')
+$$;
+
 CREATE OR REPLACE FUNCTION undo_merge(p_decided_by text, p_absorbed uuid)
 RETURNS TABLE (proposal_id uuid, target_id uuid)
 LANGUAGE plpgsql SECURITY DEFINER
