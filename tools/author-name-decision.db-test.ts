@@ -302,7 +302,17 @@ test('a decision waits while the rating job of the name runs', async () => {
         WHERE kind = 'rate_author' AND author = $1`,
       [key(alias)],
     );
-    return refusal(ask, () => decide(ask, alias, false));
+    return {
+      refused: await refusal(ask, () => decide(ask, alias, false)),
+      dry: await as(ask, 'gabriel_app', () =>
+        ask(
+          `SELECT change_if_confirmed, change_if_refused FROM public.author_names_dry_run()
+            WHERE name_key = $1`,
+          [key(alias)],
+        ),
+      ),
+    };
   });
-  expect(read).toContain('runs now');
+  expect(read.refused).toContain('runs now');
+  expect(read.dry).toStrictEqual([{ change_if_confirmed: null, change_if_refused: null }]);
 });

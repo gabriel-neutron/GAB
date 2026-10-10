@@ -19,9 +19,10 @@ const waitingRow = z.object({
   units: z.number().int(),
 });
 
+// A name whose rating runs now gives no count.
 const dryRunRow = waitingRow.extend({
-  change_if_confirmed: z.number().int(),
-  change_if_refused: z.number().int(),
+  change_if_confirmed: z.number().int().nullable(),
+  change_if_refused: z.number().int().nullable(),
 });
 
 export type WaitingName = z.infer<typeof waitingRow>;
@@ -61,8 +62,10 @@ export const dryRunLines = (rows: readonly DryRunName[]): string[] => [
   ...rows.map(
     (one) =>
       `${one.name_key}  ->  ${one.author} (${one.letter})  ${String(one.units)} units: ` +
-      `confirm changes ${String(one.change_if_confirmed)}, refuse changes ` +
-      String(one.change_if_refused),
+      (one.change_if_confirmed === null || one.change_if_refused === null
+        ? 'its rating runs now, so the dry-run gives no count'
+        : `confirm changes ${String(one.change_if_confirmed)}, refuse changes ` +
+          String(one.change_if_refused)),
   ),
   `${String(rows.length)} names wait for a decision. The dry-run wrote nothing.`,
 ];
