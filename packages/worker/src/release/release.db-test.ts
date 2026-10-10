@@ -997,6 +997,12 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
         await relationOf(MATRIX_NO_IMO, MATRIX_EU_ACT, [EU_ACT_DOC]),
         '2024-06-24',
       ),
+      // A designation that cites the files of two regimes counts in no regime.
+      twoRegimes: await dated(
+        ask,
+        await relationOf(MATRIX_EU_ONLY, MATRIX_SDN, [SDN_FILE, UK_FILE]),
+        '2024-02-23',
+      ),
       bought: await dated(
         ask,
         await relationOf(MATRIX_BOUGHT_SHIP, MATRIX_SDN, [SDN_FILE]),
@@ -1017,12 +1023,14 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
   expect(rows).toStrictEqual([
     {
       imo: '9811000',
+      imo_check_digit_ok: 'true',
       vessel_ids: `${MATRIX_SHIP} ${MATRIX_RENAMED}`,
-      vessel_labels: 'TEST MATRIX TANKER; TEST MATRIX NEW NAME',
+      vessel_labels: '["TEST MATRIX TANKER","TEST MATRIX NEW NAME"]',
       imo_claim_ids: `${MATRIX_SHIP}/imo ${MATRIX_RENAMED}/imo`,
       eu_listed_on: '2024-06-24',
       eu_date_from: 'designation_start',
       eu_date_claim_id: ids.eu,
+      eu_ended_on: '',
       eu_act_id: MATRIX_EU_ACT,
       eu_act_label: 'TEST COUNCIL REGULATION',
       eu_document_ids: EU_ACT_DOC,
@@ -1030,6 +1038,7 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
       ofac_listed_on: '2024-02-23',
       ofac_date_from: 'designation_start',
       ofac_date_claim_id: ids.ofac,
+      ofac_ended_on: '',
       ofac_act_id: MATRIX_SDN,
       ofac_act_label: 'TEST SDN LIST',
       ofac_document_ids: SDN_FILE,
@@ -1037,6 +1046,7 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
       uk_listed_on: '2024-05-09',
       uk_date_from: 'designation_start',
       uk_date_claim_id: ids.uk,
+      uk_ended_on: '',
       uk_act_id: MATRIX_UK,
       uk_act_label: 'TEST UK LIST',
       uk_document_ids: UK_FILE,
@@ -1051,11 +1061,13 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
     // is the entry into force of the act.
     expect.objectContaining({
       imo: '9822000',
+      imo_check_digit_ok: 'false',
       eu_listed_on: '2025-05-20',
       eu_date_from: 'act_entry_into_force',
       eu_date_claim_id: `${MATRIX_EU_AMENDMENT}/entry_into_force`,
       eu_claim_id: ids.euOnly,
       ofac_claim_id: '',
+      uk_claim_id: '',
       days_eu_after_ofac: '',
       ofac_or_uk_not_eu: 'false',
       eu_not_ofac: 'true',
@@ -1064,6 +1076,11 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
   expect(matrixText).not.toContain('9833000');
   expect(matrixText).not.toContain(ids.noImo);
   expect(matrixText).not.toContain(ids.bought);
+  expect(matrixText).not.toContain(ids.twoRegimes);
+  expect(matrixText).toMatch(
+    /# Designations that cite the official files of more than one regime, and count in no regime: [1-9]/u,
+  );
+  expect(matrixText).toContain('The release does not check the date against the rule.');
 
   // Each claim that a row names is a claim of the release.
   const claimIds = new Set(

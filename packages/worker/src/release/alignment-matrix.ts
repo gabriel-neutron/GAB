@@ -1,44 +1,55 @@
+import { isValidImo } from '@gab/proposal/identifiers';
+
 import type { ReleaseFile } from './csv-export.ts';
 import { csvFile } from './csv-file.ts';
 import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
-import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
+import type { ReleaseClaim, ReleaseRecord, ReleaseRelation } from './release-record.ts';
 
 type Regime = 'eu' | 'ofac' | 'uk';
 const REGIMES: readonly Regime[] = ['eu', 'ofac', 'uk'];
 
-// Only the official tools give these providers to the documents that they store, so the provider
-// of a cited document tells the regime of a designation. A label of an authority is free text.
+type DateRule = ReleaseManifest['dateRules'][Regime];
+
+// Only the official tools give these providers to the files that they store, so the provider of a
+// cited document tells the regime of a designation. A label of an authority is free text. The EU
+// financial sanctions file has no tool yet, so it gives no regime.
 const REGIME_OF_PROVIDER: ReadonlyMap<string, Regime> = new Map([
   ['eu_eurlex', 'eu'],
-  ['eu_fsf', 'eu'],
   ['ofac_sdn', 'ofac'],
   ['uk_sanctions_list', 'uk'],
 ]);
 
-const RULE_WORDS = {
+const RULE_WORDS: Readonly<Record<DateRule, string>> = {
   entry_into_force: 'the date of entry into force',
   recent_actions_notice: 'the date of the Recent Actions notice',
   date_designated: 'the date designated',
-} as const;
+};
 
-/** Where the date of a listing comes from. */
-type DateFrom = 'designation_start' | 'act_entry_into_force' | 'none';
+/** The date of a listing and the claim that gives it, or no date. */
+type Dated =
+  | {
+      readonly dateFrom: 'designation_start' | 'act_entry_into_force';
+      readonly listedOn: string;
+      readonly dateClaimId: string;
+    }
+  | { readonly dateFrom: 'none'; readonly listedOn: null; readonly dateClaimId: null };
 
-interface Listing {
-  readonly listedOn: string | null;
-  readonly dateFrom: DateFrom;
-  readonly dateClaimId: string | null;
+type Listing = Dated & {
+  readonly endedOn: string | null;
   readonly actId: string;
   readonly actLabel: string;
   readonly documentIds: readonly string[];
   readonly claimId: string;
-}
+};
+
+const NO_DATE: Dated = { dateFrom: 'none', listedOn: null, dateClaimId: null };
 
 const REGIME_COLUMNS = [
   'listed_on',
   'date_from',
   'date_claim_id',
+  'ended_on',
   'act_id',
   'act_label',
   'document_ids',
@@ -47,6 +58,7 @@ const REGIME_COLUMNS = [
 
 const HEADER = [
   'imo',
+  'imo_check_digit_ok',
   'vessel_ids',
   'vessel_labels',
   'imo_claim_ids',
@@ -86,17 +98,25 @@ const firstListing = (one: Listing, two: Listing): number => {
   return one.claimId < two.claimId ? -1 : one.claimId > two.claimId ? 1 : 0;
 };
 
-/** The text that the matrix adds to the preamble: what a row is and the date rule of each
- * regime. */
-const matrixNote = (rules: ReleaseManifest['dateRules']): string =>
+interface Counts {
+  readonly noOfficialFile: number;
+  readonly twoRegimes: number;
+}
+
+/** The text that the matrix adds to the preamble: what a row is, the date rule of each regime,
+ * and the designations that count in no regime. */
+const matrixNote = (rules: ReleaseManifest['dateRules'], counts: Counts): string =>
   [
     'Alignment matrix of the EU, OFAC and UK sanctions lists.',
-    'One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name.',
-    'A designation belongs to a regime by the provider of its official document: EU EUR-Lex or the EU financial sanctions file for the EU, the OFAC SDN list for OFAC, the UK Sanctions List for the UK.',
+    'One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name. imo_check_digit_ok tells if the check digit of the number is right.',
+    'A designation belongs to a regime by the provider of its official file: EU EUR-Lex for the EU, the OFAC SDN list for OFAC, the UK Sanctions List for the UK.',
     `Date rules of this release. EU: ${RULE_WORDS[rules.eu]}. OFAC: ${RULE_WORDS[rules.ofac]}. UK: ${RULE_WORDS[rules.uk]}.`,
-    'The date of a listing is the start date of the designation (date_from designation_start), which holds the date that the rule names. When the designation has no start date, an EU listing takes the entry into force of the act that designates (date_from act_entry_into_force). Else the listing has no date (date_from none), and its gaps are empty.',
-    'When a regime lists one IMO number more than once, the row gives the first listing with a date.',
+    'The date of a listing is the start date of its designation, as the writer proposed it from the source (date_from designation_start). The release does not check the date against the rule.',
+    'Under the EU rule, a designation with no start date takes the entry into force of the act that designates, when that value cites a document of the designation (date_from act_entry_into_force). Else the listing has no date (date_from none), and its gaps are empty.',
+    'When a regime lists one IMO number more than once, the row gives the first listing with a date. ended_on is the end date of that listing. The marks count each listing, ended or not.',
     'days_eu_after_ofac is the EU date minus the OFAC date, in days. days_eu_after_uk and days_uk_after_ofac read the same way.',
+    `Designations of a vessel with an IMO number that cite no official file of a regime, and count in no regime: ${String(counts.noOfficialFile)}.`,
+    `Designations that cite the official files of more than one regime, and count in no regime: ${String(counts.twoRegimes)}.`,
   ].join('\n');
 
 /** The alignment matrix of a release: one row for each IMO number that the EU, OFAC or the UK
@@ -121,13 +141,41 @@ export const alignmentMatrix = (
     vesselsOf.set(imo, [...(vesselsOf.get(imo) ?? []), claim]);
   }
 
-  const entryIntoForce = (act: string): { day: string; claimId: string } | null => {
-    const claim = claims.get(`${act}/entry_into_force`);
-    return claim !== undefined && isDay(claim.value)
-      ? { day: claim.value, claimId: claim.claim_id }
-      : null;
+  // The entry into force of the act counts only when its value cites a document of the
+  // designation. An act that a later act amends states its own entry into force, and not the day
+  // when the later act added the vessel.
+  const entryIntoForce = (relation: ReleaseRelation, documentIds: readonly string[]): Dated => {
+    const claim = claims.get(`${relation.dst_id}/entry_into_force`);
+    if (claim === undefined || !isDay(claim.value)) return NO_DATE;
+    if (!claim.sources.some((one) => documentIds.includes(one))) return NO_DATE;
+    return { dateFrom: 'act_entry_into_force', listedOn: claim.value, dateClaimId: claim.claim_id };
   };
 
+  // The rule of the manifest selects where the date comes from. The record holds one start date
+  // for a designation, and the writer reads it from the source by the rule.
+  const datedBy = (
+    rule: DateRule,
+    claim: ReleaseClaim,
+    relation: ReleaseRelation,
+    documentIds: readonly string[],
+  ): Dated => {
+    if (relation.valid_from !== null)
+      return {
+        dateFrom: 'designation_start',
+        listedOn: relation.valid_from,
+        dateClaimId: claim.claim_id,
+      };
+    switch (rule) {
+      case 'entry_into_force':
+        return entryIntoForce(relation, documentIds);
+      case 'recent_actions_notice':
+      case 'date_designated':
+        return NO_DATE;
+    }
+  };
+
+  let noOfficialFile = 0;
+  let twoRegimes = 0;
   const listings = new Map<string, Map<Regime, Listing[]>>();
   for (const claim of record.claims) {
     if (claim.subject_kind !== 'relation' || claim.attribute !== null) continue;
@@ -135,35 +183,37 @@ export const alignmentMatrix = (
     if (relation.type !== 'designated_by') continue;
     const imo = imoOfVessel.get(relation.src_id);
     if (imo === undefined) continue;
-    for (const regime of REGIMES) {
-      const documentIds = claim.sources.filter(
-        (id) => REGIME_OF_PROVIDER.get(documentOf(id).provider ?? '') === regime,
-      );
-      if (documentIds.length === 0) continue;
-      const act = regime === 'eu' ? entryIntoForce(relation.dst_id) : null;
-      const dated: Pick<Listing, 'listedOn' | 'dateFrom' | 'dateClaimId'> =
-        relation.valid_from !== null
-          ? {
-              listedOn: relation.valid_from,
-              dateFrom: 'designation_start',
-              dateClaimId: claim.claim_id,
-            }
-          : act !== null
-            ? { listedOn: act.day, dateFrom: 'act_entry_into_force', dateClaimId: act.claimId }
-            : { listedOn: null, dateFrom: 'none', dateClaimId: null };
-      const byRegime = listings.get(imo) ?? new Map<Regime, Listing[]>();
-      byRegime.set(regime, [
-        ...(byRegime.get(regime) ?? []),
-        {
-          ...dated,
-          actId: relation.dst_id,
-          actLabel: labelOf(relation.dst_id),
-          documentIds,
-          claimId: claim.claim_id,
-        },
-      ]);
-      listings.set(imo, byRegime);
+    const regimes = new Set(
+      claim.sources.flatMap((id) => {
+        const regime = REGIME_OF_PROVIDER.get(documentOf(id).provider ?? '');
+        return regime === undefined ? [] : [regime];
+      }),
+    );
+    const [regime, ...others] = [...regimes];
+    if (regime === undefined) {
+      noOfficialFile += 1;
+      continue;
     }
+    if (others.length > 0) {
+      twoRegimes += 1;
+      continue;
+    }
+    const documentIds = claim.sources.filter(
+      (id) => REGIME_OF_PROVIDER.get(documentOf(id).provider ?? '') === regime,
+    );
+    const byRegime = listings.get(imo) ?? new Map<Regime, Listing[]>();
+    byRegime.set(regime, [
+      ...(byRegime.get(regime) ?? []),
+      {
+        ...datedBy(rules[regime], claim, relation, documentIds),
+        endedOn: relation.valid_to,
+        actId: relation.dst_id,
+        actLabel: labelOf(relation.dst_id),
+        documentIds,
+        claimId: claim.claim_id,
+      },
+    ]);
+    listings.set(imo, byRegime);
   }
 
   const rows = [...listings.keys()].sort().map((imo) => {
@@ -181,6 +231,7 @@ export const alignmentMatrix = (
             listing.listedOn ?? '',
             listing.dateFrom,
             listing.dateClaimId ?? '',
+            listing.endedOn ?? '',
             listing.actId,
             listing.actLabel,
             listing.documentIds.join(' '),
@@ -189,8 +240,10 @@ export const alignmentMatrix = (
     const on = (listing: Listing | undefined): string | null => listing?.listedOn ?? null;
     return [
       imo,
+      String(isValidImo(imo)),
       vessels.map((one) => one.subject_id).join(' '),
-      vessels.map((one) => labelOf(one.subject_id)).join('; '),
+      // A label is free text and can hold any separator, so the list is a JSON array.
+      JSON.stringify(vessels.map((one) => labelOf(one.subject_id))),
       vessels.map((one) => one.claim_id).join(' '),
       ...cells(eu),
       ...cells(ofac),
@@ -205,6 +258,10 @@ export const alignmentMatrix = (
 
   return {
     path: 'alignment-matrix.csv',
-    text: csvFile(`${preamble}\n\n${matrixNote(rules)}`, HEADER, rows),
+    text: csvFile(
+      `${preamble}\n\n${matrixNote(rules, { noOfficialFile, twoRegimes })}`,
+      HEADER,
+      rows,
+    ),
   };
 };
