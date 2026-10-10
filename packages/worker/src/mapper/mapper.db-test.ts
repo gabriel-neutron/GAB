@@ -127,6 +127,10 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // A test turns the freeze trigger off with ALTER TABLE, which takes a SHARE ROW EXCLUSIVE lock
+    // on the proposals. Taken after an insert, that lock waits for each other writer, and two
+    // test files that do so wait for each other (40P01). Each transaction takes it first.
+    await client.query('LOCK TABLE public.proposals IN SHARE ROW EXCLUSIVE MODE');
     const ask = async (text: string, values: unknown[] = []): Promise<unknown[]> => {
       const found: { rows: unknown[] } = await client.query(text, values);
       return found.rows;
