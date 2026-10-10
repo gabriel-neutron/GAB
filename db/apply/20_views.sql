@@ -222,7 +222,23 @@ CREATE VIEW api.proposal AS
               WHEN prior_value IS NULL
                 OR (SELECT r.reading FROM public.proposal_reading r WHERE r.id = p.id) = 'whole'
               THEN prior_value
-              WHEN op IN ('update_attrs', 'update_relation') THEN
+              -- An end date replaced no value: its copy is the documents of the row. It is
+              -- public when one of them is a public document, and it names those alone.
+              WHEN op = 'update_relation' AND payload ? 'valid_to' THEN
+                CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements_text(
+                                                  CASE jsonb_typeof(prior_value->'sources')
+                                                       WHEN 'array' THEN prior_value->'sources'
+                                                       ELSE '[]'::jsonb END) s(id)
+                                    JOIN public.public_document d ON d.id = s.id)
+                     THEN jsonb_set(prior_value, '{sources}',
+                            (SELECT jsonb_agg(s.id ORDER BY s.n)
+                               FROM jsonb_array_elements_text(prior_value->'sources')
+                                    WITH ORDINALITY AS s(id, n)
+                              WHERE EXISTS (SELECT 1 FROM public.public_document d
+                                             WHERE d.id = s.id)))
+                END
+              WHEN op = 'update_attrs'
+                OR (op = 'update_relation' AND NOT payload ? 'valid_to') THEN
                 (SELECT coalesce(jsonb_object_agg(a.key, a.value), '{}'::jsonb)
                    FROM jsonb_each(prior_value) AS a(key, value)
                   WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.value->'src') s(id)
@@ -287,7 +303,8 @@ COMMENT ON VIEW api.proposal IS
   'values that cite a public document (PU1). '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
-  'holds it. A merge holds the full copy of what it changed, and only a tool role reads the copy '
+  'holds it. An update_relation that gives an end date holds valid_to in its payload, and its '
+  'copy holds no end and the documents of the relation before the act. A merge holds the full copy of what it changed, and only a tool role reads the copy '
   'of a merge or an undo. `names` lists the other elements the act touches. author_role is the '
   'connection '
   'role and never a person. model_call_id names the call that made a machine act. It is NULL '
@@ -447,7 +464,10 @@ COMMENT ON VIEW api.relation IS
   'reserved for the types that take one in api.relation_type (M6). src_kind and dst_kind may say '
   'relation: nothing writes that today and nothing prevents it (M4). proposed_type carries the '
   'extracted word when it was not a live type. origin_label and attr_labels are the labels of '
-  'the row and of each value, as on api.entity. The public read shows a relation that names a '
+  'the row and of each value, as on api.entity. origin_label is the label of the act that made '
+  'the row, also for valid_from. When a later act gave valid_to, that act is the accepted '
+  'update_relation of api.proposal that holds valid_to, and its origin_label is the label of the '
+  'end date. The public read shows a relation that names a '
   'person only when one of its sources is a public document and each person it names is public, '
   'and it shows a value of such a relation only when that value cites a public document (PU1).';
 

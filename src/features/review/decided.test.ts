@@ -110,3 +110,12 @@ it('names what the act changed, the act and the proposer, and never a machine', 
     'An element that the act does not name',
   );
 });
+
+it('names an act that gives an end date the end of a relation', () => {
+  expect(
+    decidedRows([
+      act({ op: 'update_relation', payload: { valid_to: '2023-11-30' } }),
+      act({ op: 'update_relation', payload: {} }),
+    ]).map((row) => row.actWords),
+  ).toStrictEqual(['End of a relation', 'Modification of a relation']);
+});

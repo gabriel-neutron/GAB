@@ -56,6 +56,10 @@ release.
 - The absorbed row and its place come back as they were. Each moved relation goes back, and each
   removed relation comes back while its two ends stand. Each relation and each value of the
   survivor goes back while it is still what the merge wrote. A later act stands.
+- An end date that a later act gave to a relation stands: a moved relation goes back with it, and
+  a twin of the survivor keeps it and the documents of that act. The twin gets back its own first
+  day and its own documents. When the end date is before that first day, or when the twin holds a
+  document that neither the merge nor an end date gave, the undo leaves the twin as it is.
 
 ### Resolve an old identifier
 

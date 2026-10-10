@@ -257,13 +257,16 @@ export const withoutBounds = <
 
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
- * other values of the act stay, and an unstated one marks the item as disputed. */
+ * other values of the act stay, and an unstated one marks the item as disputed. The end of an
+ * act that closes a relation is the whole act, so it stays, and `dropped` names it. */
 export const statedBounds = (
   act: WriteRequest,
   passages: readonly string[],
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
-  if (act.op !== 'create_relation') return { act, dropped: [] };
   const text = passages.join('\n');
+  if (act.op === 'update_relation')
+    return { act, dropped: stated(act.validTo, text) ? [] : ['validTo'] };
+  if (act.op !== 'create_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
     return day !== undefined && !stated(day, text);

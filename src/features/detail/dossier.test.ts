@@ -221,6 +221,19 @@ test('a pending update_relation act stands on both ends of the relation it names
   expect(pendingOf(read, THIRD.id)).toEqual([]);
 });
 
+test('a pending end date of a relation says the day that it closes the relation', () => {
+  const read = withActs({
+    ...ACT,
+    id: 'a1',
+    op: 'update_relation',
+    payload: { kind: 'close', valid_to: '2023-11-30' },
+  });
+
+  expect(pendingOf(read, VESSEL.id).map((line) => line.summary)).toEqual([
+    'Closes the relation on 2023-11-30',
+  ]);
+});
+
 test('a pending merge stands on the kept entity and on each absorbed entity', () => {
   const read = withActs({
     ...ACT,

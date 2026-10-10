@@ -39,3 +39,4 @@ rules of the code review.
 | [0018](adr/0018-the-critical-nodes-table-comes-from-a-sheet-and-the-record.md) | The critical nodes table comes from a sheet of the operator and the record | Accepted |
 | [0019](adr/0019-the-changelog-is-a-diff-of-two-release-folders.md) | The changelog is a diff of two release folders | Accepted |
 | [0020](adr/0020-a-release-publishes-files-and-a-static-site.md) | A release publishes files and a static site, with no public API | Accepted |
+| [0021](adr/0021-an-end-date-is-an-act-on-the-open-relation.md) | An end date is an act on the open relation | Accepted |

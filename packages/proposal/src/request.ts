@@ -107,6 +107,14 @@ export const writeRequest = z.discriminatedUnion('op', [
     attrs: attributeEdit,
   }),
 
+  // The end date of an open relation of the record, and nothing else. The database refuses it on
+  // a type that takes no interval, on a relation that has an end, and before the start.
+  z.strictObject({
+    op: z.literal('update_relation'),
+    targetId: z.uuid(),
+    validTo: z.string(),
+  }),
+
   z.strictObject({
     op: z.literal('update_entity'),
     targetId: z.uuid(),

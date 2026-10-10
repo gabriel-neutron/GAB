@@ -222,3 +222,20 @@ test('an act with no bound is kept as it is', () => {
   const act = writeRequest.parse({ op: 'create_entity', type: 'vessel', label: 'Nayara' });
   expect(statedBounds(act, ['the tanker NAYARA'])).toStrictEqual({ act, dropped: [] });
 });
+
+const closing = writeRequest.parse({
+  op: 'update_relation',
+  targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+  validTo: '2023-11-30',
+});
+
+test('the end of a close stays in the act, and it is named when no passage states it', () => {
+  expect(statedBounds(closing, ['She left Rosneft on 30 November 2023.'])).toStrictEqual({
+    act: closing,
+    dropped: [],
+  });
+  expect(statedBounds(closing, ['She left Rosneft in 2023.'])).toStrictEqual({
+    act: closing,
+    dropped: ['validTo'],
+  });
+});

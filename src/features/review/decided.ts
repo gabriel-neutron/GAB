@@ -18,6 +18,8 @@ export type Verdict = 'promoted' | 'rejected';
 export const decidedAct = z.object({
   id: z.string(),
   op: z.string(),
+  // The end date that a change of a relation gives, which makes it the end of the relation.
+  payload: z.object({ valid_to: z.unknown() }).partial().nullish(),
   proposer: z.enum(PROPOSERS),
   status: z.enum(['accepted', 'rejected']),
   decidedAt: z.string(),
@@ -107,7 +109,10 @@ export function decidedRows(acts: readonly DecidedAct[]): readonly DecidedRow[] 
       id: act.id,
       verdict,
       verdictWords: VERDICT_WORDS[verdict],
-      actWords: ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' '),
+      actWords:
+        act.op === 'update_relation' && typeof act.payload?.valid_to === 'string'
+          ? 'End of a relation'
+          : (ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' ')),
       subject: act.name ?? 'An element that the act does not name',
       reason: reasonOf(act),
       decidedAt: act.decidedAt,

@@ -91,8 +91,9 @@ the identifier of each item, so a relation names an entity that an earlier item 
 creates. The items that name each other stay one linked batch. The batch is a group: a label and
 a filter. A rule or the operator decides one unit of it at a time (ADR 0012): an entity with the relations that depend
 on it. The door writes each act with its citations in one transaction, and it holds the rules of the
-data: a machine proposes a new entity, a new relation or new attributes and never a change of a name
-or a type or a deletion, the page exists, the span lies in it, and a machine act cites at least one
+data: a machine proposes a new entity, a new relation, new attributes or the end date of an open
+relation, and never a change of a name or a type, another change of a relation or a deletion, the
+page exists, the span lies in it, and a machine act cites at least one
 page. A pending act with the same operation, target, payload, sources and role is returned and not
 written again, so a retry or a second run writes no duplicate. The door adds to that act each
 citation that it does not hold yet. Another role is another witness, and its act stays separate. The
