@@ -54,12 +54,16 @@ CREATE OR REPLACE TRIGGER citation_append_only
   BEFORE UPDATE OR DELETE ON citation
   FOR EACH ROW EXECUTE FUNCTION citation_append_only_fn();
 
--- A letter, a name of an author and a check by a second model are written once.
+-- A letter, a name of an author, a decision on a name and a check by a second model are written
+-- once.
 CREATE OR REPLACE TRIGGER author_append_only
   BEFORE UPDATE OR DELETE ON author
   FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 CREATE OR REPLACE TRIGGER author_name_append_only
   BEFORE UPDATE OR DELETE ON author_name
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+CREATE OR REPLACE TRIGGER author_name_decision_append_only
+  BEFORE UPDATE OR DELETE ON author_name_decision
   FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 CREATE OR REPLACE TRIGGER act_check_append_only
   BEFORE UPDATE OR DELETE ON act_check
@@ -114,6 +118,7 @@ ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
 ALTER TABLE author ENABLE ALWAYS TRIGGER author_append_only;
 ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
+ALTER TABLE author_name_decision ENABLE ALWAYS TRIGGER author_name_decision_append_only;
 ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
 ALTER TABLE reference_approval ENABLE ALWAYS TRIGGER reference_approval_append_only;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_rate_author;
