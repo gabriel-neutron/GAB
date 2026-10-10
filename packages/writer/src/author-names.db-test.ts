@@ -87,9 +87,10 @@ test.each([true, false])(
     expect((await namesOf()).some((one) => one.name === name)).toBe(false);
 
     // A second decision on the same name is refused, and it writes nothing.
-    const [status, reply] = await send('/write/decide-author-name', { name, confirm });
-    expect(status).toBe(422);
-    expect(z.strictObject({ refusal: z.string() }).safeParse(reply).success).toBe(true);
+    expect(await send('/write/decide-author-name', { name, confirm })).toStrictEqual([
+      422,
+      { refusal: `the name "${name}" waits for no decision` },
+    ]);
   },
 );
 

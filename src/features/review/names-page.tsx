@@ -56,21 +56,30 @@ export function NamesPage({ read }: NamesPageProps) {
 
   const decide = (name: string, confirm: boolean): void => {
     setDecision({ step: 'working', name, confirm });
+    // The result and the list read again land together, so no button acts on a list that the
+    // decision made old.
     void decideAuthorName(name, confirm).then(async (result) => {
-      setDecision({ ...result, name, confirm });
       const again = await readAuthorNames();
       setHeld({ from: read, now: again });
+      setDecision({ ...result, name, confirm });
     });
   };
 
-  if (now.state === 'private') return <p className="p-3 text-xs text-label">{now.why}</p>;
+  const said = <SaidLine said={writeSaid(decision, WORDS)} label={SAYS} />;
+  if (now.state === 'private')
+    return (
+      <div className="flex flex-col gap-2 p-2">
+        {decision.step === 'idle' ? null : said}
+        <p className="text-xs text-label">{now.why}</p>
+      </div>
+    );
   const working = decision.step === 'working';
   return (
     <section
       aria-label="Names that joined an author A or B"
       className="flex h-full min-h-0 flex-col gap-2 p-2"
     >
-      <SaidLine said={writeSaid(decision, WORDS)} label={SAYS} />
+      {said}
 
       {now.names.length === 0 ? (
         <p className="text-xs text-label">No name waits for a decision.</p>
