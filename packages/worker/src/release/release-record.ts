@@ -60,12 +60,25 @@ const documentRow = z.object({
   licence: z.string().nullable(),
 });
 
+const mergeRow = z.object({
+  act_id: z.uuid(),
+  action: z.enum(['merge', 'undo']),
+  /** The day of the decision, in UTC. */
+  day: z.string(),
+  absorbed_id: z.uuid(),
+  survivor_id: z.uuid(),
+  /** The entity that the absorbed identifier resolves to today, while the merge stands. */
+  resolves_to: z.uuid().nullable(),
+  origin_label: label,
+});
+
 const disclaimerRow = z.object({ disclaimer: z.string() });
 
 export type ReleaseEntity = z.output<typeof entityRow>;
 export type ReleaseRelation = z.output<typeof relationRow>;
 export type ReleaseClaim = z.output<typeof claimRow>;
 export type ReleaseDocument = z.output<typeof documentRow>;
+export type ReleaseMerge = z.output<typeof mergeRow>;
 
 /** What a release publishes: the public part of the record, as the release functions of the
  * database give it, each list in the order of its identifiers. */
@@ -73,6 +86,8 @@ export interface ReleaseRecord {
   readonly entities: readonly ReleaseEntity[];
   readonly relations: readonly ReleaseRelation[];
   readonly claims: readonly ReleaseClaim[];
+  /** Each merge and each undo, in the order of the decisions. */
+  readonly merges: readonly ReleaseMerge[];
   /** Each public document, by its identifier. */
   readonly documents: ReadonlyMap<string, ReleaseDocument>;
   /** The disclaimer of the dataset, in Markdown, with its two contact links still to fill. */
@@ -104,6 +119,13 @@ export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> =
             passages
        FROM public.release_claims() ORDER BY claim_id`,
   );
+  const merges = await rowsOf(
+    db,
+    mergeRow,
+    `SELECT act_id, action, to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+            absorbed_id, survivor_id, resolves_to, origin_label
+       FROM public.release_merges() ORDER BY decided_at, act_id`,
+  );
   const documents = await rowsOf(
     db,
     documentRow,
@@ -120,6 +142,7 @@ export const readReleaseRecord = async (db: Queryable): Promise<ReleaseRecord> =
     entities,
     relations,
     claims,
+    merges,
     documents: new Map(documents.map((one) => [one.id, one])),
     disclaimer: said.disclaimer,
   };

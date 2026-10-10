@@ -21,6 +21,7 @@
 SET ROLE gabriel_owner;
 
 -- ------------------------------------------------------------------------------------------
+DROP VIEW IF EXISTS api.entity_alias;
 DROP VIEW IF EXISTS api.full_map;
 DROP VIEW IF EXISTS api.layout;
 DROP VIEW IF EXISTS api.job;
@@ -213,7 +214,12 @@ CREATE VIEW api.proposal AS
          src, names,
          -- The same rule for what the act replaced. A deleted row is public only when one of its
          -- own sources is a public document.
-         CASE WHEN prior_value IS NULL
+         -- The copy of a merge holds each relation of the absorbed entity, and a relation can name
+         -- a person that the public read hides. Only a tool role reads it.
+         CASE WHEN op IN ('merge_entities', 'undo_merge')
+               AND current_user NOT IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
+              THEN NULL
+              WHEN prior_value IS NULL
                 OR (SELECT r.reading FROM public.proposal_reading r WHERE r.id = p.id) = 'whole'
               THEN prior_value
               WHEN op IN ('update_attrs', 'update_relation') THEN
@@ -281,7 +287,9 @@ COMMENT ON VIEW api.proposal IS
   'values that cite a public document (PU1). '
   'prior_value HOLDS ONLY WHAT THE ACT REPLACED — the keys an update named, or the whole row a '
   'delete destroyed. An absent key does NOT mean the value was removed: the live row still '
-  'holds it. `names` lists the other elements the act touches. author_role is the connection '
+  'holds it. A merge holds the full copy of what it changed, and only a tool role reads the copy '
+  'of a merge or an undo. `names` lists the other elements the act touches. author_role is the '
+  'connection '
   'role and never a person. model_call_id names the call that made a machine act. It is NULL '
   'for an act of the operator and for a machine act older than the call record. batch_id joins '
   'the acts of a machine that name each other: it is a label and a filter, and the operator '
@@ -321,9 +329,10 @@ COMMENT ON VIEW api.dataset IS
 -- PU1: each claim carries its label. The row takes the label of the last accepted act that set
 -- its name and type (update_entity), or else of the act that made it. Each value takes the label
 -- of the last act that set it: a later act can change one value, and a different decider can
--- decide that act. A value that no act names (a merge) keeps the label of
--- the row. Scalar subqueries and not a join: a join makes the view not auto-updatable, and a
--- write through the read API then fails as a server fault (500) and not as a refusal (401).
+-- decide that act. A merge (M12) names each value that it moved, with the act that set it on the
+-- absorbed entity, so a moved value keeps the label of that act. Scalar subqueries and not a join:
+-- a join makes the view not auto-updatable, and a write through the read API then fails as a
+-- server fault (500) and not as a refusal (401).
 CREATE VIEW api.entity AS
   SELECT e.id, e.type, e.proposed_type, e.label,
          -- GeoJSON, never raw. PostgREST serialises a PostGIS geometry as hex EWKB, and
@@ -346,11 +355,20 @@ CREATE VIEW api.entity AS
                   (SELECT c.origin_label FROM api.proposal c WHERE c.id = e.promoted_from))
            AS origin_label,
          coalesce((SELECT jsonb_object_agg(k.key, coalesce(
-                     (SELECT u.origin_label FROM api.proposal u
-                       WHERE u.status = 'accepted' AND u.op = 'update_attrs'
-                         AND u.target_kind = 'entity' AND u.target_id = e.id
-                         AND u.payload->'attrs' ? k.key
-                       ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+                     (SELECT x.label FROM (
+                        SELECT u.origin_label AS label, u.decided_at, u.id FROM api.proposal u
+                         WHERE u.status = 'accepted' AND u.op = 'update_attrs'
+                           AND u.target_kind = 'entity' AND u.target_id = e.id
+                           AND u.payload->'attrs' ? k.key
+                        UNION ALL
+                        SELECT (SELECT c.origin_label FROM api.proposal c
+                                 WHERE c.id = (m.prior_value->'acts'->>k.key)::uuid),
+                               m.decided_at, m.id
+                          FROM public.proposals m
+                         WHERE m.status = 'accepted' AND m.op = 'merge_entities'
+                           AND m.target_kind = 'entity' AND m.target_id = e.id
+                           AND m.prior_value->'acts' ? k.key) AS x
+                       ORDER BY x.decided_at DESC, x.id DESC LIMIT 1),
                      (SELECT c.origin_label FROM api.proposal c
                        WHERE c.id = e.promoted_from)))
                      FROM jsonb_each(e.attrs) AS k(key, value)
@@ -544,5 +562,19 @@ COMMENT ON VIEW api.full_map IS
   'may be absent, and a surface must then draw the cautious state and never a measured one. '
   'origin_label and position_precision_label are the labels of the row and of the word, as on '
   'api.entity.';
+
+
+-- M12: AN OLD IDENTIFIER RESOLVES TO THE ENTITY THAT ABSORBED IT. One row for each merge that
+-- stands, with the survivor of today: a later merge of the survivor moves the row to its own
+-- survivor. A survivor that the reader cannot read gives no row (PU1).
+CREATE VIEW api.entity_alias AS
+  SELECT a.absorbed_id, a.survivor_id, a.merged_at
+    FROM public.entity_alias a
+   WHERE EXISTS (SELECT 1 FROM api.entity e WHERE e.id = a.survivor_id);
+COMMENT ON VIEW api.entity_alias IS
+  'The identifier of an entity that a merge absorbed, and the entity that holds it today. An '
+  'old link or citation of absorbed_id reads survivor_id. An undo deletes the row, and the '
+  'absorbed entity is in api.entity again. The ledger keeps each merge and each undo as an act '
+  '(merge_entities, undo_merge).';
 
 RESET ROLE;

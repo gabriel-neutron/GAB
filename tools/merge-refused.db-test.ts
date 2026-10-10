@@ -82,11 +82,11 @@ const mergeOutcome = (): Promise<Outcome> =>
     }
   });
 
-test('a merge act is refused at promotion, stays pending, and changes no entity', async () => {
+test('a merge act that waits is refused at the promotion of a unit, stays pending, and changes no entity', async () => {
   const outcome = await mergeOutcome();
   expect(outcome.refusal).toMatchObject({
     code: 'P0001',
-    constraint: 'op_has_path',
+    constraint: 'merge_by_operator',
   });
   expect(outcome.status).toBe('pending');
   expect(outcome.before).toHaveLength(2);

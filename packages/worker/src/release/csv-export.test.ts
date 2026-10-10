@@ -62,6 +62,7 @@ const recordOf = (claims: readonly ReleaseClaim[]): ReleaseRecord => ({
     },
   ],
   claims,
+  merges: [],
   documents: new Map([
     [
       'doc_a',
@@ -116,4 +117,27 @@ test('a claim about an element that the release does not hold stops the export',
   expect(() => claimsText([claim({ subject_id: '00000000-0000-4000-8000-0000000000ff' })])).toThrow(
     /element/u,
   );
+});
+
+test('an undone merge resolves to nothing, and its field is empty', () => {
+  const record: ReleaseRecord = {
+    ...recordOf([]),
+    merges: [
+      {
+        act_id: ACT,
+        action: 'merge',
+        day: '2026-10-10',
+        absorbed_id: OWNER,
+        survivor_id: SHIP,
+        resolves_to: null,
+        origin_label: LABEL,
+      },
+    ],
+  };
+  const text = csvExport(record, '').find((file) => file.path === 'merges.csv')?.text ?? '';
+  expect(text.slice(1).split('\r\n')).toStrictEqual([
+    'act_id,action,day,absorbed_id,survivor_id,resolves_to,origin_label',
+    `${ACT},merge,2026-10-10,${OWNER},${SHIP},,"${LABEL}"`,
+    '',
+  ]);
 });
