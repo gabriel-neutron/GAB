@@ -19,6 +19,7 @@ test('a manifest with the contact addresses alone takes a default for each other
     dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
     contacts: CONTACTS,
     criticalNodes: null,
+    iriBase: 'https://github.com/gabriel-neutron/GAB/id/',
   });
 });
 
@@ -30,8 +31,14 @@ test('a manifest keeps the values that it gives', () => {
       showNatoPair: false,
       contacts: CONTACTS,
       criticalNodes: 'nodes.csv',
+      iriBase: 'https://data.example.org/gab/',
     }),
-  ).toMatchObject({ version: '1.0', date: '2026-11-01', criticalNodes: 'nodes.csv' });
+  ).toMatchObject({
+    version: '1.0',
+    date: '2026-11-01',
+    criticalNodes: 'nodes.csv',
+    iriBase: 'https://data.example.org/gab/',
+  });
 });
 
 test.each([
@@ -71,5 +78,19 @@ test.each(['1,0', 'the "first"', 'one\ntwo', 'a\u0000b'])(
   'a version with a quote, a comma or a control character (%j) is refused',
   (version) => {
     expect(() => read({ contacts: CONTACTS, version })).toThrow(/version/u);
+  },
+);
+
+test.each([
+  'http://data.example.org/gab/',
+  'https://data.example.org/gab',
+  'https://data.example.org/gab/#',
+  'https://data.example.org/gab/?a=1/',
+  'https://data.example.org/a b/',
+  'data.example.org/gab/',
+])(
+  'a base of the identifiers that is not an https address that ends with a slash (%j) is refused',
+  (iriBase) => {
+    expect(() => read({ contacts: CONTACTS, iriBase })).toThrow(/iriBase/u);
   },
 );

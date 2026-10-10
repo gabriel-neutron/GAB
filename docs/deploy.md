@@ -171,6 +171,9 @@ the GAB checkout, because it holds your contact addresses. It is a JSON file:
 Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
 the release takes the date of the day (UTC). With no `version`, the version is the date.
 `showNatoPair` stays `false`: the command refuses `true`, because no file can show the pair yet.
+`iriBase` is the base of the identifiers of the JSON-LD file: an `https://` address that ends with
+a slash. Set it once, to the address of the public site, before the first public release, and
+never change it after, because reusers link to these identifiers.
 The command also refuses a key that it does not know, and a quote, a comma or a control
 character in the version or an address.
 
@@ -183,7 +186,9 @@ pnpm worker release --manifest <the manifest file> --out <a folder>
 The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
 over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
 the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
-skip them. `manifest.json` gives the size and the SHA-256 checksum of each file.
+skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
+`dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
+definition of each term. `manifest.json` gives the size and the SHA-256 checksum of each file.
 
 ## Public writes
 

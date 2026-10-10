@@ -5,6 +5,9 @@ import { join } from 'node:path';
 import type { Queryable } from '../queryable.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
+import { geojsonExport } from './geojson-export.ts';
+import { jsonldExport } from './jsonld-export.ts';
+import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import { readReleaseRecord } from './release-record.ts';
 
@@ -21,11 +24,6 @@ export interface WrittenRelease {
   readonly relations: number;
   readonly claims: number;
 }
-
-const dayOfRelease = (date: string): string => {
-  const [year, month, day] = date.split('-');
-  return `${day ?? ''}/${month ?? ''}/${year ?? ''}`;
-};
 
 const exists = async (path: string): Promise<boolean> =>
   access(path).then(
@@ -49,8 +47,12 @@ export const writeRelease = async (
 
   const record = await readReleaseRecord(db);
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
-  const preamble = `GAB dataset, version ${manifest.version} of ${dayOfRelease(manifest.date)}.\n\n${disclaimer}`;
-  const files: readonly ReleaseFile[] = csvExport(record, preamble);
+  const heading = releaseHeading(manifest, disclaimer);
+  const files: readonly ReleaseFile[] = [
+    ...csvExport(record, `${heading.title}\n\n${disclaimer}`),
+    geojsonExport(record, heading),
+    jsonldExport(record, heading, manifest.iriBase),
+  ];
 
   const listed = files.map((file) => {
     const bytes = Buffer.from(file.text, 'utf8');

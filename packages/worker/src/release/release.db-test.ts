@@ -66,6 +66,7 @@ const MANIFEST: ReleaseManifest = {
     rightOfReply: 'mailto:reply@example.org',
   },
   criticalNodes: null,
+  iriBase: 'https://data.example.org/gab/',
 };
 
 const CC_BY = 'CC-BY 4.0';
@@ -84,6 +85,7 @@ const SHIPS = 'doc_release_ships';
 const PAGE = 'doc_release_page';
 const BOUGHT = 'doc_release_bought';
 const TWO = 'doc_release_two';
+const ONLY_HIDDEN = 'doc_release_only_hidden';
 
 const TEXT: Record<string, string> = {
   [SDN]:
@@ -93,6 +95,7 @@ const TEXT: Record<string, string> = {
   [SHIPS]: 'TEST TANKER makes 12 knots. TEST OWNER LTD owns TEST TANKER. It holds 51 percent.',
   [PAGE]: 'TEST PERSON and TEST OTHER PERSON work for TEST OWNER LTD.',
   [BOUGHT]: 'TEST TANKER is insured by a secret club.',
+  [ONLY_HIDDEN]: 'TEST PERSON OF A PERSON lives here.',
 };
 
 const VESSEL = '00000000-0000-4000-8000-00000000e001';
@@ -118,8 +121,10 @@ const documents = async (ask: Ask) => {
         'datalastic'),
        ($4, 'url', 'A news page', 'https://example.org/news', '2026-10-04', NULL, NULL),
        ($5, 'url', 'A bought filing', 'https://example.org/filing', '2026-10-05', 25.00, NULL),
-       ($6, 'url', 'A second list', 'https://example.org/two', '2026-10-06', NULL, 'ofac_sdn')`,
-    [SDN, GFW, SHIPS, PAGE, BOUGHT, TWO],
+       ($6, 'url', 'A second list', 'https://example.org/two', '2026-10-06', NULL, 'ofac_sdn'),
+       ($7, 'url', 'A page on a hidden person', 'https://example.org/hidden', '2026-10-07', NULL,
+        NULL)`,
+    [SDN, GFW, SHIPS, PAGE, BOUGHT, TWO, ONLY_HIDDEN],
   );
   for (const [id, text] of Object.entries(TEXT))
     await ask(
@@ -244,6 +249,11 @@ const record = async (held: { as: (role: string) => Queryable; ask: Ask }) => {
     insurer_note: value('a secret club', [BOUGHT]),
   });
   await cite(ask, vesselAct, GFW, 'flag of Panama');
+  // The vessel has a position: longitude 32.5 east, latitude 46.6 north.
+  await ask(
+    'UPDATE public.entities SET geom = public.ST_SetSRID(public.ST_MakePoint(32.5, 46.6), 4326) WHERE id = $1',
+    [VESSEL],
+  );
   await cite(ask, vesselAct, SHIPS, '12 knots');
   await cite(ask, vesselAct, BOUGHT, 'a secret club');
   // A rule set the IMO number later, and the value carries the label of that act.
@@ -278,6 +288,14 @@ const record = async (held: { as: (role: string) => Queryable; ask: Ask }) => {
   await cite(ask, secondAct, TWO, 'IMO 9999999');
 
   await entity(held, OWNER, 'company', 'TEST OWNER LTD', [SHIPS]);
+  // The site of the owner, with its ring in the clockwise order.
+  await ask(
+    `UPDATE public.entities
+        SET geom = public.ST_SetSRID(public.ST_GeomFromText(
+                     'POLYGON((30 46, 30 47, 31 47, 30 46))'), 4326)
+      WHERE id = $1`,
+    [OWNER],
+  );
   await entity(held, HIDDEN_OWNER, 'company', 'TEST HIDDEN OWNER', [BOUGHT]);
   await entity(held, LIST, 'legal_act', 'TEST SANCTIONS LIST', [SDN]);
   await entity(held, PERSON, 'person', 'TEST PERSON', [PAGE], {
@@ -285,7 +303,8 @@ const record = async (held: { as: (role: string) => Queryable; ask: Ask }) => {
   });
   await entity(held, OTHER_PERSON, 'person', 'TEST OTHER PERSON', [PAGE]);
   await entity(held, LISTED_BY_BOUGHT, 'person', 'TEST BOUGHT PERSON', [PAGE]);
-  await entity(held, LISTED_BY_PERSON, 'person', 'TEST PERSON OF A PERSON', [PAGE]);
+  // A public document that only a person out of the release cites is not in the release.
+  await entity(held, LISTED_BY_PERSON, 'person', 'TEST PERSON OF A PERSON', [ONLY_HIDDEN]);
 
   const owns = await relation(held, 'owns', OWNER, VESSEL, [SHIPS]);
   await cite(ask, owns.act, SHIPS, 'TEST OWNER LTD owns TEST TANKER');
@@ -359,28 +378,39 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(made.written.folder).toBe(folder);
   expect((await readdir(folder)).sort()).toStrictEqual([
     'claims.csv',
+    'dataset.jsonld',
     'entities.csv',
+    'entities.geojson',
     'manifest.json',
     'merges.csv',
     'relations.csv',
   ]);
 
   const text = async (name: string) => readFile(join(folder, name), 'utf8');
-  const [entitiesText, relationsText, claimsText] = await Promise.all(
-    ['entities.csv', 'relations.csv', 'claims.csv'].map(text),
+  const [entitiesText, relationsText, claimsText, geojsonText, jsonldText] = await Promise.all(
+    ['entities.csv', 'relations.csv', 'claims.csv', 'entities.geojson', 'dataset.jsonld'].map(text),
   );
-  if (entitiesText === undefined || relationsText === undefined || claimsText === undefined)
+  if (
+    entitiesText === undefined ||
+    relationsText === undefined ||
+    claimsText === undefined ||
+    geojsonText === undefined ||
+    jsonldText === undefined
+  )
     throw new Error('a file is missing');
 
-  // Each file holds the version, the day and the disclaimer with the two contact addresses.
-  for (const one of [entitiesText, relationsText, claimsText]) {
+  for (const one of [entitiesText, relationsText, claimsText])
     expect(one).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
-    expect(one).toContain('# **About this data.**');
+  // Each file holds the version, the day and the disclaimer with the two contact addresses.
+  for (const one of [entitiesText, relationsText, claimsText, geojsonText, jsonldText]) {
+    expect(one).toContain('GAB dataset, version 0.1-test of 08/11/2026.');
+    expect(one).toContain('**About this data.**');
     expect(one).toContain('Report an error: https://example.org/report-an-error');
     expect(one).toContain('Right of reply: mailto:reply@example.org');
     expect(one).not.toContain('<link>');
     // No bought file is named, and no rating shows (S1).
     expect(one).not.toContain(BOUGHT);
+    expect(one).not.toContain(ONLY_HIDDEN);
     expect(one).not.toContain('a secret club');
     expect(one).not.toContain('Narnia');
     expect(one).not.toContain('Liberia');
@@ -403,6 +433,8 @@ test('a release writes the public entities, relations and claims, each row with 
     'relations.csv',
     'claims.csv',
     'merges.csv',
+    'entities.geojson',
+    'dataset.jsonld',
   ]);
   for (const file of manifest.files) {
     const bytes = await readFile(join(folder, file.path));
@@ -585,6 +617,86 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(of(`${PERSON}/nationality`)).toStrictEqual([]);
   expect(claims.some((row) => row['claim_id'] === made.ids.hiddenOwns.id)).toBe(false);
   expect(claims.some((row) => row['claim_id'] === made.ids.otherWorks.id)).toBe(false);
+
+  // The GeoJSON holds the entity with a position, with the columns of the CSV, and the longitude
+  // before the latitude.
+  const geojson = z
+    .object({
+      type: z.literal('FeatureCollection'),
+      name: z.string(),
+      disclaimer: z.string(),
+      features: z.array(
+        z.object({
+          type: z.literal('Feature'),
+          id: z.string(),
+          geometry: z.unknown(),
+          properties: z.record(z.string(), z.string()),
+        }),
+      ),
+    })
+    .parse(JSON.parse(geojsonText));
+  const features = geojson.features.filter((one) => OURS.has(one.id));
+  expect(features.map((one) => one.id)).toStrictEqual([VESSEL, OWNER]);
+  expect(features[0]).toStrictEqual({
+    type: 'Feature',
+    id: VESSEL,
+    geometry: { type: 'Point', coordinates: [32.5, 46.6] },
+    properties: entities.find((row) => row['id'] === VESSEL),
+  });
+  // RFC 7946: the outer ring of a polygon turns counter-clockwise.
+  const ring =
+    z
+      .object({ coordinates: z.array(z.array(z.tuple([z.number(), z.number()]))) })
+      .parse(features[1]?.geometry).coordinates[0] ?? [];
+  const area = ring
+    .slice(1)
+    .reduce((sum, [x, y], at) => sum + (ring[at]?.[0] ?? 0) * y - x * (ring[at]?.[1] ?? 0), 0);
+  expect(area).toBeGreaterThan(0);
+  // An entity with no position has no feature, and no entity out of the release is in the file.
+  for (const hidden of [LIST, HIDDEN_OWNER, OTHER_PERSON, LISTED_BY_BOUGHT, LISTED_BY_PERSON])
+    expect(geojsonText).not.toContain(hidden);
+
+  // The JSON-LD keeps the sources, the passages, the label and the licence of each claim, and
+  // holds no entity that the release leaves out.
+  const graph = z
+    .object({ '@graph': z.array(z.record(z.string(), z.unknown())) })
+    .parse(JSON.parse(jsonldText))['@graph'];
+  const nodeOf = (id: string) => graph.find((one) => one['@id'] === id);
+  expect(nodeOf(`claim/${VESSEL}/imo`)).toStrictEqual({
+    '@id': `claim/${VESSEL}/imo`,
+    '@type': 'Claim',
+    claimId: `${VESSEL}/imo`,
+    claimKind: 'attribute',
+    about: `entity/${VESSEL}`,
+    attribute: 'imo',
+    value: '9123456',
+    originLabel: RULE,
+    licenceText: CC_BY,
+    license: 'https://creativecommons.org/licenses/by/4.0/',
+    sources: [`document/${SDN}`],
+    passages: [
+      {
+        '@type': 'Passage',
+        document: `document/${SDN}`,
+        page: 1,
+        excerpt: 'IMO 9123456',
+        modality: 'asserts',
+        transcribed: false,
+      },
+    ],
+  });
+  expect(nodeOf(`claim/${owns.id}`)).toMatchObject({
+    claimKind: 'relation',
+    about: `relation/${owns.id}`,
+    originLabel: MANUAL,
+    licenceText: DERIVED,
+    sources: [`document/${SHIPS}`],
+  });
+  expect(nodeOf(`entity/${VESSEL}`)).toMatchObject({ name: 'TEST TANKER', licenceText: CC_BY });
+  expect(nodeOf(`document/${SDN}`)).toMatchObject({ title: 'OFAC SDN list' });
+  for (const hidden of [HIDDEN_OWNER, OTHER_PERSON, LISTED_BY_BOUGHT, LISTED_BY_PERSON])
+    expect(jsonldText).not.toContain(hidden);
+  expect(jsonldText).not.toContain(made.ids.hiddenOwns.id);
 });
 
 const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]) => {
@@ -688,6 +800,20 @@ test('a release writes the log of the merges, and a moved value keeps the label 
   const entities = tableOf(await readFile(join(folder, 'entities.csv'), 'utf8'));
   expect(entities.map((row) => row['id'])).not.toContain(ABSORBED);
   expect(entities.map((row) => row['id'])).toContain(UNDONE);
+
+  // In the JSON-LD, the absorbed entity is replaced by the survivor while the merge stands.
+  const jsonld = await readFile(join(folder, 'dataset.jsonld'), 'utf8');
+  const graph = z
+    .object({ '@graph': z.array(z.record(z.string(), z.unknown())) })
+    .parse(JSON.parse(jsonld))['@graph'];
+  expect(graph.find((one) => one['@id'] === `entity/${ABSORBED}`)).toStrictEqual({
+    '@id': `entity/${ABSORBED}`,
+    isReplacedBy: `entity/${SECOND}`,
+  });
+  expect(graph.find((one) => one['@id'] === `entity/${UNDONE}`)).toMatchObject({
+    '@type': 'Entity',
+  });
+  expect(jsonld).not.toContain(BOUGHT_TWIN);
 });
 
 test('the command refuses a release of a date that the folder holds already', async () => {
