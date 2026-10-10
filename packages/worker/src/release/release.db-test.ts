@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { readCsv } from '@gab/tools/csv';
 import { Pool } from 'pg';
@@ -14,6 +15,7 @@ import { z } from 'zod';
 
 import { roleAddress } from '../address.ts';
 import type { Queryable } from '../queryable.ts';
+import { CriticalNodesSheetFault } from './critical-nodes-sheet.ts';
 import { natoCoverageReport } from './nato-coverage.ts';
 import { releaseCommand } from './release-command.ts';
 import { readReleaseRecord } from './release-record.ts';
@@ -380,6 +382,7 @@ test('a release writes the public entities, relations and claims, each row with 
   expect((await readdir(folder)).sort()).toStrictEqual([
     'alignment-matrix.csv',
     'claims.csv',
+    'critical-nodes.csv',
     'dataset.jsonld',
     'entities.csv',
     'entities.geojson',
@@ -444,6 +447,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'claims.csv',
     'merges.csv',
     'alignment-matrix.csv',
+    'critical-nodes.csv',
     'entities.geojson',
     'dataset.jsonld',
   ]);
@@ -912,6 +916,143 @@ test('a release shows the NATO pair only when its manifest asks for it', async (
   expect(report[1]?.split('\t').slice(0, 3)).toStrictEqual(['all', '1', String(claimCount)]);
   expect(report.find((line) => line.startsWith('entity vessel\t'))?.split('\t')[1]).toBe('1');
   expect(report.find((line) => line.startsWith('relation owns\t'))?.split('\t')[1]).toBe('0');
+});
+
+// The example sheet of the candidate nodes names the vessel, its owner and the second vessel.
+const SHEET = fileURLToPath(new URL('../../fixtures/critical-nodes.csv', import.meta.url));
+
+test('a release writes the critical nodes table from the sheet of the candidate nodes', async () => {
+  const off = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const on = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const ids = await inTransaction(async (held) => {
+    const made = await record(held);
+    await pairTheImo(held.ask, made.imoAct);
+    await writeRelease(held.as('gabriel_app'), { ...MANIFEST, criticalNodes: SHEET }, off);
+    await writeRelease(
+      held.as('gabriel_app'),
+      { ...MANIFEST, criticalNodes: SHEET, showNatoPair: true },
+      on,
+    );
+    return made;
+  });
+  const fileOf = (root: string) => join(root, 'gab-release-2026-11-08', 'critical-nodes.csv');
+  const text = await readFile(fileOf(off), 'utf8');
+  expect(text).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
+  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  expect(text).toContain('# Candidate nodes: 3. Retained: 1.');
+  // S1: with the pair off, no column and no word of the pair.
+  expect(text).not.toMatch(/nato|NATO|\b[A-F][1-6]\b/u);
+
+  // Condition (a) of the vessel is its designation in the record. The owner has a tick with no
+  // public claim. The second vessel has no tick.
+  const table = tableOf(text);
+  expect(table.map((row) => [row['node_id'], row['ticks'], row['retained']])).toStrictEqual([
+    [VESSEL, '3', 'true'],
+    [OWNER, '1', 'false'],
+    [SECOND, '0', 'false'],
+  ]);
+  expect(table[0]).toMatchObject({
+    node_label: 'TEST TANKER',
+    node_type: 'vessel',
+    controller: 'TEST OWNER LTD',
+    bypass_pattern: 'Ship-to-ship transfer off an invented port, then a new flag',
+    a_sanctions_exposure: 'sourced',
+    a_claim_ids: ids.vesselListed.id,
+    b_production_or_throughput: 'sourced',
+    b_claim_ids: `${VESSEL}/speed_knots`,
+    c_bypass_routing: 'sourced',
+    c_claim_ids: `${VESSEL}/flag ${VESSEL}/imo`,
+    sourced_ticks: '3',
+  });
+  expect(table[1]).toMatchObject({
+    controller: 'TEST HOLDING',
+    a_sanctions_exposure: 'no tick',
+    b_production_or_throughput: 'not sourced',
+    b_claim_ids: '',
+    sourced_ticks: '0',
+  });
+  // Each claim of the table is a claim of the release.
+  const claims = new Set(
+    tableOf(await readFile(join(off, 'gab-release-2026-11-08', 'claims.csv'), 'utf8')).map(
+      (row) => row['claim_id'],
+    ),
+  );
+  for (const row of table)
+    for (const claim of ['a', 'b', 'c'].flatMap((one) =>
+      (row[`${one}_claim_ids`] ?? '').split(' ').filter((id) => id !== ''),
+    ))
+      expect(claims).toContain(claim);
+
+  // The file manifest gives the checksum of the table.
+  const manifest = z
+    .object({ files: z.array(z.object({ path: z.string(), sha256: z.string() })) })
+    .parse(
+      JSON.parse(await readFile(join(off, 'gab-release-2026-11-08', 'manifest.json'), 'utf8')),
+    );
+  expect(manifest.files.find((file) => file.path === 'critical-nodes.csv')?.sha256).toBe(
+    createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex'),
+  );
+
+  // With the pair on, each tick gives the pair of each of its claims.
+  const paired = tableOf(await readFile(fileOf(on), 'utf8'))[0];
+  expect(paired).toMatchObject({ c_nato_pairs: 'none A3', b_nato_pairs: 'none' });
+});
+
+test('a release refuses a sheet that cites a claim that is not public, and writes nothing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const sheet = join(root, 'nodes.csv');
+  // The note of the insurer rests on a bought filing only, so it is not a public claim.
+  await writeFile(
+    sheet,
+    `node_id,condition,claim_ids,controller,bypass_pattern\n${VESSEL},b,${VESSEL}/speed_knots,,\n${VESSEL},c,${VESSEL}/insurer_note,,\n`,
+  );
+  const out = join(root, 'out');
+  await inTransaction(async (held) => {
+    await record(held);
+    const refused = writeRelease(
+      held.as('gabriel_app'),
+      { ...MANIFEST, criticalNodes: sheet },
+      out,
+    );
+    await expect(refused).rejects.toThrow(CriticalNodesSheetFault);
+    await expect(
+      writeRelease(held.as('gabriel_app'), { ...MANIFEST, criticalNodes: sheet }, out),
+    ).rejects.toThrow(`Line 3: the claim ${VESSEL}/insurer_note is not a public claim`);
+  });
+  expect(await readdir(root)).toStrictEqual(['nodes.csv']);
+});
+
+test.each([
+  [
+    'a node that is not in the release',
+    `node_id,condition,claim_ids,controller,bypass_pattern\n${HIDDEN_OWNER},b,,,\n`,
+    `Line 2: the node ${HIDDEN_OWNER} is not a public entity`,
+  ],
+  ['a sheet with a wrong column', 'node,condition\n', 'Line 1: the column "node" is not known'],
+  ['no sheet', null, 'Cannot read the sheet of the candidate nodes'],
+])('the command refuses %s with a short message', async (_, sheet, message) => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  if (sheet !== null) await writeFile(join(root, 'nodes.csv'), sheet);
+  const manifest = join(root, 'release.json');
+  // The path of the sheet is relative to the folder of the manifest.
+  await writeFile(
+    manifest,
+    JSON.stringify({ date: '2026-11-08', contacts: MANIFEST.contacts, criticalNodes: 'nodes.csv' }),
+  );
+  const lines: string[] = [];
+  const spy = vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+    lines.push(String(line));
+  });
+  try {
+    expect(await releaseCommand(['--manifest', manifest, '--out', join(root, 'out')])).toBe(2);
+  } finally {
+    spy.mockRestore();
+  }
+  expect(lines.join('\n')).toContain(message);
+  expect(lines.join('\n')).not.toContain(' at ');
+  expect((await readdir(root)).sort()).toStrictEqual(
+    sheet === null ? ['release.json'] : ['nodes.csv', 'release.json'],
+  );
 });
 
 // The three official lists, each stored by its tool with its provider.

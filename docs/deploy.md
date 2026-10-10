@@ -180,6 +180,25 @@ never change it after, because reusers link to these identifiers.
 The command also refuses a key that it does not know, and a quote, a comma or a control
 character in the version or an address.
 
+`criticalNodes` is the path of your sheet of candidate nodes, relative to the folder of the
+manifest. Keep the sheet outside the GAB checkout too. It is a CSV file with these five columns,
+in any order:
+
+| Column | What you type |
+|---|---|
+| `node_id` | The entity identifier of the node. |
+| `condition` | `b` (documented production or throughput in 2024-2026), `c` (presence in a bypass routing across jurisdictions), or nothing for a row that only names the node and its texts. |
+| `claim_ids` | The claim identifiers that support the tick, as `claims.csv` gives them, separated by spaces. Nothing gives a tick that shows "not sourced". |
+| `controller` | A short text: who controls the node. |
+| `bypass_pattern` | A short text: the bypass pattern. |
+
+Give one row for each node and condition. Give the texts of a node on one of its rows, or the same
+texts on each row. A line that starts with `#` is a note. You do not tick condition (a): the
+release ticks it from the public designations of the node itself. A node with two ticks or more is
+retained. The release refuses the sheet, and writes nothing, when a row names a node or a claim
+that is not public in the release. The message gives the line. With no `criticalNodes`, the table
+has no row.
+
 Then run, on the record:
 
 ```powershell
@@ -191,7 +210,8 @@ over a folder of the same date. Each CSV file starts with lines that start with 
 the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
 skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
 `dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
-definition of each term. `manifest.json` gives the size and the SHA-256 checksum of each file.
+definition of each term. `critical-nodes.csv` is the critical nodes table, with the three conditions,
+the claims of each tick and the retained nodes first. `manifest.json` gives the size and the SHA-256 checksum of each file.
 
 To see the share of the public claims that have a full NATO pair (a letter and a digit) before
 you decide S1, run on the record:
