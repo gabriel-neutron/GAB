@@ -30,9 +30,11 @@ const decoded = (text: string): string =>
 // A name without its prefix: "ns:entry" reads as "entry".
 const localName = (name: string): string => name.slice(name.indexOf(':') + 1);
 
-// An attribute value can hold ">", so a tag reads its attributes as quoted strings.
+// An attribute value can hold ">", so a tag reads its attributes as quoted strings. A name never
+// holds "<", so a long run of "<" is read once. A tag whose attributes are not quoted is still a
+// tag: the second form opens it and reads none of its attributes.
 const TOKEN =
-  /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![^>]*>|<(\/?)([^\s/>]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)|</gu;
+  /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![^>]*>|<(\/?)([^\s/<>]+)((?:\s+[^\s=/<>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|<(\/?)([^\s/<>]+)[^<>]*?(\/?)>|([^<]+)|</gu;
 const ATTRIBUTE = /([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/gu;
 
 const spaced = (text: string): string => text.replace(/\s+/gu, ' ').trim();
@@ -76,7 +78,13 @@ export const xmlText = (source: string): string => {
   };
 
   for (const match of source.matchAll(TOKEN)) {
-    const [whole, cdata, closing, tag, attributes, selfClosing, text] = match;
+    const [whole, cdata, strictClosing, strictTag, attributes, strictSelf, looseClosing, looseTag] =
+      match;
+    const [closing, tag, selfClosing] =
+      strictTag === undefined
+        ? [looseClosing, looseTag, match[8]]
+        : [strictClosing, strictTag, strictSelf];
+    const text = match[9];
     const top = open.at(-1);
     if (cdata !== undefined || text !== undefined || whole === '<') {
       if (top !== undefined) top.text += cdata ?? (text === undefined ? whole : decoded(text));

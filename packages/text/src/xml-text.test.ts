@@ -78,3 +78,13 @@ test('the encoding that the declaration names decodes the bytes', async () => {
   const { pages } = await extractText(latin, 'application/xml');
   expect(pages[0]).toBe('r\n  n: Café');
 });
+
+test('a tag with an attribute that is not quoted is still a tag', () => {
+  expect(xmlText('<r><x id=5>five</x><y a="1"b="2">two</y></r>')).toBe('r\n  x: five\n  y: two');
+});
+
+test('a long run of "<" is read in a short time', () => {
+  const started = performance.now();
+  xmlText(`<r>${'<'.repeat(200_000)}</r>`);
+  expect(performance.now() - started).toBeLessThan(2000);
+});
