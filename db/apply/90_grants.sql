@@ -143,6 +143,7 @@ REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_name(text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_waiting()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION imo_duplicate_pairs()       FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
@@ -236,6 +237,8 @@ GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) T
 -- neither door.
 GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid,boolean) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION undo_merge(text,uuid) TO gabriel_app;
+-- The pairs of vessels to merge are a list of the review page, which only the operator opens.
+GRANT EXECUTE ON FUNCTION imo_duplicate_pairs()    TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The

@@ -2417,6 +2417,22 @@ BEGIN
   RETURN NEXT;
 END $$;
 
+-- THE PAIRS OF VESSELS OF THE RECORD WITH ONE IMO NUMBER, for the operator to merge. Three
+-- vessels with one number give three pairs, and each merge takes one pair off the list.
+CREATE OR REPLACE FUNCTION imo_duplicate_pairs()
+RETURNS TABLE (imo text, first_id uuid, first_label text, second_id uuid, second_label text)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH vessels AS (
+    SELECT e.id, e.label, public.imo_key(e.attrs->'imo'->'v') AS imo
+      FROM public.entities e
+     WHERE e.type = 'vessel' AND public.imo_key(e.attrs->'imo'->'v') IS NOT NULL
+  )
+  SELECT a.imo, a.id, a.label, b.id, b.label
+    FROM vessels a JOIN vessels b ON b.imo = a.imo AND b.id > a.id
+   ORDER BY a.imo, a.id, b.id
+$$;
+
 CREATE OR REPLACE FUNCTION undo_merge(p_decided_by text, p_absorbed uuid)
 RETURNS TABLE (proposal_id uuid, target_id uuid)
 LANGUAGE plpgsql SECURITY DEFINER
@@ -2960,7 +2976,8 @@ $$;
 --                clean, because the group action writes the parent before the child.
 --   not_clean    The operator decides the unit alone, and never in a group action: a dispute; two
 --                acts that set one key differently; a source that reports a claim and does not
---                state a fact; the same name and type under the same parent; an unknown type; a
+--                state a fact; the same name and type under the same parent; a vessel with the IMO
+--                number of another vessel, in the record or in the queue; an unknown type; a
 --                claim that the operator rejected before (the newest rejection gives the day, and
 --                the key of its reason and its note, which stay private to the operator); a value
 --                that an import broke; an entity whose link to a rejected parent the operator
@@ -3065,6 +3082,24 @@ BEGIN
     SELECT n.unit_id, n.parent, e.label, public.parent_of(e.id), 'is in the record'
       FROM named n
       JOIN public.entities e ON e.type = n.type AND public.name_key(e.label) = n.key
+  ), imos AS (
+    SELECT a.unit_id, a.id, public.imo_key(a.payload #> '{attrs,imo,v}') AS imo
+      FROM acts a
+     WHERE a.op = 'create_entity' AND a.payload->>'type' = 'vessel'
+       AND public.imo_key(a.payload #> '{attrs,imo,v}') IS NOT NULL
+  ), same_imo AS (
+    SELECT n.unit_id, n.imo, o.payload->>'label' AS label, o.id AS other,
+           CASE WHEN o.batch_id IS NULL THEN 'waits in the queue (no group)'
+                ELSE 'waits in the queue (group ' || sb.subject || ')' END AS place
+      FROM imos n
+      JOIN public.proposals o ON o.status = 'pending' AND o.op = 'create_entity' AND o.id <> n.id
+                             AND o.payload->>'type' = 'vessel'
+                             AND public.imo_key(o.payload #> '{attrs,imo,v}') = n.imo
+      LEFT JOIN subjects sb ON sb.batch_id = o.batch_id
+    UNION ALL
+    SELECT n.unit_id, n.imo, e.label, e.id, 'is in the record'
+      FROM imos n
+      JOIN public.entities e ON e.type = 'vessel' AND public.imo_key(e.attrs->'imo'->'v') = n.imo
   ), inherited AS (
     SELECT a.unit_id, a.payload->>'sources_from' AS holder
       FROM acts a
@@ -3160,6 +3195,13 @@ BEGIN
            || string_agg(t.label || ' ' || t.place, '; ' ORDER BY t.place, t.label)
       FROM twins t WHERE t.other_parent IS NOT DISTINCT FROM t.parent
      GROUP BY t.unit_id
+    UNION ALL
+    SELECT d.unit_id, 'not_clean', 'duplicate', NULL::uuid,
+           'Same IMO number ' || min(d.imo) || ' as another vessel: '
+           || string_agg(d.label || ' (' || d.other || ') ' || d.place, '; '
+                         ORDER BY d.place, d.label, d.other)
+      FROM same_imo d
+     GROUP BY d.unit_id
     UNION ALL
     SELECT a.unit_id, 'not_clean', 'unknown_type', a.id,
            CASE WHEN a.op = 'create_entity' THEN 'The entity type ' ELSE 'The relation type ' END

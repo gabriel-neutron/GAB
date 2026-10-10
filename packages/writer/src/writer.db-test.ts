@@ -1595,3 +1595,65 @@ test('a merge door refuses a body that names no absorbed entity before the recor
     { refusal: 'the body names no absorbed entity' },
   ]);
 });
+
+const pairsShape = z.object({
+  pairs: z.array(
+    z.object({
+      imo: z.string(),
+      first: z.object({ id: z.string(), label: z.string() }),
+      second: z.object({ id: z.string(), label: z.string() }),
+    }),
+  ),
+});
+
+const imoPairs = async (imo: string) => {
+  const answer = await app.request('/private/imo-pairs', {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: '{}',
+  });
+  expect(answer.status).toBe(200);
+  return pairsShape.parse(await answer.json()).pairs.filter((one) => one.imo === imo);
+};
+
+test('the operator reads a pair with one IMO number, and a merge from it takes the pair off', async () => {
+  // A number that no vessel of the fixture holds: each IMO number there starts with a 9.
+  const imo = `1${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
+  const made = async (label: string, value: unknown): Promise<string> => {
+    const [status, reply] = await post('create-entity', {
+      type: 'vessel',
+      label,
+      attrs: { imo: { v: value } },
+    });
+    expect(status).toBe(200);
+    return reply.targetId ?? '';
+  };
+  const first = await made('Writer test IMO first', imo);
+  const second = await made('Writer test IMO second', `IMO ${imo}`);
+  const [keep, gone] = first < second ? [first, second] : [second, first];
+  let merged = false;
+  try {
+    const labels = new Map([
+      [first, 'Writer test IMO first'],
+      [second, 'Writer test IMO second'],
+    ]);
+    expect(await imoPairs(imo)).toStrictEqual([
+      {
+        imo,
+        first: { id: keep, label: labels.get(keep) },
+        second: { id: gone, label: labels.get(gone) },
+      },
+    ]);
+    const [status] = await post('merge-entities', {
+      survivorId: keep,
+      absorbedId: gone,
+      keepName: true,
+    });
+    expect(status).toBe(200);
+    merged = true;
+    expect(await imoPairs(imo)).toStrictEqual([]);
+  } finally {
+    if (merged) await post('undo-merge', { absorbedId: gone });
+    await removed(first, second);
+  }
+});
