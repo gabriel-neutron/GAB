@@ -9,6 +9,8 @@ export const SHORT_PAGE = 1500;
 const CHALLENGE = [
   /just a moment\.\.\./iu,
   /checking your browser/iu,
+  // The Radware Bot Manager challenge.
+  /verifying your browser/iu,
   /verify (?:that )?you are (?:a )?human/iu,
   /enable javascript and cookies to continue/iu,
   /attention required/iu,
