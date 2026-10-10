@@ -26,6 +26,11 @@ export const siteManifestShape = z.object({
     relations: counts,
     claims: counts,
   }),
+  nameCandidates: z.object({
+    proposed: z.number().int().nonnegative(),
+    confirmed: z.number().int().nonnegative(),
+    refused: z.number().int().nonnegative(),
+  }),
   files: z.array(
     z.object({
       path: z.string().regex(/^[\w-][\w.-]*$/u),
@@ -36,8 +41,8 @@ export const siteManifestShape = z.object({
 });
 
 /** The file manifest of a release: its version, its day, the parameter of the NATO pair, the
- * disclaimer, the contact addresses, the base of the identifiers, the changelog summary and the
- * checksum of each file. */
+ * disclaimer, the contact addresses, the base of the identifiers, the changelog summary, the
+ * number of merge candidates across two scripts in each state and the checksum of each file. */
 export type SiteManifest = z.output<typeof siteManifestShape>;
 
 /** The number of changes of one kind since the previous release. */

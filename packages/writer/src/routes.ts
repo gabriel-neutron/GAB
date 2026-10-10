@@ -12,6 +12,11 @@ import { readImoPairs } from './imo-pairs.ts';
 import { readDocumentImage, type ObjectReader } from './image.ts';
 import { readLeads, startLead } from './lead.ts';
 import { merge } from './merge.ts';
+import {
+  confirmNameCandidate,
+  readNameCandidates,
+  refuseNameCandidate,
+} from './name-candidates.ts';
 import { readReviewDecided } from './review-decided.ts';
 import { readReviewGroup, readReviewGroups } from './review-groups.ts';
 import { readReviewUnits } from './review-units.ts';
@@ -47,7 +52,8 @@ const capped = (maxSize: number) =>
 /** The doors of the operator, and the private reads: the status of the jobs of a document,
  * the page of the review queue with its cited passages, the groups of the queue, the decided acts
  * with the reasons of the rejections, the image of a cited document, the leads, the names
- * that joined an author A or B, and the pairs of vessels with one IMO number. The public
+ * that joined an author A or B, the pairs of vessels with one IMO number, and the merge
+ * candidates across a Latin and a Cyrillic spelling. The public
  * read never shows any of them. */
 export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
   const app = new Hono();
@@ -106,6 +112,22 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
   app.post('/private/imo-pairs', capped(LARGEST_BODY_BYTES), async (context) => {
     const read = await readImoPairs(pool);
     return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  // A candidate across two scripts waits for a judgement of the operator on identity too.
+  app.post('/private/name-candidates', capped(LARGEST_BODY_BYTES), async (context) => {
+    const read = await readNameCandidates(pool);
+    return context.json(read.reply, STATUS[read.outcome]);
+  });
+
+  app.post('/write/confirm-name-candidate', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await confirmNameCandidate(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
+  });
+
+  app.post('/write/refuse-name-candidate', capped(LARGEST_BODY_BYTES), async (context) => {
+    const act = await refuseNameCandidate(pool, await context.req.text());
+    return context.json(act.reply, STATUS[act.outcome]);
   });
 
   app.post('/write/decide-author-name', capped(LARGEST_BODY_BYTES), async (context) => {

@@ -220,6 +220,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
       },
     ],
   ]),
+  nameCandidates: { proposed: 3, confirmed: 2, refused: 1 },
   disclaimer: DISCLAIMER,
   natoPairs: natoPair
     ? new Map([

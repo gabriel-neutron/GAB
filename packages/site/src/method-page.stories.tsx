@@ -37,3 +37,12 @@ export const WithThePairOnThePairIsExplained: Story = {
     await expect(canvas.getByText(/STANAG 2511/u)).toBeVisible();
   },
 };
+
+export const TheCountsOfTheCandidatesAcrossTwoScriptsShow: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { name: 'One name in two scripts' })).toBeVisible();
+    await expect(
+      canvas.getByText('Candidates at this release: 3 waiting, 2 confirmed, 1 refused.'),
+    ).toBeVisible();
+  },
+};
