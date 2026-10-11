@@ -194,7 +194,9 @@ and from the conflicts between the values that its sources give. A rule can read
 judged. Each citation shows its pair to the operator, for example "B1".
 
 - **A** is only for the issuer of an official record, on its own record: a register, a gazette, a
-  court, a sanctions act.
+  court, a sanctions act. One source A counts alone only when the cited document is on a site of
+  that author. A faithful copy of the record on another site needs a second independent source,
+  like any other source.
 - **A and B** come only from the reference set, which the operator approves.
 - **A party to the conflict**, of either side, is B at most, and only about its own side. About the
   other side it counts as C at most, so it never passes without an independent source B.
@@ -238,8 +240,8 @@ order to each unit, and the first rule that matches decides:
    subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
    (S6). The unit goes to the operator, with the reason.
 3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
-   has either one source A on its own record, or two independent sources: one B or better and one
-   C or better. Two sources are independent only when they have different authors, different
+   has either one source A on a site of its author, or two independent sources: one B or better
+   and one C or better. A copy of a record A on another site is one of the two. Two sources are independent only when they have different authors, different
    controllers (one state, one holding or one channel network counts as one author), different
    sites, and passages that are not copies of each other. When code is not sure, the two sources
    count as one author. A source that only reports what another party says never counts. The rule

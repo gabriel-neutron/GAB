@@ -35,7 +35,12 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   change: a rule decides the unit, or another rule matches it. No machine role can decide a
   name: the decision raises a letter. A decision waits while the rating job of the name runs.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
-  reference set, which the operator approves. The worker gives C to F. A party to the conflict is
+  reference set, which the operator approves. Each reference author keeps its **sites**: the host
+  names where it publishes its own records. One source A counts alone only when the cited
+  document is on a site of its author. A faithful copy of the record on another site needs a
+  second independent source, like any other source (operator ruling, 2026-10-11).
+  An author with no site never counts alone, so an author A of a set stored before the sites
+  counts alone only after the operator gives it its sites. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
   side for an entity yet, so in the first build a party counts as C on every fact. This is the
   safe direction.
@@ -46,7 +51,8 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
 - The operator loads a written set from a file with `pnpm worker reference-set load`, or builds
   one with `pnpm worker reference-set build`. Then the operator reads the set with `show` and
   approves it with `approve`. A record that holds a set refuses a second load and a second
-  build. Until the approval, a reference author is no author for any reader, and a rating job
+  build. `pnpm worker reference-set sites` gives the sites of the file to each author of a
+  stored set that has none. The sites of an author are written once, like its letter. Until the approval, a reference author is no author for any reader, and a rating job
   waits in the queue. The approval is written once for each author.
 - Each act that names a new originator queues one rating job for that name, with no click of the
   operator. A refused answer ends the job as failed with its reason, and the name is not asked
@@ -89,8 +95,9 @@ ADR 0016 gives the NATO pair of a claim, which reads the digit and the support o
 - The **first rule that matches** decides: impossible, doubt, strong sources, weak sources.
 - **Doubt** holds the cases of S3 (`decisions.md`). A contradiction from an author F is not a doubt:
   the unit waits, and the card shows the conflict.
-- **Strong sources** need, for each fact of the unit, a passed check and either one source A on its
-  own record, or two independent citations with one author B or better and one C or better.
+- **Strong sources** need, for each fact of the unit, a passed check and either one source A on a
+  site of its author, or two independent citations with one author B or better and one C or
+  better. An upload is on the site of the address where the file comes from.
 - The **threshold** is a row of configuration, not a code constant. It starts strict.
 - A decision records the rule name and its version in the origin of the decision (S4). A decision
   of the operator records "validated manually by the operator". A decision of an AI reviewer
