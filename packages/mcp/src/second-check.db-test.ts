@@ -306,7 +306,8 @@ test('the same batch sent again with the checker up gets its check, and the unit
     [checkOf(down), checkOf(up)],
     [{ ...NAYARA, originator: author }],
     'claude-code',
-    (ask) => reference(ask, author, 'A'),
+    // The port report is on the site of the author, so the source A counts alone.
+    (ask) => reference(ask, author, 'A', { sites: ['example.org'] }),
   );
 
   expect([down.checks(), up.checks()]).toStrictEqual([1, 1]);

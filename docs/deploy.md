@@ -96,7 +96,14 @@ the value. A rating waits in the queue until the operator approves the reference
      operator approved it.
    - `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
      letter and a reason, and stores them.
-2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
+2. `pnpm worker reference-set show` prints the set. Read each letter, each reason and the sites
+   of each author. A source A counts alone only on a site of its author.
+
+   A set that the record stored before the sites has no site, so its authors A count alone on no
+   page. Run `pnpm worker reference-set sites packages/worker/src/rater/reference-set.json` once.
+   It gives the sites of the file to each author of the set that has none, and never changes the
+   sites that an author holds. It prints `filled`, `same`, `other` or `not_in_set` for each
+   author of the file. Then the rules run again on the units of each author that got sites.
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 

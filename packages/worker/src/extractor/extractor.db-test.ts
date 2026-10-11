@@ -531,11 +531,17 @@ const decided = z.array(
 
 test('an extraction of a document whose source is rated A ends with units that the strong rule accepted', async () => {
   await inTransaction(async (held) => {
-    // The operator puts the source into the reference set with the letter A, and approves it.
+    // The operator puts the source into the reference set with the letter A and its site, and
+    // approves it. The document comes from that site, so the source A counts alone.
     const author = `The port authority ${randomUUID()}`;
+    await held.client.query('SELECT public.fill_document_uri($1, $2)', [
+      DOCUMENT,
+      'https://port.example/report.pdf',
+    ]);
     await held.client.query('SET LOCAL SESSION AUTHORIZATION gabriel_app');
     await held.client.query(
-      "SELECT public.store_reference_author($1, 'A', 'a-rater', 'a reason', ARRAY[]::text[])",
+      `SELECT public.store_reference_author($1, 'A', 'a-rater', 'a reason', ARRAY[]::text[],
+         NULL, false, ARRAY['port.example'])`,
       [author],
     );
     await held.client.query('SELECT public.approve_reference_set()');
