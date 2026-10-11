@@ -3816,7 +3816,7 @@ BEGIN
                                 WHERE k.proposal_id = p.id AND k.passed)) THEN
     v_need := 'A second independent author, ' || v_other || ' or better';
   ELSE
-    v_need := 'One source ' || v_single || ' on its own record, or two independent authors, '
+    v_need := 'One source ' || v_single || ' on a site of its author, or two independent authors, '
               || v_pair || ' or better and ' || v_other || ' or better';
   END IF;
   RETURN CASE WHEN v_conflict IS NULL THEN v_need ELSE v_conflict || '; ' || v_need END;
@@ -4604,10 +4604,19 @@ $$;
 
 -- ===================================================================== THE LETTER OF AN AUTHOR ==
 -- A letter, a name and a check are written once. The owner and the superuser ignore a grant, so a
--- trigger holds it.
+-- trigger holds it. The sites of an author are written once too, but later than the row: an author
+-- of the record before the sites existed has none, and the operator gives them once. So an update
+-- that gives sites to an author with none, and changes nothing else, passes.
 CREATE OR REPLACE FUNCTION author_append_only_fn() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  -- The row is read as JSON, because the trigger serves tables that have no sites.
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'author'
+     AND to_jsonb(OLD) -> 'sites' = '[]'::jsonb
+     AND jsonb_array_length(to_jsonb(NEW) -> 'sites') > 0
+     AND to_jsonb(NEW) - 'sites' = to_jsonb(OLD) - 'sites' THEN
+    RETURN NEW;
+  END IF;
   RAISE EXCEPTION 'a row of % is never %', TG_TABLE_NAME,
     CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
@@ -4659,9 +4668,10 @@ $$;
 -- THE WRITE OF A NEW AUTHOR, for the two doors below. It refuses a blank field, a name that has an
 -- author already, and a party with no controller. The letter and the reference names are the
 -- business of the door.
+DROP FUNCTION IF EXISTS new_author(text,text,text,text,text[],text,boolean,boolean);
 CREATE OR REPLACE FUNCTION new_author(p_name text, p_letter text, p_model text, p_reason text,
                                       p_references text[], p_controller text, p_party boolean,
-                                      p_reference_set boolean)
+                                      p_reference_set boolean, p_sites text[])
 RETURNS uuid
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
@@ -4703,10 +4713,10 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   INSERT INTO public.author
-    (name_key, letter, model, reason, reference_authors, controller, party, reference_set)
+    (name_key, letter, model, reason, reference_authors, controller, party, reference_set, sites)
   VALUES (v_key, p_letter, btrim(p_model, v_blank), btrim(p_reason, v_blank), p_references,
           nullif(btrim(coalesce(p_controller, ''), v_blank), ''), coalesce(p_party, false),
-          p_reference_set)
+          p_reference_set, coalesce(p_sites, '{}'))
   RETURNING id INTO v_id;
   INSERT INTO public.author_name (name_key, author_id) VALUES (v_key, v_id);
   PERFORM public.run_rules(public.units_of_author(v_id));
@@ -4741,15 +4751,18 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
-                           p_party, false);
+                           p_party, false, '{}');
 END $$;
 
 -- THE DOOR OF THE OPERATOR FOR THE REFERENCE SET. The operator reads and approves the set once.
--- Only here an author gets A or B.
+-- Only here an author gets A or B. The sites are the hosts where the author publishes its own
+-- records: a source A counts alone only on one of them.
+DROP FUNCTION IF EXISTS store_reference_author(text,text,text,text,text[],text,boolean);
 CREATE OR REPLACE FUNCTION store_reference_author(p_name text, p_letter text, p_model text,
                                                   p_reason text, p_references text[],
                                                   p_controller text DEFAULT NULL,
-                                                  p_party boolean DEFAULT false)
+                                                  p_party boolean DEFAULT false,
+                                                  p_sites text[] DEFAULT '{}')
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -4758,7 +4771,47 @@ BEGIN
     RAISE EXCEPTION 'a letter is one of A to F' USING ERRCODE = 'invalid_parameter_value';
   END IF;
   RETURN public.new_author(p_name, p_letter, p_model, p_reason, p_references, p_controller,
-                           p_party, true);
+                           p_party, true, p_sites);
+END $$;
+
+-- THE DOOR OF THE OPERATOR FOR THE SITES OF A REFERENCE AUTHOR THAT HAS NONE. An author of the
+-- reference set that the record held before the sites existed has no site, so it cannot count
+-- alone. The operator gives its sites once, from the reference set file. The door never changes
+-- sites that an author holds. It answers what it found, so the caller can tell the operator:
+--   filled      the author had no site, and it holds these ones now;
+--   same        the author holds these sites already;
+--   other       the author holds other sites, and keeps them;
+--   not_in_set  the name is no author of the reference set.
+-- A new site can make a lone source A count, so the units of the author go through the rules.
+CREATE OR REPLACE FUNCTION store_reference_sites(p_name text, p_sites text[])
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_id uuid;
+  v_sites text[];
+BEGIN
+  IF coalesce(cardinality(p_sites), 0) = 0 THEN
+    RAISE EXCEPTION 'the author "%" gets at least one site', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT a.id, a.sites INTO v_id, v_sites
+    FROM public.name_row(v_key) n JOIN public.author a ON a.id = n.author_id
+   WHERE a.reference_set;
+  IF v_id IS NULL THEN
+    RETURN 'not_in_set';
+  END IF;
+  IF v_sites = p_sites THEN
+    RETURN 'same';
+  END IF;
+  IF cardinality(v_sites) > 0 THEN
+    RETURN 'other';
+  END IF;
+  UPDATE public.author SET sites = p_sites WHERE id = v_id;
+  PERFORM public.run_rules(public.units_of_author(v_id));
+  RETURN 'filled';
 END $$;
 
 -- WHY A NAME CAN JOIN NO AUTHOR, or NULL when it can. A name that holds two authors ("OFAC;
@@ -4864,13 +4917,14 @@ BEGIN
 END $$;
 
 -- THE REFERENCE SET, for the operator to read before the approval. Each author comes with its
--- letter, its reason and the state of its approval.
+-- letter, its reason, its sites and the state of its approval.
+DROP FUNCTION IF EXISTS reference_set();
 CREATE OR REPLACE FUNCTION reference_set()
 RETURNS TABLE (name_key text, letter char(1), reason text, controller text, party boolean,
-               approved boolean)
+               sites text[], approved boolean)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT a.name_key, a.letter, a.reason, a.controller, a.party,
+  SELECT a.name_key, a.letter, a.reason, a.controller, a.party, a.sites,
          EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id)
     FROM public.author a
    WHERE a.reference_set
@@ -5056,6 +5110,18 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
            substring(p_uri FROM '^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]+/(?:s/)?@?([^/?#]+)')), '')
     ELSE public.uri_host(p_uri)
   END
+$$;
+
+-- IS AN ADDRESS ON ONE OF THESE SITES? A site matches its own host and each host below it, so
+-- "treasury.gov" matches "ofac.treasury.gov" and not "notreasury.gov". An address with no host is
+-- on no site. The sites of an author tell where it publishes its own records.
+CREATE OR REPLACE FUNCTION on_site_of(p_uri text, p_sites text[]) RETURNS boolean
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((
+    SELECT bool_or(h.host = s.site OR right(h.host, length(s.site) + 1) = '.' || s.site)
+      FROM (SELECT public.uri_host(p_uri) AS host) h,
+           (SELECT lower(x) AS site FROM unnest(p_sites) AS x) s
+     WHERE h.host <> '' AND s.site <> ''), false)
 $$;
 
 -- THE WORDS OF A PASSAGE, in lower case, with no mark. The offsets of a citation count code points
@@ -5316,8 +5382,8 @@ $$;
 -- letter of its author. Only an act with a passed check of a second model family is a source,
 -- because the check proves that its passage says the fact. A source counts only when it states or
 -- enacts the fact: one that denies it, or only reports what another party says, is no support. A
--- rejected act is no source. The author of a source is the issuer of the record that it cites, so
--- a source A is a source A on its own record. The rules and the NATO pair of a claim read this one
+-- rejected act is no source. The author of a source is the issuer of the record that it cites. A
+-- source A counts alone only on a site of its author, and fact_is_strong checks that. The rules and the NATO pair of a claim read this one
 -- list, so they cannot disagree on what supports a fact. No role holds this step.
 CREATE OR REPLACE FUNCTION fact_support(p_claim_key text)
 RETURNS TABLE (act uuid, author uuid, letter char(1))
@@ -5336,11 +5402,17 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 $$;
 
 -- DOES A FACT HAVE ENOUGH SOURCE? Its sources are its support (fact_support). The fact needs one
--- source with a letter as good as "single" and a known author, or two citations that code proves
--- independent (citations_independent), one with a letter as good as "pair" and the other as good
--- as "other". A letter is as good as another when it comes before it in the alphabet. The
--- independence is the proof of the digit: this function never compares two authors by itself. No
--- role holds this step.
+-- source with a letter as good as "single" and a known author, on a site of that author, or two
+-- citations that code proves independent (citations_independent), one with a letter as good as
+-- "pair" and the other as good as "other". A letter is as good as another when it comes before it
+-- in the alphabet. The independence is the proof of the digit: this function never compares two
+-- authors by itself. No role holds this step.
+--
+-- A LONE SOURCE COUNTS ONLY ON A SITE OF ITS AUTHOR (the ruling of 11 October 2026): a copy of an
+-- official record on another site needs a second source. The act needs a citation that states or
+-- enacts the fact, of a document whose address is on a site of the author. An upload gives the
+-- address where the file comes from. An upload that held its address before the address rule
+-- (migration 0066) can hold a purchase page, so it is on no site.
 CREATE OR REPLACE FUNCTION fact_is_strong(p_claim_key text, p_single text, p_pair text,
                                           p_other text)
 RETURNS boolean
@@ -5351,7 +5423,12 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
   )
-  SELECT EXISTS (SELECT 1 FROM support WHERE author IS NOT NULL AND letter <= p_single)
+  SELECT EXISTS (SELECT 1 FROM support s
+                   JOIN public.author a ON a.id = s.author
+                   JOIN public.citation c ON c.claim_id = s.id
+                   JOIN public.documents d ON d.id = c.doc_id
+                  WHERE s.letter <= p_single AND c.modality IN ('enacts', 'asserts')
+                    AND NOT d.uri_before_pu1 AND public.on_site_of(d.uri, a.sites))
          OR EXISTS (SELECT 1 FROM cited one JOIN cited two ON one.id <> two.id
                      WHERE one.letter <= p_pair AND two.letter <= p_other
                        AND public.citations_independent(one.id, two.id))

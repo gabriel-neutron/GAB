@@ -12,6 +12,8 @@ import {
   cited,
   join,
   label,
+  OWN_RECORD,
+  OWN_SITE,
   rate as worker,
   reference,
   type Cited,
@@ -148,9 +150,12 @@ const ends = async (ask: Ask) => ({
 
 const name = () => `Author ${randomUUID()}`;
 
-// The operator puts A and B into the reference set. The worker rates every other letter.
+// The operator puts A and B into the reference set, each with its site. The worker rates every
+// other letter.
 const rate = (ask: Ask, author: string, letter: string): Promise<unknown> =>
-  letter === 'A' || letter === 'B' ? reference(ask, author, letter) : worker(ask, author, letter);
+  letter === 'A' || letter === 'B'
+    ? reference(ask, author, letter, OWN_SITE)
+    : worker(ask, author, letter);
 
 const check = (ask: Ask, one: Cited, verdict = 'supported'): Promise<unknown> =>
   as(ask, 'gabriel_checker', () =>
@@ -172,6 +177,8 @@ const TWO: Partial<Source> = {
   uri: 'https://two.example/b',
   text: 'Satellite images show the unit near the town since early spring.',
 };
+// A record on a site of its author.
+const OWN: Partial<Source> = { ...ONE, uri: OWN_RECORD };
 
 // One act of the research AI that links two elements, with one citation of a document of its own.
 // Acts with the same ends make one claim, and they are no twins, so each one is a unit.
@@ -276,7 +283,7 @@ test('a fact with one source A is accepted when the check passes, with its origi
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();
     await rate(ask, author, 'A');
-    const one = await cited(ask, { author, label: label(), ...ONE });
+    const one = await cited(ask, { author, label: label(), ...OWN });
     const before = (await stateOf(ask, one.act)).status;
     await check(ask, one);
     return {
@@ -293,6 +300,92 @@ test('a fact with one source A is accepted when the check passes, with its origi
   });
   expect(read.state.decision_origin).toBe('rule strong_sources v1 (fact digits: 3)');
   expect(read.written).toHaveLength(1);
+});
+
+// A source A counts alone only on a site of its author. A copy on any other site needs a second
+// independent source.
+test.each([
+  ['on the site of its author', 'https://register.example/entry/1', 'accepted'],
+  ['on a host below that site', 'https://records.register.example/entry/1', 'accepted'],
+  ['on that site with www and capitals', 'https://WWW.Register.Example/entry/1', 'accepted'],
+  ['on a news site', 'https://news.example/ofac-lists-a-tanker', 'pending'],
+  ['on a host that ends with the same letters', 'https://notregister.example/entry/1', 'pending'],
+  ['on a host that holds the site', 'https://register.example.attacker.example/entry', 'pending'],
+  ['with no address', null, 'pending'],
+])('a lone source A %s gives the status %s', async (_case, uri, status) => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const one = await cited(ask, { author, label: label(), ...ONE, uri });
+    await check(ask, one);
+    return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe(status);
+  if (status === 'pending') expect(read.rule).toBe('weak_sources');
+});
+
+test('a source A with no site never counts alone, even on the site of the record', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await reference(ask, author, 'A');
+    const one = await cited(ask, { author, label: label(), ...OWN });
+    await check(ask, one);
+    return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('weak_sources');
+});
+
+test('a copy of a record A on a news site counts with a second independent source', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const [issuer, other] = [name(), name()];
+    await rate(ask, issuer, 'A');
+    await rate(ask, other, 'C');
+    const end = await ends(ask);
+    const copy = await linked(ask, end, { author: issuer, ...ONE });
+    const second = await linked(ask, end, { author: other, ...TWO });
+    await check(ask, copy);
+    const alone = (await stateOf(ask, copy.act)).status;
+    await check(ask, second);
+    return { alone, after: await stateOf(ask, copy.act) };
+  });
+  expect(read.alone).toBe('pending');
+  expect(read.after.status).toBe('accepted');
+});
+
+test('the sites that the operator gives later to an author A free the units that waited', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await reference(ask, author, 'A');
+    const one = await cited(ask, { author, label: label(), ...OWN });
+    await check(ask, one);
+    const before = (await stateOf(ask, one.act)).status;
+    const give = (sites: readonly string[]) =>
+      as(ask, 'gabriel_app', () =>
+        ask('SELECT public.store_reference_sites($1, $2::text[]) AS said', [author, sites]),
+      );
+    const filled = await give(OWN_SITE.sites);
+    const after = await stateOf(ask, one.act);
+    return {
+      before,
+      after,
+      filled,
+      same: await give(OWN_SITE.sites),
+      other: await give(['other.example']),
+      stranger: await as(ask, 'gabriel_app', () =>
+        ask('SELECT public.store_reference_sites($1, $2::text[]) AS said', [
+          name(),
+          OWN_SITE.sites,
+        ]),
+      ),
+    };
+  });
+  expect(read.before).toBe('pending');
+  expect(read.after.status).toBe('accepted');
+  expect(read.filled).toStrictEqual([{ said: 'filled' }]);
+  expect(read.same).toStrictEqual([{ said: 'same' }]);
+  expect(read.other).toStrictEqual([{ said: 'other' }]);
+  expect(read.stranger).toStrictEqual([{ said: 'not_in_set' }]);
 });
 
 test.each([
@@ -365,7 +458,7 @@ test.each([
 test('a new letter makes a unit that waits go through the rules again', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();
-    const one = await cited(ask, { author, label: label(), ...ONE });
+    const one = await cited(ask, { author, label: label(), ...OWN });
     await check(ask, one);
     const before = (await stateOf(ask, one.act)).status;
     await rate(ask, author, 'A');
@@ -594,7 +687,7 @@ test('the threshold is a row of configuration, and the origin names the new vers
     );
     const author = name();
     await rate(ask, author, 'B');
-    const one = await cited(ask, { author, label: label(), ...ONE });
+    const one = await cited(ask, { author, label: label(), ...OWN });
     await check(ask, one);
     return { start: row, state: await stateOf(ask, one.act) };
   });
@@ -735,7 +828,7 @@ test('a research fact waits until its second check ends', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();
     await rate(ask, author, 'A');
-    const one = await cited(ask, { author, label: label(), ...ONE });
+    const one = await cited(ask, { author, label: label(), ...OWN });
     const before = { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
     await check(ask, one);
     return { before, after: await stateOf(ask, one.act) };

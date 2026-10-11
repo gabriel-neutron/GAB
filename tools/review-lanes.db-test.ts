@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { as, cited, label, rate, reference } from './author-fixture.ts';
+import { as, cited, label, OWN_RECORD, OWN_SITE, rate, reference } from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const unitOf = async (ask: Ask, act: string): Promise<string> => {
@@ -124,7 +124,7 @@ test('a disputed unit is in the lane of the doubts with its reason, and not in t
 
 test.each([
   ['no check', 'C', false, 'A passed check by a second model family for each fact'],
-  ['a source C and a passed check', 'C', true, 'One source A on its own record, or two'],
+  ['a source C and a passed check', 'C', true, 'One source A on a site of its author, or two'],
   ['a source B and a passed check', 'B', true, 'A second independent author, C or better'],
 ])(
   'a unit with %s waits and says the source that it needs',
@@ -149,12 +149,12 @@ test('the counts say how many units the rules decided and how many wait in each 
   const seen = await rolledBack('superuser', async (ask) => {
     const before = (await read(ask, null, null)).counts;
     const strong = name();
-    await reference(ask, strong, 'A');
+    await reference(ask, strong, 'A', OWN_SITE);
     const weak = name();
     await rate(ask, weak, 'C');
     await cited(ask, { author: weak, label: label(), dissentReason: 'differ' });
     await cited(ask, { author: weak, label: label() });
-    const accepted = await cited(ask, { author: strong, label: label() });
+    const accepted = await cited(ask, { author: strong, label: label(), uri: OWN_RECORD });
     const middle = (await read(ask, null, null)).counts;
     await check(ask, accepted.act);
     const after = (await read(ask, null, null)).counts;
@@ -169,8 +169,8 @@ test('the counts say how many units the rules decided and how many wait in each 
 test('the history of the decisions gives the origin of a decision of a rule', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     const author = name();
-    await reference(ask, author, 'A');
-    const one = await cited(ask, { author, label: label() });
+    await reference(ask, author, 'A', OWN_SITE);
+    const one = await cited(ask, { author, label: label(), uri: OWN_RECORD });
     await check(ask, one.act);
     const [row] = z
       .array(z.object({ history: z.object({ acts: z.array(z.unknown()) }) }))
@@ -193,7 +193,7 @@ test('the history of the decisions gives the origin of a decision of a rule', as
 test('the rule of a whole list of units is the rule of each unit read alone', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     const strong = name();
-    await reference(ask, strong, 'A');
+    await reference(ask, strong, 'A', OWN_SITE);
     const weak = name();
     await rate(ask, weak, 'C');
     const party = name();
@@ -202,7 +202,7 @@ test('the rule of a whole list of units is the rule of each unit read alone', as
       await cited(ask, { author: weak, label: label(), dissentReason: 'differ' }),
       await cited(ask, { author: weak, label: label() }),
       await cited(ask, { author: party, label: label(), dissentReason: 'differ' }),
-      await cited(ask, { author: strong, label: label() }),
+      await cited(ask, { author: strong, label: label(), uri: OWN_RECORD }),
     ];
     const checkedOne = await cited(ask, { author: weak, label: label() });
     await check(ask, checkedOne.act);

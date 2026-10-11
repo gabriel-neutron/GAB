@@ -315,6 +315,41 @@ test('the public read shows no letter and no digit', async () => {
   for (const one of read.denied) expect(one).toMatch(/permission denied/u);
 });
 
+test('the sites of an author are host names, given once, and never changed', async () => {
+  const said = await rolledBack('superuser', async (ask) => {
+    const bad = [];
+    for (const sites of [
+      ['https://register.example'],
+      ['register.example/path'],
+      ['register.example:443'],
+      ['Register.Example'],
+      ['register'],
+      [''],
+    ])
+      bad.push(
+        await refusal(ask, () =>
+          storeUnapproved(ask, `Bad Sites ${String(bad.length)}`, 'A', { sites }),
+        ),
+      );
+    await reference(ask, 'Late Sites', 'A');
+    const withLetter = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{register.example}', letter = 'B'
+            WHERE name_key = 'late sites'`),
+    );
+    const given = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{register.example}' WHERE name_key = 'late sites'`),
+    );
+    const changed = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{other.example}' WHERE name_key = 'late sites'`),
+    );
+    return { bad, withLetter, given, changed };
+  });
+  for (const one of said.bad) expect(one).toContain('author_site_form');
+  expect(said.withLetter).toMatch(/never/u);
+  expect(said.given).toBeNull();
+  expect(said.changed).toMatch(/never/u);
+});
+
 test('a letter is written once, and never changed or deleted', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     await rate(ask, 'Once Only', 'D');
