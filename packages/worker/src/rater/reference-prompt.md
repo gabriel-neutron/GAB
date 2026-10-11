@@ -37,6 +37,7 @@ Rules:
 - A party to the conflict has `party` true and a controller. It is never A.
 - `sites` lists the official host names where the author publishes its own records, for example
   `ofac.treasury.gov`. Write each host in lower case, with no scheme, no path, no port and no
-  `www.`. A site also covers each host below it. An author A has at least one site. Give no
+  `www.`. A site also covers each host below it, so never give a broad site such as `gov.uk` or
+  `europa.eu`. An author A has at least one site. Give no
   mirror, no news site and no site of another body. For an author that is not A, the list can be
   empty.

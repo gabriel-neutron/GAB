@@ -44,12 +44,12 @@ const call = async (ask: Ask): Promise<string> =>
     ),
   );
 
-const document = async (ask: Ask): Promise<string> => {
+const document = async (ask: Ask, uri: string | null = null): Promise<string> => {
   const doc = `doc_${randomUUID().slice(0, 8)}`;
   await ask(
-    `SELECT public.put_document($1, 'file', $2, $3, NULL, NULL, NULL, 'text/plain',
+    `SELECT public.put_document($1, 'file', $2, $3, $4, NULL, NULL, 'text/plain',
        '2026-10-07'::date)`,
-    [doc, `Source ${doc}`, `raw/${doc}.txt`],
+    [doc, `Source ${doc}`, `raw/${doc}.txt`, uri],
   );
   await ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     doc,
@@ -312,6 +312,9 @@ test.each([
   ['on a host that ends with the same letters', 'https://notregister.example/entry/1', 'pending'],
   ['on a host that holds the site', 'https://register.example.attacker.example/entry', 'pending'],
   ['with no address', null, 'pending'],
+  ['with a user part that names the site', 'https://register.example@evil.example/x', 'pending'],
+  ['with a backslash before the site', 'https://evil.example\\@register.example/x', 'pending'],
+  ['with a space in the address', 'https://register.example/a b', 'pending'],
 ])('a lone source A %s gives the status %s', async (_case, uri, status) => {
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();
@@ -322,6 +325,63 @@ test.each([
   });
   expect(read.state.status).toBe(status);
   if (status === 'pending') expect(read.rule).toBe('weak_sources');
+});
+
+test('a source A that also cites a copy on another site does not count alone', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const own = await document(ask, OWN_RECORD);
+    const copy = await document(ask, 'https://news.example/a-copy');
+    const fact = {
+      ...acted(own, author, {
+        op: 'create_entity',
+        payload: { type: 'military_unit', label: label(), sources: [own, copy] },
+      }),
+      src: [own, copy],
+      citations: [own, copy].map((doc) => ({
+        document: doc,
+        text_extractor: EXTRACTOR,
+        page: 1,
+        start: 0,
+        end: PAGE.length,
+      })),
+    };
+    await researched(ask, [fact]);
+    await check(ask, { act: fact.id, citation: '', claimKey: '' });
+    return { state: await stateOf(ask, fact.id), rule: await ruleOf(ask, fact.id) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('weak_sources');
+});
+
+test('an upload that held its address before the address rule is on no site', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await rate(ask, author, 'A');
+    const one = await cited(ask, { author, label: label(), ...OWN });
+    await ask(
+      `UPDATE public.documents SET uri_before_pu1 = true
+        WHERE id = (SELECT doc_id FROM public.citation WHERE id = $1)`,
+      [one.citation],
+    );
+    await check(ask, one);
+    return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('weak_sources');
+});
+
+test('a party to the conflict rated A does not count alone, even on its own site', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await reference(ask, author, 'A', { ...OWN_SITE, party: true, controller: 'A State' });
+    const one = await cited(ask, { author, label: label(), ...OWN });
+    await check(ask, one);
+    return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };
+  });
+  expect(read.state.status).toBe('pending');
+  expect(read.rule).toBe('weak_sources');
 });
 
 test('a source A with no site never counts alone, even on the site of the record', async () => {
@@ -370,7 +430,7 @@ test('the sites that the operator gives later to an author A free the units that
       before,
       after,
       filled,
-      same: await give(OWN_SITE.sites),
+      same: await give([...OWN_SITE.sites].reverse()),
       other: await give(['other.example']),
       stranger: await as(ask, 'gabriel_app', () =>
         ask('SELECT public.store_reference_sites($1, $2::text[]) AS said', [

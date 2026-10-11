@@ -13,13 +13,20 @@ const LEAST = 20;
 const MOST = 40;
 
 // The record refuses any other form of a site: a host name in lower case, with no scheme, path or
-// port.
+// port. The host of an address loses "www." before the match, so a site with it never matches. A
+// site of two labels that starts with a common second level of a public suffix ("gov.uk") holds
+// the sites of many authors.
+const BROAD =
+  /^(?:gov|gouv|gc|go|govt|gob|gv|europa|coe|int|service|co|com|org|net|ac|edu|mil)\.[a-z0-9-]+$/u;
+
 const site = z
   .string()
   .regex(
     /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/u,
     'a site is a host name in lower case, with no scheme, path or port',
-  );
+  )
+  .refine((value) => !value.startsWith('www.'), 'a site does not start with www.')
+  .refine((value) => !BROAD.test(value), 'a site is too broad: it holds the sites of many authors');
 
 const author = z.strictObject({
   name: z.string().trim().min(1),

@@ -126,12 +126,18 @@ test.each([
   ['no check', 'C', false, 'A passed check by a second model family for each fact'],
   ['a source C and a passed check', 'C', true, 'One source A on a site of its author, or two'],
   ['a source B and a passed check', 'B', true, 'A second independent author, C or better'],
+  [
+    'a source A with no site and a passed check',
+    'A',
+    true,
+    'has no site yet, so it cannot count alone: run pnpm worker reference-set sites <file>',
+  ],
 ])(
   'a unit with %s waits and says the source that it needs',
   async (_case, letter, checked, said) => {
     const seen = await rolledBack('superuser', async (ask) => {
       const author = name();
-      if (letter === 'B') await reference(ask, author, letter);
+      if (letter === 'A' || letter === 'B') await reference(ask, author, letter);
       else await rate(ask, author, letter);
       const one = await cited(ask, { author, label: label() });
       if (checked) await check(ask, one.act);
