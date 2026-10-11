@@ -103,6 +103,7 @@ test('the role matrix of the doors', async () => {
       "public.store_author_letter": "agent",
       "public.store_name_candidates": "app",
       "public.store_reference_author": "app",
+      "public.store_reference_sites": "app",
       "public.undo_merge": "app",
       "public.unit_rule": "app",
     }

@@ -53,6 +53,8 @@ test('the arguments hold the paths, the date, the kind and the title', () => {
   });
   const file = parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', 'https://example.org/a');
   expect(file.options).toMatchObject({ kind: 'file', uri: 'https://example.org/a' });
+  const odd = parsed('a.pdf', '--retrieved-at', '2026-09-01', '--uri', 'https://e.example\\@x.org');
+  expect(odd.options).toMatchObject({ uri: 'https://e.example/@x.org' });
 });
 
 // PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet,
