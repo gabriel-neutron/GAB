@@ -414,10 +414,12 @@ test('a transcription is quoted as it is, marked as read from the image, and giv
   expect(found.words).toStrictEqual([{ words: ['nayara', 'sikka'] }]);
 });
 
-// A rated author whose one passed check makes a fact strong under the letter C.
+// A rated author whose one passed check makes a fact strong under the letter C, because the
+// documents come from its site.
 const RATED = `WITH a AS (
-    INSERT INTO public.author (name_key, letter, model, reason, reference_authors)
-    VALUES (public.name_key('The port authority'), 'C', 'a-model', 'a test', ARRAY['x'])
+    INSERT INTO public.author (name_key, letter, model, reason, reference_authors, sites)
+    VALUES (public.name_key('The port authority'), 'C', 'a-model', 'a test', ARRAY['x'],
+            ARRAY['port.example'])
     RETURNING id)
   INSERT INTO public.author_name (name_key, author_id)
   SELECT public.name_key('The port authority'), id FROM a`;
@@ -430,6 +432,8 @@ test('a passed check of words read from an image makes no fact strong while the 
   const strongOf = (change: Item) =>
     rolledBack('superuser', async (ask) => {
       await seed(ask);
+      for (const doc of [DOC, IMAGE])
+        await ask('SELECT public.fill_document_uri($1, $2)', [doc, `https://port.example/${doc}`]);
       await ask(RATED);
       const act = itemOf(null, change);
       await batchAs(ask, 'gabriel_research', [act]);
