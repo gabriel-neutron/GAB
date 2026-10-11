@@ -3819,6 +3819,18 @@ BEGIN
     v_need := 'One source ' || v_single || ' on a site of its author, or two independent authors, '
               || v_pair || ' or better and ' || v_other || ' or better';
   END IF;
+  -- An author of the reference set that the record held before the sites has none, so its source
+  -- cannot count alone. The operator gives the sites with one command.
+  IF EXISTS (SELECT 1 FROM public.proposals a
+               JOIN public.proposals p ON p.claim_key = a.claim_key AND p.status <> 'rejected'
+                                      AND p.originator IS NOT NULL
+               JOIN public.author w ON w.id = public.author_of(p.originator)
+              WHERE a.unit_id = p_unit AND a.status = 'pending'
+                AND w.reference_set AND cardinality(w.sites) = 0
+                AND public.letter_of(p.originator) <= v_single) THEN
+    v_need := v_need || '. A source author ' || v_single || ' has no site yet, so it cannot count '
+              || 'alone: run pnpm worker reference-set sites <file>';
+  END IF;
   RETURN CASE WHEN v_conflict IS NULL THEN v_need ELSE v_conflict || '; ' || v_need END;
 END $$;
 
@@ -4803,7 +4815,7 @@ BEGIN
   IF v_id IS NULL THEN
     RETURN 'not_in_set';
   END IF;
-  IF v_sites = p_sites THEN
+  IF v_sites @> p_sites AND v_sites <@ p_sites THEN
     RETURN 'same';
   END IF;
   IF cardinality(v_sites) > 0 THEN
@@ -5114,10 +5126,12 @@ $$;
 
 -- IS AN ADDRESS ON ONE OF THESE SITES? A site matches its own host and each host below it, so
 -- "treasury.gov" matches "ofac.treasury.gov" and not "notreasury.gov". An address with no host is
--- on no site. The sites of an author tell where it publishes its own records.
+-- on no site. The sites of an author tell where it publishes its own records. A browser reads an
+-- address with a backslash, a space or a control character in another way than uri_host does,
+-- so such an address is on no site.
 CREATE OR REPLACE FUNCTION on_site_of(p_uri text, p_sites text[]) RETURNS boolean
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT coalesce((
+  SELECT p_uri !~ '[\\[:space:][:cntrl:]]' AND coalesce((
     SELECT bool_or(h.host = s.site OR right(h.host, length(s.site) + 1) = '.' || s.site)
       FROM (SELECT public.uri_host(p_uri) AS host) h,
            (SELECT lower(x) AS site FROM unnest(p_sites) AS x) s
@@ -5383,8 +5397,9 @@ $$;
 -- because the check proves that its passage says the fact. A source counts only when it states or
 -- enacts the fact: one that denies it, or only reports what another party says, is no support. A
 -- rejected act is no source. The author of a source is the issuer of the record that it cites. A
--- source A counts alone only on a site of its author, and fact_is_strong checks that. The rules and the NATO pair of a claim read this one
--- list, so they cannot disagree on what supports a fact. No role holds this step.
+-- source A counts alone only on a site of its author, and fact_is_strong checks that. The rules
+-- and the NATO pair of a claim read this one list, so they cannot disagree on what supports a
+-- fact. No role holds this step.
 CREATE OR REPLACE FUNCTION fact_support(p_claim_key text)
 RETURNS TABLE (act uuid, author uuid, letter char(1))
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5409,10 +5424,11 @@ $$;
 -- authors by itself. No role holds this step.
 --
 -- A LONE SOURCE COUNTS ONLY ON A SITE OF ITS AUTHOR (the ruling of 11 October 2026): a copy of an
--- official record on another site needs a second source. The act needs a citation that states or
--- enacts the fact, of a document whose address is on a site of the author. An upload gives the
--- address where the file comes from. An upload that held its address before the address rule
--- (migration 0066) can hold a purchase page, so it is on no site.
+-- official record on another site needs a second source. Each citation of the act must cite a
+-- document whose address is on a site of the author. One check and one modality cover the whole
+-- act, so a single citation of a copy on another site makes the act no lone source. An upload
+-- gives the address where the file comes from. An upload that held its address before the address
+-- rule (migration 0066) can hold a purchase page, so it is on no site.
 CREATE OR REPLACE FUNCTION fact_is_strong(p_claim_key text, p_single text, p_pair text,
                                           p_other text)
 RETURNS boolean
@@ -5423,12 +5439,13 @@ LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT c.id, s.letter FROM support s JOIN public.citation c ON c.claim_id = s.id
      WHERE s.author IS NOT NULL
   )
-  SELECT EXISTS (SELECT 1 FROM support s
-                   JOIN public.author a ON a.id = s.author
-                   JOIN public.citation c ON c.claim_id = s.id
-                   JOIN public.documents d ON d.id = c.doc_id
-                  WHERE s.letter <= p_single AND c.modality IN ('enacts', 'asserts')
-                    AND NOT d.uri_before_pu1 AND public.on_site_of(d.uri, a.sites))
+  SELECT EXISTS (SELECT 1 FROM support s JOIN public.author a ON a.id = s.author
+                  WHERE s.letter <= p_single
+                    AND NOT EXISTS (SELECT 1 FROM public.citation c
+                                      JOIN public.documents d ON d.id = c.doc_id
+                                     WHERE c.claim_id = s.id
+                                       AND (d.uri_before_pu1
+                                            OR NOT public.on_site_of(d.uri, a.sites))))
          OR EXISTS (SELECT 1 FROM cited one JOIN cited two ON one.id <> two.id
                      WHERE one.letter <= p_pair AND two.letter <= p_other
                        AND public.citations_independent(one.id, two.id))

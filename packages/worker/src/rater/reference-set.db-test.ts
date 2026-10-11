@@ -224,6 +224,8 @@ test.each([
   ['a site with a scheme', { sites: ['https://register.example'] }, 'a site is a host name'],
   ['a site with a path', { sites: ['register.example/list'] }, 'a site is a host name'],
   ['a site in capitals', { sites: ['Register.Example'] }, 'a site is a host name'],
+  ['a site with www', { sites: ['www.register.example'] }, 'a site does not start with www.'],
+  ['a site that is too broad', { sites: ['gov.uk'] }, 'a site is too broad'],
   ['an author with no list of sites', { sites: undefined }, 'sites'],
 ])('a set with %s stores nothing', async (_name, change, said) => {
   await inTransaction(async (held) => {
