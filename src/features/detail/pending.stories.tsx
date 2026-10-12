@@ -87,6 +87,10 @@ const RETYPING: readonly PendingLine[] =
     : (readDossier(
         {
           ...corpus,
+          // The type change takes a designated_by relation, and the fixture relation is another type.
+          relations: corpus.relations.map((relation) =>
+            relation.id === TOUCHING.id ? { ...relation, type: 'designated_by' } : relation,
+          ),
           proposals: [
             {
               ...AGENT_ACT,
@@ -226,7 +230,7 @@ export const ATypeChangeSaysBothTypes: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(rows(canvasElement)).toHaveLength(1);
     await expect(
-      canvas.getByText(/Changes the type of the relation from \S+ to restricted_by/u),
+      canvas.getByText(/Changes the type of the relation from designated_by to restricted_by/u),
     ).toBeInTheDocument();
   },
 };

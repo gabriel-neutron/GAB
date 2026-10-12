@@ -7,6 +7,7 @@ import { expect, test } from 'vitest';
 import { z } from 'zod';
 
 import { rolledBack, type Ask } from './probe.ts';
+import { READ } from './retype-relations.ts';
 
 const DOC = 'doc_relation_retype';
 const EXTRACTOR = 'relation-retype-test@1';
@@ -324,4 +325,22 @@ test('the review reads give the old type of a waiting type change and of a decid
   });
   expect(seen.waiting).toBe(true);
   expect(seen.decided).toMatchObject({ priorType: 'designated_by' });
+});
+
+test('the read of the retype script shows a relation with no citation, with no cite', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const relation = await designated(ask);
+    const rows = z
+      .array(
+        z.object({
+          relation_id: z.string(),
+          waiting: z.string(),
+          collides: z.boolean(),
+          cites: z.array(z.unknown()),
+        }),
+      )
+      .parse(await ask(READ));
+    return rows.find((row) => row.relation_id === relation);
+  });
+  expect(found).toMatchObject({ waiting: 'none', collides: false, cites: [] });
 });

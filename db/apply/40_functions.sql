@@ -1568,6 +1568,12 @@ BEGIN
   -- the relation, and no document of the old row is lost.
   ELSIF p.op = 'update_relation' AND p.payload ? 'type' THEN
     PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
+    -- The lock of the open-relation rule, with the new type: a concurrent create of an open
+    -- restricted_by relation for the same ends waits for this act, or this act waits for it.
+    PERFORM pg_advisory_xact_lock(hashtextextended(
+      'restricted_by|' || r.src_kind || '|' || r.src_id::text
+                       || '|' || r.dst_kind || '|' || r.dst_id::text, 0))
+       FROM public.relations r WHERE r.id = p.target_id;
     PERFORM public.check_relation_retype(p.target_id);
     SELECT jsonb_build_object('type', r.type, 'sources', to_jsonb(r.sources)) INTO v_prior
       FROM public.relations r WHERE r.id = p.target_id;

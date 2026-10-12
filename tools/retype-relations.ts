@@ -6,7 +6,8 @@
 // The batches go in this order: the US relations, the EU relations other than vessels, and the
 // two ports of Annex XLVII. A vessel of Annex XLII stays designated_by (#505). A doubtful case
 // goes to the report and is never proposed. A second run proposes nothing twice, because it
-// skips a relation that is restricted_by already or that has a waiting retype act.
+// reads only designated_by relations and skips a relation that has a waiting retype act. A
+// relation with a rejected retype act is a doubtful case.
 
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -19,20 +20,26 @@ import { connectionString } from './db-runtime.ts';
 
 export type BatchName = 'us' | 'eu' | 'ports';
 
-/** One promoted relation, its first excerpt and the newest stored text of that page. */
-export interface Candidate {
-  readonly relationId: string;
-  readonly type: string;
-  /** The entity type of the designated end. */
-  readonly subjectType: string;
-  /** The waiting act on the relation: none, a retype act, or any other act. */
-  readonly waiting: 'none' | 'retype' | 'other';
-  readonly originator: string;
+/** One citation of a promoted relation and the newest stored text of its page. */
+export interface Cite {
   readonly document: string;
   readonly page: number;
   readonly excerpt: string;
   /** Null when the document has no stored text for the page. */
   readonly pageText: string | null;
+}
+
+/** One promoted designated_by relation and all its citations. */
+export interface Candidate {
+  readonly relationId: string;
+  /** The entity type of the designated end. */
+  readonly subjectType: string;
+  /** The act that waits on the relation: none, a retype act, any other act, or a rejected retype. */
+  readonly waiting: 'none' | 'retype' | 'other' | 'rejected';
+  /** Another open designated_by or restricted_by relation links the same two ends. */
+  readonly collides: boolean;
+  readonly originator: string;
+  readonly cites: readonly Cite[];
 }
 
 export type Decision =
@@ -45,13 +52,12 @@ const doubt = (reason: string): Decision => ({ kind: 'doubtful', reason });
 
 const ASSET_FREEZE = /\bSDN\b|blocked property|asset freeze|269\/2014/i;
 
-/** The decision on one relation. Pure: the excerpt is checked against the stored text given. */
-export const classify = (one: Candidate): Decision => {
-  if (one.waiting !== 'none') return doubt('the relation has a waiting act');
-  if (one.pageText === null || findExcerpt(one.pageText, one.excerpt) === null)
+/** The decision on one citation. Pure: the excerpt is checked against the stored text given. */
+const classifyCite = (cite: Cite, subjectType: string): Decision => {
+  if (cite.pageText === null || findExcerpt(cite.pageText, cite.excerpt) === null)
     return doubt('the stored text no longer holds the excerpt');
 
-  const text = one.excerpt;
+  const text = cite.excerpt;
   const annexes = [...text.matchAll(/\bannex\s+([ivxlc]+)\b/gi)].map((m) =>
     (m[1] ?? '').toUpperCase(),
   );
@@ -69,16 +75,32 @@ export const classify = (one: Candidate): Decision => {
   if (unknown) return doubt('unknown provision');
   if (!us && !eu)
     return doubt(
-      one.subjectType === 'person'
+      subjectType === 'person'
         ? 'a person with no provision in the excerpt'
         : 'no provision in the excerpt',
     );
+  if (eu && !text.includes('833/2014'))
+    return doubt('an EU provision without 833/2014 in the excerpt');
   if (us && eu) return doubt('the excerpt names the provisions of two regimes');
   if (us) return { kind: 'retype', batch: 'us', reason: 'an OFAC directive' };
-  if (one.subjectType === 'vessel') return doubt('a vessel under a sectoral provision');
-  if (annexes.includes('XLVII') && one.subjectType === 'port')
+  if (subjectType === 'vessel') return doubt('a vessel under a sectoral provision');
+  if (annexes.includes('XLVII') && subjectType === 'port')
     return { kind: 'retype', batch: 'ports', reason: 'a port of Annex XLVII' };
   return { kind: 'retype', batch: 'eu', reason: 'a sectoral provision of 833/2014' };
+};
+
+/** The decision on one relation: the decision of each citation, and all must agree. */
+export const classify = (one: Candidate): Decision => {
+  if (one.waiting === 'rejected') return doubt('a retype act of the relation was rejected');
+  if (one.waiting !== 'none') return doubt('the relation has a waiting act');
+  if (one.collides) return doubt('another open relation links the same ends');
+  const [first, ...rest] = one.cites.map((cite) => classifyCite(cite, one.subjectType));
+  if (first === undefined) return doubt('no usable citation');
+  const bad = [first, ...rest].find((one) => one.kind === 'doubtful');
+  if (bad !== undefined) return bad;
+  if (rest.some((next) => next.kind !== first.kind || next.batch !== first.batch))
+    return doubt('the citations do not agree on a decision');
+  return first;
 };
 
 interface Item {
@@ -121,8 +143,7 @@ export const requalify = async (
   let count = 0;
   for (const one of candidates) {
     const { relationId } = one;
-    if (one.type !== 'designated_by') skipped.push({ relationId, reason: `already ${one.type}` });
-    else if (one.waiting === 'retype') skipped.push({ relationId, reason: 'a retype act waits' });
+    if (one.waiting === 'retype') skipped.push({ relationId, reason: 'a retype act waits' });
     else {
       const decision = classify(one);
       if (decision.kind === 'keep') keep.push({ relationId, reason: decision.reason });
@@ -134,7 +155,7 @@ export const requalify = async (
           act: { op: 'update_relation', targetId: relationId, type: 'restricted_by' },
           originator: one.originator,
           modality: 'enacts',
-          evidence: [{ document: one.document, page: one.page, excerpt: one.excerpt }],
+          evidence: one.cites.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
         });
       }
     }
@@ -149,28 +170,43 @@ export const requalify = async (
 
 // ------------------------------------------------------------------------ the record -----
 
-// The promoted designated_by relations with the first citation of the act that made each one,
-// the newest stored text of the cited page, and the act that waits on the relation, if any.
-// The excerpt is the cited span of the cited set; a moved passage shows as a doubtful case.
-const READ = `SELECT r.id::text AS relation_id, r.type, e.type AS subject_type,
+// The promoted designated_by relations with ALL the citations of the act that made each one, the
+// newest stored text of each cited page, the act that waits on or was rejected for the relation,
+// and whether another open relation links the same ends. The excerpt is the cited span of the
+// cited set; a moved passage shows as a doubtful case. The joins are LEFT joins, so a relation
+// with no usable citation or no stored text still shows in the report as a doubtful case.
+// The script reads the record in SQL because the read API gives no citations and no text.
+export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
     coalesce(w.kind, 'none') AS waiting, coalesce(o.originator, '') AS originator,
-    c.doc_id AS document, c.page,
-    substr(t.text, c.start + 1, c."end" - c.start) AS excerpt,
-    n.text AS page_text
+    EXISTS (SELECT 1 FROM public.relations x
+             WHERE x.id <> r.id AND x.type IN ('designated_by', 'restricted_by')
+               AND x.valid_to IS NULL
+               AND x.src_kind = r.src_kind AND x.src_id = r.src_id
+               AND x.dst_kind = r.dst_kind AND x.dst_id = r.dst_id) AS collides,
+    coalesce(cs.cites, '[]'::json) AS cites
   FROM public.relations r
   JOIN public.entities e ON e.id = r.src_id AND r.src_kind = 'entity'
   LEFT JOIN public.proposals o ON o.id = r.promoted_from
-  JOIN LATERAL (SELECT * FROM public.citation WHERE claim_id = r.promoted_from
-                 AND start IS NOT NULL ORDER BY created_at, id LIMIT 1) c ON true
-  JOIN public.document_text t ON t.document_id = c.doc_id AND t.extractor = c.text_extractor
-                              AND t.page = c.page
-  LEFT JOIN public.document_text n ON n.document_id = c.doc_id AND c.page = n.page
-                              AND n.extractor = public.newest_text_extractor(c.doc_id)
-  LEFT JOIN LATERAL (SELECT CASE WHEN bool_or(p.payload->>'type' = 'restricted_by')
-                                 THEN 'retype' ELSE 'other' END AS kind
-                       FROM public.proposals p
-                      WHERE p.status = 'pending' AND p.target_kind = 'relation'
-                        AND p.target_id = r.id) w ON true
+  LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+             'document', c.doc_id, 'page', c.page,
+             'excerpt', coalesce(substr(t.text, c.start + 1, c."end" - c.start), ''),
+             'pageText', CASE WHEN t.text IS NULL THEN NULL ELSE n.text END)
+           ORDER BY c.created_at, c.id) AS cites
+      FROM public.citation c
+      LEFT JOIN public.document_text t ON t.document_id = c.doc_id
+                                      AND t.extractor = c.text_extractor AND t.page = c.page
+      LEFT JOIN public.document_text n ON n.document_id = c.doc_id AND n.page = c.page
+                                      AND n.extractor = public.newest_text_extractor(c.doc_id)
+     WHERE c.claim_id = r.promoted_from AND c.start IS NOT NULL) cs ON true
+  LEFT JOIN LATERAL (
+    SELECT CASE WHEN bool_or(p.status = 'pending' AND p.payload->>'type' = 'restricted_by')
+                THEN 'retype'
+                WHEN bool_or(p.status = 'pending') THEN 'other'
+                WHEN bool_or(p.payload->>'type' = 'restricted_by') THEN 'rejected' END AS kind
+      FROM public.proposals p
+     WHERE p.status IN ('pending', 'rejected') AND p.target_kind = 'relation'
+       AND p.target_id = r.id) w ON true
   WHERE r.type = 'designated_by'`;
 
 const main = async (): Promise<number> => {
@@ -178,17 +214,14 @@ const main = async (): Promise<number> => {
   const reader = new Pool({ connectionString: connectionString('app') });
   const writer = new Pool({ connectionString: connectionString('research') });
   try {
-    const { rows } = await reader.query<Record<string, string | number | null>>(READ);
+    const { rows } = await reader.query<Record<string, unknown>>(READ);
     const candidates = rows.map((row): Candidate => ({
       relationId: String(row['relation_id']),
-      type: String(row['type']),
       subjectType: String(row['subject_type']),
       waiting: row['waiting'] as Candidate['waiting'],
+      collides: row['collides'] === true,
       originator: String(row['originator']),
-      document: String(row['document']),
-      page: Number(row['page']),
-      excerpt: String(row['excerpt']),
-      pageText: row['page_text'] === null ? null : String(row['page_text']),
+      cites: row['cites'] as Cite[],
     }));
     const report = await requalify(candidates, {
       write,
