@@ -31,6 +31,10 @@ costly to change.
   article, by its number. The research AI gets a refusal when no excerpt names it. A back-end
   agent gets its item disputed, so the operator reads the page.
 - The public read applies PU1 (`decisions.md`) to the copy of the act, as for the end date.
+- A release writes the type change as a claim of its own, a value `type` of the relation, with the
+  label, the documents and the passages of the act (as ADR 0021 does for the end date). The row
+  of the relation shows the current type and keeps the label of the act that made it. A claim
+  of a type is no designation, so the critical nodes and the alignment matrix ignore it.
 - The undo of a merge keeps a later type change and the documents that it added (ADR 0014).
 
 ## Alternatives
