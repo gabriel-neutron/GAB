@@ -110,7 +110,7 @@ const VOCABULARY_TERMS = [
     'relationType',
     'Property',
     'relation type',
-    'The type of the relation, for example owns, designated_by (a listing by name: an asset freeze, or a vessel list of a regime) or restricted_by (a sectoral measure with no asset freeze).',
+    'The type of the relation, for example owns, designated_by (a listing by name: a listing with an asset freeze, or an entry on the vessel list of a regime) or restricted_by (a sectoral measure with no asset freeze).',
   ),
   term(
     'relationLabel',
