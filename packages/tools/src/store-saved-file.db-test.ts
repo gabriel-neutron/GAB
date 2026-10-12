@@ -11,6 +11,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -181,4 +182,180 @@ test('an address with a user name is refused, and nothing is stored', async () =
   const got = await refusalOf('timeline.html', 'https://user:pass@example.org/page');
   expect(got.refusal).toContain('no user name');
   expect(got.puts).toBe(0);
+});
+
+// A PDF written by hand: one page with one line of text.
+const pdfOf = (line: string): Buffer => {
+  const stream = `BT /F1 18 Tf 20 100 Td (${line}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [4 0 R] /Count 1 >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 800 200] ' +
+      '/Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>',
+    `<< /Length ${String(stream.length)} >>\nstream\n${stream}\nendstream`,
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets = objects.map((object, index) => {
+    const at = out.length;
+    out += `${String(index + 1)} 0 obj\n${object}\nendobj\n`;
+    return at;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n`;
+  for (const at of offsets) out += `${String(at).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<< /Size ${String(objects.length + 1)} /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF\n`;
+  return Buffer.from(out, 'latin1');
+};
+
+const shaOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+const hashRow = z.object({ sha256: z.string(), title: z.string(), mime: z.string() });
+const heldOf = async (ask: Ask, url: string) =>
+  z
+    .array(hashRow)
+    .parse(await ask('SELECT sha256, title, mime FROM public.documents WHERE uri = $1', [url]));
+
+test('the bytes that the browser holds are stored with their own hash, with no file', async () => {
+  const store = memoryStore();
+  const url = `https://www.consilium.europa.eu/en/held-${RUN}/`;
+  const bytes = Buffer.from(`<!doctype html>\n${page(TEXT)}`, 'utf8');
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { content: bytes.toString('base64'), type: 'text/html', sha256: shaOf(bytes), url },
+      { store, now: () => new Date('2026-10-07T10:00:00Z') },
+    );
+    expect(got).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
+    expect(await heldOf(ask, url)).toStrictEqual([
+      { sha256: shaOf(bytes), title: `Timeline ${RUN} (saved by the browser)`, mime: 'text/html' },
+    ]);
+  });
+});
+
+test('a PDF in three parts is stored once, when its last part comes', async () => {
+  const store = memoryStore();
+  const url = `https://www.gov.uk/notice-${RUN}.pdf`;
+  const bytes = pdfOf(`Asset freeze notice ${RUN}`);
+  const text = bytes.toString('base64');
+  const size = Math.ceil(text.length / 3 / 4) * 4;
+  await rolledBack('research', async (ask) => {
+    const outputs = [];
+    for (let part = 1; part <= 3; part += 1)
+      outputs.push(
+        await callTool(
+          storeSavedFile,
+          sessionOf(ask),
+          {
+            content: text.slice((part - 1) * size, part * size),
+            type: 'application/pdf',
+            sha256: shaOf(bytes),
+            part,
+            parts: 3,
+            url,
+          },
+          reachOf(store),
+        ),
+      );
+    expect(outputs).toMatchObject([
+      { ok: true, output: { status: 'waiting', received: 1, parts: 3 } },
+      { ok: true, output: { status: 'waiting', received: 2, parts: 3 } },
+      { ok: true, output: { status: 'stored', pages: 1 } },
+    ]);
+    const [held] = await heldOf(ask, url);
+    expect(held?.sha256).toBe(shaOf(bytes));
+    expect(held?.title).toMatch(/\(saved by the browser\)$/u);
+  });
+  expect(store.puts).toHaveLength(1);
+});
+
+test('a part that is not the next part is refused, and the parts start again', async () => {
+  const store = memoryStore();
+  const url = `https://www.gov.uk/order-${RUN}.pdf`;
+  await rolledBack('research', async (ask) => {
+    const send = (part: number) =>
+      callTool(
+        storeSavedFile,
+        sessionOf(ask),
+        { content: 'QUJD', type: 'application/pdf', sha256: 'a'.repeat(64), part, parts: 3, url },
+        reachOf(store),
+      );
+    expect(await send(1)).toMatchObject({ ok: true, output: { status: 'waiting' } });
+    const late = await send(3);
+    expect(late.ok ? '' : late.refusal).toContain('part 1');
+    expect(await send(2)).toMatchObject({ ok: false });
+  });
+  expect(store.puts).toHaveLength(0);
+});
+
+test.each([
+  ['neither file nor content', { url: URL_OF_PAGE }, 'either file or content'],
+  ['content with no type', { content: 'QUJD', url: URL_OF_PAGE }, 'type of the content'],
+  ['content with no sha256', { content: 'QUJD', type: 'text/html', url: URL_OF_PAGE }, 'sha256'],
+  [
+    'content that is no base64',
+    { content: 'A!', type: 'text/html', sha256: 'a'.repeat(64), url: URL_OF_PAGE },
+    'base64',
+  ],
+  [
+    'a part with no count',
+    { content: 'QUJD', type: 'text/html', part: 1, url: URL_OF_PAGE },
+    'together',
+  ],
+])('%s is refused', async (_name, input, reason) => {
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(storeSavedFile, sessionOf(ask), input, reachOf());
+    expect(got.ok ? '' : got.refusal).toContain(reason);
+  });
+});
+
+test('bytes that do not have the hash of the browser are refused, and nothing is stored', async () => {
+  const store = memoryStore();
+  const bytes = Buffer.from(page(TEXT), 'utf8');
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      {
+        content: bytes.toString('base64'),
+        type: 'text/html',
+        sha256: shaOf(Buffer.from('other bytes')),
+        url: `https://www.consilium.europa.eu/en/copy-${RUN}/`,
+      },
+      reachOf(store),
+    );
+    expect(got.ok ? '' : got.refusal).toContain('sha256');
+  });
+  expect(store.puts).toHaveLength(0);
+});
+
+test('a page that names the charset of its origin is read as the UTF-8 that the browser gives', async () => {
+  const url = `https://forum.example.ru/topic-${RUN}`;
+  const text = 'Компания владеет тремя танкерами, и каждый сменил флаг за год. '.repeat(6);
+  const bytes = Buffer.from(
+    `<html><head><meta charset="windows-1251"><title>Форум ${RUN}</title></head>` +
+      `<body><article><p>${text}</p></article></body></html>`,
+    'utf8',
+  );
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { content: bytes.toString('base64'), type: 'text/html', sha256: shaOf(bytes), url },
+      reachOf(),
+    );
+    expect(got).toMatchObject({
+      ok: true,
+      output: { status: 'stored', title: `Форум ${RUN} (saved by the browser)` },
+    });
+    const [held] = z.array(z.object({ text: z.string() })).parse(
+      await ask(
+        `SELECT t.text FROM public.documents d
+             JOIN public.document_text t ON t.document_id = d.id WHERE d.uri = $1`,
+        [url],
+      ),
+    );
+    expect(held?.text).toContain('Компания владеет');
+  });
 });
