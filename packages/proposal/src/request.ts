@@ -107,13 +107,20 @@ export const writeRequest = z.discriminatedUnion('op', [
     attrs: attributeEdit,
   }),
 
-  // The end date of an open relation of the record, and nothing else. The database refuses it on
-  // a type that takes no interval, on a relation that has an end, and before the start.
-  z.strictObject({
-    op: z.literal('update_relation'),
-    targetId: z.uuid(),
-    validTo: z.string(),
-  }),
+  // A change of a relation of the record has two forms, and each one holds a single value. The
+  // end date: the database refuses it on a type that takes no interval, on a relation that has an
+  // end, and before the start. The type: only designated_by to restricted_by, on a relation that
+  // has no open restricted_by twin.
+  z
+    .strictObject({
+      op: z.literal('update_relation'),
+      targetId: z.uuid(),
+      validTo: z.string().optional(),
+      type: z.literal('restricted_by').optional(),
+    })
+    .refine((act) => (act.validTo === undefined) !== (act.type === undefined), {
+      message: 'a change of a relation gives validTo or type, and not both',
+    }),
 
   z.strictObject({
     op: z.literal('update_entity'),

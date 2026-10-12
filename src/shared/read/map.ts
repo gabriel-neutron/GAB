@@ -105,8 +105,12 @@ const entityPayload = z.looseObject({
 const attrsPayload = z.looseObject({ attrs: z.unknown().optional() });
 const closePayload = z.looseObject({ valid_to: z.string() });
 
+const retypePayload = z.looseObject({ type: z.string() });
+
 const isClose = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && closePayload.safeParse(value).success;
+const isRetype = (op: ProposalOp, value: unknown): boolean =>
+  op === 'update_relation' && retypePayload.safeParse(value).success;
 const columnsPayload = z.looseObject({
   label: z.string().nullish(),
   type: z.string().nullish(),
@@ -129,7 +133,7 @@ const deletePayload = z.looseObject({ reason: z.string().nullish() });
 const mappingPayload = z.looseObject({ table: z.string().nullish() });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
-  const kind = isClose(op, value) ? 'close' : KIND_OF_OP[op];
+  const kind = isClose(op, value) ? 'close' : isRetype(op, value) ? 'retype' : KIND_OF_OP[op];
   switch (kind) {
     case 'entity': {
       const held = entityPayload.parse(value);
@@ -147,6 +151,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
     }
     case 'close':
       return { kind, valid_to: closePayload.parse(value).valid_to };
+    case 'retype':
+      return { kind, type: retypePayload.parse(value).type };
     case 'columns': {
       const held = columnsPayload.parse(value);
       return { kind, label: held.label ?? null, type: held.type ?? null };
@@ -189,7 +195,8 @@ const priorRow = z.record(z.string(), z.unknown());
 // permits it there alone.
 function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorValue | null {
   if (value === undefined || value === null) return null;
-  if (isClose(op, payload)) return { kind: 'row', row: priorRow.parse(value) };
+  if (isClose(op, payload) || isRetype(op, payload))
+    return { kind: 'row', row: priorRow.parse(value) };
   switch (op) {
     case 'update_attrs':
     case 'update_relation':

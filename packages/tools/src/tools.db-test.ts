@@ -1056,6 +1056,78 @@ test.for([
   expect(found.rows).toStrictEqual([]);
 });
 
+// A designated_by relation of the record, which the operator signs in the transaction of the test.
+const designatedRelation = async (ask: Ask, type = 'designated_by'): Promise<string> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  const signed = z.array(z.object({ target_id: z.uuid() }));
+  const sign = async (op: string, payload: object, names: readonly string[] = []) => {
+    const [row] = signed.parse(
+      await ask(
+        `SELECT target_id FROM public.sign_change('a test', $1, $2::jsonb, ARRAY['manual'],
+           NULL, NULL, $3::uuid[])`,
+        [op, JSON.stringify(payload), names],
+      ),
+    );
+    if (row === undefined) throw new Error('the act was not signed');
+    return row.target_id;
+  };
+  const bank = await sign('create_entity', { type: 'bank', label: 'A bank', sources: ['manual'] });
+  const body = await sign('create_entity', {
+    type: 'state_body',
+    label: 'A treasury',
+    sources: ['manual'],
+  });
+  const held = await sign(
+    'create_relation',
+    { type, src_id: bank, dst_id: body, valid_from: '2022-02-24', sources: ['manual'] },
+    [bank, body],
+  );
+  await ask('RESET SESSION AUTHORIZATION');
+  return held;
+};
+
+const retyping = (target: string, excerpt: string) =>
+  item('retype', { op: 'update_relation', targetId: target, type: 'restricted_by' }, excerpt);
+
+const DIRECTIVE = 'Directive 4 under Executive Order 14024 restricts the A bank.';
+
+test('propose changes the type of a relation when its excerpt names the provision', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [retyping(held, 'Directive 4 under Executive Order 14024')],
+      DIRECTIVE,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(batchOf(found.outcome).proposals).toMatchObject([
+    { ref: 'retype', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toStrictEqual({ type: 'restricted_by' });
+});
+
+test.for([
+  [
+    'an excerpt that names no provision',
+    'designated_by',
+    'restricts the A bank',
+    'names the provision',
+  ],
+  ['a relation of another type', 'owns', 'Directive 4 under Executive', 'only designated_by'],
+] as const)('propose refuses a type change with %s', async ([, type, excerpt, said]) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask, type);
+    const outcome = await proposeOnPage(ask, [retyping(held, excerpt)], DIRECTIVE);
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(said) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
 // The record holds these rules at the insert, so a bad act never waits in the review queue. The
 // refusal names the item, the field and the sentence of the rule.
 test.for([

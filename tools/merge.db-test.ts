@@ -566,3 +566,40 @@ test('a merge is refused while an act waits on the absorbed entity or on a relat
   });
   expect(refusals).toStrictEqual(['merge_absorbed_free', 'merge_absorbed_free', 'endpoint_free']);
 });
+
+// A type change that an act gives after the merge is a later act, so the undo keeps it.
+const retyped = (ask: Ask, target: string, src: readonly string[]) =>
+  ask(
+    `SELECT * FROM public.sign_change('a test', 'update_relation',
+       '{"type":"restricted_by"}'::jsonb, $2::text[], 'relation', $1::uuid, '{}')`,
+    [target, src],
+  );
+
+test('an undo keeps a type change that a later act gave, and its documents', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'company', 'RETYPE TEST KEEP');
+    const gone = await entity(ask, 'company', 'RETYPE TEST GONE');
+    const state = await entity(ask, 'state_body', 'RETYPE TEST STATE');
+    const moved = await relation(ask, 'designated_by', gone, state);
+    const twin = await entity(ask, 'company', 'RETYPE TWIN KEEP');
+    const twinGone = await entity(ask, 'company', 'RETYPE TWIN GONE');
+    const stays = await relation(ask, 'designated_by', twin, state);
+    await relation(ask, 'designated_by', twinGone, state, { sources: [FIXTURE_DOCUMENT] });
+    await merge(ask, keep, gone);
+    await merge(ask, twin, twinGone);
+    await retyped(ask, moved, [FIXTURE_DOCUMENT]);
+    await retyped(ask, stays, [FIXTURE_DOCUMENT]);
+    await undo(ask, gone);
+    await undo(ask, twinGone);
+    return { gone, moved: await relationRow(ask, moved), stays: await relationRow(ask, stays) };
+  });
+  expect(seen.moved).toMatchObject({
+    type: 'restricted_by',
+    src_id: seen.gone,
+    sources: ['manual', FIXTURE_DOCUMENT],
+  });
+  expect(seen.stays).toMatchObject({
+    type: 'restricted_by',
+    sources: ['manual', FIXTURE_DOCUMENT],
+  });
+});

@@ -180,3 +180,41 @@ it('marks an entity or a relation whose type is unknown', () => {
   };
   expect(unitChanges(unknown, WORDS).relations[0]?.typeUnknown).toBe(true);
 });
+
+it('reads an act that gives a new type as a type change with the old and the new type', () => {
+  const [first] = UNIT_ANSWER.units;
+  if (first === undefined) throw new Error('the sample holds no unit');
+  const read = unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: [
+        {
+          ...first,
+          kind: 'change',
+          faults: [],
+          acts: [
+            {
+              id: 'retype-1',
+              op: 'update_relation',
+              payload: { type: 'restricted_by' },
+              targetId: 'r1',
+              targetType: 'designated_by',
+              dissent: false,
+              endRejected: false,
+              check: null,
+              target: { name: 'OFAC owns Nayara', state: 'record', group: null },
+              src: null,
+              dst: null,
+            },
+          ],
+        },
+      ],
+    },
+    null,
+  );
+  const held = read?.units[0];
+  if (held === undefined) throw new Error('the answer holds no unit');
+  expect(unitChanges(held, WORDS).retypes).toStrictEqual([
+    { id: 'retype-1', relation: 'OFAC owns Nayara', from: 'designated_by', to: 'restricted_by' },
+  ]);
+});

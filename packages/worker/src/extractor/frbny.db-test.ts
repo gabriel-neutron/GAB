@@ -154,7 +154,7 @@ test('of the faults of the staff report case, only the facts of the subject beco
     await client.query('RESET SESSION AUTHORIZATION');
 
     expect(step).toStrictEqual({ did: 'done', job });
-    expect(extractor.version).toBe('v10');
+    expect(extractor.version).toBe('v11');
     const rows = z.array(proposalRow).parse(
       (
         await client.query(

@@ -42,6 +42,14 @@ export interface CloseChange {
   readonly validTo: string;
 }
 
+/** One act that changes the type of a relation: the relation, the old type and the new one. */
+export interface RetypeChange {
+  readonly id: string;
+  readonly relation: string;
+  readonly from: string;
+  readonly to: string;
+}
+
 /** What one unit proposes: the entity first, then its relations, then any other act. */
 export interface UnitChanges {
   readonly entity: {
@@ -57,6 +65,7 @@ export interface UnitChanges {
   readonly relations: readonly RelationLine[];
   readonly others: readonly OtherChange[];
   readonly closes: readonly CloseChange[];
+  readonly retypes: readonly RetypeChange[];
 }
 
 // The state of the end says where it stands, so the name stays short.
@@ -150,5 +159,11 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
       : [],
   );
 
-  return { entity, relations, others, closes };
+  const retypes = unit.acts.flatMap((act): readonly RetypeChange[] =>
+    act.kind === 'retype'
+      ? [{ id: act.id, relation: nameOf(act.target), from: act.from, to: act.to }]
+      : [],
+  );
+
+  return { entity, relations, others, closes, retypes };
 }

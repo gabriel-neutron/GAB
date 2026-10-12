@@ -285,6 +285,48 @@ test('each claim keeps its sources, its passages, its label and its licence', ()
   expect(node(`claim/${OWNS}`)).not.toHaveProperty('value');
 });
 
+test('a type change is a claim of its relation, with its label and its passage', () => {
+  const file = jsonldExport(
+    {
+      ...RECORD,
+      claims: [
+        ...RECORD.claims,
+        {
+          claim_id: `${OWNS}/type`,
+          subject_kind: 'relation',
+          subject_id: OWNS,
+          attribute: 'type',
+          value: 'restricted_by',
+          origin_label: RULE,
+          sources: ['doc_a'],
+          act_id: ACT,
+          passages: [
+            {
+              document: 'doc_a',
+              page: 1,
+              excerpt: 'Directive 4',
+              modality: 'asserts',
+              transcribed: false,
+            },
+          ],
+        },
+      ],
+    },
+    HEADING,
+    BASE,
+  );
+  const graph = document.parse(JSON.parse(file.text))['@graph'];
+  expect(graph.find((one) => one['@id'] === `claim/${OWNS}/type`)).toMatchObject({
+    claimKind: 'attribute',
+    about: `relation/${OWNS}`,
+    attribute: 'type',
+    value: 'restricted_by',
+    originLabel: RULE,
+    sources: ['document/doc_a'],
+    passages: [{ excerpt: 'Directive 4' }],
+  });
+});
+
 test('a document gives its title, its address and its day of reading', () => {
   expect(node('document/doc_a')).toStrictEqual({
     '@id': 'document/doc_a',
