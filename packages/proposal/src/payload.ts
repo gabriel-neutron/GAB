@@ -83,7 +83,8 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
     case 'update_relation':
       return {
         op: request.op,
-        payload: { valid_to: request.validTo },
+        payload:
+          request.type === undefined ? { valid_to: request.validTo } : { type: request.type },
         src: [MANUAL],
         names: [],
         targetKind: 'relation',
