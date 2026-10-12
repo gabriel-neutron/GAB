@@ -30,12 +30,14 @@ One fact is one item of a batch:
 - a relation between two entities, with its dates when the source gives them;
 - a status: a listing in a sanctions act, with the act and the date.
 
-A sanctions measure has one of two relation types. `designated_by` is only for a listing with an
-asset freeze: an entry of the OFAC SDN list, Annex I of Council Regulation (EU) No 269/2014, or a
-UK asset freeze. A sectoral measure freezes no asset, and it is `restricted_by`: an OFAC directive
-under Executive Order 14024 (OFAC writes "identified", not "designated"), or a sectoral annex or
-article of Council Regulation (EU) No 833/2014 (for example Annex III, XIV, XLIV, XLV or XLVII, or
-Article 5af). One act can hold the two kinds of measure, so read the provision and not only the
+A sanctions measure has one of two relation types. `designated_by` is a listing by name. For a
+person or an entity, it is a listing with an asset freeze: an entry of the OFAC SDN list, Annex I
+of Council Regulation (EU) No 269/2014, or a UK asset freeze. For a vessel, it is an entry on the
+vessel list of a regime: the OFAC SDN list, Annex XLII of Council Regulation (EU) No 833/2014, or
+a UK specified ship. Any other sectoral measure freezes no asset, and it is `restricted_by`: an
+OFAC directive under Executive Order 13662 or 14024 (OFAC writes "identified", not "designated"),
+or another annex or article of Council Regulation (EU) No 833/2014 (for example Annex III, XIV,
+XLIV, XLV or XLVII, or Article 5af). One act can hold the two kinds of measure, so read the provision and not only the
 act. The excerpt names the exact provision: the directive, the annex or the article.
 
 ## What you must source

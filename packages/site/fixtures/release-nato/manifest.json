@@ -85,8 +85,8 @@
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 24543,
-      "sha256": "cb73a6961441d00bdf87ae6be3ebcf140ffb4851b1c72135524d44fba9d8321a"
+      "bytes": 24577,
+      "sha256": "5ccdd014376a4b9c78d38f7ba625d1cc47809c8f0c858e072449be70832dd5af"
     },
     {
       "path": "changelog.csv",
