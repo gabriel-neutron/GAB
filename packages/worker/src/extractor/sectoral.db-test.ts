@@ -127,8 +127,10 @@ test('a sectoral measure becomes a restricted_by relation with its date, and let
       .map((one) => one.content)
       .join(' ')
       .replace(/\s+/gu, ' ');
-    expect(prompt).toContain('`designated_by` is only for a listing with an asset freeze');
-    expect(prompt).toContain('A sectoral measure freezes no asset, and it is `restricted_by`');
+    expect(prompt).toContain('For a vessel, it is an entry on the vessel list of a regime');
+    expect(prompt).toContain(
+      'Any other sectoral measure freezes no asset, and it is `restricted_by`',
+    );
     expect(words.parse(JSON.parse(messages.at(-1)?.content ?? '{}')).datedRelationTypes).toContain(
       'restricted_by',
     );
