@@ -177,6 +177,32 @@ describe('requalify', () => {
 });
 
 describe('the far end and the vessels', () => {
+  it('doubts a vessel whose excerpt names a provision outside its list', () => {
+    const bare = make('Hebe 9259185 Directive 4', { subjectType: 'vessel' });
+    expect(classify(bare).kind).toBe('doubtful');
+    const other = make('Hebe 9259185 Annex XX of 833/2014', { subjectType: 'vessel' });
+    expect(classify(other).kind).toBe('doubtful');
+  });
+
+  it('doubts a person that the far end places under a directive', () => {
+    const person = make('Ivan Ivanov', {
+      subjectType: 'person',
+      destination: 'Directive 3 under Executive Order 14024',
+      pageText: 'Directive 3 under Executive Order 14024. Ivan Ivanov is named.',
+    });
+    expect(classify(person).kind).toBe('doubtful');
+  });
+
+  it('cites the directive of the act, and not another one of the page', async () => {
+    const bank = make('SBERBANK', {
+      destination: 'Directive 2 under Executive Order 14024',
+      pageText: 'Directive 4 under E.O. 14024. SBERBANK. Directive 2 under E.O. 14024.',
+    });
+    const sent: Sent[] = [];
+    await requalify([bank], { write: true, send: (batch) => void sent.push(batch) });
+    expect(sent[0]?.items[0]?.evidence.at(-1)?.excerpt).toBe('Directive 2 under E.O. 14024.');
+  });
+
   const list = 'GAZPROMBANK JOINT STOCK COMPANY';
   const page = `Directive 3 under Executive Order 14024. ${list} is named.`;
   const act = 'Directive 3 under Executive Order 14024';
