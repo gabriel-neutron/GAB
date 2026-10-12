@@ -202,3 +202,20 @@ test('a sectoral measure is a relation row of the type restricted_by, with its l
   expect(row?.[header?.indexOf('type') ?? -1]).toBe('restricted_by');
   expect(row?.at(-1)).toBe('restricted by');
 });
+
+test('a type change is a claim row of its relation, with its label and its passage', () => {
+  const retype = claim({
+    claim_id: `${OWNS}/type`,
+    subject_kind: 'relation',
+    subject_id: OWNS,
+    attribute: 'type',
+    value: 'restricted_by',
+  });
+  const [header, row] = readCsv(claimsText([retype]).slice(1)).map((line) => line.fields);
+  const at = (name: string) => row?.[header?.indexOf(name) ?? -1];
+  expect(at('claim_id')).toBe(`${OWNS}/type`);
+  expect(at('attribute')).toBe('type');
+  expect(at('value')).toBe('restricted_by');
+  expect(at('origin_label')).toBe(LABEL);
+  expect(at('excerpt')).toBe('flag of Panama');
+});

@@ -205,7 +205,12 @@ test('a sectoral measure is no sanctions exposure: a restricted_by relation give
       {
         ...base,
         relations: [...base.relations, restricted],
-        claims: [...base.claims, claim(restricted.id, restricted.id, null)],
+        claims: [
+          ...base.claims,
+          claim(restricted.id, restricted.id, null),
+          // The retype act gives a claim of the type, and a designation by name it is not.
+          { ...claim(`${restricted.id}/type`, restricted.id, 'type'), subject_kind: 'relation' },
+        ],
       },
       SHEET,
       '',
