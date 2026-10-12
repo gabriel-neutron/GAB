@@ -16,6 +16,7 @@ const make = (excerpt: string, { pageText, ...over }: Over = {}): Candidate => (
   waiting: 'none',
   collides: false,
   originator: 'The issuer',
+  destination: '',
   cites: [
     {
       document: 'doc-1',
@@ -172,5 +173,55 @@ describe('requalify', () => {
     const sent: Sent[] = [];
     await requalify(many, { write: true, send: (batch) => void sent.push(batch) });
     expect(sent.map((batch) => batch.items.length)).toEqual([50, 1]);
+  });
+});
+
+describe('the far end and the vessels', () => {
+  const list = 'GAZPROMBANK JOINT STOCK COMPANY';
+  const page = `Directive 3 under Executive Order 14024. ${list} is named.`;
+  const act = 'Directive 3 under Executive Order 14024';
+
+  it('keeps a vessel of a regime list, whatever the article that lists it', () => {
+    const vessel = make('Mianzimu 9299666 Article 3s(2), point (b), Annex XXV', {
+      subjectType: 'vessel',
+    });
+    expect(classify(vessel)).toMatchObject({ kind: 'keep', reason: /vessel list/ });
+    expect(classify(make('BOLERO (8P2492) Crude Oil Tanker', { subjectType: 'vessel' })).kind).toBe(
+      'keep',
+    );
+  });
+
+  it('retypes a party that the act at the far end places under a directive', () => {
+    const bank = make(list, { destination: act, pageText: page });
+    expect(kindOf(classify(bank))).toBe('retype:us');
+  });
+
+  it('doubts the same party when the page names no directive', () => {
+    const bank = make(list, { destination: act, pageText: `${list} is named.` });
+    expect(classify(bank).kind).toBe('doubtful');
+  });
+
+  it('doubts the same party when the far end is no directive', () => {
+    const bank = make(list, { destination: 'OFAC action of 21 November 2024', pageText: page });
+    expect(classify(bank).kind).toBe('doubtful');
+  });
+
+  it('does not let the far end override an excerpt with another provision', () => {
+    const odd = make('Annex XX of 833/2014', {
+      destination: act,
+      pageText: `${page} Annex XX of 833/2014`,
+    });
+    expect(classify(odd).reason).toMatch(/unknown provision/);
+  });
+
+  it('cites the directive of the page when no excerpt names a provision', async () => {
+    const bank = make(list, { destination: act, pageText: page });
+    const sent: Sent[] = [];
+    await requalify([bank], { write: true, send: (batch) => void sent.push(batch) });
+    const evidence = sent[0]?.items[0]?.evidence ?? [];
+    expect(evidence.map((one) => one.excerpt)).toEqual([
+      list,
+      'Directive 3 under Executive Order 14024',
+    ]);
   });
 });
