@@ -1,4 +1,4 @@
-import { relationWords } from './relation-words.ts';
+import { relationWords } from '@gab/proposal/relation-types';
 import type { SiteClaim, SiteRelation, SiteRelease } from './site-release.ts';
 
 /** When a mark holds. An interval with no end is open: the release gives no end date, which does

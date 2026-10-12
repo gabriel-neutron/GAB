@@ -1,3 +1,5 @@
+import { relationWords } from '@gab/proposal/relation-types';
+
 import { csvFile } from './csv-file.ts';
 import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
 import { releaseLookup } from './release-lookup.ts';
@@ -21,6 +23,7 @@ const RELATION_HEADER = [
   'origin_label',
   'licence',
   'document_ids',
+  'type_label',
 ];
 
 const CLAIM_HEADER = [
@@ -93,6 +96,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     one.origin_label,
     licenceOf(one.sources),
     one.sources.join(' '),
+    relationWords(one.type, false),
   ]);
 
   // A relation claim reads from its first end to its second end. A value reads as a key and a

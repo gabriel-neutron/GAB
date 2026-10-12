@@ -197,6 +197,32 @@ test('the table gives the three conditions of each node, and retains a node with
   expect(file.text).not.toMatch(/nato|NATO|\b[A-F][1-6]\b/u);
 });
 
+test('a sectoral measure is no sanctions exposure: a restricted_by relation gives no tick', () => {
+  const restricted = { ...designation(24, PLAIN), type: 'restricted_by' };
+  const base = record();
+  const rows = tableOf(
+    criticalNodes(
+      {
+        ...base,
+        relations: [...base.relations, restricted],
+        claims: [
+          ...base.claims,
+          claim(restricted.id, restricted.id, null),
+          // The retype act gives a claim of the type, and a designation by name it is not.
+          { ...claim(`${restricted.id}/type`, restricted.id, 'type'), subject_kind: 'relation' },
+        ],
+      },
+      SHEET,
+      '',
+    ).text,
+  );
+  expect(rows.find((one) => one['node_id'] === PLAIN)).toMatchObject({
+    a_sanctions_exposure: 'no tick',
+    a_claim_ids: '',
+    ticks: '0',
+  });
+});
+
 test('with the pair on, each tick gives the pair of each of its claims', () => {
   const pairs = new Map<string, NatoPair>([
     [`${TANKER}/imo`, { letter: 'A', digit: 1 }],

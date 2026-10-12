@@ -220,3 +220,39 @@ export const AnEndDateReadsAsTheEndOfARelation: Story = {
     await expect(row).toHaveTextContent('Rosneft owns Nayara');
   },
 };
+
+/** An act that changed the type of a relation names the old type and the new type. */
+export const ATypeChangeReadsWithBothTypes: Story = {
+  args: {
+    view: {
+      state: 'held',
+      rows: decidedRows([
+        {
+          id: '8d9e0f1a-2b3c-4d4e-9f50-6b7c8d9e0f1a',
+          op: 'update_relation',
+          payload: { type: 'restricted_by' },
+          priorType: 'designated_by',
+          proposer: 'research_ai',
+          status: 'accepted',
+          decidedAt: '2026-10-12T09:30:00Z',
+          decidedBy: 'operator',
+          decidedAs: 'unit',
+          decisionOrigin: null,
+          decisionReason: null,
+          rejectReason: null,
+          rejectNote: null,
+          name: 'OFAC directive 4 names Nayara',
+        },
+      ]),
+      unread: 0,
+      why: null,
+      more: 'none',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const [row] = canvasElement.querySelectorAll('[data-decided]');
+    await expect(row).toHaveTextContent(
+      'Type change of a relation, from designated_by to restricted_by',
+    );
+  },
+};

@@ -4,8 +4,16 @@ import { screenBatch, type ScreenItem } from './screen.ts';
 
 const WORDS = {
   entityTypes: ['vessel', 'company', 'person', 'bank', 'state_body', 'legal_act', 'unknown'],
-  relationTypes: ['owns', 'operates', 'appoints', 'designated_by', 'settles_through', 'unknown'],
-  datedRelationTypes: ['owns', 'operates', 'appoints', 'designated_by'],
+  relationTypes: [
+    'owns',
+    'operates',
+    'appoints',
+    'designated_by',
+    'restricted_by',
+    'settles_through',
+    'unknown',
+  ],
+  datedRelationTypes: ['owns', 'operates', 'appoints', 'designated_by', 'restricted_by'],
 };
 
 type Attrs = Record<string, { v: string }>;
@@ -116,6 +124,26 @@ test('a person stays only with a designation, an appointment or an ownership in 
   expect(screened.dropped).toStrictEqual({
     person_outside_publication_rule: 2,
     email_address: 1,
+    names_a_dropped_item: 1,
+  });
+});
+
+test('a sectoral measure does not let a person in, and the measure on a bank stays', () => {
+  const screened = screenBatch(
+    [
+      entity('act', 'legal_act', 'Directive 3 under Executive Order 14024'),
+      entity('bank', 'bank', 'Test Bank JSC'),
+      entity('chair', 'person', 'Pat Officer'),
+      relation('r1', 'restricted_by', 'bank', 'act'),
+      relation('r2', 'restricted_by', 'chair', 'act'),
+    ],
+    WORDS,
+    new Map(),
+  );
+
+  expect(refsOf(screened.items)).toStrictEqual(['act', 'bank', 'r1']);
+  expect(screened.dropped).toStrictEqual({
+    person_outside_publication_rule: 1,
     names_a_dropped_item: 1,
   });
 });

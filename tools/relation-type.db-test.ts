@@ -86,6 +86,19 @@ test('a designated_by relation with a valid_from promotes', async () => {
   ]);
 });
 
+test('a restricted_by relation with an entry into force and an end promotes with both bounds', async () => {
+  await expect(
+    promotedRelation('restricted_by', '2022-02-24', '2024-06-24'),
+  ).resolves.toStrictEqual([
+    {
+      type: 'restricted_by',
+      proposed_type: null,
+      valid_from: '2022-02-24',
+      valid_to: '2024-06-24',
+    },
+  ]);
+});
+
 test('an owns relation with a start and an end promotes with both bounds', async () => {
   await expect(promotedRelation('owns', '2019-05-02', '2023-11-30')).resolves.toStrictEqual([
     { type: 'owns', proposed_type: null, valid_from: '2019-05-02', valid_to: '2023-11-30' },

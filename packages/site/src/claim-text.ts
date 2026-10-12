@@ -1,5 +1,5 @@
 import { attributeName } from './attribute-name.ts';
-import { relationWords } from './relation-words.ts';
+import { relationWords } from '@gab/proposal/relation-types';
 import type { SiteClaim } from './site-release.ts';
 
 /** What a claim says, in words: the relation from its first end, or the subject, the readable

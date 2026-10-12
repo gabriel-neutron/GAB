@@ -529,6 +529,7 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(relations.find((row) => row['id'] === owns.id)).toStrictEqual({
     id: owns.id,
     type: 'owns',
+    type_label: 'owns',
     from_id: OWNER,
     from_label: 'TEST OWNER LTD',
     to_id: VESSEL,
@@ -786,6 +787,56 @@ test('an end date that a later act gave is a claim of its own, with the label an
           document: SHIPS,
           page: 1,
           excerpt: 'It sold TEST TANKER on 30 November 2023.',
+          modality: 'asserts',
+          transcribed: false,
+        },
+      ],
+    },
+  ]);
+});
+
+test('a type change that a later act gave is a claim of its own, with the label and the passages of that act', async () => {
+  const seen = await inTransaction(async (held) => {
+    const { vesselListed } = await record(held);
+    const retype = await decidedAct(
+      held,
+      'update_relation',
+      { type: 'restricted_by' },
+      { kind: 'relation', id: vesselListed.id },
+      'rule strong_sources v1 (fact digits: 1, letters: B)',
+      '2026-10-09',
+      [SHIPS],
+    );
+    await cite(held.ask, retype, SHIPS, 'TEST TANKER makes 12 knots.');
+    await held.ask(`UPDATE public.relations SET type = 'restricted_by' WHERE id = $1`, [
+      vesselListed.id,
+    ]);
+    const app = held.as('gabriel_app');
+    const { rows } = await app.query(
+      `SELECT claim_id, attribute, value, origin_label, sources, act_id, passages
+         FROM public.release_claims() WHERE subject_id = $1 AND attribute = 'type'`,
+      [vesselListed.id],
+    );
+    const { rows: relations } = await app.query(
+      'SELECT type FROM public.release_relations() WHERE id = $1',
+      [vesselListed.id],
+    );
+    return { vesselListed, retype, rows, relations };
+  });
+  expect(seen.relations).toStrictEqual([{ type: 'restricted_by' }]);
+  expect(seen.rows).toStrictEqual([
+    {
+      claim_id: `${seen.vesselListed.id}/type`,
+      attribute: 'type',
+      value: 'restricted_by',
+      origin_label: RULE,
+      sources: [SHIPS],
+      act_id: seen.retype,
+      passages: [
+        {
+          document: SHIPS,
+          page: 1,
+          excerpt: 'TEST TANKER makes 12 knots.',
           modality: 'asserts',
           transcribed: false,
         },

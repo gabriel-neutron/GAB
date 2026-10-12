@@ -224,6 +224,7 @@ test('an entity and a relation keep their label, licence and sources', () => {
     '@id': `relation/${OWNS}`,
     '@type': 'Relation',
     relationType: 'owns',
+    relationLabel: 'owns',
     from: `entity/${OWNER}`,
     to: `entity/${SHIP}`,
     validFrom: '2024-01-02',
@@ -232,6 +233,26 @@ test('an entity and a relation keep their label, licence and sources', () => {
     licenceText: 'CC-BY-NC 4.0',
     license: 'https://creativecommons.org/licenses/by-nc/4.0/',
     sources: ['document/doc%20b'],
+  });
+});
+
+test('a sectoral measure is a relation of the type restricted_by, with its label', () => {
+  const file = jsonldExport(
+    {
+      ...RECORD,
+      relations: RECORD.relations.flatMap((one) => [
+        one,
+        { ...one, id: ACT, type: 'restricted_by' },
+      ]),
+    },
+    HEADING,
+    BASE,
+  );
+  const graph = document.parse(JSON.parse(file.text))['@graph'];
+  expect(graph.find((one) => one['@id'] === `relation/${ACT}`)).toMatchObject({
+    '@type': 'Relation',
+    relationType: 'restricted_by',
+    relationLabel: 'restricted by',
   });
 });
 
@@ -262,6 +283,48 @@ test('each claim keeps its sources, its passages, its label and its licence', ()
   expect(node(`claim/${SHIP}/speed_knots`)).toMatchObject({ value: 12, passages: [] });
   expect(node(`claim/${OWNS}`)).toMatchObject({ claimKind: 'relation', about: `relation/${OWNS}` });
   expect(node(`claim/${OWNS}`)).not.toHaveProperty('value');
+});
+
+test('a type change is a claim of its relation, with its label and its passage', () => {
+  const file = jsonldExport(
+    {
+      ...RECORD,
+      claims: [
+        ...RECORD.claims,
+        {
+          claim_id: `${OWNS}/type`,
+          subject_kind: 'relation',
+          subject_id: OWNS,
+          attribute: 'type',
+          value: 'restricted_by',
+          origin_label: RULE,
+          sources: ['doc_a'],
+          act_id: ACT,
+          passages: [
+            {
+              document: 'doc_a',
+              page: 1,
+              excerpt: 'Directive 4',
+              modality: 'asserts',
+              transcribed: false,
+            },
+          ],
+        },
+      ],
+    },
+    HEADING,
+    BASE,
+  );
+  const graph = document.parse(JSON.parse(file.text))['@graph'];
+  expect(graph.find((one) => one['@id'] === `claim/${OWNS}/type`)).toMatchObject({
+    claimKind: 'attribute',
+    about: `relation/${OWNS}`,
+    attribute: 'type',
+    value: 'restricted_by',
+    originLabel: RULE,
+    sources: ['document/doc_a'],
+    passages: [{ excerpt: 'Directive 4' }],
+  });
 });
 
 test('a document gives its title, its address and its day of reading', () => {

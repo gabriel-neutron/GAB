@@ -170,6 +170,8 @@ export type ProposalPayload =
   | { readonly kind: 'attrs'; readonly attrs: Attributes }
   /** The end date of an open relation, and no other value. */
   | { readonly kind: 'close'; readonly valid_to: string }
+  /** The type of a relation, changed from designated_by to restricted_by, and no other value. */
+  | { readonly kind: 'retype'; readonly type: string }
   | { readonly kind: 'columns'; readonly label: string | null; readonly type: string | null }
   | {
       readonly kind: 'relation';

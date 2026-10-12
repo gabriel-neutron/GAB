@@ -221,6 +221,23 @@ test('an end date keeps what it replaced as the row it changed, and not as attri
   });
 });
 
+test('a type change reads as a retype, and keeps what it replaced as the row it changed', () => {
+  const row = {
+    ...PROPOSAL_ROW,
+    op: 'update_relation',
+    target_kind: 'relation',
+    target_id: SRC_ID,
+    payload: { type: 'restricted_by' },
+    prior_value: { type: 'designated_by', sources: ['doc_8f2a41'] },
+  };
+  const read = toDomain.proposal(row);
+  expect(read.payload).toStrictEqual({ kind: 'retype', type: 'restricted_by' });
+  expect(read.priorValue).toStrictEqual({
+    kind: 'row',
+    row: { type: 'designated_by', sources: ['doc_8f2a41'] },
+  });
+});
+
 // The record refuses a new entity with no type or no name, so the read refuses one too.
 test('a creation that states no name is refused', () => {
   const row = { ...PROPOSAL_ROW, op: 'create_entity', payload: { type: 'vessel' } };

@@ -60,6 +60,7 @@ const RECORD_WORDS = new Set([
   'capacity_dwt',
   'state_body',
   'designated_by',
+  'restricted_by',
   'registration_number',
   'tax_id',
 ]);
