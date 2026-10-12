@@ -20,6 +20,7 @@
     "./propose": "./src/propose.ts",
     "./propose-mapping": "./src/propose-mapping.ts",
     "./search-graph": "./src/search-graph.ts",
+    "./stated-value": "./src/stated-value.ts",
     "./table": "./src/table.ts",
     "./tool": "./src/tool.ts",
     "./web": "./src/web.ts",
