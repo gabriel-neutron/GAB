@@ -76,7 +76,7 @@ misread a number, so the text can miss a fact that the image shows clearly.
 ## A dated relation
 
 - A relation type with `takesInterval` true in `list_vocabulary` (for example `owns`,
-  `operates`, `flags`, `insures`, `designated_by`) has two bounds: `validFrom`, the first day,
+  `operates`, `flags`, `insures`, `designated_by`, `restricted_by`) has two bounds: `validFrom`, the first day,
   and `validTo`, the last day. Give each bound that the page states as a full day, and put the
   words that state it in an excerpt. Never guess a day from a month, a year or another page.
 - Code removes a start that no excerpt states, and `droppedBounds` in the answer names it. An end
@@ -95,6 +95,12 @@ misread a number, so the text can miss a fact that the image shows clearly.
 - Cite a sanctions status from the official file: the EU act from `eu_act` (`legal_act`), the
   line of the entry from `ofac_sdn`, or the line of the entry from `uk_sanctions_list`. The
   release reads the regime of a designation from these files only.
+- Choose the type from the provision, not from the act. `designated_by` is only for a listing
+  with an asset freeze: an entry of the OFAC SDN list, Annex I of Council Regulation (EU) No
+  269/2014, or a UK asset freeze. A sectoral measure freezes no asset, and it is `restricted_by`:
+  an OFAC directive under Executive Order 14024, or a sectoral annex or article of Council
+  Regulation (EU) No 833/2014. One CELEX number can hold the two kinds of measure. The excerpt
+  names the exact provision: the directive, the annex or the article.
 - Give a "designated by" relation the start date that the release compares across the regimes:
   for the EU, the entry into force of the act that added the vessel; for OFAC, the date of the
   Recent Actions notice (store that page with `fetch_document` and cite it beside the SDN line);

@@ -12,6 +12,7 @@ export interface ReleaseFile {
 const RELATION_HEADER = [
   'id',
   'type',
+  'type_label',
   'from_id',
   'from_label',
   'to_id',
@@ -74,7 +75,7 @@ const valueText = (value: unknown): string =>
  * digit. The log of the merges gives the entity that each absorbed identifier resolves to. */
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
-  const { documentOf, licenceOf, labelOf, relationOf } = lookup;
+  const { documentOf, licenceOf, labelOf, relationOf, typeLabelOf } = lookup;
 
   const entities = record.entities.map((one) => {
     const columns = entityColumns(one, lookup);
@@ -84,6 +85,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
   const relationRows = record.relations.map((one) => [
     one.id,
     one.type,
+    typeLabelOf(one.type),
     one.src_id,
     labelOf(one.src_id),
     one.dst_id,

@@ -30,6 +30,14 @@ One fact is one item of a batch:
 - a relation between two entities, with its dates when the source gives them;
 - a status: a listing in a sanctions act, with the act and the date.
 
+A sanctions measure has one of two relation types. `designated_by` is only for a listing with an
+asset freeze: an entry of the OFAC SDN list, Annex I of Council Regulation (EU) No 269/2014, or a
+UK asset freeze. A sectoral measure freezes no asset, and it is `restricted_by`: an OFAC directive
+under Executive Order 14024 (OFAC writes "identified", not "designated"), or a sectoral annex or
+article of Council Regulation (EU) No 833/2014 (for example Annex III, XIV, XLIV, XLV or XLVII, or
+Article 5af). One act can hold the two kinds of measure, so read the provision and not only the
+act. The excerpt names the exact provision: the directive, the annex or the article.
+
 ## What you must source
 
 Each fact cites at least one stored document, with the page and an excerpt that states each value
@@ -45,8 +53,9 @@ JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to ci
 - A figure that belongs to no entity of the layer: a total of trade, a share of exports, a price.
 - The metadata of a source: its authors, their e-mail addresses, the publisher, the journal, the
   institute that paid for it. An author becomes an entity only when the author is the subject.
-- A person, unless a sanctions act designates the person, or a public filing names the person as
-  a director, an owner or an officer. Never an address, a telephone number or an e-mail address
+- A person, unless a sanctions act designates the person (`designated_by`), or a public filing
+  names the person as a director, an owner or an officer. A sectoral measure (`restricted_by`) is
+  not enough. Never an address, a telephone number or an e-mail address
   of a person.
 - A fact that the record holds, or that a pending proposal holds. Check first with `search_graph`,
   `read_entity` and `list_proposals`.
