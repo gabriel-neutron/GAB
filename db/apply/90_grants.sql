@@ -109,6 +109,11 @@ REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entities(text,uuid,uuid,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION undo_merge(text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_entity(uuid,uuid,uuid,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION restore_entity(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION value_act(uuid,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
@@ -128,9 +133,12 @@ REVOKE ALL ON FUNCTION set_entity_layout(jsonb)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_append_only_fn()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_of(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION held_name(text)               FROM PUBLIC;
-REVOKE ALL ON FUNCTION new_author(text,text,text,text,text[],text,boolean,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION new_author(text,text,text,text,text[],text,boolean,boolean,text[])
+  FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean) FROM PUBLIC;
-REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean,text[])
+  FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_reference_sites(text,text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_row(text)              FROM PUBLIC;
@@ -138,6 +146,15 @@ REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_name(text)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_waiting()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION imo_duplicate_pairs()       FROM PUBLIC;
+REVOKE ALL ON FUNCTION entity_today(uuid)          FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidates_today()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidates()           FROM PUBLIC;
+REVOKE ALL ON FUNCTION store_name_candidates(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidate_rows(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION confirm_name_candidate(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
@@ -146,6 +163,7 @@ REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
 REVOKE ALL ON FUNCTION rating_context(text)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_author_rating()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION site_of(text)               FROM PUBLIC;
+REVOKE ALL ON FUNCTION on_site_of(text,text[])     FROM PUBLIC;
 REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
@@ -155,6 +173,7 @@ REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM
 REVOKE ALL ON FUNCTION store_act_check(uuid,text,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_support(text)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
@@ -168,11 +187,20 @@ REVOKE ALL ON FUNCTION start_deepening(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejected_after_search(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION rerun_on_budget()           FROM PUBLIC;
 
+REVOKE ALL ON FUNCTION release_entities()       FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_relations()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_merges()         FROM PUBLIC;
+REVOKE ALL ON FUNCTION nato_pair(uuid[])        FROM PUBLIC;
+
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -185,6 +213,8 @@ GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
 -- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
 GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   TO gabriel_agent, gabriel_research;
+-- THE PROVIDER OF A KNOWN OFFICIAL FILE goes with the fetched-document door.
+GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
@@ -215,6 +245,19 @@ GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;
+-- A merge and its undo are judgements of the operator on identity (M12). A machine role holds
+-- neither door.
+GRANT EXECUTE ON FUNCTION merge_entities(text,uuid,uuid,boolean) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION undo_merge(text,uuid) TO gabriel_app;
+-- The pairs of vessels to merge are a list of the review page, which only the operator opens.
+GRANT EXECUTE ON FUNCTION imo_duplicate_pairs()    TO gabriel_app;
+-- THE MERGE CANDIDATES ACROSS TWO SCRIPTS ARE A JUDGEMENT OF THE OPERATOR ON IDENTITY. The command
+-- that finds them runs as the operator role, and the review page confirms or refuses each pair. No
+-- machine role reads or writes a pair. The release reads the three counts as the operator role.
+GRANT EXECUTE ON FUNCTION name_candidates(), store_name_candidates(jsonb),
+  confirm_name_candidate(text,uuid,uuid), refuse_name_candidate(text,uuid,uuid),
+  name_candidate_counts()
+  TO gabriel_app;
 
 -- THE LAYOUT DOOR IS HELD BY THE WORKER, AND THE WORKER HOLDS THE NARROWER SECRET. The layout
 -- run reads the graph and writes a drawing of it; it signs nothing and it proposes nothing. The
@@ -280,8 +323,9 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean)
   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION join_author_name(text,text) TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean)
+GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean,text[])
   TO gabriel_app;
+GRANT EXECUTE ON FUNCTION store_reference_sites(text,text[]) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 -- THE OPERATOR APPROVES THE REFERENCE SET, AND THE WORKER CANNOT. The worker reads the context of
 -- one name (the known authors and the approved set) and gives C to F through the door above. No
@@ -298,6 +342,17 @@ GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
+
+-- THE READ OF A RELEASE IS HELD BY THE THREE ROLES THAT RUN A TOOL. These roles read every row
+-- whole through the views already, so the grant shows them nothing new. The public read role holds
+-- none: a release is a set of files, and no public reader calls the database for it.
+GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
+  release_documents(), release_disclaimer(), release_merges()
+  TO gabriel_app, gabriel_agent, gabriel_research;
+-- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY, as the letter and the digit are. A machine role
+-- that read the pair would read the letters and the digits that the rules decide from, and the
+-- public does not see them.
+GRANT EXECUTE ON FUNCTION nato_pair(uuid[]) TO gabriel_app;
 
 -- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
 -- check call the function of the rules inside the database, so it holds no grant. The operator
@@ -353,17 +408,18 @@ GRANT EXECUTE ON FUNCTION record_research_check(uuid,text,text,text,text,text) T
 GRANT USAGE   ON SCHEMA api TO gabriel_read;
 REVOKE ALL    ON ALL TABLES IN SCHEMA api FROM gabriel_read;
 -- api.dataset holds the disclaimer of the dataset, which the public data carries (PU1).
-GRANT SELECT  ON api.dataset, api.document, api.document_provider, api.entity, api.entity_type,
-  api.full_map, api.layout, api.proposal, api.relation, api.relation_type TO gabriel_read;
+GRANT SELECT  ON api.dataset, api.document, api.document_provider, api.entity, api.entity_alias,
+  api.entity_type, api.full_map, api.layout, api.proposal, api.relation, api.relation_type
+  TO gabriel_read;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int) TO gabriel_read;
 
--- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH SEVEN VIEWS ONLY. A tool asks
--- for an entity, a relation, a proposal, a document, a job or a word of the two vocabularies, and
--- for the neighbourhood of one entity. The list is written by name and never as ALL TABLES. A
--- view added later opens to nobody by default.
+-- THE THREE ROLES THAT RUN A TOOL READ THROUGH api TOO, AND THROUGH EIGHT VIEWS ONLY. A tool asks
+-- for an entity, the survivor of a merged entity, a relation, a proposal, a document, a job or a
+-- word of the two vocabularies, and for the neighbourhood of one entity. The list is written by
+-- name and never as ALL TABLES. A view added later opens to nobody by default.
 GRANT USAGE  ON SCHEMA api TO gabriel_app, gabriel_agent, gabriel_research;
-GRANT SELECT ON api.entity, api.relation, api.proposal, api.document, api.job, api.entity_type,
-  api.relation_type TO gabriel_app, gabriel_agent, gabriel_research;
+GRANT SELECT ON api.entity, api.entity_alias, api.relation, api.proposal, api.document, api.job,
+  api.entity_type, api.relation_type TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
   TO gabriel_app, gabriel_agent, gabriel_research;
 

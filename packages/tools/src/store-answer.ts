@@ -16,13 +16,16 @@ const EXTRACTOR = 'text-1';
 
 const UNIQUE_VIOLATION = '23505';
 
-const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS retrieved_at
+const KNOWN = `SELECT d.id::text AS id, d.title, d.mime, d.retrieved_at::text AS retrieved_at,
+                      d.provider_id
                  FROM public.documents d WHERE d.sha256 = $1`;
+
+const FILL_PROVIDER = 'SELECT public.fill_document_provider($1, $2) AS outcome';
 
 // One statement is one transaction, and it holds inside the transaction of a caller too. The row
 // is written first and its text second, so a document never exists with no text.
 const STORE = `WITH stored AS (
-    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date)::text AS id)
+    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
 
 const knownRow = z.object({
@@ -30,7 +33,10 @@ const knownRow = z.object({
   title: z.string(),
   mime: z.string().nullable(),
   retrieved_at: z.string().nullable(),
+  provider_id: z.string().nullable(),
 });
+
+const filledRow = z.object({ outcome: z.string() });
 
 const storedRow = z.object({ id: z.string(), pages: z.number().int() });
 
@@ -45,7 +51,18 @@ export interface Answer {
   readonly title: string;
   readonly pages: readonly string[];
   readonly day: string;
+  /** The publisher of an official file. Its licence gives the tier of the document. A tool names
+   * it only for a file that it reads at the address of that publisher. */
+  readonly provider?: 'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list';
 }
+
+const answerOf = <S extends 'known' | 'stored'>(known: z.infer<typeof knownRow>, status: S) => ({
+  id: known.id,
+  title: known.title,
+  mime: known.mime,
+  retrieved_at: known.retrieved_at,
+  status,
+});
 
 const isUniqueViolation = (fault: unknown): boolean =>
   typeof fault === 'object' && fault !== null && 'code' in fault && fault.code === UNIQUE_VIOLATION;
@@ -61,7 +78,7 @@ const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes)
  * nothing. */
 export const knownAnswer = async (session: Session, bytes: Uint8Array) => {
   const known = await knownOf(session, hashOf(bytes));
-  return known === undefined ? undefined : { ...known, status: 'known' as const };
+  return known === undefined ? undefined : answerOf(known, 'known');
 };
 
 /** Stores the answer once. Bytes that are already stored are known by their hash, and nothing is
@@ -88,6 +105,7 @@ export const storeAnswer = async (
         JSON.stringify(answer.pages),
         EXTRACTOR,
         answer.kind,
+        answer.provider ?? null,
       ]);
       status = 'stored';
     } catch (fault) {
@@ -97,5 +115,9 @@ export const storeAnswer = async (
     known = await knownOf(session, sha256);
     if (known === undefined) throw new Error('the door stored a document and no row holds it');
   }
-  return { ...known, status };
+  // A file that a tool stored before the tools named its provider has none, and stays internal
+  // until a read of the same bytes gives it.
+  if (answer.provider !== undefined && known.provider_id === null)
+    await rowsOf(session, filledRow, FILL_PROVIDER, [known.id, answer.provider]);
+  return answerOf(known, status);
 };

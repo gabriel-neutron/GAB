@@ -125,7 +125,8 @@ export const parseUpload = (raw: string): ParsedUpload => {
       fileName: body.fileName.trim(),
       title: body.title.trim(),
       retrievedAt,
-      uri: body.uri.trim(),
+      // The record keeps the address as a browser reads it, so the record reads the same host.
+      uri: new URL(body.uri.trim()).href,
       providerId: body.providerId?.trim() ?? null,
       costEur: body.costEur === undefined ? null : body.costEur.toFixed(2),
     },

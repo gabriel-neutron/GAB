@@ -35,6 +35,7 @@ export const FAULT_KINDS = [
   'end_relation_waits',
   'end_rejected',
   'end_missing',
+  'relation_closed',
   'self',
   'no_source',
   'end_waits_in_group',
@@ -109,7 +110,15 @@ export type UnitAct =
       readonly src: UnitEnd;
       readonly dst: UnitEnd;
     })
-  | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null });
+  | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null })
+  | (ActBase & {
+      readonly kind: 'close';
+      /** The relation that the act ends. */
+      readonly target: UnitEnd;
+      readonly validTo: string;
+      /** The first day of the relation today, or null when it has none. */
+      readonly validFrom: string | null;
+    });
 
 /** The words of a page that an act cites, with up to two lines before and after them.
  * `supports` names the element of the act. `ownLine` says that the words are the whole line of the
@@ -221,6 +230,8 @@ const act = z.object({
   op: z.string(),
   payload,
   targetId: z.string().nullable(),
+  // The first day of the relation that an act ends, as the record holds it today.
+  targetFrom: z.string().nullish(),
   dissent: z.boolean(),
   endRejected: z.boolean(),
   check: z
@@ -389,6 +400,18 @@ const actOf = (read: ReadAct): UnitAct => {
       type: read.payload.type ?? '',
       src: endOf(read.payload.src_id ?? '', read.src),
       dst: endOf(read.payload.dst_id ?? '', read.dst),
+    };
+  if (
+    read.op === 'update_relation' &&
+    read.targetId !== null &&
+    typeof read.payload.valid_to === 'string'
+  )
+    return {
+      ...base,
+      kind: 'close',
+      target: endOf(read.targetId, read.target),
+      validTo: read.payload.valid_to,
+      validFrom: read.targetFrom ?? null,
     };
   return {
     ...base,

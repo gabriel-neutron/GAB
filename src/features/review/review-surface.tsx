@@ -2,10 +2,11 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
-/** The pages of the review: the queue of the units, the groups of the queue, the history, and
- * the names that joined an author A or B. The history is reached from here and from no other
- * page. */
-export type ReviewView = 'queue' | 'groups' | 'decided' | 'names';
+/** The pages of the review: the queue of the units, the groups of the queue, the history, the
+ * names that joined an author A or B, the pairs of vessels with one IMO number, and the merge
+ * candidates across a Latin and a Cyrillic spelling. The history is reached from here and from no
+ * other page. */
+export type ReviewView = 'queue' | 'groups' | 'decided' | 'names' | 'imo' | 'scripts';
 
 export interface ReviewSurfaceProps {
   readonly view: ReviewView;
@@ -15,13 +16,15 @@ export interface ReviewSurfaceProps {
   readonly page: ReactNode;
 }
 
-const VIEWS: readonly ReviewView[] = ['queue', 'groups', 'decided', 'names'];
+const VIEWS: readonly ReviewView[] = ['queue', 'groups', 'decided', 'names', 'imo', 'scripts'];
 
 const VIEW_WORDS: Readonly<Record<ReviewView, string>> = {
   queue: 'Waiting',
   groups: 'Groups',
   decided: 'Decided',
   names: 'Names',
+  imo: 'Same IMO',
+  scripts: 'Two scripts',
 };
 
 const TAB = cn(

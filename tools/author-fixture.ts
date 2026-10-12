@@ -34,10 +34,13 @@ export interface Options {
   readonly references?: readonly string[];
   readonly controller?: string | null;
   readonly party?: boolean;
+  /** The hosts where a reference author publishes its own records. */
+  readonly sites?: readonly string[];
 }
 
 const STORE = `SELECT public.store_author_letter($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
-const REFERENCE = `SELECT public.store_reference_author($1, $2, $3, $4, $5::text[], $6, $7) AS id`;
+const REFERENCE = `SELECT public.store_reference_author($1, $2, $3, $4, $5::text[], $6, $7,
+  $8::text[]) AS id`;
 
 /** An approved reference author, written straight: a name that has an author already is left as
  * it is. The door of the worker accepts an approved reference author only. */
@@ -51,6 +54,11 @@ const SEED_REFERENCE = `
     INSERT INTO public.author_name (name_key, author_id) SELECT name_key, id FROM made
   )
   INSERT INTO public.reference_approval (author_id) SELECT id FROM made`;
+
+/** The site of a reference author A, and an address of a record on it. A source A counts alone
+ * only on a site of its author. */
+export const OWN_SITE = { sites: ['register.example'] } as const;
+export const OWN_RECORD = 'https://records.register.example/entry/1';
 
 /** The worker rates a new author. Each reference author that the worker names is in the
  * approved reference set first. */
@@ -81,6 +89,7 @@ export const storeUnapproved = (ask: Ask, name: string, letter: string, options:
       options.references ?? [],
       options.controller ?? null,
       options.party ?? false,
+      options.sites ?? [],
     ]),
   );
 

@@ -1,7 +1,8 @@
 # Deploy
 
-The public deployment is read-only. The deployment target is open. The writer and the worker jobs
-stay on the operator's machine.
+The public surface is the static site of a release: plain files, with no API and no server
+(ADR 0020). The database, the read API, the writer and the worker jobs stay on the operator's
+machine. To publish, write a release (below), then put its site on any static host.
 
 ## The database and the raw store
 
@@ -11,15 +12,8 @@ stay on the operator's machine.
 3. Any S3 provider can hold the raw store. Set `RAW_STORE_ENDPOINT` to its S3 endpoint and
    `RAW_STORE_REGION` to its region.
 
-The read API serves the `api` schema as `gabriel_read`. It writes nothing.
-
-## Vercel
-
-1. Deploy the repository root.
-2. Set `VITE_API_URL` to the URL of the read API.
-
-`vercel.json` sends every path to the application, except `/assets/` and `/write`. A request to
-`/write` gets a 404.
+The read API serves the `api` schema as `gabriel_read` to the application of the operator. It
+writes nothing, and it is not public.
 
 ## The writer and the worker
 
@@ -28,10 +22,13 @@ The worker is one command with sub-commands: `pnpm worker run` takes the queued 
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
 reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
-names that joined an author A or B, `pnpm worker requeue-ratings` tries the failed ratings again,
-and `pnpm worker reread-html` reads the stored HTML pages again (see below). They run as they do
-against the local stack. Only the values change. Run one `pnpm worker run` at a time: at its
-start, it puts back each job that is still running. `pnpm worker ingest` stores a file only with
+names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
+by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
+`pnpm worker release` writes a release, `pnpm worker nato-coverage` reports the share of
+claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the merge candidates
+across a Latin and a Cyrillic spelling. They run as they do against the local stack.
+Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
+that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
 For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
 so that the file stays not public.
@@ -99,15 +96,22 @@ the value. A rating waits in the queue until the operator approves the reference
      operator approved it.
    - `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
      letter and a reason, and stores them.
-2. `pnpm worker reference-set show` prints the set. Read each letter and each reason.
+2. `pnpm worker reference-set show` prints the set. Read each letter, each reason and the sites
+   of each author. A source A counts alone only on a site of its author.
+
+   A set that the record stored before the sites has no site, so its authors A count alone on no
+   page. Run `pnpm worker reference-set sites packages/worker/src/rater/reference-set.json` once.
+   It gives the sites of the file to each author of the set that has none, and never changes the
+   sites that an author holds. It prints `filled`, `same`, `other` or `not_in_set` for each
+   author of the file. Then the rules run again on the units of each author that got sites.
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 
-A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each failed rating job
-back in the queue with no attempt, and prints each name with the reason and the refusal of the
-earlier attempt: the job keeps no record of them. The next `pnpm worker run` rates them, and each
-job costs one call to the model. The command also puts back a rating that the model refused. A
-refusal is asked again only here and after you refuse a joined name.
+A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that
+failed by a fault back in the queue with no attempt, and prints each name with the reason of the
+earlier attempt: the job keeps no record of it. The next `pnpm worker run` rates them, and each
+job costs one call to the model. A rating that the model refused stays failed: the command does
+not put it back. A refusal is asked again only after you refuse a joined name.
 
 ### Decide the names that joined an author A or B
 
@@ -150,6 +154,126 @@ document still holds the title that the old reading gave. The command does not c
 id, the address or the date of a document. A second run changes nothing. It gives exit code 1 when a
 document could not be read, with the reason. A page whose charset was only in the header of the
 answer, and not in the page, stays as it is, because the record keeps the type without its charset.
+
+### Write a release
+
+A release is one folder of files that you can publish. Write the release manifest first, outside
+the GAB checkout, because it holds your contact addresses. It is a JSON file:
+
+```json
+{
+  "version": "1.0",
+  "date": "2026-11-08",
+  "contacts": {
+    "reportError": "https://example.org/report-an-error",
+    "rightOfReply": "mailto:reply@example.org"
+  }
+}
+```
+
+Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
+the release takes the date of the day (UTC). With no `version`, the version is the date.
+`showNatoPair` is `false` by default, and the public does not see the pair (`decisions.md` S1).
+Set it to `true` only after a change of S1: then each claim row of `claims.csv` and
+`dataset.jsonld` gives its NATO letter and digit, and `manifest.json` says that the pair is shown.
+`iriBase` is the base of the identifiers of the JSON-LD file: an `https://` address that ends with
+a slash. Set it once, to the address of the public site, before the first public release, and
+never change it after, because reusers link to these identifiers.
+The command also refuses a key that it does not know, and a quote, a comma or a control
+character in the version or an address.
+
+`criticalNodes` is the path of your sheet of candidate nodes, relative to the folder of the
+manifest. Keep the sheet outside the GAB checkout too. It is a CSV file with these five columns,
+in any order:
+
+- `node_id`: the entity identifier of the node.
+- `condition`: `b` (documented production or throughput in 2024-2026), `c` (presence in a bypass
+  routing across jurisdictions), or nothing for a row that only names the node and its texts.
+- `claim_ids`: the claim identifiers that support the tick, as `claims.csv` gives them, separated
+  by spaces. Nothing gives a tick that shows "not sourced".
+- `controller`: a short text, who controls the node.
+- `bypass_pattern`: a short text, the bypass pattern.
+
+Give one row for each node and condition. Give the texts of a node on one of its rows, or the same
+texts on each row. The two texts are public: do not name a person that the release does not show.
+Save the sheet as CSV UTF-8, with commas. A line that starts with `#` is a note. You do not tick
+condition (a): the release ticks it from the public designations of the node itself, ended or not. A
+node with two ticks or more is retained. The release refuses the sheet, and writes nothing, when a
+row names a node or a claim that is not public in the release. The message gives the line. With no
+`criticalNodes`, the table has no row.
+
+Then run, on the record:
+
+```powershell
+pnpm worker release --manifest <the manifest file> --out <a folder> --previous <the previous release folder>
+```
+
+Give `--previous` the folder of the last release that you published, as you published it. For
+the first release, do not give it. Add `--v1 <folder>` to copy the build of the version 1 site
+under `v1/` (see "Publish the site" below).
+
+The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
+over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
+the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
+skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
+`dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
+definition of each term. `critical-nodes.csv` is the critical nodes table, with the three conditions,
+the claims of each tick and the retained nodes first. `changelog.csv` is the changelog since the
+previous release: one row for each entity, relation and claim added, changed or removed, with the
+changed columns, and each entity merged into a survivor or unmerged. Without `--previous`, it
+says "First release" and has no row. The command refuses a previous folder whose files do not
+agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
+the size and the SHA-256 checksum of each file, and a summary of the changelog.
+
+The command also writes the static site of the release in the folder `gab-site-<date>`, beside
+the release folder. It writes the site before the release folder takes its name, so when the site
+fails, no release folder is left and you can run the command again. It needs the development dependencies of the GAB checkout (`pnpm install`).
+
+### Publish the site
+
+1. Put the content of `gab-site-<date>` at the root of a static host. Any host that serves files
+   works, also from a sub-path. The host must send the address of a folder with no final slash
+   (`/map`) to the same address with the slash (`/map/`), because each page is a folder and its
+   links are relative. Most static hosts do this by default. Set `iriBase` of the manifest to that address before the first
+   public release, so each identifier of `dataset.jsonld` opens its page.
+2. The pages also open from the disk, except the map: MapLibre needs an `http` or `https` address.
+   To look at a site on your machine, run `python -m http.server 8000` in the site folder and open
+   `http://localhost:8000/`.
+3. To keep the old ORBAT site under `/v1`, build it once from the GABRIEL repository with its
+   base path, and give the folder to `--v1`:
+
+   ```powershell
+   npm ci
+   npx vite build --base=/v1/
+   ```
+
+   Give the `dist` folder. The version 1 site reads its demonstration project at `/project.gpkg`,
+   at the root of the host, so the release also copies that file to the root of the site. Put the
+   site at the root of the host, or make the host send `/project.gpkg` to `/v1/project.gpkg`.
+
+The site holds a copy of each file of the release, the critical nodes table as its home page, a
+page for each entity and each claim, a map, a downloads page and a method page. Each page gives
+"Report an error" and "Right of reply" with the addresses of the manifest.
+
+To see the share of the public claims that have a full NATO pair (a letter and a digit) before
+you decide S1, run on the record:
+
+```powershell
+pnpm worker nato-coverage
+```
+
+It prints one line for all the claims of a release, then one line for each entity type and each
+relation type: the claims with a full pair, all the claims, and the share. It writes nothing.
+
+Before a release, find the merge candidates across a Latin and a Cyrillic spelling, then confirm
+or refuse each one in the "Two scripts" tab of the review page:
+
+```powershell
+pnpm worker name-candidates
+```
+
+It prints the number of names that it read and of pairs that it found, new and known. A pair that
+you refused or confirmed stays decided. The release gives the three counts in its manifest.
 
 ## Public writes
 

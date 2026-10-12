@@ -100,6 +100,7 @@ export const row = {
         'update_relation',
         'delete_relation',
         'merge_entities',
+        'undo_merge',
         'map_document',
       ],
       stated('proposal.op'),

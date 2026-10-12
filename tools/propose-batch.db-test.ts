@@ -172,7 +172,7 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
         `the operation ${op}`,
         (call: string) =>
           itemOf(call, { op, target_kind: op === 'delete_relation' ? 'relation' : 'entity' }),
-        /^item 1: a machine proposes a new entity, a new relation or new attributes/u,
+        /^item 1: a machine proposes a new entity, a new relation, new attributes or the end date/u,
       ] as const,
   ),
 ];
@@ -414,10 +414,12 @@ test('a transcription is quoted as it is, marked as read from the image, and giv
   expect(found.words).toStrictEqual([{ words: ['nayara', 'sikka'] }]);
 });
 
-// A rated author whose one passed check makes a fact strong under the letter C.
+// A rated author whose one passed check makes a fact strong under the letter C, because the
+// documents come from its site.
 const RATED = `WITH a AS (
-    INSERT INTO public.author (name_key, letter, model, reason, reference_authors)
-    VALUES (public.name_key('The port authority'), 'C', 'a-model', 'a test', ARRAY['x'])
+    INSERT INTO public.author (name_key, letter, model, reason, reference_authors, sites)
+    VALUES (public.name_key('The port authority'), 'C', 'a-model', 'a test', ARRAY['x'],
+            ARRAY['port.example'])
     RETURNING id)
   INSERT INTO public.author_name (name_key, author_id)
   SELECT public.name_key('The port authority'), id FROM a`;
@@ -430,6 +432,8 @@ test('a passed check of words read from an image makes no fact strong while the 
   const strongOf = (change: Item) =>
     rolledBack('superuser', async (ask) => {
       await seed(ask);
+      for (const doc of [DOC, IMAGE])
+        await ask('SELECT public.fill_document_uri($1, $2)', [doc, `https://port.example/${doc}`]);
       await ask(RATED);
       const act = itemOf(null, change);
       await batchAs(ask, 'gabriel_research', [act]);
@@ -445,4 +449,41 @@ test('a passed check of words read from an image makes no fact strong while the 
       citations: [{ document: IMAGE, text_extractor: EXTRACTOR, page: 1, transcription: 'Nayara' }],
     }),
   ).toStrictEqual([{ strong: false }]);
+});
+
+test('a machine act that names an entity that a merge absorbed is refused, and names the survivor', async () => {
+  const refusal = await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const made = z.array(z.object({ target_id: z.uuid() }));
+    const ids = await as(ask, 'gabriel_app', async () => {
+      const created = [];
+      for (const label of ['Nayara survivor', 'Nayara absorbed'])
+        created.push(
+          made.parse(
+            await ask(
+              `SELECT target_id FROM public.sign_change('a test', 'create_entity', $1::jsonb,
+                 ARRAY['manual'], NULL, NULL, '{}')`,
+              [JSON.stringify({ type: 'vessel', label, sources: ['manual'] })],
+            ),
+          )[0]?.target_id ?? '',
+        );
+      await ask(`SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`, created);
+      return created;
+    });
+    const [survivor, absorbed] = ids;
+    return batchAs(ask, 'gabriel_agent', [
+      itemOf(call, {
+        op: 'update_attrs',
+        target_kind: 'entity',
+        target_id: absorbed,
+        payload: { attrs: { call_sign: { v: 'Nayara', src: [DOC] } } },
+      }),
+    ]).then(
+      () => null,
+      (cause: unknown) => ({ cause, survivor }),
+    );
+  });
+  const said = z.object({ constraint: z.string(), message: z.string() }).parse(refusal?.cause);
+  expect(said.constraint).toBe('entity_merged');
+  expect(said.message).toContain(`into the entity ${refusal?.survivor ?? ''}`);
 });

@@ -315,6 +315,68 @@ test('the public read shows no letter and no digit', async () => {
   for (const one of read.denied) expect(one).toMatch(/permission denied/u);
 });
 
+test('the sites of an author are host names, given once, and never changed', async () => {
+  const said = await rolledBack('superuser', async (ask) => {
+    const bad = [];
+    for (const sites of [
+      ['https://register.example'],
+      ['register.example/path'],
+      ['register.example:443'],
+      ['Register.Example'],
+      ['register'],
+      [''],
+      ['www.register.example'],
+      ['gov.uk'],
+      ['europa.eu'],
+      ['co.uk'],
+    ])
+      bad.push(
+        await refusal(ask, () =>
+          storeUnapproved(ask, `Bad Sites ${String(bad.length)}`, 'A', { sites }),
+        ),
+      );
+    await reference(ask, 'Late Sites', 'A');
+    const withLetter = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{register.example}', letter = 'B'
+            WHERE name_key = 'late sites'`),
+    );
+    const given = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{register.example}' WHERE name_key = 'late sites'`),
+    );
+    const changed = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{other.example}' WHERE name_key = 'late sites'`),
+    );
+    await ask('SET LOCAL ROLE gabriel_owner');
+    const byOwner = await refusal(ask, () =>
+      ask(`UPDATE public.author SET sites = '{third.example}' WHERE name_key = 'late sites'`),
+    );
+    await ask('RESET ROLE');
+    const byOperator = await refusal(ask, () =>
+      as(ask, 'gabriel_app', () =>
+        ask(`UPDATE public.author SET sites = '{third.example}' WHERE name_key = 'late sites'`),
+      ),
+    );
+    const good = await refusal(ask, () =>
+      storeUnapproved(ask, 'Good Sites', 'A', {
+        sites: [
+          'eur-lex.europa.eu',
+          'ofac.treasury.gov',
+          'company-information.service.gov.uk',
+          'echr.coe.int',
+        ],
+      }),
+    );
+    return { bad, withLetter, given, changed, byOwner, byOperator, good };
+  });
+  for (const one of said.bad) expect(one).toContain('author_site_form');
+  expect(said.withLetter).toMatch(/never/u);
+  expect(said.given).toBeNull();
+  expect(said.changed).toMatch(/never/u);
+  expect(said.byOwner).toMatch(/never/u);
+  expect(said.byOperator).toContain('permission denied');
+  expect(said.good).toBeNull();
+});
+
 test('a letter is written once, and never changed or deleted', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     await rate(ask, 'Once Only', 'D');

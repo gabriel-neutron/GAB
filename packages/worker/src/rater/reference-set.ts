@@ -12,12 +12,29 @@ const AGENT = { name: 'reference-set', version: 'v1' };
 const LEAST = 20;
 const MOST = 40;
 
+// The record refuses any other form of a site: a host name in lower case, with no scheme, path or
+// port. The host of an address loses "www." before the match, so a site with it never matches. A
+// site of two labels that starts with a common second level of a public suffix ("gov.uk") holds
+// the sites of many authors.
+const BROAD =
+  /^(?:gov|gouv|gc|go|govt|gob|gv|europa|coe|int|service|co|com|org|net|ac|edu|mil)\.[a-z0-9-]+$/u;
+
+const site = z
+  .string()
+  .regex(
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/u,
+    'a site is a host name in lower case, with no scheme, path or port',
+  )
+  .refine((value) => !value.startsWith('www.'), 'a site does not start with www.')
+  .refine((value) => !BROAD.test(value), 'a site is too broad: it holds the sites of many authors');
+
 const author = z.strictObject({
   name: z.string().trim().min(1),
   letter: z.enum(['A', 'B', 'C', 'D', 'E', 'F']),
   reason: z.string().trim().min(1),
   controller: z.string().trim().min(1).nullable(),
   party: z.boolean(),
+  sites: z.array(site),
 });
 
 /** The answer of the model: the reference set, each author with a letter and a reason. */
@@ -42,6 +59,15 @@ export const referenceAnswer = z
           input: one,
           path: ['authors', index],
         });
+      // A source A counts alone only on a site of its author, so an author A with no site
+      // could never count alone.
+      if (one.letter === 'A' && one.sites.length === 0)
+        context.issues.push({
+          code: 'custom',
+          message: `${one.name}: an author A has at least one site`,
+          input: one,
+          path: ['authors', index],
+        });
     });
   });
 
@@ -51,15 +77,17 @@ const row = z.object({
   reason: z.string(),
   controller: z.string().nullable(),
   party: z.boolean(),
+  sites: z.array(z.string()),
   approved: z.boolean(),
 });
 
 export type ReferenceRow = z.infer<typeof row>;
 
-const READ =
-  'SELECT name_key, letter::text, reason, controller, party, approved FROM public.reference_set()';
+const READ = `SELECT name_key, letter::text, reason, controller, party, sites, approved
+  FROM public.reference_set()`;
 const STORE = `SELECT public.store_reference_author($1::text, $2::text, $3::text, $4::text,
-  '{}'::text[], $5::text, $6::boolean)`;
+  '{}'::text[], $5::text, $6::boolean, $7::text[])`;
+const SITES = 'SELECT public.store_reference_sites($1::text, $2::text[]) AS said';
 const APPROVE = 'SELECT public.approve_reference_set() AS n';
 
 /** The reference set as the record holds it, for the operator to read. */
@@ -83,7 +111,15 @@ const storeAuthors = async (
   model: string,
 ): Promise<readonly ReferenceRow[]> => {
   for (const one of authors)
-    await app.query(STORE, [one.name, one.letter, model, one.reason, one.controller, one.party]);
+    await app.query(STORE, [
+      one.name,
+      one.letter,
+      model,
+      one.reason,
+      one.controller,
+      one.party,
+      one.sites,
+    ]);
   return readReferenceSet(app);
 };
 
@@ -101,6 +137,33 @@ export const loadReferenceSet = async (
   const set = referenceAnswer.parse(JSON.parse(text));
   await refuseSecondSet(app, 'It is loaded once.');
   return storeAuthors(app, set.authors, WRITTEN_SET_MODEL);
+};
+
+const filled = z.object({ said: z.enum(['filled', 'same', 'other', 'not_in_set']) });
+
+/** What the record did with the sites of one author of the file. */
+export interface SitesOfAuthor {
+  readonly name: string;
+  readonly said: z.infer<typeof filled>['said'];
+}
+
+/** Gives its sites to each author of the reference set that has none, from the text of a JSON file
+ * in the shape of the reference answer. A set stored before the sites existed has no site, and
+ * its authors A count alone only when they have one. The record never changes sites that an
+ * author holds, and it reports an author of the file that the set does not hold. The caller wraps
+ * the call in one transaction. */
+export const fillReferenceSites = async (
+  app: Queryable,
+  text: string,
+): Promise<{ readonly sites: readonly SitesOfAuthor[]; readonly set: readonly ReferenceRow[] }> => {
+  const set = referenceAnswer.parse(JSON.parse(text));
+  const sites: SitesOfAuthor[] = [];
+  for (const one of set.authors)
+    if (one.sites.length > 0) {
+      const row = filled.parse((await app.query(SITES, [one.name, one.sites])).rows[0]);
+      sites.push({ name: one.name, said: row.said });
+    }
+  return { sites, set: await readReferenceSet(app) };
 };
 
 export interface BuildDeps {

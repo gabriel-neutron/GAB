@@ -20,7 +20,7 @@ const config: StorybookConfig = {
   // each get one element and their own loop, and React state stays out of both. One story makes one live WebGL context, and a browser removes the oldest context
   // after approximately sixteen. Write a story for each panel beside the canvas, and none for
   // the canvas.
-  stories: ['../src/**/*.stories.tsx'],
+  stories: ['../src/**/*.stories.tsx', '../packages/site/src/**/*.stories.tsx'],
 
   addons: ['@storybook/addon-vitest'],
 

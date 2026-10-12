@@ -77,6 +77,11 @@ test('an address that is not http or https is refused', () => {
   expect(parsed({ ...WHOLE, uri: 'http://example.org/a' }).ok).toBe(true);
 });
 
+test('the address is kept as a browser reads it, so its host is the host that a browser opens', () => {
+  const held = parsed({ ...WHOLE, uri: ' https://Evil.Example\\@register.example/x ' });
+  expect(held.ok && held.upload.uri).toBe('https://evil.example/@register.example/x');
+});
+
 test('a negative cost, or a cost finer than a cent, is refused', () => {
   expect(refusalOf({ ...WHOLE, costEur: -1 }).status).toBe(422);
   expect(refusalOf({ ...WHOLE, costEur: 1.005 }).status).toBe(422);

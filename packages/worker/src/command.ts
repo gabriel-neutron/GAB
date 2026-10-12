@@ -6,8 +6,13 @@ const COMMANDS = {
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
+  'name-candidates': async () =>
+    (await import('./name-candidates-command.ts')).nameCandidatesCommand,
+  'nato-coverage': async () =>
+    (await import('./release/nato-coverage-command.ts')).natoCoverageCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,

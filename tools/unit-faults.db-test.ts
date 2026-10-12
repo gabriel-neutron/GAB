@@ -875,3 +875,121 @@ test('a child whose link to a rejected parent was rejected is not clean, and nam
     ['not_clean', 'parent_rejected', `Its parent Gone parent was rejected on ${TODAY}`],
   ]);
 });
+
+// A number that no vessel of the fixture holds: each IMO number there starts with a 9.
+const freshImo = (): string => `1${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
+
+const vessel = (id: string, label: string, imo: unknown): Item =>
+  cited({
+    id,
+    op: 'create_entity',
+    payload: { type: 'vessel', label, attrs: { imo: { v: imo, src: [DOC] } }, sources: [DOC] },
+  });
+
+test('a new vessel with the IMO number of a vessel of the record is a duplicate that names it', async () => {
+  const imo = freshImo();
+  const fresh = randomUUID();
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [held] = z.array(z.object({ target_id: z.uuid() })).parse(
+      await as(ask, 'gabriel_app', () =>
+        ask(
+          `SELECT target_id FROM public.sign_change('a test', 'create_entity', $1::jsonb,
+             ARRAY['manual'], NULL, NULL, '{}'::uuid[])`,
+          [
+            JSON.stringify({
+              type: 'vessel',
+              label: 'MV Held Ledger',
+              attrs: { imo: { v: Number(imo), src: ['manual'] } },
+              sources: ['manual'],
+            }),
+          ],
+        ),
+      ),
+    );
+    await batch(ask, [vessel(fresh, 'MV Renamed Ledger', ` imo ${imo}`)]);
+    return { held: held?.target_id, read: await faultsOf(ask, [fresh]) };
+  });
+  expect(read.read.get(fresh)?.state).toBe('not_clean');
+  expect(said(read.read.get(fresh))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${imo} as another vessel: MV Held Ledger (${String(read.held)}) is in ` +
+        'the record',
+    ],
+  ]);
+});
+
+test('two new vessels with one IMO number in the queue are duplicates of each other', async () => {
+  const imo = freshImo();
+  const [one, two, other] = [randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [vessel(one, 'MV First Name', imo)]);
+    await batch(ask, [vessel(two, 'MV Second Name', `IMO${imo}`)]);
+    await batch(ask, [vessel(other, 'MV Other Ship', freshImo())]);
+    return faultsOf(ask, [one, two, other]);
+  });
+  expect(said(read.get(one))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${imo} as another vessel: MV Second Name (${two}) waits in the queue ` +
+        '(no group)',
+    ],
+  ]);
+  expect(said(read.get(two))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${imo} as another vessel: MV First Name (${one}) waits in the queue ` +
+        '(no group)',
+    ],
+  ]);
+  expect(said(read.get(other))).toStrictEqual([]);
+});
+
+test('a decided vessel, an IMO number with a hyphen and a number of eight digits give no duplicate', async () => {
+  const imo = freshImo();
+  const [rejected, fresh, hyphen, eight] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    await batch(ask, [vessel(rejected, 'MV Rejected Name', imo)]);
+    await ask("SELECT public.reject_unit($1::uuid, 'duplicate', NULL, 'a test')", [rejected]);
+    await batch(ask, [vessel(fresh, 'MV Fresh Name', imo)]);
+    await batch(ask, [vessel(hyphen, 'MV Hyphen Name', `IMO-${imo}`)]);
+    await batch(ask, [vessel(eight, 'MV Eight Digits', `${imo}0`)]);
+    return faultsOf(ask, [fresh, hyphen, eight]);
+  });
+  expect(said(read.get(fresh))).toStrictEqual([]);
+  expect(said(read.get(hyphen))).toStrictEqual([]);
+  expect(said(read.get(eight))).toStrictEqual([]);
+});
+
+test('each vessel of one group names only the vessel with its own IMO number', async () => {
+  const [one, two] = [freshImo(), freshImo()];
+  const [a, b, c, d] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    // One call gives one group: a vessel is a unit of its own, so a group holds two vessels.
+    await batch(ask, [vessel(a, 'MV Group One', one), vessel(b, 'MV Group Two', two)]);
+    await batch(ask, [vessel(c, 'MV Twin One', one)]);
+    await batch(ask, [vessel(d, 'MV Twin Two', two)]);
+    return faultsOf(ask, [a, b]);
+  });
+  expect(said(read.get(a))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${one} as another vessel: MV Twin One (${c}) waits in the queue (no group)`,
+    ],
+  ]);
+  expect(said(read.get(b))).toStrictEqual([
+    [
+      'not_clean',
+      'duplicate',
+      `Same IMO number ${two} as another vessel: MV Twin Two (${d}) waits in the queue (no group)`,
+    ],
+  ]);
+});

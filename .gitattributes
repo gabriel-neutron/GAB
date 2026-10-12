@@ -22,3 +22,7 @@
 
 # A fixture in windows-1251 must keep its bytes as they are.
 packages/text/fixtures/windows-1251.html -text
+
+# The release code writes the fixture of the static site, and a test compares each byte: the CSV
+# files end each line with CR LF.
+packages/site/fixtures/** -text

@@ -80,3 +80,35 @@ export const AI_DECIDED: DecidedAct = {
   rejectNote: null,
   name: 'MV Baltic Star',
 };
+
+/** A merge of the operator, and its undo, the latest first. */
+export const MERGE_DECIDED: readonly DecidedAct[] = [
+  {
+    id: '5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d',
+    op: 'undo_merge',
+    proposer: 'operator',
+    status: 'accepted',
+    decidedAt: '2026-10-10T11:30:00Z',
+    decidedBy: 'the writer door',
+    decidedAs: null,
+    decisionOrigin: 'validated manually by the operator',
+    decisionReason: null,
+    rejectReason: null,
+    rejectNote: null,
+    name: 'OLD STAR',
+  },
+  {
+    id: '6b7c8d9e-0f1a-4b2c-9d3e-4f5a6b7c8d9e',
+    op: 'merge_entities',
+    proposer: 'operator',
+    status: 'accepted',
+    decidedAt: '2026-10-10T11:05:00Z',
+    decidedBy: 'the writer door',
+    decidedAs: null,
+    decisionOrigin: 'validated manually by the operator',
+    decisionReason: null,
+    rejectReason: null,
+    rejectNote: null,
+    name: 'NORTHERN STAR',
+  },
+];

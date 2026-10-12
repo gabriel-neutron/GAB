@@ -4,8 +4,11 @@ import type { z } from 'zod';
 /** One item of the answer of the model, in the shape of the propose tool. */
 export type ScreenItem = z.output<typeof proposeItem>;
 
-/** Why code dropped an item before the write. */
+/** Why code dropped an item, or a part of an item, before the write. */
 export type DropReason =
+  | 'bound_on_undated_type'
+  | 'bound_not_a_day'
+  | 'end_before_start'
   | 'type_outside_vocabulary'
   | 'generic_group'
   | 'generic_concept'
@@ -17,6 +20,8 @@ export type DropReason =
 interface Vocabulary {
   readonly entityTypes: readonly string[];
   readonly relationTypes: readonly string[];
+  /** The relation types that take a start date and an end date. */
+  readonly datedRelationTypes: readonly string[];
 }
 
 /** The items that code keeps, the count of each drop, and the key and the item of each entity
@@ -55,6 +60,11 @@ const wordsOf = (label: string): string[] =>
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/u)
     .filter((word) => word !== '' && word !== 'the');
+
+// A day of the calendar, written as 2026-01-31.
+const isDay = (text: string): boolean =>
+  /^\d{4}-\d{2}-\d{2}$/u.test(text) &&
+  new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) === text;
 
 const keyOf = (type: string, label: string): string => `${type}:${wordsOf(label).join(' ')}`;
 
@@ -177,6 +187,33 @@ export const screenBatch = (
     }
   };
   relationsStay();
+
+  // Only a dated type takes a start and an end, each a day of the calendar, and the end is not
+  // before the start. A bad bound makes the door refuse the whole batch, so code drops the bound
+  // and keeps the relation.
+  items = items.map((item) => {
+    const { act } = item;
+    if (act.op !== 'create_relation') return item;
+    const dated = words.datedRelationTypes.includes(act.type);
+    // A bound stays when its type is dated and it is a day; else code counts why it goes.
+    const stays = (day: string | undefined): boolean => {
+      if (day === undefined) return true;
+      if (!dated) return drop('bound_on_undated_type');
+      return isDay(day) || drop('bound_not_a_day');
+    };
+    const kept = { ...act };
+    if (!stays(kept.validFrom)) delete kept.validFrom;
+    if (!stays(kept.validTo)) delete kept.validTo;
+    if (
+      kept.validFrom !== undefined &&
+      kept.validTo !== undefined &&
+      kept.validTo < kept.validFrom
+    ) {
+      drop('end_before_start');
+      delete kept.validTo;
+    }
+    return { ...item, act: kept };
+  });
 
   const published = new Set(
     items.flatMap(({ act }) =>

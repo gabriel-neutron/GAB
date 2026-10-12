@@ -102,10 +102,15 @@ export const renderPage = async (
       return;
     }
     const answer = got;
+    // The bytes go to the browser as the server sent them, so the browser decodes a compressed
+    // body when the server names its encoding.
+    const headers: Record<string, string> = {};
+    if (answer.contentType !== null) headers['content-type'] = answer.contentType;
+    if (answer.contentEncoding !== null) headers['content-encoding'] = answer.contentEncoding;
     await settled(() =>
       route.fulfill({
         status: 200,
-        headers: answer.contentType === null ? {} : { 'content-type': answer.contentType },
+        headers,
         body: Buffer.from(answer.bytes),
       }),
     );

@@ -194,7 +194,9 @@ and from the conflicts between the values that its sources give. A rule can read
 judged. Each citation shows its pair to the operator, for example "B1".
 
 - **A** is only for the issuer of an official record, on its own record: a register, a gazette, a
-  court, a sanctions act.
+  court, a sanctions act. One source A counts alone only when the cited document is on a site of
+  that author. A faithful copy of the record on another site needs a second independent source,
+  like any other source.
 - **A and B** come only from the reference set, which the operator approves.
 - **A party to the conflict**, of either side, is B at most, and only about its own side. About the
   other side it counts as C at most, so it never passes without an independent source B.
@@ -212,6 +214,10 @@ because a good source can be wrong and a bad source can be right. One operator c
 author by hand, and a model has no track record of an unknown author, so it cannot give A or B.
 **Cost.** A letter is the judgement of a model, and no person checks each one. A wrong reference set
 moves every later letter. Few authors reach B, so few facts pass at the start.
+
+**A failed rating (10 October 2026).** The operator can put each rating that failed by a fault
+back in the queue. A rating that the model refused stays failed, because the same question gets the
+same refusal. Each rating back in the queue costs one model call.
 
 ### S2 — The source is listed at each level
 
@@ -234,8 +240,8 @@ order to each unit, and the first rule that matches decides:
    subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
    (S6). The unit goes to the operator, with the reason.
 3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
-   has either one source A on its own record, or two independent sources: one B or better and one
-   C or better. Two sources are independent only when they have different authors, different
+   has either one source A on a site of its author, or two independent sources: one B or better
+   and one C or better. A copy of a record A on another site is one of the two. Two sources are independent only when they have different authors, different
    controllers (one state, one holding or one channel network counts as one author), different
    sites, and passages that are not copies of each other. When code is not sure, the two sources
    count as one author. A source that only reports what another party says never counts. The rule
@@ -436,3 +442,6 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   not public. An upload stored before this ruling is not public, also with an address, because
   its address can be the page where the file was bought. A public API, such as OpenSanctions, is
   a public source. A bought file stays not public. The private data repository is not a source.
+- **Official files (10 October 2026).** An official file that a tool reads at the address of its
+  publisher, such as an act of the Official Journal of the EU or the OFAC SDN list, is a public
+  document.

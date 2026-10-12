@@ -1,0 +1,6 @@
+node_id,condition,claim_ids,controller,bypass_pattern
+# An example sheet of candidate nodes. All the data is invented. The identifiers are those of the release test.
+00000000-0000-4000-8000-00000000e001,b,00000000-0000-4000-8000-00000000e001/speed_knots,TEST OWNER LTD,"Ship-to-ship transfer off an invented port, then a new flag"
+00000000-0000-4000-8000-00000000e001,c,00000000-0000-4000-8000-00000000e001/flag 00000000-0000-4000-8000-00000000e001/imo,,
+00000000-0000-4000-8000-00000000e002,b,,TEST HOLDING,
+00000000-0000-4000-8000-00000000e007,,,An invented trust,
