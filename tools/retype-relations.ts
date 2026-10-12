@@ -60,9 +60,16 @@ const US_DIRECTIVE = /\bdirective\s+\d+/i;
 /** The act at the far end names an OFAC directive under EO 13662 or EO 14024. */
 const US_DIRECTIVE_ACT = /\bdirective\s+\d+\b.*\b(13662|14024)\b/i;
 
-/** The first passage of a page that names a directive, as the page spells it. */
-export const directivePassage = (pageText: string | null): string | null =>
-  pageText?.match(/\bdirective\s+\d+[^\n.]{0,100}/i)?.[0].trimEnd() ?? null;
+/** The first passage of a page that names the directive of the act, as the page spells it. */
+export const directivePassage = (pageText: string | null, act: string): string | null => {
+  const number = /\bdirective\s+(\d+)/i.exec(act)?.[1];
+  if (number === undefined) return null;
+  const found = new RegExp(
+    `\\bdirective\\s+${number}\\b(?:(?!\\.\\s+[A-Z])[^\\n]){0,100}`,
+    'i',
+  ).exec(pageText ?? '');
+  return found?.[0].trimEnd() ?? null;
+};
 
 /** The decision on one citation. Pure: the excerpt is checked against the stored text given. */
 const classifyCite = (cite: Cite, subjectType: string, destination: string): Decision => {
@@ -81,15 +88,19 @@ const classifyCite = (cite: Cite, subjectType: string, destination: string): Dec
   const bare =
     !US_DIRECTIVE.test(text) && !/\b(annex|articles?)\s+\w*\d|\bannex\s+[ivxlc]+/i.test(text);
   const byAct =
-    bare && US_DIRECTIVE_ACT.test(destination) && directivePassage(cite.pageText) !== null;
+    bare &&
+    subjectType !== 'person' &&
+    US_DIRECTIVE_ACT.test(destination) &&
+    directivePassage(cite.pageText, destination) !== null;
   const us = (US_DIRECTIVE.test(text) && /\b(13662|14024)\b/.test(text)) || byAct;
   const article = /\barticle\s+5af\b/i.test(text);
   const eu = article || annexes.some((a) => RETYPE_ANNEXES.has(a));
 
   // A vessel is on the vessel list of a regime (SDN, Annex XLII, UK specified ship), and that
-  // listing stays designated_by (#505). Only a sectoral provision in the excerpt is a doubt.
+  // listing stays designated_by (#505). A provision in the excerpt other than the vessel list
+  // (Article 3s, Annex XXV) is a doubt.
   if (subjectType === 'vessel')
-    return us || eu
+    return us || eu || US_DIRECTIVE.test(text) || annexes.some((a) => a !== 'XXV')
       ? doubt('a vessel under a sectoral provision')
       : { kind: 'keep', reason: 'a vessel on the vessel list of a regime' };
 
@@ -156,11 +167,11 @@ export interface Report {
 
 // The propose tool needs an excerpt that names the provision. When no excerpt of the relation
 // does, the directive that the page names goes beside the excerpts.
-const evidenceOf = (cites: readonly Cite[]): Item['evidence'] => {
+const evidenceOf = (cites: readonly Cite[], act: string): Item['evidence'] => {
   const evidence = cites.map(({ document, page, excerpt }) => ({ document, page, excerpt }));
   if (namesProvision(evidence.map(({ excerpt }) => excerpt))) return evidence;
   for (const { document, page, pageText } of cites) {
-    const excerpt = directivePassage(pageText);
+    const excerpt = directivePassage(pageText, act);
     if (excerpt !== null) return [...evidence, { document, page, excerpt }];
   }
   return evidence;
@@ -194,7 +205,7 @@ export const requalify = async (
           act: { op: 'update_relation', targetId: relationId, type: 'restricted_by' },
           originator: one.originator,
           modality: 'enacts',
-          evidence: evidenceOf(one.cites),
+          evidence: evidenceOf(one.cites, one.destination),
         });
       }
     }
