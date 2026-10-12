@@ -370,6 +370,35 @@ BEGIN
   END IF;
 END $$;
 
+-- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
+-- LINKS THE SAME TWO ENDS. The batch door reads it so that an act that can never apply does not
+-- wait in the queue, and the promotion reads it again under the row lock, because another act can
+-- change the row in between.
+CREATE OR REPLACE FUNCTION check_relation_retype(p_target uuid)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_rel public.relations%ROWTYPE;
+BEGIN
+  SELECT * INTO v_rel FROM public.relations WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the relation % does not exist, so it gets no new type', p_target
+      USING CONSTRAINT = 'target_exists', HINT = 'targetId';
+  END IF;
+  IF v_rel.type <> 'designated_by' THEN
+    RAISE EXCEPTION 'the relation has the type %, and only designated_by changes to restricted_by',
+      v_rel.type
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'relation_retype_from', HINT = 'type';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.relations r
+              WHERE r.type = 'restricted_by' AND r.valid_to IS NULL
+                AND r.src_kind = v_rel.src_kind AND r.src_id = v_rel.src_id
+                AND r.dst_kind = v_rel.dst_kind AND r.dst_id = v_rel.dst_id) THEN
+    RAISE EXCEPTION 'a restricted_by relation between these ends is open already'
+      USING ERRCODE = 'unique_violation', CONSTRAINT = 'relation_retype_collision',
+            HINT = 'type';
+  END IF;
+END $$;
+
 -- The other side of the same rule: a type stops taking an interval only when no dated relation
 -- of it stands. The update holds the row lock, so a dated insert that waits on FOR SHARE above
 -- commits first and is seen here, or starts after and is refused there.
@@ -482,6 +511,9 @@ BEGIN
      'with 63 characters at most, and each value is a text that is not blank, a number, a yes '
      'or no, or a flat list of them'),
     ('proposals_update_names_attrs', 'attrs', 'an update names at least one attribute'),
+    ('proposals_retype_relation_shape', 'type',
+     'a type change of a relation names the type restricted_by, and the act that gives it holds '
+     'no other value'),
     ('proposals_close_relation_shape', 'validTo',
      'an end date of a relation is a day of the calendar, written as year, month and day: '
      '2026-01-31, and the act that gives it holds no other value'),
@@ -740,16 +772,19 @@ BEGIN
         USING ERRCODE = 'invalid_parameter_value';
     END IF;
     -- A change of a name or a type and a deletion rewrite what the operator already decided. An
-    -- end date on an open relation adds to it, and changes nothing that stands.
+    -- end date on an open relation adds to it, and changes nothing that stands. A type change of
+    -- a designated_by relation to restricted_by is a correction of the type, with the same rule.
     IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs',
                                             'update_relation')
        OR (v_item->>'op' = 'update_relation'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
-                    AND (v_item->'payload') ? 'valid_to'
-                    AND (v_item->'payload') - 'valid_to' = '{}'::jsonb)) THEN
+                    AND (((v_item->'payload') ? 'valid_to'
+                          AND (v_item->'payload') - 'valid_to' = '{}'::jsonb)
+                         OR ((v_item->'payload') ? 'type'
+                             AND (v_item->'payload') - 'type' = '{}'::jsonb)))) THEN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
-                      'or the end date of an open relation, and never a change of a name, a '
-                      'type or a relation, nor a deletion', v_no
+                      'or the end date of an open relation, or the type change of a relation, and '
+                      'never a change of a name, a type or a relation, nor a deletion', v_no
         USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
     IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
@@ -846,7 +881,24 @@ BEGIN
                 HINT = 'validFrom';
       END IF;
     END IF;
-    IF v_item->>'op' = 'update_relation' THEN
+    IF v_item->>'op' = 'update_relation' AND v_payload::jsonb ? 'type' THEN
+      IF v_payload::jsonb IS DISTINCT FROM '{"type": "restricted_by"}'::jsonb THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_retype_relation_shape', '23514',
+                                       'the type change names the type restricted_by');
+      END IF;
+      IF v_item->>'target_kind' IS DISTINCT FROM 'relation' THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_op_target_kind', '23514',
+                                       'the act names a target of the wrong kind');
+      END IF;
+      BEGIN
+        PERFORM public.check_relation_retype(v_target);
+      EXCEPTION WHEN raise_exception OR check_violation OR unique_violation THEN
+        GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
+                                v_hint = PG_EXCEPTION_HINT;
+        RAISE EXCEPTION 'item %: %', v_no, v_said
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = v_rule, HINT = v_hint;
+      END;
+    ELSIF v_item->>'op' = 'update_relation' THEN
       IF NOT coalesce(v_payload::jsonb->>'valid_to' ~ '^\d{4}-\d{2}-\d{2}$'
                       AND pg_input_is_valid(v_payload::jsonb->>'valid_to', 'date'), false) THEN
         PERFORM public.raise_item_rule(v_no, 'proposals_close_relation_shape', '23514',
@@ -1390,7 +1442,8 @@ BEGIN
      SELECT coalesce(array_agg(DISTINCT d.doc), '{}'::text[]) AS cited
        FROM public.proposals a, unnest(a.src::text[]) AS d(doc)
       WHERE a.op = 'update_relation' AND a.status = 'accepted'
-        AND a.target_id = k.key::uuid AND a.payload ? 'valid_to') AS c
+        AND a.target_id = k.key::uuid
+        AND (a.payload ? 'valid_to' OR a.payload ? 'type')) AS c
    WHERE r.id = k.key::uuid
      AND to_jsonb(r.sources) @> (k.value->'after'->'sources')
      AND NOT EXISTS (SELECT 1 FROM unnest(r.sources::text[]) AS y(d)
@@ -1513,6 +1566,20 @@ BEGIN
   -- -------------------------------------------------------------------- end of a relation --
   -- S2: the row-level list backs the dates, so the documents of the act join the documents of
   -- the relation, and no document of the old row is lost.
+  ELSIF p.op = 'update_relation' AND p.payload ? 'type' THEN
+    PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
+    PERFORM public.check_relation_retype(p.target_id);
+    SELECT jsonb_build_object('type', r.type, 'sources', to_jsonb(r.sources)) INTO v_prior
+      FROM public.relations r WHERE r.id = p.target_id;
+    UPDATE public.relations r
+       SET type       = p.payload->>'type',
+           sources    = r.sources || ARRAY(SELECT x.d FROM unnest(p.src) WITH ORDINALITY AS x(d, n)
+                                            WHERE NOT x.d = ANY (r.sources)
+                                            GROUP BY x.d ORDER BY min(x.n)),
+           updated_at = now()
+     WHERE r.id = p.target_id;
+    v_id := p.target_id;
+
   ELSIF p.op = 'update_relation' AND p.payload ? 'valid_to' THEN
     PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
     PERFORM public.check_relation_close(p.target_id, (p.payload->>'valid_to')::date);
