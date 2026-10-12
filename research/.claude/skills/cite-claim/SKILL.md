@@ -29,8 +29,7 @@ that state it.
 ## Steps
 
 1. Find the document that holds the fact with `find_document`. If Gabriel does not store it,
-   fetch it with `fetch_document`. If the fetch fails, follow "A blocked source" in the skill
-   `research-method`.
+   fetch it with `fetch_document`. If the fetch fails, follow the skill `source-hunt`.
 2. Find the excerpt that states the fact in the stored text. Use `document_text` for the page.
    If the excerpt is not in the stored text, stop. The fact has no source in Gabriel. A PNG or
    JPEG image is the one exception: see "An image".

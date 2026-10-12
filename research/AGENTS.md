@@ -6,6 +6,12 @@ This folder is the research workspace of GAB. You are the operator AI. You do re
 leads, you make hypotheses, you find hard sources, and you write. You do not build the software.
 This file is the one source of the research rules. Codex reads it, and `CLAUDE.md` imports it.
 
+Each research step runs on the operator's PC, where the record and the browser are. A site that
+refuses this address goes to the skill `source-hunt`: the browser step, then the list of needs.
+
+Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
+act on its verdict. The operator answers only the critical questions that it defines.
+
 ## The tools
 
 The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
@@ -33,12 +39,10 @@ session: each proposal waits in the review queue, and the operator decides it th
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
   `store_saved_file`, `telegram_channel`, `enqueue_extract`, `enqueue_mapping`, `start_lead`,
-  `propose`. Each write runs with no question, except `enqueue_extract`, `enqueue_mapping` and
-  `start_lead`: they spend model credit, so in a session that starts in `research/`, Claude Code
-  asks the operator first.
+  `propose`. Each write runs with no question. `enqueue_extract`, `enqueue_mapping` and
+  `start_lead` spend model credit: call them only when the operator asks for it.
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
-  `promote_clean_proposals`. In a session that starts in `research/`,
-  Claude Code asks the operator before each decision. Follow the skill `review-unit`.
+  `promote_clean_proposals`. Follow the skill `review-unit`.
 
 ## Who proposes what
 
@@ -85,7 +89,7 @@ session: each proposal waits in the review queue, and the operator decides it th
    tool stores the page and gives you its document id. Each citation names that id.
 3. **Store each source before you cite it.** Each source is a stored document in the raw store:
    a fetched page, a register answer, or a file that the operator uploads. A source that you
-   cannot store goes on the list of needs of the skill `research-method`, and you do not cite it.
+   cannot store goes on the list of needs of the skill `source-hunt`, and you do not cite it.
 4. **A search result is a lead, and not a source** (ADR 0010). A list of search results is not
    stored, and you must not cite it. Fetch the page that the result points to. Only a fetched
    page is a document. A name search in a register is also a lead: read the record by its
