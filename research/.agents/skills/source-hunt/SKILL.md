@@ -57,18 +57,24 @@ The browser runs on the operator's machine, with a home address and real cookies
 let it pass. Only the lead session drives the browser: a subagent of a workflow has no browser,
 and it returns the URL in its result for the lead session.
 
-- Before you save, read the page. If it shows an account of the operator (a name, "signed in", a
-  basket, a private message), do not save it: put the source on the list of needs.
-- The browser downloads into its download folder, and `GAB_INBOX` in `research/.env` names that
-  folder (or the operator sets the download folder of the browser to `research/inbox`). Give each file a name that no other file has: the domain, a short title and the date,
-  for example `gazprom-com-annual-report-2024.pdf`.
-- A PDF: click its link, so that the browser downloads the file.
-- An HTML page: run this in the page with the JavaScript tool of the browser, with your file name:
-  `const b = new Blob(['<!doctype html>\n' + document.documentElement.outerHTML], {type: 'text/html'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'name.html'; a.click();`
-- Never write the file yourself with a file tool, and never change it. The bytes must be what the
-  browser held.
-- Call `store_saved_file` with the file name and the address of the page, and cite the document
-  that it gives. Its title says "saved by the browser".
+- Before you store, read the page. If it shows an account of the operator (a name, "signed in",
+  a basket, a private message), do not store it: put the source on the list of needs.
+- The page gives its bytes to `store_saved_file` directly. No file goes to the download folder,
+  so no save dialog opens. Never click a PDF link to download it, and never start a download.
+- An HTML page: run this in the page with the JavaScript tool of the browser. It gives the count
+  of the characters:
+  `window.gab = btoa(Array.from(new TextEncoder().encode('<!doctype html>\n' + document.documentElement.outerHTML), (b) => String.fromCharCode(b)).join('')); window.gab.length`
+- A PDF: run this in the page of the PDF, or in the page that links it, with the address of the
+  PDF:
+  `fetch('<address of the PDF>').then((r) => r.arrayBuffer()).then((a) => { window.gab = btoa(Array.from(new Uint8Array(a), (b) => String.fromCharCode(b)).join('')); return window.gab.length; })`
+- Then read the text in parts of 100,000 characters: `window.gab.slice(0, 100000)`, then
+  `window.gab.slice(100000, 200000)`, and so on. Call `store_saved_file` with each part, in order:
+  `content` (the part), `type` (`text/html` or `application/pdf`), `part` (1, 2, ...), `parts`
+  (the count of the parts) and `url` (the address of the page, or of the PDF). A text of 100,000
+  characters or less is one call with no `part` and no `parts`. Each part but the last answers
+  `waiting`. The last part gives the document to cite. Its title says "saved by the browser". If
+  a call refuses a part, send the parts again from part 1.
+- Never write the bytes yourself and never change them. They must be what the browser held.
 
 ## The list of needs
 
@@ -78,8 +84,9 @@ Each line of `research/out/needs.md` gives what the operator needs to store the 
 |---|---|---|---|---|---|
 | The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, or the page saved from a browser | The unique name to give the file | The node and the fact that wait for it |
 
-The operator saves the file into the inbox. In the next session, store it with `store_saved_file`
-and find it with `find_document`.
+The operator saves the file by hand into the inbox (`GAB_INBOX` in `research/.env`, or
+`research/inbox`). In the next session, store it with `store_saved_file` and `file` (the file
+name), and find it with `find_document`.
 
 ## Back-end AI
 

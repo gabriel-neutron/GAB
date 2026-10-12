@@ -170,8 +170,8 @@ const reasonOf = (fault: unknown): string =>
 // The step that each refusal of a bot filter names, so the research AI and the operator know what
 // to do next. The tool itself passes no filter: it uses no scraping service and no stealth browser.
 const BROWSER_STEP =
-  "Next step: open the page in a browser on the operator's machine, save it into the inbox, and " +
-  'store it with store_saved_file (skill research-method)';
+  "Next step: open the page in a browser on the operator's machine, and give the bytes " +
+  'that it holds to store_saved_file (skill research-method)';
 const NEEDS_STEP =
   "Next step: open the page in a browser on the operator's machine and store it with " +
   'store_saved_file; if the browser gets no answer either, list the source in ' +

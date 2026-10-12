@@ -61,7 +61,7 @@ const stop = (cause: unknown): never => {
 
 // The read tools need no object store, so a workspace with no store credential still starts, and
 // only the tools that store refuse. The sentence of the store names no secret. The web needs no store.
-// A browser saves a page into the inbox for the research AI. GAB_INBOX can name the download
+// The operator saves a page by hand into the inbox for the research AI. GAB_INBOX can name the download
 // folder of the browser; with no value, the inbox is the folder inbox of the research workspace.
 const GIVEN_INBOX = process.env['GAB_INBOX']?.trim() ?? '';
 const INBOX = resolve(GIVEN_INBOX === '' ? CONFIG_FILES.inbox : GIVEN_INBOX);
