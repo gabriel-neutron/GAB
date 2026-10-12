@@ -52,3 +52,8 @@ costly to change.
   article. A passage that names a provision in other words is not accepted for a machine.
 - The script `retype:relations` reads the record in SQL, because the read API gives no citations
   and no stored text.
+- The script keeps every vessel as `designated_by`, because a vessel is on the vessel list of a
+  regime (#505). It reads the act at the far end of a relation: when the excerpt is only a line
+  of a list and the act is an OFAC directive, the relation is a US retype, and the script cites
+  the directive that the page names beside the excerpt. A listing under an executive order or
+  under Regulation 269/2014 stays a doubtful case, and the operator decides it.
