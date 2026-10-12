@@ -1,5 +1,3 @@
-import { SEEDED_RELATION_TYPES } from '@gab/proposal/relation-types';
-
 import { rowLicence, type RowLicence } from './licence.ts';
 import type {
   ReleaseDocument,
@@ -17,12 +15,7 @@ export interface ReleaseLookup {
   /** The label of an entity. */
   readonly labelOf: (id: string) => string;
   readonly relationOf: (id: string) => ReleaseRelation;
-  /** The label of a relation type, read from the first end. A type that the list does not hold
-   * reads as its key with spaces. */
-  readonly typeLabelOf: (type: string) => string;
 }
-
-const TYPE_LABELS = new Map(SEEDED_RELATION_TYPES.map((one) => [one.key, one.label]));
 
 // A row that names what the release does not hold is a fault of the read, and a file with an
 // empty field in its place would hide it.
@@ -45,6 +38,5 @@ export const releaseLookup = (record: ReleaseRecord): ReleaseLookup => {
     entityOf,
     labelOf: (id) => entityOf(id).label,
     relationOf: (id) => held(relations.get(id), `relation ${id}`),
-    typeLabelOf: (type) => TYPE_LABELS.get(type) ?? type.replaceAll('_', ' '),
   };
 };

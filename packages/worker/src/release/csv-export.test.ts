@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { readCsv } from '@gab/tools/csv';
 
 import { csvExport } from './csv-export.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
@@ -195,11 +196,9 @@ test('a sectoral measure is a relation row of the type restricted_by, with its l
     relations: record.relations.map((one) => ({ ...one, type: 'restricted_by' })),
   };
   const text = csvExport(restricted, '').find((file) => file.path === 'relations.csv')?.text ?? '';
-  const [header, row] = text
-    .slice(1)
-    .split('\r\n')
-    .map((line) => line.split(','));
-  const at = (name: string): string | undefined => row?.[header?.indexOf(name) ?? -1];
-  expect(at('type')).toBe('restricted_by');
-  expect(at('type_label')).toBe('restricted by');
+  const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
+  // The label is the last column, so a reader by position reads the other columns as before.
+  expect(header?.at(-1)).toBe('type_label');
+  expect(row?.[header?.indexOf('type') ?? -1]).toBe('restricted_by');
+  expect(row?.at(-1)).toBe('restricted by');
 });

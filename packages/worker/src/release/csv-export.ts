@@ -1,3 +1,5 @@
+import { relationWords } from '@gab/proposal/relation-types';
+
 import { csvFile } from './csv-file.ts';
 import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
 import { releaseLookup } from './release-lookup.ts';
@@ -12,7 +14,6 @@ export interface ReleaseFile {
 const RELATION_HEADER = [
   'id',
   'type',
-  'type_label',
   'from_id',
   'from_label',
   'to_id',
@@ -22,6 +23,7 @@ const RELATION_HEADER = [
   'origin_label',
   'licence',
   'document_ids',
+  'type_label',
 ];
 
 const CLAIM_HEADER = [
@@ -75,7 +77,7 @@ const valueText = (value: unknown): string =>
  * digit. The log of the merges gives the entity that each absorbed identifier resolves to. */
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
-  const { documentOf, licenceOf, labelOf, relationOf, typeLabelOf } = lookup;
+  const { documentOf, licenceOf, labelOf, relationOf } = lookup;
 
   const entities = record.entities.map((one) => {
     const columns = entityColumns(one, lookup);
@@ -85,7 +87,6 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
   const relationRows = record.relations.map((one) => [
     one.id,
     one.type,
-    typeLabelOf(one.type),
     one.src_id,
     labelOf(one.src_id),
     one.dst_id,
@@ -95,6 +96,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     one.origin_label,
     licenceOf(one.sources),
     one.sources.join(' '),
+    relationWords(one.type, false),
   ]);
 
   // A relation claim reads from its first end to its second end. A value reads as a key and a

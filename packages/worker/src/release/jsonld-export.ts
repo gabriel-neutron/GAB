@@ -1,3 +1,5 @@
+import { relationWords } from '@gab/proposal/relation-types';
+
 import type { ReleaseFile } from './csv-export.ts';
 import type { RowLicence } from './licence.ts';
 import type { ReleaseHeading } from './release-heading.ts';
@@ -201,7 +203,7 @@ export const jsonldExport = (
   heading: ReleaseHeading,
   base: string,
 ): ReleaseFile => {
-  const { documentOf, entityOf, licenceOf, relationOf, typeLabelOf } = releaseLookup(record);
+  const { documentOf, entityOf, licenceOf, relationOf } = releaseLookup(record);
   const { natoPairs } = record;
   const nato = (one: ReleaseClaim) => {
     const pair = natoPairs?.get(one.claim_id);
@@ -240,7 +242,7 @@ export const jsonldExport = (
     '@id': path('relation', one.id),
     '@type': 'Relation',
     relationType: one.type,
-    relationLabel: typeLabelOf(one.type),
+    relationLabel: relationWords(one.type, false),
     from: entityId(one.src_id),
     to: entityId(one.dst_id),
     ...present({ validFrom: one.valid_from, validThrough: one.valid_to }),

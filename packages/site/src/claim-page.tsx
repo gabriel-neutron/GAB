@@ -1,7 +1,7 @@
 import { attributeName } from './attribute-name.ts';
 import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
-import { relationWords } from './relation-words.ts';
+import { relationWords } from '@gab/proposal/relation-types';
 import { SiteFrame } from './site-frame.tsx';
 import { claimPage, entityPage, hrefFrom, permanentAddress, type SitePath } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
