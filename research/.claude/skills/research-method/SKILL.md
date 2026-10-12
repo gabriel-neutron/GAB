@@ -1,6 +1,6 @@
 ---
 name: research-method
-description: The method of a research layer in Gabriel. What a fact is, what to source and how, what never goes into Gabriel, how to build a batch that the app accepts, and what to do when a source is blocked. Read it at the start of each research session, before the first proposal.
+description: The method of a research layer in Gabriel. What a fact is, what to source and how, what never goes into Gabriel, how to build a batch that the app accepts. Read it at the start of each research session, before the first proposal.
 ---
 
 # The method of a research layer
@@ -97,8 +97,8 @@ exists.
    `research/out/`, one line for each node, with the reason that puts it in the layer.
 2. For each node, use the skill `investigate-node`: what the record holds, what is pending, what
    is missing.
-3. Find the best source of each missing fact. Store it (`find_document`, then `fetch_document`,
-   or a register lookup). Read the stored text with `document_text`.
+3. Find the best source of each missing fact. Store it with the skill `source-hunt`, or with a
+   register lookup. Read the stored text with `document_text`.
 4. Propose the facts of the node with the skill `cite-claim`, in the batches below.
 5. At the end of the session, report with the skill `carto-step`, and give the list of needs.
 
@@ -125,54 +125,6 @@ exists.
   smaller batches. For any other reason, tell the operator, and send the same batch again when
   the operator says that the checker is up: a batch sent again writes nothing twice and gets its
   check.
-
-## A blocked source
-
-A source can refuse a robot (a 403, a challenge page, an empty page), be gone (a 404), or not
-answer (a timeout, often a state site that refuses foreign addresses). Try these, in this order,
-and stop at the first that stores the full text:
-
-1. `fetch_document` on the address. The tool renders a page with JavaScript when its text is
-   short. It refuses a challenge page and a page with no text (also an empty 202), and it stores
-   nothing for them. Read the refusal: it names the next step.
-
-   | Refusal | Usual cause | Next step |
-   |---|---|---|
-   | The server answered 403 (or 429, 503): a bot filter | A Cloudflare challenge | Steps 2 and 3, then the browser (step 4) |
-   | A 202 or a 200 with no text, or a challenge page | AWS WAF, or a script that draws a challenge | Steps 2 and 3, then the browser (step 4) |
-   | No whole answer within the time, or no connection | A state site that refuses foreign addresses | The browser (step 4); if it gets no answer either, the list of needs (step 5) |
-   | The server answered 404 or 410, or the page says it is missing | The address is wrong or old | Steps 2 and 3 |
-2. `archive_snapshot` on the address lists the captures of the web archive. It stores nothing.
-   Call `fetch_document` on the address of the newest capture, and cite that document. An address
-   with a query string has no capture.
-3. Another official copy of the same text: the PDF of the publisher, the Publications Office of
-   the EU for an EU act (`publications.europa.eu/resource/celex/<CELEX>`), a repository of the
-   paper (EconStor, RePEc, SSRN), the page of the institution itself. Find it with `web_search`.
-   It must be the same text from the same issuer.
-4. The browser. Open the page in the browser of the session (Claude in Chrome, or the browser of
-   the app). It runs on the operator's machine, with a home address and real cookies, so most
-   filters let it pass. The browser downloads into its download folder, and `GAB_INBOX` in
-   `research/.env` names that folder (or the operator sets the download folder of the browser to
-   `research/inbox`).
-   - Before you save, read the page. If it shows an account of the operator (a name, "signed
-     in", a basket, a private message), do not save it: put the source on the list of needs.
-   - A PDF: click its link, so that the browser downloads the file.
-   - An HTML page: run this in the page with the JavaScript tool of the browser, with a file name
-     of your choice:
-     `const b = new Blob(['<!doctype html>\n' + document.documentElement.outerHTML], {type: 'text/html'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'name.html'; a.click();`
-   - Never write the file yourself with a file tool, and never change it. The bytes must be what
-     the browser held.
-   - Call `store_saved_file` with the file name and the address of the page, and cite the
-     document that it gives. Its title says "saved by the browser".
-5. If nothing works, add the source to `research/out/needs.md`, and continue with the next fact.
-
-Each line of `research/out/needs.md` gives what the operator needs to store it:
-
-| Source | Address | Error | What to get | Where it is used |
-|---|---|---|---|---|
-| The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, or the page saved from a browser | The node and the fact that wait for it |
-
-The operator stores the file in Gabriel. In the next session, find it with `find_document`.
 
 ## Never
 
