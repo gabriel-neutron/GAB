@@ -51,6 +51,45 @@ const closing =
     null,
   )?.units[0] ?? null;
 
+const RETYPING = '7f8091a2-b3c4-4d5e-8f60-7b8c9d0e1f2a';
+
+// The research AI changes the type of a promoted relation. The read gives the type of today.
+const retyping =
+  unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: UNIT_ANSWER.units.slice(0, 1).map((unit) => ({
+        ...unit,
+        unit: RETYPING,
+        kind: 'change',
+        name: 'OFAC directive 4 names Nayara',
+        type: null,
+        proposer: 'research_ai',
+        group: null,
+        faults: [],
+        endRejected: null,
+        acts: [
+          {
+            id: RETYPING,
+            op: 'update_relation',
+            payload: { type: 'restricted_by' },
+            targetId: OWNS,
+            targetType: 'designated_by',
+            dissent: false,
+            endRejected: false,
+            dissentReason: null,
+            check: null,
+            target: { name: 'OFAC directive 4 names Nayara', state: 'record', group: null },
+            src: null,
+            dst: null,
+          },
+        ],
+        passages: [],
+      })),
+    },
+    null,
+  )?.units[0] ?? null;
+
 const WORDS = unitWords(
   [
     {
@@ -175,5 +214,17 @@ export const AnEndDateClosesTheRelation: Story = {
     );
     await expect(change).toHaveTextContent('The relation starts on 2019-05-02 in the record.');
     await expect(canvas.queryByText('valid to:')).toBeNull();
+  },
+};
+
+/** An act that changes the type of a relation names the old type and the new type. */
+export const ATypeChangeNamesBothTypes: Story = {
+  args: { unit: retyping },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'Type of a relation' })).toBeVisible();
+    const change = canvasElement.querySelector(`[data-change="${RETYPING}"]`);
+    await expect(change).toHaveTextContent(
+      'Changes the type from designated_by to restricted_by: OFAC directive 4 names Nayara.',
+    );
   },
 };

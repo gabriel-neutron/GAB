@@ -78,6 +78,32 @@ const CLOSING: readonly PendingLine[] =
         [],
       )?.pending ?? []);
 
+const RETYPE_ACT_ID = '7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d';
+
+// The research AI changes the type of a relation of the facility. The fixture holds no such act.
+const RETYPING: readonly PendingLine[] =
+  AGENT_ACT === undefined || TOUCHING === undefined
+    ? []
+    : (readDossier(
+        {
+          ...corpus,
+          proposals: [
+            {
+              ...AGENT_ACT,
+              id: RETYPE_ACT_ID,
+              op: 'update_relation',
+              targetKind: 'relation',
+              targetId: TOUCHING.id,
+              payload: { kind: 'retype', type: 'restricted_by' },
+              proposer: 'research_ai',
+            },
+          ],
+        },
+        FACILITY,
+        entityTypes,
+        [],
+      )?.pending ?? []);
+
 const rows = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-proposal]'));
 
@@ -191,5 +217,16 @@ export const AnEndDateSaysTheDayItClosesTheRelation: Story = {
     await expect(rows(canvasElement)).toHaveLength(1);
     await expect(canvas.getByText(/Closes the relation on 2023-11-30/u)).toBeInTheDocument();
     await expect(canvas.getByText('candidate')).toBeInTheDocument();
+  },
+};
+
+/** An act that changes the type of a relation says the old type and the new type. */
+export const ATypeChangeSaysBothTypes: Story = {
+  args: { proposals: RETYPING },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(rows(canvasElement)).toHaveLength(1);
+    await expect(
+      canvas.getByText(/Changes the type of the relation from \S+ to restricted_by/u),
+    ).toBeInTheDocument();
   },
 };

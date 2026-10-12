@@ -2525,6 +2525,10 @@ BEGIN
                 'decidedAs', p.decided_as, 'rejectReason', p.reject_reason,
                 'rejectNote', p.reject_note, 'decisionOrigin', p.decision_origin,
                 'decisionReason', p.decision_reason,
+                'priorType', CASE WHEN p.op = 'update_relation' AND p.payload ? 'type'
+                                  THEN coalesce(p.prior_value->>'type',
+                                                (SELECT r.type FROM public.relations r
+                                                  WHERE r.id = p.target_id)) END,
                 'name', public.element_name(coalesce(p.target_id, p.id)))
                 ORDER BY p.no) FILTER (WHERE p.no <= v_size), '[]'::jsonb),
       'next', (SELECT jsonb_build_object('decidedAt', l.decided_at, 'id', l.id)
@@ -4092,6 +4096,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
            jsonb_agg(jsonb_build_object(
              'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
              'targetFrom', (SELECT r.valid_from FROM public.relations r
+                             WHERE a.op = 'update_relation' AND r.id = a.target_id),
+             'targetType', (SELECT r.type FROM public.relations r
                              WHERE a.op = 'update_relation' AND r.id = a.target_id),
              'createdAt', a.created_at, 'dissent', a.dissent,
              'endRejected', public.end_was_rejected(a.op, a.payload),

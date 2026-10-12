@@ -119,3 +119,15 @@ it('names an act that gives an end date the end of a relation', () => {
     ]).map((row) => row.actWords),
   ).toStrictEqual(['End of a relation', 'Modification of a relation']);
 });
+
+it('names an act that gives a new type the type change of a relation, with both types', () => {
+  expect(
+    decidedRows([
+      act({
+        op: 'update_relation',
+        payload: { type: 'restricted_by' },
+        priorType: 'designated_by',
+      }),
+    ])[0]?.actWords,
+  ).toBe('Type change of a relation, from designated_by to restricted_by');
+});
