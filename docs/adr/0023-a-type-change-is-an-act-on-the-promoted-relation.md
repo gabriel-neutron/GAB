@@ -50,3 +50,5 @@ costly to change.
 - The pair is fixed in the shape check of the table. A second pair needs a new migration.
 - The check of the provision in the excerpt reads a number after the word directive, annex or
   article. A passage that names a provision in other words is not accepted for a machine.
+- The script `retype:relations` reads the record in SQL, because the read API gives no citations
+  and no stored text.

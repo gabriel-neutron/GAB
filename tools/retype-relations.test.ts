@@ -8,22 +8,59 @@ import {
   type Sent,
 } from './retype-relations.ts';
 
-const make = (excerpt: string, over: Partial<Candidate> = {}): Candidate => ({
+type Over = Partial<Candidate> & { pageText?: string | null };
+
+const make = (excerpt: string, { pageText, ...over }: Over = {}): Candidate => ({
   relationId: crypto.randomUUID(),
-  type: 'designated_by',
   subjectType: 'company',
   waiting: 'none',
+  collides: false,
   originator: 'The issuer',
-  document: 'doc-1',
-  page: 1,
-  excerpt,
-  pageText: `Header. ${excerpt} Footer.`,
+  cites: [
+    {
+      document: 'doc-1',
+      page: 1,
+      excerpt,
+      pageText: pageText === undefined ? `Header. ${excerpt} Footer.` : pageText,
+    },
+  ],
   ...over,
 });
 
 const kindOf = (decision: Decision): string => decision.kind + ':' + (decision.batch ?? '');
 
 describe('classify', () => {
+  it('doubts an EU annex or article without 833/2014 in the excerpt', () => {
+    expect(classify(make('listed in Annex III')).reason).toMatch(/833\/2014/);
+    expect(classify(make('Article 5af of a regulation')).kind).toBe('doubtful');
+  });
+
+  it('doubts a relation that has no usable citation', () => {
+    const none = make('Annex XLV of 833/2014', { cites: [] });
+    expect(classify(none).reason).toMatch(/no usable citation/);
+  });
+
+  it('doubts a relation whose citations do not agree', () => {
+    const one = make('Annex XLV of 833/2014');
+    const two = make('Directive 4 under Executive Order 14024');
+    const split = { ...one, cites: [...one.cites, ...two.cites] };
+    expect(classify(split).reason).toMatch(/do not agree/);
+    const same = { ...one, cites: [...one.cites, ...make('Annex XLIV of 833/2014').cites] };
+    expect(kindOf(classify(same))).toBe('retype:eu');
+    const lost = { ...one, cites: [...one.cites, ...make('Annex XLV', { pageText: null }).cites] };
+    expect(classify(lost).kind).toBe('doubtful');
+  });
+
+  it('doubts a relation that has another open relation of the same pair', () => {
+    const twin = make('Annex XLV of 833/2014', { collides: true });
+    expect(classify(twin).reason).toMatch(/same ends/);
+  });
+
+  it('doubts a relation that has a rejected retype act', () => {
+    const again = make('Annex XLV of 833/2014', { waiting: 'rejected' });
+    expect(classify(again).reason).toMatch(/rejected/);
+  });
+
   it('retypes an OFAC directive under EO 14024', () => {
     expect(kindOf(classify(make('Directive 4 under Executive Order 14024')))).toBe('retype:us');
   });
@@ -119,15 +156,14 @@ describe('requalify', () => {
     });
   });
 
-  it('skips a relation already retyped or with a waiting retype act', async () => {
-    const done = make('Annex XLV of 833/2014', { type: 'restricted_by' });
+  it('skips a relation with a waiting retype act', async () => {
     const queued = make('Annex XLV of 833/2014', { waiting: 'retype' });
     const sent: Sent[] = [];
-    const report = await requalify([done, queued, us], {
+    const report = await requalify([queued, us], {
       write: true,
       send: (batch) => void sent.push(batch),
     });
-    expect(report.skipped).toHaveLength(2);
+    expect(report.skipped).toHaveLength(1);
     expect(sent.map((batch) => batch.name)).toEqual(['us']);
   });
 
