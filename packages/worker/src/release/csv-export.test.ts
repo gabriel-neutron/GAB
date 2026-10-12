@@ -187,3 +187,19 @@ test('a relation row gives its start and its end under valid_from and valid_to',
   expect(at('valid_from')).toBe('2019-05-02');
   expect(at('valid_to')).toBe('2023-11-30');
 });
+
+test('a sectoral measure is a relation row of the type restricted_by, with its label', () => {
+  const record = recordOf([]);
+  const restricted: ReleaseRecord = {
+    ...record,
+    relations: record.relations.map((one) => ({ ...one, type: 'restricted_by' })),
+  };
+  const text = csvExport(restricted, '').find((file) => file.path === 'relations.csv')?.text ?? '';
+  const [header, row] = text
+    .slice(1)
+    .split('\r\n')
+    .map((line) => line.split(','));
+  const at = (name: string): string | undefined => row?.[header?.indexOf(name) ?? -1];
+  expect(at('type')).toBe('restricted_by');
+  expect(at('type_label')).toBe('restricted by');
+});

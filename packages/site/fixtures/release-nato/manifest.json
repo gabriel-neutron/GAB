@@ -55,8 +55,8 @@
     },
     {
       "path": "relations.csv",
-      "bytes": 3573,
-      "sha256": "c99ec3e959a6e446e777250c2cbf8b1f281eaf4034bdd783bb5870584a08e975"
+      "bytes": 3670,
+      "sha256": "fd8b8a2e284e8d024e1aa2570dcad1680fef5b01987997648f235dc34479d340"
     },
     {
       "path": "claims.csv",
@@ -85,8 +85,8 @@
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 23994,
-      "sha256": "fffbe93497b3dd8b5390472269364e69d886df899dd45e02da0b505ea065d54f"
+      "bytes": 24543,
+      "sha256": "cb73a6961441d00bdf87ae6be3ebcf140ffb4851b1c72135524d44fba9d8321a"
     },
     {
       "path": "changelog.csv",

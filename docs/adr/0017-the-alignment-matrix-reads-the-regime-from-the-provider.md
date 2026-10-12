@@ -10,7 +10,10 @@ count the gaps from this file and cite it, so the meaning of a row, the test tha
 of a designation, and the date of a listing are costly to change after the first publication.
 
 The record holds a designation as a relation "designated by" from a vessel to an element that
-designates, mostly a legal act. No field of the record names the regime. The label of the
+designates, mostly a legal act. "Designated by" is only a listing with an asset freeze. A
+sectoral measure, such as an OFAC directive or a sectoral annex of an EU regulation, is the
+separate relation "restricted by", and the matrix does not read it. No field of the record names
+the regime. The label of the
 designating element is free text that a research AI writes.
 
 ## Decision

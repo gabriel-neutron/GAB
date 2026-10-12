@@ -212,7 +212,12 @@ test('read_entity of an id that names no entity is refused with the reason', asy
 const vocabulary = z.object({
   entityTypes: z.array(z.object({ key: z.string() })),
   relationTypes: z.array(
-    z.object({ key: z.string(), inverseLabel: z.string(), takesInterval: z.boolean() }),
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      inverseLabel: z.string(),
+      takesInterval: z.boolean(),
+    }),
   ),
   identifierKeys: z.record(z.string(), z.array(z.string())),
 });
@@ -223,6 +228,13 @@ test('list_vocabulary gives the live types and the identifier keys', async () =>
   );
   expect(found.entityTypes.map((one) => one.key)).toContain('vessel');
   expect(found.relationTypes.length).toBeGreaterThan(0);
+  // A sectoral measure has its own type, with its dates, apart from a listing with a freeze.
+  expect(found.relationTypes.find((one) => one.key === 'restricted_by')).toStrictEqual({
+    key: 'restricted_by',
+    label: 'restricted by',
+    inverseLabel: 'restricts',
+    takesInterval: true,
+  });
   expect(found.identifierKeys['vessel']).toContain('imo');
 });
 
