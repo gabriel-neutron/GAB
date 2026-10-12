@@ -53,7 +53,9 @@ decide the unit.
      measure freezes no asset, and it is `restricted_by`: an OFAC directive under Executive Order
      14024, or a sectoral annex or article of Council Regulation (EU) No 833/2014. The passage
      must name the exact provision: the directive, the annex or the article. A `designated_by`
-     relation for a sectoral measure has the wrong type: reject the relation, with this reason.
+     relation for a sectoral measure has the wrong type: do not promote the unit, and do not
+     reject it. Leave it in the queue, and tell the operator that the relation goes back to be
+     retyped as `restricted_by`.
      A person with only a `restricted_by` relation is not a fact for the record.
 4. Decide:
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
