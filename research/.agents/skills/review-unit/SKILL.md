@@ -69,11 +69,11 @@ decide the unit.
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
    - The unit is wrong as a whole: call `reject_unit` with the reason and, if necessary, a note.
    - Only one relation is wrong: call `reject_relation` with the id of its act. The rest of the
-     unit stays in the queue.
+     unit stays in the queue: decide it with the same rules.
    - Each clean unit of one group is correct: call `promote_clean_proposals` with the group and
      the units that you read. Give only the units whose passages you read. The database refuses
      each unit that is not clean, and writes the others.
-   - You are not sure: do nothing, and tell the operator why.
+   - You are not sure: send the unit to the skill `expert-panel`, and decide it with its verdict.
 5. Give `why` for each decision: one or two sentences that name the passage and say how it
    supports the decision. The operator reads it beside the origin.
 6. When the record refuses a decision, read the reason and the field. A blocked unit, such as a

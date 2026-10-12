@@ -25,7 +25,7 @@ tool, a design, a name, the order of the work.
 
 1. **Write the brief.** One question in one sentence, the options, the facts (document ids, ticket
    numbers, file paths, counts) and the cost of each option. Each expert gets the same brief.
-2. **Choose the panel.** The `skeptic` is always on the panel. Add two or three experts for the
+2. **Choose the panel.** The `skeptic` is always on the panel. Add one to three experts for the
    question:
 
    | Question | Experts |

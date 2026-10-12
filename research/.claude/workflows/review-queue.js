@@ -1,18 +1,18 @@
 export const meta = {
   name: 'review-queue',
-  description: 'Decide each unit of the review queue (doubts and waiting) as an AI reviewer, until no unit waits',
+  description: 'Decide each doubt of the review queue as an AI reviewer, until no doubt waits',
   whenToUse: 'The operator asks to empty the review queue of Gabriel. Start the session in research/, with the gab server connected.',
   phases: [
-    { title: 'Inventory', detail: 'list each unit that waits', model: 'sonnet' },
+    { title: 'Inventory', detail: 'list each doubt', model: 'sonnet' },
     { title: 'Review', detail: 'one agent per batch of units', model: 'sonnet' },
     { title: 'Report', detail: 'counts and open points' },
   ],
 }
 
-// args (optional): { batch: 15, rounds: 3, lanes: ['doubt', 'waiting'] }
+// args (optional): { batch: 15, rounds: 3 }
+// Only the doubts: a waiting unit waits for a source, and no reviewer decides it (S3).
 const BATCH = (args && args.batch) || 15
 const ROUNDS = (args && args.rounds) || 3
-const LANES = (args && args.lanes) || ['doubt', 'waiting']
 
 const INVENTORY = {
   type: 'object',
@@ -44,7 +44,7 @@ const DECISIONS = {
         type: 'object',
         properties: {
           unit: { type: 'string' },
-          outcome: { type: 'string', enum: ['promoted', 'rejected', 'relation_rejected_then_promoted', 'relation_rejected_then_rejected', 'refused', 'already_decided', 'error'] },
+          outcome: { type: 'string', enum: ['promoted', 'rejected', 'relation_rejected_then_promoted', 'relation_rejected_then_rejected', 'refused', 'already_decided', 'left', 'unsure', 'error'] },
           reason: { type: 'string', description: 'reject reason code, or the refusal text, in a few words' },
         },
         required: ['unit', 'outcome'],
@@ -56,8 +56,8 @@ const DECISIONS = {
 
 const inventoryPrompt = `You are the inventory step of a review of the Gabriel review queue. You decide nothing and you propose nothing.
 
-1. Load the gab tools with ToolSearch ("select:mcp__gab__read_doubts,mcp__gab__read_waiting").
-2. Read each page of these lanes: ${LANES.join(', ')}. Use read_doubts for "doubt" and read_waiting for "waiting", with size 50, and give "next" as "after" until a page has no "next".
+1. Load the gab tool with ToolSearch ("select:mcp__gab__read_doubts").
+2. Read each page of read_doubts, with size 50, and give "next" as "after" until a page has no "next".
 3. A page is large. When the tool saves the result to a file, extract the fields with Python: run "python -I -c ..." and call sys.stdout.reconfigure(encoding='utf-8') first. Each unit has the fields "unit", "lane", "group" (take group.id) and "name".
 4. Return each unit once (unit ids are unique), and the counts of the last page.`
 
@@ -74,7 +74,8 @@ const RULES = `You are an AI reviewer of the Gabriel review queue. Follow the sk
      - Each act is stated by its passages and no fault blocks the unit: promote_unit.
      - Only one relation is wrong: reject_relation with the id of its act, then decide the rest of the unit with the same rules.
      - The unit is wrong as a whole, or its main entity is not supported: reject_unit.
-     - You are not sure that the passages state each act: reject, never promote. Use reason "other" with the note "Not confirmed by the cited passage; propose again with a source that states it." Never promote a unit to make the queue shorter.
+     - You are not sure that the passages state each act: decide nothing, and write "unsure" with the question in "reason". The lead session sends it to the expert panel. Never promote a unit to make the queue shorter.
+     - A designated_by relation for a sectoral measure, or a unit that a spec or a ticket holds in the queue (skill review-unit): decide nothing, and write "left" with the reason.
      - A relation whose other end was rejected: reject it with "end_rejected".
      - The record refuses a promotion (a unit that waits for another unit, an impossible link): write "refused" with the refusal text. {FINAL}
   6. Give "why" for each decision in French: one or two sentences that name the document id, the page and how the passage supports the decision. Do not copy a value of the passage into "why" as a new fact.
@@ -82,7 +83,7 @@ const RULES = `You are an AI reviewer of the Gabriel review queue. Follow the sk
 - Do not stop before the end of the list. Return one line per unit.`
 
 const FINAL_NORMAL = 'Leave a refused unit: a later round tries it again.'
-const FINAL_LAST = 'This is the last round: no unit may stay in the queue. A unit that the record refuses to promote gets reject_unit with reason "other" and a French note that gives the refusal.'
+const FINAL_LAST = 'This is the last round. A unit that the record refuses to promote gets reject_unit with reason "other" and a French note that gives the refusal.'
 
 function batchesOf(units) {
   // Keep a group in one batch when it can, so a duplicate inside a group meets one reviewer.
@@ -94,6 +95,7 @@ function batchesOf(units) {
 
 const tally = {}
 const refusedLast = []
+const forLead = new Map()
 let before = null
 
 for (let round = 1; round <= ROUNDS; round++) {
@@ -103,7 +105,10 @@ for (let round = 1; round <= ROUNDS; round++) {
   const units = inv.units
   log(`Round ${round}: ${units.length} units wait (${JSON.stringify(inv.counts || {})}).`)
   if (!units.length) break
-  if (before !== null && units.length >= before) log(`Round ${round}: no progress since the round before.`)
+  if (before !== null && units.length >= before) {
+    log(`Round ${round}: no progress since the round before. Stop.`)
+    break
+  }
   before = units.length
 
   const last = round === ROUNDS
@@ -120,6 +125,7 @@ for (let round = 1; round <= ROUNDS; round++) {
     for (const d of r.decisions) {
       tally[d.outcome] = (tally[d.outcome] || 0) + 1
       if (last && (d.outcome === 'refused' || d.outcome === 'error')) refusedLast.push(d)
+      if (d.outcome === 'unsure' || d.outcome === 'left') forLead.set(d.unit, d)
     }
   }
   const lost = results.filter(r => !r).length
@@ -134,4 +140,6 @@ return {
   still_waiting: final ? final.units.length : 'unknown',
   still_waiting_units: final ? final.units.slice(0, 50) : [],
   refused_in_last_round: refusedLast,
+  // The lead session runs the skill expert-panel on each "unsure" unit, and decides it.
+  for_the_lead_session: [...forLead.values()],
 }
