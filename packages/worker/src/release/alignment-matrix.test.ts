@@ -332,6 +332,16 @@ test('a designation that cites the official files of two regimes counts in no re
   );
 });
 
+test('a sectoral measure is no listing: a restricted_by relation gives no row and no count', () => {
+  const sectoral = designation(20, SHIP, EU_ACT, ['doc_eu'], '2024-06-24');
+  const restricted = { ...sectoral, relation: { ...sectoral.relation, type: 'restricted_by' } };
+  const { rows, file } = shipWith(VALID_IMO, [restricted]);
+  expect(rows).toStrictEqual([]);
+  expect(file.text).toContain(
+    'Designations of a vessel with an IMO number that cite no official file of a regime, and count in no regime: 0.',
+  );
+});
+
 test('an ended listing gives its end date and still counts in the marks', () => {
   const { rows } = shipWith('9123456', [
     designation(20, SHIP, EU_ACT, ['doc_eu'], '2024-06-24', '2025-03-01'),

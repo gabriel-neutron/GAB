@@ -234,6 +234,19 @@ test('a pending end date of a relation says the day that it closes the relation'
   ]);
 });
 
+test('a pending type change of a relation says the old and the new type', () => {
+  const read = withActs({
+    ...ACT,
+    id: 'a1',
+    op: 'update_relation',
+    payload: { kind: 'retype', type: 'restricted_by' },
+  });
+
+  expect(pendingOf(read, VESSEL.id).map((line) => line.summary)).toEqual([
+    'Changes the type of the relation from owned_by to restricted_by',
+  ]);
+});
+
 test('a pending merge stands on the kept entity and on each absorbed entity', () => {
   const read = withActs({
     ...ACT,

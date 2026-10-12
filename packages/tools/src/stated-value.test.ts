@@ -4,7 +4,7 @@
 import { writeRequest } from '@gab/proposal/request';
 import { expect, test } from 'vitest';
 
-import { statedBounds, unstatedValues } from './stated-value.ts';
+import { namesProvision, statedBounds, unstatedValues } from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -238,4 +238,20 @@ test('the end of a close stays in the act, and it is named when no passage state
     act: closing,
     dropped: ['validTo'],
   });
+});
+
+test('a passage names a provision by the number of a directive, an annex or an article', () => {
+  expect(namesProvision(['Directive 4 under Executive Order 14024'])).toBe(true);
+  expect(namesProvision(['listed in Annex XLVII to Regulation (EU) No 833/2014'])).toBe(true);
+  expect(namesProvision(['prohibited by Article 5 of the Regulation'])).toBe(true);
+  expect(namesProvision(['the bank is restricted', 'an annex follows'])).toBe(false);
+});
+
+test('the type form of a change keeps its act, and no end is named', () => {
+  const retyping = writeRequest.parse({
+    op: 'update_relation',
+    targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    type: 'restricted_by',
+  });
+  expect(statedBounds(retyping, ['Directive 4'])).toStrictEqual({ act: retyping, dropped: [] });
 });

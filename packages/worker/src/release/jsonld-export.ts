@@ -1,3 +1,5 @@
+import { relationWords } from '@gab/proposal/relation-types';
+
 import type { ReleaseFile } from './csv-export.ts';
 import type { RowLicence } from './licence.ts';
 import type { ReleaseHeading } from './release-heading.ts';
@@ -28,6 +30,7 @@ const contextOf = (base: string) => ({
   entityType: 'gab:entityType',
   Relation: 'gab:Relation',
   relationType: 'gab:relationType',
+  relationLabel: 'gab:relationLabel',
   from: { '@id': 'gab:from', '@type': '@id' },
   to: { '@id': 'gab:to', '@type': '@id' },
   validFrom: { '@id': 'schema:validFrom', '@type': 'xsd:date' },
@@ -107,7 +110,13 @@ const VOCABULARY_TERMS = [
     'relationType',
     'Property',
     'relation type',
-    'The type of the relation, for example owns or designated_by.',
+    'The type of the relation, for example owns, designated_by (a listing by name: a listing with an asset freeze, or an entry on the vessel list of a regime) or restricted_by (a sectoral measure with no asset freeze).',
+  ),
+  term(
+    'relationLabel',
+    'Property',
+    'relation label',
+    'The type of the relation in words, read from its first end, for example "restricted by".',
   ),
   term('from', 'Property', 'from', 'The entity at the start of the relation.'),
   term('to', 'Property', 'to', 'The entity at the end of the relation.'),
@@ -233,6 +242,7 @@ export const jsonldExport = (
     '@id': path('relation', one.id),
     '@type': 'Relation',
     relationType: one.type,
+    relationLabel: relationWords(one.type, false),
     from: entityId(one.src_id),
     to: entityId(one.dst_id),
     ...present({ validFrom: one.valid_from, validThrough: one.valid_to }),

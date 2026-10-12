@@ -499,3 +499,61 @@ test('an end date on a relation that names a person is public only with a public
   });
   expect(shown.app).toBe(5);
 });
+
+// A type change on a relation that names a person follows the same rule as an end date.
+test('a type change on a relation that names a person is public only with a public source', async () => {
+  const shown = await rolledBack('superuser', async (ask) => {
+    await graph(ask);
+    // One open relation of a type for each pair of ends, so each row has its own far end.
+    const ends = ['0010', '0011', '0012'].map((tail) => `00000000-0000-4000-8000-0000000a${tail}`);
+    for (const [at, id] of ends.entries())
+      await entity(ask, id, 'state_body', `A treasury ${String(at)}`, [PUBLIC_PAGE]);
+    const [end1, end2, end3] = ends as [string, string, string];
+    const privateOnly = await relation(ask, 'designated_by', NAMED, end1, [UPLOADED]);
+    const publicRow = await relation(ask, 'designated_by', NAMED, end2, [PUBLIC_PAGE]);
+    const mixedRow = await relation(ask, 'designated_by', NAMED, end3, [UPLOADED, PUBLIC_PAGE]);
+    const retypes = [
+      [privateOnly, UPLOADED],
+      [publicRow, PUBLIC_PAGE],
+      [mixedRow, PUBLIC_PAGE],
+    ] as const;
+    for (const [target, doc] of retypes)
+      await asApp(
+        ask,
+        `SELECT * FROM public.sign_change('a test', 'update_relation',
+           '{"type":"restricted_by"}'::jsonb, $1::text[], 'relation', $2::uuid, '{}')`,
+        [[doc], target],
+      );
+    const asked = retypes.map(([target]) => target);
+    const query = `SELECT target_id, payload, prior_value FROM api.proposal
+      WHERE op = 'update_relation' AND target_id = ANY ($1) ORDER BY target_id`;
+    const read = closeRows.parse(await readAs(ask, 'gabriel_read', query, [asked]));
+    const app = closeRows.parse(await readAs(ask, 'gabriel_app', query, [asked]));
+    const names = new Map<string, string>([
+      [publicRow, 'public row'],
+      [mixedRow, 'mixed row'],
+    ]);
+    return {
+      read: Object.fromEntries(
+        read.map((row): [string, unknown] => [
+          names.get(row.target_id) ?? row.target_id,
+          { payload: row.payload, prior: row.prior_value },
+        ]),
+      ),
+      app: app.length,
+    };
+  });
+  // The copy of a row that cites no public document is not public. The copy names the public
+  // documents of the row alone.
+  expect(shown.read).toStrictEqual({
+    'public row': {
+      payload: { type: 'restricted_by' },
+      prior: { type: 'designated_by', sources: [PUBLIC_PAGE] },
+    },
+    'mixed row': {
+      payload: { type: 'restricted_by' },
+      prior: { type: 'designated_by', sources: [PUBLIC_PAGE] },
+    },
+  });
+  expect(shown.app).toBe(3);
+});

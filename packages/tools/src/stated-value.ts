@@ -255,6 +255,11 @@ export const withoutBounds = <
   return kept;
 };
 
+/** A passage names a provision when it names a directive, an annex or an article by its number.
+ * A type change of a relation rests on that provision. */
+export const namesProvision = (passages: readonly string[]): boolean =>
+  /\b(directive\s+\d+|annex\s+(?:[ivxlc]+|\d+)\b|articles?\s+\d+)/i.test(passages.join('\n'));
+
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
  * other values of the act stay, and an unstated one marks the item as disputed. The end of an
@@ -265,7 +270,10 @@ export const statedBounds = (
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
   const text = passages.join('\n');
   if (act.op === 'update_relation')
-    return { act, dropped: stated(act.validTo, text) ? [] : ['validTo'] };
+    return {
+      act,
+      dropped: act.validTo === undefined || stated(act.validTo, text) ? [] : ['validTo'],
+    };
   if (act.op !== 'create_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
