@@ -5,6 +5,7 @@
 // the browser held (the document of the page after its scripts ran), not the answer that the
 // server sent, so the title says so. The text is checked as the fetch checks it, and the hash decides the identity.
 
+import { createHash } from 'node:crypto';
 import { open, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
@@ -149,10 +150,16 @@ const bytesOfContent = (
   return { bytes: Buffer.concat(held.chunks) };
 };
 
-const titleOf = (given: string | undefined, mime: string, bytes: Uint8Array, url: string) => {
+const titleOf = (
+  given: string | undefined,
+  mime: string,
+  bytes: Uint8Array,
+  url: string,
+  type: string,
+) => {
   const { hostname, pathname } = new URL(url);
   const chosen =
-    given ?? (isHtml(mime) ? htmlTitle(bytes) : null) ?? `${hostname}${decodeURI(pathname)}`;
+    given ?? (isHtml(mime) ? htmlTitle(bytes, type) : null) ?? `${hostname}${decodeURI(pathname)}`;
   return `${chosen.slice(0, MAX_TITLE - SAVED_MARK.length)}${SAVED_MARK}`;
 };
 
@@ -162,7 +169,8 @@ export const storeSavedFile = defineTool({
     'Stores a PDF, an HTML page or a PNG or JPEG image that the browser of the session holds, ' +
     'as the document of the page that it came from. Use it only when fetch_document cannot ' +
     'read a page (a bot filter, an empty page, a site that refuses the server). Give the bytes ' +
-    'that the browser holds as `content` in base64, with their `type`; give a large file in ' +
+    'that the browser holds as `content` in base64, with their `type` and the `sha256` of the ' +
+    'whole file; give a large file in ' +
     'parts, in order, with `part` and `parts` (each part but the last has a length that is a ' +
     'multiple of 4). Or give `file`, the name of a file that the operator saved into the inbox ' +
     'folder. The bytes are what the browser held after the scripts of the page ran, not the ' +
@@ -184,6 +192,11 @@ export const storeSavedFile = defineTool({
         .enum(['application/pdf', 'text/html', 'image/png', 'image/jpeg'])
         .optional()
         .describe('the type of the bytes in content'),
+      sha256: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/u)
+        .optional()
+        .describe('the SHA-256 of the whole file in hex, as the browser computed it'),
       part: z.number().int().min(1).max(MAX_PARTS).optional().describe('the number of this part'),
       parts: z.number().int().min(1).max(MAX_PARTS).optional().describe('the count of the parts'),
       url: sourceAddress.describe('the address of the page in the browser'),
@@ -195,8 +208,13 @@ export const storeSavedFile = defineTool({
         fault('give either file or content');
       if (given.content !== undefined && given.type === undefined)
         fault('give the type of the content');
-      if (given.file !== undefined && (given.type ?? given.part ?? given.parts) !== undefined)
-        fault('type, part and parts go with content, not with file');
+      if (given.content !== undefined && given.sha256 === undefined)
+        fault('give the sha256 of the content');
+      if (
+        given.file !== undefined &&
+        (given.type ?? given.part ?? given.parts ?? given.sha256) !== undefined
+      )
+        fault('type, sha256, part and parts go with content, not with file');
       if ((given.part === undefined) !== (given.parts === undefined))
         fault('give part and parts together');
       if (given.part !== undefined && given.parts !== undefined && given.part > given.parts)
@@ -221,10 +239,19 @@ export const storeSavedFile = defineTool({
     let mime: string;
     let bytes: Uint8Array;
     let label: string;
+    // The type that decodes the text. A browser gives HTML in UTF-8, but the page can still name
+    // the charset of its origin in a meta element, and the charset of the type comes first.
+    let decodeAs: string;
     if (input.content !== undefined && input.type !== undefined) {
       const got = bytesOfContent({ ...input, content: input.content, type: input.type });
       if (!('bytes' in got)) return { status: 'waiting' as const, ...got };
+      // The agent copies the base64 text by hand, so the hash of the browser proves the copy.
+      if (createHash('sha256').update(got.bytes).digest('hex') !== input.sha256)
+        throw new ToolRefusal(
+          'the bytes do not have the sha256 that the browser gave: send the parts again from part 1',
+        );
       mime = input.type;
+      decodeAs = mime === 'text/html' ? 'text/html; charset=utf-8' : mime;
       ({ bytes } = got);
       label = 'the content';
     } else {
@@ -237,13 +264,14 @@ export const storeSavedFile = defineTool({
           `${file} is not a saved page: give a .pdf, .html, .xhtml, .png, .jpg or .jpeg file`,
         );
       mime = named;
+      decodeAs = named;
       bytes = await readInboxFile(reach.inbox, file);
       label = file;
     }
 
     let pages: readonly string[];
     try {
-      ({ pages } = await extractText(bytes, mime));
+      ({ pages } = await extractText(bytes, decodeAs));
     } catch (fault) {
       if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
         throw new ToolRefusal(fault.message);
@@ -258,7 +286,7 @@ export const storeSavedFile = defineTool({
       bytes,
       mime,
       uri: input.url,
-      title: titleOf(input.title, mime, bytes, input.url),
+      title: titleOf(input.title, mime, bytes, input.url, decodeAs),
       pages,
       day: reach.now().toISOString().slice(0, 10),
     });

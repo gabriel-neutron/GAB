@@ -224,7 +224,7 @@ test('the bytes that the browser holds are stored with their own hash, with no f
     const got = await callTool(
       storeSavedFile,
       sessionOf(ask),
-      { content: bytes.toString('base64'), type: 'text/html', url },
+      { content: bytes.toString('base64'), type: 'text/html', sha256: shaOf(bytes), url },
       { store, now: () => new Date('2026-10-07T10:00:00Z') },
     );
     expect(got).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
@@ -250,6 +250,7 @@ test('a PDF in three parts is stored once, when its last part comes', async () =
           {
             content: text.slice((part - 1) * size, part * size),
             type: 'application/pdf',
+            sha256: shaOf(bytes),
             part,
             parts: 3,
             url,
@@ -277,7 +278,7 @@ test('a part that is not the next part is refused, and the parts start again', a
       callTool(
         storeSavedFile,
         sessionOf(ask),
-        { content: 'QUJD', type: 'application/pdf', part, parts: 3, url },
+        { content: 'QUJD', type: 'application/pdf', sha256: 'a'.repeat(64), part, parts: 3, url },
         reachOf(store),
       );
     expect(await send(1)).toMatchObject({ ok: true, output: { status: 'waiting' } });
@@ -291,7 +292,12 @@ test('a part that is not the next part is refused, and the parts start again', a
 test.each([
   ['neither file nor content', { url: URL_OF_PAGE }, 'either file or content'],
   ['content with no type', { content: 'QUJD', url: URL_OF_PAGE }, 'type of the content'],
-  ['content that is no base64', { content: 'A!', type: 'text/html', url: URL_OF_PAGE }, 'base64'],
+  ['content with no sha256', { content: 'QUJD', type: 'text/html', url: URL_OF_PAGE }, 'sha256'],
+  [
+    'content that is no base64',
+    { content: 'A!', type: 'text/html', sha256: 'a'.repeat(64), url: URL_OF_PAGE },
+    'base64',
+  ],
   [
     'a part with no count',
     { content: 'QUJD', type: 'text/html', part: 1, url: URL_OF_PAGE },
@@ -301,5 +307,55 @@ test.each([
   await rolledBack('research', async (ask) => {
     const got = await callTool(storeSavedFile, sessionOf(ask), input, reachOf());
     expect(got.ok ? '' : got.refusal).toContain(reason);
+  });
+});
+
+test('bytes that do not have the hash of the browser are refused, and nothing is stored', async () => {
+  const store = memoryStore();
+  const bytes = Buffer.from(page(TEXT), 'utf8');
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      {
+        content: bytes.toString('base64'),
+        type: 'text/html',
+        sha256: shaOf(Buffer.from('other bytes')),
+        url: `https://www.consilium.europa.eu/en/copy-${RUN}/`,
+      },
+      reachOf(store),
+    );
+    expect(got.ok ? '' : got.refusal).toContain('sha256');
+  });
+  expect(store.puts).toHaveLength(0);
+});
+
+test('a page that names the charset of its origin is read as the UTF-8 that the browser gives', async () => {
+  const url = `https://forum.example.ru/topic-${RUN}`;
+  const text = 'Компания владеет тремя танкерами, и каждый сменил флаг за год. '.repeat(6);
+  const bytes = Buffer.from(
+    `<html><head><meta charset="windows-1251"><title>Форум ${RUN}</title></head>` +
+      `<body><article><p>${text}</p></article></body></html>`,
+    'utf8',
+  );
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { content: bytes.toString('base64'), type: 'text/html', sha256: shaOf(bytes), url },
+      reachOf(),
+    );
+    expect(got).toMatchObject({
+      ok: true,
+      output: { status: 'stored', title: `Форум ${RUN} (saved by the browser)` },
+    });
+    const [held] = z.array(z.object({ text: z.string() })).parse(
+      await ask(
+        `SELECT t.text FROM public.documents d
+             JOIN public.document_text t ON t.document_id = d.id WHERE d.uri = $1`,
+        [url],
+      ),
+    );
+    expect(held?.text).toContain('Компания владеет');
   });
 });

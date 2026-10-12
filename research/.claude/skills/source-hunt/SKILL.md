@@ -61,19 +61,21 @@ and it returns the URL in its result for the lead session.
   a basket, a private message), do not store it: put the source on the list of needs.
 - The page gives its bytes to `store_saved_file` directly. No file goes to the download folder,
   so no save dialog opens. Never click a PDF link to download it, and never start a download.
-- An HTML page: run this in the page with the JavaScript tool of the browser. It gives the count
-  of the characters:
-  `window.gab = btoa(Array.from(new TextEncoder().encode('<!doctype html>\n' + document.documentElement.outerHTML), (b) => String.fromCharCode(b)).join('')); window.gab.length`
-- A PDF: run this in the page of the PDF, or in the page that links it, with the address of the
-  PDF:
-  `fetch('<address of the PDF>').then((r) => r.arrayBuffer()).then((a) => { window.gab = btoa(Array.from(new Uint8Array(a), (b) => String.fromCharCode(b)).join('')); return window.gab.length; })`
-- Then read the text in parts of 100,000 characters: `window.gab.slice(0, 100000)`, then
-  `window.gab.slice(100000, 200000)`, and so on. Call `store_saved_file` with each part, in order:
-  `content` (the part), `type` (`text/html` or `application/pdf`), `part` (1, 2, ...), `parts`
-  (the count of the parts) and `url` (the address of the page, or of the PDF). A text of 100,000
-  characters or less is one call with no `part` and no `parts`. Each part but the last answers
-  `waiting`. The last part gives the document to cite. Its title says "saved by the browser". If
-  a call refuses a part, send the parts again from part 1.
+- An HTML page: run this in the page with the JavaScript tool of the browser. It keeps the bytes
+  in `window.gab` and gives the count of the characters of their base64 text and their SHA-256:
+  `(async () => { const u = new TextEncoder().encode('<!doctype html>\n' + document.documentElement.outerHTML); const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', u))].map((b) => b.toString(16).padStart(2, '0')).join(''); let s = ''; for (const b of u) s += String.fromCharCode(b); window.gab = btoa(s); return { length: window.gab.length, sha256: h }; })()`
+- A PDF: run this in a page of the same site as the PDF (the page that links it), with the
+  address of the PDF. A page of another site is refused by the browser, and the page of the PDF
+  itself often runs no script:
+  `(async () => { const r = await fetch('<address of the PDF>'); if (!r.ok) throw new Error(String(r.status)); const u = new Uint8Array(await r.arrayBuffer()); const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', u))].map((b) => b.toString(16).padStart(2, '0')).join(''); let s = ''; for (const b of u) s += String.fromCharCode(b); window.gab = btoa(s); return { length: window.gab.length, sha256: h }; })()`
+- Then read the text in parts of 20,000 characters: `window.gab.slice(0, 20000)`, then
+  `window.gab.slice(20000, 40000)`, and so on. Call `store_saved_file` with each part, in order:
+  `content` (the part), `type` (`text/html` or `application/pdf`), `sha256` (the hash that the
+  browser gave), `part` (1, 2, ...), `parts` (the count of the parts) and `url` (the address of
+  the page, or of the PDF). A text of 20,000 characters or less is one call with no `part` and no
+  `parts`. Each part but the last answers `waiting`. The last part gives the document to cite.
+  Its title says "saved by the browser". If a call refuses a part or the hash, send the parts
+  again from part 1.
 - Never write the bytes yourself and never change them. They must be what the browser held.
 
 ## The list of needs
