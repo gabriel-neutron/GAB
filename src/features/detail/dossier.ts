@@ -358,10 +358,14 @@ export function readDossier(
   const pending: readonly PendingLine[] = read.proposals
     .filter((proposal) => proposal.status === 'pending' && names(proposal))
     .map((proposal) => {
+      const held =
+        proposal.targetId === null ? undefined : index.relationById.get(proposal.targetId);
       const head =
         proposal.payload.kind === 'close'
           ? `Closes the relation on ${proposal.payload.valid_to}`
-          : OP_WORDS[proposal.op];
+          : proposal.payload.kind === 'retype' && held !== undefined
+            ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
+            : OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {

@@ -293,3 +293,35 @@ test('a machine type change is written, and a second act on the relation is refu
   expect(seen.refused).toBe('relation_retype_from');
   expect(seen.row?.type).toBe('restricted_by');
 });
+
+test('the review reads give the old type of a waiting type change and of a decided one', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    await document(ask);
+    const relation = await designated(ask);
+    const [proposed] = z.array(z.object({ id: z.uuid() })).parse(
+      await as(ask, 'gabriel_app', () =>
+        ask(
+          `SELECT public.propose_change('update_relation', '{"type":"restricted_by"}'::jsonb,
+             ARRAY['manual'], 'relation', $1::uuid) AS id`,
+          [relation],
+        ),
+      ),
+    );
+    const act = proposed?.id ?? '';
+    const waiting = JSON.stringify(
+      z
+        .array(z.object({ page: z.object({ units: z.array(z.unknown()) }) }))
+        .parse(await ask('SELECT public.review_units(NULL, 200) AS page'))[0]?.page.units,
+    );
+    await ask(`SELECT public.apply_proposal($1::uuid, 'a test', NULL)`, [act]);
+    const history = z
+      .array(z.object({ history: z.object({ acts: z.array(z.unknown()) }) }))
+      .parse(await ask('SELECT public.review_decided(NULL, NULL, 500) AS history'));
+    const decided = (history[0]?.history.acts ?? []).find(
+      (held) => z.object({ id: z.string() }).safeParse(held).data?.id === act,
+    );
+    return { waiting: waiting.includes('"targetType":"designated_by"'), decided };
+  });
+  expect(seen.waiting).toBe(true);
+  expect(seen.decided).toMatchObject({ priorType: 'designated_by' });
+});

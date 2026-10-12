@@ -118,6 +118,13 @@ export type UnitAct =
       readonly validTo: string;
       /** The first day of the relation today, or null when it has none. */
       readonly validFrom: string | null;
+    })
+  | (ActBase & {
+      readonly kind: 'retype';
+      /** The relation whose type the act changes. */
+      readonly target: UnitEnd;
+      readonly from: string;
+      readonly to: string;
     });
 
 /** The words of a page that an act cites, with up to two lines before and after them.
@@ -232,6 +239,8 @@ const act = z.object({
   targetId: z.string().nullable(),
   // The first day of the relation that an act ends, as the record holds it today.
   targetFrom: z.string().nullish(),
+  // The type of the relation that an act retypes, as the record holds it today.
+  targetType: z.string().nullish(),
   dissent: z.boolean(),
   endRejected: z.boolean(),
   check: z
@@ -412,6 +421,18 @@ const actOf = (read: ReadAct): UnitAct => {
       target: endOf(read.targetId, read.target),
       validTo: read.payload.valid_to,
       validFrom: read.targetFrom ?? null,
+    };
+  if (
+    read.op === 'update_relation' &&
+    read.targetId !== null &&
+    typeof read.payload.type === 'string'
+  )
+    return {
+      ...base,
+      kind: 'retype',
+      target: endOf(read.targetId, read.target),
+      from: read.targetType ?? 'its old type',
+      to: read.payload.type,
     };
   return {
     ...base,
