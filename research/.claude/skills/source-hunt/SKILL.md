@@ -11,14 +11,25 @@ possible. You then propose the facts with the skill `cite-claim`.
 ## Steps
 
 1. Make the list of sources: one URL for each source, with no duplicate.
-2. Read `research/out/needs.md` for each URL. A URL that is on it failed in an earlier session:
-   go to step 5 for it, and do not fetch it again.
-3. Call `find_document` with each URL. When Gabriel stores the page, keep its document id.
+2. Call `find_document` with each URL. When Gabriel stores the page, keep its document id. When
+   the URL is on `research/out/needs.md` and the operator saved its file into the inbox, store it
+   with `store_saved_file`, and remove its line from the list of needs.
+3. Read `research/out/needs.md` for each other URL. A URL that is on it failed in an earlier
+   session: go to step 5 for it, and do not fetch it again.
 4. Call `fetch_document` for each other URL, one URL for each call. Keep the document id. When
    the answer has `rendered`, keep the id of `rendered.document`. Read the start of the stored
    text with `document_text`: a challenge page, an error page or an empty text is not the source.
-   When the fetch is refused, read the refusal: it names the next step.
-5. When the fetch fails, try these in order, and stop at the first that stores the full text:
+   The tool renders a page with JavaScript when its text is short, and it refuses a challenge
+   page. When the fetch is refused, read the refusal: it names the next step.
+5. When the fetch fails, find the next step in this table, then try the steps below in order.
+   Stop at the first that stores the full text.
+
+   | Refusal | Usual cause | Next step |
+   |---|---|---|
+   | 403, 429 or 503, a 202 or a 200 with no text, a challenge page | A bot filter (Cloudflare, AWS WAF) | Another copy, then the browser |
+   | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the list of needs |
+   | 404 or 410, or the page says that it is missing | The address is wrong or old | Another copy, then the archive; never the browser |
+
    1. **Another official copy** of the same text from the same issuer: the PDF of the publisher,
       the Publications Office of the EU for an EU act (`eu_act` with the CELEX number), a
       repository of the paper (EconStor, RePEc, SSRN), the page of the institution itself. Find
@@ -44,12 +55,12 @@ possible. You then propose the facts with the skill `cite-claim`.
 
 The browser runs on the operator's machine, with a home address and real cookies, so most filters
 let it pass. Only the lead session drives the browser: a subagent of a workflow has no browser,
-and it writes the URL on the list of needs of its lot.
+and it returns the URL in its result for the lead session.
 
 - Before you save, read the page. If it shows an account of the operator (a name, "signed in", a
   basket, a private message), do not save it: put the source on the list of needs.
 - The browser downloads into its download folder, and `GAB_INBOX` in `research/.env` names that
-  folder. Give each file a name that no other file has: the domain, a short title and the date,
+  folder (or the operator sets the download folder of the browser to `research/inbox`). Give each file a name that no other file has: the domain, a short title and the date,
   for example `gazprom-com-annual-report-2024.pdf`.
 - A PDF: click its link, so that the browser downloads the file.
 - An HTML page: run this in the page with the JavaScript tool of the browser, with your file name:
@@ -81,6 +92,7 @@ the operator asks for it.
 
 - Never fetch a search result list as a source. Fetch the page that the result points to.
 - Never crawl. One fetch takes one URL that you chose.
+- Never queue the extraction of a document that is not stored.
 - Never cite a page that you saw in a browser or in a search result: store it, and cite the
   stored document.
 - Never write in `research/out/` a private file of the operator. Write only public addresses and

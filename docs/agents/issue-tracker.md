@@ -10,7 +10,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
-- **Merge a PR into `staging`**: run `gh pr merge <number> --auto --merge` in the same turn as the PR. GitHub merges it when the checks pass, and no session waits. When GitHub refuses the auto-merge, run `gh pr checks <number> --watch --fail-fast` in the background (the Bash option `run_in_background`), and merge when the command exits with code 0. Never leave the merge as a **Next:** line.
+- **Merge a PR into `staging`**: when the findings of the review are pushed, run `gh pr merge <number> --auto --merge` in the same turn. GitHub merges it when the checks pass, and no session waits. When GitHub refuses the auto-merge, run `gh pr checks <number> --watch --fail-fast` in the background (the Bash option `run_in_background`), and merge when the command exits with code 0. Never leave the merge as a **Next:** line.
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 

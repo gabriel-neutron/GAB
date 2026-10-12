@@ -39,9 +39,17 @@ const RESULT = {
     documents: { type: 'array', items: { type: 'string' }, description: 'the new document ids' },
     needs: { type: 'array', items: { type: 'string' }, description: 'one line of needs.md for each blocked source' },
     open: { type: 'array', items: { type: 'string' }, description: 'what stays open, with its reason' },
+    lots: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { id: { type: 'string' }, status: { type: 'string', enum: ['done', 'blocked', 'partial'] } },
+        required: ['id', 'status'],
+      },
+    },
     status: { type: 'string', enum: ['done', 'blocked', 'partial'] },
   },
-  required: ['worker', 'proposals', 'status'],
+  required: ['worker', 'proposals', 'status', 'lots'],
 }
 
 phase('Coordinate')
@@ -63,8 +71,8 @@ const workerPrompt = w => `You are the worker ${w.worker} of the research sprint
 - Vocabulary of the record: ${plan.vocabulary || 'call list_vocabulary once'}.
 - You have no browser: a source that needs the browser is a line of needs.
 - A question of method, source or data model: decide it with the rules of SPEC.md and research-method. When they do not answer it, write it in "open" and continue with the next item.
-- Time box: ${MINUTES} minutes. Write your log to ${DIR}/<lot>.md and set the status of each lot in lots.json (doing, done, blocked).
-- Never decide a unit. Never write needs.md, besoins.md or a file of another worker.`
+- Time box: ${MINUTES} minutes. Write your log to ${DIR}/<lot>.md, and return the status of each of your lots.
+- Never decide a unit. Never write lots.json, needs.md, besoins.md or a file of another worker.`
 
 phase('Work')
 const results = await pipeline(plan.workers, w =>
@@ -80,12 +88,13 @@ const report = await agent(
 ${JSON.stringify(done)}
 Workers with no result: ${lost.join(', ') || 'none'}.
 
-1. Run the skill expert-panel on each "open" question of the workers, and write its verdict.
-2. Write ${DIR}/RAPPORT.md in French: counts, proposal ids, documents, verdicts, what stays open.
+1. Set the status of each lot in ${DIR}/lots.json from the results (a lot with no result is "blocked").
+2. Write ${DIR}/RAPPORT.md in French: counts, proposal ids, documents, what stays open.
 3. Add the lines of needs once to research/out/needs.md, after a fresh read of the file (no duplicate).
-4. Close the step with the skill carto-step: tick the true boxes of ${TICKET}, and post the comment (ASD-STE100, no local path).
+4. Close the step with the skill carto-step: tick the true boxes of ${TICKET}, and post the comment (ASD-STE100, no local path). The operator started this workflow, and that is the request to post.
 5. Write in RAPPORT.md the prompt of a separate review session (skill review-unit) on the proposal ids of the sprint.
 Return the path of RAPPORT.md and the prompt of the review session.`,
   { label: 'synthesis', phase: 'Synthesize' },
 )
-return { workers: done.length, lost, report }
+// The lead session runs the skill expert-panel on each open question: a workflow agent cannot start a panel.
+return { workers: done.length, lost, open: done.flatMap(r => (r.open || []).map(q => `${r.worker}: ${q}`)), report }
