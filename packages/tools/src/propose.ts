@@ -9,7 +9,13 @@ import { z } from 'zod';
 import { plainText } from './check-answer.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { statedBounds, unstatedValues, withoutBounds, type BoundName } from './stated-value.ts';
+import {
+  namesProvision,
+  statedBounds,
+  unstatedValues,
+  withoutBounds,
+  type BoundName,
+} from './stated-value.ts';
 import {
   CheckFailure,
   defineTool,
@@ -80,21 +86,33 @@ const batchAct = z.discriminatedUnion('op', [
     targetId: z.uuid(),
     attrs: attributeEdit.describe(ATTRIBUTES),
   }),
-  z.strictObject({
-    op: z.literal('update_relation'),
-    targetId: z
-      .uuid()
-      .describe(
-        'the id of an open relation of the record (validTo is null in read_entity), of a type ' +
-          'whose takesInterval is true',
-      ),
-    validTo: z
-      .string()
-      .describe(
-        'the last day of the relation, on or after its first day, written as 2026-01-31; an ' +
-          'excerpt must state it',
-      ),
-  }),
+  z
+    .strictObject({
+      op: z.literal('update_relation'),
+      targetId: z
+        .uuid()
+        .describe(
+          'the id of the relation of the record: an open relation of a type whose takesInterval ' +
+            'is true (with validTo), or a designated_by relation (with type)',
+        ),
+      validTo: z
+        .string()
+        .optional()
+        .describe(
+          'the end date form: the last day of the relation, on or after its first day, written ' +
+            'as 2026-01-31; an excerpt must state it',
+        ),
+      type: z
+        .literal('restricted_by')
+        .optional()
+        .describe(
+          'the type form: the new type of a designated_by relation that states a sectoral ' +
+            'measure. An excerpt must name the provision: the directive, the annex or the article',
+        ),
+    })
+    .refine((act) => (act.validTo === undefined) !== (act.type === undefined), {
+      message: 'give validTo or type, and not both',
+    }),
 ]);
 
 const evidence = z.strictObject({
@@ -376,6 +394,7 @@ const disputeReason = (
   transcribed: boolean,
   unstated: readonly UnstatedValue[],
   lostEnd: string | null,
+  lostProvision: boolean,
   verdict: CheckVerdict | 'unchecked' | undefined,
   names: ReadonlyMap<string, string>,
 ): string | null => {
@@ -389,6 +408,7 @@ const disputeReason = (
         .join(', ')}`,
     );
   if (lostEnd !== null) parts.push(`the end date ${lostEnd} is in no excerpt`);
+  if (lostProvision) parts.push('no excerpt names the provision that states the measure');
   if (verdict === undefined) parts.push('the checker did not answer');
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
@@ -413,6 +433,7 @@ interface Prepared {
   readonly unstated: readonly UnstatedValue[];
   readonly dropped: BoundName[];
   readonly lostEnd: string | null;
+  readonly lostProvision: boolean;
   readonly transcribed: boolean;
   readonly id: string | undefined;
 }
@@ -445,7 +466,9 @@ export const proposeOf = (modelCallId: string | null) =>
       '(validFrom) of a relation that no excerpt states is not proposed, and droppedBounds names ' +
       'it; an end (validTo) that no excerpt states refuses the batch. The record refuses an end ' +
       'date on a relation that ended already, on a type that takes no interval, and before the ' +
-      'first day. Before the write, a ' +
+      'first day. A type change (type: restricted_by) turns a designated_by relation that states ' +
+      'a sectoral measure into a restricted_by relation: an excerpt must name the provision, and ' +
+      'the record refuses it on another type and on a twin that is open. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
@@ -485,9 +508,23 @@ export const proposeOf = (modelCallId: string | null) =>
         // the operator reads the page.
         const lostEnd =
           (resolved.op === 'create_relation' || resolved.op === 'update_relation') &&
+          resolved.validTo !== undefined &&
           dropped.includes('validTo')
             ? (resolved.validTo ?? null)
             : null;
+        // A type change rests on the provision that states the measure. The research AI cites the
+        // passage that names it, so its batch is refused. An agent cannot, so its item is
+        // disputed and the operator reads the page.
+        const lostProvision =
+          resolved.op === 'update_relation' &&
+          resolved.type !== undefined &&
+          !namesProvision(passages);
+        if (lostProvision && modelCallId === null)
+          refuse(
+            given.ref,
+            'no excerpt names the provision (the directive, the annex or the article) that ' +
+              'states the measure: cite the passage that names it',
+          );
         if (lostEnd !== null && modelCallId === null)
           refuse(
             given.ref,
@@ -507,6 +544,7 @@ export const proposeOf = (modelCallId: string | null) =>
           // The end of a close stays in its act, so code removed no bound of it.
           dropped: resolved.op === 'update_relation' ? [] : dropped,
           lostEnd,
+          lostProvision,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -552,7 +590,14 @@ export const proposeOf = (modelCallId: string | null) =>
         return said?.verdict === 'not_supported' ? said : 'unchecked';
       };
       const reasonOf = (one: Prepared): string | null =>
-        disputeReason(one.transcribed, one.unstated, one.lostEnd, verdictOf(one.given.ref), names);
+        disputeReason(
+          one.transcribed,
+          one.unstated,
+          one.lostEnd,
+          one.lostProvision,
+          verdictOf(one.given.ref),
+          names,
+        );
 
       const items = prepared.map((one) => {
         const { given, act, cited, id } = one;

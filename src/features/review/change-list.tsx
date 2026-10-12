@@ -125,7 +125,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
         Choose a unit in the list.
       </section>
     );
-  const { entity, relations, others, closes } = unitChanges(unit, words);
+  const { entity, relations, others, closes, retypes } = unitChanges(unit, words);
   return (
     <section
       aria-label="The changes of the unit"
@@ -199,6 +199,14 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
             {close.validFrom === null
               ? 'The relation has no first day in the record.'
               : `The relation starts on ${close.validFrom} in the record.`}
+          </p>
+        </div>
+      ))}
+      {retypes.map((retype) => (
+        <div key={retype.id} data-change={retype.id}>
+          <h3 className={HEADING}>Type of a relation</h3>
+          <p className="break-words">
+            Changes the type from {retype.from} to {retype.to}: {retype.relation}.
           </p>
         </div>
       ))}
