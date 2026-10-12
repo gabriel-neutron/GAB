@@ -19,7 +19,7 @@ const SKILLS = [
   'research-method',
   'investigate-node',
   'cite-claim',
-  'ingest-batch',
+  'source-hunt',
   'carto-step',
   'review-unit',
 ] as const;
@@ -96,22 +96,14 @@ test('the rules of the workspace name each tool of the server', () => {
     if (tool.includes('_')) expect(named.has(tool), `AGENTS.md does not name ${tool}`).toBe(true);
 });
 
-// The research session writes with no question (P12): each proposal waits in the review queue,
-// and the operator decides it there. The tools that spend model credit, and the decisions of an
-// AI reviewer, still ask the operator first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
+// The research session writes with no question (P12): each proposal waits in the review queue.
+// An AI reviewer decides with no question, because each decision records its origin and its
+// reason. Only the tools that spend model credit ask the operator first. The schema is strict, so a second key (a permission mode, a hook, an extra directory)
 // fails here. The settings also refuse each read and each write of the environment file of the
 // stack, because it holds the password of the checker role.
-const ASKS_FIRST = new Set([
-  'enqueue_extract',
-  'enqueue_mapping',
-  'start_lead',
-  'promote_unit',
-  'reject_unit',
-  'reject_relation',
-  'promote_clean_proposals',
-]);
+const ASKS_FIRST = new Set(['enqueue_extract', 'enqueue_mapping', 'start_lead']);
 
-test('the Claude Code settings allow each tool of the server, except the ones that spend credit or decide', () => {
+test('the Claude Code settings allow each tool of the server, except the ones that spend credit', () => {
   const settings = z
     .strictObject({
       permissions: z.strictObject({ allow: z.array(z.string()), deny: z.array(z.string()) }),
