@@ -529,6 +529,7 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(relations.find((row) => row['id'] === owns.id)).toStrictEqual({
     id: owns.id,
     type: 'owns',
+    type_label: 'owns',
     from_id: OWNER,
     from_label: 'TEST OWNER LTD',
     to_id: VESSEL,

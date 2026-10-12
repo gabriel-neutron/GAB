@@ -25,8 +25,13 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('flags', 'flags', 'is flagged by', true),
   relationType('insures', 'insures', 'is insured by', true),
   relationType('appoints', 'appoints', 'is appointed by', true),
-  // valid_from is the entry into force, and valid_to is the delisting.
+  // A listing with an asset freeze: the OFAC SDN list, Annex I of Regulation (EU) 269/2014, or a UK
+  // asset freeze. valid_from is the entry into force, and valid_to is the delisting.
   relationType('designated_by', 'designated by', 'designates', true),
+  // A sectoral measure with no asset freeze: an OFAC directive under EO 14024, or a sectoral annex
+  // or article of Regulation (EU) 833/2014. One act can hold the two kinds of measure, so the type
+  // of the relation gives the effect. The dates have the same meaning as for designated_by.
+  relationType('restricted_by', 'restricted by', 'restricts', true),
   // A licence and a charter each have a period.
   relationType('exempted_by', 'exempted by', 'exempts', true),
   relationType('charters', 'charters', 'is chartered by', true),
@@ -48,3 +53,13 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   // missing word never fails the promotion.
   relationType('unknown', 'is linked to', 'is linked to', false),
 ];
+
+const WORDS = new Map(SEEDED_RELATION_TYPES.map((one) => [one.key, one]));
+
+/** The words of a relation type, read from its first end or from its second end. A type that the
+ * list does not hold reads as its key with spaces. */
+export const relationWords = (type: string, fromFarEnd: boolean): string => {
+  const known = WORDS.get(type);
+  if (known === undefined) return type.replaceAll('_', ' ');
+  return fromFarEnd ? known.inverseLabel : known.label;
+};
