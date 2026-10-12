@@ -22,6 +22,8 @@ export default defineConfig(
       '**/storybook-static',
       '.scratch',
       '.claude/worktrees',
+      // A workflow script is the body of an async function, so a top-level return is valid there.
+      '**/.claude/workflows',
       'src/routeTree.gen.ts',
     ],
   },
