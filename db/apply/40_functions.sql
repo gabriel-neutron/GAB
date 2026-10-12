@@ -5726,7 +5726,7 @@ END $$;
 --
 -- A CLAIM IS A VALUE OF AN ELEMENT, OR A RELATION. A value takes the label, the citations and the
 -- identifier of the act that last set it, as the label of the views does, and a relation takes
--- those of the act that made it. An end date that a later act gave is a value of the relation. A passage is given for a public document of the claim only.
+-- those of the act that made it. An end date or a type that a later act gave is a value of the relation. A passage is given for a public document of the claim only.
 --
 -- JIT IS OFF, AS FOR THE PUBLIC READ ROLE. The rules of the views make a large plan, and its
 -- compile takes more time than the read. Measured on 10 October 2026 on the test database: the
@@ -5835,6 +5835,15 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
       FROM api.relation r
       JOIN api.proposal c ON c.target_id = r.id AND c.status = 'accepted'
                          AND c.op = 'update_relation' AND c.payload ? 'valid_to'
+     WHERE r.id IN (SELECT x.id FROM rel x)
+    UNION ALL
+    -- A type change is a value of the relation in the same way (ADR 0023): the value is the
+    -- current type, and the row keeps the label of the act that made it.
+    SELECT r.id::text || '/type', 'relation', r.id, 'type', to_jsonb(r.type),
+           c.origin_label, to_jsonb(c.src), c.id
+      FROM api.relation r
+      JOIN api.proposal c ON c.target_id = r.id AND c.status = 'accepted'
+                         AND c.op = 'update_relation' AND c.payload ? 'type'
      WHERE r.id IN (SELECT x.id FROM rel x)
   ), kept AS (
     SELECT c.*,
