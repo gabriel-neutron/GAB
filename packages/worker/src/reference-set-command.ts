@@ -9,29 +9,30 @@ import type { SubCommand } from './command.ts';
 import {
   approveReferenceSet,
   buildReferenceSet,
+  fillReferenceSites,
   loadReferenceSet,
   readReferenceSet,
   type ReferenceRow,
 } from './rater/reference-set.ts';
 import { readRaterConfig } from './reader-config.ts';
 
-const USAGE = 'Usage: pnpm worker reference-set <build|load <file>|show|approve>';
+const USAGE = 'Usage: pnpm worker reference-set <build|load <file>|sites <file>|show|approve>';
 
 const print = (rows: readonly ReferenceRow[]): void => {
   for (const one of rows) {
     const party = one.party ? ' (party)' : '';
     const controller = one.controller === null ? '' : ` [controller: ${one.controller}]`;
     const state = one.approved ? 'approved' : 'not approved';
-    console.log(`${one.letter}  ${one.name_key}${party}${controller}  ${state}\n   ${one.reason}`);
+    const sites = one.sites.length === 0 ? 'no site' : one.sites.join(', ');
+    console.log(
+      `${one.letter}  ${one.name_key}${party}${controller}  ${state}\n   ${one.reason}\n   sites: ${sites}`,
+    );
   }
   console.log(`${String(rows.length)} authors.`);
 };
 
 /** Runs the work in one transaction: the set is stored whole or not at all. */
-const whole = async (
-  app: Client,
-  work: () => Promise<readonly ReferenceRow[]>,
-): Promise<readonly ReferenceRow[]> => {
+const whole = async <T>(app: Client, work: () => Promise<T>): Promise<T> => {
   await app.query('BEGIN');
   try {
     const stored = await work();
@@ -44,20 +45,22 @@ const whole = async (
 };
 
 /** The reference set of the rated authors. `build` asks the model once and stores the set with the
- * reason of each letter. `load` stores a set that experts wrote in a file, with no model. `show`
- * prints it. `approve` makes it usable. The operator reads it between the two. */
+ * reason of each letter. `load` stores a set that experts wrote in a file, with no model. `sites`
+ * gives the sites of a file to each author of a stored set that has none. `show` prints it.
+ * `approve` makes it usable. The operator reads it between the two. */
 export const referenceSetCommand: SubCommand = async (args) => {
   const [step, file] = args;
+  const withFile = step === 'load' || step === 'sites';
   if (
-    (step !== 'build' && step !== 'load' && step !== 'show' && step !== 'approve') ||
-    (step === 'load') !== (file !== undefined)
+    (step !== 'build' && !withFile && step !== 'show' && step !== 'approve') ||
+    withFile !== (file !== undefined)
   ) {
     console.error(USAGE);
     return 2;
   }
 
   let text = '';
-  if (step === 'load' && file !== undefined) {
+  if (withFile && file !== undefined) {
     try {
       text = readFileSync(file, 'utf8');
     } catch {
@@ -82,6 +85,13 @@ export const referenceSetCommand: SubCommand = async (args) => {
     if (step === 'approve') {
       const approved = await approveReferenceSet(app);
       console.log(`The reference set is approved: ${String(approved)} authors became usable.`);
+      return 0;
+    }
+
+    if (step === 'sites') {
+      const done = await whole(app, () => fillReferenceSites(app, text));
+      print(done.set);
+      for (const one of done.sites) console.log(`${one.said}  ${one.name}`);
       return 0;
     }
 

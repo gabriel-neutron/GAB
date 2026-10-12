@@ -50,9 +50,9 @@ flowchart LR
 
 | Actor | Can | Cannot |
 |---|---|---|
-| Operator | Upload, edit, promote, reject, start a lead. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Write a table directly. |
-| Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Start a lead. Read a lead that they do not run. |
+| Operator | Upload, edit, promote, reject, start a lead. Merge two entities, and undo a merge. | — |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Merge. Write a table directly. |
+| Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Merge. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
 Each actor has its own database role. The database holds these limits, not the application.
@@ -98,6 +98,67 @@ that last set it. A decider that the label does not know reads as not checked, n
 The database writes the words, so the read API, the screen and an export give the same label. The
 public read gets the name and the version of a rule, and never the inputs of the rule (S1). The read API also gives the disclaimer of
 the dataset beside the data, and an export file copies it.
+
+A merge keeps the identifier of the entity that it absorbs (M12). The read API gives each
+absorbed identifier with the entity that holds it today, so an old link still resolves. The
+ledger holds each merge and each undo as an act, with the full copy of what the merge changed.
+ADR 0014 gives the rules of a merge and of its undo.
+
+Two vessels with one IMO number are one ship. The number is seven digits, with or without the
+prefix "IMO". A new vessel with the number of a vessel in the record or in the queue is a
+duplicate that is not clean, and the fault names the other vessel. The review page lists each
+pair of vessels of the record with one number. The operator keeps one vessel of a pair: the other
+merges into it, and its name becomes a former name.
+
+One company or place can have a Latin and a Cyrillic spelling. A worker command transliterates
+each name of the record (the label and the other names) with one fixed table, and finds the pairs
+of entities of one type where a Latin name and a Cyrillic name give one key. The review page lists
+each pair with both labels, the key and both identifiers. The operator keeps one entity of a pair,
+and the other merges into it with its name as a former name, or refuses the pair. A refused pair
+is never proposed again, also after a merge of one of its entities. No model proposes a pair.
+ADR 0022 gives the table and the storage of the pairs.
+
+## The release path
+
+A release is how the data leaves Gabriel. The operator runs one worker command on the PC, with a
+release manifest that stays outside the public repository. The command reads the record and writes
+one folder, named by the date of the release. It never writes over an earlier folder.
+
+```
+the record  →  the release functions of the database (the public rules)
+            →  the worker command  →  one dated folder of files, and a manifest of the files
+```
+
+- **The read.** The command reads one snapshot of the record, through functions that only the
+  roles that run a tool can call. The public read role cannot call them. They apply the rules of the public read (PU1) and
+  the rules of a release: each row has at least one public document, and a row names only its
+  public documents; a person is in the release only when the record holds a designation of that
+  person; a relation is in the release only when its two ends are. The release holds the record
+  only, and no candidate.
+- **The files.** Each file holds the version, the date and the disclaimer of the dataset, with the
+  two contact addresses of the manifest. Each row carries its label in the fixed words of PU1 and
+  its licence. A claim is a value of an element or a relation, and each claim names its public
+  documents, with the page and the passage that the reader cited. The log of the merges gives
+  each merge and each undo, and the entity that each absorbed identifier resolves to. The same
+  entities, relations and claims are in three formats: CSV for a spreadsheet, GeoJSON for a map
+  tool (the entities with a position), and JSON-LD for linked data. The manifest of the files
+  gives the size and the checksum of each file, and the number of merge candidates across two
+  scripts that wait, that the operator confirmed and that the operator refused.
+- **The changelog.** With the folder of the previous release, the release compares the two
+  folders by identifier: each entity, relation and claim added, changed or removed, and each
+  entity merged or unmerged. It refuses a previous folder that does not agree with its checksums.
+  With no previous folder, the changelog says "first release". ADR 0019 gives the reasons.
+- **The licence.** The licence of a row comes from the providers of its public documents. A row
+  takes the most permissive one: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the
+  provider licence, not redistributed". A document with no provider gives the last one. The tools
+  that store an official list or act give the provider of what they store.
+- **The rating.** No file shows a NATO letter or a rating digit (S1). The release manifest holds
+  the parameter that would show them, and it is off.
+- **The site.** The command also writes a static site beside the folder, from its files only: the
+  critical nodes table, a page for each entity and each claim at the path of its identifier, a
+  map, the downloads and the method. No page reads an API. ADR 0020 gives the reasons.
+
+ADR 0013 gives the reasons for the format of the folder and for the read.
 
 ## The write path
 
@@ -249,7 +310,8 @@ The database applies the rules, so every writer gets the same decision. Each dec
 name and the version of its rule, "validated manually by the operator", or "decided by an AI
 reviewer" (S4), and the inputs that the rule read. Code computes the digit of each fact from its
 independent authors and its conflicts, never from the letters (NATO judges the two apart). Only the reference set, which
-the operator approves once, holds A and B. The letter of an author records the model, the reason,
+the operator approves once, holds A and B. A source A counts alone only when the cited document
+is on a site of its author: a copy on another site needs a second independent source. The letter of an author records the model, the reason,
 and the reference authors that the model compared with. A model never writes a state: the worker
 stores the letter that the model gives, and the database decides.
 

@@ -80,6 +80,74 @@ describe('extractText', () => {
     expect(pages[0]).not.toContain('Home page link');
   });
 
+  // The fixture is the page https://ofac.treasury.gov/recent-actions/20250110 with three entries
+  // of each SDN section, and PATHFINDER. Each entry of an entity or a vessel is in an "a" element
+  // with no href, and each section is one "p" element with "br" elements between the entries.
+  test('an OFAC page of recent actions gives each SDN section, without the frame of the site', async () => {
+    const bytes = await readFile(join(import.meta.dirname, '../fixtures/ofac-recent-action.html'));
+    const [page] = (await extractText(bytes, 'text/html')).pages;
+    expect(page).toContain('Determination pursuant to Section 1(a)(i) of Executive Order 14024');
+    expect(page).toContain("#### The following individuals have been added to OFAC's SDN List:");
+    expect(page).toContain('ALEKPEROV, Yusuf Vagitovich');
+    expect(page).toContain("#### The following entities have been added to OFAC's SDN List:");
+    expect(page).toContain('AKTSIONERNOE OBSHCHESTVO ACHIMGAZ (a.k.a. AO ACHIMGAZ)');
+    expect(page).toContain("#### The following vessels have been added to OFAC's SDN List:");
+    expect(page).toMatch(
+      /^PATHFINDER \(8P2482\) Crude Oil Tanker Barbados flag;.*Vessel Registration Identification IMO 9577094;.*\(vessel\)/mu,
+    );
+    expect(page).toContain('### Sectorial Sanctions Identifications List Update');
+    expect(page).toContain('SURGUTNEFTEGAS (a.k.a. OPEN JOINT STOCK COMPANY SURGUTNEFTEGAS');
+    for (const frame of [
+      'Read the latest Treasury news',
+      'Small Business Contacts',
+      'Privacy Policy',
+    ])
+      expect(page).not.toContain(frame);
+  });
+
+  // A long list in one paragraph next to a short one: with no split, Readability kept the long
+  // list and lost the headings, the short sentence and the short list.
+  test('the parts of a paragraph between runs of breaks are paragraphs of their own', async () => {
+    const entries = (kind: string, count: number) =>
+      Array.from(
+        { length: count },
+        (_, n) =>
+          `ENTRY ${n + 1} OF THE ${kind}, Ul. Lenina D. 15A, Moscow 119071, Russia; Tax ID No. 8904047896.`,
+      ).join('<br> <br>');
+    const html = `<html><body><nav><a href="/a">Home page link</a></nav><main><div>
+      <p>Lead sentence of the notice.</p>
+      <h4>The following entities are added:</h4><p>${entries('ENTITIES', 12)}</p>
+      <p>A short sentence between the lists.</p>
+      <h4>The following vessels are added:</h4>
+      <p>${entries('VESSELS', 2)}<br><br>One more line<br>that goes on.</p>
+      </div></main></body></html>`;
+    const [page] = (await extractText(bytesOf(html), 'text/html')).pages;
+    const blocks = (page ?? '').split(/\n\n+/u);
+    expect(blocks).toContain('Lead sentence of the notice.');
+    expect(blocks).toContain('#### The following entities are added:');
+    expect(blocks).toContain('A short sentence between the lists.');
+    expect(blocks).toContain('#### The following vessels are added:');
+    expect(blocks.filter((block) => block.startsWith('ENTRY '))).toHaveLength(14);
+    expect(blocks).toContain('One more line  \nthat goes on.');
+    expect(page).not.toContain('Home page link');
+  });
+
+  test('a split paragraph keeps its attributes, and an anchor with no href outside a paragraph stays', async () => {
+    const body = `<p>${'The tanker changed its flag three times in one year, and each owner was a shell. '.repeat(6)}</p>`;
+    const html = `<html><body><article>
+      <div class="tabs"><a data-tab="1">Overview tab</a> <a data-tab="2">Details tab</a></div>
+      ${body}
+      <p style="display:none">Hidden first part<br><br>Hidden second part</p>
+      <p aria-hidden="true">Muted first part<br><br>Muted second part</p>
+      <p class="share-social">Share on X<br><br>Share on Facebook</p>
+      ${body}
+      </article></body></html>`;
+    const [page] = (await extractText(bytesOf(html), 'text/html')).pages;
+    expect(page).toContain('changed its flag');
+    for (const noise of ['Overview tab', 'Hidden first part', 'Muted second part', 'Share on X'])
+      expect(page).not.toContain(noise);
+  });
+
   test('an XHTML act gives its whole text, with each article and each annex', async () => {
     const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
       <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Regulation</title></head><body>

@@ -174,6 +174,12 @@ const ACTS: readonly {
     read: { kind: 'attrs', attrs: { berth: { v: 'Quay 7', src: ['doc_8f2a41'] } } },
   },
   {
+    op: 'update_relation',
+    targetKind: 'relation',
+    payload: { valid_to: '2023-11-30' },
+    read: { kind: 'close', valid_to: '2023-11-30' },
+  },
+  {
     op: 'delete_relation',
     targetKind: 'relation',
     payload: {},
@@ -198,6 +204,21 @@ test('each operation reads its own payload, and states what the act holds', () =
     };
     expect(toDomain.proposal(row).payload).toEqual(act.read);
   }
+});
+
+test('an end date keeps what it replaced as the row it changed, and not as attributes', () => {
+  const row = {
+    ...PROPOSAL_ROW,
+    op: 'update_relation',
+    target_kind: 'relation',
+    target_id: SRC_ID,
+    payload: { valid_to: '2023-11-30' },
+    prior_value: { valid_to: null, sources: ['doc_8f2a41'] },
+  };
+  expect(toDomain.proposal(row).priorValue).toStrictEqual({
+    kind: 'row',
+    row: { valid_to: null, sources: ['doc_8f2a41'] },
+  });
 });
 
 // The record refuses a new entity with no type or no name, so the read refuses one too.

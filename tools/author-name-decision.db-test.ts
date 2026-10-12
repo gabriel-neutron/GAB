@@ -11,6 +11,8 @@ import {
   cited,
   join,
   label,
+  OWN_RECORD,
+  OWN_SITE,
   rate as worker,
   reference,
   refusal,
@@ -85,8 +87,8 @@ const dryRun = z.array(
 /** An author A, a name of it that a fact cites with a passed check, and the join of that name. */
 const joined = async (ask: Ask) => {
   const [known, alias] = [name(), name()];
-  await reference(ask, known, 'A');
-  const one = await cited(ask, { author: alias, label: label(), ...ONE });
+  await reference(ask, known, 'A', OWN_SITE);
+  const one = await cited(ask, { author: alias, label: label(), ...ONE, uri: OWN_RECORD });
   await check(ask, one);
   await join(ask, alias, known);
   return { known, alias, one };

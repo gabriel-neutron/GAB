@@ -47,6 +47,7 @@ test('the role matrix of the doors', async () => {
       "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
+      "public.confirm_name_candidate": "app",
       "public.correct_document_title": "app",
       "public.decide_author_name": "app",
       "public.decision_said": "app",
@@ -55,10 +56,16 @@ test('the role matrix of the doors', async () => {
       "public.enqueue_mapped_load": "agent",
       "public.fact_digit": "app",
       "public.fail_job": "agent",
+      "public.fill_document_provider": "agent research",
       "public.fill_document_uri": "app",
+      "public.imo_duplicate_pairs": "app",
       "public.join_author_name": "agent",
       "public.lead_jobs": "app research",
       "public.letter_of": "app",
+      "public.merge_entities": "app",
+      "public.name_candidate_counts": "app",
+      "public.name_candidates": "app",
+      "public.nato_pair": "app",
       "public.promote_group": "app",
       "public.promote_unit": "app",
       "public.propose_batch": "agent research",
@@ -74,8 +81,15 @@ test('the role matrix of the doors', async () => {
       "public.record_model_call": "agent checker",
       "public.record_research_check": "checker",
       "public.reference_set": "app",
+      "public.refuse_name_candidate": "app",
       "public.reject_relation": "app",
       "public.reject_unit": "app",
+      "public.release_claims": "agent app research",
+      "public.release_disclaimer": "agent app research",
+      "public.release_documents": "agent app research",
+      "public.release_entities": "agent app research",
+      "public.release_merges": "agent app research",
+      "public.release_relations": "agent app research",
       "public.requeue_failed_ratings": "app",
       "public.requeue_running_jobs": "agent",
       "public.review_decided": "app research",
@@ -87,7 +101,10 @@ test('the role matrix of the doors', async () => {
       "public.sign_change": "app",
       "public.start_lead": "app research",
       "public.store_author_letter": "agent",
+      "public.store_name_candidates": "app",
       "public.store_reference_author": "app",
+      "public.store_reference_sites": "app",
+      "public.undo_merge": "app",
       "public.unit_rule": "app",
     }
   `);
@@ -239,6 +256,20 @@ for (const identity of ['agent', 'research'] as const)
       ),
     ).rejects.toMatchObject({ code: '42501' });
   });
+
+// A merge and its undo are judgements of the operator on identity (M12).
+const MERGE_DOORS = [
+  "public.merge_entities('a perimeter test', gen_random_uuid(), gen_random_uuid())",
+  "public.undo_merge('a perimeter test', gen_random_uuid())",
+] as const;
+
+for (const identity of ['agent', 'research', 'checker', 'read'] as const)
+  for (const door of MERGE_DOORS)
+    test(`gabriel_${identity} is refused when it calls ${door}`, async () => {
+      await expect(
+        rolledBack(identity, (ask) => ask(`SELECT * FROM ${door}`)),
+      ).rejects.toMatchObject({ code: '42501' });
+    });
 
 test('only the worker role claims a job', async () => {
   expect((await matrix())['public.claim_job']).toBe('agent');

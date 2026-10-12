@@ -199,3 +199,40 @@ test('a new licence on the GFW row moves both GFW documents to cc-by, and no doc
   expect(found.after).toHaveLength(2);
   expect(found.after).toStrictEqual(found.before);
 });
+
+const FILL = 'SELECT public.fill_document_provider($1, $2) AS outcome';
+
+test('the fill door gives a provider to a fetched document with none, and changes no provider', async () => {
+  const sha = 'c'.repeat(64);
+  const id = `doc_${sha.slice(0, 12)}`;
+  const found = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL ROLE gabriel_research');
+    await ask(
+      `SELECT public.put_fetched_document('url', 'An old SDN list', $1, 'https://example.org/sdn',
+         $2, 'text/csv', '2026-10-05'::date)`,
+      [`raw/${sha}`, sha],
+    );
+    const outcomes = [];
+    for (const [document, provider] of [
+      [id, 'ofac_sdn'],
+      [id, 'ofac_sdn'],
+      [id, 'uk_sanctions_list'],
+      ['inherited', 'ofac_sdn'],
+    ] as const)
+      outcomes.push(await ask(FILL, [document, provider]));
+    await ask('RESET ROLE');
+    return {
+      outcomes,
+      row: await providerOf(ask, id),
+      inherited: await providerOf(ask, 'inherited'),
+    };
+  });
+  expect(found.outcomes).toStrictEqual([
+    [{ outcome: 'filled' }],
+    [{ outcome: 'same' }],
+    [{ outcome: 'other' }],
+    [{ outcome: 'not_fetched' }],
+  ]);
+  expect(found.row).toStrictEqual([{ id, provider_id: 'ofac_sdn' }]);
+  expect(found.inherited).toStrictEqual([{ id: 'inherited', provider_id: null }]);
+});

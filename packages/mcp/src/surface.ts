@@ -69,6 +69,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same file is stored once, so a second read of an unchanged list writes nothing.
+  uk_sanctions_list: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // The same act is stored once, so a second read writes nothing.
   eu_act: {
     readOnlyHint: false,

@@ -54,10 +54,11 @@ const checkedUri = (stated: string | undefined, kind: Kind): string | undefined 
       throw new Error('--uri is required: give the address where the file comes from.');
     return undefined;
   }
-  const uri = stated.trim();
-  if (!WEB_SCHEMES.has(URL.parse(uri)?.protocol ?? ''))
+  const parsed = URL.parse(stated.trim());
+  if (parsed === null || !WEB_SCHEMES.has(parsed.protocol))
     throw new Error(`--uri "${stated}" is not an http or an https address.`);
-  return uri;
+  // The record keeps the address as a browser reads it, so the record reads the same host.
+  return parsed.href;
 };
 
 // The cost is euros with at most two decimals, and numeric(12,2) holds ten digits before the

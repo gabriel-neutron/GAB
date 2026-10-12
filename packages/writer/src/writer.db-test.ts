@@ -1554,3 +1554,214 @@ test.for([
     }
   },
 );
+
+test('the operator merges two entities through the writer, and undoes the merge', async () => {
+  const survivor = await signedEntity('Writer test merge survivor');
+  const absorbed = await signedEntity('Writer test merge absorbed');
+  let undone = false;
+  try {
+    const [status, reply] = await post('merge-entities', {
+      survivorId: survivor,
+      absorbedId: absorbed,
+    });
+    expect([status, reply.targetId, reply.state]).toStrictEqual([200, survivor, 'signed']);
+    expect(await liveRows(absorbed)).toBe(0);
+
+    // The survivor of a merge that stands is not deleted, so the old identifier still resolves.
+    const [refusedStatus, refused] = await post('delete-entity', { targetId: survivor });
+    expect([refusedStatus, refused.refusal]).toStrictEqual([
+      422,
+      'targetId: the entity absorbed another entity in a merge, and it is not deleted. Undo each' +
+        ' of those merges first',
+    ]);
+
+    const [undoStatus, undo] = await post('undo-merge', { absorbedId: absorbed });
+    expect([undoStatus, undo.targetId, undo.state]).toStrictEqual([200, absorbed, 'signed']);
+    undone = true;
+    expect(await liveRows(absorbed)).toBe(1);
+  } finally {
+    if (!undone) await post('undo-merge', { absorbedId: absorbed });
+    await removed(survivor, absorbed);
+  }
+});
+
+test('a merge door refuses a body that names no absorbed entity before the record is reached', async () => {
+  expect(await post('merge-entities', { survivorId: randomUUID() })).toStrictEqual([
+    422,
+    { refusal: 'the body names no survivor and no absorbed entity' },
+  ]);
+  expect(await post('undo-merge', {})).toStrictEqual([
+    422,
+    { refusal: 'the body names no absorbed entity' },
+  ]);
+});
+
+const pairsShape = z.object({
+  pairs: z.array(
+    z.object({
+      imo: z.string(),
+      first: z.object({ id: z.string(), label: z.string() }),
+      second: z.object({ id: z.string(), label: z.string() }),
+    }),
+  ),
+});
+
+const imoPairs = async (imo: string) => {
+  const answer = await app.request('/private/imo-pairs', {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: '{}',
+  });
+  expect(answer.status).toBe(200);
+  return pairsShape.parse(await answer.json()).pairs.filter((one) => one.imo === imo);
+};
+
+test('the operator reads a pair with one IMO number, and a merge from it takes the pair off', async () => {
+  // A number that no vessel of the fixture holds: each IMO number there starts with a 9.
+  const imo = `1${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
+  const made = async (label: string, value: unknown): Promise<string> => {
+    const [status, reply] = await post('create-entity', {
+      type: 'vessel',
+      label,
+      attrs: { imo: { v: value } },
+    });
+    expect(status).toBe(200);
+    return reply.targetId ?? '';
+  };
+  const first = await made('Writer test IMO first', imo);
+  const second = await made('Writer test IMO second', `IMO ${imo}`);
+  const [keep, gone] = first < second ? [first, second] : [second, first];
+  let merged = false;
+  try {
+    const labels = new Map([
+      [first, 'Writer test IMO first'],
+      [second, 'Writer test IMO second'],
+    ]);
+    expect(await imoPairs(imo)).toStrictEqual([
+      {
+        imo,
+        first: { id: keep, label: labels.get(keep) },
+        second: { id: gone, label: labels.get(gone) },
+      },
+    ]);
+    const [status] = await post('merge-entities', {
+      survivorId: keep,
+      absorbedId: gone,
+      keepName: true,
+    });
+    expect(status).toBe(200);
+    merged = true;
+    expect(await imoPairs(imo)).toStrictEqual([]);
+  } finally {
+    if (merged) await post('undo-merge', { absorbedId: gone });
+    await removed(first, second);
+  }
+});
+
+const candidatesShape = z.object({
+  candidates: z.array(
+    z.object({
+      key: z.string(),
+      type: z.string(),
+      first: z.object({ id: z.string(), label: z.string(), name: z.string() }),
+      second: z.object({ id: z.string(), label: z.string(), name: z.string() }),
+    }),
+  ),
+});
+
+const askWriter = async (path: string, body: unknown): Promise<[number, unknown]> => {
+  const answer = await app.request(path, {
+    method: 'POST',
+    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return [answer.status, await answer.json()];
+};
+
+const candidatesOf = async (ids: readonly string[]) => {
+  const [status, reply] = await askWriter('/private/name-candidates', {});
+  expect(status).toBe(200);
+  return candidatesShape
+    .parse(reply)
+    .candidates.filter((one) => ids.includes(one.first.id) || ids.includes(one.second.id));
+};
+
+/** Two companies, one Latin and one Cyrillic, stored as a candidate as the command stores it. */
+const candidatePair = async (latin: string, cyrillic: string, key: string) => {
+  const made = async (label: string): Promise<string> => {
+    const [status, reply] = await post('create-entity', { type: 'company', label });
+    expect(status).toBe(200);
+    return reply.targetId ?? '';
+  };
+  const a = await made(latin);
+  const b = await made(cyrillic);
+  const [first, second] = a < b ? [a, b] : [b, a];
+  await pool.query('SELECT * FROM public.store_name_candidates($1::jsonb)', [
+    JSON.stringify([
+      {
+        first_id: first,
+        second_id: second,
+        key,
+        first_name: first === a ? latin : cyrillic,
+        second_name: first === a ? cyrillic : latin,
+      },
+    ]),
+  ]);
+  return { latin: a, cyrillic: b };
+};
+
+// The operator role holds no delete on the pairs, so the superuser deletes the pair of a test.
+const candidateGone = async (a: string, b: string): Promise<void> => {
+  await superuser.query(
+    'DELETE FROM public.name_candidate WHERE first_id = ANY($1::uuid[]) OR second_id = ANY($1::uuid[])',
+    [[a, b]],
+  );
+};
+
+test('the operator reads a candidate across two scripts and refuses it, and it leaves the list', async () => {
+  const { latin, cyrillic } = await candidatePair(
+    'Writer test Primorsk',
+    'Райтер тест Приморск',
+    'raiter test primorsk',
+  );
+  try {
+    expect(await candidatesOf([latin, cyrillic])).toHaveLength(1);
+    expect(
+      await askWriter('/write/refuse-name-candidate', { firstId: cyrillic, secondId: latin }),
+    ).toStrictEqual([200, { refused: 1 }]);
+    expect(await candidatesOf([latin, cyrillic])).toStrictEqual([]);
+    expect(
+      await askWriter('/write/refuse-name-candidate', { firstId: cyrillic, secondId: latin }),
+    ).toStrictEqual([422, { refusal: 'no candidate that waits joins these two entities' }]);
+  } finally {
+    await candidateGone(latin, cyrillic);
+    await removed(latin, cyrillic);
+  }
+});
+
+test('the operator confirms a candidate, the other label becomes a former name of the survivor', async () => {
+  const { latin, cyrillic } = await candidatePair(
+    'Writer test Tuapse',
+    'Райтер тест Туапсе',
+    'raiter test tuapse',
+  );
+  let merged = false;
+  try {
+    const [status] = await askWriter('/write/confirm-name-candidate', {
+      survivorId: latin,
+      absorbedId: cyrillic,
+    });
+    expect(status).toBe(200);
+    merged = true;
+    expect(
+      await one(`SELECT attrs->'former_names'->'v' AS names FROM public.entities WHERE id = $1`, [
+        latin,
+      ]),
+    ).toStrictEqual({ names: ['Райтер тест Туапсе'] });
+    expect(await candidatesOf([latin, cyrillic])).toStrictEqual([]);
+  } finally {
+    if (merged) await post('undo-merge', { absorbedId: cyrillic });
+    await candidateGone(latin, cyrillic);
+    await removed(latin, cyrillic);
+  }
+});

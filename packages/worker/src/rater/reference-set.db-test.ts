@@ -10,6 +10,7 @@ import { completionOf, READER, routerOf } from '../runner-fixture.ts';
 import {
   approveReferenceSet,
   buildReferenceSet,
+  fillReferenceSites,
   loadReferenceSet,
   readReferenceSet,
 } from './reference-set.ts';
@@ -31,7 +32,7 @@ const CONFIG: RaterConfig = { model: READER, tokenCap: 100_000 };
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 
-/** Thirty authors, five for each letter. */
+/** Thirty authors, five for each letter. Each author A has a site of its own. */
 const authors = (count = 30) =>
   Array.from({ length: count }, (_none, index) => ({
     name: `Author ${String(index)}`,
@@ -39,6 +40,7 @@ const authors = (count = 30) =>
     reason: `the reason of author ${String(index)}`,
     controller: null,
     party: false,
+    sites: index % LETTERS.length === 0 ? [`register${String(index)}.example`] : [],
   }));
 
 type Row = Record<string, unknown>;
@@ -203,5 +205,63 @@ test('a written set that breaks a rule stores nothing', async () => {
     );
     await expect(loadReferenceSet(held.app, 'not json')).rejects.toThrow();
     expect(await readReferenceSet(held.app)).toHaveLength(0);
+  });
+});
+
+test('the set keeps the sites of each author, and the operator reads them', async () => {
+  await inTransaction(async (held) => {
+    const stored = await loadReferenceSet(held.app, JSON.stringify({ authors: authors() }));
+
+    expect(stored.find((one) => one.name_key === 'author 0')?.sites).toStrictEqual([
+      'register0.example',
+    ]);
+    expect(stored.find((one) => one.name_key === 'author 1')?.sites).toStrictEqual([]);
+  });
+});
+
+test.each([
+  ['an author A with no site', { letter: 'A', sites: [] }, 'an author A has at least one site'],
+  ['a site with a scheme', { sites: ['https://register.example'] }, 'a site is a host name'],
+  ['a site with a path', { sites: ['register.example/list'] }, 'a site is a host name'],
+  ['a site in capitals', { sites: ['Register.Example'] }, 'a site is a host name'],
+  ['a site with www', { sites: ['www.register.example'] }, 'a site does not start with www.'],
+  ['a site that is too broad', { sites: ['gov.uk'] }, 'a site is too broad'],
+  ['an author with no list of sites', { sites: undefined }, 'sites'],
+])('a set with %s stores nothing', async (_name, change, said) => {
+  await inTransaction(async (held) => {
+    const set = authors().map((one, index) => (index === 0 ? { ...one, ...change } : one));
+    await expect(loadReferenceSet(held.app, JSON.stringify({ authors: set }))).rejects.toThrow(
+      said,
+    );
+    expect(await readReferenceSet(held.app)).toHaveLength(0);
+  });
+});
+
+test('the sites of the file go once to each author of a stored set that has none', async () => {
+  await inTransaction(async (held) => {
+    // A set stored before the sites existed: no author has a site.
+    for (const one of authors())
+      await held.app.query(
+        `SELECT public.store_reference_author($1, $2, 'an older build', $3, '{}'::text[])`,
+        [one.name, one.letter, one.reason],
+      );
+    await approveReferenceSet(held.app);
+    const file = {
+      authors: [
+        ...authors(29),
+        { ...authors()[29], name: 'A stranger', letter: 'A', sites: ['stranger.example'] },
+      ],
+    };
+
+    const first = await fillReferenceSites(held.app, JSON.stringify(file));
+    const again = await fillReferenceSites(held.app, JSON.stringify(file));
+
+    expect(first.sites).toContainEqual({ name: 'Author 0', said: 'filled' });
+    expect(first.sites).toContainEqual({ name: 'A stranger', said: 'not_in_set' });
+    expect(again.sites).toContainEqual({ name: 'Author 0', said: 'same' });
+    expect(first.set.find((one) => one.name_key === 'author 6')?.sites).toStrictEqual([
+      'register6.example',
+    ]);
+    expect(first.set.every((one) => one.approved)).toBe(true);
   });
 });

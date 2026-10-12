@@ -1,0 +1,95 @@
+import { z } from 'zod';
+
+/** The manifest is refused. The message names the value to correct. */
+export class ReleaseManifestFault extends Error {}
+
+// A contact link opens a page or a mail program from any copy of the files, so it is a full
+// address on https or mailto.
+// A quote, a comma or a control character would break a line of a file that holds the value.
+const plain = (value: string): boolean => !/[",\p{Cc}]/u.test(value);
+const PLAIN = 'give no quote, no comma and no control character';
+
+const contact = z
+  .string()
+  .trim()
+  .refine((value) => /^(https:\/\/\S+|mailto:\S+@\S+)$/u.test(value), {
+    message: 'give an https:// or a mailto: address',
+  })
+  .refine(plain, { message: PLAIN });
+
+const day = z.iso.date();
+
+// The identifiers of the linked data are paths under this base, and a reuser links to them, so
+// the base is a full https address that ends with a slash, with no query and no fragment.
+const IRI_BASE = 'https://github.com/gabriel-neutron/GAB/id/';
+const iriBase = z
+  .string()
+  .trim()
+  .refine((value) => /^https:\/\/[^\s?#"]+\/$/u.test(value), {
+    message: 'give an https:// address that ends with a slash, with no query and no fragment',
+  })
+  .default(IRI_BASE);
+
+const shape = z.strictObject({
+  version: z.string().trim().min(1).refine(plain, { message: PLAIN }).optional(),
+  date: day.optional(),
+  showNatoPair: z.boolean().default(false),
+  dateRules: z
+    .strictObject({
+      eu: z.enum(['entry_into_force']).default('entry_into_force'),
+      ofac: z.enum(['recent_actions_notice']).default('recent_actions_notice'),
+      uk: z.enum(['date_designated']).default('date_designated'),
+    })
+    .prefault({}),
+  contacts: z.strictObject({ reportError: contact, rightOfReply: contact }),
+  criticalNodes: z.string().trim().min(1).nullable().default(null),
+  iriBase,
+});
+
+/** What the operator gives for one release. Each value has a default, except the two contact
+ * addresses of the disclaimer. */
+export interface ReleaseManifest {
+  readonly version: string;
+  /** The day of the release, YYYY-MM-DD. */
+  readonly date: string;
+  /** True when each claim row shows its NATO pair. False by default, because the public does not
+   * see the pair. */
+  readonly showNatoPair: boolean;
+  /** The date that counts for a listing of each regime. */
+  readonly dateRules: {
+    readonly eu: 'entry_into_force';
+    readonly ofac: 'recent_actions_notice';
+    readonly uk: 'date_designated';
+  };
+  readonly contacts: { readonly reportError: string; readonly rightOfReply: string };
+  /** The path of the sheet of the candidate nodes, or null. The command reads a relative path
+   * from the folder of the manifest. */
+  readonly criticalNodes: string | null;
+  /** The base of the identifiers and of the vocabulary of the linked data. */
+  readonly iriBase: string;
+}
+
+const said = (error: z.ZodError): string =>
+  error.issues
+    .map(
+      (issue) =>
+        `${issue.path.length === 0 ? 'the manifest' : issue.path.join('.')}: ${issue.message}`,
+    )
+    .join('; ');
+
+/** Reads the text of a release manifest. The date of the release is the UTC day of `now` when
+ * the manifest gives none, and the version is the date when it gives none. */
+export const readReleaseManifest = (text: string, now: Date): ReleaseManifest => {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new ReleaseManifestFault('The release manifest is not valid JSON.');
+  }
+  const read = shape.safeParse(json);
+  if (!read.success)
+    throw new ReleaseManifestFault(`The release manifest is refused. ${said(read.error)}.`);
+  const { version, date, showNatoPair, ...rest } = read.data;
+  const released = date ?? now.toISOString().slice(0, 10);
+  return { version: version ?? released, date: released, showNatoPair, ...rest };
+};

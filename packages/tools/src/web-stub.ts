@@ -85,7 +85,15 @@ export const hashDatabase = (): Session & { readonly stored: unknown[][] } => {
           rows:
             id === undefined
               ? []
-              : [{ id, title: 'held', mime: 'application/json', retrieved_at: '2026-10-05' }],
+              : [
+                  {
+                    id,
+                    title: 'held',
+                    mime: 'application/json',
+                    retrieved_at: '2026-10-05',
+                    provider_id: null,
+                  },
+                ],
         });
       }
       stored.push(values);
