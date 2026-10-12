@@ -48,10 +48,10 @@ decide the unit.
    read the page with `document_text`.
 3. Compare each act with its passage: the name, the type, each value and each relation. A value
    that the passage does not state is not supported.
-   - A sanctions relation: `designated_by` is a listing by name. For a person or an entity, it is
-     a listing with an asset freeze (the OFAC SDN list, Annex I of Council Regulation (EU) No
-     269/2014, a UK asset freeze). For a vessel, it is an entry on the vessel list of a regime (the
-     OFAC SDN list, Annex XLII of Council Regulation (EU) No 833/2014, a UK specified ship). Any
+   - A sanctions relation: `designated_by` is a listing by name. For a vessel, it is an entry on
+     the vessel list of a regime (the OFAC SDN list, Annex XLII of Council Regulation (EU) No
+     833/2014, a UK specified ship). For any other entity, it is a listing with an asset freeze
+     (the OFAC SDN list, Annex I of Council Regulation (EU) No 269/2014, a UK asset freeze). Any
      other sectoral measure freezes no asset, and it is `restricted_by`: an OFAC directive under
      Executive Order 13662 or 14024, or another annex or article of Council Regulation (EU) No
      833/2014. The passage
@@ -77,8 +77,9 @@ decide the unit.
 ## Never
 
 - Never decide a unit that your own session proposed.
-- Never decide a unit that a spec or a ticket holds in the queue. Leave it for the session that
-  the spec names.
+- Never decide a unit that a spec or a ticket holds in the queue: the spec or the ticket names the
+  unit, its group or its kind of act, and says that it waits. Leave it for the session that the
+  spec or the ticket names.
 - Never decide before you read the cited passage.
 - Never promote a unit to make the queue shorter. A wrong promotion goes into the record.
 - Never copy a value of the passage into `why` as a new fact. `why` explains a decision, and it

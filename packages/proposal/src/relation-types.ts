@@ -25,10 +25,10 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('flags', 'flags', 'is flagged by', true),
   relationType('insures', 'insures', 'is insured by', true),
   relationType('appoints', 'appoints', 'is appointed by', true),
-  // A listing by name. For a person or an entity, a listing with an asset freeze: the OFAC SDN list,
-  // Annex I of Regulation (EU) 269/2014, or a UK asset freeze. For a vessel, an entry on the vessel
-  // list of a regime: the OFAC SDN list, Annex XLII of Regulation (EU) 833/2014, or a UK specified
-  // ship. valid_from is the entry into force, and valid_to is the delisting.
+  // A listing by name. For a vessel, an entry on the vessel list of a regime: the OFAC SDN list,
+  // Annex XLII of Regulation (EU) 833/2014, or a UK specified ship. For any other entity, a listing
+  // with an asset freeze: the OFAC SDN list, Annex I of Regulation (EU) 269/2014, or a UK asset
+  // freeze. valid_from is the entry into force, and valid_to is the delisting.
   relationType('designated_by', 'designated by', 'designates', true),
   // A sectoral measure with no asset freeze: an OFAC directive under EO 13662 or EO 14024, or an
   // annex or article of Regulation (EU) 833/2014 other than Annex XLII (the vessel list). One act
