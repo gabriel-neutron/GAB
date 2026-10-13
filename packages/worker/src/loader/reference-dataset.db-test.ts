@@ -519,6 +519,129 @@ test('a row whose value disagrees with the record is a doubt, and an agreeing ro
   });
 });
 
+test('a row sets a missing geometry, a different point is a doubt that writes nothing, and a promotion keeps the old point', async () => {
+  await inTransaction(async (held) => {
+    const entity = async (label: string, osm: string, geom?: unknown): Promise<string> => {
+      const act = await held.asApp(() =>
+        held.idOf(
+          `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+          [
+            JSON.stringify({
+              type: 'facility',
+              label,
+              ...(geom === undefined ? {} : { geom }),
+              attrs: { osm_id: { v: osm, src: ['manual'] } },
+            }),
+          ],
+        ),
+      );
+      await fromAnEarlierTransaction(held, act);
+      return held.asApp(() =>
+        held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [act]),
+      );
+    };
+    const bare = await entity('Iota field', 'n20');
+    const moved = await entity('Kappa field', 'n21', { type: 'Point', coordinates: [20, 10] });
+    const same = await entity('Lambda field', 'n22', { type: 'Point', coordinates: [22, 12] });
+    const book = workbookOf({
+      [SHEET]: [
+        ['Unit name', 'Country/Area', 'OSM id', 'Latitude', 'Longitude'],
+        ['Iota field', 'Russia', 'n20', 61.5, 73.25],
+        ['Kappa field', 'Russia', 'n21', 11, 21],
+        ['Lambda field', 'Russia', 'n22', 12, 22],
+      ],
+    });
+    await storeWorkbook(held, book);
+    const job = await held.asApp(() =>
+      held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [BOOK, SET_NAME]),
+    );
+    await held.ask(OLDEST, [job]);
+    const draft = {
+      ...DRAFT,
+      rows: {
+        ...DRAFT.rows,
+        lookup: [{ key: 'osm_id', column: 'OSM id' }],
+        attrs: {},
+        constants: undefined,
+      },
+    };
+    await held.step(
+      makeMapper(CONFIG),
+      routerOf(() => answerOf(draft)),
+    );
+    const mapping = await held.idOf(
+      "SELECT id FROM public.proposals WHERE op = 'map_document' AND $1 = ANY (src::text[])",
+      [BOOK],
+    );
+    await fromAnEarlierTransaction(held, mapping);
+    const load = await held.asApp(() =>
+      held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+    );
+    await held.ask(OLDEST, [load]);
+    await approve(held);
+
+    await runLoad(held, load);
+
+    const placeOf = (id: string) =>
+      held.ask(
+        `SELECT public.ST_X(e.geom) AS lon, public.ST_Y(e.geom) AS lat, e.sources::text[] AS sources
+           FROM public.entities e WHERE e.id = $1`,
+        [id],
+      );
+    const actOf = (id: string) =>
+      held.ask(
+        `SELECT p.status, p.found_by, public.unit_rule(p.unit_id) AS rule,
+                p.prior_value -> 'geom' AS prior
+           FROM public.proposals p WHERE p.op = 'update_entity' AND p.target_id = $1`,
+        [id],
+      );
+
+    // An entity with no point gets the point of the row, by a proposal that the rule accepts.
+    expect(await placeOf(bare)).toStrictEqual([{ lon: 73.25, lat: 61.5, sources: [BOOK] }]);
+    expect(await actOf(bare)).toStrictEqual([
+      { status: 'accepted', found_by: 'osm_id', rule: null, prior: null },
+    ]);
+    // The point of the record is not the point of the row, so the row waits as a doubt.
+    expect(await placeOf(moved)).toStrictEqual([{ lon: 20, lat: 10, sources: ['manual'] }]);
+    expect(await actOf(moved)).toStrictEqual([
+      { status: 'pending', found_by: 'osm_id', rule: 'doubt', prior: null },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT f.faults->0->>'kind' AS kind, f.faults->0->>'said' AS said
+           FROM public.unit_faults(ARRAY(SELECT p.unit_id FROM public.proposals p
+                                          WHERE p.op = 'update_entity' AND p.target_id = $1)) f`,
+        [moved],
+      ),
+    ).toStrictEqual([
+      {
+        kind: 'record_disagrees',
+        said: 'The record holds another geometry than the reference dataset gives',
+      },
+    ]);
+    // The same point writes no act.
+    expect(await actOf(same)).toStrictEqual([]);
+
+    // The operator promotes the doubt: the point is replaced, the old point stays in the history,
+    // and the source list of the row is the list of the act.
+    const unit = await held.idOf(
+      "SELECT unit_id AS id FROM public.proposals WHERE op = 'update_entity' AND target_id = $1",
+      [moved],
+    );
+    await fromAnEarlierTransaction(held, unit);
+    await held.asApp(() => held.ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit]));
+    expect(await placeOf(moved)).toStrictEqual([{ lon: 21, lat: 11, sources: [BOOK] }]);
+    expect(await actOf(moved)).toStrictEqual([
+      {
+        status: 'accepted',
+        found_by: 'osm_id',
+        rule: null,
+        prior: { type: 'Point', coordinates: [20, 10] },
+      },
+    ]);
+  });
+});
+
 test('a forged act with the model call of the mapping is not accepted on a document with no load', async () => {
   await inTransaction(async (held) => {
     await mappedWorkbook(held);

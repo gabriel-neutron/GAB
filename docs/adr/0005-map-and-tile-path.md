@@ -59,6 +59,16 @@ Analysts already have better tools to trace geometry, and a polygon drawn by han
 P5, P6). The text step reads a GeoJSON layer as a table, and the back-end AI maps its columns, so
 the geometry has a source and passes the rules like any other fact. A vertex editor stays out.
 
+**The path of a QGIS correction (13 October 2026).** The operator traces or corrects a geometry in
+QGIS, and sends the result as an act `update_entity` that carries the GeoJSON geometry. This is an
+act of the operator (`decisions.md` M8), so it is signed at once and no rule decides it. The act
+cites the operator authority (`manual`) by default. It can instead cite a stored document, such as
+a Sentinel-2 image, in `cites`. The promotion replaces the source list of the row with the
+documents of the act (S2), and the prior value of the act keeps the old geometry, so the history
+holds each position that the entity had. A load from a reference dataset uses the same act: it sets
+a missing geometry, and a different geometry waits as a doubt (S3). Code never replaces a position
+of the record in silence.
+
 ## Bought imagery and radar
 
 No free global radar service exists, and `prd.md` puts radar processing out of scope. A radar

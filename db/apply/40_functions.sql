@@ -518,7 +518,8 @@ BEGIN
      'an end date of a relation is a day of the calendar, written as year, month and day: '
      '2026-01-31, and the act that gives it holds no other value'),
     ('proposals_update_entity_shape', 'label',
-     'the act names a new name, a new type, or both, and neither one is blank'),
+     'the act names a new name, a new type, a new geometry, or any of them, and neither the name '
+     'nor the type is blank'),
     ('proposals_create_entity_shape', 'label',
      'a new entity has a type and a name, and neither one is blank'),
     ('entities_label_check', 'label', 'the name of an entity is not blank'),
@@ -775,8 +776,14 @@ BEGIN
     -- A change of a name or a type and a deletion rewrite what the operator already decided. An
     -- end date on an open relation adds to it, and changes nothing that stands. A type change of
     -- a designated_by relation to restricted_by is a correction of the type, with the same rule.
+    -- A place for an entity that has none adds to the record. A place that differs from the place
+    -- of the record waits as a doubt (S3), so the proposal of a place is no rewrite in silence.
     IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs',
-                                            'update_relation')
+                                            'update_relation','update_entity')
+       OR (v_item->>'op' = 'update_entity'
+           AND NOT (jsonb_typeof(v_item->'payload') = 'object'
+                    AND (v_item->'payload') ? 'geom'
+                    AND (v_item->'payload') - 'geom' = '{}'::jsonb))
        OR (v_item->>'op' = 'update_relation'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (((v_item->'payload') ? 'valid_to'
@@ -784,8 +791,9 @@ BEGIN
                          OR ((v_item->'payload') ? 'type'
                              AND (v_item->'payload') - 'type' = '{}'::jsonb)))) THEN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
-                      'or the end date of an open relation, or the type change of a relation, and '
-                      'never a change of a name, a type or a relation, nor a deletion', v_no
+                      'or the end date of an open relation, or the type change of a relation, or the '
+                      'geometry of an entity, and never a change of a name, a type or a relation, '
+                      'nor a deletion', v_no
         USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
     IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
@@ -1668,6 +1676,11 @@ BEGIN
       v_prior := v_prior || jsonb_build_object('type', v_old->'type',
                                                'proposed_type', v_old->'proposed_type');
     END IF;
+    -- P4: the old geometry stays in the history. NULL says that the entity had no place.
+    IF p.payload ? 'geom' THEN
+      v_prior := v_prior || jsonb_build_object('geom',
+        (SELECT public.ST_AsGeoJSON(e.geom)::jsonb FROM public.entities e WHERE e.id = p.target_id));
+    END IF;
 
     UPDATE public.entities e
        SET label         = coalesce(p.payload->>'label', e.label),
@@ -1675,19 +1688,26 @@ BEGIN
                                 THEN coalesce(v_type, 'unknown') ELSE e.type END,
            proposed_type = CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                                 WHEN v_type IS NULL THEN p.payload->>'type' END,
+           geom          = CASE WHEN p.payload ? 'geom'
+                                THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'),
+                                                       4326)
+                                ELSE e.geom END,
            -- The row-level list backs the name, the type and the location together, so an
            -- act that changes one of them replaces the whole list with its own sources.
            sources       = p.src,
            updated_at    = now()
      WHERE e.id = p.target_id
-       AND (e.label, e.type, e.proposed_type) IS DISTINCT FROM
+       AND (e.label, e.type, e.proposed_type, e.geom::text) IS DISTINCT FROM
            (coalesce(p.payload->>'label', e.label),
             CASE WHEN p.payload ? 'type' THEN coalesce(v_type, 'unknown') ELSE e.type END,
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
-                 WHEN v_type IS NULL THEN p.payload->>'type' END);
+                 WHEN v_type IS NULL THEN p.payload->>'type' END,
+            CASE WHEN p.payload ? 'geom'
+                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326)::text
+                 ELSE e.geom::text END);
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'the act changes neither the name nor the type of the entity, and nothing '
-                      'was applied'
+      RAISE EXCEPTION 'the act changes neither the name, the type nor the geometry of the entity, '
+                      'and nothing was applied'
         USING CONSTRAINT = 'act_changes_something';
     END IF;
     v_id := p.target_id;
@@ -3662,7 +3682,22 @@ BEGIN
            'The load found ' || coalesce(public.element_name(a.target_id), a.target_id::text)
            || ' by its name only'
       FROM acts a
-     WHERE a.op = 'update_attrs' AND a.found_by = 'label'
+     WHERE a.op IN ('update_attrs', 'update_entity') AND a.found_by = 'label'
+    UNION ALL
+    -- A loaded row, or a row of a reference dataset, that gives another place for an entity which
+    -- has a place already. A load sets a missing geometry, and it never replaces a place of the
+    -- record in silence (S3).
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'The record holds another geometry than the ' ||
+           CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
+                THEN 'reference dataset gives' ELSE 'loaded row gives' END
+      FROM acts a
+      JOIN public.entities e ON e.id = a.target_id
+     WHERE a.op = 'update_entity' AND a.payload ? 'geom' AND e.geom IS NOT NULL
+       AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL
+            OR a.author_role <> 'gabriel_app')
+       AND NOT public.ST_Equals(e.geom,
+             public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -3818,7 +3853,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     FROM public.proposals a
     JOIN public.reference_dataset d ON a.src = ARRAY[d.document_id]
    WHERE a.id = p_act AND a.author_role = 'gabriel_agent'
-     AND a.op IN ('create_entity', 'update_attrs', 'create_relation')
+     AND a.op IN ('create_entity', 'update_attrs', 'update_entity', 'create_relation')
      -- The load of that mapping runs, or ran, on the one document that the act cites. A model
      -- call alone proves nothing, because another act can carry the same call.
      AND EXISTS (SELECT 1 FROM public.proposals m
