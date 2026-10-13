@@ -11,12 +11,15 @@ const COMMANDS = {
   'nato-coverage': async () =>
     (await import('./release/nato-coverage-command.ts')).natoCoverageCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
+  'reference-dataset': async () =>
+    (await import('./reference-dataset-command.ts')).referenceDatasetCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
   release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
+  'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 
 type CommandName = keyof typeof COMMANDS;

@@ -1,6 +1,6 @@
 # ADR 0005 — Cartographic library and tile path
 
-**Status** Accepted · 10 August 2026 · **Amended 17 August 2026**
+**Status** Accepted · 10 August 2026 · **Amended 17 August and 13 October 2026**
 **Replaces** an earlier entry of `decisions.md` that deferred the cartographic library and the tile path.
 
 Two operator constraints control this decision: no paid third-party service, and the region of work
@@ -43,7 +43,7 @@ contract. Also, the operator does not trust a Russian provider to study Russian 
 while it uses that layer. If this condition becomes a problem, an older EOX layer has a plain CC BY
 licence.
 
-## No geometry editor, and no file import
+## No geometry editor, and a geographic file only through a mapping
 
 The analyst creates geographic elements (`prd.md`). We keep three acts and cut one:
 
@@ -53,9 +53,11 @@ The analyst creates geographic elements (`prd.md`). We keep three acts and cut o
 - **Cut:** vertex authoring, such as tracing a footprint.
 
 Analysts already have better tools to trace geometry, and a polygon drawn by hand has no source
-(`decisions.md` M8). Geographic file import is also cut from the first build. A box selection stays,
-as a query control only, never as stored geometry. `decisions.md` P6 does not change: the
-structured-file ingest path stays in the plan.
+(`decisions.md` M8). A box selection stays, as a query control only, never as stored geometry.
+
+**Amended 13 October 2026.** A geographic file now enters, but only through a mapping (`decisions.md`
+P5, P6). The text step reads a GeoJSON layer as a table, and the back-end AI maps its columns, so
+the geometry has a source and passes the rules like any other fact. A vertex editor stays out.
 
 ## Bought imagery and radar
 

@@ -61,22 +61,57 @@ const relation = z.strictObject({
   valid_to: datedColumn.optional(),
 });
 
-const rows = z.strictObject({
-  entity_type: key,
-  label: column,
-  lookup: z
-    .array(lookup)
-    .min(1)
-    .max(4)
-    .describe('how code finds the entity in the record before it proposes a new one'),
-  geom: geom.optional(),
-  attrs: z.record(key, z.strictObject({ column, cast })),
-});
+/** The kinds of asset. An asset is an entity of the facility type, and its kind tells a field from
+ * a pipeline segment. The list is closed, so a filter and a release can group the assets. */
+export const ASSET_KINDS = [
+  'field',
+  'pipeline_segment',
+  'refinery',
+  'export_terminal',
+  'lng_plant',
+] as const;
+
+/** A constant attribute: the mapping gives its value, and no column does. A table that holds only
+ * oil and gas fields sets the asset kind once. */
+const constants = z
+  .record(key, z.union([z.string().min(1).max(200), z.number(), z.boolean()]))
+  .refine((held) => Object.keys(held).every((name) => name === 'asset_kind'), {
+    message: 'the only constant attribute is asset_kind',
+  })
+  .refine(
+    (held) =>
+      held['asset_kind'] === undefined || ASSET_KINDS.some((kind) => kind === held['asset_kind']),
+    { message: `asset_kind is one of: ${ASSET_KINDS.join(', ')}` },
+  );
+
+const rows = z
+  .strictObject({
+    entity_type: key,
+    label: column,
+    lookup: z
+      .array(lookup)
+      .min(1)
+      .max(4)
+      .describe('how code finds the entity in the record before it proposes a new one'),
+    geom: geom.optional(),
+    attrs: z.record(key, z.strictObject({ column, cast })),
+    constants: constants.optional(),
+  })
+  .refine((held) => Object.keys(held.constants ?? {}).every((name) => !(name in held.attrs)), {
+    message: 'a constant attribute and an attribute of a column never share a key',
+  });
 
 /** What the model gives for one table. The tool adds the signature of the header. */
 export const mappingDraft = z.strictObject({
   table: z.string().trim().min(1).max(200),
   modality: z.enum(MODALITIES),
+  publisher: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe('the body that publishes the table. It is the author of each row'),
   rows,
   relations: z.array(relation).max(10),
 });
