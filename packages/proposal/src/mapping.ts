@@ -52,6 +52,10 @@ export type LookupKey = z.infer<typeof lookupKey>;
 
 const lookup = z.strictObject({ key: lookupKey, column });
 
+/** A lookup of one end of a relation table. A name is no key, and a relation is loaded only
+ * between two ends that an identifier finds, so the lookup of an end holds no `label`. */
+const endLookup = z.strictObject({ key: identifierKey, column });
+
 // External constraint: the column holds two ordinates in degrees of EPSG:4326, and code reads no
 // other system.
 const geom = z.union([
@@ -61,6 +65,14 @@ const geom = z.union([
 
 const datedColumn = z.strictObject({ column, pattern: z.enum(DATE_PATTERNS) });
 
+/** The attributes that a relation takes from the columns of its row, for example the share of an
+ * ownership link. */
+const relationAttrs = z
+  .record(key, z.strictObject({ column, cast }))
+  .refine((held) => Object.values(held).every((rule) => rule.cast.type !== 'ru_register'), {
+    message: 'a relation takes no number of the Russian register',
+  });
+
 // One end of a relation is always the entity of the row, so a relation names the other end and
 // the side that the row takes.
 const relation = z.strictObject({
@@ -69,7 +81,34 @@ const relation = z.strictObject({
   other: lookup.describe('finds the entity at the other end, which the record holds already'),
   valid_from: datedColumn.optional(),
   valid_to: datedColumn.optional(),
+  attrs: relationAttrs.optional(),
 });
+
+/** One end of a relation table. The record holds the entity already, and the lookups find it. */
+const linkEnd = z.strictObject({
+  entity_type: key.describe('the type of the entity at this end, for a lookup by its name'),
+  name: column
+    .optional()
+    .describe('the column of the name at this end, which the load report gives'),
+  lookup: z
+    .array(endLookup)
+    .min(1)
+    .max(4)
+    .describe('how code finds the entity at this end in the record, by an identifier'),
+});
+
+/** A relation table: each row is one relation between two entities that the record holds, and
+ * a row creates no entity. An ownership table gives the holder, the subject and the share. */
+const links = z.strictObject({
+  relation_type: key,
+  src: linkEnd,
+  dst: linkEnd,
+  attrs: relationAttrs,
+  valid_from: datedColumn.optional(),
+  valid_to: datedColumn.optional(),
+});
+
+export type LinkEnd = z.infer<typeof linkEnd>;
 
 /** The kinds of asset. An asset is an entity of the facility type, and its kind tells a field from
  * a pipeline segment. The list is closed, so a filter and a release can group the assets. */
@@ -94,7 +133,7 @@ const constants = z
     { message: `asset_kind is one of: ${ASSET_KINDS.join(', ')}` },
   );
 
-const rows = z
+const entityRows = z
   .strictObject({
     entity_type: key,
     label: column,
@@ -136,8 +175,29 @@ const rows = z
     },
   );
 
-/** What the model gives for one table. The tool adds the signature of the header. */
-export const mappingDraft = z.strictObject({
+/** The rows of a table: each row is one entity, or each row is one relation (a relation table). */
+const rows = z.union([entityRows, links], {
+  // The union alone words each failure as "Invalid input". The key `relation_type` tells the
+  // branch that the model meant, so the retry gets the issues of that branch.
+  error: (issue) => {
+    const input: unknown = issue.input;
+    const isLinks = typeof input === 'object' && input !== null && 'relation_type' in input;
+    const issues = issue.errors[isLinks ? 1 : 0] ?? [];
+    if (issues.length === 0) return undefined;
+    return issues
+      .map((one) => (one.path.length === 0 ? one.message : `${one.path.join('.')}: ${one.message}`))
+      .join('; ');
+  },
+});
+
+export type EntityRows = z.infer<typeof entityRows>;
+export type LinkRows = z.infer<typeof links>;
+
+/** True when each row of the table is one relation, and no row is an entity. */
+export const isLinkTable = (held: EntityRows | LinkRows): held is LinkRows =>
+  'relation_type' in held;
+
+const draftFields = {
   table: z.string().trim().min(1).max(200),
   modality: z.enum(MODALITIES),
   publisher: z
@@ -149,30 +209,64 @@ export const mappingDraft = z.strictObject({
     .describe('the body that publishes the table. It is the author of each row'),
   rows,
   relations: z.array(relation).max(10),
-});
+};
+
+// A relation table holds its one relation in its rows, so it gives no relation of an entity.
+const linkTableHasNoRelations = (held: {
+  readonly rows: EntityRows | LinkRows;
+  readonly relations: readonly unknown[];
+}): boolean => !isLinkTable(held.rows) || held.relations.length === 0;
+const NO_RELATIONS = {
+  message: 'a relation table gives its relation in rows, and relations is []',
+};
+
+/** What the model gives for one table. The tool adds the signature of the header. */
+export const mappingDraft = z
+  .strictObject(draftFields)
+  .refine(linkTableHasNoRelations, NO_RELATIONS);
 
 export type MappingDraft = z.infer<typeof mappingDraft>;
 
 /** The payload of one `map_document` act. The database holds its top-level keys, and this schema
  * holds every key below them. */
-export const mappingPayload = mappingDraft.extend({
-  header_sig: z.string().regex(/^[0-9a-f]{64}$/u),
-});
+export const mappingPayload = z
+  .strictObject({ ...draftFields, header_sig: z.string().regex(/^[0-9a-f]{64}$/u) })
+  .refine(linkTableHasNoRelations, NO_RELATIONS);
 
 export type MappingPayload = z.infer<typeof mappingPayload>;
 
 /** Each column that a mapping names, once. */
 const namedColumns = (mapping: MappingDraft): string[] => {
-  const { geom: where } = mapping.rows;
+  const dayColumns = (held: {
+    readonly valid_from?: { readonly column: string } | undefined;
+    readonly valid_to?: { readonly column: string } | undefined;
+  }): string[] =>
+    [held.valid_from, held.valid_to].flatMap((day) => (day === undefined ? [] : [day.column]));
+  const attrColumns = (held: Readonly<Record<string, { readonly column: string }>> = {}) =>
+    Object.values(held).map((one) => one.column);
+  const { rows: held } = mapping;
+  if (isLinkTable(held))
+    return [
+      ...new Set([
+        ...[held.src, held.dst].flatMap((end) => [
+          ...(end.name === undefined ? [] : [end.name]),
+          ...end.lookup.map((one) => one.column),
+        ]),
+        ...attrColumns(held.attrs),
+        ...dayColumns(held),
+      ]),
+    ];
+  const { geom: where } = held;
   return [
     ...new Set([
-      mapping.rows.label,
-      ...mapping.rows.lookup.map((one) => one.column),
+      held.label,
+      ...held.lookup.map((one) => one.column),
       ...(where === undefined ? [] : 'geojson' in where ? [where.geojson] : [where.lon, where.lat]),
-      ...Object.values(mapping.rows.attrs).map((one) => one.column),
+      ...attrColumns(held.attrs),
       ...mapping.relations.flatMap((one) => [
         one.other.column,
-        ...[one.valid_from, one.valid_to].flatMap((day) => (day === undefined ? [] : [day.column])),
+        ...dayColumns(one),
+        ...attrColumns(one.attrs),
       ]),
     ]),
   ];

@@ -105,6 +105,26 @@ test('a relation read from its far end takes the inverse words of its type', () 
   expect(sentences(VESSEL.id)).toEqual(['MV Northern Ledger is owned by Ledger Shipping']);
 });
 
+test('a share that GEM estimated reads as an estimate on the page and in the relation panel', () => {
+  const owned: Relation = {
+    ...OWNED_BY,
+    type: 'owns',
+    srcId: OWNER.id,
+    dstId: VESSEL.id,
+    attrs: {
+      share_pct: { v: 40.4, src: ['d1'] },
+      share_imputed: { v: true, src: ['d1'] },
+    },
+  };
+  const read: Corpus = { ...CORPUS, relations: [owned], relationTypes: [OWNS] };
+
+  expect(readDossier(read, OWNER.id, [], [])?.relations.map((line) => line.share)).toEqual([
+    'share 40.4%, estimated by GEM',
+  ]);
+  expect(readRelation(read, owned.id)?.share).toBe('share 40.4%, estimated by GEM');
+  expect(readRelation(CORPUS, OWNED_BY.id)?.share).toBeNull();
+});
+
 test('a point borrowed from a parent that the entity list lacks still states that it is borrowed', () => {
   const lost: Corpus = {
     ...CORPUS,
