@@ -66,20 +66,50 @@ const numericDays = (first: string, mark: string, second: string, third: string)
   return one === two ? [dayText(year, one, one)] : [];
 };
 
+const isRealDay = (year: number, month: number, day: number): boolean => {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    year >= 1 &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+};
+
+// Origin: decided, not calibrated. A 29 February is at most eight years back, and a text speaks of
+// a day in the past few years.
+const MOST_YEARS_BACK = 8;
+
+// The year of a day that the text writes with no year: the latest year that puts the day on or
+// before the publication day. A text never speaks of a day to come. A day that some years lack
+// (29 February) takes the latest year that has it.
+const yearBefore = (day: number, month: number, published: string): number | null => {
+  const [year = 0] = published.split('-').map(Number);
+  for (let candidate = year; candidate > year - MOST_YEARS_BACK; candidate -= 1)
+    if (isRealDay(candidate, month, day) && dayText(candidate, month, day) <= published)
+      return candidate;
+  return null;
+};
+
 // The two days of a night that ends on the given day, or none when the year or the day is unknown.
 // The date is checked, so "31 червня" states nothing. A night that ends on 1 January starts on
-// 31 December of the previous year.
+// 31 December of the previous year. A year that the text writes always wins over the publication
+// day.
 const nightDays = (
   day: number,
   month: number | null,
   written: string | undefined,
   publishedOn: string | undefined,
 ): string[] => {
-  const year = written === undefined ? Number(publishedOn?.slice(0, 4)) : Number(written);
-  if (month === null || !Number.isInteger(year) || year < 1) return [];
+  if (month === null) return [];
+  const year =
+    written !== undefined
+      ? Number(written)
+      : publishedOn !== undefined && DAY.test(publishedOn)
+        ? yearBefore(day, month, publishedOn)
+        : null;
+  if (year === null || !isRealDay(year, month, day)) return [];
   const end = new Date(Date.UTC(year, month - 1, day));
-  if (end.getUTCFullYear() !== year || end.getUTCMonth() !== month - 1 || end.getUTCDate() !== day)
-    return [];
   const start = new Date(end.getTime() - 86_400_000);
   const text = (date: Date): string =>
     dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
@@ -277,6 +307,31 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
     default:
       return [];
   }
+};
+
+/** The days of an act that a cited passage states only through the publication day: the passage
+ * writes no year, and the year comes from the day of publication. */
+export const daysFromPublication = (
+  act: WriteRequest,
+  passages: readonly string[],
+  publishedOn: string | undefined,
+): string[] => {
+  if (publishedOn === undefined) return [];
+  const text = passages.join('\n');
+  const alone = daysIn(text, undefined);
+  const deduced = daysIn(text, publishedOn);
+  return [
+    ...new Set(
+      [
+        ...valuesOf(act),
+        ...(act.op === 'update_relation' && act.validTo !== undefined
+          ? [{ name: 'validTo', value: act.validTo }]
+          : []),
+      ].flatMap(({ value }) =>
+        typeof value === 'string' && deduced.has(value) && !alone.has(value) ? [value] : [],
+      ),
+    ),
+  ];
 };
 
 /** The values of an act that no cited passage states, in any form of that value. */

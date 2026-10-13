@@ -4,7 +4,12 @@
 import { writeRequest } from '@gab/proposal/request';
 import { expect, test } from 'vitest';
 
-import { namesProvision, statedBounds, unstatedValues } from './stated-value.ts';
+import {
+  daysFromPublication,
+  namesProvision,
+  statedBounds,
+  unstatedValues,
+} from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -298,6 +303,72 @@ test('a night that ends on 1 January starts in the previous year', () => {
   expect(unstatedValues(relationFrom('2024-12-31'), [passage], options)).toStrictEqual([]);
   expect(unstatedValues(relationFrom('2025-12-31'), [passage], options)).toHaveLength(1);
   expect(unstatedValues(relationFrom('2024-01-01'), [passage], options)).toHaveLength(1);
+});
+
+test('a night with no year takes the latest year that is not after the publication day', () => {
+  const passage = 'Атака була у ніч на 20 грудня.';
+  const options = { publishedOn: '2025-01-05' };
+  expect(unstatedValues(relationFrom('2024-12-20'), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2025-12-20'), [passage], options)).toHaveLength(1);
+  const later = 'Атака була у ніч на 16 травня.';
+  expect(
+    unstatedValues(relationFrom('2023-05-16'), [later], { publishedOn: '2024-05-15' }),
+  ).toStrictEqual([]);
+  expect(
+    unstatedValues(relationFrom('2024-05-16'), [later], { publishedOn: '2024-05-15' }),
+  ).toHaveLength(1);
+});
+
+test('a night that ends on 29 February takes the latest year that has the day', () => {
+  expect(
+    unstatedValues(relationFrom('2024-02-29'), ['у ніч на 29 лютого'], {
+      publishedOn: '2025-03-01',
+    }),
+  ).toStrictEqual([]);
+});
+
+test('a publication date that is no day states nothing', () => {
+  expect(
+    unstatedValues(relationFrom('2024-05-15'), [NIGHT], { publishedOn: 'yesterday' }),
+  ).toHaveLength(1);
+});
+
+test('the days that only the publication date states are named', () => {
+  const act = relationFrom('2024-05-15');
+  expect(daysFromPublication(act, [NIGHT], '2024-05-15')).toStrictEqual(['2024-05-15']);
+  expect(daysFromPublication(act, [NIGHT], undefined)).toStrictEqual([]);
+  expect(daysFromPublication(act, ['у ніч на 15 травня 2024'], '2024-05-15')).toStrictEqual([]);
+  expect(daysFromPublication(act, ['15 May 2024'], '2024-05-15')).toStrictEqual([]);
+});
+
+test('the end of a close that takes its year from the publication day is named', () => {
+  const passage = 'Вона залишила Роснефть у ніч на 30 листопада.';
+  expect(daysFromPublication(closing, [passage], '2023-11-30')).toStrictEqual(['2023-11-30']);
+  expect(daysFromPublication(closing, [passage], undefined)).toStrictEqual([]);
+});
+
+test('a night on 2 January published on 1 January goes to the previous year', () => {
+  const options = { publishedOn: '2025-01-01' };
+  expect(
+    unstatedValues(relationFrom('2024-01-02'), ['Атака у ніч на 2 січня.'], options),
+  ).toStrictEqual([]);
+  expect(
+    unstatedValues(relationFrom('2025-01-02'), ['Атака у ніч на 2 січня.'], options),
+  ).toHaveLength(1);
+});
+
+test('a night on 29 February published on 29 February is that day', () => {
+  expect(
+    unstatedValues(relationFrom('2024-02-29'), ['у ніч на 29 лютого'], {
+      publishedOn: '2024-02-29',
+    }),
+  ).toStrictEqual([]);
+});
+
+test('a night on the publication day itself stays in that year', () => {
+  expect(
+    unstatedValues(relationFrom('2024-05-15'), [NIGHT], { publishedOn: '2024-05-15' }),
+  ).toStrictEqual([]);
 });
 
 test('a night with no year and no publication date stays contested', () => {
