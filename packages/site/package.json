@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./event-lane": "./src/event-lane.ts",
+    "./site-release": "./src/site-release.ts",
     "./write-site": "./src/write-site.ts",
     "./site-release-fault": "./src/site-release-fault.ts"
   },

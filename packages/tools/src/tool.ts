@@ -1,6 +1,7 @@
 import type { RawObject } from '@gab/store';
 import { z } from 'zod';
 
+import type { ChallengeReader } from './challenge-page.ts';
 import type { Resolved } from './fetch-guard.ts';
 
 /** What a tool needs from a connection. The caller opens it and decides its role. */
@@ -36,6 +37,9 @@ export interface Web {
   readonly openSanctionsKey?: string;
   /** The token of the Global Fishing Watch API. It leaves in a header and in no address. */
   readonly gfwToken?: string;
+  /** The map key of NASA FIRMS. FIRMS reads it in the address path, so the tool never stores that
+   * address, never logs it and never puts it in a message. */
+  readonly firmsKey?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
@@ -75,6 +79,8 @@ export interface Reach {
   readonly refuses?: (address: string) => boolean;
   /** The time in milliseconds that a fetch waits for a whole answer. The tool sets the default. */
   readonly fetchTimeoutMs?: number;
+  /** Opens a page that a bot filter refused in a browser. With no value, the refusal stays. */
+  readonly readThroughFilter?: ChallengeReader;
   /** A check of each item by a model of another family, before the write. It gives the verdict
    * on each item that the checker answered. `checkMarks` says which items are written as
    * disputed. It throws a `CheckFailure` when no model could check the batch. */

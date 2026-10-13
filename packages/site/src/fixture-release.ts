@@ -1,3 +1,4 @@
+import { withEvents } from './event-fixture.ts';
 import { readSiteRelease, type SiteRelease } from './site-release.ts';
 
 // The stories read the fixed release that the release code wrote, as the site reads it.
@@ -12,10 +13,15 @@ const ON = import.meta.glob<string>('../fixtures/release-nato/*', {
   eager: true,
 });
 
-const releaseOf = (files: Readonly<Record<string, string>>): SiteRelease =>
-  readSiteRelease(
-    new Map(Object.entries(files).map(([path, text]) => [path.split('/').pop() ?? path, text])),
-  );
+const filesOf = (files: Readonly<Record<string, string>>): Map<string, string> =>
+  new Map(Object.entries(files).map(([path, text]) => [path.split('/').pop() ?? path, text]));
 
-/** The fixed release of the stories, without and with the NATO pair. */
-export const FIXTURE_RELEASE = { off: releaseOf(OFF), on: releaseOf(ON) } as const;
+const releaseOf = (files: Readonly<Record<string, string>>): SiteRelease =>
+  readSiteRelease(filesOf(files));
+
+/** The fixed release of the stories, without and with the NATO pair, and the release with events. */
+export const FIXTURE_RELEASE = {
+  off: releaseOf(OFF),
+  on: releaseOf(ON),
+  events: readSiteRelease(withEvents(filesOf(OFF))),
+} as const;

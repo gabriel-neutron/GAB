@@ -10,7 +10,6 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { arrowImage } from '@/shared/canvas-arrow';
-import type { Area, Ring } from '@/shared/read/model';
 import {
   CANVAS_LABEL_CLASS,
   canvasLabelTransform,
@@ -23,6 +22,7 @@ import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './ba
 import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
 import type { GeoEntity, GeoLink, Projection } from './projection';
+import { shapeFeatureOf, type ShapeFeature } from './shape-feature';
 import { relationsInReach } from './reach';
 import { spreadOffsetPx, spreadSlots } from './spread';
 import { unitSymbolImage, unitSymbolImageId } from './unit-symbol-image';
@@ -184,19 +184,9 @@ const collect = (features: readonly PointFeature[]): PointCollection => ({
   features,
 });
 
-// `id` is the `fid` of the projection, as on a point, so a click on the area finds its entity.
-interface AreaFeature {
-  readonly type: 'Feature';
-  readonly id: number;
-  readonly geometry:
-    | { readonly type: 'Polygon'; readonly coordinates: readonly Ring[] }
-    | { readonly type: 'MultiPolygon'; readonly coordinates: Area };
-  readonly properties: { readonly entityType: string };
-}
-
 interface AreaCollection {
   readonly type: 'FeatureCollection';
-  readonly features: readonly AreaFeature[];
+  readonly features: readonly ShapeFeature[];
 }
 
 // `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
@@ -381,21 +371,9 @@ export function mountMap({
   // of an entity that has no hue draws nothing, as for a point.
   const areaFeaturesOf = (entities: readonly GeoEntity[]): AreaCollection => ({
     type: 'FeatureCollection',
-    features: entities.flatMap((entity): AreaFeature[] => {
-      const { area } = entity;
-      if (area === null || !colourOfType.has(entity.type)) return [];
-      const [only] = area;
-      return [
-        {
-          type: 'Feature',
-          id: entity.fid,
-          geometry:
-            area.length === 1 && only !== undefined
-              ? { type: 'Polygon', coordinates: only }
-              : { type: 'MultiPolygon', coordinates: area },
-          properties: { entityType: entity.type },
-        },
-      ];
+    features: entities.flatMap((entity): ShapeFeature[] => {
+      const feature = shapeFeatureOf(entity, colourOfType.has(entity.type));
+      return feature === null ? [] : [feature];
     }),
   });
 

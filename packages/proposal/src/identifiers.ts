@@ -28,6 +28,11 @@ export const IDENTIFIER_KEY = [
   'entry_into_force',
   'unlocode',
   'osm_id',
+  'osm_version',
+  'gem_entity_id',
+  'gem_unit_id',
+  'gem_project_id',
+  'wikidata_id',
 ] as const;
 
 export type IdentifierKey = (typeof IDENTIFIER_KEY)[number];
@@ -49,6 +54,8 @@ export const IDENTIFIER_KEYS = {
     'eu_fsf_id',
     'ofac_uid',
     'ofsi_group_id',
+    'gem_entity_id',
+    'wikidata_id',
   ],
   person: ['opensanctions_id', 'date_of_birth', 'nationality', 'label_cyrillic', 'aliases'],
   legal_act: ['celex', 'ofac_action_id', 'entry_into_force'],
@@ -59,9 +66,18 @@ export const IDENTIFIER_KEYS = {
     'opensanctions_id',
     'label_cyrillic',
     'aliases',
+    'gem_entity_id',
   ],
-  port: ['unlocode', 'osm_id'],
-  facility: ['unlocode', 'osm_id'],
+  bank: [
+    'lei',
+    'registration_number',
+    'registration_jurisdiction',
+    'tax_id',
+    'opensanctions_id',
+    'gem_entity_id',
+  ],
+  port: ['unlocode', 'osm_id', 'osm_version'],
+  facility: ['unlocode', 'osm_id', 'osm_version', 'gem_unit_id', 'gem_project_id', 'wikidata_id'],
 } as const satisfies Readonly<Record<string, readonly IdentifierKey[]>>;
 
 const SEVEN_DIGITS = /^\d{7}$/;
@@ -74,6 +90,22 @@ export const isValidImo = (text: string): boolean => {
   const digits = Array.from(text, Number);
   const sum = digits.slice(0, 6).reduce((total, digit, index) => total + digit * (7 - index), 0);
   return sum % 10 === digits[6];
+};
+
+// External constraint: ISO 17442. A LEI is 18 letters or digits and two check digits.
+const LEI_SHAPE = /^[0-9A-Z]{18}[0-9]{2}$/u;
+
+/** True when the text is a LEI in its legal form: the shape of ISO 17442, and the check digits of
+ * ISO 7064 MOD 97-10. Each letter counts as its number from 10 to 35, and the remainder of the
+ * whole number divided by 97 is 1. The text is never trimmed and never put in capitals. */
+export const isValidLei = (text: string): boolean => {
+  if (!LEI_SHAPE.test(text)) return false;
+  let rest = 0;
+  for (const character of text) {
+    const value = Number.parseInt(character, 36);
+    rest = (rest * (value > 9 ? 100 : 10) + value) % 97;
+  }
+  return rest === 1;
 };
 
 /** The shapes that hold one identifier value in the attributes of a row: the value, and the value

@@ -1,4 +1,4 @@
-import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { BULK_FILE_BYTES, fileLimitOf, UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { DatabaseError } from 'pg';
 import { expect, test } from 'vitest';
 
@@ -110,6 +110,15 @@ test('a file over the cap is refused as too large', () => {
   expect(refusalOf({ ...WHOLE, content }).status).toBe(413);
   const atCap = Buffer.alloc(UPLOAD_FILE_BYTES).toString('base64');
   expect(parsed({ ...WHOLE, content: atCap }).ok).toBe(true);
+});
+
+test('a bulk dataset gets the higher limit, and a file of another kind keeps the usual one', () => {
+  const content = Buffer.alloc(UPLOAD_FILE_BYTES + 1).toString('base64');
+
+  expect(parsed({ ...WHOLE, fileName: 'GEM-ownership.xlsx', content }).ok).toBe(true);
+  expect(parsed({ ...WHOLE, fileName: 'routes.ZIP', content }).ok).toBe(true);
+  expect(refusalOf({ ...WHOLE, fileName: 'scan.pdf', content }).status).toBe(413);
+  expect(fileLimitOf('a.xlsx')).toBe(BULK_FILE_BYTES);
 });
 
 test('the second of two uploads of the same bytes at one instant answers the first row', async () => {

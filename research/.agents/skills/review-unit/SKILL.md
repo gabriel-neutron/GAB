@@ -21,8 +21,14 @@ decide the unit.
   separate session. **The session that proposed a unit never decides it.** Start the review in a
   new session, and do not decide a unit that this session proposed. The tools do not enforce this
   rule, because all the sessions share one role.
-- **The operator can always decide in place of you.** When you are not sure, leave the unit in
-  the queue for the operator.
+- **When you are not sure, send the unit to the skill `expert-panel`**, and decide it with its
+  verdict. Leave a unit in the queue only when the panel names a source that is missing: write
+  that source on the list of needs (skill `source-hunt`). The operator can always decide in
+  place of you.
+- **One review of the queue at a time.** To empty the queue, the operator starts the workflow
+  `review-queue` (`research/.claude/workflows/review-queue.js`). It reads the queue again at
+  each round, so two reviewers do not decide the same unit. When `read_unit` says that a unit is
+  decided or absent, go to the next unit.
 
 ## Tools
 
@@ -36,8 +42,7 @@ decide the unit.
 - `read_leads`: the leads and the documents that each one stored.
 - `promote_unit`, `reject_unit`, `reject_relation`: the decisions of the review page on one
   unit. `promote_clean_proposals`: the group action, which promotes the clean units of one group,
-  each as its own decision with your reason. In a session that starts in `research/`,
-  each one asks the operator before it runs.
+  each as its own decision with your reason.
 - `document_text`: the whole page of a cited document, when the passage is not enough.
 
 ## Steps
@@ -64,11 +69,11 @@ decide the unit.
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
    - The unit is wrong as a whole: call `reject_unit` with the reason and, if necessary, a note.
    - Only one relation is wrong: call `reject_relation` with the id of its act. The rest of the
-     unit stays in the queue.
+     unit stays in the queue: decide it with the same rules.
    - Each clean unit of one group is correct: call `promote_clean_proposals` with the group and
      the units that you read. Give only the units whose passages you read. The database refuses
      each unit that is not clean, and writes the others.
-   - You are not sure: do nothing, and tell the operator why.
+   - You are not sure: send the unit to the skill `expert-panel`, and decide it with its verdict.
 5. Give `why` for each decision: one or two sentences that name the passage and say how it
    supports the decision. The operator reads it beside the origin.
 6. When the record refuses a decision, read the reason and the field. A blocked unit, such as a

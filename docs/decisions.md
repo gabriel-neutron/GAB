@@ -15,7 +15,7 @@ it. The build decisions are in the ADRs.
 | C7 | The old corpus is rebuilt, not carried over | Framing |
 | M1 | No FollowTheMoney | Data model |
 | M2 | Typed fields for what connects, free attributes for what describes | Data model |
-| M3 | An occurrence is a relation or an attribute, not a node | Data model |
+| M3 | An exchange is a relation or an attribute. A reported event is a node | Data model |
 | M4 | A relation can point at a relation | Data model |
 | M5 | The graph is the present state; no history, no query by date | Data model |
 | M6 | A date is provenance, or a bound on a claim that changes hands | Data model |
@@ -111,13 +111,17 @@ only one row says is a free attribute.
 **Why.** A rigid shape bends the data, and a free shape stops correlation.
 **Cost.** A search through free attributes is slower. This is acceptable at our volume.
 
-### M3 — An occurrence is not a node
+### M3 — An exchange is not a node. A reported event is a node
 
-**Rule.** A transfer, a port call or a loading is a relation between the parties, or an attribute
-of one of them.
-**Why.** The graph is the present state (M5), so no node can stand for a moment.
-**Cost.** An occurrence with three or more parties becomes several relations with no tie between
-them.
+**Rule.** An exchange between parties (a port call, a ship-to-ship transfer, a loading) is a
+relation between the parties, or an attribute of one of them. An event that a party reports
+(a claimed strike, a fire, a stoppage) is a dated node of the type `event`, linked to its site.
+**Why.** The graph is the present state (M5), so no node can stand for a moment of an exchange.
+A relation cannot hold a reported event: the key of a relation ignores its attributes, so all
+events of one actor on one site would be one fact, and a denial would touch all of them.
+**Cost.** An exchange with three or more parties becomes several relations with no tie between
+them. An event is a claim of a party, not an observed fact.
+**Amended.** 13 October 2026, by the operator (spec #548).
 
 ### M4 — A relation can point at a relation
 
@@ -237,16 +241,24 @@ order to each unit, and the first rule that matches decides:
    The rule rejects it.
 2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that
    the operator rejected before, a check by the second model that disputes a fact, a denial by the
-   subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
-   (S6). The unit goes to the operator, with the reason.
-3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
+   subject of a fact, an adverse claim of a type on a fixed list about a named person or company
+   (S6), or a loaded row whose value disagrees with a value of the record. A loaded row that
+   matches an entity by its name only adds its facts as a doubt, because two entities can share a
+   name. A different geometry on a found entity is a doubt. The unit goes to the operator, with
+   the reason.
+3. **Reference dataset.** A row of a promoted mapping from a reference dataset is accepted, with
+   no second source and no check by a second model. The operator approves one edition of one named
+   dataset in one act. The origin of the decision names the dataset and says that the operator
+   approved it. GAB did not check the fact, and the public text says so (operator decision,
+   13 October 2026).
+4. **Strong sources.** A model of a second family found each fact in its passage, and each fact
    has either one source A on a site of its author, or two independent sources: one B or better
    and one C or better. A copy of a record A on another site is one of the two. Two sources are independent only when they have different authors, different
    controllers (one state, one holding or one channel network counts as one author), different
    sites, and passages that are not copies of each other. When code is not sure, the two sources
    count as one author. A source that only reports what another party says never counts. The rule
    accepts the unit.
-4. **Weak sources.** All other units wait for a better source, and the operator does not see them
+5. **Weak sources.** All other units wait for a better source, and the operator does not see them
    in the queue. A deepening search can look for a better source (P10). When a new source comes,
    the unit goes through the rules again. A unit whose only sources are D or E, after the
    deepening search, is rejected. Any other unit is kept and never rejected, because a source can
@@ -256,9 +268,12 @@ The threshold starts strict. The operator relaxes it later, from real data. No m
 state of a unit: a model gives a letter (S1), and code applies the rules. A contradiction from an
 author F is not a doubt: the unit waits.
 **Why.** A queue of every claim makes one person the bottleneck and cancels the gain. A rule on
-the sources is simple, and anyone can audit it.
+the sources is simple, and anyone can audit it. A reference dataset publishes open, sourced data,
+so one approval of the operator replaces a decision for each row.
 **Cost.** At the start few units pass, because most facts have one source. Two models can share a
-blind spot. The public text says that the accuracy of the rules is not measured.
+blind spot. The public text says that the accuracy of the rules is not measured. A fact of a
+reference dataset is as good as the dataset: GAB did not check it, and an error of the dataset
+enters the record with the origin of the dataset.
 
 ### S4 — The origin of each decision is published
 
@@ -319,7 +334,7 @@ Agents, models and prompts can change freely.
 
 ### P5 — Text formats and images
 
-**Rule.** Text PDF, docx, txt, md, html, csv, and a PNG or JPEG image. No audio, no video. The first
+**Rule.** Text PDF, docx, txt, md, html, csv, XLSX, GeoJSON, and a PNG or JPEG image. No audio, no video. The first
 reading of an image is OCR, and a proposal cites an excerpt of that text. When the OCR text does not
 hold what the image shows, the research AI cites the words that it read from the image itself. Such
 a proposal is always disputed. A back-end agent reads the stored text only, so it never cites words
@@ -330,7 +345,8 @@ unit tree of Tochnyi, publishes its facts as an image only. Its OCR text mixes t
 tree and misreads the unit numbers, so it does not state the parent of a unit (operator decision,
 9 October 2026).
 **Cost.** OCR and the AI can each misread a character, so the operator compares the excerpt with the
-image before a promotion. A scanned PDF is converted outside the tool first.
+image before a promotion. A scanned PDF is converted outside the tool first. An XLSX sheet and a
+GeoJSON layer read as a table (operator decision, 13 October 2026).
 
 ### P6 — One ingestion door
 

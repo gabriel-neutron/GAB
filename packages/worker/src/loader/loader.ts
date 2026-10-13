@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
-import { identifierContainment } from '@gab/proposal/identifiers';
 import { machineAct } from '@gab/proposal/machine';
-import { mappingPayload, type LookupKey, type MappingPayload } from '@gab/proposal/mapping';
+import { mappingPayload, type Cast, type MappingPayload } from '@gab/proposal/mapping';
 import { writeRequest } from '@gab/proposal/request';
 import type { RawObject } from '@gab/store';
 import type { CsvRecord } from '@gab/tools/csv';
@@ -15,6 +14,7 @@ import { z } from 'zod';
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import type { Queryable } from '../queryable.ts';
 import { castCell, dayOf } from './cast.ts';
+import { makeFinder } from './join.ts';
 
 const LOADER_NAME = 'loader';
 const VERSION = 'v1';
@@ -27,22 +27,14 @@ interface LoaderOptions {
   readonly store: { put(object: RawObject): Promise<string> };
 }
 
-// The fixed order of the lookup. An identifier that a list shares with the record finds a hull
-// before a name does, and a name alone is the last way.
-const FIRST_KEYS: readonly LookupKey[] = ['imo', 'opensanctions_id'];
-
 const MAPPING = `SELECT payload, model_call_id::text AS model_call_id
   FROM public.proposals WHERE id = $1::uuid AND op = 'map_document'`;
 
 const mappingRow = z.array(z.object({ payload: z.unknown(), model_call_id: z.uuid() }));
 
-const BY_IDENTIFIER = `SELECT id::text AS id FROM api.entity
-  WHERE attrs @> ANY($1::jsonb[]) ORDER BY id LIMIT 20`;
+const TEXT_SET = 'SELECT text_set FROM public.jobs WHERE id = $1::uuid';
 
-const BY_LABEL = `SELECT id::text AS id FROM api.entity
-  WHERE type = $1::text AND lower(label) = lower($2::text) ORDER BY id LIMIT 20`;
-
-const idRows = z.array(z.object({ id: z.uuid() }));
+const textSetRow = z.array(z.object({ text_set: z.string().nullable() }));
 
 const BATCH = 'SELECT item FROM public.propose_batch($1::jsonb)';
 
@@ -96,19 +88,6 @@ export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
     .map((line) => `${line}\r\n`)
     .join('');
 
-type Found =
-  | { readonly kind: 'none' }
-  | { readonly kind: 'one'; readonly id: string }
-  | { readonly kind: 'many'; readonly key: string; readonly count: number };
-
-/** The lookups of a mapping in the order that code tries them: the two first keys, then each
- * other identifier in the order of the mapping, then the name. */
-export const lookupOrder = <T extends { readonly key: LookupKey }>(given: readonly T[]): T[] => [
-  ...FIRST_KEYS.flatMap((key) => given.filter((one) => one.key === key)),
-  ...given.filter((one) => !FIRST_KEYS.includes(one.key) && one.key !== 'label'),
-  ...given.filter((one) => one.key === 'label'),
-];
-
 const ENTITY_ATTRS = 'SELECT attrs FROM api.entity WHERE id = $1::uuid';
 
 const SAME_RELATION = `SELECT 1 AS held FROM api.relation
@@ -149,21 +128,6 @@ const isLinked = async (
   (await db.query(SAME_RELATION, [type, src, dst, days.validFrom ?? null, days.validTo ?? null]))
     .rows.length > 0;
 
-const lookedUp = async (
-  db: Queryable,
-  entityType: string,
-  lookup: { readonly key: LookupKey; readonly column: string },
-  value: string,
-): Promise<string[]> => {
-  const { rows } =
-    lookup.key === 'label'
-      ? await db.query(BY_LABEL, [entityType, value])
-      : await db.query(BY_IDENTIFIER, [
-          identifierContainment(lookup.key, value).map((shape) => JSON.stringify(shape)),
-        ]);
-  return idRows.parse(rows).map((held) => held.id);
-};
-
 /** The loader reads every row under the promoted mapping, and it calls no model. Each row is one
  * batch of the one door of a machine, and the span of the row is its citation. A row that does
  * not fit gives one line of the report. */
@@ -183,7 +147,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     let page: Awaited<ReturnType<typeof readTablePage>>;
     let table: ReturnType<typeof tableOf>;
     try {
-      page = await readTablePage(session, document);
+      const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
+      page = await readTablePage(session, document, named?.text_set ?? null);
       table = tableOf(page.text);
     } catch (cause) {
       if (cause instanceof ToolRefusal) throw new JobStop(cause.message);
@@ -198,21 +163,13 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     const lines: Line[] = [];
     let loaded = 0;
     let excluded = 0;
-
-    const find = async (
-      record: CsvRecord,
-      given: readonly { readonly key: LookupKey; readonly column: string }[],
-    ): Promise<Found> => {
-      for (const one of lookupOrder(given)) {
-        const value = (record.fields[column.get(one.column) ?? -1] ?? '').trim();
-        if (value === '') continue;
-        const ids = await lookedUp(context.db, mapping.rows.entity_type, one, value);
-        const [first] = ids;
-        if (ids.length > 1) return { kind: 'many', key: one.key, count: ids.length };
-        if (first !== undefined) return { kind: 'one', id: first };
-      }
-      return { kind: 'none' };
-    };
+    const find = makeFinder(context.db, mapping, table.header);
+    const pairedRegister = (key: string, rule: { column: string; cast: Cast }): boolean =>
+      rule.cast.type === 'ru_register' &&
+      Object.entries(mapping.rows.attrs).some(
+        ([other, held]) =>
+          other !== key && held.column === rule.column && held.cast.type === 'ru_register',
+      );
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -253,6 +210,16 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         const text = cell(rule.column);
         if (text === '') continue;
         const cast = castCell(rule.cast, key, text);
+        if (cast.ok === 'skip') {
+          // A register column that fills the tax number and the registration number gives one
+          // of them in each row, and the other key is no fault of the row.
+          if (!pairedRegister(key, rule))
+            lines.push({
+              ...where,
+              reason: `the column "${rule.column}" gives no ${key}: ${cast.reason}`,
+            });
+          continue;
+        }
         if (!cast.ok) {
           unfit(`the column "${rule.column}": ${cast.reason}`);
           return;
@@ -288,6 +255,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         unfit(`the lookup by ${found.key} finds ${String(found.count)} entities`);
         return;
       }
+      // A name is no key: two entities can share it. A row that finds its entity by its name only
+      // adds its facts, and the act keeps the key, so the Doubt rule sends it to the operator.
+      if (found.kind === 'one' && found.key === 'label')
+        lines.push({ ...where, reason: `the row finds entity ${found.id} by its name only` });
+      for (const [key, value] of Object.entries(mapping.rows.constants ?? {}))
+        attrs[key] = { v: value };
       const hasAttrs = Object.keys(attrs).length > 0;
       if (found.kind === 'one' && !hasAttrs) {
         unfit(`the row finds entity ${found.id} and adds no attribute`);
@@ -322,6 +295,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           lines.push({ ...where, reason });
         };
         if (cell(relation.other.column) === '') continue;
+        // A relation is a unit of its own, so the doubt of a name match never reaches it. The row
+        // writes it only after the operator gives the entity an identifier.
+        if (found.kind === 'one' && found.key === 'label') {
+          note('relation not loaded: the row finds its entity by its name only');
+          continue;
+        }
         const end = await find(record, [relation.other]);
         if (end.kind === 'none') {
           note(NOT_IN_GRAPH);
@@ -379,9 +358,11 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           target_kind: made.targetKind,
           target_id: made.targetId,
           names: made.names,
+          ...(act.ref === 'row' && found.kind === 'one' ? { found_by: found.key } : {}),
           dissent: false,
           model_call_id: held.model_call_id,
-          originator: mapping.table,
+          // The author of a row is the body that publishes the table, and never the file name.
+          originator: mapping.publisher ?? mapping.table,
           modality: mapping.modality,
           citations: [
             {
