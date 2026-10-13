@@ -12,7 +12,7 @@ const KEY = 'firms-secret-key-1';
 const tool = CATALOGUE.find((entry) => entry.name === 'firms_detections');
 if (tool === undefined) throw new Error('the catalogue holds no firms_detections');
 
-// Recorded shape of the availability answer. The archive of SNPP ends on 31 May, its near real
+// Handwritten answer in the assumed shape of the FIRMS availability CSV. The archive of SNPP ends on 31 May, its near real
 // time source starts on 20 May. NOAA-20 holds a near real time source only.
 const AVAILABILITY = [
   'data_id,min_date,max_date',
@@ -192,4 +192,16 @@ test('the tool reads the cost and stops before the rate limit', async () => {
   );
   expect(refusalOf(stopped)).toContain('stopped before the rate limit');
   expect(costly.store.puts).toHaveLength(0);
+});
+
+test('an availability answer that yields no source is refused as not understood', async () => {
+  const { session, reach } = setup();
+  const odd = stubWeb(() => text('<html>maintenance</html>'), { firmsKey: KEY });
+  const outcome = await callTool(
+    tool,
+    session,
+    { ...BOX, from: '2026-06-01', to: '2026-06-02' },
+    { ...reach, web: odd },
+  );
+  expect(refusalOf(outcome)).toBe('NASA FIRMS: availability not understood');
 });
