@@ -297,10 +297,11 @@ describe('a bot filter or a silent server gives a refusal that names the next st
       ...fixtureReach(store),
       readThroughFilter: (url) => {
         asked.push(url);
-        return Promise.resolve(null);
+        return Promise.resolve('the filter did not let the Chrome window through');
       },
     };
     const refusal = await refusalOf(`${base}/cloudflare`, reach);
+    expect(refusal).toMatch(/Chrome window was also tried: the filter did not let/);
     expect(asked).toStrictEqual([`${base}/cloudflare`]);
     expect(refusal).toMatch(/answered 403/);
     expect(refusal).toMatch(/store_saved_file/);
@@ -313,7 +314,7 @@ describe('a bot filter or a silent server gives a refusal that names the next st
       ...fixtureReach(memoryStore()),
       readThroughFilter: (url) => {
         asked.push(url);
-        return Promise.resolve(null);
+        return Promise.resolve('no page');
       },
     };
     expect(await refusalOf(`${base}/gone`, reach)).toMatch(/answered 410/);

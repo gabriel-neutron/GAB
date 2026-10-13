@@ -157,7 +157,7 @@ export const checkHost = async (
 };
 
 // The socket asks this function for the address, and it gets only an address that passed.
-const guardedLookup =
+export const guardedLookup =
   (lookup: GetOptions['lookup'], refuses: (address: string) => boolean): LookupFunction =>
   (host, options, callback) => {
     (lookup ?? systemLookup)(host)
