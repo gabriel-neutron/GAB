@@ -45,6 +45,8 @@ const TEST_TIMEOUT = 30_000;
 
 const SOURCE_ROOT = path.resolve(import.meta.dirname, './src');
 
+const SCHEMA_GUARD = path.resolve(import.meta.dirname, './tools/test-schema-guard.ts');
+
 // External constraint: a project does not inherit `testTimeout` from the root, so each one states
 // it. Vite matches the `@` alias only as `@` or `@/`, so the alias changes no `@gab/` import.
 const nodeProject = (
@@ -61,6 +63,8 @@ const nodeProject = (
     environment: 'node',
     env,
     include: [...include],
+    // A project with a live target proves the migrations ran before its first test.
+    globalSetup: 'GABRIEL_DATABASE' in env ? [SCHEMA_GUARD] : [],
     sequence: { groupOrder },
   },
   resolve: { alias: { '@': SOURCE_ROOT } },
