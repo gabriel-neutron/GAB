@@ -13,20 +13,20 @@ interface ActValue {
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/u;
 
 // The words of a month in the languages of the corpus. A short form is a prefix of three letters.
-// Russian writes a day with the month in the genitive: "2 мая 2019 г.".
+// Russian and Ukrainian write a day with the month in the genitive: "2 мая 2019 г.".
 const MONTHS: readonly (readonly string[])[] = [
-  ['january', 'janvier', 'janv', 'январь', 'января'],
-  ['february', 'février', 'fevrier', 'févr', 'fevr', 'февраль', 'февраля'],
-  ['march', 'mars', 'март', 'марта'],
-  ['april', 'avril', 'avr', 'апрель', 'апреля'],
-  ['may', 'mai', 'май', 'мая'],
-  ['june', 'juin', 'июнь', 'июня'],
-  ['july', 'juillet', 'juil', 'июль', 'июля'],
-  ['august', 'août', 'aout', 'август', 'августа'],
-  ['september', 'septembre', 'sept', 'сентябрь', 'сентября'],
-  ['october', 'octobre', 'октябрь', 'октября'],
-  ['november', 'novembre', 'ноябрь', 'ноября'],
-  ['december', 'décembre', 'decembre', 'декабрь', 'декабря'],
+  ['january', 'janvier', 'janv', 'январь', 'января', 'січня'],
+  ['february', 'février', 'fevrier', 'févr', 'fevr', 'февраль', 'февраля', 'лютого'],
+  ['march', 'mars', 'март', 'марта', 'березня'],
+  ['april', 'avril', 'avr', 'апрель', 'апреля', 'квітня'],
+  ['may', 'mai', 'май', 'мая', 'травня'],
+  ['june', 'juin', 'июнь', 'июня', 'червня'],
+  ['july', 'juillet', 'juil', 'июль', 'июля', 'липня'],
+  ['august', 'août', 'aout', 'август', 'августа', 'серпня'],
+  ['september', 'septembre', 'sept', 'сентябрь', 'сентября', 'вересня'],
+  ['october', 'octobre', 'октябрь', 'октября', 'жовтня'],
+  ['november', 'novembre', 'ноябрь', 'ноября', 'листопада'],
+  ['december', 'décembre', 'decembre', 'декабрь', 'декабря', 'грудня'],
 ];
 
 const monthOf = (word: string): number | null => {
@@ -45,6 +45,10 @@ const dayText = (year: number, month: number, day: number): string =>
 const WORD_DAY =
   /(?<!\d)(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s*,\s*|\s+|-)([\p{L}.]+)(?:\s*,\s*|\s+|-)(\d{4})(?!\d)/gu;
 const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!\d)/gu;
+// A Ukrainian night: "у ніч на 15 травня". The night starts on the day before the day that it
+// names, so it states two days. The year is the one that the text gives, or else the year of the
+// publication date of the document.
+const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\d{4})(?!\d))?/giu;
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -61,10 +65,40 @@ const numericDays = (first: string, mark: string, second: string, third: string)
   return one === two ? [dayText(year, one, one)] : [];
 };
 
+// The two days of a night that ends on the given day, or none when the year or the day is unknown.
+// The date is checked, so "31 червня" states nothing. A night that ends on 1 January starts on
+// 31 December of the previous year.
+const nightDays = (
+  day: number,
+  month: number | null,
+  written: string | undefined,
+  publishedOn: string | undefined,
+): string[] => {
+  const year = written === undefined ? Number(publishedOn?.slice(0, 4)) : Number(written);
+  if (month === null || !Number.isInteger(year) || year < 1) return [];
+  const end = new Date(Date.UTC(year, month - 1, day));
+  if (end.getUTCFullYear() !== year || end.getUTCMonth() !== month - 1 || end.getUTCDate() !== day)
+    return [];
+  const start = new Date(end.getTime() - 86_400_000);
+  const text = (date: Date): string =>
+    dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+  return [text(start), text(end)];
+};
+
+/** Options of the check. */
+export interface StatedOptions {
+  /** The day when the document was published, in the form of the record. A date with no year
+   * takes its year from it. With no such day, a date with no year states nothing. */
+  readonly publishedOn?: string | undefined;
+}
+
 /** Each day that a text states, in the form of the record. A day with two readings (03/04/2024)
  * states no day, because the text does not say which one it means. */
-const daysIn = (text: string): Set<string> => {
+const daysIn = (text: string, publishedOn: string | undefined): Set<string> => {
   const found = new Set<string>();
+  for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
+    for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
+      found.add(night);
   for (const [, day, word, year] of text.matchAll(WORD_DAY)) {
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
@@ -183,7 +217,7 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
-const stated = (value: Scalar, passage: string): boolean => {
+const stated = (value: Scalar, passage: string, publishedOn?: string): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
     return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
@@ -192,7 +226,7 @@ const stated = (value: Scalar, passage: string): boolean => {
     return (value < 0 ? negativesIn(passage) : numbersIn(passage)).some((found) =>
       sameNumber(found, value),
     );
-  if (DAY.test(value) && daysIn(passage).has(value)) return true;
+  if (DAY.test(value) && daysIn(passage, publishedOn).has(value)) return true;
   if (statesWords(value, passage)) return true;
   if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
@@ -234,9 +268,13 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
 };
 
 /** The values of an act that no cited passage states, in any form of that value. */
-export const unstatedValues = (act: WriteRequest, passages: readonly string[]): ActValue[] => {
+export const unstatedValues = (
+  act: WriteRequest,
+  passages: readonly string[],
+  options: StatedOptions = {},
+): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => !stated(named.value, text));
+  return valuesOf(act).filter((named) => !stated(named.value, text, options.publishedOn));
 };
 
 /** The name of a bound of a relation. */
@@ -267,17 +305,21 @@ export const namesProvision = (passages: readonly string[]): boolean =>
 export const statedBounds = (
   act: WriteRequest,
   passages: readonly string[],
+  options: StatedOptions = {},
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
   const text = passages.join('\n');
   if (act.op === 'update_relation')
     return {
       act,
-      dropped: act.validTo === undefined || stated(act.validTo, text) ? [] : ['validTo'],
+      dropped:
+        act.validTo === undefined || stated(act.validTo, text, options.publishedOn)
+          ? []
+          : ['validTo'],
     };
   if (act.op !== 'create_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
-    return day !== undefined && !stated(day, text);
+    return day !== undefined && !stated(day, text, options.publishedOn);
   });
   return { act: withoutBounds(act, dropped), dropped };
 };

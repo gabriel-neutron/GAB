@@ -255,3 +255,73 @@ test('the type form of a change keeps its act, and no end is named', () => {
   });
   expect(statedBounds(retyping, ['Directive 4'])).toStrictEqual({ act: retyping, dropped: [] });
 });
+
+// The Ukrainian months stand in the genitive case, as in "15 травня 2024 року".
+test.each([
+  ['січня', '2024-01-15'],
+  ['лютого', '2024-02-15'],
+  ['березня', '2024-03-15'],
+  ['квітня', '2024-04-15'],
+  ['травня', '2024-05-15'],
+  ['червня', '2024-06-15'],
+  ['липня', '2024-07-15'],
+  ['серпня', '2024-08-15'],
+  ['вересня', '2024-09-15'],
+  ['жовтня', '2024-10-15'],
+  ['листопада', '2024-11-15'],
+  ['грудня', '2024-12-15'],
+])('the Ukrainian month %s gives the day %s', (month, day) => {
+  expect(unstatedValues(relationFrom(day), [`15 ${month} 2024 року`])).toStrictEqual([]);
+});
+
+test('a Ukrainian month is a different month than its neighbor', () => {
+  expect(unstatedValues(relationFrom('2024-06-15'), ['15 травня 2024 року'])).toHaveLength(1);
+});
+
+const NIGHT = 'Росія атакувала порт у ніч на 15 травня.';
+const PUBLISHED = { publishedOn: '2024-05-15' };
+
+test.each(['2024-05-14', '2024-05-15'])('the night of 14 to 15 May states the day %s', (day) => {
+  expect(unstatedValues(relationFrom(day), [NIGHT], PUBLISHED)).toStrictEqual([]);
+});
+
+test('a night with no year takes the year of the publication date', () => {
+  expect(unstatedValues(relationFrom('2023-05-15'), [NIGHT], PUBLISHED)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2023-05-14'), [NIGHT], PUBLISHED)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-05-13'), [NIGHT], PUBLISHED)).toHaveLength(1);
+});
+
+test('a night that ends on 1 January starts in the previous year', () => {
+  const passage = 'Атака була у ніч на 1 січня.';
+  const options = { publishedOn: '2025-01-01' };
+  expect(unstatedValues(relationFrom('2025-01-01'), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2024-12-31'), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2025-12-31'), [passage], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-01-01'), [passage], options)).toHaveLength(1);
+});
+
+test('a night with no year and no publication date stays contested', () => {
+  expect(unstatedValues(relationFrom('2024-05-15'), [NIGHT])).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-05-14'), [NIGHT])).toHaveLength(1);
+  expect(
+    unstatedValues(relationFrom('2024-05-15'), [NIGHT], { publishedOn: undefined }),
+  ).toHaveLength(1);
+});
+
+test('a night with a year uses that year', () => {
+  expect(
+    unstatedValues(relationFrom('2022-05-14'), ['у ніч на 15 травня 2022 року'], PUBLISHED),
+  ).toStrictEqual([]);
+});
+
+test('a Ukrainian day with no year and no night stays contested', () => {
+  expect(unstatedValues(relationFrom('2024-05-15'), ['15 травня'], PUBLISHED)).toHaveLength(1);
+});
+
+test('a publication date does not change the formats that the reader knew', () => {
+  expect(
+    unstatedValues(relationFrom('2024-03-12'), ['On 12 March 2024 the tanker left.'], {
+      publishedOn: '2020-01-01',
+    }),
+  ).toStrictEqual([]);
+});
