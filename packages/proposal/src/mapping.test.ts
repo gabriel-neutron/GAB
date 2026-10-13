@@ -231,4 +231,14 @@ test('a relation names the entity type of its far end, and a split cell needs a 
       held({ other_type: 'company', split: { separator: ';' } }, { key: 'label', column: 'Owner' }),
     ).success,
   ).toBe(false);
+  // A split cell gives the share, so a mapped share_pct would be overwritten.
+  expect(
+    mappingDraft.safeParse(
+      held({
+        other_type: 'company',
+        split: { separator: ';' },
+        attrs: { share_pct: { column: 'Share', cast: { type: 'number', scale: 2 } } },
+      }),
+    ).success,
+  ).toBe(false);
 });

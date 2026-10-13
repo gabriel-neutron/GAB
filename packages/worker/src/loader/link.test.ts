@@ -27,3 +27,14 @@ test('a name is never paired with an identifier by its place in the cell', () =>
     'refused',
   );
 });
+
+test('a share with a comma is never read in part', () => {
+  expect(splitOwners('Novatek [E100000130497] 60,5%', ';')).toHaveProperty('refused');
+  expect(splitOwners('Novatek [E100000130497] 1,60%', ';')).toHaveProperty('refused');
+});
+
+test('a cell that names the same GEM identifier two times does not split', () => {
+  expect(
+    splitOwners('Novatek [E100000130497] 60%; Novatek again [E100000130497] 20%', ';'),
+  ).toHaveProperty('refused');
+});

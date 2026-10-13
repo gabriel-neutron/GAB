@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import type { Queryable } from '../queryable.ts';
-import { findByIdentifier, makeFinder } from './join.ts';
+import { findByIdentifier, makeFinder, type Found } from './join.ts';
 import {
   castAll,
   compareLink,
@@ -29,11 +29,18 @@ import {
   resolveEnd,
   type Days,
   type HeldAttrs,
+  type SplitOwner,
 } from './link.ts';
 
 const LOADER_NAME = 'loader';
 const VERSION = 'v1';
 const REPORT_MIME = 'text/csv';
+
+// The entity of a create_entity act has the identifier of the act, so a relation can name it
+// before the operator decides.
+const PENDING_OWNER = `SELECT id::text AS id FROM public.proposals
+  WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
+    AND payload #>> '{attrs,gem_entity_id,v}' = $2::text ORDER BY id LIMIT 20`;
 
 const NOT_IN_GRAPH = 'relation not loaded: the other end is not in the record';
 
@@ -226,8 +233,23 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     const find = makeFinder(context.db, isLinkTable(rows) ? {} : rows.attrs, table.header);
     const findEnd = makeEndFinder(context.db, table.header);
     // The owners that this load created, by type and identifier. A second row with the same owner
-    // finds it here, because the first act may still wait for the operator.
+    // finds it here, because the first act may still wait for the operator. A row records its new
+    // owners here only after the door accepts the batch of the row.
     const createdOwners = new Map<string, string>();
+
+    // The owner of a GEM identifier: the committed entity of the type, or else the entity that an
+    // earlier load proposed and the operator did not decide yet.
+    const ownerOf = async (type: string, gemId: string): Promise<Found> => {
+      const held = await findByIdentifier(context.db, 'gem_entity_id', gemId, type);
+      if (held.kind !== 'none') return held;
+      const { rows: waiting } = await context.db.query(PENDING_OWNER, [type, gemId]);
+      const ids = z.array(z.object({ id: z.uuid() })).parse(waiting);
+      const [first] = ids;
+      if (ids.length > 1) return { kind: 'many', key: 'gem_entity_id', count: ids.length };
+      return first === undefined
+        ? { kind: 'none' }
+        : { kind: 'one', id: first.id, key: 'gem_entity_id' };
+    };
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -292,15 +314,16 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
 
     // Proposes the acts of one row as one batch. A row with no act has been loaded before, and
     // it counts as loaded.
-    const proposeRow = async (at: RowAt, items: readonly unknown[]): Promise<void> => {
+    const proposeRow = async (at: RowAt, items: readonly unknown[]): Promise<boolean> => {
       if (items.length > 0) {
         const refused = await propose(items);
         if (refused !== null) {
           at.unfit(refused);
-          return;
+          return false;
         }
       }
       loaded += 1;
+      return true;
     };
 
     // A row of a relation table is one relation between two entities that the record holds. It
@@ -462,6 +485,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       // The entity of the row has the identifier that its act is given, so a relation of the row
       // can name it before the operator promotes it.
       const rowId = found.kind === 'one' ? found.id : randomUUID();
+      // The new owners of this row, recorded in `createdOwners` only if the door accepts the row.
+      const rowOwners = new Map<string, string>();
       const requests: { request: unknown; id: string; foundBy: string | null }[] = [];
       // An update that changes no value is not proposed. A load that follows the promotion of an
       // earlier load then adds no act of no effect.
@@ -543,34 +568,44 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             note(`relation not loaded: ${split.refused}`);
             continue;
           }
+          // The owners are found first. One owner that finds many entities refuses the whole
+          // relation of the row, as a cell that does not split does.
+          const found: { id: string; owner: SplitOwner; created: boolean }[] = [];
+          let refusedOwner: string | null = null;
           for (const owner of split.owners) {
-            const made = createdOwners.get(`${farType}:${owner.gemId}`);
-            const owned =
-              made === undefined
-                ? await findByIdentifier(context.db, 'gem_entity_id', owner.gemId)
-                : ({ kind: 'one', id: made, key: 'gem_entity_id' } as const);
+            const slot = `${farType}:${owner.gemId}`;
+            const made = rowOwners.get(slot) ?? createdOwners.get(slot);
+            const owned: Found =
+              made !== undefined
+                ? { kind: 'one', id: made, key: 'gem_entity_id' }
+                : await ownerOf(farType, owner.gemId);
             if (owned.kind === 'many') {
-              note(`relation not loaded: the identifier ${owner.gemId} finds more than one entity`);
-              continue;
+              refusedOwner = owner.gemId;
+              break;
             }
-            let ownerId: string;
-            if (owned.kind === 'one') ownerId = owned.id;
-            else {
+            if (owned.kind === 'one') found.push({ id: owned.id, owner, created: false });
+            else found.push({ id: randomUUID(), owner, created: true });
+          }
+          if (refusedOwner !== null) {
+            note(`relation not loaded: the identifier ${refusedOwner} finds more than one entity`);
+            continue;
+          }
+          for (const one of found) {
+            if (one.created) {
               // An owner identifier that the record lacks creates an entity with that identifier.
-              ownerId = randomUUID();
-              createdOwners.set(`${farType}:${owner.gemId}`, ownerId);
+              rowOwners.set(`${farType}:${one.owner.gemId}`, one.id);
               requests.push({
                 request: {
                   op: 'create_entity',
                   type: farType,
-                  label: owner.name,
-                  attrs: { gem_entity_id: { v: owner.gemId } },
+                  label: one.owner.name,
+                  attrs: { gem_entity_id: { v: one.owner.gemId } },
                 },
-                id: ownerId,
+                id: one.id,
                 foundBy: null,
               });
             }
-            ends.push({ id: ownerId, extra: { share_pct: { v: owner.share } } });
+            ends.push({ id: one.id, extra: { share_pct: { v: one.owner.share } } });
           }
         }
         for (const end of ends) {
@@ -625,7 +660,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         }
         items.push(made.item);
       }
-      await proposeRow(at, items);
+      if (await proposeRow(at, items))
+        for (const [slot, id] of rowOwners) createdOwners.set(slot, id);
     };
 
     for (const [index, record] of table.rows.entries()) await loadRow(record, index + 1);
