@@ -66,7 +66,8 @@ export const makeFinder = (
     const rule = lookup.key === 'label' ? undefined : mapping.rows.attrs[lookup.key];
     if (rule?.column !== lookup.column) return text;
     const cell = castCell(rule.cast, lookup.key, text);
-    return cell.ok === true && typeof cell.value === 'string' ? cell.value : null;
+    if (cell.ok !== true) return null;
+    return typeof cell.value === 'string' ? cell.value : text;
   };
 
   const lookedUp = async (lookup: Lookup, value: string): Promise<string[]> => {
