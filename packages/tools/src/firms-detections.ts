@@ -18,6 +18,9 @@ const MAX_PERIOD_DAYS = 366;
 const RESERVE = 100;
 const DAY_MS = 86_400_000;
 
+/** A refusal that a wait of ten minutes cures: the map key is near its rate limit. */
+export class RateLimitRefusal extends ToolRefusal {}
+
 const SOURCE_ID = /^(VIIRS_[A-Z0-9]+)_(SP|NRT)$/u;
 
 // Assumption: the status answer of a map key is JSON with these two numbers. Not checked against
@@ -206,7 +209,7 @@ export const firmsDetections = defineTool({
     const before = await status();
     const left = before.limit - before.used;
     if (left < windows.length + RESERVE)
-      throw new ToolRefusal(
+      throw new RateLimitRefusal(
         `${String(windows.length)} calls are needed and the map key has ${String(left)} ` +
           'transactions left in this interval: try again in ten minutes, or read a shorter period',
       );
@@ -217,7 +220,7 @@ export const firmsDetections = defineTool({
     // A stop in the middle of the run stores nothing: a partial answer would look whole.
     for (const window of windows) {
       if (after.limit - after.used < RESERVE)
-        throw new ToolRefusal(
+        throw new RateLimitRefusal(
           'stopped before the rate limit of the map key, and nothing is stored: try again in ten minutes',
         );
       const csv = await get(
