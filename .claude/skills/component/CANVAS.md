@@ -58,7 +58,8 @@ of that, and each failure below is invisible in a review.
   nothing from a hit test.
 - **A type that is switched off drops the selection.** A selected point that is not drawn is a lie
   on the screen.
-- **A point wins over a line it crosses**, and a line needs a hit box of about 5px on each side.
+- **A point wins over a line it crosses**, and a line needs a hit box of about 5px on each side
+  (the graph canvas is the exception: its relations are 2px, and a click on a node reaches them).
   Measure the hit box in the browser: a library states the thickness of a pick band in its own
   units, and the number it takes is not always the half-width.
 - **Positions are precomputed and stored, and never computed in the browser at each open.** A force
