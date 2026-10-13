@@ -1,3 +1,5 @@
+import { CLAIMED_ATTACK, EVENT_DAYS, EVENT_KIND, EVENT_PRECISION } from '@gab/tools/event-rules';
+
 import type { SiteClaim, SitePassage, SiteRelease, SiteSource } from './site-release.ts';
 import { elementsOf } from './vessel-timeline.ts';
 
@@ -25,13 +27,7 @@ export interface SiteEvent {
   readonly denials: readonly Denial[];
 }
 
-const KIND = 'event_kind';
-const DAYS = 'occurred_on';
-const PRECISION = 'occurred_on_precision';
 const DENIES = 'denies';
-
-/** The kind of event that the counter counts. */
-const STRIKE_KIND = 'claimed attack';
 
 type AttributeClaim = Extract<SiteClaim, { readonly kind: 'attribute' }>;
 
@@ -41,7 +37,7 @@ const valueOf = (claims: readonly AttributeClaim[], key: string): AttributeClaim
 const eventOf = (release: SiteRelease, id: string): SiteEvent => {
   const claims = release.claimsAbout.get(id) ?? [];
   const attributes = claims.filter((one) => one.kind === 'attribute');
-  const day = valueOf(attributes, DAYS);
+  const day = valueOf(attributes, EVENT_DAYS);
   const actor = claims.find(
     (one) =>
       one.kind === 'relation' &&
@@ -62,15 +58,15 @@ const eventOf = (release: SiteRelease, id: string): SiteEvent => {
     }
   return {
     id,
-    kind: valueOf(attributes, KIND)?.value ?? null,
+    kind: valueOf(attributes, EVENT_KIND)?.value ?? null,
     days: day === undefined ? [] : elementsOf(day.value),
-    precision: valueOf(attributes, PRECISION)?.value ?? null,
+    precision: valueOf(attributes, EVENT_PRECISION)?.value ?? null,
     written: written ?? null,
     actor:
       actor?.kind === 'relation'
         ? { id: actor.relation.toId, label: actor.relation.toLabel }
         : null,
-    claim: day ?? valueOf(attributes, KIND) ?? attributes[0] ?? null,
+    claim: day ?? valueOf(attributes, EVENT_KIND) ?? attributes[0] ?? null,
     documents: [...documents.values()],
     denials,
   };
@@ -97,4 +93,4 @@ export const eventsAt = (release: SiteRelease, siteId: string): readonly SiteEve
 
 /** The number of claimed strikes in a list of events. It is a lower bound of the strikes. */
 export const strikeCount = (events: readonly SiteEvent[]): number =>
-  events.filter((one) => one.kind === STRIKE_KIND).length;
+  events.filter((one) => one.kind === CLAIMED_ATTACK).length;
