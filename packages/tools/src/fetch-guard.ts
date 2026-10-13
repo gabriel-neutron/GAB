@@ -103,9 +103,12 @@ export interface Got {
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 // No compression is asked for. A server that sends a compressed body all the same names it in
-// contentEncoding, and the caller decodes it.
+// contentEncoding, and the caller decodes it. Some registers refuse a client that names no
+// browser, so the user agent is that of Chrome.
 const HEADERS = {
-  'user-agent': 'gabriel-fetch/1',
+  'user-agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+  'accept-language': 'en-US,en;q=0.9,ru;q=0.8',
   accept: 'text/html, application/pdf, text/plain;q=0.9, */*;q=0.5',
   'accept-encoding': 'identity',
 };
@@ -138,6 +141,20 @@ const parsed = (raw: string, base?: URL): URL => {
 /** The address under which a fetch stores the page of `raw`, before any redirect. It throws a
  * FetchRefusal for an address that is never fetched. */
 export const pageAddress = (raw: string): string => parsed(raw.trim()).href;
+
+/** Refuses a name when one of its addresses is on the machine or on a private network. */
+export const checkHost = async (
+  host: string,
+  options: Pick<GetOptions, 'lookup' | 'refuses'>,
+): Promise<void> => {
+  const refuses = options.refuses ?? refusedAddress;
+  const bare = host.replace(/^\[(.*)\]$/u, '$1');
+  const found =
+    isIP(bare) === 0 ? await (options.lookup ?? systemLookup)(bare) : [{ address: bare }];
+  if (found.length === 0) throw new FetchRefusal(`the name ${host} resolves to no address`);
+  const refused = found.find((entry) => refuses(entry.address));
+  if (refused !== undefined) throw refusedSentence(refused.address);
+};
 
 // The socket asks this function for the address, and it gets only an address that passed.
 const guardedLookup =
