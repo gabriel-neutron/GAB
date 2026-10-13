@@ -5,7 +5,8 @@ import type { Session } from '@gab/tools/tool';
 import { z } from 'zod';
 
 import type { Queryable } from '../queryable.ts';
-import { makeFinder, type Found } from './join.ts';
+import { makeFinder } from './join.ts';
+import { castAll, daysOf, foundWords, makeEndFinder, resolveEnd } from './link.ts';
 
 const MAPPING = `SELECT p.payload, p.src[1]::text AS document,
        public.mapping_text_set(p.id) AS text_set
@@ -20,17 +21,9 @@ const csvField = (text: string): string =>
 
 const lineText = (fields: readonly string[]): string => `${fields.map(csvField).join(',')}\r\n`;
 
-/** The words of what a lookup finds for one end of a relation. A relation joins only two ends
- * that a key finds. */
-const endWords = (found: Found): [string, string, string] => {
-  if (found.kind === 'one')
-    return [found.key, found.id, found.key === 'label' ? 'by name only' : 'finds'];
-  if (found.kind === 'many') return [found.key, '', `finds ${String(found.count)} entities`];
-  return ['', '', 'not in the record'];
-};
-
 /** The dry join of a relation table: for each row, the key that finds each end. A row whose two
- * ends a key finds links them, and any other row goes to the report of the load. */
+ * ends a key finds, whose attributes cast and whose days read links them, and any other row goes
+ * to the report of the load. The checks are the checks of the load. */
 const linkJoin = async (
   db: Queryable,
   mappingId: string,
@@ -39,26 +32,40 @@ const linkJoin = async (
   table: ReturnType<typeof tableOf>,
   rows: LinkRows,
 ): Promise<string> => {
-  const find = makeFinder(db, {}, table.header);
+  const find = makeEndFinder(db, table.header);
+  const column = new Map(table.header.map((name, index) => [name, index] as const));
   let linked = 0;
   const lines: string[] = [];
   for (const [index, record] of table.rows.entries()) {
+    const cell = (name: string): string => (record.fields[column.get(name) ?? -1] ?? '').trim();
     const fields = [String(index + 1)];
-    let links = true;
-    for (const end of [rows.src, rows.dst]) {
-      const words = endWords(await find(record, end.lookup, end.entity_type));
-      if (words[2] !== 'finds') links = false;
-      fields.push(...words);
+    let links = record.fields.length === table.header.length;
+    for (const [side, end] of [
+      ['src', rows.src],
+      ['dst', rows.dst],
+    ] as const) {
+      const one = await resolveEnd(find, record, cell, side, end);
+      if (one.refused !== null) links = false;
+      fields.push(
+        ...(one.found === null
+          ? ['', '', one.refused === null ? '' : one.refused.replace(/^relation not loaded: /u, '')]
+          : foundWords(one.found, 'not in the record')),
+      );
+    }
+    if (links) {
+      const cast = castAll(rows.attrs, cell, () => undefined);
+      const dated = daysOf(cell, rows.valid_from, rows.valid_to);
+      if ('refused' in cast || 'refused' in dated) links = false;
     }
     if (links) linked += 1;
     lines.push(lineText([...fields, links ? 'links' : 'goes to the report']));
   }
+  // The summary line is a comment, so it is written raw: a comma or a quote in a name must not
+  // put the whole line in quotes.
   return [
-    lineText([
-      `# dry join of mapping ${mappingId}; document ${document}; text set ${textSet}; ` +
-        `rows ${String(table.rows.length)}; links ${String(linked)}; ` +
-        `to the report ${String(table.rows.length - linked)}`,
-    ]),
+    `# dry join of mapping ${mappingId}; document ${document}; text set ${textSet}; ` +
+      `rows ${String(table.rows.length)}; links ${String(linked)}; ` +
+      `to the report ${String(table.rows.length - linked)}\r\n`,
     lineText([
       'row',
       'src_key',
@@ -102,18 +109,10 @@ export const dryJoin = async (db: Queryable, mappingId: string): Promise<string>
   for (const [index, record] of table.rows.entries()) {
     const label = (record.fields[labelAt] ?? '').trim();
     const found = await find(record, rows.lookup, rows.entity_type);
-    let fields: [string, string, string];
-    if (found.kind === 'one') {
-      const byName = found.key === 'label';
-      counts[byName ? 'label' : 'identifier'] += 1;
-      fields = [found.key, found.id, byName ? 'finds by name only' : 'finds'];
-    } else if (found.kind === 'many') {
-      counts.many += 1;
-      fields = [found.key, '', `finds ${String(found.count)} entities`];
-    } else {
-      counts.created += 1;
-      fields = ['', '', 'creates'];
-    }
+    const fields = foundWords(found, 'creates');
+    if (found.kind === 'one') counts[found.key === 'label' ? 'label' : 'identifier'] += 1;
+    else if (found.kind === 'many') counts.many += 1;
+    else counts.created += 1;
     lines.push([String(index + 1), label, ...fields].map(csvField).join(','));
   }
 
