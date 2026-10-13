@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 import type { RawObject } from '@gab/store';
 import { XLSX_MIME } from '@gab/text/xlsx';
 import { workbookOf } from '@gab/text/xlsx-fixture';
+import { geojsonArchiveOf } from '@gab/text/archive-fixture';
+import { ZIP_MIME } from '@gab/text/geojson';
+import { bytesSource } from '@gab/text/zip';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
@@ -165,7 +168,7 @@ const storeWorkbook = async (held: Held, bytes: Uint8Array = WORKBOOK): Promise<
     XLSX_MIME,
   ]);
   const made = await makeTextSet(
-    { db: asQueryable(held), read: () => Promise.resolve(bytes) },
+    { db: asQueryable(held), open: () => Promise.resolve(bytesSource(bytes)) },
     { document: BOOK, sheet: SHEET, filter: FILTER },
   );
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
@@ -299,7 +302,7 @@ test('the Russian fields of an approved edition load as points with their kind, 
     // The same file and the same filter give the same set, with the same rows, each time.
     expect(
       await makeTextSet(
-        { db: asQueryable(held), read: () => Promise.resolve(WORKBOOK) },
+        { db: asQueryable(held), open: () => Promise.resolve(bytesSource(WORKBOOK)) },
         { document: BOOK, sheet: SHEET, filter: FILTER },
       ),
     ).toStrictEqual({ name: SET_NAME, status: 'known', rows: 3 });
@@ -582,5 +585,224 @@ test('the mapper refuses a text set that is no table of a workbook', async () =>
 
     expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
     expect(router.chats()).toBe(0);
+  });
+});
+
+// A route archive in the shape of the published files: one GeoJSON layer, a system entry, and a
+// segment that has no route. The record holds the Druzhba pipeline as one entity already.
+const ARCHIVE_DOC = 'doc_gem_routes';
+const LAYER = 'GEM-oil-pipelines.geojson';
+const LAYER_SET = `geojson-1|layer=${LAYER}|where=Countries=Russia`;
+const ROUTE = {
+  type: 'LineString',
+  coordinates: [
+    [49.1, 55.2],
+    [50.3, 56.4],
+    [51.5, 57.1],
+  ],
+};
+const ARCHIVE = geojsonArchiveOf({
+  [LAYER]: [
+    {
+      properties: {
+        ProjectID: 'P0001',
+        Segment: 'Druzhba',
+        Pipeline: 'Druzhba',
+        Status: 'operating',
+        CapacityBOEd: 1,
+        LengthKnownKm: 1,
+        Countries: 'Russia',
+      },
+      geometry: ROUTE,
+    },
+    {
+      properties: {
+        ProjectID: 'P0004',
+        Segment: 'Druzhba north',
+        Pipeline: 'Druzhba',
+        Status: 'operating',
+        CapacityBOEd: 1200000,
+        LengthKnownKm: 3900.5,
+        Countries: 'Russia',
+      },
+      geometry: ROUTE,
+    },
+    {
+      properties: {
+        ProjectID: 'P0002',
+        Segment: 'Fjord line',
+        Pipeline: 'Fjord',
+        Status: 'operating',
+        CapacityBOEd: 1,
+        LengthKnownKm: 2,
+        Countries: 'Norway',
+      },
+      geometry: ROUTE,
+    },
+    {
+      properties: {
+        ProjectID: 'P0003',
+        Segment: 'Taiga link',
+        Pipeline: 'Taiga',
+        Status: 'proposed',
+        CapacityBOEd: null,
+        LengthKnownKm: null,
+        Countries: 'Russia',
+      },
+      geometry: null,
+    },
+  ],
+});
+const ROUTE_DRAFT = {
+  table: 'GEM-oil-pipelines.zip',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    entity_type: 'facility',
+    label: 'Segment',
+    lookup: [{ key: 'gem_project_id', column: 'ProjectID' }],
+    geom: { geojson: 'geometry' },
+    attrs: {
+      gem_project_id: { column: 'ProjectID', cast: { type: 'identifier' } },
+      pipeline_name: { column: 'Pipeline', cast: { type: 'text' } },
+      status: { column: 'Status', cast: { type: 'text' } },
+      capacity_boed: { column: 'CapacityBOEd', cast: { type: 'number', scale: 0 } },
+      length_km: { column: 'LengthKnownKm', cast: { type: 'number', scale: 3 } },
+    },
+    constants: { asset_kind: 'pipeline_segment' },
+  },
+  relations: [],
+};
+
+const segmentRow = z.object({
+  label: z.string(),
+  kind: z.string().nullable(),
+  geometry: z.string().nullable(),
+  project: z.string().nullable(),
+  pipeline: z.string().nullable(),
+  capacity: z.string().nullable(),
+  length: z.string().nullable(),
+});
+
+test('the segments of a route archive load as lines, and a pipeline of the record is not merged with a segment', async () => {
+  await inTransaction(async (held) => {
+    // The record holds the Druzhba pipeline as one entity, with the name that the first segment has.
+    const druzhbaAct = await held.asApp(() =>
+      held.idOf(
+        `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+        [
+          JSON.stringify({
+            type: 'facility',
+            label: 'Druzhba',
+            attrs: { osm_id: { v: 'r1', src: ['manual'] } },
+          }),
+        ],
+      ),
+    );
+    await fromAnEarlierTransaction(held, druzhbaAct);
+    await held.asApp(() =>
+      held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [druzhbaAct]),
+    );
+    const druzhba = await held.idOf(
+      "SELECT id::text AS id FROM public.entities WHERE label = 'Druzhba'",
+    );
+
+    await held.ask(PUT, [
+      ARCHIVE_DOC,
+      `raw/${ARCHIVE_DOC}.zip`,
+      'https://tracker.test/routes.zip',
+      sha256(ARCHIVE),
+      ZIP_MIME,
+    ]);
+    const opened = { open: () => Promise.resolve(bytesSource(ARCHIVE)) };
+    const made = await makeTextSet(
+      { db: asQueryable(held), ...opened },
+      { document: ARCHIVE_DOC, layer: LAYER, filter: { column: 'Countries', value: 'Russia' } },
+    );
+    // The system entry and the text file are no layer, and the feature with no route keeps its row.
+    expect(made).toStrictEqual({ name: LAYER_SET, status: 'stored', rows: 3 });
+    await expect(
+      makeTextSet(
+        { db: asQueryable(held), ...opened },
+        { document: ARCHIVE_DOC, layer: 'README.txt' },
+      ),
+    ).rejects.toThrow(/no layer named/u);
+
+    const job = await held.asApp(() =>
+      held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [
+        ARCHIVE_DOC,
+        LAYER_SET,
+      ]),
+    );
+    await held.ask(OLDEST, [job]);
+    expect(
+      await held.step(
+        makeMapper(CONFIG),
+        routerOf(() => answerOf(ROUTE_DRAFT)),
+      ),
+    ).toStrictEqual({ did: 'done', job });
+    const mapping = await held.idOf(
+      "SELECT id FROM public.proposals WHERE op = 'map_document' AND $1 = ANY (src::text[])",
+      [ARCHIVE_DOC],
+    );
+    await fromAnEarlierTransaction(held, mapping);
+    const load = await held.asApp(() =>
+      held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+    );
+    await held.ask(OLDEST, [load]);
+    await held.asApp(() =>
+      held.ask('SELECT public.approve_reference_dataset($1, $2) AS id', [ARCHIVE_DOC, 'GEM']),
+    );
+
+    await runLoad(held, load);
+
+    // The segment that has the name of the pipeline of the record waits as a doubt: the rule of a
+    // duplicate name keeps it out, and nothing merges it with the pipeline.
+    expect(
+      await held.ask(
+        `SELECT p.payload->>'label' AS label, p.status, public.unit_rule(p.unit_id) AS rule
+           FROM public.proposals p
+          WHERE p.op = 'create_entity' AND p.payload->'attrs'->'gem_project_id'->>'v' = 'P0001'`,
+      ),
+    ).toStrictEqual([{ label: 'Druzhba', status: 'pending', rule: 'doubt' }]);
+    const segments = z.array(segmentRow).parse(
+      await held.ask(
+        `SELECT e.label, e.attrs #>> '{asset_kind,v}' AS kind,
+                public.ST_GeometryType(e.geom) AS geometry,
+                e.attrs #>> '{gem_project_id,v}' AS project,
+                e.attrs #>> '{pipeline_name,v}' AS pipeline,
+                e.attrs #>> '{capacity_boed,v}' AS capacity,
+                e.attrs #>> '{length_km,v}' AS length
+           FROM public.entities e WHERE e.attrs ? 'asset_kind' ORDER BY project DESC`,
+      ),
+    );
+    expect(segments).toStrictEqual([
+      {
+        label: 'Druzhba north',
+        kind: 'pipeline_segment',
+        geometry: 'ST_LineString',
+        project: 'P0004',
+        pipeline: 'Druzhba',
+        capacity: '1200000',
+        length: '3900.5',
+      },
+      {
+        label: 'Taiga link',
+        kind: 'pipeline_segment',
+        geometry: null,
+        project: 'P0003',
+        pipeline: 'Taiga',
+        capacity: null,
+        length: null,
+      },
+    ]);
+    // The pipeline of the record stays one entity of its own, with no kind and no route.
+    expect(
+      await held.ask(
+        `SELECT e.id::text = $1 AS same, e.geom IS NULL AS no_route, e.attrs ? 'asset_kind' AS typed
+           FROM public.entities e WHERE e.attrs ? 'osm_id'`,
+        [druzhba],
+      ),
+    ).toStrictEqual([{ same: true, no_route: true, typed: false }]);
   });
 });

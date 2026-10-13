@@ -13,7 +13,10 @@ const letters = (index: number): string =>
 export type FixtureCell = string | number;
 
 /** The zip entries, each one deflated except the first, which is stored. */
-const zipOf = (entries: readonly (readonly [string, string])[]): Uint8Array => {
+export const zipOf = (
+  entries: readonly (readonly [string, string])[],
+  zip64 = false,
+): Uint8Array => {
   const locals: Buffer[] = [];
   const directory: Buffer[] = [];
   let offset = 0;
@@ -40,8 +43,21 @@ const zipOf = (entries: readonly (readonly [string, string])[]): Uint8Array => {
     entry.writeUInt32LE(raw.length, 24);
     entry.writeUInt16LE(label.length, 28);
     entry.writeUInt32LE(offset, 42);
+    // A Zip64 directory entry holds the three numbers in an extra field of 8 bytes each.
+    const extra = Buffer.alloc(zip64 ? 28 : 0);
+    if (zip64) {
+      entry.writeUInt32LE(0xffffffff, 20);
+      entry.writeUInt32LE(0xffffffff, 24);
+      entry.writeUInt32LE(0xffffffff, 42);
+      entry.writeUInt16LE(extra.length, 30);
+      extra.writeUInt16LE(1, 0);
+      extra.writeUInt16LE(24, 2);
+      extra.writeBigUInt64LE(BigInt(raw.length), 4);
+      extra.writeBigUInt64LE(BigInt(data.length), 12);
+      extra.writeBigUInt64LE(BigInt(offset), 20);
+    }
     locals.push(local, label, data);
-    directory.push(entry, label);
+    directory.push(entry, label, extra);
     offset += 30 + label.length + data.length;
   });
   const body = Buffer.concat(directory);
@@ -51,13 +67,29 @@ const zipOf = (entries: readonly (readonly [string, string])[]): Uint8Array => {
   end.writeUInt16LE(entries.length, 10);
   end.writeUInt32LE(body.length, 12);
   end.writeUInt32LE(offset, 16);
-  return new Uint8Array(Buffer.concat([...locals, body, end]));
+  if (!zip64) return new Uint8Array(Buffer.concat([...locals, body, end]));
+  const record = Buffer.alloc(56);
+  record.writeUInt32LE(0x06064b50, 0);
+  record.writeBigUInt64LE(44n, 4);
+  record.writeBigUInt64LE(BigInt(entries.length), 24);
+  record.writeBigUInt64LE(BigInt(entries.length), 32);
+  record.writeBigUInt64LE(BigInt(body.length), 40);
+  record.writeBigUInt64LE(BigInt(offset), 48);
+  const locator = Buffer.alloc(20);
+  locator.writeUInt32LE(0x07064b50, 0);
+  locator.writeBigUInt64LE(BigInt(offset + body.length), 8);
+  end.writeUInt16LE(0xffff, 8);
+  end.writeUInt16LE(0xffff, 10);
+  end.writeUInt32LE(0xffffffff, 12);
+  end.writeUInt32LE(0xffffffff, 16);
+  return new Uint8Array(Buffer.concat([...locals, body, record, locator, end]));
 };
 
 /** A workbook with one sheet for each key, in the order of the keys. A text goes through the
  * shared strings, and a number is a numeric cell. An empty text leaves its cell out. */
 export const workbookOf = (
   sheets: Readonly<Record<string, readonly (readonly FixtureCell[])[]>>,
+  zip64 = false,
 ) => {
   const strings: string[] = [];
   const indexOf = (text: string): number => {
@@ -82,30 +114,36 @@ export const workbookOf = (
     });
     return `<worksheet><sheetData>${rows.join('')}</sheetData></worksheet>`;
   });
-  return zipOf([
-    ['[Content_Types].xml', '<Types/>'],
+  return zipOf(
     [
-      'xl/workbook.xml',
-      `<workbook><sheets>${names
-        .map(
-          (name, i) =>
-            `<sheet name="${escaped(name)}" sheetId="${String(i + 1)}" r:id="rId${String(i + 1)}"/>`,
-        )
-        .join('')}</sheets></workbook>`,
+      ['[Content_Types].xml', '<Types/>'],
+      [
+        'xl/workbook.xml',
+        `<workbook><sheets>${names
+          .map(
+            (name, i) =>
+              `<sheet name="${escaped(name)}" sheetId="${String(i + 1)}" r:id="rId${String(i + 1)}"/>`,
+          )
+          .join('')}</sheets></workbook>`,
+      ],
+      [
+        'xl/_rels/workbook.xml.rels',
+        `<Relationships>${names
+          .map(
+            (_, i) =>
+              `<Relationship Id="rId${String(i + 1)}" Type="worksheet" Target="worksheets/sheet${String(i + 1)}.xml"/>`,
+          )
+          .join('')}</Relationships>`,
+      ],
+      ...sheetXml.map((xml, i): [string, string] => [
+        `xl/worksheets/sheet${String(i + 1)}.xml`,
+        xml,
+      ]),
+      [
+        'xl/sharedStrings.xml',
+        `<sst>${strings.map((text) => `<si><t>${escaped(text)}</t></si>`).join('')}</sst>`,
+      ],
     ],
-    [
-      'xl/_rels/workbook.xml.rels',
-      `<Relationships>${names
-        .map(
-          (_, i) =>
-            `<Relationship Id="rId${String(i + 1)}" Type="worksheet" Target="worksheets/sheet${String(i + 1)}.xml"/>`,
-        )
-        .join('')}</Relationships>`,
-    ],
-    ...sheetXml.map((xml, i): [string, string] => [`xl/worksheets/sheet${String(i + 1)}.xml`, xml]),
-    [
-      'xl/sharedStrings.xml',
-      `<sst>${strings.map((text) => `<si><t>${escaped(text)}</t></si>`).join('')}</sst>`,
-    ],
-  ]);
+    zip64,
+  );
 };

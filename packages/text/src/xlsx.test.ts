@@ -8,11 +8,12 @@ import {
   textSetName,
   TABLE_READER,
   WorkbookFault,
+  workbookCsvs,
 } from './xlsx.ts';
 import { workbookOf } from './xlsx-fixture.ts';
 
 // A workbook in the shape of a tracker: a sheet of notes, and a sheet of fields.
-const BOOK = workbookOf({
+const SHEETS = {
   About: [['A note'], ['Distributed under a licence']],
   'Field-level data': [
     ['Unit name', 'Country/Area', 'Latitude', 'Longitude', 'Notes'],
@@ -22,14 +23,15 @@ const BOOK = workbookOf({
     [],
     ['Delta', 'Russia'],
   ],
+};
+const BOOK = workbookOf(SHEETS);
+
+test('a workbook gives the names of its sheets in order', async () => {
+  expect(await sheetNames(BOOK)).toStrictEqual(['About', 'Field-level data']);
 });
 
-test('a workbook gives the names of its sheets in order', () => {
-  expect(sheetNames(BOOK)).toStrictEqual(['About', 'Field-level data']);
-});
-
-test('one sheet is a CSV table, with the quotes of RFC 4180 and rows of the width of the header', () => {
-  expect(sheetCsv(BOOK, 'Field-level data')).toBe(
+test('one sheet is a CSV table, with the quotes of RFC 4180 and rows of the width of the header', async () => {
+  expect(await sheetCsv(BOOK, 'Field-level data')).toBe(
     [
       'Unit name,Country/Area,Latitude,Longitude,Notes',
       '"Alpha, ""north""",Russia,61.25,73.5,',
@@ -41,9 +43,9 @@ test('one sheet is a CSV table, with the quotes of RFC 4180 and rows of the widt
   );
 });
 
-test('a filter keeps the rows that hold one value in one column, and gives the same text each time', () => {
+test('a filter keeps the rows that hold one value in one column, and gives the same text each time', async () => {
   const filter = { column: 'Country/Area', value: 'Russia' };
-  const text = sheetCsv(BOOK, 'Field-level data', filter);
+  const text = await sheetCsv(BOOK, 'Field-level data', filter);
 
   expect(text.split('\r\n')).toStrictEqual([
     'Unit name,Country/Area,Latitude,Longitude,Notes',
@@ -52,7 +54,13 @@ test('a filter keeps the rows that hold one value in one column, and gives the s
     'Delta,Russia,,,',
     '',
   ]);
-  expect(sheetCsv(BOOK, 'Field-level data', filter)).toBe(text);
+  expect(await sheetCsv(BOOK, 'Field-level data', filter)).toBe(text);
+});
+
+test('a limit stops the read after that many kept rows', async () => {
+  const text = await sheetCsv(BOOK, 'Field-level data', undefined, 1);
+
+  expect(text.split('\r\n')).toHaveLength(3);
 });
 
 test('the name of a text set holds the reader, the sheet and the filter', () => {
@@ -62,15 +70,17 @@ test('the name of a text set holds the reader, the sheet and the filter', () => 
   );
 });
 
-test('a sheet or a column that the workbook lacks gives a sentence', () => {
-  expect(() => sheetCsv(BOOK, 'Gas')).toThrow(WorkbookFault);
-  expect(() => sheetCsv(BOOK, 'Field-level data', { column: 'Owner', value: 'x' })).toThrow(
+test('a sheet or a column that the workbook lacks gives a sentence', async () => {
+  await expect(sheetCsv(BOOK, 'Gas')).rejects.toThrow(WorkbookFault);
+  await expect(sheetCsv(BOOK, 'Field-level data', { column: 'Owner', value: 'x' })).rejects.toThrow(
     /no column "Owner"/u,
   );
 });
 
-test('bytes that are no zip archive give a sentence', () => {
-  expect(() => sheetNames(new TextEncoder().encode('a,b\r\n1,2\r\n'))).toThrow(/no zip archive/u);
+test('bytes that are no zip archive give a sentence', async () => {
+  await expect(sheetNames(new TextEncoder().encode('a,b\r\n1,2\r\n'))).rejects.toThrow(
+    /no zip archive/u,
+  );
 });
 
 test('the text of a workbook is one CSV page for each sheet', async () => {
@@ -84,8 +94,24 @@ test('the text of a workbook is one CSV page for each sheet', async () => {
   expect(pages[1]).toContain('Gamma,Russia,55,37.5,');
 });
 
-test('a part that inflates past the cap is refused', () => {
+test('every sheet of a workbook is one CSV page, with the shared strings read once', async () => {
+  const pages = await workbookCsvs(BOOK);
+
+  expect(pages).toStrictEqual([
+    await sheetCsv(BOOK, 'About'),
+    await sheetCsv(BOOK, 'Field-level data'),
+  ]);
+  expect(pages[1]).toContain('"Alpha, ""north""",Russia,61.25,73.5,');
+});
+
+test('a Zip64 archive reads as a plain archive does', async () => {
+  const book = workbookOf(SHEETS, true);
+
+  expect(await sheetCsv(book, 'Field-level data')).toBe(await sheetCsv(BOOK, 'Field-level data'));
+});
+
+test('a part that inflates past the cap is refused', async () => {
   const bomb = workbookOf({ Big: [['Name'], ['a'.repeat(MAX_PART_BYTES + 1)]] });
 
-  expect(() => sheetCsv(bomb, 'Big')).toThrow(/inflates to more than/u);
+  await expect(sheetCsv(bomb, 'Big')).rejects.toThrow(/inflates to more than/u);
 });
