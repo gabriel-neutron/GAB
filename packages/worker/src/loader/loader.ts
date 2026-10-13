@@ -330,7 +330,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             request: { op: 'update_entity', targetId: found.id, geom },
           });
         else if (acts.length === 0)
-          lines.push({ ...where, reason: `the row adds no act: the place of ${found.id} is the same` });
+          lines.push({
+            ...where,
+            reason: `the row adds no act: the place of ${found.id} is the same`,
+          });
       }
 
       for (const relation of mapping.relations) {
