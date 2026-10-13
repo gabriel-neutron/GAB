@@ -75,14 +75,33 @@ const relationAttrs = z
 
 // One end of a relation is always the entity of the row, so a relation names the other end and
 // the side that the row takes.
-const relation = z.strictObject({
-  type: key,
-  row_is: z.enum(['src', 'dst']).describe('the end of the relation that the entity of the row is'),
-  other: lookup.describe('finds the entity at the other end, which the record holds already'),
-  valid_from: datedColumn.optional(),
-  valid_to: datedColumn.optional(),
-  attrs: relationAttrs.optional(),
-});
+const relation = z
+  .strictObject({
+    type: key,
+    row_is: z
+      .enum(['src', 'dst'])
+      .describe('the end of the relation that the entity of the row is'),
+    other: lookup.describe('finds the entity at the other end, which the record holds already'),
+    other_type: key
+      .optional()
+      .describe('the entity type of the other end. The default is the type of the row'),
+    split: z
+      .strictObject({ separator: z.string().min(1).max(3) })
+      .optional()
+      .describe(
+        'the cell of the other end holds many owners, each with its GEM identifier and its share ' +
+          'in percent. The cell never splits when one owner lacks the identifier or the share',
+      ),
+    valid_from: datedColumn.optional(),
+    valid_to: datedColumn.optional(),
+    attrs: relationAttrs.optional(),
+  })
+  .refine((held) => held.split === undefined || held.other.key === 'gem_entity_id', {
+    message: 'a relation that splits its cell finds the other end by gem_entity_id',
+  })
+  .refine((held) => held.split === undefined || held.other_type !== undefined, {
+    message: 'a relation that splits its cell names the entity type of the other end',
+  });
 
 /** One end of a relation table. The record holds the entity already, and the lookups find it. */
 const linkEnd = z.strictObject({

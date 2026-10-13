@@ -177,3 +177,49 @@ export const compareLink = (
   }
   return { conflicts, additions };
 };
+
+// External constraint: GEM writes the identifier of an entity as "E" and digits, and a
+// share as a number with a percent sign.
+const GEM_ENTITY = /\bE\d{6,}\b/gu;
+const PERCENT = /(\d+(?:\.\d+)?)\s*%/gu;
+
+/** One owner of a split cell: its GEM identifier, the name that stands in the same part, and its
+ * share in percent. */
+export interface SplitOwner {
+  readonly gemId: string;
+  readonly name: string;
+  readonly share: number;
+}
+
+/** Splits an owner cell. The cell splits only when every part holds exactly one GEM identifier and
+ * exactly one share. A name is never paired with an identifier by its place in the cell: a part
+ * that lacks one of the two refuses the whole cell. */
+export const splitOwners = (
+  text: string,
+  separator: string,
+): { owners: SplitOwner[] } | { refused: string } => {
+  const owners: SplitOwner[] = [];
+  for (const part of text.split(separator)) {
+    const piece = part.trim();
+    if (piece === '') continue;
+    const ids = piece.match(GEM_ENTITY) ?? [];
+    const shares = [...piece.matchAll(PERCENT)];
+    const [gemId] = ids;
+    const [share] = shares;
+    if (ids.length !== 1 || gemId === undefined || shares.length !== 1 || share?.[1] === undefined)
+      return {
+        refused:
+          `the owner cell does not split: "${piece}" does not hold exactly one GEM identifier ` +
+          'and one share',
+      };
+    const name = piece
+      .replace(GEM_ENTITY, '')
+      .replace(PERCENT, '')
+      .replace(/[[\](){},:]/gu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+    owners.push({ gemId, name: name === '' ? gemId : name, share: Number(share[1]) });
+  }
+  if (owners.length === 0) return { refused: 'the owner cell holds no owner' };
+  return { owners };
+};

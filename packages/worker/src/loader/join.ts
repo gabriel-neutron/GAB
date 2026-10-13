@@ -1,4 +1,4 @@
-import { identifierContainment } from '@gab/proposal/identifiers';
+import { identifierContainment, type IdentifierKey } from '@gab/proposal/identifiers';
 import type { Cast, LookupKey } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 import { z } from 'zod';
@@ -105,4 +105,19 @@ export const makeFinder = (
     }
     return { kind: 'none' };
   };
+};
+
+/** Finds the entities that hold one identifier, with no mapping and no column. */
+export const findByIdentifier = async (
+  db: Queryable,
+  key: IdentifierKey,
+  value: string,
+): Promise<Found> => {
+  const { rows } = await db.query(BY_IDENTIFIER, [
+    identifierContainment(key, value).map((shape) => JSON.stringify(shape)),
+  ]);
+  const ids = idRows.parse(rows).map((held) => held.id);
+  const [first] = ids;
+  if (ids.length > 1) return { kind: 'many', key, count: ids.length };
+  return first === undefined ? { kind: 'none' } : { kind: 'one', id: first, key };
 };
