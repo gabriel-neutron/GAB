@@ -182,21 +182,44 @@ export const textSetName = (sheet: string, filter?: TableFilter): string =>
   `${TABLE_READER}|sheet=${sheet}` +
   (filter === undefined ? '' : `|where=${filter.column}=${filter.value}`);
 
-/** One sheet as CSV text: the header row, then each row that the filter keeps. A row is padded or
- * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
- * read as a stream, so a large sheet costs the memory of the rows that are kept. `maxRows` stops
- * the read after that many kept rows. */
-export const sheetCsv = async (
-  input: TableInput,
+/** The most characters of CSV text that one table read keeps. A read with no filter and no row
+ * limit keeps every row, so a large sheet would fill the memory without this cap. */
+export const MAX_TABLE_CHARS = 64 * 1024 * 1024;
+
+/** The CSV rows of one table, with the cap of the kept text. */
+export class KeptRows {
+  private readonly rows: string[] = [];
+  private chars = 0;
+
+  add(row: readonly string[], table: string): void {
+    const line = csvOf([row]);
+    this.chars += line.length;
+    if (this.chars > MAX_TABLE_CHARS)
+      throw new WorkbookFault(
+        `the table ${table} keeps more than ${String(MAX_TABLE_CHARS)} characters: give a filter`,
+      );
+    this.rows.push(line);
+  }
+
+  get length(): number {
+    return this.rows.length;
+  }
+
+  text(): string {
+    return this.rows.join('');
+  }
+}
+
+const sheetCsvOf = async (
+  archive: Archive,
+  strings: readonly string[],
   sheet: string,
   filter?: TableFilter,
   maxRows?: number,
 ): Promise<string> => {
-  const archive = await openArchive(input);
-  const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
   let header: string[] | undefined;
   let at = -1;
-  const kept: string[] = [];
+  const kept = new KeptRows();
   for await (const row of sheetRows(archive, sheet, strings)) {
     if (header === undefined) {
       header = row.map((name) => name.trim());
@@ -208,9 +231,39 @@ export const sheetCsv = async (
     }
     if (filter !== undefined && (row[at] ?? '').trim() !== filter.value) continue;
     const width = header.length;
-    kept.push(csvOf([Array.from({ length: width }, (_, index) => row[index] ?? '')]));
+    kept.add(
+      Array.from({ length: width }, (_, index) => row[index] ?? ''),
+      `sheet "${sheet}"`,
+    );
     if (maxRows !== undefined && kept.length >= maxRows) break;
   }
   if (header === undefined) throw new WorkbookFault(`the sheet "${sheet}" holds no row`);
-  return csvOf([header]) + kept.join('');
+  return csvOf([header]) + kept.text();
+};
+
+/** One sheet as CSV text: the header row, then each row that the filter keeps. A row is padded or
+ * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
+ * read as a stream. The memory is the table of shared strings of the workbook, one chunk, and the
+ * rows that are kept (at most MAX_TABLE_CHARS). `maxRows` stops the read after that many kept
+ * rows. */
+export const sheetCsv = async (
+  input: TableInput,
+  sheet: string,
+  filter?: TableFilter,
+  maxRows?: number,
+): Promise<string> => {
+  const archive = await openArchive(input);
+  const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
+  return sheetCsvOf(archive, strings, sheet, filter, maxRows);
+};
+
+/** Every sheet of a workbook as CSV text, in the order of the workbook. The shared strings are
+ * read once for the whole workbook. */
+export const workbookCsvs = async (input: TableInput, maxRows?: number): Promise<string[]> => {
+  const archive = await openArchive(input);
+  const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
+  const pages: string[] = [];
+  for (const sheet of await sheetNames(archive.source))
+    pages.push(await sheetCsvOf(archive, strings, sheet, undefined, maxRows));
+  return pages;
 };

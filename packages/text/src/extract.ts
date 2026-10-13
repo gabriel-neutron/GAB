@@ -15,7 +15,7 @@ import TurndownService from 'turndown';
 import { extractText as readPdf, getDocumentProxy } from 'unpdf';
 
 import { layerCsv, layerNames, ZIP_MIME } from './geojson.ts';
-import { sheetCsv, sheetNames, XLSX_MIME as XLSX } from './xlsx.ts';
+import { workbookCsvs, XLSX_MIME as XLSX } from './xlsx.ts';
 import { xmlText } from './xml-text.ts';
 
 export interface Extracted {
@@ -472,10 +472,7 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   if (type === XLSX) {
     // A large workbook gives the head of each sheet, and the named text set gives its rows.
     const rows = bytes.length > TABLE_PAGE_BYTES ? PREVIEW_ROWS : undefined;
-    const pages: string[] = [];
-    for (const sheet of await sheetNames(bytes))
-      pages.push(withoutNul(await sheetCsv(bytes, sheet, undefined, rows)));
-    return { pages };
+    return { pages: (await workbookCsvs(bytes, rows)).map(withoutNul) };
   }
   // An archive gives the head of each GeoJSON layer. The named text set gives the rows that a
   // mapping loads.

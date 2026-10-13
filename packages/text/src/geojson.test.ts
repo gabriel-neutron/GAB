@@ -2,7 +2,13 @@ import { expect, test } from 'vitest';
 
 import { geojsonArchiveOf } from './archive-fixture.ts';
 import { extractText, mimeOfFileName } from './extract.ts';
-import { layerCsv, layerNames, layerSetName } from './geojson.ts';
+import {
+  layerCsv,
+  layerNames,
+  layerSetName,
+  MAX_FEATURE_CHARS,
+  MAX_PROPERTY_KEYS,
+} from './geojson.ts';
 import { WorkbookFault } from './xlsx.ts';
 
 const LINE = {
@@ -69,6 +75,37 @@ test('a Zip64 archive reads as a plain archive does', async () => {
   const same = geojsonArchiveOf({ 'a.geojson': [{ properties: { n: 1 }, geometry: null }] }, true);
 
   expect(await layerCsv(same, 'a.geojson')).toBe('n,geometry\r\n1,\r\n');
+});
+
+test('a feature larger than the cap is refused', async () => {
+  const big = geojsonArchiveOf({
+    'big.geojson': [{ properties: { note: 'x'.repeat(MAX_FEATURE_CHARS + 1) }, geometry: null }],
+  });
+
+  await expect(layerCsv(big, 'big.geojson')).rejects.toThrow(/larger than/u);
+});
+
+test('a layer with too many property keys is refused', async () => {
+  const properties = Object.fromEntries(
+    Array.from({ length: MAX_PROPERTY_KEYS + 1 }, (_, index) => [`k${String(index)}`, index]),
+  );
+  const wide = geojsonArchiveOf({ 'wide.geojson': [{ properties, geometry: null }] });
+
+  await expect(layerCsv(wide, 'wide.geojson')).rejects.toThrow(/property keys/u);
+});
+
+test('a property named geometry keeps its name, and the geometry column moves', async () => {
+  const same = geojsonArchiveOf({
+    'a.geojson': [
+      { properties: { geometry: 'kept' }, geometry: { type: 'Point', coordinates: [1, 2] } },
+    ],
+  });
+
+  expect((await layerCsv(same, 'a.geojson')).split('\r\n')).toStrictEqual([
+    'geometry,geometry_',
+    'kept,"{""type"":""Point"",""coordinates"":[1,2]}"',
+    '',
+  ]);
 });
 
 test('the door text of an archive is the head of each layer', async () => {

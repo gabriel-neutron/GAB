@@ -1,4 +1,5 @@
 import { createWriteStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
@@ -32,6 +33,10 @@ export const downloadObject = async (store: RawStore, key: string, path: string)
     const found = await store.client.send(new GetObjectCommand({ Bucket: store.bucket, Key: key }));
     if (!(found.Body instanceof Readable)) throw new Error(NOT_GIVEN);
     await pipeline(found.Body, createWriteStream(path));
+    // A connection that closes early ends the stream with no fault, so the size is checked.
+    const { size } = await stat(path);
+    if (found.ContentLength !== undefined && size !== found.ContentLength)
+      throw new Error(`${NOT_GIVEN}: ${String(size)} of ${String(found.ContentLength)} bytes`);
   } catch (cause) {
     throw new Error(NOT_GIVEN, { cause });
   }

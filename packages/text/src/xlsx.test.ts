@@ -8,6 +8,7 @@ import {
   textSetName,
   TABLE_READER,
   WorkbookFault,
+  workbookCsvs,
 } from './xlsx.ts';
 import { workbookOf } from './xlsx-fixture.ts';
 
@@ -91,6 +92,16 @@ test('the text of a workbook is one CSV page for each sheet', async () => {
   expect(pages).toHaveLength(2);
   expect(pages[0]).toBe('A note\r\nDistributed under a licence\r\n');
   expect(pages[1]).toContain('Gamma,Russia,55,37.5,');
+});
+
+test('every sheet of a workbook is one CSV page, with the shared strings read once', async () => {
+  const pages = await workbookCsvs(BOOK);
+
+  expect(pages).toStrictEqual([
+    await sheetCsv(BOOK, 'About'),
+    await sheetCsv(BOOK, 'Field-level data'),
+  ]);
+  expect(pages[1]).toContain('"Alpha, ""north""",Russia,61.25,73.5,');
 });
 
 test('a Zip64 archive reads as a plain archive does', async () => {
