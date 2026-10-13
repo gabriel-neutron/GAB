@@ -3428,13 +3428,16 @@ BEGIN
       LEFT JOIN LATERAL public.parent_link(a.id, true) AS pa ON true
      WHERE a.op = 'create_entity'
   ), twins AS (
+    -- TWO PENDING EVENTS WITH ONE NAME ARE NO TWINS. The name of an event is its kind, its site
+    -- and its day, so two posts that give one name are two witnesses of one claim, and they
+    -- corroborate each other. An event that the record holds already stays a twin.
     SELECT n.unit_id, n.parent, o.payload->>'label' AS label,
            (pa.payload->>'dst_id')::uuid AS other_parent,
            CASE WHEN o.batch_id IS NULL THEN 'waits in the queue (no group)'
                 ELSE 'waits in the queue (group ' || sb.subject || ')' END AS place
       FROM named n
       JOIN public.proposals o ON o.status = 'pending' AND o.op = 'create_entity' AND o.id <> n.id
-                             AND o.payload->>'type' = n.type
+                             AND o.payload->>'type' = n.type AND n.type <> 'event'
                              AND public.name_key(o.payload->>'label') = n.key
       LEFT JOIN LATERAL public.parent_link(o.id, true) AS pa ON true
       LEFT JOIN subjects sb ON sb.batch_id = o.batch_id
