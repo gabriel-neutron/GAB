@@ -76,11 +76,13 @@ const isRealDay = (year: number, month: number, day: number): boolean => {
   );
 };
 
+// Origin: decided, not calibrated. A 29 February is at most eight years back, and a text speaks of
+// a day in the past few years.
+const MOST_YEARS_BACK = 8;
+
 // The year of a day that the text writes with no year: the latest year that puts the day on or
 // before the publication day. A text never speaks of a day to come. A day that some years lack
 // (29 February) takes the latest year that has it.
-const MOST_YEARS_BACK = 8;
-
 const yearBefore = (day: number, month: number, published: string): number | null => {
   const [year = 0] = published.split('-').map(Number);
   for (let candidate = year; candidate > year - MOST_YEARS_BACK; candidate -= 1)
@@ -320,7 +322,12 @@ export const daysFromPublication = (
   const deduced = daysIn(text, publishedOn);
   return [
     ...new Set(
-      valuesOf(act).flatMap(({ value }) =>
+      [
+        ...valuesOf(act),
+        ...(act.op === 'update_relation' && act.validTo !== undefined
+          ? [{ name: 'validTo', value: act.validTo }]
+          : []),
+      ].flatMap(({ value }) =>
         typeof value === 'string' && deduced.has(value) && !alone.has(value) ? [value] : [],
       ),
     ),

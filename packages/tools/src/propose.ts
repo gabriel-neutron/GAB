@@ -55,12 +55,13 @@ const BOUND =
   'states the day; write it as 2026-01-31';
 
 const PUBLISHED_ON =
-  'the day when the document was published, written as 2026-05-15 and not in the future. Give it ' +
-  'when an excerpt writes a date with no year, such as "у ніч на 15 травня": the year is then the ' +
+  'the day when the document was published, written as 2026-05-15, and at most one day after ' +
+  'today in UTC, because an outlet at UTC+2 or UTC+3 publishes before UTC does. Give it when ' +
+  'an excerpt writes a date with no year, such as "у ніч на 15 травня": the year is then the ' +
   'latest year that puts the day on or before this day. A year that the excerpt writes always ' +
   'wins. With no published_on, a date with no year is not stated, and the item is disputed. An ' +
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
-  'decides it';
+  'decides it. An item value beats the value of the call';
 
 const publishedOn = z
   .string()
@@ -70,8 +71,9 @@ const publishedOn = z
   })
   .describe(PUBLISHED_ON);
 
-// The day of the clock in UTC, in the form of the record.
-const today = (): string => new Date().toISOString().slice(0, 10);
+// The latest publication day that a caller can give: tomorrow in UTC.
+const latestPublishedOn = (): string =>
+  new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
 const ENTITY_TYPE = 'the key of an entity type; list_vocabulary gives each one';
 
@@ -547,11 +549,7 @@ export const proposeOf = (modelCallId: string | null) =>
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
       'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
-      'already holds. An excerpt may write a date with no year, such as "у ніч на 15 травня": ' +
-      'give published_on (the day of the publication of the document, for the call or for an ' +
-      'item), and the year is the latest year that puts the day on or before it. A year that ' +
-      'the excerpt writes always wins, and with no published_on such a date is not stated. An ' +
-      'item whose year comes from published_on is disputed, and the review card says so.',
+      'already holds. Give published_on for an excerpt that writes a date with no year.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -582,7 +580,7 @@ export const proposeOf = (modelCallId: string | null) =>
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         const published = given.published_on ?? input.published_on;
-        if (published !== undefined && published > today())
+        if (published !== undefined && published > latestPublishedOn())
           refuse(given.ref, `published_on ${published} is in the future`);
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
