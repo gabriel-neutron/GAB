@@ -85,4 +85,17 @@ test('a mapping names its publisher and sets a constant attribute of the closed 
       .success,
   ).toBe(false);
   expect(mappingDraft.safeParse({ ...held, publisher: ' ' }).success).toBe(false);
+  const withConstants = (constants: Record<string, string>, attrs = DRAFT.rows.attrs) => ({
+    ...held,
+    rows: { ...held.rows, constants, attrs },
+  });
+  expect(mappingDraft.safeParse(withConstants({ weight: 'heavy' })).success).toBe(false);
+  expect(
+    mappingDraft.safeParse(
+      withConstants(
+        { asset_kind: 'field' },
+        { asset_kind: { column: 'Kind', cast: { type: 'text' } } },
+      ),
+    ).success,
+  ).toBe(false);
 });

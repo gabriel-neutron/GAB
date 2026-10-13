@@ -63,6 +63,8 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
     // A named text set of a workbook is a table by its making, so it needs no CSV type.
     const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
     const textSet = named?.text_set ?? undefined;
+    if (textSet !== undefined && !textSet.startsWith('xlsx-'))
+      throw new JobStop(`the mapper reads a workbook text set, and ${textSet} is not one`);
     if (textSet === undefined && baseMime(held.mime) !== MAPPED_MIME)
       throw new JobStop(
         `the mapper reads a CSV table only, and document ${document} is ${held.mime ?? 'of no type'}`,

@@ -3794,8 +3794,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT d.dataset
     FROM public.proposals a
     JOIN public.reference_dataset d ON a.src = ARRAY[d.document_id]
-   WHERE a.id = p_act AND a.author_role = 'gabriel_agent' AND a.op <> 'map_document'
+   WHERE a.id = p_act AND a.author_role = 'gabriel_agent'
+     AND a.op IN ('create_entity', 'update_attrs', 'create_relation')
+     -- The load of that mapping runs, or ran, on the one document that the act cites. A model
+     -- call alone proves nothing, because another act can carry the same call.
      AND EXISTS (SELECT 1 FROM public.proposals m
+                   JOIN public.jobs j ON j.mapping = m.id AND j.kind = 'load_mapped'
+                                     AND j.document_id = d.document_id
                   WHERE m.op = 'map_document' AND m.status = 'accepted'
                     AND m.model_call_id = a.model_call_id)
 $$;
