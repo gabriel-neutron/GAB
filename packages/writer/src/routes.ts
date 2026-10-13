@@ -167,6 +167,8 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
     return context.json(act.reply, STATUS[act.outcome]);
   });
 
+  // The file name is inside the JSON body, so the route cannot refuse a non-bulk type before it
+  // reads the body. The body cap is the bulk one, and parseUpload applies the limit of the type.
   // A file enters the record as a document and never as an act: it writes no proposal, and each
   // claim it holds is proposed later and cites it.
   app.post('/write/upload-document', capped(LARGEST_UPLOAD_BODY), async (context) => {

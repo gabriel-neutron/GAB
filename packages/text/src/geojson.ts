@@ -7,7 +7,14 @@
 
 import { StringDecoder } from 'node:string_decoder';
 
-import { csvOf, openArchive, type TableFilter, type TableInput, WorkbookFault } from './xlsx.ts';
+import {
+  csvOf,
+  KeptRows,
+  openArchive,
+  type TableFilter,
+  type TableInput,
+  WorkbookFault,
+} from './xlsx.ts';
 import { partChunks } from './zip.ts';
 
 /** The type of a zip archive. */
@@ -41,6 +48,16 @@ export const layerNames = async (input: TableInput): Promise<string[]> =>
 export const layerSetName = (layer: string, filter?: TableFilter): string =>
   `${LAYER_READER}|layer=${layer}` +
   (filter === undefined ? '' : `|where=${filter.column}=${filter.value}`);
+
+/** The most characters of the text of one feature, and the most property keys of one layer. A
+ * layer with a larger feature or more keys is no table that a mapping can read. */
+export const MAX_FEATURE_CHARS = 8 * 1024 * 1024;
+export const MAX_PROPERTY_KEYS = 1000;
+
+const tooLarge = (): WorkbookFault =>
+  new WorkbookFault(
+    `a feature of the layer is larger than ${String(MAX_FEATURE_CHARS)} characters`,
+  );
 
 const QUOTE = 34;
 const BACKSLASH = 92;
@@ -80,13 +97,17 @@ async function* featureTexts(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<
       } else if (code === CLOSE_OBJECT || code === CLOSE_ARRAY) {
         depth -= 1;
         if (collecting && depth === 2) {
+          if (piece.length + (at + 1 - from) > MAX_FEATURE_CHARS) throw tooLarge();
           yield piece + text.slice(from, at + 1);
           piece = '';
           collecting = false;
         }
       }
     }
-    if (collecting) piece += text.slice(from);
+    if (collecting) {
+      piece += text.slice(from);
+      if (piece.length > MAX_FEATURE_CHARS) throw tooLarge();
+    }
   }
 }
 
@@ -126,8 +147,12 @@ const cellOf = (value: unknown): string => {
   return JSON.stringify(value);
 };
 
+// shortcut: the geometry cell is the JSON text of the parsed geometry, so a coordinate keeps the
+// shortest text of its double (1.0 becomes 1) and a coordinate of more than 17 digits loses the
+// rest. Upgrade when a file needs the exact source text.
 /** One layer as CSV text: the header row, then each feature that the filter keeps. The header
- * holds each property key in the order that the layer first shows it, then the geometry column.
+ * holds each property key in the order that the layer first shows it, then the geometry column
+ * (`geometry`, with `_` added while a property has that name). The kept text is capped.
  * `maxRows` stops the read after that many kept rows. */
 export const layerCsv = async (
   input: TableInput,
@@ -137,23 +162,29 @@ export const layerCsv = async (
 ): Promise<string> => {
   const keys = new Set<string>();
   for await (const feature of features(input, layer))
-    for (const key of Object.keys(feature.properties)) keys.add(key);
-  if (keys.has(GEOMETRY_COLUMN))
-    throw new WorkbookFault(`the layer "${layer}" has a property named "${GEOMETRY_COLUMN}"`);
-  const header = [...keys, GEOMETRY_COLUMN];
+    for (const key of Object.keys(feature.properties)) {
+      keys.add(key);
+      if (keys.size > MAX_PROPERTY_KEYS)
+        throw new WorkbookFault(
+          `the layer "${layer}" has more than ${String(MAX_PROPERTY_KEYS)} property keys`,
+        );
+    }
+  // A property named like the geometry column keeps its name, and the geometry column moves.
+  let geometryColumn = GEOMETRY_COLUMN;
+  while (keys.has(geometryColumn)) geometryColumn += '_';
+  const header = [...keys, geometryColumn];
   if (filter !== undefined && !keys.has(filter.column))
     throw new WorkbookFault(`the layer "${layer}" has no column "${filter.column}"`);
 
-  const kept: string[] = [];
+  const kept = new KeptRows();
   for await (const feature of features(input, layer)) {
     if (filter !== undefined && cellOf(feature.properties[filter.column]).trim() !== filter.value)
       continue;
-    kept.push(
-      csvOf([
-        [...[...keys].map((key) => cellOf(feature.properties[key])), cellOf(feature.geometry)],
-      ]),
+    kept.add(
+      [...[...keys].map((key) => cellOf(feature.properties[key])), cellOf(feature.geometry)],
+      `layer "${layer}"`,
     );
     if (maxRows !== undefined && kept.length >= maxRows) break;
   }
-  return csvOf([header]) + kept.join('');
+  return csvOf([header]) + kept.text();
 };

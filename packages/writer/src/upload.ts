@@ -114,7 +114,8 @@ export const parseUpload = (raw: string): ParsedUpload => {
   }
 
   // The body cap counts characters, and padding moves the count. The bytes are counted again.
-  const bytes = new Uint8Array(Buffer.from(body.content, 'base64'));
+  const decoded = Buffer.from(body.content, 'base64');
+  const bytes = new Uint8Array(decoded.buffer, decoded.byteOffset, decoded.length);
   if (bytes.length === 0) return refused('content: the file holds no byte');
   const limit = fileLimitOf(body.fileName);
   if (bytes.length > limit) return { ok: false, status: TOO_LARGE, refusal: tooLargeFile(limit) };

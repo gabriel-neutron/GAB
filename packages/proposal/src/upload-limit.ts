@@ -4,11 +4,12 @@
 export const UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
 
 // Origin of the number: decided, not calibrated. A published bulk dataset (a GEM workbook, a GEM
-// route archive, a World Bank flare workbook) is some tens to some hundreds of megabytes. 256 MiB
-// is the most whose base64 text (some 342 million characters) a JavaScript string still holds.
-// The cap is for the stored bytes only: the text step reads such a file as a stream.
-// shortcut: the writer still holds the base64 body of an upload in memory, upgrade to a streamed
-// upload when a dataset passes this cap.
+// route archive, a World Bank flare workbook) is some tens to some hundreds of megabytes. The
+// real limit is the heap of the writer: it holds the request body as text (some 342 MB of base64
+// at the cap) and then the decoded bytes (256 MB), so the peak of one bulk upload is about 600 MB.
+// The text step reads such a file as a stream, but the door still holds the bytes once.
+// shortcut: the writer holds the whole body in memory, upgrade to a streamed upload when a
+// dataset passes this cap.
 export const BULK_FILE_BYTES = 256 * 1024 * 1024;
 
 // The files that a published dataset comes in: a workbook and a zip archive of GeoJSON layers.

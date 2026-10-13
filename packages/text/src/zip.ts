@@ -31,7 +31,13 @@ export const bytesSource = (bytes: Uint8Array): ZipSource => ({
 /** A source over a file on disk, and the call that closes it. */
 export const fileSource = async (path: string): Promise<ZipSource & { close(): Promise<void> }> => {
   const handle = await open(path, 'r');
-  const { size } = await handle.stat();
+  let size: number;
+  try {
+    ({ size } = await handle.stat());
+  } catch (fault) {
+    await handle.close();
+    throw fault;
+  }
   return {
     size,
     read: async (offset, length) => {
@@ -98,8 +104,23 @@ const extraNumbers = (
   return found;
 };
 
+// A broken archive can send a read or a view past its end, and the runtime then raises a
+// RangeError. Every such fault is the fault of the archive.
+const brokenArchive = (fault: unknown): WorkbookFault =>
+  fault instanceof WorkbookFault
+    ? fault
+    : new WorkbookFault('the zip archive is broken', { cause: fault });
+
 /** The parts of an archive by name. */
 export const zipEntries = async (source: ZipSource): Promise<Map<string, ZipEntry>> => {
+  try {
+    return await readEntries(source);
+  } catch (fault) {
+    throw brokenArchive(fault);
+  }
+};
+
+const readEntries = async (source: ZipSource): Promise<Map<string, ZipEntry>> => {
   const tailFrom = Math.max(0, source.size - LOOKBACK);
   const tail = await source.read(tailFrom, source.size - tailFrom);
   const view = viewOf(tail);
@@ -124,6 +145,8 @@ export const zipEntries = async (source: ZipSource): Promise<Map<string, ZipEntr
   if (size > MAX_DIRECTORY_BYTES)
     throw new WorkbookFault('the directory of the zip archive is huge');
 
+  if (offset + size > source.size)
+    throw new WorkbookFault('the directory of the zip archive lies past the end of the file');
   const directory = await source.read(offset, size);
   const dir = viewOf(directory);
   const found = new Map<string, ZipEntry>();
@@ -137,6 +160,8 @@ export const zipEntries = async (source: ZipSource): Promise<Map<string, ZipEntr
     let local = dir.getUint32(at + 42, true);
     const nameLength = dir.getUint16(at + 28, true);
     const extraLength = dir.getUint16(at + 30, true);
+    if (at + 46 + nameLength + extraLength > directory.length)
+      throw new WorkbookFault('a name in the directory of the zip archive passes its end');
     const name = new TextDecoder().decode(directory.subarray(at + 46, at + 46 + nameLength));
     if (compressed === MAX32 || uncompressed === MAX32 || local === MAX32) {
       const extra = viewOf(
@@ -152,6 +177,12 @@ export const zipEntries = async (source: ZipSource): Promise<Map<string, ZipEntr
       local = big.local ?? local;
     }
     at += 46 + nameLength + extraLength + dir.getUint16(at + 32, true);
+    // A part that starts or ends past the file is a cut or a forged archive.
+    if (local + 30 + compressed > source.size)
+      throw new WorkbookFault(`the part ${name} of the zip archive lies past the end of the file`);
+    // Two parts with one name hide one of them from a reader that takes the other.
+    if (found.has(name))
+      throw new WorkbookFault(`the zip archive holds the name ${name} more than once`);
     found.set(name, { name, method, compressed, size: uncompressed, local });
   }
   return found;

@@ -81,8 +81,9 @@ function routeOf(value: unknown): Route | null {
   return many.success ? many.data.coordinates.map(pairs) : null;
 }
 
-// The mark of a route stands on the middle vertex of its longest path, so it never leaves the
-// line and the shape alone decides it.
+// The mark of a route stands on the middle vertex of its longest path (the path with the most
+// vertices), so it never leaves the line and the shape alone decides it. A click on the line
+// itself selects nothing: the mark is the target of a click (hit box of the line: not built).
 function pointOnRoute(route: Route): Point | null {
   let longest: Ring | undefined;
   for (const one of route) if (one.length > (longest?.length ?? 0)) longest = one;
