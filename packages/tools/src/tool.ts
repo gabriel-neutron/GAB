@@ -36,6 +36,9 @@ export interface Web {
   readonly openSanctionsKey?: string;
   /** The token of the Global Fishing Watch API. It leaves in a header and in no address. */
   readonly gfwToken?: string;
+  /** The map key of NASA FIRMS. FIRMS reads it in the address path, so the tool never stores that
+   * address, never logs it and never puts it in a message. */
+  readonly firmsKey?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
