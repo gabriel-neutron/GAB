@@ -78,30 +78,30 @@ Each consumer has its own database role.
 one kind of row. No machine role can write a table directly. The grants file in `db/` holds the
 doors of each role, and the perimeter tests check them.
 
-**Every AI proposes through one tool and one door.** The extractor and the research AI call the
-same propose tool. A call is a batch of items: each item is one act, the party that first stated
-it, how the page states it, and for its values the page and an excerpt copied from the stored text.
-The tool finds each excerpt in the page, also when the white space, the Unicode form or a hyphen at
-a line end differs, and calculates the offsets. An excerpt that the page does not hold refuses the
-whole batch, and the refusal names the item, so the model can correct it once. A value that no
-excerpt states, in any form of that value, marks the item as disputed. A form with two readings,
-such as 03/04/2024 or 1,000, states no value, so it also marks the item as disputed. A yes or no
-needs a word of yes or no, and a negative number needs its minus sign or a word for it. Code mints
-the identifier of each item, so a relation names an entity that an earlier item of the same batch
-creates. The items that name each other stay one linked batch. The batch is a group: a label and
-a filter. A rule or the operator decides one unit of it at a time (ADR 0012): an entity with the relations that depend
-on it. The door writes each act with its citations in one transaction, and it holds the rules of the
-data: a machine proposes a new entity, a new relation, new attributes or the end date of an open
-relation, and never a change of a name or a type, another change of a relation or a deletion, the
-page exists, the span lies in it, and a machine act cites at least one
-page. A pending act with the same operation, target, payload, sources and role is returned and not
-written again, so a retry or a second run writes no duplicate. The door adds to that act each
-citation that it does not hold yet. Another role is another witness, and its act stays separate. The
-originator does not make a second act, because a model words one party in more than one way: the act
-that waits keeps the originator that it was written with. The cited passage is private: the review
-card reads it through the writer, and the public read never shows it. **Cost:** a model that cannot
-copy a quote word for word loses its claim, and an excerpt proves only that the page holds the
-words.
+**Every AI proposes through one tool and one door.** The extractor and the research AI call the same
+propose tool. A call is a batch of items: each item is one act, the party that first stated it, how
+the page states it, and for its values the page and an excerpt copied from the stored text. The tool
+finds each excerpt in the page, also when the white space, the Unicode form or a hyphen at a line
+end differs, and calculates the offsets. An excerpt that the page does not hold refuses the whole
+batch, and the refusal names the item, so the model can correct it once. A value that no excerpt
+states, in any form of that value, marks the item as disputed. A form with two readings, such as
+03/04/2024 or 1,000, states no value, so it also marks the item as disputed. A yes or no needs a
+word of yes or no, and a negative number needs its minus sign or a word for it. Code mints the
+identifier of each item, so a relation names an entity that an earlier item of the same batch
+creates. The items that name each other stay one linked batch. The batch is a group: a label and a
+filter. A rule or the operator decides one unit of it at a time (ADR 0012): an entity with the
+relations that depend on it. The door writes each act with its citations in one transaction, and it
+holds the rules of the data: a machine proposes a new entity, a new relation, new attributes, the
+end date of an open relation or the geometry of an entity, and never a change of a name or a type,
+another change of a relation or a deletion, the page exists, the span lies in it, and a machine act
+cites at least one page. A pending act with the same operation, target, payload, sources and role is
+returned and not written again, so a retry or a second run writes no duplicate. The door adds to
+that act each citation that it does not hold yet. Another role is another witness, and its act stays
+separate. The originator does not make a second act, because a model words one party in more than
+one way: the act that waits keeps the originator that it was written with. The cited passage is
+private: the review card reads it through the writer, and the public read never shows it. **Cost:**
+a model that cannot copy a quote word for word loses its claim, and an excerpt proves only that the
+page holds the words.
 
 **The MCP server never calls the writer.** The writer signs each act as the operator. A call from an
 AI through the writer would enter the evidence as an operator act that nothing tells apart.

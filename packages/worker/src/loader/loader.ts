@@ -108,6 +108,36 @@ const SAME_RELATION = `SELECT id::text AS id, attrs FROM api.relation
     AND valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date
   ORDER BY id LIMIT 1`;
 
+const ENTITY_GEOM = 'SELECT geom FROM api.entity WHERE id = $1::uuid';
+
+const geomRow = z.array(z.object({ geom: z.unknown() }));
+
+// Six decimals are about ten centimetres. The record writes a position with fewer digits than a
+// file gives, so two readings of one point compare after this rounding.
+const rounded = (value: unknown): unknown =>
+  typeof value === 'number'
+    ? Math.round(value * 1e6) / 1e6
+    : Array.isArray(value)
+      ? value.map(rounded)
+      : value;
+
+/** The place of an entity, and whether it is the place that a row gives. */
+const geomState = async (
+  db: Queryable,
+  entity: string,
+  geom: { readonly type?: unknown; readonly coordinates?: unknown },
+): Promise<'none' | 'same' | 'different'> => {
+  const [held] = geomRow.parse((await db.query(ENTITY_GEOM, [entity])).rows);
+  const had = held?.geom;
+  if (had === null || had === undefined) return 'none';
+  const read = z.object({ type: z.unknown(), coordinates: z.unknown() }).safeParse(had);
+  return read.success &&
+    isDeepStrictEqual(read.data.type, geom.type) &&
+    isDeepStrictEqual(rounded(read.data.coordinates), rounded(geom.coordinates))
+    ? 'same'
+    : 'different';
+};
+
 const attrsRow = z.array(
   z.object({
     attrs: z.record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() })),
@@ -419,7 +449,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         note(`the row finds entity ${found.id} by its name only`);
       for (const [key, value] of Object.entries(rows.constants ?? {})) attrs[key] = { v: value };
       const hasAttrs = Object.keys(attrs).length > 0;
-      if (found.kind === 'one' && !hasAttrs) {
+      if (found.kind === 'one' && !hasAttrs && geom === undefined) {
         unfit(`the row finds entity ${found.id} and adds no attribute`);
         return;
       }
@@ -448,6 +478,22 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           id: randomUUID(),
           foundBy: found.key,
         });
+      // The act that updates an entity sets a missing place. A place that differs from the place
+      // of the record is proposed too, and the Doubt rule holds it for the operator (S3).
+      if (found.kind === 'one' && geom !== undefined) {
+        // A value that is no object is no geometry, and the request refuses it with a sentence.
+        const place = typeof geom === 'object' && geom !== null ? geom : {};
+        if ((await geomState(context.db, found.id, place)) !== 'same')
+          acts.push({
+            ref: 'row',
+            request: { op: 'update_entity', targetId: found.id, geom },
+          });
+        else if (acts.length === 0)
+          lines.push({
+            ...where,
+            reason: `the row adds no act: the place of ${found.id} is the same`,
+          });
+      }
 
       for (const relation of mapping.relations) {
         if (cell(relation.other.column) === '') continue;
