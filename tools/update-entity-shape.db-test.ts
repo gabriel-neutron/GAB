@@ -22,6 +22,8 @@ const proposed = (payload: unknown, targetKind = 'entity'): Promise<unknown> =>
     ),
   );
 
+const POINT = { type: 'Point', coordinates: [30, 60] };
+
 const REFUSED = { code: '23514', constraint: 'proposals_update_entity_shape' };
 
 test.each([
@@ -36,8 +38,19 @@ test.each([
   ['a type of a line feed and a space', { type: '\n ' }],
   ['a type that is a JSON null', { type: null }],
   ['a type that is not a string', { type: 7 }],
+  ['a third key beside a geometry', { label: 'A vessel', note: 'a note', geom: POINT }],
 ])('an update_entity with %s is refused', async (_case, payload) => {
   await expect(proposed(payload)).rejects.toMatchObject(REFUSED);
+});
+
+test.each([
+  ['a geometry that is a JSON null', { geom: null }],
+  ['a geometry with no coordinates', { geom: { type: 'Point' } }],
+])('an update_entity with %s is refused by the rule of the geometry', async (_case, payload) => {
+  await expect(proposed(payload)).rejects.toMatchObject({
+    code: '23514',
+    constraint: 'proposals_payload_geom',
+  });
 });
 
 test('an update_entity whose target is a relation is refused', async () => {
@@ -48,6 +61,8 @@ test.each([
   ['a label', { label: 'A vessel' }],
   ['a type', { type: 'vessel' }],
   ['a label and a type', { label: 'A vessel', type: 'vessel' }],
+  ['a geometry', { geom: POINT }],
+  ['a label and a geometry', { label: 'A vessel', geom: POINT }],
 ])('an update_entity with %s is still accepted', async (_case, payload) => {
   await expect(proposed(payload)).resolves.toHaveLength(1);
 });

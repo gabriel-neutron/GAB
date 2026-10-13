@@ -97,8 +97,11 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         payload: {
           ...(request.label === undefined ? {} : { label: request.label }),
           ...(request.type === undefined ? {} : { type: request.type }),
+          ...(request.geom === undefined ? {} : { geom: request.geom }),
         },
-        src: [MANUAL],
+        // The row-level list backs the name, the type and the place together. The operator
+        // authority backs it, with the stored image that the operator cites, if there is one.
+        src: request.cites === undefined ? [MANUAL] : [...new Set(request.cites)],
         names: [],
         targetKind: 'entity',
         targetId: request.targetId,
