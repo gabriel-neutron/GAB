@@ -1040,3 +1040,226 @@ test('a GEM company finds the record company by its tax number, and a name match
     ).toStrictEqual([{ owned: 'Arctic New Co' }]);
   });
 });
+
+// A workbook in the shape of the GEM ownership workbook: an entity sheet, and an ownership sheet
+// where each row is one link with its share. GEM estimated one share, one holder is no entity,
+// and one holder is a company that the Russian set of the entity sheet does not hold.
+const OWNERSHIP_SHEET = 'Ownership';
+const OWNERSHIP_SET = 'xlsx-1|sheet=Ownership';
+const OWNERSHIP_HEADER = [
+  'Subject ID',
+  'Subject',
+  'Holder ID',
+  'Holder',
+  'Share',
+  'Imputed',
+  'URL',
+];
+const OWNERSHIP_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+    ['E200002', 'Rosneft', 'Russia', 7706107510, '', ''],
+    ['E200003', 'QH Oil Investments', 'Russia', '', '', ''],
+    ['E200009', 'Oslo Co', 'Norway', '', '', ''],
+  ],
+  [OWNERSHIP_SHEET]: [
+    [...OWNERSHIP_HEADER],
+    ['E200002', 'Rosneft', 'E200001', 'Rosneftegaz', 40.4, 'FALSE', 'https://gem.test/a'],
+    ['E200002', 'Rosneft', 'E200003', 'QH Oil Investments', 18.46, 'TRUE', 'https://gem.test/b'],
+    ['E200002', 'Rosneft', 'E200008', 'small shareholder(s)', 41.14, 'TRUE', ''],
+    ['E200002', 'Rosneft', 'E200009', 'Oslo Co', 0.5, 'FALSE', ''],
+  ],
+});
+
+const COMPANY_DRAFT = {
+  ...ENTITY_DRAFT,
+  rows: {
+    ...ENTITY_DRAFT.rows,
+    lookup: [{ key: 'gem_entity_id', column: 'Entity ID' }],
+    attrs: {
+      gem_entity_id: { column: 'Entity ID', cast: { type: 'identifier' } },
+      tax_id: { column: 'Registry ID', cast: { type: 'ru_register' } },
+      registration_number: { column: 'Registry ID', cast: { type: 'ru_register' } },
+    },
+  },
+  relations: [],
+};
+
+const LINK_DRAFT = {
+  table: 'GEM-ownership.xlsx, ownership',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    relation_type: 'owns',
+    src: {
+      entity_type: 'company',
+      name: 'Holder',
+      lookup: [{ key: 'gem_entity_id', column: 'Holder ID' }],
+    },
+    dst: {
+      entity_type: 'company',
+      name: 'Subject',
+      lookup: [{ key: 'gem_entity_id', column: 'Subject ID' }],
+    },
+    attrs: {
+      share_pct: { column: 'Share', cast: { type: 'number', scale: 4 } },
+      share_imputed: { column: 'Imputed', cast: { type: 'boolean' } },
+      source_url: { column: 'URL', cast: { type: 'text' } },
+    },
+  },
+  relations: [],
+};
+
+/** Maps one text set of the stored workbook, and promotes the mapping. Returns the mapping and
+ * the load job. */
+const mapAndPromote = async (
+  held: Held,
+  set: string,
+  draft: unknown,
+): Promise<{ mapping: string; load: string }> => {
+  const job = await held.asApp(() =>
+    held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [BOOK, set]),
+  );
+  await held.ask(OLDEST, [job]);
+  expect(
+    await held.step(
+      makeMapper(CONFIG),
+      routerOf(() => answerOf(draft)),
+    ),
+  ).toStrictEqual({ did: 'done', job });
+  const mapping = await held.idOf(
+    `SELECT p.id FROM public.proposals p
+      WHERE p.op = 'map_document' AND $1 = ANY (p.src::text[])
+        AND public.mapping_text_set(p.id) = $2`,
+    [BOOK, set],
+  );
+  await fromAnEarlierTransaction(held, mapping);
+  const load = await held.asApp(() =>
+    held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+  );
+  await held.ask(OLDEST, [load]);
+  return { mapping, load };
+};
+
+const linkRow = z.object({
+  holder: z.string(),
+  subject: z.string(),
+  share: z.number().nullable(),
+  imputed: z.boolean().nullable(),
+  url: z.string().nullable(),
+  status: z.string(),
+  decided_by: z.string().nullable(),
+  originator: z.string(),
+  passage: z.string(),
+});
+
+test('a relation table loads the ownership links between GEM companies, with the share and its flag', async () => {
+  await inTransaction(async (held) => {
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/ownership.xlsx',
+      sha256(OWNERSHIP_BOOK),
+      XLSX_MIME,
+    ]);
+    const open = () => Promise.resolve(bytesSource(OWNERSHIP_BOOK));
+    await makeTextSet(
+      { db: asQueryable(held), open },
+      { document: BOOK, sheet: ENTITY_SHEET, filter: { column: 'Country', value: 'Russia' } },
+    );
+    expect(
+      await makeTextSet(
+        { db: asQueryable(held), open },
+        { document: BOOK, sheet: OWNERSHIP_SHEET },
+      ),
+    ).toMatchObject({ name: OWNERSHIP_SET, rows: 4 });
+    await approve(held);
+
+    // The companies load first, by their GEM identifier.
+    const companies = await mapAndPromote(held, ENTITY_SET, COMPANY_DRAFT);
+    await runLoad(held, companies.load);
+    const idOf = (label: string): Promise<string> =>
+      held.idOf('SELECT id FROM public.entities WHERE label = $1', [label]);
+    const [rosneftegaz, rosneft, qh] = [
+      await idOf('Rosneftegaz'),
+      await idOf('Rosneft'),
+      await idOf('QH Oil Investments'),
+    ];
+
+    // Then the links. The dry join says which key finds each end, and writes nothing.
+    const links = await mapAndPromote(held, OWNERSHIP_SET, LINK_DRAFT);
+    const join = await held.asAgent(() => dryJoin(asQueryable(held), links.mapping));
+    expect(join.trim().split('\r\n')).toStrictEqual([
+      `# dry join of mapping ${links.mapping}; document ${BOOK}; text set ${OWNERSHIP_SET}; ` +
+        'rows 4; links 2; to the report 2',
+      'row,src_key,src_entity,src_outcome,dst_key,dst_entity,dst_outcome,outcome',
+      `1,gem_entity_id,${rosneftegaz},finds,gem_entity_id,${rosneft},finds,links`,
+      `2,gem_entity_id,${qh},finds,gem_entity_id,${rosneft},finds,links`,
+      `3,,,not in the record,gem_entity_id,${rosneft},finds,goes to the report`,
+      `4,,,not in the record,gem_entity_id,${rosneft},finds,goes to the report`,
+    ]);
+    const entities = 'SELECT count(*)::int AS entities FROM public.proposals WHERE op = $1';
+    const before = await held.ask(entities, ['create_entity']);
+
+    await runLoad(held, links.load);
+
+    // A row of a relation table creates no entity.
+    expect(await held.ask(entities, ['create_entity'])).toStrictEqual(before);
+    expect(
+      z.array(linkRow).parse(
+        await held.ask(
+          `SELECT s.label AS holder, d.label AS subject,
+                  (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share,
+                  (r.attrs #>> '{share_imputed,v}')::boolean AS imputed,
+                  r.attrs #>> '{source_url,v}' AS url,
+                  p.status, p.decided_by, p.originator,
+                  substr(t.text, c.start + 1, c."end" - c.start) AS passage
+             FROM public.relations r
+             JOIN public.proposals p ON p.id = r.promoted_from
+             JOIN public.entities s ON s.id = r.src_id
+             JOIN public.entities d ON d.id = r.dst_id
+             JOIN public.citation c ON c.claim_id = p.id
+             JOIN public.document_text t
+               ON (t.document_id, t.extractor, t.page) = (c.doc_id, c.text_extractor, c.page)
+            WHERE r.type = 'owns' ORDER BY s.label`,
+        ),
+      ),
+    ).toStrictEqual([
+      {
+        holder: 'QH Oil Investments',
+        subject: 'Rosneft',
+        share: 18.46,
+        imputed: true,
+        url: 'https://gem.test/b',
+        status: 'accepted',
+        decided_by: 'rule reference_dataset v1',
+        originator: PUBLISHER,
+        passage: 'E200002,Rosneft,E200003,QH Oil Investments,18.46,TRUE,https://gem.test/b',
+      },
+      {
+        holder: 'Rosneftegaz',
+        subject: 'Rosneft',
+        share: 40.4,
+        imputed: false,
+        url: 'https://gem.test/a',
+        status: 'accepted',
+        decided_by: 'rule reference_dataset v1',
+        originator: PUBLISHER,
+        passage: 'E200002,Rosneft,E200001,Rosneftegaz,40.4,FALSE,https://gem.test/a',
+      },
+    ]);
+
+    // A holder that is no entity, and a holder that the record does not hold, go to the report.
+    const report = new TextDecoder().decode(held.stored[1]?.bytes).trim().split('\r\n');
+    expect(report[0]).toMatch(/read 4; loaded 2; excluded 2$/u);
+    expect(report.slice(2)).toStrictEqual([
+      expect.stringMatching(
+        /^3,1,\d+,\d+,"relation not loaded: the src ""small shareholder\(s\)"" is not an entity"$/u,
+      ),
+      expect.stringMatching(
+        /^4,1,\d+,\d+,"relation not loaded: the src ""Oslo Co"" is not in the record"$/u,
+      ),
+    ]);
+  });
+});
