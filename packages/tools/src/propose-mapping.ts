@@ -19,10 +19,16 @@ export const proposeMappingOf = (modelCallId: string) =>
       'Proposes how the columns of one stored table map to the record: the type and the name of ' +
       'the entity of each row, the lookup that finds it, each attribute with its cast, and the ' +
       'relations. The operator decides the mapping, and code then loads every row.',
-    input: z.strictObject({ document: documentId, mapping: mappingDraft }),
+    input: z.strictObject({
+      document: documentId,
+      textSet: z.string().min(1).optional(),
+      mapping: mappingDraft,
+    }),
     output: z.strictObject({ proposalId: z.uuid() }),
     async run(session, input) {
-      const { header } = tableOf((await readTablePage(session, input.document)).text);
+      const { header } = tableOf(
+        (await readTablePage(session, input.document, input.textSet)).text,
+      );
       const faults = missingColumns(input.mapping, header);
       if (faults.length > 0) throw new ToolRefusal(faults.join('; '));
 

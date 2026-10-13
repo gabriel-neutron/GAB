@@ -17,6 +17,7 @@ const COMMANDS = {
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
+  'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 
 type CommandName = keyof typeof COMMANDS;

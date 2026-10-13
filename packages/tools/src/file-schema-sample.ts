@@ -20,7 +20,7 @@ export const fileSchemaSample = defineTool({
     'Reads the header of one stored table, the number of its rows, and its first ' +
     `${String(SAMPLE_ROWS)} rows. It returns no other row of the file. Use it before you map the ` +
     'columns of a table.',
-  input: z.strictObject({ document: documentId }),
+  input: z.strictObject({ document: documentId, textSet: z.string().min(1).optional() }),
   output: z.strictObject({
     document: z.string(),
     header: z.array(z.string()),
@@ -29,7 +29,7 @@ export const fileSchemaSample = defineTool({
     rows: z.array(z.strictObject({ row: z.number().int(), values: z.array(z.string()) })),
   }),
   async run(session, input) {
-    const { text } = await readTablePage(session, input.document);
+    const { text } = await readTablePage(session, input.document, input.textSet);
     const { header, rows } = tableOf(text);
     return {
       document: input.document,

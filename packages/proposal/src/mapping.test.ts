@@ -71,3 +71,18 @@ test('a column that the header lacks is a fault that says what to use', () => {
     'the column "Length" is not in the header. Use one of: Name, IMO, Owner',
   ]);
 });
+
+test('a mapping names its publisher and sets a constant attribute of the closed list', () => {
+  const held = {
+    ...DRAFT,
+    publisher: 'Global Energy Monitor',
+    rows: { ...DRAFT.rows, constants: { asset_kind: 'field' } },
+  };
+
+  expect(mappingDraft.safeParse(held).success).toBe(true);
+  expect(
+    mappingDraft.safeParse({ ...held, rows: { ...held.rows, constants: { asset_kind: 'well' } } })
+      .success,
+  ).toBe(false);
+  expect(mappingDraft.safeParse({ ...held, publisher: ' ' }).success).toBe(false);
+});

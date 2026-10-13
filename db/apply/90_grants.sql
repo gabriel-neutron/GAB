@@ -38,7 +38,7 @@ GRANT SELECT ON documents, document_provider, entity_type, relation_type, entiti
 -- claims through the claim door, so its read of the queue leaves out the text and its author. A
 -- process that reads untrusted web content then cannot read the other leads of the operator.
 GRANT SELECT (id, document_id, kind, status, failure_reason, claimed_by, claimed_at, created_at,
-  updated_at, finished_at) ON jobs TO gabriel_agent;
+  updated_at, finished_at, text_set) ON jobs TO gabriel_agent;
 
 -- THE RESEARCH ROLE READS WHAT THE READ TOOLS NEED, and no more. It holds no grant on the table
 -- `jobs`. The status of the jobs of one document reaches it through api.job, which hides every
@@ -122,7 +122,7 @@ REVOKE ALL ON FUNCTION uri_host(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_failed_ratings()    FROM PUBLIC;
 REVOKE ALL ON FUNCTION fail_job(uuid,text)         FROM PUBLIC;
-REVOKE ALL ON FUNCTION enqueue_job(text,text)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_job(text,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_job(uuid,int,int,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION refused_parts_said(int,text)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION start_lead(text)            FROM PUBLIC;
@@ -159,6 +159,9 @@ REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
+REVOKE ALL ON FUNCTION approve_reference_dataset(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION act_reference_dataset(uuid)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_reference_dataset(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
 REVOKE ALL ON FUNCTION rating_context(text)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_author_rating()     FROM PUBLIC;
@@ -283,7 +286,7 @@ GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text)   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION put_load_report(uuid,text,text,text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION enqueue_job(text,text)
+GRANT EXECUTE ON FUNCTION enqueue_job(text,text,text)
   TO gabriel_app, gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION complete_job(uuid,int,int,text,text) TO gabriel_agent;
 
@@ -331,6 +334,9 @@ GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 -- one name (the known authors and the approved set) and gives C to F through the door above. No
 -- grant here lets the worker role give a letter A or B, or approve a set.
 GRANT EXECUTE ON FUNCTION approve_reference_set()  TO gabriel_app;
+-- THE OPERATOR APPROVES A REFERENCE DATASET, AND NO MACHINE ROLE CAN. The rule that reads the approval
+-- is inside the database, so a loaded file never makes itself a reference.
+GRANT EXECUTE ON FUNCTION approve_reference_dataset(text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reference_set()          TO gabriel_app;
 -- The operator tries a failed rating again. The worker role never queues a failed job again.
 GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;

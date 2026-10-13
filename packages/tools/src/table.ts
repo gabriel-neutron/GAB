@@ -24,20 +24,23 @@ export const tableOf = (text: string): { header: string[]; rows: CsvRecord[] } =
   return { header, rows };
 };
 
-// The newest set of text, as the read tool chooses it. A CSV is one page.
+// The named text set, or the newest one when the caller names none. A CSV is one page.
 const PAGES = `SELECT t.extractor, t.page::int AS page, t.text
   FROM public.document_text t
- WHERE t.document_id = $1::text AND t.extractor = public.newest_text_extractor($1::text)
+ WHERE t.document_id = $1::text
+   AND t.extractor = coalesce($2::text, public.newest_text_extractor($1::text))
  ORDER BY t.page`;
 
 const pageRow = z.object({ extractor: z.string(), page: z.number().int(), text: z.string() });
 
-/** The one page of a stored table, and the set of text it belongs to. */
+/** The one page of a stored table, and the set of text it belongs to. A table of a workbook is a
+ * named text set, and the reader takes that set and never the newest one. */
 export const readTablePage = async (
   session: Session,
   document: string,
+  textSet: string | null = null,
 ): Promise<{ textSet: string; page: number; text: string }> => {
-  const pages = await rowsOf(session, pageRow, PAGES, [document]);
+  const pages = await rowsOf(session, pageRow, PAGES, [document, textSet]);
   const [first] = pages;
   if (first === undefined) throw new ToolRefusal(`document ${document} holds no text`);
   if (pages.length > 1)

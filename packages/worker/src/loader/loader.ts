@@ -44,6 +44,10 @@ const BY_LABEL = `SELECT id::text AS id FROM api.entity
 
 const idRows = z.array(z.object({ id: z.uuid() }));
 
+const TEXT_SET = 'SELECT text_set FROM public.jobs WHERE id = $1::uuid';
+
+const textSetRow = z.array(z.object({ text_set: z.string().nullable() }));
+
 const BATCH = 'SELECT item FROM public.propose_batch($1::jsonb)';
 
 const REPORT = `SELECT public.put_load_report($1::uuid, $2::text, $3::text, $4::text, $5::text)`;
@@ -98,7 +102,7 @@ export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
 
 type Found =
   | { readonly kind: 'none' }
-  | { readonly kind: 'one'; readonly id: string }
+  | { readonly kind: 'one'; readonly id: string; readonly key: LookupKey }
   | { readonly kind: 'many'; readonly key: string; readonly count: number };
 
 /** The lookups of a mapping in the order that code tries them: the two first keys, then each
@@ -183,7 +187,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     let page: Awaited<ReturnType<typeof readTablePage>>;
     let table: ReturnType<typeof tableOf>;
     try {
-      page = await readTablePage(session, document);
+      const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
+      page = await readTablePage(session, document, named?.text_set ?? null);
       table = tableOf(page.text);
     } catch (cause) {
       if (cause instanceof ToolRefusal) throw new JobStop(cause.message);
@@ -209,7 +214,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         const ids = await lookedUp(context.db, mapping.rows.entity_type, one, value);
         const [first] = ids;
         if (ids.length > 1) return { kind: 'many', key: one.key, count: ids.length };
-        if (first !== undefined) return { kind: 'one', id: first };
+        if (first !== undefined) return { kind: 'one', id: first, key: one.key };
       }
       return { kind: 'none' };
     };
@@ -288,6 +293,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         unfit(`the lookup by ${found.key} finds ${String(found.count)} entities`);
         return;
       }
+      // A name is no key: two entities can share it. Until a row finds its entity by an identifier,
+      // a row that finds one by its name only writes nothing, and the report lists it.
+      if (found.kind === 'one' && found.key === 'label') {
+        unfit(`the row finds entity ${found.id} by its name only, and writes nothing`);
+        return;
+      }
+      for (const [key, value] of Object.entries(mapping.rows.constants ?? {}))
+        attrs[key] = { v: value };
       const hasAttrs = Object.keys(attrs).length > 0;
       if (found.kind === 'one' && !hasAttrs) {
         unfit(`the row finds entity ${found.id} and adds no attribute`);
@@ -381,7 +394,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           names: made.names,
           dissent: false,
           model_call_id: held.model_call_id,
-          originator: mapping.table,
+          // The author of a row is the body that publishes the table, and never the file name.
+          originator: mapping.publisher ?? mapping.table,
           modality: mapping.modality,
           citations: [
             {
