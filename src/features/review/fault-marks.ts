@@ -26,6 +26,7 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   broken_value: 'broken value',
   parent_rejected: 'parent rejected',
   record_disagrees: 'disagrees with the record',
+  name_only_match: 'found by name only',
   sources_from_parent: 'sources from the parent',
   approximate_position: 'approximate position',
   note: 'note',

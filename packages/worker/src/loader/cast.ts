@@ -1,14 +1,48 @@
 import type { Cast } from '@gab/proposal/mapping';
-import { isValidImo } from '@gab/proposal/identifiers';
+import { isValidImo, isValidLei } from '@gab/proposal/identifiers';
 
-/** One cell as an attribute value, or the sentence that says why the cell is not one. */
+/** One cell as an attribute value, or the sentence that says why the cell is not one. A refused
+ * cell excludes its row. A skipped cell holds no value of its key, and the row keeps its other
+ * cells: a register writes "not found" where it has no LEI. */
 export type Cell =
   | { readonly ok: true; readonly value: string | number | boolean | string[] }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: 'skip'; readonly reason: string };
 
 const DECIMAL = /^[+-]?\d+(\.(\d+))?$/u;
 const TRUE = new Set(['true', 'yes', '1']);
 const FALSE = new Set(['false', 'no', '0']);
+
+// External constraint: the Russian register. A company has a tax number (INN) of ten digits and a
+// registration number (OGRN) of thirteen. A person has an INN of twelve digits and an OGRNIP of
+// fifteen. An INN can start with a zero, and an OGRN or an OGRNIP never does.
+const DIGITS = /^\d+$/u;
+const TAX_LENGTHS = new Map([
+  [9, 10],
+  [10, 10],
+  [11, 12],
+  [12, 12],
+]);
+const REGISTRATION_LENGTHS = new Set([13, 15]);
+
+/** A number of the Russian register under one key: a tax number with the zeros that a workbook
+ * removed from its start, or a registration number. */
+const registerCell = (key: string, text: string): Cell => {
+  if (!DIGITS.test(text))
+    return { ok: 'skip', reason: `"${text}" is not a number of the Russian register` };
+  const taxLength = TAX_LENGTHS.get(text.length);
+  if (key === 'tax_id') {
+    if (taxLength !== undefined) return { ok: true, value: text.padStart(taxLength, '0') };
+    if (REGISTRATION_LENGTHS.has(text.length))
+      return { ok: 'skip', reason: `"${text}" is a registration number, and not a tax number` };
+  }
+  if (key === 'registration_number') {
+    if (REGISTRATION_LENGTHS.has(text.length)) return { ok: true, value: text };
+    if (taxLength !== undefined)
+      return { ok: 'skip', reason: `"${text}" is a tax number, and not a registration number` };
+  }
+  return { ok: 'skip', reason: `"${text}" is not a number of the Russian register for ${key}` };
+};
 
 const LAST_DAY = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -49,7 +83,15 @@ export const castCell = (cast: Cast, key: string, text: string): Cell => {
     case 'identifier':
       if (key === 'imo' && !isValidImo(text))
         return { ok: false, reason: `the IMO number "${text}" fails its check digit` };
+      if (key === 'lei') {
+        const lei = text.toUpperCase();
+        return isValidLei(lei)
+          ? { ok: true, value: lei }
+          : { ok: 'skip', reason: `"${text}" is not a LEI in its legal form` };
+      }
       return { ok: true, value: text };
+    case 'ru_register':
+      return registerCell(key, text);
     case 'number': {
       const found = DECIMAL.exec(text);
       if (found === null) return { ok: false, reason: `"${text}" is not a number` };

@@ -84,6 +84,11 @@ that `infra/.env.example` lists. When one of them is absent, the worker starts a
 extractions, and each mapping fails at once with a reason that names the value. The load of a
 promoted mapping runs with no model and needs the raw store values.
 
+Before you promote a mapping, run `pnpm worker dry-join <mapping> > join.csv`. For each row of the
+table, it writes the key that finds the entity of the row in the record, or that the row creates
+an entity. It calls no model and writes nothing in the record. A row that finds its entity by its
+name only becomes a doubt in the load, so add an identifier to the record first where you can.
+
 The rater of `pnpm worker run` rates each new author name. Set the `RATER_*` values that
 `infra/.env.example` lists, with the strongest model that OpenRouter gives. When one of them is
 absent, the worker starts and runs the extractions, and each rating fails with a reason that names

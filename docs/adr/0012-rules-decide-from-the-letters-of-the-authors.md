@@ -99,7 +99,9 @@ ADR 0016 gives the NATO pair of a claim, which reads the digit and the support o
   its dataset as a reference dataset. The approval is one act for one edition of one named dataset
   (the first is GEM, for its letter and its sites), and it is written once. The rule needs no
   second source and no check by a second model, because a loaded row has none. A value that
-  disagrees with the record is a doubt, and the Doubt rule runs first. The origin of the decision
+  disagrees with the record is a doubt, and the Doubt rule runs first. A loaded row finds its
+  entity by an identifier before its name, and a row that finds it by its name only is a doubt,
+  because two entities can share a name. The origin of the decision
   is "reference dataset <name>, approved by the operator", so the public text says that GAB did not
   check the fact. The author of each loaded row is the publisher of the table.
 - **Strong sources** need, for each fact of the unit, a passed check and either one source A on a
