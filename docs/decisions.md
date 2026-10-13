@@ -15,7 +15,7 @@ it. The build decisions are in the ADRs.
 | C7 | The old corpus is rebuilt, not carried over | Framing |
 | M1 | No FollowTheMoney | Data model |
 | M2 | Typed fields for what connects, free attributes for what describes | Data model |
-| M3 | An occurrence is a relation or an attribute, not a node | Data model |
+| M3 | An exchange between parties is a relation or an attribute; an event a party reports is a dated node | Data model |
 | M4 | A relation can point at a relation | Data model |
 | M5 | The graph is the present state; no history, no query by date | Data model |
 | M6 | A date is provenance, or a bound on a claim that changes hands | Data model |
@@ -111,13 +111,17 @@ only one row says is a free attribute.
 **Why.** A rigid shape bends the data, and a free shape stops correlation.
 **Cost.** A search through free attributes is slower. This is acceptable at our volume.
 
-### M3 — An occurrence is not a node
+### M3 — An exchange is not a node; a reported event is
 
-**Rule.** A transfer, a port call or a loading is a relation between the parties, or an attribute
-of one of them.
-**Why.** The graph is the present state (M5), so no node can stand for a moment.
-**Cost.** An occurrence with three or more parties becomes several relations with no tie between
-them.
+**Rule.** An exchange between parties (a transfer, a port call, a loading) is a relation between the
+parties, or an attribute of one of them. An event that a party reports (a claimed strike, a fire, a
+stoppage) is a node of the `event` type. It has a fixed name, a date and a link to its site.
+**Why.** The graph is the present state (M5), so no node can stand for a moment of an exchange. A
+reported event is different: it is a dated claim with its own identity. Sources corroborate it,
+deny it or reject it one by one. A relation key ignores attributes, so a relation cannot carry that.
+**Cost.** An exchange with three or more parties becomes several relations with no tie between
+them. The `event` type is a second way to hold a dated fact, so the type must stay narrow: it is
+for events that a party reports, never for an exchange.
 
 ### M4 — A relation can point at a relation
 
