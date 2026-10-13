@@ -127,6 +127,11 @@ export const writeRequest = z.discriminatedUnion('op', [
     targetId: z.uuid(),
     label: z.string().trim().optional(),
     type: z.string().trim().optional(),
+    // The place of the entity. A correction made in QGIS enters here, as an act of the operator
+    // (ADR 0005). `cites` names the stored documents that back it, such as a Sentinel-2 image, and
+    // the operator authority alone backs it when the list is absent.
+    geom: geometry.optional(),
+    cites: z.array(z.string().trim()).min(1).optional(),
   }),
 
   z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
