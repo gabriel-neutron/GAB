@@ -284,7 +284,7 @@ const JURISDICTION_KEY = 'registration_jurisdiction';
 // The spellings of a registration jurisdiction in the sources, by ISO 3166-1 code. The record
 // holds the code. A source writes the name, so the code is stated by any of its spellings.
 const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
-  RU: ['RU', 'Russia', 'Russian Federation'],
+  RU: ['RU', 'Russia', 'Russian Federation', 'Россия', 'Российская Федерация', 'РФ'],
 };
 
 const jurisdictionCode = (value: Scalar): string | null => {
@@ -304,9 +304,10 @@ export const withCodedJurisdiction = <Act extends WriteRequest>(act: Act): Act =
   if (act.op !== 'create_entity' && act.op !== 'update_attrs') return act;
   const held = act.attrs?.[JURISDICTION_KEY];
   if (held === undefined) return act;
-  const code = jurisdictionCode(held.v as Scalar);
-  if (code === null || held.v === code) return act;
-  return { ...act, attrs: { ...act.attrs, [JURISDICTION_KEY]: { ...held, v: code } } };
+  const coded = (one: unknown): unknown =>
+    typeof one === 'string' ? (jurisdictionCode(one) ?? one) : one;
+  const v = Array.isArray(held.v) ? held.v.map(coded) : coded(held.v);
+  return { ...act, attrs: { ...act.attrs, [JURISDICTION_KEY]: { ...held, v } } };
 };
 
 const statesJurisdiction = (code: string, passage: string): boolean =>

@@ -405,7 +405,8 @@ const claimActOf = async (
   given: ProposeItem,
   dropped: readonly BoundName[],
 ): Promise<unknown> => {
-  const { act } = given;
+  // The checker reads the act that is written, so it reads the coded jurisdiction.
+  const act = withCodedJurisdiction(given.act);
   if (act.op === 'create_relation') return withoutBounds(act, dropped);
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
