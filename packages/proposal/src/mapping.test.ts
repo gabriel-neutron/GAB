@@ -191,3 +191,24 @@ test('a relation of an entity table takes attributes from its columns', () => {
     'the column "Length" is not in the header. Use one of: Name, IMO, Owner',
   ]);
 });
+
+test('a failed entity table keeps the specific issues', () => {
+  const read = mappingDraft.safeParse({
+    ...DRAFT,
+    rows: { ...DRAFT.rows, lookup: [{ key: 'imo_number', column: 'IMO' }] },
+  });
+  expect(read.success).toBe(false);
+  expect(JSON.stringify(read.error?.issues)).toContain('lookup');
+});
+
+test('the lookup of an end of a relation table holds no name key', () => {
+  const end = (key: string) => ({
+    ...LINKS,
+    rows: {
+      ...LINKS.rows,
+      src: { ...LINKS.rows.src, lookup: [{ key, column: 'Holder ID' }] },
+    },
+  });
+  expect(mappingDraft.safeParse(end('label')).success).toBe(false);
+  expect(mappingDraft.safeParse(end('gem_entity_id')).success).toBe(true);
+});

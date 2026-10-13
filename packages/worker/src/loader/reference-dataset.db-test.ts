@@ -1196,7 +1196,7 @@ test('a relation table loads the ownership links between GEM companies, with the
       'row,src_key,src_entity,src_outcome,dst_key,dst_entity,dst_outcome,outcome',
       `1,gem_entity_id,${rosneftegaz},finds,gem_entity_id,${rosneft},finds,links`,
       `2,gem_entity_id,${qh},finds,gem_entity_id,${rosneft},finds,links`,
-      `3,,,not in the record,gem_entity_id,${rosneft},finds,goes to the report`,
+      `3,,,"the src ""small shareholder(s)"" is not an entity",gem_entity_id,${rosneft},finds,goes to the report`,
       `4,,,not in the record,gem_entity_id,${rosneft},finds,goes to the report`,
     ]);
     const entities = 'SELECT count(*)::int AS entities FROM public.proposals WHERE op = $1';

@@ -5,7 +5,6 @@ import { machineAct } from '@gab/proposal/machine';
 import {
   isLinkTable,
   mappingPayload,
-  type Cast,
   type LinkRows,
   type MappingPayload,
 } from '@gab/proposal/mapping';
@@ -19,8 +18,16 @@ import { z } from 'zod';
 
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import type { Queryable } from '../queryable.ts';
-import { castCell, dayOf } from './cast.ts';
 import { makeFinder } from './join.ts';
+import {
+  castAll,
+  compareLink,
+  daysOf,
+  makeEndFinder,
+  resolveEnd,
+  type Days,
+  type HeldAttrs,
+} from './link.ts';
 
 const LOADER_NAME = 'loader';
 const VERSION = 'v1';
@@ -96,24 +103,10 @@ export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
 
 const ENTITY_ATTRS = 'SELECT attrs FROM api.entity WHERE id = $1::uuid';
 
-const SAME_RELATION = `SELECT attrs FROM api.relation
+const SAME_RELATION = `SELECT id::text AS id, attrs FROM api.relation
   WHERE coalesce(proposed_type, type) = $1::text AND src_id = $2::uuid AND dst_id = $3::uuid
     AND valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date
   ORDER BY id LIMIT 1`;
-
-// External constraint: GEM names a holder that is no entity with these words, for example
-// "small shareholder(s)" and "natural person(s)". Such a holder goes to the report, and never into
-// the record.
-const NOT_AN_ENTITY = /^(small share ?holder|natural person|individual)(s|\(s\))?$/iu;
-
-type Value = string | number | boolean | string[];
-type Attrs = Record<string, { v: Value }>;
-type Rules = Readonly<Record<string, { readonly column: string; readonly cast: Cast }>>;
-interface Days {
-  validFrom?: string;
-  validTo?: string;
-}
-type DayRule = { readonly column: string; readonly pattern: string } | undefined;
 
 const attrsRow = z.array(
   z.object({
@@ -138,37 +131,29 @@ const holdsEach = async (
 };
 
 const linkRow = z.array(
-  z.object({ attrs: z.record(z.string(), z.object({ v: z.unknown() })).nullable() }),
+  z.object({
+    id: z.uuid(),
+    attrs: z
+      .record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() }))
+      .nullable(),
+  }),
 );
 
-/** The attributes of the relation of this type between these ends and these days that the record
- * holds, or null when the record holds no such relation. */
+/** The relation of this type between these ends and these days that the record holds, with its
+ * attributes, or null when the record holds no such relation. */
 const linkedAttrs = async (
   db: Queryable,
   type: string,
   src: string,
   dst: string,
   days: Days,
-): Promise<Readonly<Record<string, { readonly v: unknown }>> | null> => {
+): Promise<{ readonly id: string; readonly attrs: HeldAttrs } | null> => {
   const [held] = linkRow.parse(
     (await db.query(SAME_RELATION, [type, src, dst, days.validFrom ?? null, days.validTo ?? null]))
       .rows,
   );
-  return held === undefined ? null : (held.attrs ?? {});
+  return held === undefined ? null : { id: held.id, attrs: held.attrs ?? {} };
 };
-
-/** The values of a row that the record holds with another value, as words for the report. */
-const otherValues = (
-  held: Readonly<Record<string, { readonly v: unknown }>>,
-  attrs: Attrs,
-): string[] =>
-  Object.entries(attrs)
-    .filter(([key, value]) => !isDeepStrictEqual(held[key]?.v, value.v))
-    .map(
-      ([key, value]) =>
-        `${key} ${held[key] === undefined ? 'with no value' : JSON.stringify(held[key].v)}, ` +
-        `and the row gives ${JSON.stringify(value.v)}`,
-    );
 
 /** The loader reads every row under the promoted mapping, and it calls no model. Each row is one
  * batch of the one door of a machine, and the span of the row is its citation. A row that does
@@ -207,6 +192,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     let excluded = 0;
     const { rows } = mapping;
     const find = makeFinder(context.db, isLinkTable(rows) ? {} : rows.attrs, table.header);
+    const findEnd = makeEndFinder(context.db, table.header);
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -228,52 +214,6 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       readonly note: (reason: string) => void;
       readonly unfit: (reason: string) => void;
     }
-
-    // Casts each cell that a set of rules reads. A refused cell refuses the whole set, and a
-    // skipped cell gives a note.
-    const castAll = (rules: Rules, at: RowAt): { attrs: Attrs } | { refused: string } => {
-      const attrs: Attrs = {};
-      const pairedRegister = (key: string, rule: { column: string; cast: Cast }): boolean =>
-        rule.cast.type === 'ru_register' &&
-        Object.entries(rules).some(
-          ([other, held]) =>
-            other !== key && held.column === rule.column && held.cast.type === 'ru_register',
-        );
-      for (const [key, rule] of Object.entries(rules)) {
-        const text = at.cell(rule.column);
-        if (text === '') continue;
-        const cast = castCell(rule.cast, key, text);
-        if (cast.ok === 'skip') {
-          // A register column that fills the tax number and the registration number gives one
-          // of them in each row, and the other key is no fault of the row.
-          if (!pairedRegister(key, rule))
-            at.note(`the column "${rule.column}" gives no ${key}: ${cast.reason}`);
-          continue;
-        }
-        if (!cast.ok) return { refused: `the column "${rule.column}": ${cast.reason}` };
-        attrs[key] = { v: cast.value };
-      }
-      return { attrs };
-    };
-
-    const daysOf = (
-      at: RowAt,
-      from: DayRule,
-      to: DayRule,
-    ): { days: Days } | { refused: string } => {
-      const days: Days = {};
-      for (const [name, rule] of [
-        ['validFrom', from],
-        ['validTo', to],
-      ] as const) {
-        if (rule === undefined || at.cell(rule.column) === '') continue;
-        const day = dayOf(at.cell(rule.column), rule.pattern);
-        if (day === null)
-          return { refused: `"${at.cell(rule.column)}" is not a day as ${rule.pattern}` };
-        days[name] = day;
-      }
-      return { days };
-    };
 
     // The span of the row is the citation of each act of the row. Code reads it from the page,
     // and no model quotes it.
@@ -336,50 +276,22 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         ['src', links.src],
         ['dst', links.dst],
       ] as const) {
-        const cells = [end.name, ...end.lookup.map((one) => one.column)]
-          .flatMap((name) => (name === undefined ? [] : [at.cell(name)]))
-          .filter((text) => text !== '');
-        const holder = cells.find((text) => NOT_AN_ENTITY.test(text));
-        if (holder !== undefined) {
-          at.unfit(`relation not loaded: the ${side} "${holder}" is not an entity`);
+        const one = await resolveEnd(findEnd, at.record, at.cell, side, end);
+        if (one.refused !== null) {
+          at.unfit(one.refused);
           return;
         }
-        const [named] = cells;
-        if (named === undefined) {
-          at.unfit(`relation not loaded: the row gives no ${side}`);
-          return;
-        }
-        const found = await find(at.record, end.lookup, end.entity_type);
-        if (found.kind === 'none') {
-          at.unfit(`relation not loaded: the ${side} "${named}" is not in the record`);
-          return;
-        }
-        if (found.kind === 'many') {
-          at.unfit(
-            `relation not loaded: the lookup of the ${side} by ${found.key} finds ` +
-              `${String(found.count)} entities`,
-          );
-          return;
-        }
-        // A name is no key, and a relation of a reference dataset passes with no check. So a
-        // relation is loaded only between two ends that a key finds.
-        if (found.key === 'label') {
-          at.unfit(
-            `relation not loaded: the ${side} "${named}" finds entity ${found.id} by its name only`,
-          );
-          return;
-        }
-        ends.push(found.id);
+        ends.push(one.id);
       }
       const [srcId, dstId] = ends;
       if (srcId === undefined || dstId === undefined) throw new Error('a relation has two ends');
 
-      const cast = castAll(links.attrs, at);
+      const cast = castAll(links.attrs, at.cell, at.note);
       if ('refused' in cast) {
         at.unfit(cast.refused);
         return;
       }
-      const dated = daysOf(at, links.valid_from, links.valid_to);
+      const dated = daysOf(at.cell, links.valid_from, links.valid_to);
       if ('refused' in dated) {
         at.unfit(`relation not loaded: ${dated.refused}`);
         return;
@@ -387,13 +299,31 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const { attrs } = cast;
       const { days } = dated;
 
-      // A link that the record holds with the same values has been loaded before. A link that
-      // the record holds with another value is never changed in silence: the operator reads it.
+      // A link that the record holds with another value is never changed in silence: the operator
+      // reads it. A value that the link lacks, or that this document does not cite yet, is
+      // proposed as an addition, so the document becomes a source of the relation.
       const linked = await linkedAttrs(context.db, links.relation_type, srcId, dstId, days);
       if (linked !== null) {
-        const other = otherValues(linked, attrs);
-        if (other.length === 0) loaded += 1;
-        else at.unfit(`the record holds this relation with other values: ${other.join('; ')}`);
+        const { conflicts, additions } = compareLink(linked.attrs, attrs, document);
+        if (conflicts.length > 0) {
+          at.unfit(`the record holds this relation with other values: ${conflicts.join('; ')}`);
+          return;
+        }
+        if (Object.keys(additions).length === 0) {
+          loaded += 1;
+          return;
+        }
+        const added = itemOf(
+          at,
+          { op: 'update_attrs', targetKind: 'relation', targetId: linked.id, attrs: additions },
+          randomUUID(),
+          null,
+        );
+        if ('refused' in added) {
+          at.unfit(added.refused);
+          return;
+        }
+        await proposeRow(at, [added.item]);
         return;
       }
       const made = itemOf(
@@ -448,7 +378,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         return;
       }
 
-      const cast = castAll(rows.attrs, at);
+      const cast = castAll(rows.attrs, at.cell, at.note);
       if ('refused' in cast) {
         unfit(cast.refused);
         return;
@@ -536,12 +466,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           note(`relation not loaded: the lookup by ${end.key} finds ${String(end.count)} entities`);
           continue;
         }
-        const dated = daysOf(at, relation.valid_from, relation.valid_to);
+        const dated = daysOf(at.cell, relation.valid_from, relation.valid_to);
         if ('refused' in dated) {
           note(`relation not loaded: ${dated.refused}`);
           continue;
         }
-        const linkCast = castAll(relation.attrs ?? {}, at);
+        const linkCast = castAll(relation.attrs ?? {}, at.cell, at.note);
         if ('refused' in linkCast) {
           note(`relation not loaded: ${linkCast.refused}`);
           continue;
@@ -549,11 +479,31 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         const { days } = dated;
         const linkAttrs = linkCast.attrs;
         const [srcId, dstId] = relation.row_is === 'src' ? [rowId, end.id] : [end.id, rowId];
-        if (
-          found.kind === 'one' &&
-          (await linkedAttrs(context.db, relation.type, srcId, dstId, days)) !== null
-        )
+        const linked =
+          found.kind === 'one'
+            ? await linkedAttrs(context.db, relation.type, srcId, dstId, days)
+            : null;
+        if (linked !== null) {
+          // The record holds the relation. A value with another value is reported, and a value
+          // that the relation lacks is proposed as an addition.
+          const { conflicts, additions } = compareLink(linked.attrs, linkAttrs, document);
+          if (conflicts.length > 0)
+            note(
+              `relation not loaded: the record holds it with other values: ${conflicts.join('; ')}`,
+            );
+          else if (Object.keys(additions).length > 0)
+            requests.push({
+              request: {
+                op: 'update_attrs',
+                targetKind: 'relation',
+                targetId: linked.id,
+                attrs: additions,
+              },
+              id: randomUUID(),
+              foundBy: null,
+            });
           continue;
+        }
         requests.push({
           request: {
             op: 'create_relation',

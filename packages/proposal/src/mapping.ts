@@ -52,6 +52,10 @@ export type LookupKey = z.infer<typeof lookupKey>;
 
 const lookup = z.strictObject({ key: lookupKey, column });
 
+/** A lookup of one end of a relation table. A name is no key, and a relation is loaded only
+ * between two ends that an identifier finds, so the lookup of an end holds no `label`. */
+const endLookup = z.strictObject({ key: identifierKey, column });
+
 // External constraint: the column holds two ordinates in degrees of EPSG:4326, and code reads no
 // other system.
 const geom = z.union([
@@ -87,10 +91,10 @@ const linkEnd = z.strictObject({
     .optional()
     .describe('the column of the name at this end, which the load report gives'),
   lookup: z
-    .array(lookup)
+    .array(endLookup)
     .min(1)
     .max(4)
-    .describe('how code finds the entity at this end in the record'),
+    .describe('how code finds the entity at this end in the record, by an identifier'),
 });
 
 /** A relation table: each row is one relation between two entities that the record holds, and
@@ -172,7 +176,19 @@ const entityRows = z
   );
 
 /** The rows of a table: each row is one entity, or each row is one relation (a relation table). */
-const rows = z.union([entityRows, links]);
+const rows = z.union([entityRows, links], {
+  // The union alone words each failure as "Invalid input". The key `relation_type` tells the
+  // branch that the model meant, so the retry gets the issues of that branch.
+  error: (issue) => {
+    const input: unknown = issue.input;
+    const isLinks = typeof input === 'object' && input !== null && 'relation_type' in input;
+    const issues = issue.errors[isLinks ? 1 : 0] ?? [];
+    if (issues.length === 0) return undefined;
+    return issues
+      .map((one) => (one.path.length === 0 ? one.message : `${one.path.join('.')}: ${one.message}`))
+      .join('; ');
+  },
+});
 
 export type EntityRows = z.infer<typeof entityRows>;
 export type LinkRows = z.infer<typeof links>;
