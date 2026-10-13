@@ -275,6 +275,23 @@ pnpm worker name-candidates
 It prints the number of names that it read and of pairs that it found, new and known. A pair that
 you refused or confirmed stays decided. The release gives the three counts in its manifest.
 
+To read the NASA FIRMS heat of each asset that has a point, and of each tile of a stored flare
+table, run:
+
+```powershell
+pnpm worker firms-sweep --since 2024-01-01 --flares <document> <text set>
+```
+
+Set `FIRMS_MAP_KEY` in the environment file first. The command stores one answer for each site and
+quarter, then the days since the last answer. It waits when the map key is near its rate limit.
+After a stop, run it again: it reads only the periods that no stored answer covers. Run it each
+day to add the new days. The command reads only the days that no stored answer covers, and it
+ends each read at the last day that FIRMS has published. The near real time days of the newest
+answers are provisional: FIRMS replaces them with archive days some months later, and the command
+does not read them again. Use `--latitude` and `--longitude` when the flare table names its columns
+in another way. Leave out `--flares` to read the assets only. No stored answer, address or log
+holds the key.
+
 ## Public writes
 
 No public write path exists. A public write needs real authentication first, and that is separate

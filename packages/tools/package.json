@@ -14,6 +14,7 @@
     "./fetch-fixture": "./src/fetch-fixture.ts",
     "./fetch-guard": "./src/fetch-guard.ts",
     "./file-schema-sample": "./src/file-schema-sample.ts",
+    "./firms-detections": "./src/firms-detections.ts",
     "./find-document": "./src/find-document.ts",
     "./header-signature": "./src/header-signature.ts",
     "./news-search": "./src/news-search.ts",
