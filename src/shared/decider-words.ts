@@ -26,6 +26,9 @@ export const deciderWords = (
 ): string => {
   const rule = ruleOf(origin);
   if (rule !== null) return `${verdict} by ${rule}`;
+  // The origin of a row of a reference dataset names the dataset, and says that GAB did not check it.
+  if (mode === 'rule' && origin?.startsWith('reference dataset ') === true)
+    return `${verdict} from the ${origin}, not checked by GAB`;
   if (mode === 'rule') return `${verdict} by a rule`;
   if (origin === AI_REVIEWER)
     return mode === 'group'

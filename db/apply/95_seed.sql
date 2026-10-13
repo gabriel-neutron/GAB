@@ -113,6 +113,7 @@ INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
   ('bank',          'Bank',          '#b53c7f', '#e887b6',  70),
   ('state_body',    'State body',    '#bb4530', '#fa8c7a',  75),
   ('legal_act',     'Legal act',     '#8b598e', '#e889ed',  80),
+  ('event',         'Event',         '#5c63c9', '#a3a8f5',  85),
   ('unknown',       'Unknown',       '#6b7280', '#9ca3af', 900)
 ON CONFLICT (key) DO UPDATE SET
   label        = EXCLUDED.label,
@@ -151,6 +152,8 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('inspected_at',      'inspected at',      'is the inspection place of',   false),
   ('flagged_falsely',   'flagged falsely',   'is flagged falsely by',        false),
   ('contradicts',       'contradicts',       'is contradicted by',           false),
+  ('occurred_at',       'occurred at',       'is the site of',               false),
+  ('carried_out_by',    'carried out by',    'carries out',                  false),
   ('subordinate_to',    'subordinate to',    'is superior to',               false),
   ('associated_with',   'associated with',   'is associated with',           false),
   ('unknown',           'is linked to',      'is linked to',                 false)

@@ -47,6 +47,8 @@ export const FAULT_KINDS = [
   'rejected_before',
   'broken_value',
   'parent_rejected',
+  'record_disagrees',
+  'name_only_match',
   'sources_from_parent',
   'approximate_position',
   'note',

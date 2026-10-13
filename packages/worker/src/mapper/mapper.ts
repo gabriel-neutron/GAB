@@ -1,5 +1,7 @@
 import type { Message } from '@gab/model';
 import { mappingDraft } from '@gab/proposal/mapping';
+import { LAYER_READER } from '@gab/text/geojson';
+import { TABLE_READER } from '@gab/text/xlsx';
 import { fileSchemaSample } from '@gab/tools/file-schema-sample';
 import { proposeMappingOf } from '@gab/tools/propose-mapping';
 import { callTool, type Session, type Tool } from '@gab/tools/tool';
@@ -16,6 +18,9 @@ const VERSION = 'v1';
 // is one page of text with a row on each line.
 const MAPPED_MIME = 'text/csv';
 
+// The readers that make a text set: the text of a set starts with the version of its reader.
+const TABLE_SETS = [TABLE_READER, LAYER_READER];
+
 interface MapperOptions {
   /** The tools of the mapper. A test gives a stub for each one. */
   readonly tools?: {
@@ -31,6 +36,10 @@ const answer = z.strictObject({ mapping: mappingDraft });
 const sampled = z.object({ headerSig: z.string() });
 
 const documentRow = z.array(z.object({ mime: z.string().nullable() }));
+
+const textSetRow = z.array(z.object({ text_set: z.string().nullable() }));
+
+const TEXT_SET = 'SELECT text_set FROM public.jobs WHERE id = $1::uuid';
 
 const loadRow = z.array(z.object({ id: z.uuid().nullable() }));
 
@@ -56,12 +65,20 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
 
     const [held] = documentRow.parse((await context.db.query(MIME, [document])).rows);
     if (held === undefined) throw new JobStop(`the record holds no document ${document}`);
-    if (baseMime(held.mime) !== MAPPED_MIME)
+    // A named text set of a workbook or of a GeoJSON layer is a table by its making, so it needs
+    // no CSV type.
+    const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
+    const textSet = named?.text_set ?? undefined;
+    if (textSet !== undefined && !TABLE_SETS.some((reader) => textSet.startsWith(`${reader}|`)))
+      throw new JobStop(
+        `the mapper reads a workbook or a layer text set, and ${textSet} is not one`,
+      );
+    if (textSet === undefined && baseMime(held.mime) !== MAPPED_MIME)
       throw new JobStop(
         `the mapper reads a CSV table only, and document ${document} is ${held.mime ?? 'of no type'}`,
       );
 
-    const read = await callTool(tools.fileSchemaSample, session, { document });
+    const read = await callTool(tools.fileSchemaSample, session, { document, textSet });
     if (!read.ok) throw new JobStop(read.refusal);
     const { headerSig } = sampled.parse(read.output);
 
@@ -85,6 +102,7 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
         throw new JobStop('the model answered with a tool call, and the mapper offers no tool');
       const made = await callTool(tools.proposeMapping(asked.callId), session, {
         document,
+        textSet,
         mapping: asked.value.mapping,
       });
       if (made.ok) return { refusals: [] };

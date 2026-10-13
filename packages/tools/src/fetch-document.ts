@@ -168,10 +168,10 @@ const reasonOf = (fault: unknown): string =>
   (fault instanceof Error ? fault.message : String(fault)).split('\n')[0]?.slice(0, 200) ?? '';
 
 // The step that each refusal of a bot filter names, so the research AI and the operator know what
-// to do next. The tool itself passes no filter: it uses no scraping service and no stealth browser.
+// to do next. A filter that the Chrome window of readThroughFilter does not pass also gives it.
 const BROWSER_STEP =
-  "Next step: open the page in a browser on the operator's machine, save it into the inbox, and " +
-  'store it with store_saved_file (skill research-method)';
+  "Next step: open the page in a browser on the operator's machine, and give the bytes " +
+  'that it holds to store_saved_file (skill research-method)';
 const NEEDS_STEP =
   "Next step: open the page in a browser on the operator's machine and store it with " +
   'store_saved_file; if the browser gets no answer either, list the source in ' +
@@ -180,6 +180,9 @@ const NEEDS_STEP =
 // External constraint: the statuses that Cloudflare and the other common filters give to a
 // request that they take for a robot.
 const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
+
+// Qrator and DataDome refuse a robot with a 401, so the browser also reads a page that gave one.
+const BROWSER_STATUSES: ReadonlySet<number> = new Set([401, ...FILTER_STATUSES]);
 
 /** The refusal of a failed fetch, with the step for a bot filter or a server that is silent. */
 export const refusalOfFetch = (message: string, fault: FetchFault | undefined): string => {
@@ -338,7 +341,11 @@ export const fetchDocument = defineTool({
     'page looks like a CAPTCHA. A short page that is a bot challenge or says it is missing is ' +
     'refused, and nothing is stored. When only its render shows it, the page is refused if it ' +
     'holds no text but its title; else its own text stays and the render is not stored. A page ' +
-    'with no text, also after its render, is refused, and nothing is stored. Each refusal of a bot filter (a 403, an empty ' +
+    'with no text, also after its render, is refused, and nothing is stored. When the server ' +
+    'refuses the plain request with 401, 403, 429 or 503, the page is read in a Chrome window ' +
+    'that waits up to 30 seconds for the bot filter; the stored bytes are the HTML that the ' +
+    'browser shows, and "notice" says so. Nothing on the page is clicked or solved. Each refusal ' +
+    'of a bot filter that also stops the browser (a 403, an empty ' +
     '202, a challenge page, no answer) names the next step: open the page in a browser and ' +
     'store it with store_saved_file, or list it in research/out/needs.md. A compressed answer ' +
     '(gzip, deflate or brotli, also with no Content-Encoding header, as a raw capture of the ' +
@@ -366,13 +373,36 @@ export const fetchDocument = defineTool({
       ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
       ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
     };
+    const notices: string[] = [];
     let got: Got;
+    let throughFilter = false;
     try {
       got = await guardedGet(input.url, getOptions);
     } catch (fault) {
-      if (fault instanceof FetchRefusal)
-        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
-      throw fault;
+      if (!(fault instanceof FetchRefusal)) throw fault;
+      const passed =
+        fault.fault?.kind === 'status' &&
+        BROWSER_STATUSES.has(fault.fault.status) &&
+        reach.readThroughFilter !== undefined
+          ? await reach.readThroughFilter(input.url, getOptions)
+          : null;
+      if (passed === null || typeof passed === 'string') {
+        const tried = passed === null ? '' : ` The Chrome window was also tried: ${passed}.`;
+        throw new ToolRefusal(`${refusalOfFetch(fault.message, fault.fault)}${tried}`);
+      }
+      notices.push(
+        `${fault.message.replace(/, and only a success is kept$/u, '')} to the plain request, so ` +
+          'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
+      );
+      throughFilter = true;
+      got = {
+        url: passed.url,
+        status: 200,
+        contentType: 'text/html; charset=utf-8',
+        contentEncoding: null,
+        lastModified: null,
+        bytes: new TextEncoder().encode(passed.html),
+      };
     }
     // The stored bytes are the page that the server encoded, not its compressed form, so their
     // text is read and an excerpt is checked on them.
@@ -394,12 +424,12 @@ export const fetchDocument = defineTool({
     const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
     const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
 
-    const notices: string[] = [];
     let page: Awaited<ReturnType<typeof renderedOf>> = null;
     const allText = pages.join('').trim().length;
     // Bytes that are all blank hold no script to run, so the render can add nothing to them.
     const renders =
       known === undefined &&
+      !throughFilter &&
       mime === 'text/html' &&
       allText < RENDER_BELOW &&
       !blankBytes(got.bytes);

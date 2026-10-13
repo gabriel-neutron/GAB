@@ -8,6 +8,7 @@ import type {
   Entity,
   MapPosition,
   Point,
+  Route,
   TypeVocabulary,
 } from '@/shared/read/model';
 import type { RailRows, RailTypeRow } from '@/shared/rail';
@@ -29,6 +30,8 @@ export interface GeoEntity {
    * a point inside it: the one mark of the entity, so the rail, the selection and the relations
    * read an area as they read a point. */
   readonly area: Area | null;
+  /** The route of an entity that a line locates, and null for every other entity. */
+  readonly route: Route | null;
   readonly sources: readonly string[];
   /** M7 and M8: a value, and the documents that carry it. The index rows read these. */
   readonly attrs: Attributes;
@@ -214,6 +217,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     lon: at.point.lon,
     lat: at.point.lat,
     area: at.area,
+    route: at.route,
     sources: entity.sources,
     attrs: entity.attrs,
     // The identity and the words are separate on purpose. An ancestor that the entity list does
@@ -272,6 +276,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     for (const rings of entity.area ?? []) {
       for (const ring of rings) for (const [lon, lat] of ring) widen(lon, lat);
     }
+    for (const one of entity.route ?? []) for (const [lon, lat] of one) widen(lon, lat);
   }
   const bounds: Projection['bounds'] = entities.length === 0 ? null : [west, south, east, north];
 

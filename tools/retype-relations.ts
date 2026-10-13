@@ -16,6 +16,7 @@ import { Pool } from 'pg';
 
 import { findExcerpt } from '@gab/tools/excerpt';
 import { propose } from '@gab/tools/propose';
+import { namesProvision } from '@gab/tools/stated-value';
 import { connectionString } from './db-runtime.ts';
 
 export type BatchName = 'us' | 'eu' | 'ports';
@@ -39,6 +40,8 @@ export interface Candidate {
   /** Another open designated_by or restricted_by relation links the same two ends. */
   readonly collides: boolean;
   readonly originator: string;
+  /** The label of the act at the far end of the relation, or an empty text. */
+  readonly destination: string;
   readonly cites: readonly Cite[];
 }
 
@@ -52,8 +55,24 @@ const doubt = (reason: string): Decision => ({ kind: 'doubtful', reason });
 
 const ASSET_FREEZE = /\bSDN\b|blocked property|asset freeze|269\/2014/i;
 
+const US_DIRECTIVE = /\bdirective\s+\d+/i;
+
+/** The act at the far end names an OFAC directive under EO 13662 or EO 14024. */
+const US_DIRECTIVE_ACT = /\bdirective\s+\d+\b.*\b(13662|14024)\b/i;
+
+/** The first passage of a page that names the directive of the act, as the page spells it. */
+export const directivePassage = (pageText: string | null, act: string): string | null => {
+  const number = /\bdirective\s+(\d+)/i.exec(act)?.[1];
+  if (number === undefined) return null;
+  const found = new RegExp(
+    `\\bdirective\\s+${number}\\b(?:(?!\\.\\s+[A-Z])[^\\n]){0,100}`,
+    'i',
+  ).exec(pageText ?? '');
+  return found?.[0].trimEnd() ?? null;
+};
+
 /** The decision on one citation. Pure: the excerpt is checked against the stored text given. */
-const classifyCite = (cite: Cite, subjectType: string): Decision => {
+const classifyCite = (cite: Cite, subjectType: string, destination: string): Decision => {
   if (cite.pageText === null || findExcerpt(cite.pageText, cite.excerpt) === null)
     return doubt('the stored text no longer holds the excerpt');
 
@@ -64,13 +83,31 @@ const classifyCite = (cite: Cite, subjectType: string): Decision => {
   if (annexes.includes('XLII')) return { kind: 'keep', reason: 'a vessel of Annex XLII' };
   if (ASSET_FREEZE.test(text)) return { kind: 'keep', reason: 'a listing with an asset freeze' };
 
-  const us = /\bdirective\s+\d+/i.test(text) && /\b(13662|14024)\b/.test(text);
+  // An excerpt that is only a line of the list names no provision. The act at the far end then
+  // states the directive, and the page must name a directive to cite beside the excerpt.
+  const bare =
+    !US_DIRECTIVE.test(text) && !/\b(annex|articles?)\s+\w*\d|\bannex\s+[ivxlc]+/i.test(text);
+  const byAct =
+    bare &&
+    subjectType !== 'person' &&
+    US_DIRECTIVE_ACT.test(destination) &&
+    directivePassage(cite.pageText, destination) !== null;
+  const us = (US_DIRECTIVE.test(text) && /\b(13662|14024)\b/.test(text)) || byAct;
   const article = /\barticle\s+5af\b/i.test(text);
   const eu = article || annexes.some((a) => RETYPE_ANNEXES.has(a));
+
+  // A vessel is on the vessel list of a regime (SDN, Annex XLII, UK specified ship), and that
+  // listing stays designated_by (#505). A provision in the excerpt other than the vessel list
+  // (Article 3s, Annex XXV) is a doubt.
+  if (subjectType === 'vessel')
+    return us || eu || US_DIRECTIVE.test(text) || annexes.some((a) => a !== 'XXV')
+      ? doubt('a vessel under a sectoral provision')
+      : { kind: 'keep', reason: 'a vessel on the vessel list of a regime' };
+
   const unknown =
     annexes.some((a) => !RETYPE_ANNEXES.has(a)) ||
     (!article && /\barticles?\s+\d+/i.test(text)) ||
-    (!us && /\bdirective\s+\d+/i.test(text));
+    (!us && US_DIRECTIVE.test(text));
 
   if (unknown) return doubt('unknown provision');
   if (!us && !eu)
@@ -83,7 +120,6 @@ const classifyCite = (cite: Cite, subjectType: string): Decision => {
     return doubt('an EU provision without 833/2014 in the excerpt');
   if (us && eu) return doubt('the excerpt names the provisions of two regimes');
   if (us) return { kind: 'retype', batch: 'us', reason: 'an OFAC directive' };
-  if (subjectType === 'vessel') return doubt('a vessel under a sectoral provision');
   if (annexes.includes('XLVII') && subjectType === 'port')
     return { kind: 'retype', batch: 'ports', reason: 'a port of Annex XLVII' };
   return { kind: 'retype', batch: 'eu', reason: 'a sectoral provision of 833/2014' };
@@ -94,7 +130,9 @@ export const classify = (one: Candidate): Decision => {
   if (one.waiting === 'rejected') return doubt('a retype act of the relation was rejected');
   if (one.waiting !== 'none') return doubt('the relation has a waiting act');
   if (one.collides) return doubt('another open relation links the same ends');
-  const [first, ...rest] = one.cites.map((cite) => classifyCite(cite, one.subjectType));
+  const [first, ...rest] = one.cites.map((cite) =>
+    classifyCite(cite, one.subjectType, one.destination),
+  );
   if (first === undefined) return doubt('no usable citation');
   const bad = [first, ...rest].find((one) => one.kind === 'doubtful');
   if (bad !== undefined) return bad;
@@ -127,6 +165,18 @@ export interface Report {
   readonly skipped: readonly { relationId: string; reason: string }[];
 }
 
+// The propose tool needs an excerpt that names the provision. When no excerpt of the relation
+// does, the directive that the page names goes beside the excerpts.
+const evidenceOf = (cites: readonly Cite[], act: string): Item['evidence'] => {
+  const evidence = cites.map(({ document, page, excerpt }) => ({ document, page, excerpt }));
+  if (namesProvision(evidence.map(({ excerpt }) => excerpt))) return evidence;
+  for (const { document, page, pageText } of cites) {
+    const excerpt = directivePassage(pageText, act);
+    if (excerpt !== null) return [...evidence, { document, page, excerpt }];
+  }
+  return evidence;
+};
+
 // The propose tool accepts this many items in one call.
 const MAX_ITEMS = 50;
 const ORDER: readonly BatchName[] = ['us', 'eu', 'ports'];
@@ -155,7 +205,7 @@ export const requalify = async (
           act: { op: 'update_relation', targetId: relationId, type: 'restricted_by' },
           originator: one.originator,
           modality: 'enacts',
-          evidence: one.cites.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
+          evidence: evidenceOf(one.cites, one.destination),
         });
       }
     }
@@ -178,6 +228,7 @@ export const requalify = async (
 // The script reads the record in SQL because the read API gives no citations and no text.
 export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
     coalesce(w.kind, 'none') AS waiting, coalesce(o.originator, '') AS originator,
+    coalesce(d.label, '') AS destination,
     EXISTS (SELECT 1 FROM public.relations x
              WHERE x.id <> r.id AND x.type IN ('designated_by', 'restricted_by')
                AND x.valid_to IS NULL
@@ -186,6 +237,7 @@ export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
     coalesce(cs.cites, '[]'::json) AS cites
   FROM public.relations r
   JOIN public.entities e ON e.id = r.src_id AND r.src_kind = 'entity'
+  LEFT JOIN public.entities d ON d.id = r.dst_id AND r.dst_kind = 'entity'
   LEFT JOIN public.proposals o ON o.id = r.promoted_from
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
@@ -221,6 +273,7 @@ const main = async (): Promise<number> => {
       waiting: row['waiting'] as Candidate['waiting'],
       collides: row['collides'] === true,
       originator: String(row['originator']),
+      destination: String(row['destination']),
       cites: row['cites'] as Cite[],
     }));
     const report = await requalify(candidates, {

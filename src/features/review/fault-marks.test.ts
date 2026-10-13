@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from 'vitest';
 
 import { faultMarks, faultWords } from './fault-marks';
-import type { Fault } from './unit-page';
+import { FAULT_KINDS, type Fault } from './unit-page';
 
 const fault = (kind: Fault['kind'], level: Fault['level'], said = 'a sentence'): Fault => ({
   kind,
@@ -81,4 +83,16 @@ test('a wait for a unit of the same group gives no mark, because a group action 
 
 test('the filter names the wait in the same group with one term', () => {
   expect(faultWords('end_waits_in_group')).toBe('waits for a unit of its group');
+});
+
+test('the fault kinds of the page are the fault kinds that the database check finds', () => {
+  const sql = readFileSync(new URL('../../../db/apply/40_functions.sql', import.meta.url), 'utf8');
+  const start = sql.indexOf('FUNCTION unit_faults(');
+  const body = sql.slice(start, sql.indexOf('FUNCTION queue_groups('));
+  const found = new Set(
+    [...body.matchAll(/'(?:blocks|waits|not_clean|information)',\s*'([a-z_]+)'/gu)]
+      .map((m) => m[1])
+      .filter((kind) => kind !== 'waits' && kind !== 'information'),
+  );
+  expect([...found].sort()).toStrictEqual([...FAULT_KINDS].sort());
 });

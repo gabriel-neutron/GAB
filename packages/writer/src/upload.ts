@@ -1,4 +1,4 @@
-import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { fileLimitOf } from '@gab/proposal/upload-limit';
 import type { RawObject } from '@gab/store';
 import { checkedDay, RefusedFile, storeBytes } from '@gab/worker/ingest';
 import { DatabaseError } from 'pg';
@@ -94,7 +94,8 @@ const faulted = (issue: { readonly path: PropertyKey[]; readonly message: string
   return typeof first === 'string' ? `${first}: ${issue.message}` : issue.message;
 };
 
-const TOO_LARGE_FILE = `the file is larger than ${String(UPLOAD_FILE_BYTES / 1024 / 1024)} MiB`;
+const tooLargeFile = (limit: number): string =>
+  `the file is larger than ${String(limit / 1024 / 1024)} MiB`;
 
 /** Read one request body. It reads no store and no database, so a refusal here writes nothing. */
 export const parseUpload = (raw: string): ParsedUpload => {
@@ -113,10 +114,11 @@ export const parseUpload = (raw: string): ParsedUpload => {
   }
 
   // The body cap counts characters, and padding moves the count. The bytes are counted again.
-  const bytes = new Uint8Array(Buffer.from(body.content, 'base64'));
+  const decoded = Buffer.from(body.content, 'base64');
+  const bytes = new Uint8Array(decoded.buffer, decoded.byteOffset, decoded.length);
   if (bytes.length === 0) return refused('content: the file holds no byte');
-  if (bytes.length > UPLOAD_FILE_BYTES)
-    return { ok: false, status: TOO_LARGE, refusal: TOO_LARGE_FILE };
+  const limit = fileLimitOf(body.fileName);
+  if (bytes.length > limit) return { ok: false, status: TOO_LARGE, refusal: tooLargeFile(limit) };
 
   return {
     ok: true,

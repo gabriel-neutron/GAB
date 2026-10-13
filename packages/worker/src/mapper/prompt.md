@@ -34,7 +34,15 @@ each entry gives the number of the row and its values.
 7. `modality` is one word for the whole table: `enacts` (the table makes the facts true, for
    example a sanctions list), `asserts`, `attributes`, `alleges` or `denies`.
 8. `table` is a short name of the table, for example the name of the file.
-9. Do not give an expression, a formula, a confidence or a note.
+9. `publisher` is the name of the body that publishes the table, as the table or its file states
+   it, for example `Global Energy Monitor`. It is the author of each row. Never give the name of
+   the file. Leave it out when the table does not state its publisher.
+10. `rows.constants` is optional. It sets an attribute to one value for every row, with no
+    column. Use it for the kind of an asset: `{"asset_kind": "field"}`. The kind is one of
+    `field`, `pipeline_segment`, `refinery`, `export_terminal` and `lng_plant`.
+11. An attribute `position_precision` takes the accuracy of the place of a row (`exact` or
+    `approximate`) from its column, with the cast `text`.
+12. Do not give an expression, a formula, a confidence or a note.
 
 ## The answer
 

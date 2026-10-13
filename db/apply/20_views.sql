@@ -280,6 +280,10 @@ CREATE VIEW api.proposal AS
              'Accepted by rule ' || substring(decision_origin FROM '^rule ([a-z_]+ v[0-9]+)')
              || ' — no person read it, on '
              || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+           WHEN decision_origin ~ '^reference dataset .+, approved by the operator$' THEN
+             upper(left(decision_origin, 1)) || substr(decision_origin, 2)
+             || ' — GAB did not check it, on '
+             || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
            WHEN decision_origin = 'decided by an AI reviewer' THEN
              'Accepted by an AI reviewer — no person read it, on '
              || to_char(decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')

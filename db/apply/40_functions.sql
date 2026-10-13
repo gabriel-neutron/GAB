@@ -219,12 +219,12 @@ BEGIN
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
       NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id, NEW.unit_id,
-      NEW.claim_key)
+      NEW.claim_key, NEW.found_by)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
       OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id, OLD.unit_id,
-      OLD.claim_key) THEN
+      OLD.claim_key, OLD.found_by) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -545,7 +545,8 @@ BEGIN
     ('proposals_map_document_shape', 'mapping',
      'a mapping names one document and the call of its model, a table name, a header signature '
      'of 64 hexadecimal characters, a modality of enacts, asserts, attributes, alleges or '
-     'denies, its rows as an object and its relations as a list, and no other key'),
+     'denies, its rows as an object and its relations as a list, an optional publisher as a '
+     'text, and no other key'),
     ('proposals_src_shape', 'documents', 'the act cites at least one document'),
     ('proposals_merge_shape', 'absorbedId',
      'a merge or its undo names one entity beside its target, and the two are not the same '
@@ -943,14 +944,14 @@ BEGIN
     BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, dissent, dissent_reason,
-         author_role, model_call_id, originator, batch_id)
+         author_role, model_call_id, originator, batch_id, found_by)
       VALUES
         (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
          v_src::doc_id[], v_names, coalesce((v_item->>'dissent')::boolean, false),
          v_item->>'dissent_reason',
          session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
          (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
-         v_batch)
+         v_batch, v_item->>'found_by')
       ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
       RETURNING id, batch_id INTO v_id, v_held;
     EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
@@ -1740,8 +1741,9 @@ BEGIN
   -- for a document, and the sentence below says it in place of the name of the index.
   ELSIF p.op = 'map_document' THEN
     BEGIN
-      INSERT INTO public.jobs (document_id, kind, mapping)
-      VALUES (p.src[1], 'load_mapped', p.id)
+      -- The load reads the table of the text set that the mapping job read.
+      INSERT INTO public.jobs (document_id, kind, mapping, text_set)
+      VALUES (p.src[1], 'load_mapped', p.id, public.mapping_text_set(p.id))
       RETURNING id INTO v_id;
     EXCEPTION WHEN unique_violation THEN
       RAISE EXCEPTION 'document % has a load that is queued or runs already. Promote this '
@@ -2972,7 +2974,11 @@ END $$;
 -- of the table refuses a second open job of one kind for one document, and it answers for two
 -- callers at one instant, which a check made here could not. The door words that refusal itself,
 -- so no caller reads the name of the index.
-CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text)
+-- A MAPPING JOB CAN NAME THE TEXT SET OF A WORKBOOK TABLE. The set must exist, so the job never
+-- reads "the newest set" by chance. The earlier signature is dropped: a re-runnable file that only
+-- replaces would leave both side by side.
+DROP FUNCTION IF EXISTS enqueue_job(text,text);
+CREATE OR REPLACE FUNCTION enqueue_job(p_document text, p_kind text, p_text_set text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -2984,6 +2990,16 @@ BEGIN
     RAISE EXCEPTION
       'a job asks for extract_text or map_structured, and this one asked for %',
       coalesce(p_kind, 'nothing')
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_text_set IS NOT NULL AND p_kind <> 'map_structured' THEN
+    RAISE EXCEPTION 'only a mapping job names a text set'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_text_set IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.document_text t
+                                             WHERE t.document_id = p_document::doc_id
+                                               AND t.extractor = p_text_set) THEN
+    RAISE EXCEPTION 'document % holds no text set named %', p_document, p_text_set
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 
@@ -2998,7 +3014,8 @@ BEGIN
   END IF;
 
   BEGIN
-    INSERT INTO public.jobs (document_id, kind) VALUES (p_document::doc_id, p_kind)
+    INSERT INTO public.jobs (document_id, kind, text_set)
+    VALUES (p_document::doc_id, p_kind, p_text_set)
     RETURNING id INTO v_id;
   EXCEPTION WHEN unique_violation THEN
     RAISE EXCEPTION 'document % has a job of kind % that is queued or runs already',
@@ -3428,13 +3445,16 @@ BEGIN
       LEFT JOIN LATERAL public.parent_link(a.id, true) AS pa ON true
      WHERE a.op = 'create_entity'
   ), twins AS (
+    -- TWO PENDING EVENTS WITH ONE NAME ARE NO TWINS. The name of an event is its kind, its site
+    -- and its day, so two posts that give one name are two witnesses of one claim, and they
+    -- corroborate each other. An event that the record holds already stays a twin.
     SELECT n.unit_id, n.parent, o.payload->>'label' AS label,
            (pa.payload->>'dst_id')::uuid AS other_parent,
            CASE WHEN o.batch_id IS NULL THEN 'waits in the queue (no group)'
                 ELSE 'waits in the queue (group ' || sb.subject || ')' END AS place
       FROM named n
       JOIN public.proposals o ON o.status = 'pending' AND o.op = 'create_entity' AND o.id <> n.id
-                             AND o.payload->>'type' = n.type
+                             AND o.payload->>'type' = n.type AND n.type <> 'event'
                              AND public.name_key(o.payload->>'label') = n.key
       LEFT JOIN LATERAL public.parent_link(o.id, true) AS pa ON true
       LEFT JOIN subjects sb ON sb.batch_id = o.batch_id
@@ -3621,6 +3641,28 @@ BEGIN
                              AND (l.payload->>'src_id')::uuid = n.id
       JOIN public.proposals d ON d.id = (l.payload->>'dst_id')::uuid AND d.status = 'rejected'
      WHERE n.parent IS NULL
+    UNION ALL
+    -- A loaded row, or a row of a reference dataset, that gives another value for a key which the
+    -- entity holds already. A load never replaces a value of the record in silence.
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'The record holds ' || k.key || ' ' || coalesce(e.attrs->k.key->>'v', 'with no value')
+           || CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
+                   THEN ', and the reference dataset gives ' ELSE ', and the loaded row gives ' END
+           || coalesce(k.held->>'v', 'no value')
+      FROM acts a
+      JOIN public.entities e ON e.id = a.target_id
+      CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS k(key, held)
+     WHERE a.op = 'update_attrs' AND e.attrs ? k.key
+       AND e.attrs->k.key->'v' IS DISTINCT FROM k.held->'v'
+       AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL)
+    UNION ALL
+    -- A loaded row that found its entity by the name alone. Two entities can share a name, so the
+    -- operator checks that the row names this one (merge candidates do not change, ADR 0022).
+    SELECT a.unit_id, 'not_clean', 'name_only_match', a.id,
+           'The load found ' || coalesce(public.element_name(a.target_id), a.target_id::text)
+           || ' by its name only'
+      FROM acts a
+     WHERE a.op = 'update_attrs' AND a.found_by = 'label'
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -3751,6 +3793,54 @@ BEGIN
    LIMIT 1);
 END $$;
 
+-- THE TEXT SET OF A MAPPING: the set that the mapping job read, or NULL for the newest set. The
+-- load of the mapping and its dry join read this set, so they read the rows that the model read.
+CREATE OR REPLACE FUNCTION mapping_text_set(p_mapping uuid)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.text_set
+    FROM public.proposals p
+    JOIN public.model_call m ON m.id = p.model_call_id
+    JOIN public.jobs j ON j.id = m.job_id
+   WHERE p.id = p_mapping AND p.op = 'map_document'
+$$;
+
+-- THE REFERENCE DATASET OF AN ACT. An act is a row of a promoted mapping when the worker wrote it
+-- under the model call of an accepted mapping. It comes from a reference dataset when the one
+-- document that it cites is an edition that the operator approved (reference_dataset). The name
+-- of the dataset, or NULL. No role holds this step.
+CREATE OR REPLACE FUNCTION act_reference_dataset(p_act uuid)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT d.dataset
+    FROM public.proposals a
+    JOIN public.reference_dataset d ON a.src = ARRAY[d.document_id]
+   WHERE a.id = p_act AND a.author_role = 'gabriel_agent'
+     AND a.op IN ('create_entity', 'update_attrs', 'create_relation')
+     -- The load of that mapping runs, or ran, on the one document that the act cites. A model
+     -- call alone proves nothing, because another act can carry the same call.
+     AND EXISTS (SELECT 1 FROM public.proposals m
+                   JOIN public.jobs j ON j.mapping = m.id AND j.kind = 'load_mapped'
+                                     AND j.document_id = d.document_id
+                  WHERE m.op = 'map_document' AND m.status = 'accepted'
+                    AND m.model_call_id = a.model_call_id)
+$$;
+
+-- THE REFERENCE DATASET OF A UNIT: the name when each act of the unit that waits comes from one
+-- reference dataset, else NULL. One act of another origin keeps the unit out of the rule.
+CREATE OR REPLACE FUNCTION unit_reference_dataset(p_unit uuid)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE WHEN count(*) > 0 AND count(s.dataset) = count(*) AND count(DISTINCT s.dataset) = 1
+              THEN min(s.dataset) END
+    FROM public.proposals a
+    CROSS JOIN LATERAL (SELECT public.act_reference_dataset(a.id) AS dataset) AS s
+   WHERE a.unit_id = p_unit AND a.status = 'pending'
+$$;
+
 -- THE RULE THAT MATCHES A UNIT. The rules read in this order, and the first one that matches
 -- decides:
 --
@@ -3759,6 +3849,9 @@ END $$;
 --                   except a contradiction or a reported claim from an author F (the unit waits);
 --                   a check that disputes a fact, a denial by a party to the conflict, or a
 --                   source whose name joined an author A or B;
+--   reference_dataset  no fault stops the unit, and each act of it is a row of a promoted mapping
+--                   that loads an edition which the operator approved as a reference dataset
+--                   (see unit_reference_dataset). It needs no second source and no second check;
 --   strong_sources  no fault stops the unit, and each fact is strong (see fact_is_strong). A fact
 --                   with no passed second check never passes, a research fact included;
 --   weak_sources    every other unit. It waits.
@@ -3806,6 +3899,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' IN ('blocks', 'waits')) THEN
     RETURN 'weak_sources';
+  END IF;
+  IF public.unit_reference_dataset(p_unit) IS NOT NULL THEN
+    RETURN 'reference_dataset';
   END IF;
   SELECT c.settings->>'single', c.settings->>'pair', c.settings->>'other'
     INTO v_single, v_pair, v_other
@@ -4234,14 +4330,17 @@ DECLARE
   v_host    text;
   v_mapping uuid;
   v_id      uuid;
+  v_set     text;
 BEGIN
   IF coalesce(p_header_sig, '') !~ '^[0-9a-f]{64}$' THEN
     RAISE EXCEPTION 'the header signature is 64 hexadecimal characters, the digest of the header'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.jobs j
-                  WHERE j.document_id = p_document::doc_id AND j.kind = 'map_structured'
-                    AND j.status = 'running' AND j.claimed_by = session_user) THEN
+  -- The load reads the text set that the mapping job read.
+  SELECT j.text_set INTO v_set FROM public.jobs j
+   WHERE j.document_id = p_document::doc_id AND j.kind = 'map_structured'
+     AND j.status = 'running' AND j.claimed_by = session_user;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'this role holds no running map_structured job of document %', p_document
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -4268,8 +4367,8 @@ BEGIN
   END IF;
 
   BEGIN
-    INSERT INTO public.jobs (document_id, kind, mapping)
-    VALUES (p_document::doc_id, 'load_mapped', v_mapping)
+    INSERT INTO public.jobs (document_id, kind, mapping, text_set)
+    VALUES (p_document::doc_id, 'load_mapped', v_mapping, v_set)
     RETURNING id INTO v_id;
   EXCEPTION WHEN unique_violation THEN
     -- Another caller queued the load between the read and the insert.
@@ -5007,6 +5106,42 @@ BEGIN
   RETURN cardinality(v_new);
 END $$;
 
+-- THE APPROVAL OF A REFERENCE DATASET, by the operator (decisions.md S3). One act approves one
+-- edition of one named dataset. The edition is a stored document. The approval is written once:
+-- a second call for the same edition with the same name changes nothing and answers false, and a
+-- call with another name is refused. The rows of the edition that wait go through the rules at
+-- once. The worker cannot approve, so no loaded file makes itself a reference.
+CREATE OR REPLACE FUNCTION approve_reference_dataset(p_document text, p_dataset text)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_held text;
+BEGIN
+  IF btrim(coalesce(p_dataset, ''), E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a reference dataset has a name' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.documents d WHERE d.id = p_document::doc_id) THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  SELECT r.dataset INTO v_held FROM public.reference_dataset r WHERE r.document_id = p_document;
+  IF FOUND THEN
+    IF v_held <> btrim(p_dataset, E' \t\n\r\f\v') THEN
+      RAISE EXCEPTION 'document % is approved as the reference dataset %, and an approval is '
+                      'written once', p_document, v_held
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    RETURN false;
+  END IF;
+  INSERT INTO public.reference_dataset (document_id, dataset)
+  VALUES (p_document, btrim(p_dataset, E' \t\n\r\f\v'));
+  PERFORM public.run_rules(ARRAY(
+    SELECT DISTINCT q.unit_id FROM public.proposals q
+     WHERE q.status = 'pending' AND q.src = ARRAY[p_document]::doc_id[]));
+  RETURN true;
+END $$;
+
 -- THE REFERENCE SET, for the operator to read before the approval. Each author comes with its
 -- letter, its reason, its sites and the state of its approval.
 DROP FUNCTION IF EXISTS reference_set();
@@ -5640,7 +5775,7 @@ BEGIN
     PERFORM public.start_deepening(p_unit);
     RETURN NULL;
   END IF;
-  IF v_rule NOT IN ('impossible', 'strong_sources', 'weak_sources') THEN
+  IF v_rule NOT IN ('impossible', 'reference_dataset', 'strong_sources', 'weak_sources') THEN
     RETURN NULL;
   END IF;
   SELECT 'rule ' || c.rule || ' v' || c.version INTO v_by
@@ -5650,6 +5785,12 @@ BEGIN
             FROM public.proposals a
            WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.claim_key IS NOT NULL) AS d;
   v_origin := v_by || ' (fact digits: ' || coalesce(v_digits, 'no fact') || ')';
+  -- S4: a fact of a reference dataset shows that GAB did not check it, so the origin names the
+  -- dataset and the approval, and holds no digit.
+  IF v_rule = 'reference_dataset' THEN
+    v_origin := 'reference dataset ' || public.unit_reference_dataset(p_unit)
+                || ', approved by the operator';
+  END IF;
   IF v_rule IN ('impossible', 'weak_sources') THEN
     UPDATE public.proposals p
        SET status = 'rejected', decided_at = now(), decided_by = v_by, decided_as = 'rule',

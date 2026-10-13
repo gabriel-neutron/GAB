@@ -106,6 +106,12 @@ beforeAll(async () => {
     '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
     '/wiki': { headers: { 'content-type': 'text/html; charset=UTF-8' }, body: WIKI },
     '/login': { headers: { 'content-type': 'text/html' }, body: WIDGET },
+    // Qrator: a 401 with a page that only loads the script of the challenge.
+    '/qrator': {
+      status: 401,
+      headers: { 'content-type': 'text/html' },
+      body: '<html><script src="/__qrator/qauth.js"></script></html>',
+    },
   });
   base = `http://${FIXTURE_HOST}:${fixture.port}`;
 });
@@ -329,5 +335,29 @@ test('a JPEG image is stored with its OCR text as the page', async () => {
     expect(text).toContain('ARTILLERY BATTALION');
     expect(text).toContain('Батальйон');
     expect(store.puts.map((put) => put.mime)).toStrictEqual(['image/jpeg']);
+  });
+});
+
+test('a page that a bot filter refused with a 401 is read through the filter, and its HTML is stored', async () => {
+  const store = memoryStore();
+  const html = `<html><head><title>Register card</title></head><body><p>Company record ${RUN}.</p></body></html>`;
+  const asked: string[] = [];
+  const reach: Reach = {
+    ...fixtureReach(store),
+    readThroughFilter: (url) => {
+      asked.push(url);
+      return Promise.resolve({ url, html });
+    },
+  };
+  await rolledBack('research', async (ask) => {
+    const answer = await fetched(ask, `${base}/qrator`, reach);
+    expect(asked).toStrictEqual([`${base}/qrator`]);
+    expect(answer.status).toBe('stored');
+    expect(answer.title).toBe('Register card');
+    expect(answer.pages[0]?.text).toContain(`Company record ${RUN}.`);
+    expect(answer.notice).toMatch(
+      /answered 401 to the plain request, so the page was read in a Chrome window/,
+    );
+    expect(store.puts.map((put) => Buffer.from(put.bytes).toString('utf8'))).toStrictEqual([html]);
   });
 });

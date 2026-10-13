@@ -86,6 +86,11 @@ CREATE OR REPLACE TRIGGER reference_approval_append_only
   BEFORE UPDATE OR DELETE ON reference_approval
   FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 
+-- The approval of a reference dataset is written once.
+CREATE OR REPLACE TRIGGER reference_dataset_append_only
+  BEFORE UPDATE OR DELETE ON reference_dataset
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+
 -- The taker of a job, from the connection and never from a label the caller passed.
 CREATE OR REPLACE TRIGGER jobs_stamp_claimed_by
   BEFORE UPDATE OF claimed_at ON jobs
@@ -121,6 +126,7 @@ ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
 ALTER TABLE author_name_decision ENABLE ALWAYS TRIGGER author_name_decision_append_only;
 ALTER TABLE act_check ENABLE ALWAYS TRIGGER act_check_append_only;
 ALTER TABLE reference_approval ENABLE ALWAYS TRIGGER reference_approval_append_only;
+ALTER TABLE reference_dataset ENABLE ALWAYS TRIGGER reference_dataset_append_only;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_rate_author;
 ALTER TABLE rule_config ENABLE ALWAYS TRIGGER rule_config_budget_rises;
 ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_endpoints;

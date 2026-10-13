@@ -7,6 +7,7 @@ import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
 import { plainText } from './check-answer.ts';
+import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
@@ -361,6 +362,43 @@ const RELATION_WORDS = `SELECT concat_ws(' ', coalesce(s.label, 'an element'),
   LEFT JOIN api.entity d ON r.dst_kind = 'entity' AND d.id = r.dst_id
   WHERE r.id = $1`;
 
+// The type of the entity that an end of a relation names: the type of an earlier item of the batch,
+// or the type that the record holds. An end that is no entity has none.
+const endType = async (
+  session: Session,
+  given: string,
+  kind: Kind,
+  created: ReadonlyMap<string, string>,
+): Promise<string | null> => {
+  if (kind !== 'entity') return null;
+  const named = created.get(given);
+  if (named !== undefined) return named;
+  const [found] = await rowsOf(
+    session,
+    z.strictObject({ type: z.string() }),
+    'SELECT type FROM api.entity WHERE id = $1',
+    [given],
+  );
+  return found?.type ?? null;
+};
+
+// A relation of an event reaches the types that its rule names. The end of a relation can be an
+// entity that an earlier item creates, so the check runs on the types of the batch too.
+const checkEventEnds = async (
+  session: Session,
+  given: ProposeItem,
+  created: ReadonlyMap<string, string>,
+): Promise<void> => {
+  const { act } = given;
+  if (act.op !== 'create_relation') return;
+  const refusal = eventEndsRefusal(
+    act.type,
+    await endType(session, act.srcId, act.srcKind ?? 'entity', created),
+    await endType(session, act.dstId, act.dstKind ?? 'entity', created),
+  );
+  if (refusal !== null) refuse(given.ref, refusal);
+};
+
 const claimActOf = async (
   session: Session,
   given: ProposeItem,
@@ -474,7 +512,15 @@ export const proposeOf = (modelCallId: string | null) =>
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
       'relation names an entity of an earlier item by its ref. A retry of the same batch writes ' +
       'nothing twice. The ' +
-      'proposals wait for the operator. First call search_graph with each identifier, and ' +
+      'proposals wait for the operator. A claimed strike, a fire or a stoppage is an entity of ' +
+      'type event. Its name is "kind — site — day", for example "claimed attack — Afipsky ' +
+      'refinery — 2026-05-15", where the kind is claimed attack, fire or stoppage and the site is ' +
+      'the name of the installation as the record holds it (or the place as the source writes ' +
+      'it, when no site is named). It has the attributes event_kind, occurred_on (a list of ' +
+      'days: one day, or the two days of a night) and occurred_on_precision (day, night or ' +
+      'month); the day of the name is the last day. Link it with occurred_at (to a facility, a ' +
+      'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
+      'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds.',
     input: z.strictObject({ items: proposeItems }),
@@ -490,9 +536,17 @@ export const proposeOf = (modelCallId: string | null) =>
         minted.set(given.ref, { id: randomUUID(), kind: KIND_OF_OP[given.act.op] ?? null, index });
       });
 
+      const created = new Map(
+        input.items.flatMap((given) =>
+          given.act.op === 'create_entity' ? [[given.ref, given.act.type] as const] : [],
+        ),
+      );
       const prepared: Prepared[] = [];
       for (const [index, given] of input.items.entries()) {
         const resolved = await resolvedAct(session, given, index, minted);
+        const eventFault = eventActRefusal(resolved);
+        if (eventFault !== null) refuse(given.ref, eventFault);
+        await checkEventEnds(session, given, created);
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');

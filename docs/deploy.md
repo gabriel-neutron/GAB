@@ -84,6 +84,11 @@ that `infra/.env.example` lists. When one of them is absent, the worker starts a
 extractions, and each mapping fails at once with a reason that names the value. The load of a
 promoted mapping runs with no model and needs the raw store values.
 
+Before you promote a mapping, run `pnpm worker dry-join <mapping> > join.csv`. For each row of the
+table, it writes the key that finds the entity of the row in the record, or that the row creates
+an entity. It calls no model and writes nothing in the record. A row that finds its entity by its
+name only becomes a doubt in the load, so add an identifier to the record first where you can.
+
 The rater of `pnpm worker run` rates each new author name. Set the `RATER_*` values that
 `infra/.env.example` lists, with the strongest model that OpenRouter gives. When one of them is
 absent, the worker starts and runs the extractions, and each rating fails with a reason that names
@@ -274,6 +279,23 @@ pnpm worker name-candidates
 
 It prints the number of names that it read and of pairs that it found, new and known. A pair that
 you refused or confirmed stays decided. The release gives the three counts in its manifest.
+
+To read the NASA FIRMS heat of each asset that has a point, and of each tile of a stored flare
+table, run:
+
+```powershell
+pnpm worker firms-sweep --since 2024-01-01 --flares <document> <text set>
+```
+
+Set `FIRMS_MAP_KEY` in the environment file first. The command stores one answer for each site and
+quarter, then the days since the last answer. It waits when the map key is near its rate limit.
+After a stop, run it again: it reads only the periods that no stored answer covers. Run it each
+day to add the new days. The command reads only the days that no stored answer covers, and it
+ends each read at the last day that FIRMS has published. The near real time days of the newest
+answers are provisional: FIRMS replaces them with archive days some months later, and the command
+does not read them again. Use `--latitude` and `--longitude` when the flare table names its columns
+in another way. Leave out `--flares` to read the assets only. No stored answer, address or log
+holds the key.
 
 ## Public writes
 
