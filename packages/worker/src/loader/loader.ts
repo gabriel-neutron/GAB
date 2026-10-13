@@ -514,11 +514,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         // A value that is no object is no geometry, and the request refuses it with a sentence.
         const place = typeof geom === 'object' && geom !== null ? geom : {};
         if ((await geomState(context.db, found.id, place)) !== 'same')
-          acts.push({
-            ref: 'row',
+          requests.push({
             request: { op: 'update_entity', targetId: found.id, geom },
+            id: randomUUID(),
+            foundBy: found.key,
           });
-        else if (acts.length === 0)
+        else if (requests.length === 0)
           lines.push({
             ...where,
             reason: `the row adds no act: the place of ${found.id} is the same`,
