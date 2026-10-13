@@ -412,3 +412,20 @@ test('an unknown jurisdiction keeps its spelling', () => {
     v: 'Narnia',
   });
 });
+
+test('a list of jurisdictions is coded one by one, and a Russian source states RU', () => {
+  const coded = withCodedJurisdiction(
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'company',
+      label: 'Gazpromneft Aero',
+      attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia'] } },
+    }),
+  );
+  expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+    v: ['RU', 'Narnia'],
+  });
+  expect(
+    unstatedValues(companyIn('RU'), ['Gazpromneft Aero. Страна регистрации: Российская Федерация']),
+  ).toStrictEqual([]);
+});
