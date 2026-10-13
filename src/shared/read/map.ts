@@ -21,6 +21,7 @@ import type {
   ProposedGeometry,
   Relation,
   Ring,
+  Route,
 } from './model';
 import { row as rowOf } from './rows';
 
@@ -35,8 +36,7 @@ const attributeObject = z.record(z.string(), attribute);
 const attributesOf = (value: unknown): Attributes =>
   value === undefined || value === null ? {} : attributeObject.parse(value);
 
-// A geometry column holds a point, a line or a polygon. The map draws a point and an area, so it
-// keeps those two and reads a line as no position at all.
+// A geometry column holds a point, a line or a polygon. The map draws a point, a route and an area.
 const geoPoint = z.object({
   type: z.literal('Point'),
   coordinates: z.tuple([z.number(), z.number()], z.number()),
@@ -65,6 +65,29 @@ function areaOf(value: unknown): Area | null {
   if (polygon.success) return [polygon.data.coordinates.map(pairs)];
   const many = geoMultiPolygon.safeParse(value);
   return many.success ? many.data.coordinates.map((rings) => rings.map(pairs)) : null;
+}
+
+const path = z.array(position).min(2);
+const geoLine = z.object({ type: z.literal('LineString'), coordinates: path });
+const geoMultiLine = z.object({
+  type: z.literal('MultiLineString'),
+  coordinates: z.array(path).min(1),
+});
+
+function routeOf(value: unknown): Route | null {
+  const line = geoLine.safeParse(value);
+  if (line.success) return [pairs(line.data.coordinates)];
+  const many = geoMultiLine.safeParse(value);
+  return many.success ? many.data.coordinates.map(pairs) : null;
+}
+
+// The mark of a route stands on the middle vertex of its longest path, so it never leaves the
+// line and the shape alone decides it.
+function pointOnRoute(route: Route): Point | null {
+  let longest: Ring | undefined;
+  for (const one of route) if (one.length > (longest?.length ?? 0)) longest = one;
+  const [lon, lat] = longest?.[Math.floor((longest.length - 1) / 2)] ?? [];
+  return lon === undefined || lat === undefined ? null : { lon, lat };
 }
 
 // The act carries no kind of its own, so the operation states which payload it wrote.
@@ -333,12 +356,19 @@ function placement(row: unknown): EntityPlacement {
 function mapPosition(row: unknown): MapPosition {
   const read = rowOf.fullMap.parse(row);
   const area = areaOf(read.geom);
+  const route = routeOf(read.geom);
   return {
     entityId: read.id,
     // An area has one mark, and it stands inside the area, so the rail, the selection and the
     // relations read a point as they do for every other entity.
-    point: area === null ? pointOf(read.geom) : interiorPointOf(area),
+    point:
+      area !== null
+        ? interiorPointOf(area)
+        : route !== null
+          ? pointOnRoute(route)
+          : pointOf(read.geom),
     area,
+    route,
     precision: read.position_precision,
     parentId: read.parent_id,
   };

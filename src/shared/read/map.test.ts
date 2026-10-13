@@ -385,6 +385,7 @@ test('a borrowed position keeps its word and names the ancestor it came from', (
     entityId: '94172363-dab1-4fc3-ae2a-16e3430879be',
     point: { lon: 19.902, lat: 54.65 },
     area: null,
+    route: null,
     precision: 'inherited',
     parentId: '0ea482d0-cd00-4c77-911e-419dd2d1779f',
   });
@@ -414,6 +415,27 @@ const SQUARE_RING = [
 
 test('a point arrives with no area', () => {
   expect(toDomain.mapPosition(MAP_ROW).area).toBeNull();
+});
+
+test('a line keeps its route, and its point lies on the longest path', () => {
+  const short = [
+    [0, 0],
+    [1, 1],
+  ];
+  const long = [
+    [10, 10],
+    [11, 11],
+    [12, 12],
+  ];
+  const read = toDomain.mapPosition({
+    ...MAP_ROW,
+    geom: { type: 'MultiLineString', coordinates: [short, long] },
+    position_precision: null,
+    parent_id: null,
+  });
+  expect(read.route).toStrictEqual([short, long]);
+  expect(read.area).toBeNull();
+  expect(read.point).toStrictEqual({ lon: 11, lat: 11 });
 });
 
 test('a polygon keeps its rings, and its point lies inside it', () => {
@@ -452,16 +474,14 @@ test('a borrowed position stays a point', () => {
   expect(read.parentId).not.toBeNull();
 });
 
-// A line is not drawn by this surface, and it is no position at all.
-test('a line is no position at all', () => {
+// A shape that the map does not draw is no position at all.
+test('a geometry collection is no position at all', () => {
   const line = {
-    type: 'LineString',
-    coordinates: [
-      [0, 0],
-      [1, 1],
-    ],
+    type: 'GeometryCollection',
+    geometries: [{ type: 'Point', coordinates: [0, 0] }],
   };
   const read = toDomain.mapPosition({ ...MAP_ROW, geom: line });
   expect(read.point).toBeNull();
   expect(read.area).toBeNull();
+  expect(read.route).toBeNull();
 });

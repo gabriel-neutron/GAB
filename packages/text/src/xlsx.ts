@@ -4,7 +4,19 @@
 // sheet that hold one value in one column. The same bytes and the same filter always give the
 // same text, so a third party can read the same rows (decisions.md S2, ADR 0012).
 
-import { inflateRawSync } from 'node:zlib';
+import { StringDecoder } from 'node:string_decoder';
+
+import {
+  bytesSource,
+  partChunks,
+  partText,
+  WorkbookFault,
+  zipEntries,
+  type ZipEntry,
+  type ZipSource,
+} from './zip.ts';
+
+export { MAX_PART_BYTES, WorkbookFault } from './zip.ts';
 
 /** The type of an XLSX workbook. */
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -13,71 +25,23 @@ export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsh
  * set beside the old one and no citation of the old set moves. */
 export const TABLE_READER = 'xlsx-1';
 
-/** A workbook that code cannot read as tables. */
-export class WorkbookFault extends Error {
-  constructor(reason: string, options?: ErrorOptions) {
-    super(reason, options);
-    this.name = 'WorkbookFault';
-  }
+/** The bytes of an archive, or a source that reads them at an offset. */
+export type TableInput = Uint8Array | ZipSource;
+
+/** The archive of an input, with its parts. */
+export interface Archive {
+  readonly source: ZipSource;
+  readonly entries: Map<string, ZipEntry>;
 }
 
-const END_OF_DIRECTORY = 0x06054b50;
-const DIRECTORY_ENTRY = 0x02014b50;
-const LOCAL_ENTRY = 0x04034b50;
-const STORED = 0;
-const DEFLATED = 8;
-const LOOKBACK = 22 + 0xffff;
-
-/** The most bytes that one part of a workbook may inflate to. A small archive can hold a part of
- * many gigabytes (a zip bomb), and the reader holds one part in memory. */
-export const MAX_PART_BYTES = 128 * 1024 * 1024;
-
-const inflated = (raw: Uint8Array, name: string): Uint8Array => {
-  try {
-    return inflateRawSync(raw, { maxOutputLength: MAX_PART_BYTES });
-  } catch (fault) {
-    throw new WorkbookFault(
-      `the part ${name} of the zip archive inflates to more than ${String(MAX_PART_BYTES)} bytes, or is broken`,
-      { cause: fault },
-    );
-  }
+export const openArchive = async (input: TableInput): Promise<Archive> => {
+  const source = input instanceof Uint8Array ? bytesSource(input) : input;
+  return { source, entries: await zipEntries(source) };
 };
 
-// shortcut: a zip64 archive (4 GiB or 65,535 parts) is refused, upgrade when a file needs it.
-const parts = (bytes: Uint8Array): Map<string, () => string> => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let end = bytes.length - 22;
-  while (
-    end >= 0 &&
-    end >= bytes.length - LOOKBACK &&
-    view.getUint32(end, true) !== END_OF_DIRECTORY
-  )
-    end -= 1;
-  if (end < 0 || view.getUint32(end, true) !== END_OF_DIRECTORY)
-    throw new WorkbookFault('the file is no zip archive, so it is no XLSX workbook');
-  const count = view.getUint16(end + 10, true);
-  let at = view.getUint32(end + 16, true);
-  const found = new Map<string, () => string>();
-  for (let index = 0; index < count; index += 1) {
-    if (at + 46 > bytes.length || view.getUint32(at, true) !== DIRECTORY_ENTRY)
-      throw new WorkbookFault('the directory of the zip archive is broken');
-    const method = view.getUint16(at + 10, true);
-    const size = view.getUint32(at + 20, true);
-    const local = view.getUint32(at + 42, true);
-    const nameLength = view.getUint16(at + 28, true);
-    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
-    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
-    found.set(name, () => {
-      if (local + 30 > bytes.length || view.getUint32(local, true) !== LOCAL_ENTRY)
-        throw new WorkbookFault(`the part ${name} of the zip archive is broken`);
-      const from = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
-      const raw = bytes.subarray(from, from + size);
-      if (method === STORED) return new TextDecoder().decode(raw);
-      if (method === DEFLATED) return new TextDecoder().decode(inflated(raw, name));
-      throw new WorkbookFault(`the part ${name} uses the zip method ${String(method)}`);
-    });
-  }
-  return found;
+const textOf = async (archive: Archive, name: string): Promise<string | undefined> => {
+  const entry = archive.entries.get(name);
+  return entry === undefined ? undefined : partText(archive.source, entry);
 };
 
 const ENTITIES: Readonly<Record<string, string>> = {
@@ -120,21 +84,20 @@ const sharedStrings = (xml: string | undefined): string[] =>
       );
 
 /** The names of the sheets of a workbook, in the order of the workbook. */
-export const sheetNames = (bytes: Uint8Array): string[] => {
-  const zip = parts(bytes);
-  const book = zip.get('xl/workbook.xml')?.();
+export const sheetNames = async (input: TableInput): Promise<string[]> => {
+  const book = await textOf(await openArchive(input), 'xl/workbook.xml');
   if (book === undefined) throw new WorkbookFault('the archive holds no xl/workbook.xml part');
   return [...book.matchAll(/<sheet\b[^>]*>/gu)].map((one) => attribute(one[0], 'name') ?? '');
 };
 
-const sheetPart = (zip: Map<string, () => string>, sheet: string): string => {
-  const book = zip.get('xl/workbook.xml')?.() ?? '';
+const sheetPart = async (archive: Archive, sheet: string): Promise<string> => {
+  const book = (await textOf(archive, 'xl/workbook.xml')) ?? '';
   const tag = [...book.matchAll(/<sheet\b[^>]*>/gu)]
     .map((one) => one[0])
     .find((one) => attribute(one, 'name') === sheet);
   if (tag === undefined) throw new WorkbookFault(`the workbook has no sheet named "${sheet}"`);
   const id = attribute(tag, 'r:id');
-  const relations = zip.get('xl/_rels/workbook.xml.rels')?.() ?? '';
+  const relations = (await textOf(archive, 'xl/_rels/workbook.xml.rels')) ?? '';
   const target = [...relations.matchAll(/<Relationship\b[^>]*>/gu)]
     .map((one) => one[0])
     .find((one) => attribute(one, 'Id') === id);
@@ -162,32 +125,49 @@ const cellText = (tag: string, body: string, strings: readonly string[]): string
   return decoded(value);
 };
 
-/** The rows of one sheet, each as a list of cell texts. A row with no cell that holds text is
- * left out. A number keeps the text that the workbook stores. */
-export const sheetRows = (bytes: Uint8Array, sheet: string): string[][] => {
-  const zip = parts(bytes);
-  const name = sheetPart(zip, sheet);
-  const xml = zip.get(name)?.();
-  if (xml === undefined) throw new WorkbookFault(`the part ${name} of the sheet is missing`);
-  const strings = sharedStrings(zip.get('xl/sharedStrings.xml')?.());
-  const rows: string[][] = [];
-  for (const row of xml.matchAll(/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/gu)) {
-    const cells: (string | undefined)[] = [];
-    for (const cell of (row[1] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/gu)) {
-      const tag = cell[1] ?? '';
-      const at = columnOf(attribute(tag, 'r') ?? '');
-      cells[at] = cellText(tag, cell[2] ?? '', strings);
-    }
-    const filled = Array.from(cells, (text) => text ?? '');
-    if (filled.some((text) => text.trim() !== '')) rows.push(filled);
-  }
-  return rows;
-};
+// The rows of one sheet, read from the inflated stream. The buffer holds the text from the first
+// row that is not complete, so the memory is one row and one chunk, and never the sheet.
+const ROW = /<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/gu;
 
-const csvField = (text: string): string =>
+async function* sheetRows(
+  archive: Archive,
+  sheet: string,
+  strings: readonly string[],
+): AsyncGenerator<string[]> {
+  const name = await sheetPart(archive, sheet);
+  const entry = archive.entries.get(name);
+  if (entry === undefined) throw new WorkbookFault(`the part ${name} of the sheet is missing`);
+  const decoder = new StringDecoder('utf8');
+  let held = '';
+  const drain = function* (): Generator<string[]> {
+    ROW.lastIndex = 0;
+    let used = 0;
+    for (let row = ROW.exec(held); row !== null; row = ROW.exec(held)) {
+      used = ROW.lastIndex;
+      const cells: (string | undefined)[] = [];
+      for (const cell of (row[1] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/gu)) {
+        const tag = cell[1] ?? '';
+        cells[columnOf(attribute(tag, 'r') ?? '')] = cellText(tag, cell[2] ?? '', strings);
+      }
+      const filled = Array.from(cells, (text) => text ?? '');
+      if (filled.some((text) => text.trim() !== '')) yield filled;
+    }
+    const open = held.lastIndexOf('<row', held.length);
+    held = open >= used ? held.slice(open) : held.slice(Math.max(used, held.length - 4));
+  };
+  for await (const chunk of partChunks(archive.source, entry)) {
+    held += decoder.write(chunk);
+    yield* drain();
+  }
+  held += decoder.end();
+  yield* drain();
+}
+
+/** One field of a CSV row, with the quotes of RFC 4180. */
+export const csvField = (text: string): string =>
   /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 
-const csvOf = (rows: readonly (readonly string[])[]): string =>
+export const csvOf = (rows: readonly (readonly string[])[]): string =>
   rows.map((row) => `${row.map(csvField).join(',')}\r\n`).join('');
 
 /** One column filter of a text set: the rows that hold exactly this value in this column. */
@@ -203,17 +183,34 @@ export const textSetName = (sheet: string, filter?: TableFilter): string =>
   (filter === undefined ? '' : `|where=${filter.column}=${filter.value}`);
 
 /** One sheet as CSV text: the header row, then each row that the filter keeps. A row is padded or
- * cut to the width of the header, and a trailing column with no name is dropped. */
-export const sheetCsv = (bytes: Uint8Array, sheet: string, filter?: TableFilter): string => {
-  const [first, ...rows] = sheetRows(bytes, sheet);
-  if (first === undefined) throw new WorkbookFault(`the sheet "${sheet}" holds no row`);
-  const header = first.map((name) => name.trim());
-  while (header.at(-1) === '') header.pop();
-  const at = filter === undefined ? -1 : header.indexOf(filter.column);
-  if (filter !== undefined && at === -1)
-    throw new WorkbookFault(`the sheet "${sheet}" has no column "${filter.column}"`);
-  const kept = rows
-    .filter((row) => filter === undefined || (row[at] ?? '').trim() === filter.value)
-    .map((row) => Array.from({ length: header.length }, (_, index) => row[index] ?? ''));
-  return csvOf([header, ...kept]);
+ * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
+ * read as a stream, so a large sheet costs the memory of the rows that are kept. `maxRows` stops
+ * the read after that many kept rows. */
+export const sheetCsv = async (
+  input: TableInput,
+  sheet: string,
+  filter?: TableFilter,
+  maxRows?: number,
+): Promise<string> => {
+  const archive = await openArchive(input);
+  const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
+  let header: string[] | undefined;
+  let at = -1;
+  const kept: string[] = [];
+  for await (const row of sheetRows(archive, sheet, strings)) {
+    if (header === undefined) {
+      header = row.map((name) => name.trim());
+      while (header.at(-1) === '') header.pop();
+      at = filter === undefined ? -1 : header.indexOf(filter.column);
+      if (filter !== undefined && at === -1)
+        throw new WorkbookFault(`the sheet "${sheet}" has no column "${filter.column}"`);
+      continue;
+    }
+    if (filter !== undefined && (row[at] ?? '').trim() !== filter.value) continue;
+    const width = header.length;
+    kept.push(csvOf([Array.from({ length: width }, (_, index) => row[index] ?? '')]));
+    if (maxRows !== undefined && kept.length >= maxRows) break;
+  }
+  if (header === undefined) throw new WorkbookFault(`the sheet "${sheet}" holds no row`);
+  return csvOf([header]) + kept.join('');
 };

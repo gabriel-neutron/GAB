@@ -1,3 +1,7 @@
+import { createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 import type { RawStore } from './bucket.ts';
@@ -18,6 +22,17 @@ export const readObject = async (
     return new Uint8Array(bytes);
   } catch (cause) {
     // What the store raises names its address, and an address never reaches a screen.
+    throw new Error(NOT_GIVEN, { cause });
+  }
+};
+
+/** Copy one object to a file as a stream, so a large object is never held in memory. */
+export const downloadObject = async (store: RawStore, key: string, path: string): Promise<void> => {
+  try {
+    const found = await store.client.send(new GetObjectCommand({ Bucket: store.bucket, Key: key }));
+    if (!(found.Body instanceof Readable)) throw new Error(NOT_GIVEN);
+    await pipeline(found.Body, createWriteStream(path));
+  } catch (cause) {
     throw new Error(NOT_GIVEN, { cause });
   }
 };

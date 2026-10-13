@@ -1,7 +1,7 @@
 /** The boxes of the upload, read into one request or into one sentence. The writer is the second
  * tier and refuses what this misses; this tier gives a sentence before a file crosses the wire. */
 
-import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { fileLimitOf } from '@gab/proposal/upload-limit';
 
 /** What the analyst has chosen and typed. A blank box is the untouched state. */
 export interface UploadForm {
@@ -41,7 +41,8 @@ const MEBIBYTE = 1024 * 1024;
 
 const NO_FILE = 'Choose the file to upload.';
 const EMPTY_FILE = 'The file holds no byte, and the writer does not take it.';
-const TOO_LARGE = `The file is larger than ${String(UPLOAD_FILE_BYTES / MEBIBYTE)} MiB, and the writer does not take it.`;
+const tooLarge = (limit: number): string =>
+  `The file is larger than ${String(limit / MEBIBYTE)} MiB, and the writer does not take it.`;
 const NO_TITLE = 'Write the title of the document.';
 const NO_DAY = 'Write the day the file was retrieved. The record takes no document without it.';
 // PU1, the ruling of 9 October 2026 after #403: a file of the operator comes from the Internet.
@@ -59,7 +60,8 @@ export const titleOf = (file: File): string => file.name;
 export function readUploadDraft(form: UploadForm): UploadDraft {
   if (form.file === null) return { ready: false, reason: NO_FILE };
   if (form.file.size === 0) return { ready: false, reason: EMPTY_FILE };
-  if (form.file.size > UPLOAD_FILE_BYTES) return { ready: false, reason: TOO_LARGE };
+  const limit = fileLimitOf(form.file.name);
+  if (form.file.size > limit) return { ready: false, reason: tooLarge(limit) };
 
   const title = form.title.trim();
   if (title === '') return { ready: false, reason: NO_TITLE };

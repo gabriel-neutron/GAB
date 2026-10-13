@@ -170,8 +170,10 @@ describe('extractText', () => {
     },
   );
 
-  test('a ZIP is refused with its reason', async () => {
-    await expect(extractText(bytesOf('PK'), 'application/zip')).rejects.toThrow(/application\/zip/);
+  test('a type that no reader takes is refused with its reason', async () => {
+    await expect(extractText(bytesOf('PK'), 'application/x-tar')).rejects.toThrow(
+      /application\/x-tar/,
+    );
   });
 
   test('an HTML page in windows-1251 gives Cyrillic text, from the charset of its meta element', async () => {

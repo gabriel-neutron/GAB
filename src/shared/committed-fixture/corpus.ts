@@ -71,6 +71,7 @@ function resolvePositions(
       precision: typeof precision === 'string' ? precision : null,
       parentId: found?.parentId ?? null,
       area: null,
+      route: null,
     };
   });
 }
