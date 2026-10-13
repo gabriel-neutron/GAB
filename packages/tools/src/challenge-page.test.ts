@@ -59,6 +59,16 @@ describe('the proxy of the Chrome window opens only an address that passed the r
     }
   });
 
+  test('a CONNECT to a port out of range is refused, and the proxy stays up', async () => {
+    const proxy = await guardProxy({});
+    try {
+      expect(await connectLine(proxy, 'register.example:99999')).toMatch(/403/);
+      expect(await connectLine(proxy, `127.0.0.1:${String(portOf(origin))}`)).toMatch(/403/);
+    } finally {
+      proxy.close();
+    }
+  });
+
   test('a CONNECT to a name that resolves to a private address is refused', async () => {
     const lookup = () => Promise.resolve([{ address: '127.0.0.1', family: 4 }]);
     const proxy = await guardProxy({ lookup });

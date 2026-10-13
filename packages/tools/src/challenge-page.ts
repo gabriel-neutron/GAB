@@ -42,7 +42,9 @@ const PROFILE = join(homedir(), '.cache', 'gab-challenge-profile');
 
 const hostAndPort = (authority: string): [string, number] => {
   const match = /^\[?([^\]]*)\]?:(\d+)$/u.exec(authority);
-  return match === null ? ['', 0] : [match[1] ?? '', Number(match[2])];
+  const port = Number(match?.[2]);
+  // A port out of range makes the socket throw, so it is refused here.
+  return match === null || port < 1 || port > 65_535 ? ['', 0] : [match[1] ?? '', port];
 };
 
 /** A local HTTP proxy that opens only an address that passed the range check. */
@@ -113,9 +115,7 @@ const read = async (url: string, options: Guard): Promise<PassedPage | string> =
   }
   const proxy = await guardProxy(options);
   let context: BrowserContext | undefined;
-  const timer = setTimeout(() => {
-    void context?.close().catch(() => undefined);
-  }, BUDGET_MS + GRACE_MS);
+  let timer: NodeJS.Timeout | undefined;
   try {
     context = await chromium.launchPersistentContext(PROFILE, {
       channel: 'chrome',
@@ -130,6 +130,9 @@ const read = async (url: string, options: Guard): Promise<PassedPage | string> =
         '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
       ],
     });
+    timer = setTimeout(() => {
+      void context?.close().catch(() => undefined);
+    }, BUDGET_MS + GRACE_MS);
     const page = context.pages()[0] ?? (await context.newPage());
     let status = 0;
     page.on('response', (response) => {
@@ -153,6 +156,7 @@ const read = async (url: string, options: Guard): Promise<PassedPage | string> =
   } finally {
     clearTimeout(timer);
     await context?.close().catch(() => undefined);
+    proxy.closeAllConnections();
     proxy.close();
   }
 };
