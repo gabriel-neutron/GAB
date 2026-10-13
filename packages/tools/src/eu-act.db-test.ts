@@ -119,7 +119,7 @@ test('eu_act asks for the format and the language, and stores the official text 
     },
   ]);
   const first = asked.find((headers) => headers.accept === 'application/xhtml+xml');
-  expect(first?.['user-agent']).toBe('gabriel-fetch/1');
+  expect(first?.['user-agent']).toMatch(/Chrome\//u);
   expect(first?.['accept-language']).toBe('eng');
 });
 

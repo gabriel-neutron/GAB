@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./catalogue": "./src/catalogue.ts",
+    "./challenge-page": "./src/challenge-page.ts",
     "./check-answer": "./src/check-answer.ts",
     "./csv": "./src/csv.ts",
     "./document-text": "./src/document-text.ts",
@@ -34,6 +35,7 @@
     "@gab/text": "workspace:*",
     "exiftool-vendored": "^38.3.0",
     "linkedom": "^0.18.12",
+    "patchright": "1.63.0",
     "playwright": "^1.62.1",
     "zod": "^4.4.3"
   },
