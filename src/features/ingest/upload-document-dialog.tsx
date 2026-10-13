@@ -20,7 +20,7 @@ interface UploadDocumentDialogProps {
 const IDLE: UploadState = { step: 'idle' };
 
 // The types the text door reads. The writer refuses any other, and the picker shows these first.
-const READABLE = '.pdf,.html,.htm,.txt,.md,.csv';
+const READABLE = '.pdf,.html,.htm,.txt,.md,.csv,.xlsx,.zip';
 
 // A modal is a true overlay, which is the one place the theme permits a shadow.
 const OVERLAY = 'fixed inset-0 z-50 bg-background/80';

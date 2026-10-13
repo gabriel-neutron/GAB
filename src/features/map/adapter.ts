@@ -190,7 +190,8 @@ interface AreaFeature {
   readonly id: number;
   readonly geometry:
     | { readonly type: 'Polygon'; readonly coordinates: readonly Ring[] }
-    | { readonly type: 'MultiPolygon'; readonly coordinates: Area };
+    | { readonly type: 'MultiPolygon'; readonly coordinates: Area }
+    | { readonly type: 'MultiLineString'; readonly coordinates: readonly Ring[] };
   readonly properties: { readonly entityType: string };
 }
 
@@ -382,8 +383,20 @@ export function mountMap({
   const areaFeaturesOf = (entities: readonly GeoEntity[]): AreaCollection => ({
     type: 'FeatureCollection',
     features: entities.flatMap((entity): AreaFeature[] => {
-      const { area } = entity;
-      if (area === null || !colourOfType.has(entity.type)) return [];
+      const { area, route } = entity;
+      if (!colourOfType.has(entity.type)) return [];
+      // The outline layer of the type draws a route as it draws the edge of an area, and the fill
+      // layer draws nothing for it.
+      if (route !== null)
+        return [
+          {
+            type: 'Feature',
+            id: entity.fid,
+            geometry: { type: 'MultiLineString', coordinates: route },
+            properties: { entityType: entity.type },
+          },
+        ];
+      if (area === null) return [];
       const [only] = area;
       return [
         {

@@ -6,7 +6,10 @@
   "exports": {
     ".": "./src/extract.ts",
     "./xlsx": "./src/xlsx.ts",
-    "./xlsx-fixture": "./src/xlsx-fixture.ts"
+    "./zip": "./src/zip.ts",
+    "./geojson": "./src/geojson.ts",
+    "./xlsx-fixture": "./src/xlsx-fixture.ts",
+    "./archive-fixture": "./src/archive-fixture.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

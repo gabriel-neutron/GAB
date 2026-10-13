@@ -19,6 +19,7 @@ const entity = (
   lon: point.lon,
   lat: point.lat,
   area: null,
+  route: null,
   sources: [],
   attrs: {},
   parentId,

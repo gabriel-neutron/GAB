@@ -82,6 +82,9 @@ export type Ring = readonly (readonly [number, number])[];
  * first and each hole after it. A `Polygon` is a list of one. */
 export type Area = readonly (readonly Ring[])[];
 
+/** The route of a `LineString` or a `MultiLineString`: one list of positions for each path. */
+export type Route = readonly Ring[];
+
 /** Where the graph draws one entity. It is derived from the record, and no source holds it up. */
 export interface EntityPosition {
   readonly x: number;
@@ -107,6 +110,9 @@ export interface MapPosition {
    * then lies inside it, so a surface that draws a mark reads `point` and need not read this. A
    * borrowed position is a point, so `area` and `parentId` are never both set. */
   readonly area: Area | null;
+  /** The route of an entity that a line locates (a pipeline segment), and null for every other
+   * entity. `point` then lies on it, so a surface that draws a mark reads `point`. */
+  readonly route: Route | null;
   /** The word the analyst wrote about the position: `exact`, `approximate` or `inherited`. It
    * may be ABSENT, and an absence is never a measured position. No surface may supply a default
    * word here: a row that states nothing must draw and read as the cautious state. */
