@@ -386,7 +386,10 @@ export const fetchDocument = defineTool({
         reach.readThroughFilter !== undefined
           ? await reach.readThroughFilter(input.url, getOptions)
           : null;
-      if (passed === null) throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+      if (passed === null || typeof passed === 'string') {
+        const tried = passed === null ? '' : ` The Chrome window was also tried: ${passed}.`;
+        throw new ToolRefusal(`${refusalOfFetch(fault.message, fault.fault)}${tried}`);
+      }
       notices.push(
         `${fault.message.replace(/, and only a success is kept$/u, '')} to the plain request, so ` +
           'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
