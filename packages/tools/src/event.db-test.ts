@@ -202,6 +202,114 @@ test('an event whose excerpt does not state its day is disputed', async () => {
   expect(read).toMatchObject({ proposals: [{ disputed: true, unstated: ['attrs.occurred_on'] }] });
 });
 
+const YEARLESS = 'у ніч на 15 травня';
+const YEARLESS_EXCERPT = `${YEARLESS} уражено ${SITE}`;
+
+const yearlessItem = (
+  doc: string,
+  author: string,
+  extra: Readonly<Record<string, unknown>> = {},
+) => ({
+  ...item('ev', eventAct(NAME), doc, YEARLESS_EXCERPT, author),
+  ...extra,
+});
+
+const faultWords = async (ask: Ask, act: string): Promise<string[]> =>
+  z
+    .array(z.object({ faults: z.array(z.object({ said: z.string() })) }))
+    .parse(await ask('SELECT faults FROM public.unit_faults(ARRAY[$1::uuid])', [act]))
+    .flatMap((row) => row.faults.map((fault) => fault.said));
+
+test('a night with no year takes the year of published_on, and the card says so', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await reference(ask, author, 'A', OWN_SITE);
+    const doc = await post(ask, 11, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+    const outcome = await proposed(ask, [
+      yearlessItem(doc, author, { published_on: '2026-05-15' }),
+    ]);
+    if (!outcome.ok) throw new Error(outcome.refusal);
+    const act = await idOf(ask, [yearlessItem(doc, author, { published_on: '2026-05-15' })]);
+    await check(ask, act);
+    const [stored] = z
+      .array(z.object({ days: z.unknown() }))
+      .parse(
+        await ask(
+          "SELECT payload->'attrs'->'occurred_on'->'v' AS days FROM public.proposals WHERE id = $1",
+          [act],
+        ),
+      );
+    return {
+      output: outcome.output,
+      days: stored?.days,
+      state: await stateOf(ask, act),
+      said: await faultWords(ask, act),
+    };
+  });
+  expect(read.output).toMatchObject({ proposals: [{ disputed: true, unstated: [] }] });
+  expect(read.days).toStrictEqual(['2026-05-14', '2026-05-15']);
+  expect(read.state).toMatchObject({ status: 'pending', dissent: true });
+  expect(read.said).toContain('Disputed: year deduced from the publication of 2026-05-15');
+});
+
+test('published_on for the whole call serves each item', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const doc = await post(ask, 12, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+    return as(ask, 'gabriel_research', () =>
+      callTool(proposeOf(null), sessionOf(ask), {
+        items: [yearlessItem(doc, name())],
+        published_on: '2026-05-15',
+      }),
+    );
+  });
+  expect(read).toMatchObject({
+    ok: true,
+    output: { proposals: [{ disputed: true, unstated: [] }] },
+  });
+});
+
+test('a year in the excerpt wins over published_on and the item is not marked as deduced', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const author = name();
+    await reference(ask, author, 'A', OWN_SITE);
+    const doc = await post(ask, 13, OWN_URI, `Генштаб повідомив: ${NIGHT} року уражено ${SITE}.`);
+    const act = await idOf(ask, [
+      {
+        ...item('ev', eventAct(NAME), doc, `${NIGHT} року уражено ${SITE}`, author),
+        published_on: '2024-01-01',
+      },
+    ]);
+    await check(ask, act);
+    return { state: await stateOf(ask, act), said: await faultWords(ask, act) };
+  });
+  expect(read.state).toMatchObject({ status: 'accepted', dissent: false });
+  expect(read.said.join(' ')).not.toContain('deduced');
+});
+
+test('a night with no year and no published_on stays contested', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const doc = await post(ask, 14, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+    const outcome = await proposed(ask, [yearlessItem(doc, name())]);
+    if (!outcome.ok) throw new Error(outcome.refusal);
+    return outcome.output;
+  });
+  expect(read).toMatchObject({
+    proposals: [{ disputed: true, unstated: ['attrs.occurred_on'] }],
+  });
+});
+
+test.each([
+  ['a day in the future', '2999-01-01', 'in the future'],
+  ['no day of the calendar', '2026-02-30', 'no day of the calendar'],
+])('published_on that is %s is refused', async (_why, day, words) => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const doc = await post(ask, 15, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+    return proposed(ask, [yearlessItem(doc, name(), { published_on: day })]);
+  });
+  expect(read).toMatchObject({ ok: false });
+  expect(JSON.stringify(read)).toContain(words);
+});
+
 test('two posts about one strike corroborate each other', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const [one, two] = [name(), name()];
