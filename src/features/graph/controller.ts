@@ -320,10 +320,9 @@ export function mountGraph(
     // graph cannot draw: an M4 relation has no edge here, so no click can reach it.
     enableEdgeEvents: true,
 
-    // The default edge hit box of Sigma is 1.7 and each edge has `size: 1`, so a relation was
-    // near unclickable. The number is the full thickness, and it was measured in the browser one
-    // pixel at a time. At 5 the band was 7px. At 10 the band is 10px, which is the rule.
-    minEdgeThickness: 10,
+    // Departure: at 10 the band was 10px, and on a corpus of three thousand entities the edges
+    // and their arrows covered the nodes. A relation is also reachable from its two nodes.
+    minEdgeThickness: 2,
 
     // The workspace carries `x`, `y` and `ratio`, and no angle. A rotation that the store
     // cannot carry would be lost at the reload, and the analyst would meet a picture that is not
