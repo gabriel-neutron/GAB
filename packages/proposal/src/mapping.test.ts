@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest';
 
-import { mappingDraft, mappingPayload, missingColumns, type MappingDraft } from './mapping.ts';
+import {
+  isLinkTable,
+  mappingDraft,
+  mappingPayload,
+  missingColumns,
+  type MappingDraft,
+} from './mapping.ts';
 
 const DRAFT: MappingDraft = {
   table: 'list.csv',
@@ -126,4 +132,62 @@ test('a mapping names its publisher and sets a constant attribute of the closed 
       ),
     ).success,
   ).toBe(false);
+});
+
+const LINKS = {
+  table: 'GEM-ownership.xlsx',
+  modality: 'asserts',
+  publisher: 'Global Energy Monitor',
+  rows: {
+    relation_type: 'owns',
+    src: {
+      entity_type: 'company',
+      name: 'Holder',
+      lookup: [{ key: 'gem_entity_id', column: 'Holder ID' }],
+    },
+    dst: { entity_type: 'company', lookup: [{ key: 'gem_entity_id', column: 'Subject ID' }] },
+    attrs: {
+      share_pct: { column: 'Share', cast: { type: 'number', scale: 4 } },
+      share_imputed: { column: 'Imputed', cast: { type: 'boolean' } },
+      source_url: { column: 'URL', cast: { type: 'text' } },
+    },
+  },
+  relations: [],
+};
+
+test('a relation table gives two lookups and the attributes of its relation, and no entity', () => {
+  const read = mappingDraft.parse(LINKS);
+  expect(isLinkTable(read.rows)).toBe(true);
+  expect(isLinkTable(DRAFT.rows)).toBe(false);
+  expect(missingColumns(read, ['Holder', 'Holder ID', 'Subject ID', 'Share'])).toStrictEqual([
+    'the column "Imputed" is not in the header. Use one of: Holder, Holder ID, Subject ID, Share',
+    'the column "URL" is not in the header. Use one of: Holder, Holder ID, Subject ID, Share',
+  ]);
+  // A relation table holds its one relation in its rows.
+  expect(mappingDraft.safeParse({ ...LINKS, relations: DRAFT.relations }).success).toBe(false);
+  expect(
+    mappingDraft.safeParse({ ...LINKS, rows: { ...LINKS.rows, label: 'Holder' } }).success,
+  ).toBe(false);
+  expect(
+    mappingDraft.safeParse({
+      ...LINKS,
+      rows: { ...LINKS.rows, src: { ...LINKS.rows.src, lookup: [] } },
+    }).success,
+  ).toBe(false);
+});
+
+test('a relation of an entity table takes attributes from its columns', () => {
+  const held = {
+    ...DRAFT,
+    relations: [
+      {
+        ...DRAFT.relations[0],
+        attrs: { share_pct: { column: 'Length', cast: { type: 'number', scale: 2 } } },
+      },
+    ],
+  };
+  expect(mappingDraft.safeParse(held).success).toBe(true);
+  expect(missingColumns(mappingDraft.parse(held), ['Name', 'IMO', 'Owner'])).toStrictEqual([
+    'the column "Length" is not in the header. Use one of: Name, IMO, Owner',
+  ]);
 });

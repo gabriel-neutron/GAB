@@ -541,6 +541,7 @@ test('a release writes the public entities, relations and claims, each row with 
     origin_label: MANUAL,
     licence: DERIVED,
     document_ids: SHIPS,
+    share: '',
   });
 
   // One row for each claim and each cited passage of a public document.
