@@ -295,6 +295,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           lines.push({ ...where, reason });
         };
         if (cell(relation.other.column) === '') continue;
+        // A relation is a unit of its own, so the doubt of a name match never reaches it. The row
+        // writes it only after the operator gives the entity an identifier.
+        if (found.kind === 'one' && found.key === 'label') {
+          note('relation not loaded: the row finds its entity by its name only');
+          continue;
+        }
         const end = await find(record, [relation.other]);
         if (end.kind === 'none') {
           note(NOT_IN_GRAPH);

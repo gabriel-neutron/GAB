@@ -46,8 +46,9 @@ export const dryJoin = async (db: Queryable, mappingId: string): Promise<string>
     const found = await find(record, mapping.rows.lookup);
     let fields: [string, string, string];
     if (found.kind === 'one') {
-      counts[found.key === 'label' ? 'label' : 'identifier'] += 1;
-      fields = [found.key, found.id, found.key === 'label' ? 'finds by name only' : 'finds'];
+      const byName = found.key === 'label';
+      counts[byName ? 'label' : 'identifier'] += 1;
+      fields = [found.key, found.id, byName ? 'finds by name only' : 'finds'];
     } else if (found.kind === 'many') {
       counts.many += 1;
       fields = [found.key, '', `finds ${String(found.count)} entities`];

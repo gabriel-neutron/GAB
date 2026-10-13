@@ -830,12 +830,12 @@ const ENTITY_SHEET = 'Entities';
 const ENTITY_SET = 'xlsx-1|sheet=Entities|where=Country=Russia';
 const ENTITY_BOOK = workbookOf({
   [ENTITY_SHEET]: [
-    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI'],
-    ['E100001', 'Rosneft', 'Russia', 105012345, 'not found'],
-    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found'],
-    ['E100003', 'Novatek', 'Russia', 6316031581, '2138008R6GCRVBDFA581'],
-    ['E100004', 'Arctic New Co', 'Russia', '', ''],
-    ['E100005', 'Oslo Co', 'Norway', 912345678, ''],
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E100001', 'Rosneft', 'Russia', 105012345, 'not found', ''],
+    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found', 'Novatek'],
+    ['E100003', 'Novatek', 'Russia', 6316031581, '2138008R6GCRVBDFA581', ''],
+    ['E100004', 'Arctic New Co', 'Russia', '', '', 'Novatek'],
+    ['E100005', 'Oslo Co', 'Norway', 912345678, '', ''],
   ],
 });
 const ENTITY_DRAFT = {
@@ -858,7 +858,7 @@ const ENTITY_DRAFT = {
       lei: { column: 'LEI', cast: { type: 'identifier' } },
     },
   },
-  relations: [],
+  relations: [{ type: 'owns', row_is: 'dst', other: { key: 'label', column: 'Parent' } }],
 };
 
 const recorded = async (
@@ -1028,5 +1028,15 @@ test('a GEM company finds the record company by its tax number, and a name match
     expect(report).toMatch(/read 4; loaded 4; excluded 0\r\n/u);
     expect(report).toContain('gives no lei: ""not found"" is not a LEI in its legal form');
     expect(report).not.toContain('is a tax number, and not a registration number');
+    // The entity of a name match gets no relation, and a new entity gets its owner.
+    expect(report).toContain('relation not loaded: the row finds its entity by its name only');
+    expect(
+      await held.ask(
+        `SELECT n.payload->>'label' AS owned FROM public.proposals p
+           JOIN public.proposals n ON n.id = (p.payload->>'dst_id')::uuid
+          WHERE p.op = 'create_relation' AND p.payload->>'src_id' = $1`,
+        [novatek],
+      ),
+    ).toStrictEqual([{ owned: 'Arctic New Co' }]);
   });
 });

@@ -40,7 +40,7 @@ export const cast = z.discriminatedUnion('type', [
 
 /** The keys that the Russian register cast fills. One column can fill the two keys, and each key
  * keeps only the numbers of its own length. */
-export const RU_REGISTER_KEYS = ['tax_id', 'registration_number'] as const;
+const RU_REGISTER_KEYS = ['tax_id', 'registration_number'] as const;
 
 export type Cast = z.infer<typeof cast>;
 
