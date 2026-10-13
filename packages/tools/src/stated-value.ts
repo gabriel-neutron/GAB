@@ -300,14 +300,16 @@ const jurisdictionCode = (value: Scalar): string | null => {
 /** The act with each registration jurisdiction that has a known spelling written as its ISO 3166-1
  * code, so "Russia" and "Russian Federation" become "RU". The facts and the sources do not change,
  * only the spelling of the value. A jurisdiction with no known spelling stays as it is. */
-export const withCodedJurisdiction = <Act extends WriteRequest>(act: Act): Act => {
+export const withCodedJurisdiction = <Act extends { readonly op: string }>(act: Act): Act => {
   if (act.op !== 'create_entity' && act.op !== 'update_attrs') return act;
-  const held = act.attrs?.[JURISDICTION_KEY];
-  if (held === undefined) return act;
+  const attrs = (act as { readonly attrs?: Readonly<Record<string, { readonly v: unknown }>> })
+    .attrs;
+  const held = attrs?.[JURISDICTION_KEY];
+  if (attrs === undefined || held === undefined) return act;
   const coded = (one: unknown): unknown =>
     typeof one === 'string' ? (jurisdictionCode(one) ?? one) : one;
   const v = Array.isArray(held.v) ? held.v.map(coded) : coded(held.v);
-  return { ...act, attrs: { ...act.attrs, [JURISDICTION_KEY]: { ...held, v } } };
+  return { ...act, attrs: { ...attrs, [JURISDICTION_KEY]: { ...held, v } } };
 };
 
 const statesJurisdiction = (code: string, passage: string): boolean =>

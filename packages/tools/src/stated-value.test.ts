@@ -400,7 +400,9 @@ test.each(['Russia', 'Russian Federation', 'RU'])(
   'the spelling %j is written as RU',
   (spelling) => {
     const coded = withCodedJurisdiction(companyIn(spelling));
-    expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+    expect(
+      coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction'],
+    ).toStrictEqual({
       v: 'RU',
     });
   },
@@ -408,7 +410,7 @@ test.each(['Russia', 'Russian Federation', 'RU'])(
 
 test('an unknown jurisdiction keeps its spelling', () => {
   const coded = withCodedJurisdiction(companyIn('Narnia'));
-  expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
     v: 'Narnia',
   });
 });
@@ -422,7 +424,7 @@ test('a list of jurisdictions is coded one by one, and a Russian source states R
       attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia'] } },
     }),
   );
-  expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
     v: ['RU', 'Narnia'],
   });
   expect(
