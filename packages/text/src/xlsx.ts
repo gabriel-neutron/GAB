@@ -15,8 +15,8 @@ export const TABLE_READER = 'xlsx-1';
 
 /** A workbook that code cannot read as tables. */
 export class WorkbookFault extends Error {
-  constructor(reason: string) {
-    super(reason);
+  constructor(reason: string, options?: ErrorOptions) {
+    super(reason, options);
     this.name = 'WorkbookFault';
   }
 }
@@ -27,6 +27,21 @@ const LOCAL_ENTRY = 0x04034b50;
 const STORED = 0;
 const DEFLATED = 8;
 const LOOKBACK = 22 + 0xffff;
+
+/** The most bytes that one part of a workbook may inflate to. A small archive can hold a part of
+ * many gigabytes (a zip bomb), and the reader holds one part in memory. */
+export const MAX_PART_BYTES = 128 * 1024 * 1024;
+
+const inflated = (raw: Uint8Array, name: string): Uint8Array => {
+  try {
+    return inflateRawSync(raw, { maxOutputLength: MAX_PART_BYTES });
+  } catch (fault) {
+    throw new WorkbookFault(
+      `the part ${name} of the zip archive inflates to more than ${String(MAX_PART_BYTES)} bytes, or is broken`,
+      { cause: fault },
+    );
+  }
+};
 
 // shortcut: a zip64 archive (4 GiB or 65,535 parts) is refused, upgrade when a file needs it.
 const parts = (bytes: Uint8Array): Map<string, () => string> => {
@@ -58,7 +73,7 @@ const parts = (bytes: Uint8Array): Map<string, () => string> => {
       const from = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
       const raw = bytes.subarray(from, from + size);
       if (method === STORED) return new TextDecoder().decode(raw);
-      if (method === DEFLATED) return new TextDecoder().decode(inflateRawSync(raw));
+      if (method === DEFLATED) return new TextDecoder().decode(inflated(raw, name));
       throw new WorkbookFault(`the part ${name} uses the zip method ${String(method)}`);
     });
   }

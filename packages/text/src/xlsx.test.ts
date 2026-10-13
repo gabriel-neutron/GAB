@@ -1,7 +1,14 @@
 import { expect, test } from 'vitest';
 
 import { extractText, mimeOfFileName } from './extract.ts';
-import { sheetCsv, sheetNames, textSetName, TABLE_READER, WorkbookFault } from './xlsx.ts';
+import {
+  MAX_PART_BYTES,
+  sheetCsv,
+  sheetNames,
+  textSetName,
+  TABLE_READER,
+  WorkbookFault,
+} from './xlsx.ts';
 import { workbookOf } from './xlsx-fixture.ts';
 
 // A workbook in the shape of a tracker: a sheet of notes, and a sheet of fields.
@@ -75,4 +82,10 @@ test('the text of a workbook is one CSV page for each sheet', async () => {
   expect(pages).toHaveLength(2);
   expect(pages[0]).toBe('A note\r\nDistributed under a licence\r\n');
   expect(pages[1]).toContain('Gamma,Russia,55,37.5,');
+});
+
+test('a part that inflates past the cap is refused', () => {
+  const bomb = workbookOf({ Big: [['Name'], ['a'.repeat(MAX_PART_BYTES + 1)]] });
+
+  expect(() => sheetCsv(bomb, 'Big')).toThrow(/inflates to more than/u);
 });

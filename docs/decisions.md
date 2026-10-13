@@ -237,12 +237,15 @@ order to each unit, and the first rule that matches decides:
    The rule rejects it.
 2. **Doubt.** Two readings disagree, two values differ, a duplicate, an unknown type, a claim that
    the operator rejected before, a check by the second model that disputes a fact, a denial by the
-   subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
-   (S6). The unit goes to the operator, with the reason.
-3. **Reference dataset.** A row of a promoted mapping from a reference dataset is accepted. The
-   operator approves one edition of one named dataset in one act. The origin of the decision names
-   the dataset and says that the operator approved it. GAB did not check the fact, and the public
-   text says so (operator decision, 13 October 2026).
+   subject of a fact, an adverse claim of a type on a fixed list about a named person or company
+   (S6), or a row of a reference dataset whose value disagrees with a value of the record. A row
+   that matches an entity by its name only writes nothing, and a different geometry on a found
+   entity is a doubt. The unit goes to the operator, with the reason.
+3. **Reference dataset.** A row of a promoted mapping from a reference dataset is accepted, with
+   no second source and no check by a second model. The operator approves one edition of one named
+   dataset in one act. The origin of the decision names the dataset and says that the operator
+   approved it. GAB did not check the fact, and the public text says so (operator decision,
+   13 October 2026).
 4. **Strong sources.** A model of a second family found each fact in its passage, and each fact
    has either one source A on a site of its author, or two independent sources: one B or better
    and one C or better. A copy of a record A on another site is one of the two. Two sources are independent only when they have different authors, different
@@ -260,9 +263,12 @@ The threshold starts strict. The operator relaxes it later, from real data. No m
 state of a unit: a model gives a letter (S1), and code applies the rules. A contradiction from an
 author F is not a doubt: the unit waits.
 **Why.** A queue of every claim makes one person the bottleneck and cancels the gain. A rule on
-the sources is simple, and anyone can audit it.
+the sources is simple, and anyone can audit it. A reference dataset publishes open, sourced data,
+so one approval of the operator replaces a decision for each row.
 **Cost.** At the start few units pass, because most facts have one source. Two models can share a
-blind spot. The public text says that the accuracy of the rules is not measured.
+blind spot. The public text says that the accuracy of the rules is not measured. A fact of a
+reference dataset is as good as the dataset: GAB did not check it, and an error of the dataset
+enters the record with the origin of the dataset.
 
 ### S4 — The origin of each decision is published
 

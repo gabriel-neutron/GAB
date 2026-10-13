@@ -13,6 +13,7 @@ import { makeMapper } from '../mapper/mapper.ts';
 import type { MapperConfig } from '../reader-config.ts';
 import { completionOf, depsOf, routerOf, READER, type StubRouter } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
+import { approveReferenceDataset, parseApproval } from '../reference-dataset-command.ts';
 import { makeTextSet } from '../text-set.ts';
 import { makeLoader } from './loader.ts';
 
@@ -496,5 +497,90 @@ test('a row whose value disagrees with the record is a doubt, and an agreeing ro
       { kind: null, status: 'operating' },
       { kind: 'field', status: 'operating' },
     ]);
+  });
+});
+
+test('a forged act with the model call of the mapping is not accepted on a document with no load', async () => {
+  await inTransaction(async (held) => {
+    await mappedWorkbook(held);
+    const call = await held.idOf(
+      "SELECT model_call_id::text AS id FROM public.proposals WHERE op = 'map_document'",
+    );
+    // A second edition is approved, but no load of the mapping ever ran on it.
+    const other = 'doc_gem_forged';
+    const text = 'Unit name\r\nZeta field\r\n';
+    await held.ask(PUT, [
+      other,
+      `raw/${other}.xlsx`,
+      'https://tracker.test/other.xlsx',
+      sha256(text),
+      XLSX_MIME,
+    ]);
+    await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
+      other,
+      JSON.stringify([text]),
+      'xlsx-1|sheet=Other',
+    ]);
+    await held.asApp(() =>
+      held.ask('SELECT public.approve_reference_dataset($1, $2)', [other, 'GEM']),
+    );
+
+    const item = {
+      id: crypto.randomUUID(),
+      op: 'create_entity',
+      payload: { type: 'facility', label: 'Zeta field' },
+      src: [other],
+      names: [],
+      dissent: false,
+      model_call_id: call,
+      originator: PUBLISHER,
+      modality: 'asserts',
+      citations: [
+        { document: other, text_extractor: 'xlsx-1|sheet=Other', page: 1, start: 11, end: 21 },
+      ],
+    };
+    await held.asAgent(() =>
+      held.ask('SELECT * FROM public.propose_batch($1::jsonb)', [JSON.stringify([item])]),
+    );
+
+    expect(
+      await held.ask('SELECT status FROM public.proposals WHERE id = $1', [item.id]),
+    ).toStrictEqual([{ status: 'pending' }]);
+  });
+});
+
+test('the approve command reads its words, and approves through the door of the operator', async () => {
+  expect(parseApproval(['approve', BOOK, '--name', ' GEM '])).toStrictEqual({
+    document: BOOK,
+    name: 'GEM',
+  });
+  expect(() => parseApproval(['approve', BOOK])).toThrow(/--name/u);
+  expect(() => parseApproval(['load', BOOK, '--name', 'GEM'])).toThrow(/approve/u);
+
+  await inTransaction(async (held) => {
+    await storeWorkbook(held);
+    const db = asQueryable(held);
+    expect(await held.asApp(() => approveReferenceDataset(db, BOOK, 'GEM'))).toBe(true);
+    expect(await held.asApp(() => approveReferenceDataset(db, BOOK, 'GEM'))).toBe(false);
+    await expect(held.asAgent(() => approveReferenceDataset(db, BOOK, 'GEM'))).rejects.toThrow(
+      /permission denied/u,
+    );
+  });
+});
+
+test('the mapper refuses a text set that is no table of a workbook', async () => {
+  await inTransaction(async (held) => {
+    await storeWorkbook(held);
+    const job = await held.asApp(() =>
+      held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [
+        BOOK,
+        'zz-later-set',
+      ]),
+    );
+    await held.ask(OLDEST, [job]);
+    const router = noModel();
+
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
+    expect(router.chats()).toBe(0);
   });
 });

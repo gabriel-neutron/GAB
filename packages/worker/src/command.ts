@@ -11,6 +11,8 @@ const COMMANDS = {
   'nato-coverage': async () =>
     (await import('./release/nato-coverage-command.ts')).natoCoverageCommand,
   reconcile: async () => (await import('./reconcile-command.ts')).reconcileCommand,
+  'reference-dataset': async () =>
+    (await import('./reference-dataset-command.ts')).referenceDatasetCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
   release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
