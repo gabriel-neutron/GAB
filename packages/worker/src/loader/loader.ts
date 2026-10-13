@@ -18,10 +18,12 @@ import { z } from 'zod';
 
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import type { Queryable } from '../queryable.ts';
-import { makeFinder } from './join.ts';
+import { findByIdentifier, makeFinder } from './join.ts';
 import {
   castAll,
   compareLink,
+  splitOwners,
+  type Attrs,
   daysOf,
   makeEndFinder,
   resolveEnd,
@@ -223,6 +225,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     const { rows } = mapping;
     const find = makeFinder(context.db, isLinkTable(rows) ? {} : rows.attrs, table.header);
     const findEnd = makeEndFinder(context.db, table.header);
+    // The owners that this load created, by type and identifier. A second row with the same owner
+    // finds it here, because the first act may still wait for the operator.
+    const createdOwners = new Map<string, string>();
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -496,20 +501,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       }
 
       for (const relation of mapping.relations) {
-        if (cell(relation.other.column) === '') continue;
+        const otherText = cell(relation.other.column);
+        if (otherText === '') continue;
         // A relation is a unit of its own, so the doubt of a name match never reaches it. The row
         // writes it only after the operator gives the entity an identifier.
         if (found.kind === 'one' && found.key === 'label') {
           note('relation not loaded: the row finds its entity by its name only');
-          continue;
-        }
-        const end = await find(record, [relation.other], rows.entity_type);
-        if (end.kind === 'none') {
-          note(NOT_IN_GRAPH);
-          continue;
-        }
-        if (end.kind === 'many') {
-          note(`relation not loaded: the lookup by ${end.key} finds ${String(end.count)} entities`);
           continue;
         }
         const dated = daysOf(at.cell, relation.valid_from, relation.valid_to);
@@ -523,45 +520,100 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           continue;
         }
         const { days } = dated;
-        const linkAttrs = linkCast.attrs;
-        const [srcId, dstId] = relation.row_is === 'src' ? [rowId, end.id] : [end.id, rowId];
-        const linked =
-          found.kind === 'one'
-            ? await linkedAttrs(context.db, relation.type, srcId, dstId, days)
-            : null;
-        if (linked !== null) {
-          // The record holds the relation. A value with another value is reported, and a value
-          // that the relation lacks is proposed as an addition.
-          const { conflicts, additions } = compareLink(linked.attrs, linkAttrs, document);
-          if (conflicts.length > 0)
+        const farType = relation.other_type ?? rows.entity_type;
+        // The far ends of this relation: one entity for a plain cell, and one for each owner of a
+        // cell that splits.
+        const ends: { id: string; extra: Attrs }[] = [];
+        if (relation.split === undefined) {
+          const end = await find(record, [relation.other], farType);
+          if (end.kind === 'none') {
+            note(NOT_IN_GRAPH);
+            continue;
+          }
+          if (end.kind === 'many') {
             note(
-              `relation not loaded: the record holds it with other values: ${conflicts.join('; ')}`,
+              `relation not loaded: the lookup by ${end.key} finds ${String(end.count)} entities`,
             );
-          else if (Object.keys(additions).length > 0)
-            requests.push({
-              request: {
-                op: 'update_attrs',
-                targetKind: 'relation',
-                targetId: linked.id,
-                attrs: additions,
-              },
-              id: randomUUID(),
-              foundBy: null,
-            });
-          continue;
+            continue;
+          }
+          ends.push({ id: end.id, extra: {} });
+        } else {
+          const split = splitOwners(otherText, relation.split.separator);
+          if ('refused' in split) {
+            note(`relation not loaded: ${split.refused}`);
+            continue;
+          }
+          for (const owner of split.owners) {
+            const made = createdOwners.get(`${farType}:${owner.gemId}`);
+            const owned =
+              made === undefined
+                ? await findByIdentifier(context.db, 'gem_entity_id', owner.gemId)
+                : ({ kind: 'one', id: made, key: 'gem_entity_id' } as const);
+            if (owned.kind === 'many') {
+              note(`relation not loaded: the identifier ${owner.gemId} finds more than one entity`);
+              continue;
+            }
+            let ownerId: string;
+            if (owned.kind === 'one') ownerId = owned.id;
+            else {
+              // An owner identifier that the record lacks creates an entity with that identifier.
+              ownerId = randomUUID();
+              createdOwners.set(`${farType}:${owner.gemId}`, ownerId);
+              requests.push({
+                request: {
+                  op: 'create_entity',
+                  type: farType,
+                  label: owner.name,
+                  attrs: { gem_entity_id: { v: owner.gemId } },
+                },
+                id: ownerId,
+                foundBy: null,
+              });
+            }
+            ends.push({ id: ownerId, extra: { share_pct: { v: owner.share } } });
+          }
         }
-        requests.push({
-          request: {
-            op: 'create_relation',
-            type: relation.type,
-            srcId,
-            dstId,
-            ...days,
-            ...(Object.keys(linkAttrs).length > 0 ? { attrs: linkAttrs } : {}),
-          },
-          id: randomUUID(),
-          foundBy: null,
-        });
+        for (const end of ends) {
+          const linkAttrs: Attrs = { ...linkCast.attrs, ...end.extra };
+          const [srcId, dstId] = relation.row_is === 'src' ? [rowId, end.id] : [end.id, rowId];
+          const linked =
+            found.kind === 'one'
+              ? await linkedAttrs(context.db, relation.type, srcId, dstId, days)
+              : null;
+          if (linked !== null) {
+            // The record holds the relation. A value with another value is reported, and a value
+            // that the relation lacks is proposed as an addition.
+            const { conflicts, additions } = compareLink(linked.attrs, linkAttrs, document);
+            if (conflicts.length > 0)
+              note(
+                `relation not loaded: the record holds it with other values: ${conflicts.join('; ')}`,
+              );
+            else if (Object.keys(additions).length > 0)
+              requests.push({
+                request: {
+                  op: 'update_attrs',
+                  targetKind: 'relation',
+                  targetId: linked.id,
+                  attrs: additions,
+                },
+                id: randomUUID(),
+                foundBy: null,
+              });
+            continue;
+          }
+          requests.push({
+            request: {
+              op: 'create_relation',
+              type: relation.type,
+              srcId,
+              dstId,
+              ...days,
+              ...(Object.keys(linkAttrs).length > 0 ? { attrs: linkAttrs } : {}),
+            },
+            id: randomUUID(),
+            foundBy: null,
+          });
+        }
       }
 
       const items = [];
