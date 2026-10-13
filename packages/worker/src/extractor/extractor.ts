@@ -79,7 +79,8 @@ const vocabularyOf = async (session: Session): Promise<Vocabulary> => {
 
 // The answer of the model is the batch that the propose tool takes, so the research AI and the
 // extractor give one shape. An empty list is a chunk that states no claim.
-const chunkAnswer = z.strictObject({ items: z.array(proposeItem) });
+// The model never gives published_on: a model could invent the day.
+const chunkAnswer = z.strictObject({ items: z.array(proposeItem.omit({ published_on: true })) });
 
 // The door that keeps the verdict of the checker on one act. The rules read it, so an act with a
 // passed check can be accepted with no step by hand.

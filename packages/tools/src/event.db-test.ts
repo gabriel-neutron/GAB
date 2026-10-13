@@ -229,7 +229,7 @@ test('a night with no year takes the year of published_on, and the card says so'
       yearlessItem(doc, author, { published_on: '2026-05-15' }),
     ]);
     if (!outcome.ok) throw new Error(outcome.refusal);
-    const act = await idOf(ask, [yearlessItem(doc, author, { published_on: '2026-05-15' })]);
+    const act = ids.parse(outcome.output).proposals[0]?.proposalId ?? '';
     await check(ask, act);
     const [stored] = z
       .array(z.object({ days: z.unknown() }))
@@ -284,6 +284,35 @@ test('a year in the excerpt wins over published_on and the item is not marked as
   });
   expect(read.state).toMatchObject({ status: 'accepted', dissent: false });
   expect(read.said.join(' ')).not.toContain('deduced');
+});
+
+test('the published_on of an item beats the one of the call', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const doc = await post(ask, 5, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+    return as(ask, 'gabriel_research', () =>
+      callTool(proposeOf(null), sessionOf(ask), {
+        items: [yearlessItem(doc, name(), { published_on: '2025-05-15' })],
+        published_on: '2026-05-15',
+      }),
+    );
+  });
+  expect(read).toMatchObject({
+    ok: true,
+    output: { proposals: [{ unstated: ['attrs.occurred_on'] }] },
+  });
+});
+
+const daysFromToday = (days: number): string =>
+  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+test('published_on may be one day after today in UTC, and no later', async () => {
+  const outcomeOf = (day: string) =>
+    rolledBack('superuser', async (ask) => {
+      const doc = await post(ask, 6, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);
+      return proposed(ask, [yearlessItem(doc, name(), { published_on: day })]);
+    });
+  expect(await outcomeOf(daysFromToday(1))).toMatchObject({ ok: true });
+  expect(await outcomeOf(daysFromToday(2))).toMatchObject({ ok: false });
 });
 
 test('a night with no year and no published_on stays contested', async () => {
