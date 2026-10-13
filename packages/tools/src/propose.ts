@@ -11,6 +11,7 @@ import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
+  daysFromPublication,
   namesProvision,
   statedBounds,
   unstatedValues,
@@ -52,6 +53,27 @@ const ATTRIBUTES =
 const BOUND =
   'only for a type whose takesInterval is true in list_vocabulary, and only when an excerpt ' +
   'states the day; write it as 2026-01-31';
+
+const PUBLISHED_ON =
+  'the day when the document was published, written as 2026-05-15, and at most one day after ' +
+  'today in UTC, because an outlet at UTC+2 or UTC+3 publishes before UTC does. Give it when ' +
+  'an excerpt writes a date with no year, such as "у ніч на 15 травня": the year is then the ' +
+  'latest year that puts the day on or before this day. A year that the excerpt writes always ' +
+  'wins. With no published_on, a date with no year is not stated, and the item is disputed. An ' +
+  'item that takes a year from it is disputed too, and the review card says so: the operator ' +
+  'decides it. An item value beats the value of the call';
+
+const publishedOn = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a day is written as 2026-05-15')
+  .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), {
+    message: 'published_on is no day of the calendar',
+  })
+  .describe(PUBLISHED_ON);
+
+// The latest publication day that a caller can give: tomorrow in UTC.
+const latestPublishedOn = (): string =>
+  new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
 const ENTITY_TYPE = 'the key of an entity type; list_vocabulary gives each one';
 
@@ -139,6 +161,7 @@ const evidence = z.strictObject({
 export const proposeItem = z.strictObject({
   ref: localRef,
   act: batchAct,
+  published_on: publishedOn.optional(),
   originator: z
     .string()
     .trim()
@@ -433,6 +456,7 @@ const disputeReason = (
   unstated: readonly UnstatedValue[],
   lostEnd: string | null,
   lostProvision: boolean,
+  deduced: string | null,
   verdict: CheckVerdict | 'unchecked' | undefined,
   names: ReadonlyMap<string, string>,
 ): string | null => {
@@ -447,6 +471,7 @@ const disputeReason = (
     );
   if (lostEnd !== null) parts.push(`the end date ${lostEnd} is in no excerpt`);
   if (lostProvision) parts.push('no excerpt names the provision that states the measure');
+  if (deduced !== null) parts.push(`year deduced from the publication of ${deduced}`);
   if (verdict === undefined) parts.push('the checker did not answer');
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
@@ -472,6 +497,8 @@ interface Prepared {
   readonly dropped: BoundName[];
   readonly lostEnd: string | null;
   readonly lostProvision: boolean;
+  /** The publication day, when the year of a day of the act comes from it. */
+  readonly deduced: string | null;
   readonly transcribed: boolean;
   readonly id: string | undefined;
 }
@@ -522,8 +549,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
       'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
-      'already holds.',
-    input: z.strictObject({ items: proposeItems }),
+      'already holds. Give published_on for an excerpt that writes a date with no year.',
+    input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
       // Why no model checked the batch. The items then wait, and the same batch can be sent again.
@@ -552,10 +579,15 @@ export const proposeOf = (modelCallId: string | null) =>
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        const published = given.published_on ?? input.published_on;
+        if (published !== undefined && published > latestPublishedOn())
+          refuse(given.ref, `published_on ${published} is in the future`);
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
-        const { act: request, dropped } = statedBounds(resolved, passages);
+        const { act: request, dropped } = statedBounds(resolved, passages, {
+          publishedOn: published,
+        });
         // An end that is not proposed makes an ended relation look current, and an end that is
         // the whole act has no value that a passage states. The research AI can cite the passage
         // that states it, so its batch is refused. An agent cannot, so its item is disputed and
@@ -587,7 +619,11 @@ export const proposeOf = (modelCallId: string | null) =>
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(request, passages);
+        const unstated = unstatedValues(request, passages, { publishedOn: published });
+        const deduced =
+          published !== undefined && daysFromPublication(request, passages, published).length > 0
+            ? published
+            : null;
         const transcribed = cited.some((one) => one.span === null);
         prepared.push({
           given,
@@ -599,6 +635,7 @@ export const proposeOf = (modelCallId: string | null) =>
           dropped: resolved.op === 'update_relation' ? [] : dropped,
           lostEnd,
           lostProvision,
+          deduced,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -649,6 +686,7 @@ export const proposeOf = (modelCallId: string | null) =>
           one.unstated,
           one.lostEnd,
           one.lostProvision,
+          one.deduced,
           verdictOf(one.given.ref),
           names,
         );
