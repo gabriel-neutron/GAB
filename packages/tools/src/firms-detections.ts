@@ -18,6 +18,12 @@ const MAX_PERIOD_DAYS = 366;
 const RESERVE = 100;
 const DAY_MS = 86_400_000;
 
+/** A refusal that a wait of ten minutes cures: the map key is near its rate limit. */
+export class RateLimitRefusal extends ToolRefusal {}
+
+/** A refusal because no FIRMS source holds a day of the period yet. A later run may succeed. */
+export class NoSourceRefusal extends ToolRefusal {}
+
 const SOURCE_ID = /^(VIIRS_[A-Z0-9]+)_(SP|NRT)$/u;
 
 // Assumption: the status answer of a map key is JSON with these two numbers. Not checked against
@@ -60,6 +66,7 @@ const get = async (reach: Reach | undefined, path: string, key: string): Promise
     if (fault instanceof UpstreamFault) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
     throw fault;
   }
+  if (answer.status === 429) throw new RateLimitRefusal(`${REGISTER} answered 429`);
   if (answer.status < 200 || answer.status > 299)
     throw new ToolRefusal(`${REGISTER} answered ${String(answer.status)}`);
   return answer.body;
@@ -179,9 +186,16 @@ export const firmsDetections = defineTool({
     const sources = sourcesOf(availability);
     if (sources.length === 0 && availability.trim() !== '')
       throw new ToolRefusal(`${REGISTER}: availability not understood`);
-    const { windows, uncovered } = windowsOf(sources, input.from, input.to);
+    // The period ends at the last day that a source holds, so the stored address never claims a
+    // day that FIRMS has not published. A later call reads the rest.
+    const last = sources
+      .map((source) => source.max)
+      .sort()
+      .at(-1);
+    const until = last !== undefined && last < input.to ? last : input.to;
+    const { windows, uncovered } = windowsOf(sources, input.from, until);
     if (windows.length === 0)
-      throw new ToolRefusal(
+      throw new NoSourceRefusal(
         'no VIIRS source of FIRMS holds a day of this period; the sources hold ' +
           sources.map((source) => `${source.id} ${source.min} to ${source.max}`).join(', '),
       );
@@ -206,7 +220,7 @@ export const firmsDetections = defineTool({
     const before = await status();
     const left = before.limit - before.used;
     if (left < windows.length + RESERVE)
-      throw new ToolRefusal(
+      throw new RateLimitRefusal(
         `${String(windows.length)} calls are needed and the map key has ${String(left)} ` +
           'transactions left in this interval: try again in ten minutes, or read a shorter period',
       );
@@ -217,7 +231,7 @@ export const firmsDetections = defineTool({
     // A stop in the middle of the run stores nothing: a partial answer would look whole.
     for (const window of windows) {
       if (after.limit - after.used < RESERVE)
-        throw new ToolRefusal(
+        throw new RateLimitRefusal(
           'stopped before the rate limit of the map key, and nothing is stored: try again in ten minutes',
         );
       const csv = await get(
@@ -233,14 +247,14 @@ export const firmsDetections = defineTool({
 
     // The stored address is synthetic: it names the box and the period, not a call of FIRMS, and
     // it has no key segment.
-    const body = JSON.stringify({ box, from: input.from, to: input.to, windows: answers });
+    const body = JSON.stringify({ box, from: input.from, to: until, windows: answers });
     const stored = await storeRegister(
       session,
       reach,
       {
-        url: `${BASE}/api/area/csv/${box}/${input.from}/${input.to}`,
+        url: `${BASE}/api/area/csv/${box}/${input.from}/${until}`,
         register: REGISTER,
-        title: `NASA FIRMS VIIRS detections in the box ${box} from ${input.from} to ${input.to}`,
+        title: `NASA FIRMS VIIRS detections in the box ${box} from ${input.from} to ${until}`,
       },
       { body, json: null },
     );
