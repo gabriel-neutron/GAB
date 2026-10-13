@@ -1,9 +1,4 @@
-import {
-  CLAIMED_ATTACK,
-  EVENT_DAYS,
-  EVENT_KIND,
-  EVENT_PRECISION,
-} from '@gab/tools/event-rules';
+import { CLAIMED_ATTACK, EVENT_DAYS, EVENT_KIND, EVENT_PRECISION } from '@gab/tools/event-rules';
 
 import type { SiteClaim, SitePassage, SiteRelease, SiteSource } from './site-release.ts';
 import { elementsOf } from './vessel-timeline.ts';
