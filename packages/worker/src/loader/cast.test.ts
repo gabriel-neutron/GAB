@@ -114,7 +114,15 @@ test('the lookup tries only the keys that the mapping names', () => {
 });
 
 test('the report names the load and its counts, then gives one CSV line for each row, in row order', () => {
-  const totals = { document: 'doc_a', mapping: 'm1', job: 'j1', read: 3, loaded: 1, excluded: 2 };
+  const totals = {
+    document: 'doc_a',
+    mapping: 'm1',
+    job: 'j1',
+    read: 3,
+    loaded: 1,
+    excluded: 2,
+    dropped: 0,
+  };
   const report = reportOf(totals, [
     { row: 3, page: 1, start: 30, end: 40, reason: 'the cell "a, b" is not a number' },
     {
@@ -126,10 +134,33 @@ test('the report names the load and its counts, then gives one CSV line for each
     },
   ]);
   expect(report).toBe(
-    '# document doc_a; mapping m1; job j1; read 3; loaded 1; excluded 2\r\n' +
+    '# document doc_a; mapping m1; job j1; read 3; loaded 1; excluded 2; dropped 0\r\n' +
       'row,page,start,end,reason\r\n' +
       '1,1,5,12,relation not loaded: the other end is not in the record\r\n' +
       '3,1,30,40,"the cell ""a, b"" is not a number"\r\n',
   );
   expect(reportOf({ ...totals, job: 'j2' }, [])).not.toBe(reportOf(totals, []));
+});
+
+test('a dropped link has no row, and its line comes after the lines of the rows', () => {
+  const totals = {
+    document: 'doc_b',
+    mapping: 'm1',
+    job: 'j1',
+    read: 1,
+    loaded: 1,
+    excluded: 0,
+    dropped: 1,
+  };
+  expect(
+    reportOf(totals, [
+      { row: null, page: null, start: null, end: null, reason: 'the edition no longer gives r1' },
+      { row: 1, page: 1, start: 5, end: 12, reason: 'a note' },
+    ]),
+  ).toBe(
+    '# document doc_b; mapping m1; job j1; read 1; loaded 1; excluded 0; dropped 1\r\n' +
+      'row,page,start,end,reason\r\n' +
+      '1,1,5,12,a note\r\n' +
+      ',,,,the edition no longer gives r1\r\n',
+  );
 });

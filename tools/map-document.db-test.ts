@@ -351,6 +351,52 @@ for (const [name, document, sig, accepted] of NO_REUSE)
     expect(found).toStrictEqual([{ id: null }]);
   });
 
+/** The map_structured job of a document that reads one named text set, claimed by gabriel_agent. */
+const runningSetJob = async (ask: Ask, document: string, set: string): Promise<string> => {
+  await ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
+    document,
+    JSON.stringify(['a,b\r\n1,2\r\n']),
+    set,
+  ]);
+  const job = await idOf(ask, "SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [
+    document,
+    set,
+  ]);
+  await ask(OLDEST, [job]);
+  await asRole(ask, 'gabriel_agent', () => ask('SELECT * FROM public.claim_job()'));
+  return job;
+};
+
+const MAPPED_SET = 'xlsx-1|sheet=Fields|where=Country=Russia';
+
+const SET_REUSE: readonly (readonly [string, string, boolean])[] = [
+  ['the same sheet and filter', MAPPED_SET, true],
+  [
+    'the same sheet and filter under a newer reader',
+    'xlsx-2|sheet=Fields|where=Country=Russia',
+    true,
+  ],
+  ['another filter of the same sheet', 'xlsx-1|sheet=Fields|where=Country=Norway', false],
+  ['another sheet with the same filter', 'xlsx-1|sheet=Owners|where=Country=Russia', false],
+  ['the newest set of a file', '', false],
+];
+
+for (const [name, set, reused] of SET_REUSE)
+  test(`enqueue_mapped_load ${reused ? 'reuses' : 'does not reuse'} a mapping for ${name}`, async () => {
+    const found = await rolledBack('superuser', async (ask) => {
+      await seedDocuments(ask);
+      const map = await runningSetJob(ask, LIST, MAPPED_SET);
+      const mapping = await propose(ask, PAYLOAD, LIST, map);
+      await fromAnEarlierTransaction(ask, mapping);
+      await promote(ask, mapping);
+      if (set === '') await runningMapJob(ask, SECOND);
+      else await runningSetJob(ask, SECOND, set);
+      const rows = await asRole(ask, 'gabriel_agent', () => ask(ENQUEUE, [SECOND, SIG]));
+      return rows.map((row) => z.object({ id: z.uuid().nullable() }).parse(row).id !== null);
+    });
+    expect(found).toStrictEqual([reused]);
+  });
+
 const REFUSED_REUSE: readonly (readonly [string, string, RegExp])[] = [
   ['a header signature that is not a digest', 'abc', /64 hexadecimal characters/u],
   ['a header signature that is absent', '', /64 hexadecimal characters/u],
