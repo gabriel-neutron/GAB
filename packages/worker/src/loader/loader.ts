@@ -21,7 +21,7 @@ import type { Queryable } from '../queryable.ts';
 import { findByIdentifier, makeFinder, type Found } from './join.ts';
 import {
   castAll,
-  compareLink,
+  changedValues,
   splitOwners,
   type Attrs,
   daysOf,
@@ -68,12 +68,13 @@ const DOOR_REFUSED = '22023';
 const sha256 = (data: string | Uint8Array): string =>
   createHash('sha256').update(data).digest('hex');
 
-/** One line of the report: a row that was excluded, or a note on a row that was loaded. */
+/** One line of the report: a row that was excluded, or a note on a row that was loaded. A line
+ * with no row is about the record: a relation that the edition no longer gives. */
 interface Line {
-  readonly row: number;
-  readonly page: number;
-  readonly start: number;
-  readonly end: number;
+  readonly row: number | null;
+  readonly page: number | null;
+  readonly start: number | null;
+  readonly end: number | null;
   readonly reason: string;
 }
 
@@ -88,21 +89,25 @@ interface Totals {
   readonly read: number;
   readonly loaded: number;
   readonly excluded: number;
+  readonly dropped: number;
 }
 
+const rowOrder = (line: Line): number => line.row ?? Number.POSITIVE_INFINITY;
+
 /** The report of a load as CSV. The first line names the load and gives its counts, so two loads
- * never share bytes, and the lines after it name each row in row order. */
+ * never share bytes, and the lines after it name each row in row order. The lines with no row
+ * come last: each one is a relation that the edition no longer gives. */
 export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
   [
     `# document ${totals.document}; mapping ${totals.mapping}; job ${totals.job}; ` +
       `read ${String(totals.read)}; loaded ${String(totals.loaded)}; ` +
-      `excluded ${String(totals.excluded)}`,
+      `excluded ${String(totals.excluded)}; dropped ${String(totals.dropped)}`,
     'row,page,start,end,reason',
     ...[...lines]
-      .sort((left, right) => left.row - right.row)
+      .sort((left, right) => rowOrder(left) - rowOrder(right))
       .map((line) =>
         [line.row, line.page, line.start, line.end]
-          .map(String)
+          .map((value) => (value === null ? '' : String(value)))
           .concat(csvField(line.reason))
           .join(','),
       ),
@@ -110,7 +115,7 @@ export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
     .map((line) => `${line}\r\n`)
     .join('');
 
-const ENTITY_ATTRS = 'SELECT attrs FROM api.entity WHERE id = $1::uuid';
+const ENTITY_HELD = 'SELECT label, attrs FROM api.entity WHERE id = $1::uuid';
 
 const SAME_RELATION = `SELECT id::text AS id, attrs FROM api.relation
   WHERE coalesce(proposed_type, type) = $1::text AND src_id = $2::uuid AND dst_id = $3::uuid
@@ -147,27 +152,46 @@ const geomState = async (
     : 'different';
 };
 
-const attrsRow = z.array(
+const entityRow = z.array(
   z.object({
+    label: z.string(),
     attrs: z.record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() })),
   }),
 );
 
-/** True when the entity holds each of these values already, and already cites this document for
- * each one. A value that another document states is corroboration, so it is not a no-op. */
-const holdsEach = async (
+/** The name and the values of an entity of the record. */
+const entityHeld = async (
   db: Queryable,
   entity: string,
-  document: string,
-  attrs: Readonly<Record<string, { readonly v: unknown }>>,
-): Promise<boolean> => {
-  const [held] = attrsRow.parse((await db.query(ENTITY_ATTRS, [entity])).rows);
-  return Object.entries(attrs).every(
-    ([key, value]) =>
-      isDeepStrictEqual(held?.attrs[key]?.v, value.v) &&
-      (held?.attrs[key]?.src ?? []).includes(document),
-  );
+): Promise<{ readonly label: string; readonly attrs: HeldAttrs }> => {
+  const [held] = entityRow.parse((await db.query(ENTITY_HELD, [entity])).rows);
+  return { label: held?.label ?? '', attrs: held?.attrs ?? {} };
 };
+
+// The earlier editions of the table: the other documents of the same host that a load read under
+// a mapping of the same header and the same text set (ADR 0021).
+const EARLIER = 'SELECT public.earlier_editions($1::uuid)::text[] AS docs';
+
+const earlierRow = z.array(z.object({ docs: z.array(z.string()).nullable() }));
+
+// The open relations of these types that an earlier edition backs, and that this document does
+// not back. The load reports each one that this edition no longer gives, and closes none.
+const EDITION_LINKS = `SELECT r.id::text AS id, r.type, coalesce(s.label, r.src_id::text) AS src,
+         coalesce(d.label, r.dst_id::text) AS dst
+    FROM public.relations r
+    LEFT JOIN public.entities s ON s.id = r.src_id
+    LEFT JOIN public.entities d ON d.id = r.dst_id
+   WHERE r.type = ANY ($1::text[]) AND r.valid_to IS NULL
+     AND NOT r.sources::text[] @> ARRAY[$3::text]
+     AND (r.sources::text[] && $2::text[]
+          OR EXISTS (SELECT 1 FROM jsonb_each(r.attrs) AS a(key, held)
+                      WHERE jsonb_typeof(a.held->'src') = 'array'
+                        AND (a.held->'src') ?| $2::text[]))
+   ORDER BY r.id`;
+
+const editionLinkRow = z.array(
+  z.object({ id: z.uuid(), type: z.string(), src: z.string(), dst: z.string() }),
+);
 
 const linkRow = z.array(
   z.object({
@@ -250,6 +274,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         ? { kind: 'none' }
         : { kind: 'one', id: first.id, key: 'gem_entity_id' };
     };
+    // The relations of the record that a row of this edition gives.
+    const given = new Set<string>();
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -357,23 +383,20 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const { attrs } = cast;
       const { days } = dated;
 
-      // A link that the record holds with another value is never changed in silence: the operator
-      // reads it. A value that the link lacks, or that this document does not cite yet, is
-      // proposed as an addition, so the document becomes a source of the relation.
+      // A link that the record holds gets only the values that changed, in one proposal. A changed
+      // value is never written in silence: the Doubt rule holds it for the operator (S3). A link
+      // with the same values writes nothing.
       const linked = await linkedAttrs(context.db, links.relation_type, srcId, dstId, days);
       if (linked !== null) {
-        const { conflicts, additions } = compareLink(linked.attrs, attrs, document);
-        if (conflicts.length > 0) {
-          at.unfit(`the record holds this relation with other values: ${conflicts.join('; ')}`);
-          return;
-        }
-        if (Object.keys(additions).length === 0) {
+        given.add(linked.id);
+        const changed = changedValues(linked.attrs, attrs);
+        if (Object.keys(changed).length === 0) {
           loaded += 1;
           return;
         }
         const added = itemOf(
           at,
-          { op: 'update_attrs', targetKind: 'relation', targetId: linked.id, attrs: additions },
+          { op: 'update_attrs', targetKind: 'relation', targetId: linked.id, attrs: changed },
           randomUUID(),
           null,
         );
@@ -502,12 +525,28 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           id: rowId,
           foundBy: null,
         });
-      else if (!(await holdsEach(context.db, found.id, document, attrs)))
-        requests.push({
-          request: { op: 'update_attrs', targetKind: 'entity', targetId: found.id, attrs },
-          id: randomUUID(),
-          foundBy: found.key,
-        });
+      else {
+        // The load compares values and not sources: a row of a new edition that gives the values
+        // of the record writes nothing, and a changed value gives one proposal with the changed
+        // values only.
+        const entity = await entityHeld(context.db, found.id);
+        const changed = changedValues(entity.attrs, attrs);
+        if (Object.keys(changed).length > 0)
+          requests.push({
+            request: {
+              op: 'update_attrs',
+              targetKind: 'entity',
+              targetId: found.id,
+              attrs: changed,
+            },
+            id: randomUUID(),
+            foundBy: found.key,
+          });
+        // A machine never changes a name, so a new name goes to the operator through the report.
+        // The identifier key finds the same entity, and the load creates no second one.
+        if (found.key !== 'label' && entity.label.toLowerCase() !== label.toLowerCase())
+          note(`the row gives the name "${label}", and the record holds "${entity.label}"`);
+      }
       // The act that updates an entity sets a missing place. A place that differs from the place
       // of the record is proposed too, and the Doubt rule holds it for the operator (S3).
       if (found.kind === 'one' && geom !== undefined) {
@@ -520,10 +559,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             foundBy: found.key,
           });
         else if (requests.length === 0)
-          lines.push({
-            ...where,
-            reason: `the row adds no act: the place of ${found.id} is the same`,
-          });
+          note(`the row adds no act: the place of ${found.id} is the same`);
       }
 
       for (const relation of mapping.relations) {
@@ -617,20 +653,17 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
               ? await linkedAttrs(context.db, relation.type, srcId, dstId, days)
               : null;
           if (linked !== null) {
-            // The record holds the relation. A value with another value is reported, and a value
-            // that the relation lacks is proposed as an addition.
-            const { conflicts, additions } = compareLink(linked.attrs, linkAttrs, document);
-            if (conflicts.length > 0)
-              note(
-                `relation not loaded: the record holds it with other values: ${conflicts.join('; ')}`,
-              );
-            else if (Object.keys(additions).length > 0)
+            // The record holds the relation, and it gets only the values that changed. The Doubt
+            // rule holds a changed value for the operator.
+            given.add(linked.id);
+            const changed = changedValues(linked.attrs, linkAttrs);
+            if (Object.keys(changed).length > 0)
               requests.push({
                 request: {
                   op: 'update_attrs',
                   targetKind: 'relation',
                   targetId: linked.id,
-                  attrs: additions,
+                  attrs: changed,
                 },
                 id: randomUUID(),
                 foundBy: null,
@@ -670,6 +703,31 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     if (loaded + excluded !== table.rows.length)
       throw new JobStop('the rows loaded and excluded do not add up to the rows read');
 
+    // A link that an earlier edition gave, and that this edition no longer gives, goes to the
+    // report. The load closes nothing: an end date is an act of its own (ADR 0021).
+    const types = isLinkTable(rows)
+      ? [rows.relation_type]
+      : mapping.relations.map((relation) => relation.type);
+    const [earlier] = earlierRow.parse((await context.db.query(EARLIER, [job.id])).rows);
+    const editions = earlier?.docs ?? [];
+    let dropped = 0;
+    if (types.length > 0 && editions.length > 0)
+      for (const link of editionLinkRow.parse(
+        (await context.db.query(EDITION_LINKS, [types, editions, document])).rows,
+      )) {
+        if (given.has(link.id)) continue;
+        dropped += 1;
+        lines.push({
+          row: null,
+          page: null,
+          start: null,
+          end: null,
+          reason:
+            `the edition no longer gives relation ${link.id}: ${link.type} from "${link.src}" ` +
+            `to "${link.dst}"`,
+        });
+      }
+
     const text = reportOf(
       {
         document,
@@ -678,6 +736,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         read: table.rows.length,
         loaded,
         excluded,
+        dropped,
       },
       lines,
     );
@@ -686,7 +745,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
     const title =
       `Load report of ${document} under mapping ${job.mappingId}: ${String(table.rows.length)} ` +
-      `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded`;
+      `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded, ` +
+      `${String(dropped)} links dropped`;
     await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
     return { refusals: [] };
   };

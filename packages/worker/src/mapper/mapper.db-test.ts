@@ -459,7 +459,7 @@ test('the load proposes each row that fits, cited by the span of the row, and re
     expect(held.stored).toHaveLength(1);
     const lines = new TextDecoder().decode(held.stored[0]?.bytes).trim().split('\r\n');
     expect(lines[0]).toBe(
-      `# document ${LIST}; mapping ${mapped.mapping}; job ${mapped.load}; read 4; loaded 2; excluded 2`,
+      `# document ${LIST}; mapping ${mapped.mapping}; job ${mapped.load}; read 4; loaded 2; excluded 2; dropped 0`,
     );
     expect(lines[1]).toBe('row,page,start,end,reason');
     expect(lines.slice(2)).toStrictEqual([
@@ -594,7 +594,7 @@ test('a load after the promotion of the first one proposes no act that changes n
     expect(await reportsOf(held, LIST)).toHaveLength(2);
     expect(held.stored[1]?.bytes).toBeDefined();
     const lines = new TextDecoder().decode(held.stored[1]?.bytes).split('\r\n');
-    expect(lines[0]).toMatch(/read 4; loaded 2; excluded 2$/u);
+    expect(lines[0]).toMatch(/read 4; loaded 2; excluded 2; dropped 0$/u);
   });
 });
 

@@ -3676,6 +3676,23 @@ BEGIN
        AND e.attrs->k.key->'v' IS DISTINCT FROM k.held->'v'
        AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL)
     UNION ALL
+    -- The same for a relation: a new edition that gives another share of an ownership link. The
+    -- load proposes the changed value, and the operator decides it.
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'The relation holds ' || k.key || ' ' || coalesce(r.attrs->k.key->>'v', 'with no value')
+           || CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
+                   THEN ', and the reference dataset gives ' ELSE ', and the loaded row gives ' END
+           || coalesce(k.held->>'v', 'no value')
+      FROM acts a
+      JOIN public.relations r ON r.id = a.target_id
+      CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS k(key, held)
+     WHERE a.op = 'update_attrs' AND a.target_kind = 'relation' AND r.attrs ? k.key
+       AND r.attrs->k.key->'v' IS DISTINCT FROM k.held->'v'
+       AND (public.act_reference_dataset(a.id) IS NOT NULL
+            OR EXISTS (SELECT 1 FROM public.proposals m
+                        WHERE m.op = 'map_document' AND m.status = 'accepted'
+                          AND m.model_call_id = a.model_call_id))
+    UNION ALL
     -- A loaded row that found its entity by the name alone. Two entities can share a name, so the
     -- operator checks that the row names this one (merge candidates do not change, ADR 0022).
     SELECT a.unit_id, 'not_clean', 'name_only_match', a.id,
@@ -4349,6 +4366,58 @@ SET search_path = pg_catalog, pg_temp AS $$
            '^www\.', ''))
 $$;
 
+-- THE SHAPE OF A TEXT SET: its name with no version of the reader, so the sheet or the layer and
+-- the filter. "xlsx-1|sheet=Fields|where=Country=Russia" gives "|sheet=Fields|where=Country=Russia".
+-- A better reader of the same sheet and filter gives the same shape. NULL (the newest set of a CSV
+-- file) gives NULL.
+CREATE OR REPLACE FUNCTION text_set_shape(p_text_set text) RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, pg_temp AS $$
+  SELECT regexp_replace(p_text_set, '^[^|]*', '')
+$$;
+
+-- THE EARLIER EDITIONS OF A TABLE (ADR 0021). The documents, other than the document of this
+-- load, that a load read to its end under a mapping with the same header, from the same host and
+-- with the same shape of text set. The loader reports each open relation that such a document
+-- backs and that the new edition no longer gives, and it closes none. The caller holds the running
+-- load.
+CREATE OR REPLACE FUNCTION earlier_editions(p_job uuid)
+RETURNS text[]
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_document text;
+  v_set      text;
+  v_sig      text;
+  v_host     text;
+BEGIN
+  SELECT j.document_id, j.text_set, m.payload->>'header_sig', public.uri_host(d.uri)
+    INTO v_document, v_set, v_sig, v_host
+    FROM public.jobs j
+    JOIN public.proposals m ON m.id = j.mapping AND m.op = 'map_document'
+    JOIN public.documents d ON d.id = j.document_id
+   WHERE j.id = p_job AND j.kind = 'load_mapped' AND j.status = 'running'
+     AND j.claimed_by = session_user;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is not a load that runs under this role', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_host IS NULL THEN
+    RETURN ARRAY[]::text[];
+  END IF;
+  RETURN coalesce((
+    SELECT array_agg(DISTINCT j.document_id::text ORDER BY j.document_id::text)
+      FROM public.jobs j
+      JOIN public.proposals m ON m.id = j.mapping AND m.op = 'map_document'
+      JOIN public.documents d ON d.id = j.document_id
+     WHERE j.kind = 'load_mapped' AND j.status = 'done'
+       AND j.document_id::text <> v_document
+       AND m.payload->>'header_sig' = v_sig
+       AND public.uri_host(d.uri) = v_host
+       AND public.text_set_shape(j.text_set) IS NOT DISTINCT FROM public.text_set_shape(v_set)),
+    ARRAY[]::text[]);
+END $$;
+
 -- THE REUSE OF A MAPPING. A new file from the same host with the same header is loaded under the
 -- mapping that the operator already promoted, and no model reads it. The door finds the newest
 -- accepted mapping of the same host and the same header, and queues the load. It returns no
@@ -4395,6 +4464,10 @@ BEGIN
    WHERE p.op = 'map_document' AND p.status = 'accepted'
      AND p.payload->>'header_sig' = p_header_sig
      AND v_host IS NOT NULL AND public.uri_host(d.uri) = v_host
+     -- Two sheets of one workbook, or two filters of one sheet, can give the same header. The
+     -- mapping applies again only to the same sheet or layer and the same filter.
+     AND public.text_set_shape(public.mapping_text_set(p.id))
+         IS NOT DISTINCT FROM public.text_set_shape(v_set)
    ORDER BY p.decided_at DESC, p.id
    LIMIT 1;
   IF NOT FOUND THEN
