@@ -1386,3 +1386,183 @@ test('a relation table loads the ownership links between GEM companies, with the
     ]);
   });
 });
+
+// A workbook in the shape of the GEM workbooks of the hydrocarbon map: companies, assets with
+// their operator, LNG terminals with an owner cell, and the ownership of pipeline segments.
+const HC_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+    ['E200002', 'Novatek', 'Russia', 6316031581, '', ''],
+  ],
+  Assets: [
+    ['Project ID', 'Unit name', 'Operator ID', 'Latitude', 'Longitude'],
+    ['P0001', 'Segment A', 'E200001', 61, 73],
+    ['P0002', 'Segment B', 'E200099', 62, 74],
+  ],
+  LNG: [
+    ['Terminal ID', 'Terminal', 'Owners', 'Capacity', 'Group share', 'Latitude', 'Longitude'],
+    ['L0001', 'Yamal LNG', 'Novatek [E200002] 60%; New Gas Co [E200555] 40%', 16.5, 75.5, 71, 72],
+    ['L0002', 'Names LNG', 'Novatek 60%; Shell 40%', 5, 10, 51, 143],
+  ],
+  Owners: [
+    ['Project ID', 'Owner ID', 'Share'],
+    ['P0001', 'E200001', 100],
+  ],
+});
+
+const assetDraft = (kind: string, id: string, label: string) => ({
+  table: 'GEM assets',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    entity_type: 'facility',
+    label,
+    lookup: [{ key: 'gem_project_id', column: id }],
+    geom: { lon: 'Longitude', lat: 'Latitude' },
+    attrs: { gem_project_id: { column: id, cast: { type: 'identifier' } } } as Record<
+      string,
+      unknown
+    >,
+    constants: { asset_kind: kind },
+  },
+  relations: [] as unknown[],
+});
+
+test('an asset finds its operator company, an LNG owner cell with identifiers splits, and a cell of names does not', async () => {
+  await inTransaction(async (held) => {
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/hydrocarbons.xlsx',
+      sha256(HC_BOOK),
+      XLSX_MIME,
+    ]);
+    const open = () => Promise.resolve(bytesSource(HC_BOOK));
+    const sets = { db: asQueryable(held), open };
+    await makeTextSet(sets, {
+      document: BOOK,
+      sheet: ENTITY_SHEET,
+      filter: { column: 'Country', value: 'Russia' },
+    });
+    for (const sheet of ['Assets', 'LNG', 'Owners'])
+      await makeTextSet(sets, { document: BOOK, sheet });
+    await approve(held);
+
+    await runLoad(held, (await mapAndPromote(held, ENTITY_SET, COMPANY_DRAFT)).load);
+    const idOf = (label: string): Promise<string> =>
+      held.idOf('SELECT id FROM public.entities WHERE label = $1', [label]);
+    const rosneftegaz = await idOf('Rosneftegaz');
+
+    // An asset finds its operator company by the identifier of the company, and an operator that
+    // the record does not hold goes to the report.
+    const assets = assetDraft('pipeline_segment', 'Project ID', 'Unit name');
+    assets.relations = [
+      {
+        type: 'operates',
+        row_is: 'dst',
+        other: { key: 'gem_entity_id', column: 'Operator ID' },
+        other_type: 'company',
+      },
+    ];
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=Assets', assets)).load);
+    const segmentA = await idOf('Segment A');
+    expect(
+      await held.ask(
+        `SELECT s.label AS operator, d.label AS asset FROM public.relations r
+           JOIN public.entities s ON s.id = r.src_id JOIN public.entities d ON d.id = r.dst_id
+          WHERE r.type = 'operates' AND d.label LIKE 'Segment %'`,
+      ),
+    ).toStrictEqual([{ operator: 'Rosneftegaz', asset: 'Segment A' }]);
+    expect(new TextDecoder().decode(held.stored[1]?.bytes)).toContain(
+      'relation not loaded: the other end is not in the record',
+    );
+
+    // An owner cell with an identifier and a share for each owner splits. An owner that the record
+    // lacks is created with its identifier. A group share stays an attribute.
+    const lng = assetDraft('lng_plant', 'Terminal ID', 'Terminal');
+    lng.rows.attrs = {
+      ...lng.rows.attrs,
+      capacity_mtpa: { column: 'Capacity', cast: { type: 'number', scale: 2 } },
+      group_share_pct: { column: 'Group share', cast: { type: 'number', scale: 2 } },
+    };
+    lng.relations = [
+      {
+        type: 'owns',
+        row_is: 'dst',
+        other: { key: 'gem_entity_id', column: 'Owners' },
+        other_type: 'company',
+        split: { separator: ';' },
+      },
+    ];
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=LNG', lng)).load);
+    expect(
+      await held.ask(
+        `SELECT s.label AS owner, d.label AS terminal,
+                (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share
+           FROM public.relations r
+           JOIN public.entities s ON s.id = r.src_id JOIN public.entities d ON d.id = r.dst_id
+          WHERE r.type = 'owns' AND d.attrs ? 'asset_kind' ORDER BY s.label`,
+      ),
+    ).toStrictEqual([
+      { owner: 'New Gas Co', terminal: 'Yamal LNG', share: 40 },
+      { owner: 'Novatek', terminal: 'Yamal LNG', share: 60 },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT e.attrs #>> '{gem_entity_id,v}' AS gem FROM public.entities e
+          WHERE e.label = 'New Gas Co'`,
+      ),
+    ).toStrictEqual([{ gem: 'E200555' }]);
+    // The terminal is a point with its capacity, and its group share is an attribute only.
+    expect(
+      await held.ask(
+        `SELECT label, ST_GeometryType(geom) AS geometry, attrs #>> '{capacity_mtpa,v}' AS capacity,
+                attrs #>> '{group_share_pct,v}' AS group_share
+           FROM public.entities WHERE attrs @> '{"asset_kind":{"v":"lng_plant"}}' ORDER BY label`,
+      ),
+    ).toStrictEqual([
+      { label: 'Names LNG', geometry: 'ST_Point', capacity: '5', group_share: '10' },
+      { label: 'Yamal LNG', geometry: 'ST_Point', capacity: '16.5', group_share: '75.5' },
+    ]);
+    // A cell of names does not split: the terminal loads with no owner, and the report says why.
+    expect(
+      await held.ask(
+        `SELECT count(*)::int AS links FROM public.relations r
+           JOIN public.entities d ON d.id = r.dst_id WHERE d.label = 'Names LNG'`,
+      ),
+    ).toStrictEqual([{ links: 0 }]);
+    expect(new TextDecoder().decode(held.stored[2]?.bytes)).toContain(
+      'relation not loaded: the owner cell does not split: ""Novatek 60%""',
+    );
+
+    // The ownership sheet links a pipeline segment to its direct owner, by identifier.
+    const owners = {
+      table: 'GEM asset ownership',
+      modality: 'asserts',
+      publisher: PUBLISHER,
+      rows: {
+        relation_type: 'owns',
+        src: {
+          entity_type: 'company',
+          lookup: [{ key: 'gem_entity_id', column: 'Owner ID' }],
+        },
+        dst: {
+          entity_type: 'facility',
+          lookup: [{ key: 'gem_project_id', column: 'Project ID' }],
+        },
+        attrs: { share_pct: { column: 'Share', cast: { type: 'number', scale: 4 } } },
+      },
+      relations: [],
+    };
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=Owners', owners)).load);
+    expect(
+      await held.ask(
+        `SELECT r.dst_id = $1 AS segment, r.src_id = $2 AS owner,
+                (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share
+           FROM public.relations r WHERE r.type = 'owns' AND r.dst_id = $1`,
+        [segmentA, rosneftegaz],
+      ),
+    ).toStrictEqual([{ segment: true, owner: true, share: 100 }]);
+  });
+});

@@ -212,3 +212,33 @@ test('the lookup of an end of a relation table holds no name key', () => {
   expect(mappingDraft.safeParse(end('label')).success).toBe(false);
   expect(mappingDraft.safeParse(end('gem_entity_id')).success).toBe(true);
 });
+
+test('a relation names the entity type of its far end, and a split cell needs a GEM key', () => {
+  const owner = { key: 'gem_entity_id', column: 'Owner' } as const;
+  const held = (extra: object, other: object = owner) => ({
+    ...DRAFT,
+    relations: [{ type: 'owns', row_is: 'dst', other, ...extra }],
+  });
+  expect(mappingDraft.safeParse(held({ other_type: 'company' })).success).toBe(true);
+  expect(
+    mappingDraft.safeParse(held({ other_type: 'company', split: { separator: ';' } })).success,
+  ).toBe(true);
+  // A cell never splits without the type of its owners.
+  expect(mappingDraft.safeParse(held({ split: { separator: ';' } })).success).toBe(false);
+  // A cell of names or of another key never splits.
+  expect(
+    mappingDraft.safeParse(
+      held({ other_type: 'company', split: { separator: ';' } }, { key: 'label', column: 'Owner' }),
+    ).success,
+  ).toBe(false);
+  // A split cell gives the share, so a mapped share_pct would be overwritten.
+  expect(
+    mappingDraft.safeParse(
+      held({
+        other_type: 'company',
+        split: { separator: ';' },
+        attrs: { share_pct: { column: 'Share', cast: { type: 'number', scale: 2 } } },
+      }),
+    ).success,
+  ).toBe(false);
+});
