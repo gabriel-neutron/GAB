@@ -117,6 +117,23 @@ const rows = z
           rule.cast.type !== 'ru_register' || RU_REGISTER_KEYS.some((one) => one === name),
       ),
     { message: `the cast ru_register fills only ${RU_REGISTER_KEYS.join(' or ')}` },
+  )
+  // A register column holds a tax number in one row and a registration number in another, so a
+  // mapping that reads it fills the two keys from the same column.
+  .refine(
+    (held) => {
+      const read = RU_REGISTER_KEYS.map((name) => held.attrs[name]).filter(
+        (rule) => rule?.cast.type === 'ru_register',
+      );
+      return read.length === 0 || (read.length === 2 && read[0]?.column === read[1]?.column);
+    },
+    { message: `the cast ru_register fills ${RU_REGISTER_KEYS.join(' and ')} from one column` },
+  )
+  .refine(
+    (held) => held.attrs['lei'] === undefined || held.attrs['lei'].cast.type === 'identifier',
+    {
+      message: 'lei takes the cast identifier',
+    },
   );
 
 /** What the model gives for one table. The tool adds the signature of the header. */

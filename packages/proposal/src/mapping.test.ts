@@ -21,6 +21,13 @@ const HEADER = ['Name', 'IMO', 'Length', 'Owner', 'Notes'];
 
 test('a whole mapping parses, and a payload adds the signature of the header', () => {
   expect(mappingDraft.safeParse(DRAFT).success).toBe(true);
+  const register = { column: 'IMO', cast: { type: 'ru_register' } } as const;
+  expect(
+    mappingDraft.safeParse({
+      ...DRAFT,
+      rows: { ...DRAFT.rows, attrs: { tax_id: register, registration_number: register } },
+    }).success,
+  ).toBe(true);
   expect(mappingPayload.safeParse({ ...DRAFT, header_sig: 'a'.repeat(64) }).success).toBe(true);
 });
 
@@ -40,6 +47,27 @@ const REFUSED: readonly (readonly [string, unknown])[] = [
     { ...DRAFT, rows: { ...DRAFT.rows, lookup: [{ key: 'imo_number', column: 'IMO' }] } },
   ],
   ['no lookup', { ...DRAFT, rows: { ...DRAFT.rows, lookup: [] } }],
+  [
+    'a register cast that fills one key alone',
+    {
+      ...DRAFT,
+      rows: { ...DRAFT.rows, attrs: { tax_id: { column: 'IMO', cast: { type: 'ru_register' } } } },
+    },
+  ],
+  [
+    'a register cast that fills a key of no register',
+    {
+      ...DRAFT,
+      rows: { ...DRAFT.rows, attrs: { imo: { column: 'IMO', cast: { type: 'ru_register' } } } },
+    },
+  ],
+  [
+    'a LEI read as text',
+    {
+      ...DRAFT,
+      rows: { ...DRAFT.rows, attrs: { lei: { column: 'Owner', cast: { type: 'text' } } } },
+    },
+  ],
   [
     'a date with no pattern of the list',
     {

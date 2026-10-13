@@ -64,8 +64,15 @@ export const makeFinder = (
     const text = (record.fields[column.get(lookup.column) ?? -1] ?? '').trim();
     if (text === '') return null;
     const rule = lookup.key === 'label' ? undefined : mapping.rows.attrs[lookup.key];
-    if (rule?.column !== lookup.column) return text;
-    const cell = castCell(rule.cast, lookup.key, text);
+    // A LEI is checked even in a column that fills no attribute.
+    const cast =
+      rule?.column === lookup.column
+        ? rule.cast
+        : lookup.key === 'lei'
+          ? ({ type: 'identifier' } as const)
+          : undefined;
+    if (cast === undefined) return text;
+    const cell = castCell(cast, lookup.key, text);
     if (cell.ok !== true) return null;
     return typeof cell.value === 'string' ? cell.value : text;
   };
