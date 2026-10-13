@@ -27,9 +27,13 @@ each entry gives the number of the row and its values.
    Use it only when the columns hold degrees of WGS84.
 5. `relations` is a list. Each relation has a `type`, a `row_is` and an `other`. `row_is` is `src`
    or `dst`: the end of the relation that the entity of the row is. `other` is a key and a column
-   that find the entity at the other end, which the record must hold already. `valid_from` and
+   that find the entity at the other end, which the record holds already (a cell that splits creates a missing owner with its GEM identifier). `valid_from` and
    `valid_to` are optional, each a column and a date pattern. `attrs` is optional: it maps an
-   attribute key of the relation to a column and a cast, as in rule 3.
+   attribute key of the relation to a column and a cast, as in rule 3. `other_type` is optional:
+   it names the entity type of the other end (for example `company` for the owner of a facility),
+   and the default is the type of the row. `split` is optional, `{"separator": ";"}`: use it only
+   when one cell lists many owners and each owner has its GEM identifier with its share in
+   percent. It needs `other_type` and the key `gem_entity_id`, and `attrs` has no `share_pct`. Never use it for a cell of names.
 6. Name only columns of the header, spelled as the header spells them. A column that you do not
    use is left out.
 7. `modality` is one word for the whole table: `enacts` (the table makes the facts true, for
