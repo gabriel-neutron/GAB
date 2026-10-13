@@ -243,9 +243,10 @@ const WORDS_OF_A_LIST: readonly string[] = [EVENT_KIND, EVENT_PRECISION];
 
 const attributeValues = (
   attrs: Readonly<Record<string, { readonly v: unknown }>> | undefined,
+  skipped: readonly string[] = [],
 ): ActValue[] =>
   Object.entries(attrs ?? {})
-    .filter(([key]) => !WORDS_OF_A_LIST.includes(key))
+    .filter(([key]) => !skipped.includes(key))
     .flatMap(([key, held]) =>
       (Array.isArray(held.v) ? held.v : [held.v])
         .filter(
@@ -263,7 +264,7 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
       // The name of an event has a fixed form that the tool checks, and no page states it.
       return [
         ...(act.type === 'event' ? [] : [{ name: 'label', value: act.label }]),
-        ...attributeValues(act.attrs),
+        ...attributeValues(act.attrs, act.type === 'event' ? WORDS_OF_A_LIST : []),
       ];
     case 'create_relation':
       return [

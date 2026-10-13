@@ -353,3 +353,19 @@ test('the days of an event are checked against the passage', () => {
     ),
   ).toStrictEqual(['attrs.occurred_on']);
 });
+
+test('another type keeps the check of the attributes that are words of the event list', () => {
+  const act = writeRequest.parse({
+    op: 'create_entity',
+    type: 'facility',
+    label: 'Port of Tuapse',
+    attrs: {
+      event_kind: { v: 'claimed attack' },
+      occurred_on_precision: { v: 'night' },
+    },
+  });
+  expect(unstatedValues(act, ['Port of Tuapse is a port.']).map((one) => one.name)).toStrictEqual([
+    'attrs.event_kind',
+    'attrs.occurred_on_precision',
+  ]);
+});
