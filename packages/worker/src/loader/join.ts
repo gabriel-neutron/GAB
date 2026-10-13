@@ -1,5 +1,5 @@
 import { identifierContainment } from '@gab/proposal/identifiers';
-import type { LookupKey, MappingPayload } from '@gab/proposal/mapping';
+import type { Cast, LookupKey } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 import { z } from 'zod';
 
@@ -49,13 +49,20 @@ interface Lookup {
   readonly column: string;
 }
 
-/** Finds the entity of a row of a table under a mapping. It reads the record and writes nothing,
- * so the load and the dry join give the same answer for the same row. */
+/** The casts of the columns that a mapping reads, by attribute key. A lookup reads its cell under
+ * the cast of the same key and the same column. */
+export type ColumnCasts = Readonly<
+  Record<string, { readonly column: string; readonly cast: Cast } | undefined>
+>;
+
+/** Finds an entity of a row of a table under a mapping: the entity of the row, or an end of a
+ * relation. `entityType` is the type that a lookup by the name finds. It reads the record and
+ * writes nothing, so the load and the dry join give the same answer for the same row. */
 export const makeFinder = (
   db: Queryable,
-  mapping: MappingPayload,
+  casts: ColumnCasts,
   header: readonly string[],
-): ((record: CsvRecord, given: readonly Lookup[]) => Promise<Found>) => {
+): ((record: CsvRecord, given: readonly Lookup[], entityType: string) => Promise<Found>) => {
   const column = new Map(header.map((name, index) => [name, index] as const));
 
   // A lookup reads its cell as the attribute of the same key and the same column reads it. So a
@@ -63,7 +70,7 @@ export const makeFinder = (
   const valueOf = (record: CsvRecord, lookup: Lookup): string | null => {
     const text = (record.fields[column.get(lookup.column) ?? -1] ?? '').trim();
     if (text === '') return null;
-    const rule = lookup.key === 'label' ? undefined : mapping.rows.attrs[lookup.key];
+    const rule = lookup.key === 'label' ? undefined : casts[lookup.key];
     // A LEI is checked even in a column that fills no attribute.
     const cast =
       rule?.column === lookup.column
@@ -77,21 +84,21 @@ export const makeFinder = (
     return typeof cell.value === 'string' ? cell.value : text;
   };
 
-  const lookedUp = async (lookup: Lookup, value: string): Promise<string[]> => {
+  const lookedUp = async (lookup: Lookup, value: string, entityType: string): Promise<string[]> => {
     const { rows } =
       lookup.key === 'label'
-        ? await db.query(BY_LABEL, [mapping.rows.entity_type, value])
+        ? await db.query(BY_LABEL, [entityType, value])
         : await db.query(BY_IDENTIFIER, [
             identifierContainment(lookup.key, value).map((shape) => JSON.stringify(shape)),
           ]);
     return idRows.parse(rows).map((held) => held.id);
   };
 
-  return async (record, given) => {
+  return async (record, given, entityType) => {
     for (const one of lookupOrder(given)) {
       const value = valueOf(record, one);
       if (value === null) continue;
-      const ids = await lookedUp(one, value);
+      const ids = await lookedUp(one, value, entityType);
       const [first] = ids;
       if (ids.length > 1) return { kind: 'many', key: one.key, count: ids.length };
       if (first !== undefined) return { kind: 'one', id: first, key: one.key };

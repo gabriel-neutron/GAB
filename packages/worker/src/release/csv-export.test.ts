@@ -197,10 +197,34 @@ test('a sectoral measure is a relation row of the type restricted_by, with its l
   };
   const text = csvExport(restricted, '').find((file) => file.path === 'relations.csv')?.text ?? '';
   const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
-  // The label is the last column, so a reader by position reads the other columns as before.
-  expect(header?.at(-1)).toBe('type_label');
+  // The label and the share follow the other columns, so a reader by position reads the other
+  // columns as before.
+  expect(header?.slice(-2)).toStrictEqual(['type_label', 'share']);
   expect(row?.[header?.indexOf('type') ?? -1]).toBe('restricted_by');
-  expect(row?.at(-1)).toBe('restricted by');
+  expect(row?.at(-2)).toBe('restricted by');
+  expect(row?.at(-1)).toBe('');
+});
+
+test('a share that GEM estimated reads as an estimate in the relation row', () => {
+  const value = (attribute: string, held: unknown): ReleaseClaim =>
+    claim({
+      claim_id: `${OWNS}/${attribute}`,
+      subject_kind: 'relation',
+      subject_id: OWNS,
+      attribute,
+      value: held,
+    });
+  const shareOf = (claims: readonly ReleaseClaim[]): string | undefined => {
+    const text =
+      csvExport(recordOf(claims), '').find((file) => file.path === 'relations.csv')?.text ?? '';
+    const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
+    return row?.[header?.indexOf('share') ?? -1];
+  };
+  expect(shareOf([value('share_pct', 40.4), value('share_imputed', true)])).toBe(
+    'share 40.4%, estimated by GEM',
+  );
+  expect(shareOf([value('share_pct', 40.4), value('share_imputed', false)])).toBe('share 40.4%');
+  expect(shareOf([])).toBe('');
 });
 
 test('a type change is a claim row of its relation, with its label and its passage', () => {
