@@ -28,6 +28,7 @@ export const IDENTIFIER_KEY = [
   'entry_into_force',
   'unlocode',
   'osm_id',
+  'gem_project_id',
 ] as const;
 
 export type IdentifierKey = (typeof IDENTIFIER_KEY)[number];
@@ -61,7 +62,7 @@ export const IDENTIFIER_KEYS = {
     'aliases',
   ],
   port: ['unlocode', 'osm_id'],
-  facility: ['unlocode', 'osm_id'],
+  facility: ['unlocode', 'osm_id', 'gem_project_id'],
 } as const satisfies Readonly<Record<string, readonly IdentifierKey[]>>;
 
 const SEVEN_DIGITS = /^\d{7}$/;

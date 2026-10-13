@@ -14,7 +14,8 @@ import { createWorker, type Worker } from 'tesseract.js';
 import TurndownService from 'turndown';
 import { extractText as readPdf, getDocumentProxy } from 'unpdf';
 
-import { sheetCsv, sheetNames, XLSX_MIME as XLSX } from './xlsx.ts';
+import { layerCsv, layerNames, ZIP_MIME } from './geojson.ts';
+import { workbookCsvs, XLSX_MIME as XLSX } from './xlsx.ts';
 import { xmlText } from './xml-text.ts';
 
 export interface Extracted {
@@ -272,6 +273,7 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.md': 'text/markdown',
   '.csv': 'text/csv',
   '.xlsx': XLSX,
+  '.zip': ZIP_MIME,
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -452,6 +454,11 @@ const imagePage = async (bytes: Uint8Array): Promise<string> => {
 
 const IMAGE = new Set(['image/png', 'image/jpeg']);
 
+// Origin of the numbers: decided, not calibrated. A workbook above 16 MiB is a published dataset,
+// and its door page is a head of 20 rows, so the door holds no copy of the dataset.
+const TABLE_PAGE_BYTES = 16 * 1024 * 1024;
+const PREVIEW_ROWS = 20;
+
 export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extracted> => {
   const type = (mime.split(';')[0] ?? '').trim().toLowerCase();
   if (type === 'application/pdf') return { pages: await pdfPages(bytes) };
@@ -462,8 +469,19 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
   // A sheet is one page, so a table page is one sheet. A named text set keeps the rows of one sheet
   // (xlsx.ts), and the page here is the whole sheet for a reader.
-  if (type === XLSX)
-    return { pages: sheetNames(bytes).map((sheet) => withoutNul(sheetCsv(bytes, sheet))) };
+  if (type === XLSX) {
+    // A large workbook gives the head of each sheet, and the named text set gives its rows.
+    const rows = bytes.length > TABLE_PAGE_BYTES ? PREVIEW_ROWS : undefined;
+    return { pages: (await workbookCsvs(bytes, rows)).map(withoutNul) };
+  }
+  // An archive gives the head of each GeoJSON layer. The named text set gives the rows that a
+  // mapping loads.
+  if (type === ZIP_MIME) {
+    const pages: string[] = [];
+    for (const layer of await layerNames(bytes))
+      pages.push(withoutNul(await layerCsv(bytes, layer, undefined, PREVIEW_ROWS)));
+    return { pages };
+  }
   if (XML.has(type)) return { pages: [withoutNul(xmlText(decodeHtml(bytes, mime)))] };
   if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);
