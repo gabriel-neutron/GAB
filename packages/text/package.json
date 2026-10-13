@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/extract.ts"
+    ".": "./src/extract.ts",
+    "./xlsx": "./src/xlsx.ts",
+    "./xlsx-fixture": "./src/xlsx-fixture.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

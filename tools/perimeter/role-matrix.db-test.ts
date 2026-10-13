@@ -41,6 +41,7 @@ test('the role matrix of the doors', async () => {
       "public.ai_promote_unit": "research",
       "public.ai_reject_relation": "research",
       "public.ai_reject_unit": "research",
+      "public.approve_reference_dataset": "app",
       "public.approve_reference_set": "app",
       "public.author_names_dry_run": "app",
       "public.author_names_waiting": "app",

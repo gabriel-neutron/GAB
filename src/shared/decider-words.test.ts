@@ -12,6 +12,12 @@ it('names the rule and its version when a rule decided, and says accepted or rej
   );
 });
 
+it('names the reference dataset when a row of a dataset that the operator approved was accepted', () => {
+  expect(deciderWords('rule', 'reference dataset GEM, approved by the operator', 'accepted')).toBe(
+    'accepted from the reference dataset GEM, approved by the operator, not checked by GAB',
+  );
+});
+
 it('says validated manually for the operator, also for an older decision with no origin', () => {
   const manual = 'validated manually by the operator';
   expect(deciderWords('unit', manual, 'accepted')).toBe(manual);

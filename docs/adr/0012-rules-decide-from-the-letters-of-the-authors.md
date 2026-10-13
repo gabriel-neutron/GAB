@@ -92,9 +92,16 @@ ADR 0016 gives the NATO pair of a claim, which reads the digit and the support o
 - The function runs on a unit when its acts are written, when the check by the second model ends,
   when one of its authors gets a letter, when a name joins a known author, when the operator
   decides a joined name, and when a new act cites a new source for one of its facts.
-- The **first rule that matches** decides: impossible, doubt, strong sources, weak sources.
+- The **first rule that matches** decides: impossible, doubt, reference dataset, strong sources, weak sources.
 - **Doubt** holds the cases of S3 (`decisions.md`). A contradiction from an author F is not a doubt:
   the unit waits, and the card shows the conflict.
+- **Reference dataset** accepts a row of a promoted mapping when the operator approved the edition of
+  its dataset as a reference dataset. The approval is one act for one edition of one named dataset
+  (the first is GEM, for its letter and its sites), and it is written once. The rule needs no
+  second source and no check by a second model, because a loaded row has none. A value that
+  disagrees with the record is a doubt, and the Doubt rule runs first. The origin of the decision
+  is "reference dataset <name>, approved by the operator", so the public text says that GAB did not
+  check the fact. The author of each loaded row is the publisher of the table.
 - **Strong sources** need, for each fact of the unit, a passed check and either one source A on a
   site of its author, or two independent citations with one author B or better and one C or
   better. An upload is on the site of the address where the file comes from.

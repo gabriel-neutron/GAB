@@ -239,14 +239,18 @@ order to each unit, and the first rule that matches decides:
    the operator rejected before, a check by the second model that disputes a fact, a denial by the
    subject of a fact, or an adverse claim of a type on a fixed list about a named person or company
    (S6). The unit goes to the operator, with the reason.
-3. **Strong sources.** A model of a second family found each fact in its passage, and each fact
+3. **Reference dataset.** A row of a promoted mapping from a reference dataset is accepted. The
+   operator approves one edition of one named dataset in one act. The origin of the decision names
+   the dataset and says that the operator approved it. GAB did not check the fact, and the public
+   text says so (operator decision, 13 October 2026).
+4. **Strong sources.** A model of a second family found each fact in its passage, and each fact
    has either one source A on a site of its author, or two independent sources: one B or better
    and one C or better. A copy of a record A on another site is one of the two. Two sources are independent only when they have different authors, different
    controllers (one state, one holding or one channel network counts as one author), different
    sites, and passages that are not copies of each other. When code is not sure, the two sources
    count as one author. A source that only reports what another party says never counts. The rule
    accepts the unit.
-4. **Weak sources.** All other units wait for a better source, and the operator does not see them
+5. **Weak sources.** All other units wait for a better source, and the operator does not see them
    in the queue. A deepening search can look for a better source (P10). When a new source comes,
    the unit goes through the rules again. A unit whose only sources are D or E, after the
    deepening search, is rejected. Any other unit is kept and never rejected, because a source can
@@ -319,7 +323,7 @@ Agents, models and prompts can change freely.
 
 ### P5 — Text formats and images
 
-**Rule.** Text PDF, docx, txt, md, html, csv, and a PNG or JPEG image. No audio, no video. The first
+**Rule.** Text PDF, docx, txt, md, html, csv, XLSX, GeoJSON, and a PNG or JPEG image. No audio, no video. The first
 reading of an image is OCR, and a proposal cites an excerpt of that text. When the OCR text does not
 hold what the image shows, the research AI cites the words that it read from the image itself. Such
 a proposal is always disputed. A back-end agent reads the stored text only, so it never cites words
@@ -330,7 +334,8 @@ unit tree of Tochnyi, publishes its facts as an image only. Its OCR text mixes t
 tree and misreads the unit numbers, so it does not state the parent of a unit (operator decision,
 9 October 2026).
 **Cost.** OCR and the AI can each misread a character, so the operator compares the excerpt with the
-image before a promotion. A scanned PDF is converted outside the tool first.
+image before a promotion. A scanned PDF is converted outside the tool first. An XLSX sheet and a
+GeoJSON layer read as a table (operator decision, 13 October 2026).
 
 ### P6 — One ingestion door
 
