@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { eventsAt } from '@gab/site/event-lane';
+import { readSiteRelease } from '@gab/site/site-release';
 import { readCsv } from '@gab/tools/csv';
 import { Pool } from 'pg';
 import { afterAll, expect, test, vi } from 'vitest';
@@ -1677,4 +1679,91 @@ test('the file manifest gives the number of merge candidates across two scripts 
     refused: seen.before.refused + 1,
   });
   expect(manifest.nameCandidates).toStrictEqual(seen.after);
+});
+
+const EVENT = '00000000-0000-4000-8000-00000000e101';
+const SITE = '00000000-0000-4000-8000-00000000e102';
+const UNIT = '00000000-0000-4000-8000-00000000e103';
+const POST = 'doc_release_post';
+const DENIAL = 'doc_release_denial';
+
+test('the lane of events reads what a real release holds: the precision, the denial and the two relation claims', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  await inTransaction(async (held) => {
+    const { ask } = held;
+    await ask(
+      `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
+         ($1, 'url', 'A post', 'https://example.org/post', '2026-10-01', NULL, NULL),
+         ($2, 'url', 'A denial', 'https://example.org/denial', '2026-10-02', NULL, NULL)`,
+      [POST, DENIAL],
+    );
+    const night = 'Russia hit the terminal in the night to 15 May 2026.';
+    const denial = 'No strike took place at the terminal.';
+    for (const [id, text] of [
+      [POST, night],
+      [DENIAL, denial],
+    ] as const)
+      await ask(
+        'INSERT INTO public.document_text (document_id, extractor, page, text) VALUES ($1, $2, 1, $3)',
+        [id, EXTRACTOR, text],
+      );
+    const attrs = {
+      event_kind: value('claimed attack', [POST]),
+      occurred_on: { v: ['2026-05-14', '2026-05-15'], src: [POST, DENIAL] },
+      occurred_on_precision: value('night', [POST]),
+    };
+    const act = await entity(
+      held,
+      EVENT,
+      'event',
+      'claimed attack — Test terminal — 2026-05-15',
+      [POST, DENIAL],
+      attrs,
+    );
+    const citeIn = async (
+      claim: string,
+      document: string,
+      text: string,
+      words: string,
+      modality: string,
+    ) => {
+      const start = text.indexOf(words);
+      await ask(
+        `INSERT INTO public.citation (claim_id, doc_id, page, start, "end", modality, text_extractor)
+         VALUES ($1, $2, 1, $3, $4, $5, $6)`,
+        [claim, document, start, start + words.length, modality, EXTRACTOR],
+      );
+    };
+    await citeIn(act, POST, night, 'in the night to 15 May 2026', 'asserts');
+    await citeIn(act, DENIAL, denial, 'No strike took place', 'denies');
+    await entity(held, SITE, 'facility', 'Test terminal', [POST]);
+    await entity(held, UNIT, 'military_unit', 'Test unit', [POST]);
+    for (const [type, to] of [
+      ['occurred_at', SITE],
+      ['carried_out_by', UNIT],
+    ] as const) {
+      const made = await relation(held, type, EVENT, to, [POST]);
+      await citeIn(made.act, POST, night, 'Russia hit the terminal', 'asserts');
+    }
+    await writeRelease(held.as('gabriel_app'), MANIFEST, root);
+  });
+  const folder = join(root, 'gab-release-2026-11-08');
+  const files = new Map(
+    await Promise.all(
+      (await readdir(folder)).map(
+        async (name) => [name, await readFile(join(folder, name), 'utf8')] as const,
+      ),
+    ),
+  );
+
+  const [event] = eventsAt(readSiteRelease(files), SITE);
+  expect(event).toMatchObject({
+    id: EVENT,
+    kind: 'claimed attack',
+    precision: 'night',
+    days: ['2026-05-14', '2026-05-15'],
+    actor: { id: UNIT, label: 'Test unit' },
+  });
+  expect(event?.denials.map((one) => one.source.documentId)).toStrictEqual([DENIAL]);
+  expect(event?.documents.map((one) => one.documentId)).toContain(POST);
 });

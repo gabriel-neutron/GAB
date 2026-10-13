@@ -3,7 +3,8 @@
 import type { WriteRequest } from '@gab/proposal/request';
 
 /** The closed list of kinds of the first batch. An explosion keeps its word in the excerpt. */
-const KINDS = ['claimed attack', 'fire', 'stoppage'] as const;
+export const CLAIMED_ATTACK = 'claimed attack';
+const KINDS = [CLAIMED_ATTACK, 'fire', 'stoppage'] as const;
 
 const PRECISIONS = ['day', 'night', 'month'] as const;
 
@@ -11,7 +12,7 @@ const PRECISIONS = ['day', 'night', 'month'] as const;
  * page never states in that form, so the stated-value check does not read them. */
 export const EVENT_KIND = 'event_kind';
 export const EVENT_PRECISION = 'occurred_on_precision';
-const EVENT_DAYS = 'occurred_on';
+export const EVENT_DAYS = 'occurred_on';
 
 /** The types that the end of a relation of an event can have. */
 const RELATION_ENDS: ReadonlyMap<
