@@ -18,6 +18,7 @@ import { completionOf, depsOf, routerOf, READER, type StubRouter } from '../runn
 import { openRunner, type Step } from '../runner.ts';
 import { approveReferenceDataset, parseApproval } from '../reference-dataset-command.ts';
 import { makeTextSet } from '../text-set.ts';
+import { dryJoin } from './dry-join.ts';
 import { makeLoader } from './loader.ts';
 
 // A workbook in the shape of a tracker of oil and gas fields, built in memory. It is a fixture and
@@ -309,7 +310,7 @@ test('the Russian fields of an approved edition load as points with their kind, 
 
     await runLoad(held, load);
 
-    // The Norwegian row is not in the text set, and the row of the known name writes nothing.
+    // The Norwegian row is not in the text set, and the row of the known name waits as a doubt.
     expect(await pointsOf(held)).toStrictEqual([
       {
         label: 'Alpha field',
@@ -350,14 +351,29 @@ test('the Russian fields of an approved edition load as points with their kind, 
       'Gamma field,Russia,gas,operating,approximate,55,37.5',
     ]);
 
-    // The known name finds an entity by its name only, so the load writes nothing for it.
+    // The known name finds an entity by its name only, so its facts wait for the operator.
     expect(
       await held.ask("SELECT attrs ? 'asset_kind' AS typed FROM public.entities WHERE id = $1", [
         known,
       ]),
     ).toStrictEqual([{ typed: false }]);
+    expect(
+      await held.ask(
+        `SELECT p.status, p.found_by, public.unit_rule(p.unit_id) AS rule,
+                (SELECT f.faults->0->>'said' FROM public.unit_faults(ARRAY[p.unit_id]) f) AS said
+           FROM public.proposals p WHERE p.op = 'update_attrs' AND p.target_id = $1`,
+        [known],
+      ),
+    ).toStrictEqual([
+      {
+        status: 'pending',
+        found_by: 'label',
+        rule: 'doubt',
+        said: 'The load found Known field by its name only',
+      },
+    ]);
     const lines = new TextDecoder().decode(held.stored[0]?.bytes).trim().split('\r\n');
-    expect(lines[0]).toMatch(/read 3; loaded 2; excluded 1$/u);
+    expect(lines[0]).toMatch(/read 3; loaded 3; excluded 0$/u);
     expect(lines[2]).toContain(`entity ${known} by its name only`);
   });
 });
@@ -804,5 +820,213 @@ test('the segments of a route archive load as lines, and a pipeline of the recor
         [druzhba],
       ),
     ).toStrictEqual([{ same: true, no_route: true, typed: false }]);
+  });
+});
+
+// An entity table in the shape of the GEM ownership workbook. The register column holds a tax
+// number or a registration number as a number of the workbook, and the LEI column holds "not
+// found" where GEM found no LEI. The record holds three of the companies already.
+const ENTITY_SHEET = 'Entities';
+const ENTITY_SET = 'xlsx-1|sheet=Entities|where=Country=Russia';
+const ENTITY_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI'],
+    ['E100001', 'Rosneft', 'Russia', 105012345, 'not found'],
+    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found'],
+    ['E100003', 'Novatek', 'Russia', 6316031581, '2138008R6GCRVBDFA581'],
+    ['E100004', 'Arctic New Co', 'Russia', '', ''],
+    ['E100005', 'Oslo Co', 'Norway', 912345678, ''],
+  ],
+});
+const ENTITY_DRAFT = {
+  table: 'GEM-ownership.xlsx',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    entity_type: 'company',
+    label: 'Name',
+    lookup: [
+      { key: 'label', column: 'Name' },
+      { key: 'tax_id', column: 'Registry ID' },
+      { key: 'registration_number', column: 'Registry ID' },
+      { key: 'gem_entity_id', column: 'Entity ID' },
+    ],
+    attrs: {
+      gem_entity_id: { column: 'Entity ID', cast: { type: 'identifier' } },
+      tax_id: { column: 'Registry ID', cast: { type: 'ru_register' } },
+      registration_number: { column: 'Registry ID', cast: { type: 'ru_register' } },
+      lei: { column: 'LEI', cast: { type: 'identifier' } },
+    },
+  },
+  relations: [],
+};
+
+const recorded = async (
+  held: Held,
+  label: string,
+  attrs: Readonly<Record<string, string>>,
+): Promise<string> => {
+  const act = await held.asApp(() =>
+    held.idOf(
+      `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+      [
+        JSON.stringify({
+          type: 'company',
+          label,
+          attrs: Object.fromEntries(
+            Object.entries(attrs).map(([key, v]) => [key, { v, src: ['manual'] }]),
+          ),
+        }),
+      ],
+    ),
+  );
+  await fromAnEarlierTransaction(held, act);
+  return held.asApp(() => held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [act]));
+};
+
+const companyRow = z.object({
+  label: z.string(),
+  gem: z.string().nullable(),
+  tax: z.string().nullable(),
+  registration: z.string().nullable(),
+  lei: z.string().nullable(),
+});
+
+test('a GEM company finds the record company by its tax number, and a name match or another value is a doubt', async () => {
+  await inTransaction(async (held) => {
+    // The record keeps the tax number with its leading zero, and the workbook lost it.
+    const rosneft = await recorded(held, 'Rosneft Oil Company', { tax_id: '0105012345' });
+    const lukoil = await recorded(held, 'Lukoil', {});
+    const novatek = await recorded(held, 'Novatek', {
+      tax_id: '6316031581',
+      lei: '549300LCJ1UJXHYBWI24',
+    });
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/ownership.xlsx',
+      sha256(ENTITY_BOOK),
+      XLSX_MIME,
+    ]);
+    await makeTextSet(
+      { db: asQueryable(held), open: () => Promise.resolve(bytesSource(ENTITY_BOOK)) },
+      { document: BOOK, sheet: ENTITY_SHEET, filter: { column: 'Country', value: 'Russia' } },
+    );
+    const job = await held.asApp(() =>
+      held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [BOOK, ENTITY_SET]),
+    );
+    await held.ask(OLDEST, [job]);
+    await held.step(
+      makeMapper(CONFIG),
+      routerOf(() => answerOf(ENTITY_DRAFT)),
+    );
+    const mapping = await held.idOf(
+      "SELECT id FROM public.proposals WHERE op = 'map_document' AND $1 = ANY (src::text[])",
+      [BOOK],
+    );
+
+    // Before the promotion, the dry join says which key finds each row, and it writes nothing.
+    const count = 'SELECT count(*)::int AS acts FROM public.proposals';
+    const before = await held.ask(count);
+    const join = await held.asAgent(() => dryJoin(asQueryable(held), mapping));
+    expect(await held.ask(count)).toStrictEqual(before);
+    expect(join.trim().split('\r\n')).toStrictEqual([
+      `# dry join of mapping ${mapping}; document ${BOOK}; text set ${ENTITY_SET}; rows 4; ` +
+        'by identifier 2; by name only 1; creates 1; more than one 0',
+      'row,label,key,entity,outcome',
+      `1,Rosneft,tax_id,${rosneft},finds`,
+      `2,Lukoil,label,${lukoil},finds by name only`,
+      `3,Novatek,tax_id,${novatek},finds`,
+      '4,Arctic New Co,,,creates',
+    ]);
+
+    await fromAnEarlierTransaction(held, mapping);
+    const load = await held.asApp(() =>
+      held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+    );
+    await held.ask(OLDEST, [load]);
+    await runLoad(held, load);
+
+    // Before the approval the table is no reference, and its other value is a doubt too.
+    expect(
+      await held.ask(
+        `SELECT public.unit_rule(p.unit_id) AS rule,
+                (SELECT f.faults->0->>'said' FROM public.unit_faults(ARRAY[p.unit_id]) f) AS said
+           FROM public.proposals p WHERE p.op = 'update_attrs' AND p.target_id = $1`,
+        [novatek],
+      ),
+    ).toStrictEqual([
+      {
+        rule: 'doubt',
+        said: 'The record holds lei 549300LCJ1UJXHYBWI24, and the loaded row gives 2138008R6GCRVBDFA581',
+      },
+    ]);
+    await approve(held);
+
+    const stateOf = async (entity: string) =>
+      held.ask(
+        `SELECT p.status, p.found_by, public.unit_rule(p.unit_id) AS rule,
+                (SELECT f.faults->0->>'kind' FROM public.unit_faults(ARRAY[p.unit_id]) f) AS fault
+           FROM public.proposals p WHERE p.op = 'update_attrs' AND p.target_id = $1`,
+        [entity],
+      );
+    expect(await stateOf(rosneft)).toStrictEqual([
+      { status: 'accepted', found_by: 'tax_id', rule: null, fault: null },
+    ]);
+    expect(await stateOf(lukoil)).toStrictEqual([
+      { status: 'pending', found_by: 'label', rule: 'doubt', fault: 'name_only_match' },
+    ]);
+    expect(await stateOf(novatek)).toStrictEqual([
+      { status: 'pending', found_by: 'tax_id', rule: 'doubt', fault: 'record_disagrees' },
+    ]);
+
+    // "not found" is no LEI, and a registration number never loads as a tax number.
+    expect(
+      z.array(companyRow).parse(
+        await held.ask(
+          `SELECT e.label, e.attrs #>> '{gem_entity_id,v}' AS gem, e.attrs #>> '{tax_id,v}' AS tax,
+                  e.attrs #>> '{registration_number,v}' AS registration,
+                  e.attrs #>> '{lei,v}' AS lei
+             FROM public.entities e
+            WHERE e.id = ANY ($1::uuid[]) OR e.label = 'Arctic New Co' ORDER BY e.label`,
+          [[rosneft, lukoil, novatek]],
+        ),
+      ),
+    ).toStrictEqual([
+      { label: 'Arctic New Co', gem: 'E100004', tax: null, registration: null, lei: null },
+      { label: 'Lukoil', gem: null, tax: null, registration: null, lei: null },
+      {
+        label: 'Novatek',
+        gem: null,
+        tax: '6316031581',
+        registration: null,
+        lei: '549300LCJ1UJXHYBWI24',
+      },
+      {
+        label: 'Rosneft Oil Company',
+        gem: 'E100001',
+        tax: '0105012345',
+        registration: null,
+        lei: null,
+      },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT p.payload->'attrs' AS attrs FROM public.proposals p
+          WHERE p.op = 'update_attrs' AND p.target_id = $1`,
+        [lukoil],
+      ),
+    ).toStrictEqual([
+      {
+        attrs: {
+          gem_entity_id: { v: 'E100002', src: [BOOK] },
+          registration_number: { v: '1027700035769', src: [BOOK] },
+        },
+      },
+    ]);
+    const report = new TextDecoder().decode(held.stored[0]?.bytes);
+    expect(report).toMatch(/read 4; loaded 4; excluded 0\r\n/u);
+    expect(report).toContain('gives no lei: ""not found"" is not a LEI in its legal form');
+    expect(report).not.toContain('is a tax number, and not a registration number');
   });
 });
