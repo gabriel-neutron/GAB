@@ -3694,7 +3694,8 @@ BEGIN
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
      WHERE a.op = 'update_entity' AND a.payload ? 'geom' AND e.geom IS NOT NULL
-       AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL)
+       AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL
+            OR a.author_role <> 'gabriel_app')
        AND NOT public.ST_Equals(e.geom,
              public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
     -- --------------------------------------------------------------------------- information --

@@ -100,7 +100,7 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
           ...(request.geom === undefined ? {} : { geom: request.geom }),
         },
         // The row-level list backs the name, the type and the place together. The operator
-        // authority backs it, with the stored image that the operator cites, if there is one.
+        // authority backs it. If the operator cites a stored image, the citations back it instead.
         src: request.cites === undefined ? [MANUAL] : [...new Set(request.cites)],
         names: [],
         targetKind: 'entity',
