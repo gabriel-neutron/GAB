@@ -279,6 +279,39 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
   }
 };
 
+const JURISDICTION_KEY = 'registration_jurisdiction';
+
+// The spellings of a registration jurisdiction in the sources, by ISO 3166-1 code. The record
+// holds the code. A source writes the name, so the code is stated by any of its spellings.
+const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+  RU: ['RU', 'Russia', 'Russian Federation'],
+};
+
+const jurisdictionCode = (value: Scalar): string | null => {
+  if (typeof value !== 'string') return null;
+  const wanted = plainText(value).trim();
+  return (
+    Object.entries(JURISDICTION_SPELLINGS).find(([, names]) =>
+      names.some((name) => plainText(name) === wanted),
+    )?.[0] ?? null
+  );
+};
+
+/** The act with each registration jurisdiction that has a known spelling written as its ISO 3166-1
+ * code, so "Russia" and "Russian Federation" become "RU". The facts and the sources do not change,
+ * only the spelling of the value. A jurisdiction with no known spelling stays as it is. */
+export const withCodedJurisdiction = <Act extends WriteRequest>(act: Act): Act => {
+  if (act.op !== 'create_entity' && act.op !== 'update_attrs') return act;
+  const held = act.attrs?.[JURISDICTION_KEY];
+  if (held === undefined) return act;
+  const code = jurisdictionCode(held.v as Scalar);
+  if (code === null || held.v === code) return act;
+  return { ...act, attrs: { ...act.attrs, [JURISDICTION_KEY]: { ...held, v: code } } };
+};
+
+const statesJurisdiction = (code: string, passage: string): boolean =>
+  (JURISDICTION_SPELLINGS[code] ?? []).some((name) => statesToken(name, passage));
+
 /** The values of an act that no cited passage states, in any form of that value. */
 export const unstatedValues = (
   act: WriteRequest,
@@ -286,7 +319,11 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => !stated(named.value, text, options.publishedOn));
+  return valuesOf(act).filter((named) => {
+    const code = named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
+    if (code !== null && statesJurisdiction(code, text)) return false;
+    return !stated(named.value, text, options.publishedOn);
+  });
 };
 
 /** The name of a bound of a relation. */

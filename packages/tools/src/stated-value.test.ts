@@ -4,7 +4,12 @@
 import { writeRequest } from '@gab/proposal/request';
 import { expect, test } from 'vitest';
 
-import { namesProvision, statedBounds, unstatedValues } from './stated-value.ts';
+import {
+  namesProvision,
+  statedBounds,
+  unstatedValues,
+  withCodedJurisdiction,
+} from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -368,4 +373,42 @@ test('another type keeps the check of the attributes that are words of the event
     'attrs.event_kind',
     'attrs.occurred_on_precision',
   ]);
+});
+
+const companyIn = (jurisdiction: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'company',
+    label: 'Gazpromneft Aero',
+    attrs: { registration_jurisdiction: { v: jurisdiction } },
+  });
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'a source that writes %j states the jurisdiction RU',
+  (spelling) => {
+    expect(
+      unstatedValues(companyIn('RU'), [`Gazpromneft Aero, address: Moscow, ${spelling}`]),
+    ).toStrictEqual([]);
+  },
+);
+
+test('a source that names another country does not state the jurisdiction RU', () => {
+  expect(unstatedValues(companyIn('RU'), ['Gazpromneft Aero, Belarus'])).toHaveLength(1);
+});
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'the spelling %j is written as RU',
+  (spelling) => {
+    const coded = withCodedJurisdiction(companyIn(spelling));
+    expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+      v: 'RU',
+    });
+  },
+);
+
+test('an unknown jurisdiction keeps its spelling', () => {
+  const coded = withCodedJurisdiction(companyIn('Narnia'));
+  expect(coded.op === 'create_entity' && coded.attrs?.registration_jurisdiction).toStrictEqual({
+    v: 'Narnia',
+  });
 });
