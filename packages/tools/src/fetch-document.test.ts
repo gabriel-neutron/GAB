@@ -290,6 +290,37 @@ describe('a bot filter or a silent server gives a refusal that names the next st
     expect(store.puts).toStrictEqual([]);
   });
 
+  test('a 403 that the browser does not pass either keeps the refusal, and nothing is stored', async () => {
+    const store = memoryStore();
+    const asked: string[] = [];
+    const reach: Reach = {
+      ...fixtureReach(store),
+      readThroughFilter: (url) => {
+        asked.push(url);
+        return Promise.resolve('the filter did not let the Chrome window through');
+      },
+    };
+    const refusal = await refusalOf(`${base}/cloudflare`, reach);
+    expect(refusal).toMatch(/Chrome window was also tried: the filter did not let/);
+    expect(asked).toStrictEqual([`${base}/cloudflare`]);
+    expect(refusal).toMatch(/answered 403/);
+    expect(refusal).toMatch(/store_saved_file/);
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a status that no bot filter gives does not open the browser', async () => {
+    const asked: string[] = [];
+    const reach: Reach = {
+      ...fixtureReach(memoryStore()),
+      readThroughFilter: (url) => {
+        asked.push(url);
+        return Promise.resolve('no page');
+      },
+    };
+    expect(await refusalOf(`${base}/gone`, reach)).toMatch(/answered 410/);
+    expect(asked).toStrictEqual([]);
+  });
+
   test('a 200 with a Radware challenge: open the page in a browser, store_saved_file', async () => {
     const store = memoryStore();
     const refusal = await refusalOf(`${base}/radware`, fixtureReach(store));

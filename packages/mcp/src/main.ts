@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 
 import { openStore, putObject } from '@gab/store';
 import { endOcr } from '@gab/text';
+import { readThroughFilter } from '@gab/tools/challenge-page';
 import { endMetadata } from '@gab/tools/fetch-document';
 import type { Reach } from '@gab/tools/tool';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -74,6 +75,7 @@ const reachOf = (): Reach => {
       store: { put: (object) => putObject(store, object) },
       web,
       inbox: INBOX,
+      readThroughFilter,
       now: () => new Date(),
     };
   } catch (cause) {
