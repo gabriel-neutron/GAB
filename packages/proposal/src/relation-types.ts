@@ -48,6 +48,10 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('inspected_at', 'inspected at', 'is the inspection place of', false),
   relationType('flagged_falsely', 'flagged falsely', 'is flagged falsely by', false),
   relationType('contradicts', 'contradicts', 'is contradicted by', false),
+  // An event happened at an installation, a port or a vessel, and a unit or a state body carried
+  // it out. An event holds its day as an attribute, so neither relation takes an interval.
+  relationType('occurred_at', 'occurred at', 'is the site of', false),
+  relationType('carried_out_by', 'carried out by', 'carries out', false),
   relationType('subordinate_to', 'subordinate to', 'is superior to', false),
   // A list says that two parties are linked, and it does not say how: an OFAC "Linked To" remark,
   // or the words "associated with" in a UK or EU entry.

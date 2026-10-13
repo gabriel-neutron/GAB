@@ -325,3 +325,31 @@ test('a publication date does not change the formats that the reader knew', () =
     }),
   ).toStrictEqual([]);
 });
+
+const eventOf = (label: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'event',
+    label,
+    attrs: {
+      event_kind: { v: 'claimed attack' },
+      occurred_on: { v: ['2026-05-14', '2026-05-15'] },
+      occurred_on_precision: { v: 'night' },
+    },
+  });
+
+test('the name, the kind and the precision of an event are no value that a passage states', () => {
+  const passage = 'Росія атакувала порт у ніч на 15 травня 2026.';
+  expect(
+    unstatedValues(eventOf('claimed attack — Port of Tuapse — 2026-05-15'), [passage]),
+  ).toStrictEqual([]);
+});
+
+test('the days of an event are checked against the passage', () => {
+  const passage = 'Росія атакувала порт у ніч на 16 травня 2026.';
+  expect(
+    unstatedValues(eventOf('claimed attack — Port of Tuapse — 2026-05-15'), [passage]).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['attrs.occurred_on']);
+});

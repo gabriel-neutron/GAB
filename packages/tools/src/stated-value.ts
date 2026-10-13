@@ -1,5 +1,6 @@
 import type { WriteRequest } from '@gab/proposal/request';
 
+import { EVENT_KIND, EVENT_PRECISION } from './event-rules.ts';
 import { fold } from './excerpt.ts';
 
 type Scalar = string | number | boolean;
@@ -236,24 +237,34 @@ const stated = (value: Scalar, passage: string, publishedOn?: string): boolean =
   );
 };
 
+// The kind and the precision of an event are words of a closed list, and a page never states them
+// in that form.
+const WORDS_OF_A_LIST: readonly string[] = [EVENT_KIND, EVENT_PRECISION];
+
 const attributeValues = (
   attrs: Readonly<Record<string, { readonly v: unknown }>> | undefined,
 ): ActValue[] =>
-  Object.entries(attrs ?? {}).flatMap(([key, held]) =>
-    (Array.isArray(held.v) ? held.v : [held.v])
-      .filter(
-        (one): one is Scalar =>
-          typeof one === 'string' || typeof one === 'number' || typeof one === 'boolean',
-      )
-      .map((one) => ({ name: `attrs.${key}`, value: one })),
-  );
+  Object.entries(attrs ?? {})
+    .filter(([key]) => !WORDS_OF_A_LIST.includes(key))
+    .flatMap(([key, held]) =>
+      (Array.isArray(held.v) ? held.v : [held.v])
+        .filter(
+          (one): one is Scalar =>
+            typeof one === 'string' || typeof one === 'number' || typeof one === 'boolean',
+        )
+        .map((one) => ({ name: `attrs.${key}`, value: one })),
+    );
 
 // The type of an entity or a relation is a word of the vocabulary, and a page never states it in
 // that form. The two ends of a relation are identifiers. So neither one is read in the text.
 const valuesOf = (act: WriteRequest): ActValue[] => {
   switch (act.op) {
     case 'create_entity':
-      return [{ name: 'label', value: act.label }, ...attributeValues(act.attrs)];
+      // The name of an event has a fixed form that the tool checks, and no page states it.
+      return [
+        ...(act.type === 'event' ? [] : [{ name: 'label', value: act.label }]),
+        ...attributeValues(act.attrs),
+      ];
     case 'create_relation':
       return [
         ...(act.validFrom === undefined ? [] : [{ name: 'validFrom', value: act.validFrom }]),
