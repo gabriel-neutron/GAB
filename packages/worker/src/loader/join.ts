@@ -31,12 +31,19 @@ export const lookupOrder = <T extends { readonly key: LookupKey }>(given: readon
 ];
 
 const BY_IDENTIFIER = `SELECT id::text AS id FROM api.entity
-  WHERE attrs @> ANY($1::jsonb[]) ORDER BY id LIMIT 20`;
+  WHERE attrs @> ANY($1::jsonb[]) AND ($2::text IS NULL OR type = $2::text)
+  ORDER BY id LIMIT 20`;
 
 const BY_LABEL = `SELECT id::text AS id FROM api.entity
   WHERE type = $1::text AND lower(label) = lower($2::text) ORDER BY id LIMIT 20`;
 
 const idRows = z.array(z.object({ id: z.uuid() }));
+
+const foundOf = (ids: readonly string[], key: LookupKey): Found => {
+  const [first] = ids;
+  if (ids.length > 1) return { kind: 'many', key, count: ids.length };
+  return first === undefined ? { kind: 'none' } : { kind: 'one', id: first, key };
+};
 
 /** What a lookup finds: no entity, one entity and the key that found it, or more than one. */
 export type Found =
@@ -84,40 +91,42 @@ export const makeFinder = (
     return typeof cell.value === 'string' ? cell.value : text;
   };
 
-  const lookedUp = async (lookup: Lookup, value: string, entityType: string): Promise<string[]> => {
-    const { rows } =
-      lookup.key === 'label'
-        ? await db.query(BY_LABEL, [entityType, value])
-        : await db.query(BY_IDENTIFIER, [
-            identifierContainment(lookup.key, value).map((shape) => JSON.stringify(shape)),
-          ]);
-    return idRows.parse(rows).map((held) => held.id);
+  const lookedUp = async (lookup: Lookup, value: string, entityType: string): Promise<Found> => {
+    if (lookup.key === 'label') {
+      const { rows } = await db.query(BY_LABEL, [entityType, value]);
+      return foundOf(
+        idRows.parse(rows).map((held) => held.id),
+        lookup.key,
+      );
+    }
+    return findByIdentifier(db, lookup.key, value, null);
   };
 
   return async (record, given, entityType) => {
     for (const one of lookupOrder(given)) {
       const value = valueOf(record, one);
       if (value === null) continue;
-      const ids = await lookedUp(one, value, entityType);
-      const [first] = ids;
-      if (ids.length > 1) return { kind: 'many', key: one.key, count: ids.length };
-      if (first !== undefined) return { kind: 'one', id: first, key: one.key };
+      const found = await lookedUp(one, value, entityType);
+      if (found.kind !== 'none') return found;
     }
     return { kind: 'none' };
   };
 };
 
-/** Finds the entities that hold one identifier, with no mapping and no column. */
+/** Finds the entities that hold one identifier, with no mapping and no column. `entityType` limits
+ * the lookup to one type, and null looks at every type. */
 export const findByIdentifier = async (
   db: Queryable,
   key: IdentifierKey,
   value: string,
+  entityType: string | null,
 ): Promise<Found> => {
   const { rows } = await db.query(BY_IDENTIFIER, [
     identifierContainment(key, value).map((shape) => JSON.stringify(shape)),
+    entityType,
   ]);
-  const ids = idRows.parse(rows).map((held) => held.id);
-  const [first] = ids;
-  if (ids.length > 1) return { kind: 'many', key, count: ids.length };
-  return first === undefined ? { kind: 'none' } : { kind: 'one', id: first, key };
+  return foundOf(
+    idRows.parse(rows).map((held) => held.id),
+    key,
+  );
 };

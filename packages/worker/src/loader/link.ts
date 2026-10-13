@@ -181,7 +181,10 @@ export const compareLink = (
 // External constraint: GEM writes the identifier of an entity as "E" and digits, and a
 // share as a number with a percent sign.
 const GEM_ENTITY = /\bE\d{6,}\b/gu;
-const PERCENT = /(\d+(?:\.\d+)?)\s*%/gu;
+const PERCENT = /(?<![\d.,])(\d+(?:\.\d+)?)\s*%/gu;
+// A share with a comma as the decimal mark is not read. The part is refused, and the digits never
+// leak into the name of the owner.
+const COMMA_SHARE = /\d,\d+\s*%/u;
 
 /** One owner of a split cell: its GEM identifier, the name that stands in the same part, and its
  * share in percent. */
@@ -202,6 +205,8 @@ export const splitOwners = (
   for (const part of text.split(separator)) {
     const piece = part.trim();
     if (piece === '') continue;
+    if (COMMA_SHARE.test(piece))
+      return { refused: `the owner cell does not split: "${piece}" gives a share with a comma` };
     const ids = piece.match(GEM_ENTITY) ?? [];
     const shares = [...piece.matchAll(PERCENT)];
     const [gemId] = ids;
@@ -221,5 +226,11 @@ export const splitOwners = (
     owners.push({ gemId, name: name === '' ? gemId : name, share: Number(share[1]) });
   }
   if (owners.length === 0) return { refused: 'the owner cell holds no owner' };
+  const seen = new Set<string>();
+  for (const owner of owners) {
+    if (seen.has(owner.gemId))
+      return { refused: `the owner cell does not split: ${owner.gemId} occurs more than one time` };
+    seen.add(owner.gemId);
+  }
   return { owners };
 };

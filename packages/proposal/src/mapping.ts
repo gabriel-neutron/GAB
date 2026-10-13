@@ -81,7 +81,9 @@ const relation = z
     row_is: z
       .enum(['src', 'dst'])
       .describe('the end of the relation that the entity of the row is'),
-    other: lookup.describe('finds the entity at the other end, which the record holds already'),
+    other: lookup.describe(
+      'finds the entity at the other end. The record holds it already, but a cell that splits creates a missing owner with its GEM identifier',
+    ),
     other_type: key
       .optional()
       .describe('the entity type of the other end. The default is the type of the row'),
@@ -98,6 +100,9 @@ const relation = z
   })
   .refine((held) => held.split === undefined || held.other.key === 'gem_entity_id', {
     message: 'a relation that splits its cell finds the other end by gem_entity_id',
+  })
+  .refine((held) => held.split === undefined || !('share_pct' in (held.attrs ?? {})), {
+    message: 'a relation that splits its cell takes share_pct from the cell, so attrs has none',
   })
   .refine((held) => held.split === undefined || held.other_type !== undefined, {
     message: 'a relation that splits its cell names the entity type of the other end',
