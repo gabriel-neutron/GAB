@@ -88,7 +88,7 @@ const OBSERVED_KEY = 'observed_on';
 
 /** The elements of a value: a list in its JSON text gives each element, and any other text gives
  * itself. */
-const elementsOf = (value: string): readonly string[] => {
+export const elementsOf = (value: string): readonly string[] => {
   if (!value.startsWith('[')) return [value];
   try {
     const list: unknown = JSON.parse(value);

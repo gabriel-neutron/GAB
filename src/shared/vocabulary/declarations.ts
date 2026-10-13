@@ -38,6 +38,9 @@ export const seededVocabulary: {
     // bank stays `bank`.
     entityType('state_body', 'State body', '#bb4530', '#fa8c7a', 75),
     entityType('legal_act', 'Legal act', '#8b598e', '#e889ed', 80),
+    // A dated claim by a party about a site: a claimed strike, a fire, a stoppage. It is not an
+    // observed fact, and it has no position. Indigo, 4.8:1 on the light page and 8.8:1 on the dark.
+    entityType('event', 'Event', '#5c63c9', '#a3a8f5', 85),
     // `unknown` takes the grey and sorts last: a grey says that no type was recognised.
     entityType('unknown', 'Unknown', '#6b7280', '#9ca3af', 900),
   ],
