@@ -35,12 +35,16 @@ session: each proposal waits in the review queue, and the operator decides it th
   number of a ship). Cite each part on page 1 of the stored file.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
+- Read the heat detections of one site: `firms_detections` takes a site box and a period, and
+  stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
+  set, the tool says so, and the other tools work.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `store_saved_file`, `telegram_channel`, `enqueue_extract`, `enqueue_mapping`, `start_lead`,
-  `propose`. Each write runs with no question. `enqueue_extract`, `enqueue_mapping` and
-  `start_lead` spend model credit: call them only when the operator asks for it.
+  `firms_detections`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
+  `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
+  `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
+  the operator asks for it.
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
   `promote_clean_proposals`. Follow the skill `review-unit`.
 
