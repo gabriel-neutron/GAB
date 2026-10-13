@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
+import { SITE, QUIET_SITE } from './event-fixture.ts';
 import { EntityPage } from './entity-page.tsx';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
@@ -43,5 +44,31 @@ export const WithThePairOnEachClaimShowsItsPair: Story = {
   args: { release: FIXTURE_RELEASE.on },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('NATO A2')).toBeVisible();
+  },
+};
+
+export const ASiteGivesItsEventsAndTheLimitOfTheCount: Story = {
+  args: { release: FIXTURE_RELEASE.events, entityId: SITE },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { name: 'Events' })).toBeVisible();
+    await expect(canvas.getByText('At least 1 claimed and stored strike.')).toBeVisible();
+    await expect(canvas.getByText(/It is not a count of all strikes/u)).toBeVisible();
+    await expect(canvas.getByText('“у ніч на 15 травня”')).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Unmanned Systems Forces' })).toBeVisible();
+  },
+};
+
+export const AStoredCounterStatementShowsAndItsAbsenceIsSaid: Story = {
+  args: { release: FIXTURE_RELEASE.events, entityId: SITE },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('No strike took place at the terminal')).toBeVisible();
+    await expect(canvas.getByText(/no counter-statement stored/u)).toBeVisible();
+  },
+};
+
+export const ASiteWithNoStoredEventReadsAtLeastZero: Story = {
+  args: { release: FIXTURE_RELEASE.events, entityId: QUIET_SITE },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('At least 0 claimed and stored strikes.')).toBeVisible();
   },
 };

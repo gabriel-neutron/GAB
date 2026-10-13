@@ -1,5 +1,7 @@
 import { attributeName } from './attribute-name.ts';
 import { claimText } from './claim-text.ts';
+import { eventsAt } from './event-lane.ts';
+import { EventLane } from './events-section.tsx';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from '@gab/proposal/relation-types';
 import { SiteFrame } from './site-frame.tsx';
@@ -13,6 +15,10 @@ export interface EntityPageProps {
   readonly entityId: string;
 }
 
+// The types that an event can happen at. Their page always gives the counter, so that a site with
+// no stored event does not read as a site with no strike.
+const SITE_TYPES: ReadonlySet<string> = new Set(['facility', 'port']);
+
 /** The page of one public entity: its type, its label and licence, each value with its claim,
  * each relation that starts or ends at it with its claim, and the documents of these claims. */
 export function EntityPage({ release, entityId }: EntityPageProps) {
@@ -24,6 +30,7 @@ export function EntityPage({ release, entityId }: EntityPageProps) {
   const relations = claims.filter((one) => one.kind === 'relation');
   const merged = [...release.aliases].filter(([, survivor]) => survivor === entity.id);
   const imo = release.imoOfVessel.get(entity.id);
+  const showEvents = SITE_TYPES.has(entity.type) || eventsAt(release, entity.id).length > 0;
 
   // Each document once, in the order of the claims.
   const sources = new Map<string, SiteSource>();
@@ -160,6 +167,8 @@ export function EntityPage({ release, entityId }: EntityPageProps) {
           </div>
         )}
       </section>
+
+      {showEvents ? <EventLane release={release} siteId={entity.id} here={here} /> : null}
 
       <section className="flex flex-col gap-1">
         <h2 className="font-medium">Sources</h2>
