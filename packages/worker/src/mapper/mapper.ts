@@ -32,6 +32,10 @@ const sampled = z.object({ headerSig: z.string() });
 
 const documentRow = z.array(z.object({ mime: z.string().nullable() }));
 
+const textSetRow = z.array(z.object({ text_set: z.string().nullable() }));
+
+const TEXT_SET = 'SELECT text_set FROM public.jobs WHERE id = $1::uuid';
+
 const loadRow = z.array(z.object({ id: z.uuid().nullable() }));
 
 const MIME = 'SELECT mime FROM public.documents WHERE id = $1::text';
@@ -56,12 +60,17 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
 
     const [held] = documentRow.parse((await context.db.query(MIME, [document])).rows);
     if (held === undefined) throw new JobStop(`the record holds no document ${document}`);
-    if (baseMime(held.mime) !== MAPPED_MIME)
+    // A named text set of a workbook is a table by its making, so it needs no CSV type.
+    const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
+    const textSet = named?.text_set ?? undefined;
+    if (textSet !== undefined && !textSet.startsWith('xlsx-'))
+      throw new JobStop(`the mapper reads a workbook text set, and ${textSet} is not one`);
+    if (textSet === undefined && baseMime(held.mime) !== MAPPED_MIME)
       throw new JobStop(
         `the mapper reads a CSV table only, and document ${document} is ${held.mime ?? 'of no type'}`,
       );
 
-    const read = await callTool(tools.fileSchemaSample, session, { document });
+    const read = await callTool(tools.fileSchemaSample, session, { document, textSet });
     if (!read.ok) throw new JobStop(read.refusal);
     const { headerSig } = sampled.parse(read.output);
 
@@ -85,6 +94,7 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
         throw new JobStop('the model answered with a tool call, and the mapper offers no tool');
       const made = await callTool(tools.proposeMapping(asked.callId), session, {
         document,
+        textSet,
         mapping: asked.value.mapping,
       });
       if (made.ok) return { refusals: [] };

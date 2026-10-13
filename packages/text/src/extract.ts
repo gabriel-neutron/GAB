@@ -14,6 +14,7 @@ import { createWorker, type Worker } from 'tesseract.js';
 import TurndownService from 'turndown';
 import { extractText as readPdf, getDocumentProxy } from 'unpdf';
 
+import { sheetCsv, sheetNames, XLSX_MIME as XLSX } from './xlsx.ts';
 import { xmlText } from './xml-text.ts';
 
 export interface Extracted {
@@ -270,6 +271,7 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
+  '.xlsx': XLSX,
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -458,6 +460,10 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   // act in it.
   if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, mime, true)] };
   if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
+  // A sheet is one page, so a table page is one sheet. A named text set keeps the rows of one sheet
+  // (xlsx.ts), and the page here is the whole sheet for a reader.
+  if (type === XLSX)
+    return { pages: sheetNames(bytes).map((sheet) => withoutNul(sheetCsv(bytes, sheet))) };
   if (XML.has(type)) return { pages: [withoutNul(xmlText(decodeHtml(bytes, mime)))] };
   if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);
