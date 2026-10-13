@@ -219,12 +219,12 @@ BEGIN
   IF (NEW.id, NEW.op, NEW.target_kind, NEW.target_id, NEW.payload, NEW.src, NEW.names,
       NEW.dissent, NEW.dissent_reason, NEW.author_role, NEW.xact, NEW.created_at,
       NEW.model_call_id, NEW.act_digest, NEW.originator, NEW.batch_id, NEW.unit_id,
-      NEW.claim_key)
+      NEW.claim_key, NEW.found_by)
      IS DISTINCT FROM
      (OLD.id, OLD.op, OLD.target_kind, OLD.target_id, OLD.payload, OLD.src, OLD.names,
       OLD.dissent, OLD.dissent_reason, OLD.author_role, OLD.xact, OLD.created_at,
       OLD.model_call_id, OLD.act_digest, OLD.originator, OLD.batch_id, OLD.unit_id,
-      OLD.claim_key) THEN
+      OLD.claim_key, OLD.found_by) THEN
     RAISE EXCEPTION 'a proposal is frozen at the insert';
   END IF;
   RETURN NEW;
@@ -944,14 +944,14 @@ BEGIN
     BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, dissent, dissent_reason,
-         author_role, model_call_id, originator, batch_id)
+         author_role, model_call_id, originator, batch_id, found_by)
       VALUES
         (v_minted, v_item->>'op', v_item->>'target_kind', v_target, v_payload::jsonb,
          v_src::doc_id[], v_names, coalesce((v_item->>'dissent')::boolean, false),
          v_item->>'dissent_reason',
          session_user,        -- overwritten by the stamp trigger; a value is needed for NOT NULL
          (v_item->>'model_call_id')::uuid, btrim(v_item->>'originator', E' \t\n\r\f\v'),
-         v_batch)
+         v_batch, v_item->>'found_by')
       ON CONFLICT (act_digest) WHERE status = 'pending' DO NOTHING
       RETURNING id, batch_id INTO v_id, v_held;
     EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
@@ -1743,10 +1743,7 @@ BEGIN
     BEGIN
       -- The load reads the table of the text set that the mapping job read.
       INSERT INTO public.jobs (document_id, kind, mapping, text_set)
-      VALUES (p.src[1], 'load_mapped', p.id,
-              (SELECT j.text_set FROM public.model_call m
-                 JOIN public.jobs j ON j.id = m.job_id
-                WHERE m.id = p.model_call_id))
+      VALUES (p.src[1], 'load_mapped', p.id, public.mapping_text_set(p.id))
       RETURNING id INTO v_id;
     EXCEPTION WHEN unique_violation THEN
       RAISE EXCEPTION 'document % has a load that is queued or runs already. Promote this '
@@ -3642,17 +3639,27 @@ BEGIN
       JOIN public.proposals d ON d.id = (l.payload->>'dst_id')::uuid AND d.status = 'rejected'
      WHERE n.parent IS NULL
     UNION ALL
-    -- A row of a reference dataset that gives another value for a key which the entity holds
-    -- already. The dataset never replaces a value of the record in silence.
+    -- A loaded row, or a row of a reference dataset, that gives another value for a key which the
+    -- entity holds already. A load never replaces a value of the record in silence.
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The record holds ' || k.key || ' ' || coalesce(e.attrs->k.key->>'v', 'with no value')
-           || ', and the reference dataset gives ' || coalesce(k.held->>'v', 'no value')
+           || CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
+                   THEN ', and the reference dataset gives ' ELSE ', and the loaded row gives ' END
+           || coalesce(k.held->>'v', 'no value')
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
       CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS k(key, held)
      WHERE a.op = 'update_attrs' AND e.attrs ? k.key
        AND e.attrs->k.key->'v' IS DISTINCT FROM k.held->'v'
-       AND public.act_reference_dataset(a.id) IS NOT NULL
+       AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL)
+    UNION ALL
+    -- A loaded row that found its entity by the name alone. Two entities can share a name, so the
+    -- operator checks that the row names this one (merge candidates do not change, ADR 0022).
+    SELECT a.unit_id, 'not_clean', 'name_only_match', a.id,
+           'The load found ' || coalesce(public.element_name(a.target_id), a.target_id::text)
+           || ' by its name only'
+      FROM acts a
+     WHERE a.op = 'update_attrs' AND a.found_by = 'label'
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -3782,6 +3789,19 @@ BEGIN
                       WHERE n.waits))
    LIMIT 1);
 END $$;
+
+-- THE TEXT SET OF A MAPPING: the set that the mapping job read, or NULL for the newest set. The
+-- load of the mapping and its dry join read this set, so they read the rows that the model read.
+CREATE OR REPLACE FUNCTION mapping_text_set(p_mapping uuid)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT j.text_set
+    FROM public.proposals p
+    JOIN public.model_call m ON m.id = p.model_call_id
+    JOIN public.jobs j ON j.id = m.job_id
+   WHERE p.id = p_mapping AND p.op = 'map_document'
+$$;
 
 -- THE REFERENCE DATASET OF AN ACT. An act is a row of a promoted mapping when the worker wrote it
 -- under the model call of an accepted mapping. It comes from a reference dataset when the one
