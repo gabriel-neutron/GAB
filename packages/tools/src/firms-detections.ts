@@ -20,6 +20,8 @@ const DAY_MS = 86_400_000;
 
 const SOURCE_ID = /^(VIIRS_[A-Z0-9]+)_(SP|NRT)$/u;
 
+// Assumption: the status answer of a map key is JSON with these two numbers. Not checked against
+// a live call.
 const statusAnswer = z.object({
   transaction_limit: z.number(),
   current_transactions: z.number(),
@@ -47,9 +49,13 @@ const msOf = (value: string): number => Date.parse(`${value}T00:00:00Z`);
 const get = async (reach: Reach | undefined, path: string, key: string): Promise<string> => {
   let answer;
   try {
-    answer = await anyAnswerOf(webFromReach(reach), `${BASE}${path.replace('{key}', key)}`, {
-      headers: { accept: 'text/csv, application/json' },
-    });
+    answer = await anyAnswerOf(
+      webFromReach(reach),
+      `${BASE}${path.replace('{key}', () => encodeURIComponent(key))}`,
+      {
+        headers: { accept: 'text/csv, application/json' },
+      },
+    );
   } catch (fault) {
     if (fault instanceof UpstreamFault) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
     throw fault;
@@ -59,7 +65,9 @@ const get = async (reach: Reach | undefined, path: string, key: string): Promise
   return answer.body;
 };
 
-/** The dates of each VIIRS source, as FIRMS gives them. A line of another shape is skipped. */
+/** The dates of each VIIRS source, as FIRMS gives them. A line of another shape is skipped.
+ * Assumption: the availability answer is a CSV with the columns data_id, min_date, max_date. Not
+ * checked against a live call. */
 export const sourcesOf = (body: string): Source[] =>
   body
     .split(/\r?\n/u)
@@ -114,6 +122,8 @@ const outputShape = z.strictObject({
   sources: z.array(z.string()),
   calls: z.number().int(),
   detections: z.number().int(),
+  /** The days of the period that no VIIRS source holds, counted for each satellite as a day
+   * that at least one satellite holds is covered. */
   uncoveredDays: z.number().int(),
   transactions: z.strictObject({ limit: z.number(), before: z.number(), after: z.number() }),
 });
@@ -165,7 +175,10 @@ export const firmsDetections = defineTool({
         `the period is above ${String(MAX_PERIOD_DAYS)} days: read it in parts`,
       );
 
-    const sources = sourcesOf(await get(reach, '/api/data_availability/csv/{key}/ALL', key));
+    const availability = await get(reach, '/api/data_availability/csv/{key}/ALL', key);
+    const sources = sourcesOf(availability);
+    if (sources.length === 0 && availability.trim() !== '')
+      throw new ToolRefusal(`${REGISTER}: availability not understood`);
     const { windows, uncovered } = windowsOf(sources, input.from, input.to);
     if (windows.length === 0)
       throw new ToolRefusal(
@@ -173,6 +186,10 @@ export const firmsDetections = defineTool({
           sources.map((source) => `${source.id} ${source.min} to ${source.max}`).join(', '),
       );
 
+    // Assumptions: one area call costs one transaction, and a status call costs none. The
+    // availability call is not counted in the plan because it is one call and the reserve covers
+    // it. The status is read after each window, so that a window that costs more than one
+    // transaction stops the run in time.
     const status = async () => {
       let json: unknown;
       try {
@@ -197,6 +214,7 @@ export const firmsDetections = defineTool({
     const box = `${String(input.west)},${String(input.south)},${String(input.east)},${String(input.north)}`;
     const answers: (Window & { csv: string })[] = [];
     let after = before;
+    // A stop in the middle of the run stores nothing: a partial answer would look whole.
     for (const window of windows) {
       if (after.limit - after.used < RESERVE)
         throw new ToolRefusal(
@@ -213,7 +231,8 @@ export const firmsDetections = defineTool({
       after = await status();
     }
 
-    // The stored address has no key segment.
+    // The stored address is synthetic: it names the box and the period, not a call of FIRMS, and
+    // it has no key segment.
     const body = JSON.stringify({ box, from: input.from, to: input.to, windows: answers });
     const stored = await storeRegister(
       session,
