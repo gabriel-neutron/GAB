@@ -7,6 +7,7 @@ import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
 import { findDocument } from './find-document.ts';
+import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
 import { listProposals } from './list-proposals.ts';
@@ -69,6 +70,7 @@ export const CATALOGUE = [
   ofacSdn,
   ukSanctionsList,
   vesselEvents,
+  firmsDetections,
   enqueueExtract,
   enqueueMapping,
   startLead,
