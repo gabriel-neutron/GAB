@@ -72,8 +72,12 @@ export const firmsSweepCommand: SubCommand = async (args) => {
         `${String(report.skipped)} quarters already stored.`,
     );
     for (const line of report.failed) console.error(line);
+    if (report.pending > 0)
+      console.log(`${String(report.pending)} periods wait for days that FIRMS has not published.`);
     if (report.stopped) console.error('Stopped at the rate limit. Run the command again.');
-    return report.stopped || report.failed.length > 0 ? 1 : 0;
+    if (report.aborted !== undefined)
+      console.error(`Stopped: the same refusal came five times in a row: ${report.aborted}`);
+    return report.stopped || report.aborted !== undefined || report.failed.length > 0 ? 1 : 0;
   } finally {
     await client.end();
     store.client.destroy();

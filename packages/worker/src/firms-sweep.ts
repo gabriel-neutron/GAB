@@ -1,5 +1,5 @@
 import { readCsv } from '@gab/tools/csv';
-import { firmsDetections, RateLimitRefusal } from '@gab/tools/firms-detections';
+import { firmsDetections, NoSourceRefusal, RateLimitRefusal } from '@gab/tools/firms-detections';
 import { ToolRefusal, type Reach, type Session } from '@gab/tools/tool';
 import { z } from 'zod';
 
@@ -40,15 +40,16 @@ const textRows = z.array(z.object({ text: z.string() }));
 const uriRows = z.array(z.object({ uri: z.string() }));
 
 const round = (value: number): number => Number(value.toFixed(4));
+const within = (value: number, limit: number): number => Math.max(-limit, Math.min(limit, value));
 
 /** The box of each asset of the record that has a point. A line or an area has no point. */
 export const assetSites = async (session: Session): Promise<Site[]> =>
   assetRows.parse((await session.query(ASSETS, [])).rows).map((row) => ({
     name: row.label,
-    west: round(row.x - ASSET_HALF),
-    south: round(row.y - ASSET_HALF),
-    east: round(row.x + ASSET_HALF),
-    north: round(row.y + ASSET_HALF),
+    west: within(round(row.x - ASSET_HALF), 180),
+    south: within(round(row.y - ASSET_HALF), 90),
+    east: within(round(row.x + ASSET_HALF), 180),
+    north: within(round(row.y + ASSET_HALF), 90),
   }));
 
 /** The tiles that hold at least one flare of a stored flare table (a text set of a document). */
@@ -69,12 +70,13 @@ export const flareSites = async (
     if (row.fields[lat] === '' || row.fields[lon] === '' || !Number.isFinite(x + y)) continue;
     const west = Math.floor(x / TILE) * TILE;
     const south = Math.floor(y / TILE) * TILE;
+    if (west >= 180 || south >= 90) continue;
     tiles.set(`${String(west)},${String(south)}`, {
       name: `flare tile ${String(west)},${String(south)}`,
       west,
       south,
-      east: west + TILE,
-      north: south + TILE,
+      east: within(west + TILE, 180),
+      north: within(south + TILE, 90),
     });
   }
   return [...tiles.values()];
@@ -114,25 +116,43 @@ const storedPeriods = async (session: Session, site: Site): Promise<Period[]> =>
   });
 };
 
-const covered = (stored: readonly Period[], [from, to]: Period): boolean => {
+/** The runs of days of a period that no stored answer covers. A read of these runs never
+ * overlaps a stored document. */
+export const gapsOf = (stored: readonly Period[], [from, to]: Period): Period[] => {
+  const gaps: Period[] = [];
+  let open: string | undefined;
   for (let at = msOf(from); at <= msOf(to); at += DAY_MS) {
     const day = dayOf(at);
-    if (!stored.some(([a, b]) => a <= day && day <= b)) return false;
+    if (stored.some(([a, b]) => a <= day && day <= b)) {
+      if (open !== undefined) gaps.push([open, dayOf(at - DAY_MS)]);
+      open = undefined;
+    } else open ??= day;
   }
-  return true;
+  if (open !== undefined) gaps.push([open, to]);
+  return gaps;
 };
 
 export interface SweepReport {
   /** Answers stored by this run. */
   stored: number;
-  /** Periods that stored answers cover already. */
+  /** Complete quarters that stored answers cover already. */
   skipped: number;
   /** Periods that FIRMS or the tool refused, with the sentence of the refusal. */
   failed: string[];
+  /** Periods that no FIRMS source holds yet. A later run reads them. */
+  pending: number;
   /** True when the run stopped at the rate limit: run it again to go on. */
   stopped: boolean;
+  /** The sentence that repeated until the run stopped, as a bad key makes it do. */
+  aborted?: string;
 }
 
+// A sentence that repeats this many times in a row is a fault of the setup, not of one period.
+const REPEATS = 5;
+
+// Known limit: the near real time days that the tail reads are provisional. FIRMS replaces them
+// with archive days some months later, and the sweep does not read them again, because a stored
+// answer covers the days. Delete the answers of the tail to read them again.
 /** Reads every period of every site that no stored answer covers. */
 export const sweepFirms = async (
   session: Session,
@@ -140,37 +160,29 @@ export const sweepFirms = async (
   sites: readonly Site[],
   since: string,
 ): Promise<SweepReport> => {
-  const report: SweepReport = { stored: 0, skipped: 0, failed: [], stopped: false };
+  const report: SweepReport = { stored: 0, skipped: 0, failed: [], pending: 0, stopped: false };
   const today = reach.now().toISOString().slice(0, 10);
   const yesterday = dayOf(msOf(today) - DAY_MS);
   const quarters = quartersOf(since, today);
   const lastEnd = quarters.at(-1)?.[1];
   const sleep = reach.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)));
+  let repeated = { sentence: '', count: 0 };
 
   for (const site of sites) {
     const stored = await storedPeriods(session, site);
-    const latest = stored
-      .map(([, to]) => to)
-      .sort()
-      .at(-1);
-    // The tail starts after the last answer and after the last complete quarter, so it never reads
-    // a day of a quarter twice.
-    const next = (day: string | undefined): string =>
-      day === undefined ? since : dayOf(msOf(day) + DAY_MS);
-    const tailFrom = [next(latest), next(lastEnd)].sort().at(-1) ?? since;
-    const periods: Period[] = quarters.filter((period) => !covered(stored, period));
-    report.skipped += quarters.length - periods.length;
-    if (tailFrom <= yesterday) periods.push([tailFrom, yesterday]);
+    const tailFrom = lastEnd === undefined ? since : dayOf(msOf(lastEnd) + DAY_MS);
+    const periods = [...quarters, [tailFrom, yesterday] as Period].flatMap((period, at) => {
+      const gaps = gapsOf(stored, period);
+      if (gaps.length === 0 && at < quarters.length) report.skipped += 1;
+      return gaps;
+    });
 
     for (const [from, to] of periods) {
       for (let attempt = 1; ; attempt += 1) {
         try {
-          const made = await firmsDetections.run(
-            session,
-            { west: site.west, south: site.south, east: site.east, north: site.north, from, to },
-            reach,
-          );
+          const made = await firmsDetections.run(session, { ...site, from, to }, reach);
           report.stored += made.status === 'stored' ? 1 : 0;
+          repeated = { sentence: '', count: 0 };
           break;
         } catch (fault) {
           if (fault instanceof RateLimitRefusal && attempt < TRIES) {
@@ -182,7 +194,19 @@ export const sweepFirms = async (
             return report;
           }
           if (!(fault instanceof ToolRefusal)) throw fault;
+          if (fault instanceof NoSourceRefusal) {
+            report.pending += 1;
+            break;
+          }
           report.failed.push(`${site.name} ${from} to ${to}: ${fault.message}`);
+          repeated =
+            repeated.sentence === fault.message
+              ? { sentence: fault.message, count: repeated.count + 1 }
+              : { sentence: fault.message, count: 1 };
+          if (repeated.count >= REPEATS) {
+            report.aborted = fault.message;
+            return report;
+          }
           break;
         }
       }
