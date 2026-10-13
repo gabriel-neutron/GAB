@@ -25,7 +25,7 @@ const TYPES = ['encounter', 'loitering', 'gap'] as const;
 // The largest page that one stored answer holds. A longer history is read with the offset.
 const PAGE = 200;
 
-const day = z
+export const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a date is written YYYY-MM-DD')
   .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), {
