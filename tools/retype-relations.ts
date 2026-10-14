@@ -58,8 +58,8 @@ const ASSET_FREEZE = /\bSDN\b|blocked property|asset freeze|269\/2014/i;
 const US_DIRECTIVE = /\bdirective\s+\d+/i;
 
 // The articles of 833/2014 that state a sectoral measure: 5af, and the articles of Annexes XLIV
-// (5ac), III (5a), XLVII (5ae) and XIV (5h).
-const SECTORAL_ARTICLE = /\barticle\s+5(?:af|ac|ae|h|a|\(a\))(?!\w)/i;
+// (5ac), III (5(a)), XLVII (5ae) and XIV (5h).
+const SECTORAL_ARTICLE = /\barticle\s+5(?:af|ac|ae|h|\(a\))(?!\w)/gi;
 
 // The title of Annex XLVII, "List of ports ... referred to in Article 5ae", does not say "Annex".
 const PORT_ARTICLE = /\barticle\s+5ae\b/i;
@@ -88,8 +88,20 @@ const classifyText = (
   const annexes = [...text.matchAll(/\bannex\s+([ivxlc]+)\b/gi)].map((m) =>
     (m[1] ?? '').toUpperCase(),
   );
-  if (annexes.includes('XLII')) return { kind: 'keep', reason: 'a vessel of Annex XLII' };
-  if (ASSET_FREEZE.test(text)) return { kind: 'keep', reason: 'a listing with an asset freeze' };
+  // The text without the sectoral articles, to find another article.
+  const otherArticles = text.replace(SECTORAL_ARTICLE, '');
+  const article = otherArticles !== text;
+  const sectoral = article || US_DIRECTIVE.test(text) || annexes.some((a) => RETYPE_ANNEXES.has(a));
+
+  // The joined excerpts can name a listing that stays and a sectoral provision. That is a doubt.
+  if (annexes.includes('XLII'))
+    return sectoral
+      ? doubt('a vessel list and a sectoral provision')
+      : { kind: 'keep', reason: 'a vessel of Annex XLII' };
+  if (ASSET_FREEZE.test(text))
+    return sectoral
+      ? doubt('an asset freeze and a sectoral provision')
+      : { kind: 'keep', reason: 'a listing with an asset freeze' };
 
   // An excerpt that is only a line of the list names no provision. The act at the far end then
   // states the directive, and the page must name a directive to cite beside the excerpt.
@@ -101,7 +113,6 @@ const classifyText = (
     US_DIRECTIVE_ACT.test(destination) &&
     directivePassage(pageText, destination) !== null;
   const us = (US_DIRECTIVE.test(text) && /\b(13662|14024)\b/.test(text)) || byAct;
-  const article = SECTORAL_ARTICLE.test(text);
   const eu = article || annexes.some((a) => RETYPE_ANNEXES.has(a));
 
   // A vessel is on the vessel list of a regime (SDN, Annex XLII, UK specified ship), and that
@@ -114,7 +125,7 @@ const classifyText = (
 
   const unknown =
     annexes.some((a) => !RETYPE_ANNEXES.has(a)) ||
-    (!article && /\barticles?\s+\d+/i.test(text)) ||
+    /\barticles?\s+\d+/i.test(otherArticles) ||
     (!us && US_DIRECTIVE.test(text));
 
   if (unknown) return doubt('unknown provision');
