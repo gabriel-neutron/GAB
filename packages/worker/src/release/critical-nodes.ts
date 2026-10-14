@@ -32,7 +32,8 @@ const HEADER = [
 
 const NATO_HEADER = CONDITIONS.map((one) => `${one}_nato_pairs`);
 
-// The rule of the investigation: a node that meets two conditions of three is retained.
+// The rule of the investigation: a node with two sourced ticks of three is retained. A tick with
+// no public claim gives the reader nothing to check, so it does not count (verdict on #462).
 const RETAINED_AT = 2;
 
 // The mark of a claim of a tick that has no NATO pair, in the list of the pairs. A leading minus
@@ -55,6 +56,7 @@ interface Node {
 const tickCount = (node: Node): number => CONDITIONS.filter((one) => node.ticks[one]).length;
 const sourcedCount = (node: Node): number =>
   CONDITIONS.filter((one) => (node.ticks[one]?.claimIds.length ?? 0) > 0).length;
+const isRetained = (node: Node): boolean => sourcedCount(node) >= RETAINED_AT;
 
 const refuse = (row: SheetRow, why: string): never => {
   throw new CriticalNodesSheetFault(
@@ -78,11 +80,11 @@ const textOf = (rows: readonly SheetRow[], take: (row: SheetRow) => string, name
 const note = (sheet: boolean, nodes: readonly Node[], natoPair: boolean): string =>
   [
     'Critical nodes table.',
-    'One row for each candidate node of the sheet that the operator keeps. A node is retained when it meets two conditions of three.',
+    'One row for each candidate node of the sheet that the operator keeps. A node is retained when two conditions of three have a sourced tick. A tick with no public claim does not count.',
     '(a) documented sanctions exposure: a public designation of the node itself, from the record, ended or not. A designation of an entity that the node controls does not count.',
     '(b) documented production or throughput in 2024-2026, and (c) presence in a bypass routing across jurisdictions: the operator ticks them, with the claims that support each tick.',
     `Each condition cell is "${SOURCED}" (a tick with at least one public claim of this release), "${NOT_SOURCED}" (a tick with no public claim) or "${NO_TICK}". The claim identifiers are claims of this release, separated by spaces. The release checks that each claim is public. It does not check that the claim supports the condition.`,
-    'ticks counts each tick, sourced or not. sourced_ticks counts the ticks with a public claim. retained is true when ticks is two or more.',
+    'ticks counts each tick, sourced or not. sourced_ticks counts the ticks with a public claim. retained is true only when sourced_ticks is two or more.',
     'controller and bypass_pattern are short texts of the operator.',
     ...(natoPair
       ? [
@@ -90,7 +92,7 @@ const note = (sheet: boolean, nodes: readonly Node[], natoPair: boolean): string
         ]
       : []),
     sheet
-      ? `Candidate nodes: ${String(nodes.length)}. Retained: ${String(nodes.filter((one) => tickCount(one) >= RETAINED_AT).length)}.`
+      ? `Candidate nodes: ${String(nodes.length)}. Retained: ${String(nodes.filter(isRetained).length)}.`
       : 'This release had no sheet of candidate nodes, so the table has no row.',
   ].join('\n');
 
@@ -147,7 +149,7 @@ export const criticalNodes = (
   });
   nodes.sort(
     (one, two) =>
-      Number(tickCount(two) >= RETAINED_AT) - Number(tickCount(one) >= RETAINED_AT) ||
+      Number(isRetained(two)) - Number(isRetained(one)) ||
       one.label.localeCompare(two.label, 'en') ||
       (one.id < two.id ? -1 : 1),
   );
@@ -175,7 +177,7 @@ export const criticalNodes = (
     }),
     String(tickCount(node)),
     String(sourcedCount(node)),
-    String(tickCount(node) >= RETAINED_AT),
+    String(isRetained(node)),
     ...(natoPairs === null ? [] : CONDITIONS.map((one) => pairsOf(node.ticks[one]))),
   ]);
 
