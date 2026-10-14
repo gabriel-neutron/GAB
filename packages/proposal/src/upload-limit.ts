@@ -8,10 +8,10 @@ export const UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
 // route archive, a World Bank flare workbook) is some tens to some hundreds of megabytes. The
 // real limit is the heap of the writer. The body arrives as bytes (some 342 MB of base64 at the
 // cap) and the writer holds it as text (342 MB). JSON.parse copies the base64 field (342 MB), and
-// the decoded file is 256 MB. So the peak of one bulk upload is about 1.3 GB, about five times the
-// file, before the collector frees the first copies. This number is counted from the copies and
-// not measured. The text step reads such a file as a stream, but the door still holds the bytes
-// once.
+// the decoded file is 256 MB. So the peak of one bulk upload is at most about 1.3 GB, about five
+// times the file, when no copy is freed. A check on a file of 100 MB measured an extra peak of
+// about four times the file, because the collector frees the first copies. The text step reads
+// such a file as a stream, but the door still holds the bytes once.
 // shortcut: the writer holds the whole body in memory, upgrade to a streamed upload when a
 // dataset passes this cap.
 export const BULK_FILE_BYTES = 256 * 1024 * 1024;

@@ -177,7 +177,7 @@ export interface IngestDoor {
   put(object: RawObject): Promise<string>;
 }
 
-const LOOKUP = 'SELECT id, s3_key FROM public.documents WHERE sha256 = $1';
+const LOOKUP = 'SELECT id, s3_key, mime FROM public.documents WHERE sha256 = $1';
 const PUT_DOCUMENT = `SELECT public.put_document($1, $2, $3, $4, $5, NULL, $6, $7, $8::date, $9,
   $10::numeric)`;
 const PUT_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
@@ -237,6 +237,12 @@ const keyOfRow = (rows: readonly unknown[]): string | undefined => {
   const [row] = rows;
   if (typeof row !== 'object' || row === null || !('s3_key' in row)) return undefined;
   return typeof row.s3_key === 'string' ? row.s3_key : undefined;
+};
+
+const mimeOfRow = (rows: readonly unknown[]): string | undefined => {
+  const [row] = rows;
+  if (typeof row !== 'object' || row === null || !('mime' in row)) return undefined;
+  return typeof row.mime === 'string' && row.mime !== '' ? row.mime : undefined;
 };
 
 const isSameBytes = (error: unknown): boolean =>
@@ -345,7 +351,7 @@ const known = async (
 
 /** Store the bytes once: the hash, the known check, the text, the object, then the row and its
  * text. It raises RefusedFile before any write for a file it does not take. A known file gets
- * the address when its row has none. */
+ * the address when its row has none, after its object is written again. */
 export const storeBytes = async (
   door: Pick<IngestDoor, 'put'>,
   session: IngestSession,
@@ -358,13 +364,15 @@ export const storeBytes = async (
   const lookup = (await session.query(LOOKUP, [sha256])).rows;
   const held = idOfRow(lookup);
   if (held !== undefined) {
-    const result = await known(session, held, sha256, file.uri);
-    // A known file is written again on the key of its row: the key is the hash of the same
-    // bytes, so a copy that the store lost comes back. A refusal above wrote nothing.
+    // A known file is written again on the key of its row, with the type of its row: the key is
+    // the hash of the same bytes, so a copy that the store lost comes back, and the object keeps
+    // the type of its row. The object is written before the address, so a store that is down
+    // leaves the row as it was. A refusal after the write costs one write of the same bytes.
     // shortcut: a known file is written again whole, check the store first when a re-run over a large folder gets slow.
     const key = keyOfRow(lookup);
-    if (key !== undefined) await door.put({ key, bytes: file.bytes, mime });
-    return result;
+    if (key !== undefined && key !== '')
+      await door.put({ key, bytes: file.bytes, mime: mimeOfRow(lookup) ?? mime });
+    return known(session, held, sha256, file.uri);
   }
 
   const pages = await pagesOf(file.bytes, mime);
