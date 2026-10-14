@@ -382,6 +382,9 @@ export const daysFromPublication = (
     ...new Set(
       [
         ...valuesOf(act),
+        ...(act.op === 'update_relation' && act.validFrom !== undefined
+          ? [{ name: 'validFrom', value: act.validFrom }]
+          : []),
         ...(act.op === 'update_relation' && act.validTo !== undefined
           ? [{ name: 'validTo', value: act.validTo }]
           : []),
@@ -429,23 +432,19 @@ export const namesProvision = (passages: readonly string[]): boolean =>
 
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
- * other values of the act stay, and an unstated one marks the item as disputed. The end of an
- * act that closes a relation is the whole act, so it stays, and `dropped` names it. */
+ * other values of the act stay, and an unstated one marks the item as disputed. The start or the
+ * end that an act gives to a relation of the record is the whole act, so it stays, and `dropped`
+ * names it. */
 export const statedBounds = (
   act: WriteRequest,
   passages: readonly string[],
   options: StatedOptions = {},
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
   const text = passages.join('\n');
-  if (act.op === 'update_relation')
-    return {
-      act,
-      dropped: act.validTo === undefined || stated(act.validTo, text, options) ? [] : ['validTo'],
-    };
-  if (act.op !== 'create_relation') return { act, dropped: [] };
+  if (act.op !== 'create_relation' && act.op !== 'update_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
     return day !== undefined && !stated(day, text, options);
   });
-  return { act: withoutBounds(act, dropped), dropped };
+  return { act: act.op === 'update_relation' ? act : withoutBounds(act, dropped), dropped };
 };

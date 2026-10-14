@@ -117,8 +117,16 @@ const batchAct = z.discriminatedUnion('op', [
       targetId: z
         .uuid()
         .describe(
-          'the id of the relation of the record: an open relation of a type whose takesInterval ' +
-            'is true (with validTo), or a designated_by relation (with type)',
+          'the id of the relation of the record: a relation of a type whose takesInterval is ' +
+            'true and that has no start (with validFrom) or no end (with validTo), or a ' +
+            'designated_by relation (with type)',
+        ),
+      validFrom: z
+        .string()
+        .optional()
+        .describe(
+          'the start date form: the first day of the relation, on or before its last day, ' +
+            'written as 2026-01-31; an excerpt must state it',
         ),
       validTo: z
         .string()
@@ -135,9 +143,11 @@ const batchAct = z.discriminatedUnion('op', [
             'measure. An excerpt must name the provision: the directive, the annex or the article',
         ),
     })
-    .refine((act) => (act.validTo === undefined) !== (act.type === undefined), {
-      message: 'give validTo or type, and not both',
-    }),
+    .refine(
+      (act) =>
+        [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
+      { message: 'give validFrom, validTo or type, and only one of them' },
+    ),
 ]);
 
 const evidence = z.strictObject({
@@ -464,7 +474,7 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 const disputeReason = (
   transcribed: boolean,
   unstated: readonly UnstatedValue[],
-  lostEnd: string | null,
+  lostBound: LostBound | null,
   lostProvision: boolean,
   deduced: string | null,
   verdict: CheckVerdict | 'unchecked' | undefined,
@@ -479,7 +489,8 @@ const disputeReason = (
         .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
         .join(', ')}`,
     );
-  if (lostEnd !== null) parts.push(`the end date ${lostEnd} is in no excerpt`);
+  if (lostBound !== null)
+    parts.push(`the ${lostBound.word} date ${lostBound.day} is in no excerpt`);
   if (lostProvision) parts.push('no excerpt names the provision that states the measure');
   if (deduced !== null) parts.push(`year deduced from the publication of ${deduced}`);
   if (verdict === undefined) parts.push('the checker did not answer');
@@ -496,6 +507,23 @@ const disputeReason = (
   return Array.from(plain).slice(0, MAX_REASON).join('');
 };
 
+// A bound that the act cannot lose: the end of a new relation, and the start or the end that an act
+// gives to a relation of the record.
+interface LostBound {
+  readonly name: BoundName;
+  readonly word: 'start' | 'end';
+  readonly day: string;
+}
+
+const lostBoundOf = (act: WriteRequest, dropped: readonly BoundName[]): LostBound | null => {
+  if (act.op !== 'create_relation' && act.op !== 'update_relation') return null;
+  if (act.validTo !== undefined && dropped.includes('validTo'))
+    return { name: 'validTo', word: 'end', day: act.validTo };
+  if (act.op === 'update_relation' && act.validFrom !== undefined && dropped.includes('validFrom'))
+    return { name: 'validFrom', word: 'start', day: act.validFrom };
+  return null;
+};
+
 // One item of the batch, ready for the check and the write.
 interface Prepared {
   readonly given: ProposeItem;
@@ -505,7 +533,7 @@ interface Prepared {
   readonly cited: readonly Cited[];
   readonly unstated: readonly UnstatedValue[];
   readonly dropped: BoundName[];
-  readonly lostEnd: string | null;
+  readonly lostBound: LostBound | null;
   readonly lostProvision: boolean;
   /** The publication day, when the year of a day of the act comes from it. */
   readonly deduced: string | null;
@@ -531,7 +559,8 @@ export const proposeOf = (modelCallId: string | null) =>
     description:
       'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
-      'owner, a flag, an operator or an insurer changed). Each ' +
+      'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
+      'record that has none (update_relation with validFrom, when a dated page states it). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
@@ -539,9 +568,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
       'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. A start ' +
       '(validFrom) of a relation that no excerpt states is not proposed, and droppedBounds names ' +
-      'it; an end (validTo) that no excerpt states refuses the batch. The record refuses an end ' +
-      'date on a relation that ended already, on a type that takes no interval, and before the ' +
-      'first day. A type change (type: restricted_by) turns a designated_by relation that states ' +
+      'it; an end (validTo) that no excerpt states refuses the batch, and so does the start of ' +
+      'update_relation. The record refuses an end date on a relation that ended already, on a ' +
+      'type that takes no interval, and before the first day. It refuses a start date on a ' +
+      'relation that has one, on a type that takes no interval, and after the last day. A type change (type: restricted_by) turns a designated_by relation that states ' +
       'a sectoral measure into a restricted_by relation: an excerpt must name the provision, and ' +
       'the record refuses it on another type and on a twin that is open. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
@@ -601,16 +631,11 @@ export const proposeOf = (modelCallId: string | null) =>
           publishedOn: published,
           dayFirst,
         });
-        // An end that is not proposed makes an ended relation look current, and an end that is
-        // the whole act has no value that a passage states. The research AI can cite the passage
-        // that states it, so its batch is refused. An agent cannot, so its item is disputed and
-        // the operator reads the page.
-        const lostEnd =
-          (resolved.op === 'create_relation' || resolved.op === 'update_relation') &&
-          resolved.validTo !== undefined &&
-          dropped.includes('validTo')
-            ? (resolved.validTo ?? null)
-            : null;
+        // An end that is not proposed makes an ended relation look current, and a start or an end
+        // that is the whole act has no value that a passage states. The research AI can cite the
+        // passage that states it, so its batch is refused. An agent cannot, so its item is
+        // disputed and the operator reads the page.
+        const lostBound = lostBoundOf(resolved, dropped);
         // A type change rests on the provision that states the measure. The research AI cites the
         // passage that names it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
@@ -624,11 +649,11 @@ export const proposeOf = (modelCallId: string | null) =>
             'no excerpt names the provision (the directive, the annex or the article) that ' +
               'states the measure: cite the passage that names it',
           );
-        if (lostEnd !== null && modelCallId === null)
+        if (lostBound !== null && modelCallId === null)
           refuse(
             given.ref,
-            `no excerpt states the end date ${lostEnd} (validTo): cite the passage that states ` +
-              'it, or give no validTo',
+            `no excerpt states the ${lostBound.word} date ${lostBound.day} (${lostBound.name}): ` +
+              `cite the passage that states it, or give no ${lostBound.name}`,
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
@@ -650,9 +675,10 @@ export const proposeOf = (modelCallId: string | null) =>
           ),
           cited,
           unstated,
-          // The end of a close stays in its act, so code removed no bound of it.
+          // The date of an act on a relation of the record stays in its act, so code removed no
+          // bound of it.
           dropped: resolved.op === 'update_relation' ? [] : dropped,
-          lostEnd,
+          lostBound,
           lostProvision,
           deduced,
           transcribed,
@@ -703,7 +729,7 @@ export const proposeOf = (modelCallId: string | null) =>
         disputeReason(
           one.transcribed,
           one.unstated,
-          one.lostEnd,
+          one.lostBound,
           one.lostProvision,
           one.deduced,
           verdictOf(one.given.ref),
