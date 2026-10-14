@@ -119,8 +119,16 @@ then reads every row with no model. Each row is a proposal cited by the span of 
 row and its links are one linked batch, which a rule or the operator decides one unit at a time. A row that
 does not fit is left out, and one report
 document keeps the reason for each. The rows carry the model call of the mapping, because that
-call is the origin of the way the row is read. A new file from the same host with the same header
-takes the accepted mapping, and no model reads it.
+call is the origin of the way the row is read. A new file from the same host with the same header,
+the same sheet or layer and the same filter takes the accepted mapping, and no model reads it.
+
+A new edition of a table loads again with no model. The load compares values and not sources, so
+a row that gives the values of the record writes nothing. A changed value of an entity or of a
+relation is one proposal with the changed values only, and the Doubt rule holds it for the
+operator. A machine never changes a name or the days of a held relation, so a new name and other
+days go to the report, and the load creates no second relation. The report lists each open
+relation that an earlier, older edition under the same mapping gave and the new edition no longer
+gives. The load closes nothing: the operator gives the end date (ADR 0021).
 
 **Cost:** only a CSV table is mapped. A link to an entity that the record does not hold is not
 loaded, and the report says so. A mapping that reads a column wrongly shows only in the

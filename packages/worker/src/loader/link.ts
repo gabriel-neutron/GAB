@@ -155,27 +155,15 @@ export type HeldAttrs = Readonly<
   Record<string, { readonly v: unknown; readonly src?: readonly string[] | undefined }>
 >;
 
-/** What a row adds to a relation that the record holds already. A value that the record holds
- * with another value is a conflict, and the operator reads it. A value that the record lacks, or
- * that this document does not cite yet, is an addition: it is proposed as an update of the
- * relation, and the citation of the row corroborates it. */
-export const compareLink = (
-  held: HeldAttrs,
-  attrs: Attrs,
-  document: string,
-): { conflicts: string[]; additions: Attrs } => {
-  const conflicts: string[] = [];
-  const additions: Attrs = {};
-  for (const [key, value] of Object.entries(attrs)) {
-    const have = held[key];
-    if (have === undefined) additions[key] = value;
-    else if (!isDeepStrictEqual(have.v, value.v))
-      conflicts.push(
-        `${key} ${JSON.stringify(have.v)}, and the row gives ${JSON.stringify(value.v)}`,
-      );
-    else if (!(have.src ?? []).includes(document)) additions[key] = value;
-  }
-  return { conflicts, additions };
+/** The values of a row that the record does not hold: a key that the record lacks, or a key that
+ * the record holds with another value. The load compares values and not sources, so a new edition
+ * that gives the same value writes nothing, and a changed value gives one proposal that the Doubt
+ * rule holds for the operator (S3). The same comparison applies to an entity and to a relation. */
+export const changedValues = (held: HeldAttrs, attrs: Attrs): Attrs => {
+  const changed: Attrs = {};
+  for (const [key, value] of Object.entries(attrs))
+    if (!isDeepStrictEqual(held[key]?.v, value.v)) changed[key] = value;
+  return changed;
 };
 
 // External constraint: GEM writes the identifier of an entity as "E" and digits, and a
