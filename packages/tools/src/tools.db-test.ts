@@ -528,17 +528,15 @@ test.each(['RU', 'Russia'])(
       );
       const id = batch.proposals[0]?.proposalId;
       await ask("SELECT public.apply_proposal($1::uuid, 'a test', NULL)", [id]);
-      const stored = z
-        .array(z.object({ act: z.unknown(), row: z.unknown() }))
-        .parse(
-          await ask(
-            `SELECT p.payload #> '{attrs,registration_jurisdiction,v}' AS act,
+      const stored = z.array(z.object({ act: z.unknown(), row: z.unknown() })).parse(
+        await ask(
+          `SELECT p.payload #> '{attrs,registration_jurisdiction,v}' AS act,
                     e.attrs #> '{registration_jurisdiction,v}' AS row
                FROM public.proposals p JOIN public.entities e ON e.promoted_from = p.id
               WHERE p.id = $1::uuid`,
-            [id],
-          ),
-        );
+          [id],
+        ),
+      );
       return { batch, stored };
     });
     expect(found.batch.proposals).toMatchObject([{ disputed: false, unstated: [] }]);
