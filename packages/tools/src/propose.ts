@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -65,13 +66,7 @@ const PUBLISHED_ON =
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
   'decides it. An item value beats the value of the call';
 
-const publishedOn = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a day is written as 2026-05-15')
-  .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), {
-    message: 'published_on is no day of the calendar',
-  })
-  .describe(PUBLISHED_ON);
+const publishedOn = day.describe(PUBLISHED_ON);
 
 // The latest publication day that a caller can give: tomorrow in UTC.
 const latestPublishedOn = (): string =>

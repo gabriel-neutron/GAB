@@ -61,6 +61,8 @@ const REFUSED: readonly (readonly [string, string, unknown])[] = [
   ],
   ['propose', 'an item with no excerpt', { items: [{ ...ITEM, evidence: [] }] }],
   ['propose', 'two items with one ref', { items: [ITEM, ITEM] }],
+  ['propose', 'a published_on of month 13', { items: [ITEM], published_on: '2026-13-45' }],
+  ['propose', 'a published_on of a missing day', { items: [ITEM], published_on: '2026-02-30' }],
   ['propose', 'a field that nothing declares', { items: [ITEM], role: 'app' }],
 ];
 
