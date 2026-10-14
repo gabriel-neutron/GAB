@@ -7,6 +7,9 @@ export const FILE_WORDS: Readonly<Record<string, string>> = {
   'merges.csv': 'Each merge and each undo, and the entity that each merged identifier gives.',
   'alignment-matrix.csv': 'The EU, OFAC and UK listings of each vessel by IMO number.',
   'critical-nodes.csv': 'The critical nodes table of the home page.',
+  'asset-links.csv':
+    'The OpenStreetMap link and the own point of each asset that has an OpenStreetMap identifier.',
+  'credits.md': 'The credit of each source, as its licence asks.',
   'entities.geojson': 'The entities with a position, with the columns of entities.csv.',
   'dataset.jsonld': 'The entities, relations, claims and documents as linked data.',
   'changelog.csv': 'The changes since the previous release.',
