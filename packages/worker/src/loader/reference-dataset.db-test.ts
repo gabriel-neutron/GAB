@@ -275,14 +275,14 @@ const pointsOf = async (held: Held) =>
     ),
   );
 
-const recordKnownField = async (held: Held): Promise<string> => {
+const recordKnownField = async (held: Held, label = 'Known field'): Promise<string> => {
   const act = await held.asApp(() =>
     held.idOf(
       `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
       [
         JSON.stringify({
           type: 'facility',
-          label: 'Known field',
+          label,
           attrs: { osm_id: { v: 'n1', src: ['manual'] } },
         }),
       ],
@@ -375,6 +375,30 @@ test('the Russian fields of an approved edition load as points with their kind, 
     const lines = new TextDecoder().decode(held.stored[0]?.bytes).trim().split('\r\n');
     expect(lines[0]).toMatch(/read 3; loaded 3; excluded 0; dropped 0$/u);
     expect(lines[2]).toContain(`entity ${known} by its name only`);
+  });
+});
+
+test('a name with other white space finds the entity of the record by its name', async () => {
+  await inTransaction(async (held) => {
+    const known = await recordKnownField(held, 'Known   field ');
+    const load = await mappedWorkbook(held);
+    await approve(held);
+
+    await runLoad(held, load);
+
+    expect(
+      await held.ask(
+        `SELECT p.status, p.found_by FROM public.proposals p
+           WHERE p.op = 'update_attrs' AND p.target_id = $1`,
+        [known],
+      ),
+    ).toStrictEqual([{ status: 'pending', found_by: 'label' }]);
+    expect(
+      await held.ask(
+        `SELECT count(*)::int AS made FROM public.proposals p
+           WHERE p.op = 'create_entity' AND p.payload->>'label' = 'Known field'`,
+      ),
+    ).toStrictEqual([{ made: 0 }]);
   });
 });
 

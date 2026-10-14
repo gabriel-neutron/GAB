@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { isDay } from '@gab/proposal/day';
 import type { RawObject } from '@gab/store';
 import { extractText, mimeOfFileName } from '@gab/text';
 
@@ -29,18 +30,14 @@ export interface IngestOptions {
   readonly dryRun: boolean;
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
 // Departure: the date of the file system is never read. The day that a file was written is not
 // the day that it was retrieved, so the operator states it. The field names the box or the flag
 // that the operator corrects.
 export const checkedDay = (stated: string | undefined, field = '--retrieved-at'): string => {
   if (stated === undefined || stated === '')
     throw new Error(`${field} is required: the day the files were retrieved, as YYYY-MM-DD.`);
-  const real =
-    DAY.test(stated) && new Date(`${stated}T00:00:00Z`).toISOString().slice(0, 10) === stated;
-  if (!real) throw new Error(`${field} "${stated}" is not a real day, as YYYY-MM-DD.`);
-  return stated;
+  if (isDay(stated)) return stated;
+  throw new Error(`${field} "${String(stated)}" is not a real day, as YYYY-MM-DD.`);
 };
 
 const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);

@@ -63,6 +63,8 @@ REVOKE ALL ON FUNCTION newest_text_extractor(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION newest_text_extractor(text) TO gabriel_app, gabriel_agent, gabriel_research;
 -- The dry join of a mapping reads the text set that the mapping job read.
 GRANT EXECUTE ON FUNCTION mapping_text_set(uuid) TO gabriel_agent;
+-- The load finds an entity by the name rule of the record, and the index on name_key serves it.
+GRANT EXECUTE ON FUNCTION name_key(text) TO gabriel_agent;
 
 -- THE CITED PASSAGE IS PRIVATE FOR THE SAME REASON. The writer reads it for the review card as
 -- gabriel_app. No view of the read API shows it.

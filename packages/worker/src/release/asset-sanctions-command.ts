@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 
+import { isDay } from '@gab/proposal/day';
 import { Client } from 'pg';
 
 import { appAddress } from '../address.ts';
@@ -11,8 +12,6 @@ import { inOneSnapshot } from './snapshot.ts';
 const USAGE = 'Usage: pnpm worker asset-sanctions [--as-of YYYY-MM-DD] [--json] [--all]';
 
 const SANCTIONS_TIMEOUT = '10min';
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** Prints the sanctions status of each asset of the public record: listed or derived, and with
  * `--all` also none. Each status gives its regime, its act and its date, the shares of a derived
@@ -30,8 +29,7 @@ export const assetSanctionsCommand: SubCommand = async (args) => {
       },
     });
     const day = parsed.values['as-of'];
-    if (!DAY.test(day) || new Date(day).toISOString().slice(0, 10) !== day)
-      throw new Error('--as-of is a day.');
+    if (!isDay(day)) throw new Error('--as-of is a day.');
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
     console.error(USAGE);

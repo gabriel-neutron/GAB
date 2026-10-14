@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
+import { MAX_TOLERANT_UNITS } from './excerpt.ts';
 import { proposeOf } from './propose.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
@@ -480,6 +481,31 @@ test('an excerpt that the page does not hold refuses the whole batch and names t
   expect(found.outcome).toMatchObject({
     ok: false,
     refusal: expect.stringMatching(/^item ghost: .*does not hold the excerpt/u) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+test('an excerpt that is not exact on a page above the tolerant size is refused with a sentence that asks for an exact copy', async () => {
+  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        item(
+          'quotes',
+          { op: 'create_entity', type: 'vessel', label: 'Quoted' },
+          'he said "no" today',
+        ),
+      ],
+      page,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /^item quotes: .*holds more than .* characters.*exact/u,
+    ) as string,
   });
   expect(found.rows).toStrictEqual([]);
 });

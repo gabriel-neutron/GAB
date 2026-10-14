@@ -3,11 +3,11 @@
 
 import { expect, test } from 'vitest';
 
-import { findExcerpt } from './excerpt.ts';
+import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice } from './excerpt.ts';
 
 const cut = (page: string, excerpt: string): string | null => {
   const span = findExcerpt(page, excerpt);
-  return span === null ? null : Array.from(page).slice(span.start, span.end).join('');
+  return span === null ? null : pointSlice(page, span.start, span.end);
 };
 
 test.each([
@@ -28,4 +28,28 @@ test.each([
   ['an empty excerpt', 'The tanker Nayara left.', '   '],
 ])('the finder refuses %s', (_, page, excerpt) => {
   expect(findExcerpt(page, excerpt)).toBeNull();
+});
+
+test('the cut of a span gives the passage that an array of code points gives', () => {
+  const page = '🚢 The tanker 🚢🚢 Nayara left 𝐀.';
+  const span = findExcerpt(page, 'Nayara');
+  expect(span).not.toBeNull();
+  if (span === null) return;
+  const array = Array.from(page);
+  expect(pointSlice(page, span.start, span.end)).toBe(array.slice(span.start, span.end).join(''));
+  expect(pointSlice(page, span.start - 4, span.end + 4)).toBe(
+    array.slice(span.start - 4, span.end + 4).join(''),
+  );
+  expect(pointSlice(page, 0, 1000)).toBe(page);
+  expect(pointSlice(page, 3, 3)).toBe('');
+});
+
+test('a page above the tolerant size finds an exact excerpt and refuses a folded one', () => {
+  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
+  const span = findExcerpt(page, 'said “no”');
+  expect(span).not.toBeNull();
+  if (span === null) return;
+  expect(pointSlice(page, span.start, span.end)).toBe('said “no”');
+  expect(findExcerpt(page, 'said "no"')).toBeNull();
+  expect(cut('he said “no” today', 'said "no"')).toBe('said “no”');
 });

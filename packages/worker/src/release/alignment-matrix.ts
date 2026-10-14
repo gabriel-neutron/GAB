@@ -1,3 +1,4 @@
+import { isDay } from '@gab/proposal/day';
 import { isValidImo } from '@gab/proposal/identifiers';
 
 import type { ReleaseFile } from './csv-export.ts';
@@ -92,10 +93,6 @@ const HEADER = [
   'ofac_or_uk_not_eu',
   'eu_not_ofac',
 ];
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/u;
-const isDay = (text: unknown): text is string =>
-  typeof text === 'string' && DAY.test(text) && !Number.isNaN(Date.parse(text));
 
 // An IMO number is seven digits. A writer can give it as a number, or with the prefix "IMO". A
 // list or any other shape gives no number. The check of the faults reads the number with the

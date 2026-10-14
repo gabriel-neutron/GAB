@@ -329,7 +329,7 @@ test('a night with no year and no published_on stays contested', async () => {
 
 test.each([
   ['a day in the future', '2999-01-01', 'in the future'],
-  ['no day of the calendar', '2026-02-30', 'no day of the calendar'],
+  ['no day of the calendar', '2026-02-30', 'is a day of the calendar'],
 ])('published_on that is %s is refused', async (_why, day, words) => {
   const read = await rolledBack('superuser', async (ask) => {
     const doc = await post(ask, 15, OWN_URI, `Генштаб повідомив: ${YEARLESS_EXCERPT}.`);

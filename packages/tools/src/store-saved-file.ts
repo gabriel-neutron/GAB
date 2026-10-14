@@ -13,7 +13,7 @@ import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { extractText, mimeOfFileName, RefusedImageError, UnsupportedTypeError } from '@gab/text';
 import { z } from 'zod';
 
-import { htmlTitle } from './fetch-document.ts';
+import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
@@ -157,9 +157,7 @@ const titleOf = (
   url: string,
   type: string,
 ) => {
-  const { hostname, pathname } = new URL(url);
-  const chosen =
-    given ?? (isHtml(mime) ? htmlTitle(bytes, type) : null) ?? `${hostname}${decodeURI(pathname)}`;
+  const chosen = given ?? (isHtml(mime) ? htmlTitle(bytes, type) : null) ?? addressTitle(url);
   return `${chosen.slice(0, MAX_TITLE - SAVED_MARK.length)}${SAVED_MARK}`;
 };
 
