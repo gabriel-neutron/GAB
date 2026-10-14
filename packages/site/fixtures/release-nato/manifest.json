@@ -79,6 +79,16 @@
       "sha256": "ffcfbc4441c3ba810f0347b04dc283bb35252d0086dc2f28d9bdc0599cdc24ac"
     },
     {
+      "path": "asset-links.csv",
+      "bytes": 1121,
+      "sha256": "e4e59ce82e667c1a2081897903a78c82e9255e414fbcbb7ac8e03b2b4cccc3b8"
+    },
+    {
+      "path": "credits.md",
+      "bytes": 1290,
+      "sha256": "425a0965fa1494be02357116aa1fcf989abf03b0b1ec8ff6b7ed2946d885c4e4"
+    },
+    {
       "path": "entities.geojson",
       "bytes": 1793,
       "sha256": "faf6747a91014801e2230ea71ce2f7eb0e57d2f0ca07070d19b4db023e744702"
