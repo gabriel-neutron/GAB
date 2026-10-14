@@ -75,8 +75,8 @@
     },
     {
       "path": "critical-nodes.csv",
-      "bytes": 2711,
-      "sha256": "0e04ac51c28d58e23e28d79710c9d8e5cde6186b155e1d8f45b3f3a8d9cb30f7"
+      "bytes": 2840,
+      "sha256": "bf7282fb82416289a3ff109e9feea3d2edb2626a09e1704e2f79fa67623fc4f1"
     },
     {
       "path": "asset-links.csv",
