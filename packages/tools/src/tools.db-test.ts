@@ -35,6 +35,8 @@ const output = async (ask: Ask, name: string, raw: unknown): Promise<unknown> =>
 };
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
+// The door of a fetched document accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
@@ -50,7 +52,7 @@ const withDocument = async (
     uri,
     SHA,
     'application/pdf',
-    '2026-09-02',
+    TODAY,
     null,
   ]);
   await ask(WRITE_TEXT, [DOC, JSON.stringify(pages), 'tool-test-1']);
@@ -567,7 +569,7 @@ const proposeOnImage = async (ask: Ask, items: readonly unknown[]) => {
       'https://example.org/unit-tree.png',
       IMAGE_SHA,
       'image/png',
-      '2026-10-09',
+      TODAY,
       null,
     ]);
     await ask(WRITE_TEXT, [
@@ -948,7 +950,7 @@ test('a slash date is day/month only when each excerpt comes from the FCDO UK Sa
             'https://example.org/list',
             other,
             'text/csv',
-            '2026-09-02',
+            TODAY,
             null,
           ]);
           await ask(WRITE_TEXT, [

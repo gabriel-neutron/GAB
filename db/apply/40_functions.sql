@@ -4847,6 +4847,17 @@ $$;
 -- row is written by put_document, so the one rule of "a stored document starts no work" stays in
 -- one place.
 --
+-- THE DAY IS THE DAY OF THE READ, AND THE DATABASE STAMPS IT. The caller gives a day. The door
+-- accepts the UTC day of the database clock, or the day before. The day before covers a fetch that
+-- crosses UTC midnight, because the tool takes its day before the fetch. The row keeps the day of
+-- the database. A caller cannot write a past day on purpose. A real past day enters only through
+-- put_document, the door of the operator.
+-- The clock is clock_timestamp(). It is not now(). now() stays at the start of the transaction.
+-- A tool can take its day after that start, across UTC midnight. Then the day looks like a day in
+-- the future. AT TIME ZONE 'UTC' is explicit, because current_date follows the session time zone.
+-- shortcut: no tolerance for a tool host with a clock ahead of the database. Near UTC midnight, the
+-- door refuses its day as a day in the future. Add a retry in the tool if this happens.
+--
 -- THE PROVIDER IS THE LAST PARAMETER, OPTIONAL, and it goes to put_document unchanged. The earlier
 -- signature is dropped for the reason that put_document gives.
 DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text);
@@ -4866,6 +4877,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_blank text := E' \t\n\r\f\v';
   v_known text;
+  v_today date := (clock_timestamp() AT TIME ZONE 'UTC')::date;
 BEGIN
   IF p_kind IS NULL OR p_kind NOT IN ('url','api') THEN
     RAISE EXCEPTION 'a fetched document is a url or an api, and this one is %',
@@ -4891,6 +4903,11 @@ BEGIN
     RAISE EXCEPTION 'a fetched document has the day it was retrieved'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  IF p_retrieved_at NOT IN (v_today, v_today - 1) THEN
+    RAISE EXCEPTION 'the day of a fetched document is the UTC day %, or the day before. It is not %',
+      v_today, p_retrieved_at
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
 
   SELECT d.id INTO v_known FROM public.documents d WHERE d.sha256 = p_sha256;
   IF FOUND THEN
@@ -4899,7 +4916,7 @@ BEGIN
   END IF;
 
   RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
-                             p_archive_uri, p_sha256, p_mime, p_retrieved_at, p_provider_id);
+                             p_archive_uri, p_sha256, p_mime, v_today, p_provider_id);
 END $$;
 
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE. The same bytes are stored once, so a tool that reads an

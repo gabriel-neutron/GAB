@@ -13,6 +13,7 @@ import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
 import {
+  FETCH_DAY,
   FIXTURE_HOST,
   fixtureReach,
   memoryStore,
@@ -186,7 +187,7 @@ test('an HTML page is stored with its text, and a second call returns it as know
     expect(first.title).toBe('Intershipping - UK sanctions list');
     expect(first.mime).toBe('text/html');
     expect(first.url).toBe(`${base}/entry.html`);
-    expect(first.retrievedAt).toBe('2026-10-05');
+    expect(first.retrievedAt).toBe(FETCH_DAY.toISOString().slice(0, 10));
     expect(first.pages[0]?.text).toContain(`Designated under the regime. Run ${RUN}.`);
     expect(first.notice).toBeNull();
 
@@ -203,7 +204,7 @@ test('an HTML page is stored with its text, and a second call returns it as know
       s3_key: `raw/${sha}`,
       uri: `${base}/entry.html`,
       mime: 'text/html',
-      retrieved_at: '2026-10-05',
+      retrieved_at: FETCH_DAY.toISOString().slice(0, 10),
       pages: 1,
       extractor: 'text-1',
     });

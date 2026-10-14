@@ -162,7 +162,7 @@ test('a known file that a tool stored with no provider gets the provider of the 
   const found = await rolledBack('research', async (ask) => {
     await ask(
       `SELECT public.put_fetched_document('url', 'An older read', $1, $2, $3, 'text/csv',
-         '2026-10-05'::date)`,
+         (clock_timestamp() AT TIME ZONE 'UTC')::date)`,
       [`raw/${sha}`, at('/docs/UK-Sanctions-List.csv'), sha],
     );
     const read = await callTool(
