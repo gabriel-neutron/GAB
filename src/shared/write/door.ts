@@ -157,17 +157,17 @@ export interface UploadBody {
 }
 
 /** What one upload stored. A known file is already a document, and its id is the one that holds
- * the bytes. */
+ * the bytes. A filled file is a known file whose document got the address of the upload. */
 export type Uploaded =
   | {
       readonly document: 'stored';
       readonly documentId: string;
       readonly emptyPages: readonly number[];
     }
-  | { readonly document: 'known'; readonly documentId: string };
+  | { readonly document: 'known' | 'filled'; readonly documentId: string };
 
 const uploaded = z.object({
-  state: z.enum(['stored', 'known']),
+  state: z.enum(['stored', 'known', 'filled']),
   documentId: z.string(),
   emptyPages: z.array(z.number()),
 });
@@ -190,7 +190,7 @@ export async function uploadDocument(body: UploadBody): Promise<WriteResult<Uplo
           documentId: held.data.documentId,
           emptyPages: held.data.emptyPages,
         }
-      : { step: 'done', document: 'known', documentId: held.data.documentId };
+      : { step: 'done', document: held.data.state, documentId: held.data.documentId };
 
   const sentence = refused.safeParse(answer.body);
   if (!sentence.success) return { step: 'unknown', doubt: unreadable(answer.status) };

@@ -202,9 +202,57 @@ test('the same bytes again with an address fill the address of an older upload',
   const page = 'https://example.org/annual-return';
   expect(await send(requestOf(bytes, { ...free, uri: page }))).toStrictEqual([
     200,
-    { state: 'known', documentId: id, emptyPages: [] },
+    { state: 'filled', documentId: id, emptyPages: [] },
   ]);
   expect(await addressOf(id)).toStrictEqual({ uri: page, open: true });
+});
+
+// Only a file takes an address. The kind `report` is the smallest other kind of a row with bytes.
+test('the same bytes again with an address are refused when the document is not a file', async () => {
+  const bytes = freshText();
+  const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+  written.push(id);
+  const free = { providerId: undefined, costEur: undefined };
+  expect((await send(requestOf(bytes, free)))[0]).toBe(200);
+  await owner.query("UPDATE public.documents SET kind = 'report', uri = NULL WHERE id = $1", [id]);
+
+  const [status, reply] = await send(requestOf(bytes, free));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(/not a file/u);
+  expect(await addressOf(id)).toStrictEqual({ uri: null, open: false });
+});
+
+test('a known file restores its stored copy', async () => {
+  const puts: string[] = [];
+  const recording = writeRoutes(
+    pool,
+    {
+      put: (object) => {
+        puts.push(object.key);
+        return putObject(store, object);
+      },
+    },
+    NO_READ,
+    TEST_OPERATOR_KEY,
+  );
+  const sendTo = async (body: string): Promise<number> =>
+    (
+      await recording.request('/write/upload-document', {
+        method: 'POST',
+        headers: OWN,
+        body,
+      })
+    ).status;
+  const bytes = freshText();
+  const sha256 = hashOf(bytes);
+  written.push(`doc_${sha256.slice(0, 12)}`);
+
+  expect(await sendTo(requestOf(bytes))).toBe(200);
+  puts.length = 0;
+  // The writer package holds no admin client of the store, so the test proves the put and does
+  // not delete the object first.
+  expect(await sendTo(requestOf(bytes))).toBe(200);
+  expect(puts).toStrictEqual([`raw/${sha256}`]);
 });
 
 test('the same bytes again with another address are refused, and the address stays', async () => {

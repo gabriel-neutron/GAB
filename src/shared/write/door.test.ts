@@ -196,6 +196,13 @@ test('an upload goes to its own door, and each answer becomes its outcome', asyn
     documentId: 'doc_4f1c2a9e7b30',
   });
 
+  said({ state: 'filled', documentId: 'doc_4f1c2a9e7b30', emptyPages: [] });
+  expect(await uploadDocument(UPLOAD)).toStrictEqual({
+    step: 'done',
+    document: 'filled',
+    documentId: 'doc_4f1c2a9e7b30',
+  });
+
   said({ refusal: 'retrievedAt is required' }, 422);
   expect(await uploadDocument(UPLOAD)).toStrictEqual({
     step: 'refused',

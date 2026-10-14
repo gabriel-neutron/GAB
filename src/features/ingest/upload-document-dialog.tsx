@@ -71,7 +71,8 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
     setState({ step: 'working' });
     void sendUpload(draft.file, draft.fields).then(async (answer) => {
       setState(answer);
-      if (answer.step === 'done' && answer.document === 'stored') await onStored(answer.documentId);
+      // A filled address changes the public read, so the screen reads the corpus again.
+      if (answer.step === 'done' && answer.document !== 'known') await onStored(answer.documentId);
     });
   };
 

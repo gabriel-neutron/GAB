@@ -105,11 +105,11 @@ test('three files give three documents, three done store_only jobs and their tex
   expect(text.rows).toStrictEqual([{ n: 3 }]);
 });
 
-test('a second run reports three known files and writes nothing', async () => {
+test('a second run reports three known files, writes no row, and writes each object again', async () => {
   const before = puts.length;
   const outcomes = await ingestFiles(door, paths(...Object.keys(BODIES)), OPTIONS);
   expect(outcomes.map((o) => o.status)).toStrictEqual(['known', 'known', 'known']);
-  expect(puts).toHaveLength(before);
+  expect(puts).toHaveLength(before + 3);
 });
 
 test('two files with the same bytes and different names give one document', async () => {

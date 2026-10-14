@@ -169,7 +169,7 @@ interface Call {
 
 // Departure: the fake door records each statement and each object, and it fails a statement that
 // contains `failOn`.
-const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
+const doorOf = (options: { known?: boolean; key?: string; failOn?: string } = {}) => {
   const calls: Call[] = [];
   const puts: string[] = [];
   let released = 0;
@@ -182,7 +182,7 @@ const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
             return Promise.reject(new Error('refused'));
           if (text.includes('FROM public.documents'))
             return Promise.resolve({
-              rows: options.known === true ? [{ id: 'doc_000000000000' }] : [],
+              rows: options.known === true ? [{ id: 'doc_000000000000', s3_key: options.key }] : [],
             });
           return Promise.resolve({ rows: [] });
         },
@@ -231,6 +231,14 @@ test('a known file writes nothing', async () => {
   expect((await only(door, join(folder, 'one.txt'))).status).toBe('known');
   expect(puts).toStrictEqual([]);
   expect(calls.every((c) => c.text.startsWith('SELECT'))).toBe(true);
+});
+
+test('a known file with a stored key writes the object again and no row', async () => {
+  const key = `raw/${'ab'.repeat(32)}`;
+  const { door, calls, puts } = doorOf({ known: true, key });
+  expect((await only(door, join(folder, 'one.txt'))).status).toBe('known');
+  expect(puts).toStrictEqual([key]);
+  expect(calls.some((c) => c.text.includes('put_document'))).toBe(false);
 });
 
 test('a file of a type nobody reads is refused before any write', async () => {
