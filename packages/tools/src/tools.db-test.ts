@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { proposeOf } from './propose.ts';
+import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
 
 const SHA = 'f'.repeat(64);
@@ -37,12 +38,16 @@ const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::da
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
-const withDocument = async (ask: Ask, pages: readonly string[]): Promise<void> => {
+const withDocument = async (
+  ask: Ask,
+  pages: readonly string[],
+  uri = 'https://example.org/report',
+): Promise<void> => {
   await ask(STORE, [
     'url',
     'A report of the tool test',
     `raw/${SHA}`,
-    'https://example.org/report',
+    uri,
     SHA,
     'application/pdf',
     '2026-09-02',
@@ -873,6 +878,62 @@ test('a relation keeps the start and the end that its excerpt states', async () 
     valid_from: '2019-05-02',
     valid_to: '2023-11-30',
   });
+});
+
+test('a slash date is day/month only when each excerpt comes from the FCDO UK Sanctions List', async () => {
+  const page = 'Date Designated: 09/05/2025';
+  const other = 'e'.repeat(64);
+  const proposed = async (setup: (ask: Ask) => Promise<unknown>, mixed = false) =>
+    rolledBack('superuser', async (ask) => {
+      const held = await connected(ask);
+      await setup(ask);
+      const given = item('owner', owns(held.id, { validFrom: '2025-05-09' }), page);
+      if (mixed) {
+        await asResearch(ask, async () => {
+          await ask(STORE, [
+            'url',
+            'Another list',
+            `raw/${other}`,
+            'https://example.org/list',
+            other,
+            'text/csv',
+            '2026-09-02',
+            null,
+          ]);
+          await ask(WRITE_TEXT, [
+            `doc_${other.slice(0, 12)}`,
+            JSON.stringify([page]),
+            'tool-test-1',
+          ]);
+        });
+        Object.assign(given, {
+          evidence: [
+            { document: DOC, page: 1, excerpt: page },
+            { document: `doc_${other.slice(0, 12)}`, page: 1, excerpt: page },
+          ],
+        });
+      }
+      const outcome = await proposeAgain(ask, [given]);
+      return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+    });
+  const atAddress = (uri: string) => (ask: Ask) =>
+    asResearch(ask, () => withDocument(ask, [page], uri));
+  const uk = await proposed(atAddress(UK_LIST_CSV));
+  expect(uk.batch.proposals).toMatchObject([{ unstated: [], droppedBounds: [] }]);
+  expect(uk.rows[0]?.payload).toMatchObject({ valid_from: '2025-05-09' });
+  // The bytes were stored first at another address, and the UK tool gave them its provider.
+  const byProvider = await proposed(async (ask) => {
+    await atAddress('https://example.org/report')(ask);
+    await ask("UPDATE public.documents SET provider_id = 'uk_sanctions_list' WHERE id = $1", [DOC]);
+  });
+  expect(byProvider.batch.proposals).toMatchObject([{ droppedBounds: [] }]);
+  for (const found of [
+    await proposed(atAddress('https://example.org/report')),
+    await proposed(atAddress(UK_LIST_CSV), true),
+  ]) {
+    expect(found.batch.proposals).toMatchObject([{ droppedBounds: ['validFrom'] }]);
+    expect(found.rows[0]?.payload).not.toHaveProperty('valid_from');
+  }
 });
 
 // The claim that the checker reads, for each item of the last batch.
