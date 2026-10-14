@@ -263,3 +263,36 @@ test('two start dates that wait on one relation are a conflict, and the second i
   expect(seen.refused).toBe('relation_has_start');
   expect(seen.row?.valid_from).toBe('2019-05-02');
 });
+
+const pendingEnd = async (ask: Ask, target: string, day: string) => {
+  const [row] = z.array(z.object({ id: z.uuid() })).parse(
+    await as(ask, 'gabriel_app', () =>
+      ask(
+        `SELECT public.propose_change('update_relation', $1::jsonb, ARRAY['manual'],
+             'relation', $2::uuid) AS id`,
+        [JSON.stringify({ valid_to: day }), target],
+      ),
+    ),
+  );
+  if (row === undefined) throw new Error('the act was not written');
+  return row.id;
+};
+
+test('a start that waits after an end that waits on one relation is a conflict on each act', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    const owns = await relation(ask, 'owns');
+    const end = await pendingEnd(ask, owns, '2018-01-01');
+    const begin = await pendingStart(ask, owns, '2019-05-02');
+    const inOrder = await relation(ask, 'owns');
+    const laterEnd = await pendingEnd(ask, inOrder, '2023-11-30');
+    const earlierStart = await pendingStart(ask, inOrder, '2019-05-02');
+    return {
+      end: await faultsOf(ask, end),
+      begin: await faultsOf(ask, begin),
+      inOrder: [...(await faultsOf(ask, laterEnd)), ...(await faultsOf(ask, earlierStart))],
+    };
+  });
+  expect(seen.end).toContainEqual(['not_clean', 'contradiction']);
+  expect(seen.begin).toContainEqual(['not_clean', 'contradiction']);
+  expect(seen.inOrder).not.toContainEqual(['not_clean', 'contradiction']);
+});
