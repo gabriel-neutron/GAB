@@ -50,17 +50,19 @@ test('a request with no key reaches no door', async () => {
     expect([door, ...(await knock(door, BASE))]).toEqual([door, FORBIDDEN, NOT_OPERATOR]);
 });
 
-test.each([TEST_OPERATOR_KEY + 'x', 'short', ''])(
-  'a wrong key reaches no door, also when its length differs',
-  async (key) => {
-    for (const door of doors)
-      expect([door, ...(await knock(door, { ...BASE, [OPERATOR_KEY_HEADER]: key }))]).toEqual([
-        door,
-        FORBIDDEN,
-        NOT_OPERATOR,
-      ]);
-  },
-);
+test.each([
+  TEST_OPERATOR_KEY.slice(0, -1) + (TEST_OPERATOR_KEY.endsWith('Z') ? 'Y' : 'Z'),
+  TEST_OPERATOR_KEY + 'x',
+  'short',
+  '',
+])('a wrong key reaches no door, also when its length is the same or differs', async (key) => {
+  for (const door of doors)
+    expect([door, ...(await knock(door, { ...BASE, [OPERATOR_KEY_HEADER]: key }))]).toEqual([
+      door,
+      FORBIDDEN,
+      NOT_OPERATOR,
+    ]);
+});
 
 test('the key of the operator reaches every door past the guard', async () => {
   for (const door of doors) {
