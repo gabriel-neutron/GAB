@@ -323,7 +323,7 @@ const JURISDICTION_KEY = 'registration_jurisdiction';
 
 // The spellings of a registration jurisdiction in the sources, by ISO 3166-1 code. The record
 // holds the code. A source writes the name, so the code is stated by any of its spellings.
-const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+export const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
   RU: ['RU', 'Russia', 'Russian Federation', 'Россия', 'Российская Федерация', 'РФ'],
 };
 
