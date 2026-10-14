@@ -297,6 +297,19 @@ does not read them again. Use `--latitude` and `--longitude` when the flare tabl
 in another way. Leave out `--flares` to read the assets only. No stored answer, address or log
 holds the key.
 
+To see the sanctions status of each asset, run:
+
+```powershell
+pnpm worker asset-sanctions --as-of 2026-10-13
+```
+
+An asset is `listed` when it or its operator has a designation in force on that day. It is
+`derived` when owners that are listed, or derived themselves, hold 50% or more of it. Each status
+gives the regime (EU, OFAC or UK, from the provider of the cited file), the act and the date. A
+derived status gives the share of each owner and says when GEM estimated a share. The general
+licences of the listed entities show next to the status. Use `--all` to also print the assets with
+no status, and `--json` for the full data. The command writes nothing.
+
 ## Public writes
 
 No public write path exists. A public write needs real authentication first, and that is separate
