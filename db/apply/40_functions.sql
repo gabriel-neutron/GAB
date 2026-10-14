@@ -284,7 +284,7 @@ BEGIN
 END $$;
 
 
--- The record holds the code of a known registration jurisdiction (migration 0078). The act keeps
+-- The record holds the code of a known registration jurisdiction (migration 0079). The act keeps
 -- the value that its writer gave, and the cited passage keeps the text of the source.
 CREATE OR REPLACE FUNCTION code_entity_jurisdiction() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1705,7 +1705,7 @@ BEGIN
     -- S2: the src of an attribute backs that one value alone. A changed value cites the sources
     -- of the act alone, and prior_value keeps the old claim. A kept value keeps each document it
     -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
-    -- reads 41200.0 as 41200, and the record compares the code of a jurisdiction (migration 0078).
+    -- reads 41200.0 as 41200, and the record compares the code of a jurisdiction (migration 0079).
     SELECT jsonb_object_agg(n.k,
              CASE WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
                   THEN jsonb_build_object('v', n.val->'v', 'src',

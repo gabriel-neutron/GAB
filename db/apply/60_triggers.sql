@@ -16,7 +16,8 @@ SET ROLE gabriel_owner;
 -- relations_attrs_gate and proposals_vocabulary held the declared kind and the declared format
 -- of a value. M11 stands: no key allowlist and no rule on a value beyond its shape, which
 -- `attrs_valid` carries on the column. The one exception refuses nothing: the record writes a
--- known registration jurisdiction as its code (migration 0078). The drop below runs on a database that still holds them.
+-- known registration jurisdiction as its code (migration 0079). The drop below runs on a
+-- database that still holds them.
 DROP TRIGGER IF EXISTS entities_attrs_gate   ON entities;
 DROP TRIGGER IF EXISTS relations_attrs_gate  ON relations;
 DROP TRIGGER IF EXISTS proposals_vocabulary  ON proposals;
