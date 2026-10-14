@@ -118,11 +118,11 @@ export function HomePage({ release }: { readonly release: SiteRelease }) {
   return (
     <SiteFrame release={release} page={{ path: HOME, title: 'Critical nodes' }}>
       <p className="max-w-prose">
-        A node is retained when it meets two conditions of three: (a) documented sanctions exposure,
-        (b) documented production or throughput in 2024-2026, (c) presence in a bypass routing
-        across jurisdictions. Condition (a) comes from the public designations of the node in the
-        record. The operator ticks (b) and (c) with the claims that support each tick. A tick with
-        no public claim shows "not sourced".
+        A node is retained when two conditions of three have a sourced tick: (a) documented
+        sanctions exposure, (b) documented production or throughput in 2024-2026, (c) presence in a
+        bypass routing across jurisdictions. Condition (a) comes from the public designations of the
+        node in the record. The operator ticks (b) and (c) with the claims that support each tick. A
+        tick with no public claim shows "not sourced", and it does not count.
       </p>
       <p>
         {nodes.length === 0
