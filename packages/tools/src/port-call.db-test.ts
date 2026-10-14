@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { as, OWN_SITE, rate, reference } from '../../../tools/author-fixture.ts';
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { proposeOf } from './propose.ts';
+import { PORT_CALL_TYPES } from './stated-value.ts';
 import { callTool, type Session } from './tool.ts';
 
 const sessionOf = (ask: Ask): Session => ({
@@ -348,4 +349,37 @@ test.each([
     return outcomeOf(ask, [item('call', callAct(ends, day), doc, excerpt, name())]);
   });
   expect(read).toMatchObject({ day: null, droppedBounds: ['observed_on'], disputed: false });
+});
+
+const keyFor = async (ask: Ask, type: string, ends: readonly string[], day?: string) => {
+  const [row] = z.array(z.object({ key: z.string() })).parse(
+    await ask(`SELECT public.claim_key_of('create_relation', NULL, NULL, $1::jsonb) AS key`, [
+      JSON.stringify({
+        type,
+        src_id: ends[0],
+        dst_id: ends[1],
+        ...(day === undefined ? {} : { attrs: { observed_on: { v: day } } }),
+      }),
+    ]),
+  );
+  if (row === undefined) throw new Error('no key came back');
+  return row.key;
+};
+
+test('the key function and the list of port-call types name the same types', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const ends = [randomUUID(), randomUUID()];
+    const listed: (readonly [string, string])[] = [];
+    for (const type of PORT_CALL_TYPES)
+      listed.push([await keyFor(ask, type, ends), await keyFor(ask, type, ends, '2026-05-19')]);
+    return {
+      listed,
+      other: [
+        await keyFor(ask, 'flagged_falsely', ends),
+        await keyFor(ask, 'flagged_falsely', ends, '2026-05-19'),
+      ],
+    };
+  });
+  for (const [bare, dated] of read.listed) expect(dated).not.toBe(bare);
+  expect(read.other[1]).toBe(read.other[0]);
 });

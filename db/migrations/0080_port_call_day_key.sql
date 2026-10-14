@@ -26,6 +26,9 @@
 --   2. A day that a later update_attrs adds to a promoted undated call does not change the key
 --      of that call: the key is frozen with the act.
 --   3. A port call as an event entity is a different claim and stays out of this rule.
+--   4. A call with a day and the same call with no day are two facts. A source that states the
+--      day and a source that does not corroborate nothing for each other, and a rejection or a
+--      denial of one does not reach the other.
 -- A change of the list of types needs a new migration that writes each key again.
 --
 -- THE FREEZE TRIGGER REFUSES EVERY UPDATE OF AN ACT, so it is off for the rewrite alone, as in

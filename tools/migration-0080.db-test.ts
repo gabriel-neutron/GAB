@@ -36,8 +36,11 @@ const BEFORE_0080 = `
   RESET ROLE`;
 
 // Departure: the files of this project run at the same time, and the migration changes a table
-// that they write. The test takes its lock first, with a short wait, and a wait that ends, or a
-// deadlock with a file that takes its locks in another order, runs the case again.
+// that they write. The test takes every lock it needs first, with a short wait, so it never holds
+// one lock while it waits for another: the door of a proposal writes proposals and reads
+// documents. A wait that ends, or a deadlock, runs the case again.
+const LOCKS = 'LOCK TABLE public.proposals, public.documents IN ACCESS EXCLUSIVE MODE';
+
 const LOCK_TIMEOUT = '55P03';
 const DEADLOCK = '40P01';
 
@@ -46,7 +49,7 @@ const alone = async <T>(work: (ask: Ask) => Promise<T>): Promise<T> => {
     try {
       return await rolledBack('superuser', async (ask) => {
         await ask("SET LOCAL lock_timeout = '200ms'");
-        await ask('LOCK TABLE public.proposals IN ACCESS EXCLUSIVE MODE');
+        await ask(LOCKS);
         await ask('SET LOCAL lock_timeout = 0');
         return work(ask);
       });
@@ -82,6 +85,16 @@ const proposed = async (
 
 const day = (value: string) => ({ observed_on: { v: value, src: ['doc_8f2a41'] } });
 
+const faultsOf = async (ask: Ask, act: string): Promise<string[]> => {
+  const [row] = z
+    .array(z.object({ unit_id: z.uuid() }))
+    .parse(await ask('SELECT unit_id FROM public.proposals WHERE id = $1', [act]));
+  const found = z
+    .array(z.object({ faults: z.array(z.object({ kind: z.string() })) }))
+    .parse(await ask('SELECT faults FROM public.unit_faults($1::uuid[])', [[row?.unit_id]]));
+  return found.flatMap((one) => one.faults.map((fault) => fault.kind));
+};
+
 const keys = z.array(z.object({ id: z.uuid(), claim_key: z.string() }));
 
 const held = async (ask: Ask): Promise<Map<string, string>> =>
@@ -92,7 +105,8 @@ const held = async (ask: Ask): Promise<Map<string, string>> =>
   );
 
 // A record in the state before 0080: two ends, two dated calls at one pair, one call with no day,
-// a flagged_falsely act with a day, and an update of a dated call.
+// a flagged_falsely act with a day, a dated call that the operator rejected, an update of a dated
+// call (level 1), a relation on a dated call (level 1), and an update of that relation (level 2).
 const oldRecord = async (ask: Ask) => {
   await ask(BEFORE_0080);
   const vessel = await proposed(ask, 'create_entity', { type: 'vessel', label: 'Nayara' });
@@ -108,13 +122,38 @@ const oldRecord = async (ask: Ask) => {
   const second = await call('loads_at', day('2026-06-02'));
   const undated = await call('loads_at');
   const flagged = await call('flagged_falsely', day('2026-05-19'));
+  const rejected = await call('loads_at', day('2026-07-07'));
+  await ask("SELECT public.reject_relation($1::uuid, 'wrong_value', NULL, 'a test')", [rejected]);
   const update = await proposed(
     ask,
     'update_attrs',
     { attrs: { note: { v: 'one', src: ['doc_8f2a41'] } } },
     ['relation', first],
   );
-  return { vessel, port, first, second, undated, flagged, update };
+  const onCall = await proposed(ask, 'create_relation', {
+    type: 'restricted_by',
+    src_kind: 'relation',
+    src_id: first,
+    dst_id: port,
+  });
+  const onRelation = await proposed(
+    ask,
+    'update_attrs',
+    { attrs: { note: { v: 'two', src: ['doc_8f2a41'] } } },
+    ['relation', onCall],
+  );
+  return {
+    vessel,
+    port,
+    first,
+    second,
+    undated,
+    flagged,
+    rejected,
+    update,
+    onCall,
+    onRelation,
+  };
 };
 
 test('the migration moves the dated port calls and the acts that name them, and no other act', async () => {
@@ -141,20 +180,54 @@ test('the migration moves the dated port calls and the acts that name them, and 
       dst_id: record.port,
       attrs: day('2026-05-19'),
     });
+    // The rejection of a dated call reaches the same call and no other day of it.
+    const proposedOn = (value: string) =>
+      proposed(ask, 'create_relation', {
+        type: 'loads_at',
+        src_id: record.vessel,
+        dst_id: record.port,
+        attrs: day(value),
+      });
+    const sameDay = await proposedOn('2026-07-07');
+    const otherDay = await proposedOn('2026-05-19');
+    const fresh = z.array(z.object({ id: z.uuid(), key: z.string() })).parse(
+      await ask(
+        `SELECT id, public.claim_key_of(op, target_kind, target_id, payload) AS key
+             FROM public.proposals WHERE id = ANY ($1::uuid[])`,
+        [[record.update, record.onCall, record.onRelation]],
+      ),
+    );
     return {
       record,
       dated: dated?.n,
       before,
       after,
       again: (await held(ask)).get(again),
+      fresh: new Map(fresh.map((row) => [row.id, row.key] as const)),
+      sameDay: await faultsOf(ask, sameDay),
+      otherDay: await faultsOf(ask, otherDay),
     };
   });
   const { record, before, after } = read;
-  expect(read.dated).toBe(2);
+  expect(read.dated).toBe(3);
   const changed = [...after.keys()].filter((id) => after.get(id) !== before.get(id));
-  expect(new Set(changed)).toStrictEqual(new Set([record.first, record.second, record.update]));
+  expect(new Set(changed)).toStrictEqual(
+    new Set([
+      record.first,
+      record.second,
+      record.rejected,
+      record.update,
+      record.onCall,
+      record.onRelation,
+    ]),
+  );
   expect(after.get(record.first)).not.toBe(after.get(record.second));
   expect(read.again).toBe(after.get(record.first));
+  // Level after level: the relation on a dated call and the update of that relation follow it.
+  for (const id of [record.update, record.onCall, record.onRelation])
+    expect(after.get(id)).toBe(read.fresh.get(id));
+  expect(read.sameDay).toContain('rejected_before');
+  expect(read.otherDay).not.toContain('rejected_before');
 });
 
 test('the migration stops when the new rule would move the key of another relation', async () => {

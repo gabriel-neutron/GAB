@@ -428,12 +428,12 @@ export const withoutBounds = <
 /** The name of a value of an act that code removes when no passage states it. */
 export type DroppedName = BoundName | 'observed_on';
 
-/** The relation types of a port call. The claim key of migration 0080 holds the same list. */
+/** The relation types of a port call. The claim key of a relation holds the same list. */
 export const PORT_CALL_TYPES = ['berthed_at', 'loads_at', 'discharges_at'] as const;
 
 // The day of a port call, when the act is a port call that gives one.
 const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
-  act.op === 'create_relation' && (PORT_CALL_TYPES as readonly string[]).includes(act.type)
+  act.op === 'create_relation' && PORT_CALL_TYPES.some((type) => type === act.type)
     ? act.attrs?.['observed_on']
     : undefined;
 
@@ -457,15 +457,16 @@ export const unstatedCallDay = (
 };
 
 /** The act with no day of a call, and no attributes when the day was the only one. */
-export const withoutCallDay = <Act extends { readonly op: string }>(act: Act): Act => {
-  interface Held {
-    attrs?: Readonly<Record<string, unknown>>;
-  }
-  const others = Object.entries((act as Held).attrs ?? {}).filter(([key]) => key !== 'observed_on');
-  const kept = { ...act } as Held;
+export const withoutCallDay = <
+  Act extends { readonly op: string; attrs?: Readonly<Record<string, unknown>> | undefined },
+>(
+  act: Act,
+): Act => {
+  const others = Object.entries(act.attrs ?? {}).filter(([key]) => key !== 'observed_on');
+  const kept = { ...act };
   if (others.length === 0) delete kept.attrs;
-  else kept.attrs = Object.fromEntries(others);
-  return kept as Act;
+  else Object.assign(kept, { attrs: Object.fromEntries(others) });
+  return kept;
 };
 
 /** A passage names a provision when it names a directive, an annex or an article by its number.

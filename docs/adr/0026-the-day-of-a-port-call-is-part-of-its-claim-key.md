@@ -42,6 +42,9 @@ it, so a change of the rule is costly to reverse.
 
 - Two sources that give two days for one call make two facts. A reader of the review queue sees
   both.
+- A call with a day and the same call with no day are two facts. A source that states the day and
+  a source that does not corroborate nothing for each other. A rejection or a denial of the call
+  with no day does not reach a later call with a day of the same vessel and port, and the reverse.
 - A day that a later `update_attrs` adds to a promoted undated call does not change the key of
   that call. The key is frozen with the act.
 - A new port-call type needs a new migration that writes each key again, and a change of the
