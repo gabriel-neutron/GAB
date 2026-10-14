@@ -96,6 +96,15 @@ because its address can be the page where the file was bought. A new upload of t
 does not make it public, and the upload refuses it.
 A bought file is not public. A file is bought when it has a price or when its provider sells its
 filings, because an unknown price is not a free file.
+A new upload of the same bytes is refused when the document is not a file, because only a file
+takes an address. It also writes the stored copy again, so a lost copy comes back. The screen says
+when the upload gave its address to the document.
+
+The interface holds the record that it read until the operator writes. Each write of the operator,
+a decision, a group action and a merge too, makes each screen read the record again with no reload.
+The graph reads the stored layout again when it lacks an entity of the record, because the layout
+job runs outside the interface. Each name search and each name filter of the map and the graph
+ignores case, accents and extra spaces.
 An act about a person also shows only when each person that it names is public. An entity that a
 later act retyped stays a person for the older acts about it. The rule covers an entity of the
 type person only, and not an entity with no known type. The views of the read API apply this
@@ -190,7 +199,8 @@ promotion       →  entities and relations (the evidentiary layer)
 A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
 writes no target and keeps the proposal as a record. An edit of the operator is a proposal and its
 promotion in one transaction, so it is written whole or not at all. A machine role of the back end proposes and never decides. Only the operator, the decision rules in the database and the AI reviewer of the MCP server promote or reject. When an act keeps a
-value, the value keeps each document that it already cites.
+value, the value keeps each document that it already cites. A write door that cannot read the
+answer of the database says that the act may stand, and never that nothing was written.
 
 A machine proposes through one door, which takes a batch. Each act cites a page and a span of
 stored text; code finds the span from a quoted excerpt. The door writes the acts and their
