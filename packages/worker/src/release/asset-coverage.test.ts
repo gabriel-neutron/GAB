@@ -172,6 +172,11 @@ test('a geometry that cites an OpenStreetMap document stops the release', () => 
   expect(() => assertNoOsmGeometry(RECORD)).not.toThrow();
 });
 
+const featureIds = (text: string): ReadonlySet<string> => {
+  const parsed = JSON.parse(text) as { features: { id: string }[] };
+  return new Set(parsed.features.map((one) => one.id));
+};
+
 const MANIFEST: ReleaseManifest = {
   version: '0.1-test',
   date: '2026-10-13',
@@ -187,7 +192,7 @@ test('no release file holds an OpenStreetMap geometry, and each asset of the rel
   expect(files.map((one) => one.path)).toContain('asset-links.csv');
   expect(files.map((one) => one.path)).toContain('credits.md');
   const geojson = files.find((one) => one.path === 'entities.geojson');
-  const features = z_features(geojson?.text ?? '');
+  const features = featureIds(geojson?.text ?? '');
   for (const asset of RECORD.claims.filter((one) => one.attribute === 'asset_kind')) {
     const held = RECORD.entities.find((one) => one.id === asset.subject_id);
     if (held?.geom === null) continue;
@@ -195,9 +200,17 @@ test('no release file holds an OpenStreetMap geometry, and each asset of the rel
     expect(held?.sources.length).toBeGreaterThan(0);
   }
   for (const file of files) expect(file.text).not.toMatch(/overpass|"osm_geometry"/u);
+  const osm: ReleaseDocument = {
+    ...GEM,
+    id: 'osm_doc',
+    uri: 'https://overpass-api.de/api/interpreter',
+    licence: 'odbl',
+    provider: 'osm',
+  };
+  const bad: ReleaseRecord = {
+    ...RECORD,
+    entities: [entity(FIELD_A, 'facility', POINT, ['osm_doc'])],
+    documents: new Map([['osm_doc', osm]]),
+  };
+  expect(() => releaseFiles(bad, MANIFEST, null, null)).toThrow(/holds no OpenStreetMap geometry/);
 });
-
-const z_features = (text: string): ReadonlySet<string> => {
-  const parsed = JSON.parse(text) as { features: { id: string }[] };
-  return new Set(parsed.features.map((one) => one.id));
-};

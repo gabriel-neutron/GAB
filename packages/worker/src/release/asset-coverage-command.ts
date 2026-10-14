@@ -25,7 +25,14 @@ export const assetCoverageCommand: SubCommand = async (args) => {
   const [file] = args;
   let totals: CapacityTotals = {};
   if (file !== undefined) {
-    const parsed = totalsShape.safeParse(JSON.parse(await readFile(file, 'utf8')));
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await readFile(file, 'utf8'));
+    } catch (error) {
+      console.error(`The totals file is not valid: ${(error as Error).message}`);
+      return 2;
+    }
+    const parsed = totalsShape.safeParse(raw);
     if (!parsed.success) {
       console.error(`The totals file is not valid: ${parsed.error.message}`);
       return 2;

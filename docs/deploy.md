@@ -230,6 +230,9 @@ changed columns, and each entity merged into a survivor or unmerged. Without `--
 says "First release" and has no row. The command refuses a previous folder whose files do not
 agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
 the size and the SHA-256 checksum of each file, and a summary of the changelog.
+`asset-links.csv` gives, for each asset with an OpenStreetMap identifier, the OpenStreetMap link,
+the version and the own sourced point of the asset. It holds no OpenStreetMap geometry.
+`credits.md` gives the credit of each source, with the words that its licence asks for.
 
 The command also writes the static site of the release in the folder `gab-site-<date>`, beside
 the release folder. It writes the site before the release folder takes its name, so when the site
