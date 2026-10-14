@@ -19,11 +19,7 @@ import { rolledBack, type Ask } from './probe.ts';
 const letterOf = async (ask: Ask, name: string): Promise<string | undefined> =>
   z
     .array(z.object({ letter: z.string() }))
-    .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask('SELECT public.letter_of($1)::text AS letter', [name]),
-      ),
-    )[0]?.letter;
+    .parse(await ask('SELECT public.letter_of($1)::text AS letter', [name]))[0]?.letter;
 
 const jobsOf = async (ask: Ask, name: string): Promise<readonly string[]> =>
   z

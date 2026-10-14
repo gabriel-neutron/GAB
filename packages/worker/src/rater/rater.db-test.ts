@@ -67,6 +67,8 @@ interface Held {
   /** The reference author that the operator stored and did not approve yet. */
   readonly storeUnapproved: (name: string) => Promise<void>;
   readonly letter: (name: string) => Promise<string>;
+  /** The runner puts back the jobs that it holds, as it does after a lost connection. */
+  readonly requeue: () => Promise<void>;
 }
 
 const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
@@ -124,14 +126,13 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         );
         return { did, bodies };
       },
+      requeue: async () => {
+        await asRole('gabriel_agent', () => ask('SELECT public.requeue_running_jobs()'));
+      },
       letter: async (name) =>
         z
           .array(z.object({ letter: z.string() }))
-          .parse(
-            await asRole('gabriel_app', () =>
-              ask('SELECT public.letter_of($1)::text AS letter', [name]),
-            ),
-          )[0]?.letter ?? '',
+          .parse(await ask('SELECT public.letter_of($1)::text AS letter', [name]))[0]?.letter ?? '',
     });
   } finally {
     try {
@@ -271,25 +272,42 @@ test.each([
   },
 );
 
+test.each([['a deadlock', '40P01']])(
+  '%s is a fault that frees the name for a new rating',
+  async (_name, code) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await inTransaction(async (held) => {
+        await held.actOf('Trade Journal');
+        expect(await held.rate(NEW, code)).toBe('failed');
+
+        await held.actOf('Trade Journal');
+        expect(await jobOf(held, 'trade journal')).toHaveLength(2);
+        expect(await held.rate(NEW)).toBe('done');
+        expect(await held.letter('trade journal')).toBe('D');
+      });
+    } finally {
+      log.mockRestore();
+    }
+  },
+);
+
+// The job is not at fault when the connection fails. The runner stops its step, waits, and puts the
+// job back, so the same job gets its rating at the next claim.
 test.each([
-  ['a deadlock', '40P01'],
   ['a lost connection', '08006'],
   ['a shutdown of the server', '57P01'],
-])('%s is a fault that frees the name for a new rating', async (_name, code) => {
-  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  try {
-    await inTransaction(async (held) => {
-      await held.actOf('Trade Journal');
-      expect(await held.rate(NEW, code)).toBe('failed');
+])('%s leaves the job running, and the requeue gives it back', async (_name, code) => {
+  await inTransaction(async (held) => {
+    await held.actOf('Trade Journal');
+    await expect(held.rate(NEW, code)).rejects.toThrow('the connection failed');
+    expect(await jobOf(held, 'trade journal')).toMatchObject([{ status: 'running' }]);
 
-      await held.actOf('Trade Journal');
-      expect(await jobOf(held, 'trade journal')).toHaveLength(2);
-      expect(await held.rate(NEW)).toBe('done');
-      expect(await held.letter('trade journal')).toBe('D');
-    });
-  } finally {
-    log.mockRestore();
-  }
+    await held.requeue();
+    expect(await jobOf(held, 'trade journal')).toMatchObject([{ status: 'queued' }]);
+    expect(await held.rate(NEW)).toBe('done');
+    expect(await held.letter('trade journal')).toBe('D');
+  });
 });
 
 test('the name of an unapproved reference author ends the rating clean, and the name stays F', async () => {

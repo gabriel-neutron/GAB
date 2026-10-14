@@ -97,12 +97,10 @@ const stateOf = async (ask: Ask, act: string) => {
   const [row] = z
     .array(z.object({ status: z.string(), rule: z.string().nullable(), dissent: z.boolean() }))
     .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask(
-          `SELECT status, public.unit_rule(unit_id) AS rule, dissent
-             FROM public.proposals WHERE id = $1`,
-          [act],
-        ),
+      await ask(
+        `SELECT status, public.unit_rule(unit_id) AS rule, dissent
+           FROM public.proposals WHERE id = $1`,
+        [act],
       ),
     );
   if (row === undefined) throw new Error('the record holds no such act');

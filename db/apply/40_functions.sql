@@ -2082,13 +2082,8 @@ BEGIN
   RETURN v_head;
 END $$;
 
--- THE WRITE OF A UNIT THAT THE OPERATOR DECIDES, with the test of the transaction.
-CREATE OR REPLACE FUNCTION write_unit(p_unit uuid, p_decided_by text, p_mode text)
-RETURNS uuid
-LANGUAGE sql
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT public.write_unit_as(p_unit, p_decided_by, p_mode, NULL)
-$$;
+-- The wrapper of the write of a unit had no caller. A database that still holds it loses it here.
+DROP FUNCTION IF EXISTS write_unit(uuid, text, text);
 
 -- THE PROMOTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
 -- and the door of an AI reviewer run it. It runs the check of the faults that the screen reads,
@@ -5326,7 +5321,7 @@ BEGIN
   PERFORM public.run_rules(public.units_of_author(v_author));
 END $$;
 
--- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
+-- THE LETTER OF AN AUTHOR. No role holds this step: the rules call it. A name that no worker answer has resolved reads as
 -- F. A name that joined an author A or B reads as F until the operator confirms it. A party to
 -- the conflict reads as C at most on every fact, because the graph holds no side yet
 -- (decisions.md S1). The digit of a fact never calls this function.
