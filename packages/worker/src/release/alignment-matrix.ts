@@ -6,7 +6,7 @@ import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import type { ReleaseClaim, ReleaseRecord, ReleaseRelation } from './release-record.ts';
 
-type Regime = 'eu' | 'ofac' | 'uk';
+export type Regime = 'eu' | 'ofac' | 'uk';
 const REGIMES: readonly Regime[] = ['eu', 'ofac', 'uk'];
 
 type DateRule = ReleaseManifest['dateRules'][Regime];
@@ -14,7 +14,7 @@ type DateRule = ReleaseManifest['dateRules'][Regime];
 // Only the official tools give these providers to the files that they store, so the provider of a
 // cited document tells the regime of a designation. A label of an authority is free text. The EU
 // financial sanctions file has no tool yet, so it gives no regime.
-const REGIME_OF_PROVIDER: ReadonlyMap<string, Regime> = new Map([
+export const REGIME_OF_PROVIDER: ReadonlyMap<string, Regime> = new Map([
   ['eu_eurlex', 'eu'],
   ['ofac_sdn', 'ofac'],
   ['uk_sanctions_list', 'uk'],
