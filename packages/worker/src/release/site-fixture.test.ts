@@ -412,7 +412,9 @@ const SHEET = [
   'node_id,condition,claim_ids,controller,bypass_pattern',
   `${VESSEL},b,${LOADS},Arctic Bridge Shipping,Ship-to-ship transfer off Gabon`,
   `${VESSEL},c,,,`,
-  `${OWNER},,,Unknown beneficial owner,Shell company in a second jurisdiction`,
+  // Two ticks and one sourced tick: the owner is not retained.
+  `${OWNER},b,,Unknown beneficial owner,Shell company in a second jurisdiction`,
+  `${OWNER},c,${OWNER}/registration_country,,`,
 ].join('\n');
 
 const manifestOf = (natoPair: boolean, date: string, version: string) =>

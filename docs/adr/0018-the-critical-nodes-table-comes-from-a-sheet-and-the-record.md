@@ -5,7 +5,7 @@
 ## Context
 
 The critical nodes table is the central deliverable of the FNF investigation. A node is retained
-when it meets two conditions of three: (a) documented sanctions exposure, (b) documented production
+when it meets two documented conditions of three: (a) documented sanctions exposure, (b) documented production
 or throughput in 2024-2026, (c) presence in a bypass routing across jurisdictions. The table is
 the home page of the public site, and readers cite it. So the meaning of a row, the source of each
 condition and the rule that retains a node are costly to change after the first publication.
@@ -67,6 +67,8 @@ the node and the bypass pattern, as short texts.
 
 - The operator types claim identifiers by hand. A typing fault stops the release, with the line.
 - A sheet row cannot say why a claim supports its condition. A reader opens the claim.
-- A node with a tick that the operator cannot source yet is not retained, even when the operator
-  thinks that the node meets two conditions. The node stays in the table of the other candidate
-  nodes, with the "not sourced" cell, until a public claim supports the tick.
+- A node with two ticks and only one sourced tick is not retained. The node stays in the table of
+  the other candidate nodes, with the "not sourced" cell, until a public claim supports the tick.
+- The first rule counted a tick that is not sourced. No release with the table was public under
+  that rule, so no published table changes its meaning. From now on, a change of `retained` for a
+  node shows only in the table: the changelog does not give a line for it.

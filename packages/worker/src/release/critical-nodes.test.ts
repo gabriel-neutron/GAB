@@ -265,3 +265,22 @@ test('two different controllers of one node are refused', () => {
     /Line 9: the node .* has a different controller/u,
   );
 });
+
+// Condition (a) of the terminal is a sourced tick when its designation is in the record.
+test.each([
+  ['three ticks, two sourced', true, [`${TERMINAL}/throughput`], true],
+  ['three ticks, one sourced', true, [], false],
+  ['two ticks, none sourced', false, [], false],
+])('a node with %s is retained: %s', (_, designated, claimIds, retained) => {
+  const base = record();
+  const relations = designated
+    ? base.relations
+    : base.relations.filter((one) => one.src_id !== TERMINAL);
+  const sheet = [
+    row(2, TERMINAL, { condition: 'b', claimIds }),
+    row(3, TERMINAL, { condition: 'c' }),
+  ];
+  const [only] = tableOf(criticalNodes({ ...base, relations }, sheet, '').text);
+  expect(only?.['ticks']).toBe(designated ? '3' : '2');
+  expect(only?.['retained']).toBe(String(retained));
+});
