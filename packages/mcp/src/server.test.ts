@@ -199,6 +199,21 @@ test('a connection that does not open names no host', async () => {
   expect(textOf(result)).toBe('the database refused the call');
 });
 
+test('a fault that is not of the database is not called a refusal of the database', async () => {
+  const { pool, seen } = fakePool(() => {
+    throw new URIError('URI malformed');
+  });
+  const client = await connected(pool);
+  const result = await client.callTool(SEARCH);
+  expect(isErrorOf(result)).toBe(true);
+  expect(textOf(result)).toBe(
+    'the server failed the call, and the operator reads the fault in its log',
+  );
+  expect(textOf(result)).not.toContain('database');
+  expect(textOf(result)).not.toContain('URI');
+  expect(seen.released).toBe(1);
+});
+
 for (const code of ['22023', '23503', 'P0001'])
   test(`a refusal of class ${code.slice(0, 2)} gives the reason and the field`, async () => {
     const { pool } = fakePool(() => {

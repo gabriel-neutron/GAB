@@ -149,6 +149,18 @@ export const htmlTitle = (bytes: Uint8Array, type?: string): string | null => {
 
 const MAX_TITLE = 500;
 
+/** The host and the path of an address, as a title. A path with a percent sequence that is not
+ * UTF-8 stays as the address writes it. */
+export const addressTitle = (url: string): string => {
+  const { hostname, pathname } = new URL(url);
+  try {
+    return `${hostname}${decodeURI(pathname)}`;
+  } catch (fault) {
+    if (!(fault instanceof URIError)) throw fault;
+    return `${hostname}${pathname}`;
+  }
+};
+
 const titleOf = (
   mime: string,
   type: string,
@@ -156,11 +168,8 @@ const titleOf = (
   metadata: Metadata,
   url: string,
 ): string => {
-  const { hostname, pathname } = new URL(url);
   const chosen =
-    (isHtml(mime) ? htmlTitle(bytes, type) : null) ??
-    metadata.title ??
-    `${hostname}${decodeURI(pathname)}`;
+    (isHtml(mime) ? htmlTitle(bytes, type) : null) ?? metadata.title ?? addressTitle(url);
   return chosen.slice(0, MAX_TITLE);
 };
 
