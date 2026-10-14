@@ -1,5 +1,5 @@
 // The record holds the registration jurisdiction as its ISO 3166-1 code. The database writes a
-// known spelling as its code on each write of an entity, and migration 0078 writes again each
+// known spelling as its code on each write of an entity, and migration 0079 writes again each
 // value that the record held before. A signed act keeps the value that its writer gave. Each
 // test rolls back.
 
@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { JURISDICTION_SPELLINGS } from '@gab/tools/stated-value';
 import { rolledBack, type Ask } from './probe.ts';
 
-const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0078_jurisdiction_code.sql');
+const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0079_jurisdiction_code.sql');
 
 const made = z.array(z.object({ target_id: z.uuid(), proposal_id: z.uuid() }));
 
@@ -164,9 +164,9 @@ test('the database codes each spelling of the tool check to the same code', asyn
   expect(coded.map(({ code }) => code)).toStrictEqual(spellings.map(([, code]) => code));
 });
 
-// Departure: the trigger writes the code at each write, so the state before 0078 is made with
+// Departure: the trigger writes the code at each write, so the state before 0079 is made with
 // the trigger off, inside the transaction that rolls back.
-test('migration 0078 writes RU for each Russian company, and keeps the count, the documents and the act', async () => {
+test('migration 0079 writes RU for each Russian company, and keeps the count, the documents and the act', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     await ask('ALTER TABLE public.entities DISABLE TRIGGER entities_coded_jurisdiction');
     const russia = await company(ask, 'A Russia company of the migration', 'Russia');
