@@ -194,17 +194,16 @@ const doorRow = z.strictObject({
 });
 
 // The newest set of text of the document, as the read tool chooses it.
-const PAGE = `SELECT t.extractor, t.text,
-    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
+// A copy of the FCDO list can hold another address, when its bytes were stored first by another
+// tool. The UK tool then still gives the document its provider.
+const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
+      WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
+    AS fcdo_list
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
 
-const pageRow = z.strictObject({
-  extractor: z.string(),
-  text: z.string(),
-  uri: z.string().nullable(),
-});
+const pageRow = z.strictObject({ extractor: z.string(), text: z.string(), fcdo_list: z.boolean() });
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -229,8 +228,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
-  /** The address of the document, or null. */
-  readonly uri: string | null;
+  /** The document is the FCDO UK Sanctions List. */
+  readonly fcdoList: boolean;
   readonly textExtractor: string;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
@@ -249,7 +248,7 @@ const pageOf = async (
   document: string,
   page: number,
 ): Promise<z.output<typeof pageRow>> => {
-  const [found] = await rowsOf(session, pageRow, PAGE, [document, page]);
+  const [found] = await rowsOf(session, pageRow, PAGE, [document, page, UK_LIST_CSV]);
   return found ?? refuse(ref, `document ${document} has no page ${String(page)} of stored text`);
 };
 
@@ -271,7 +270,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
-      uri: page.uri,
+      fcdoList: page.fcdo_list,
       textExtractor: page.extractor,
       page: given.page,
       span: null,
@@ -289,7 +288,7 @@ const cite = async (
   const points = Array.from(page.text);
   return {
     document: given.document,
-    uri: page.uri,
+    fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     page: given.page,
     span,
@@ -597,7 +596,7 @@ export const proposeOf = (modelCallId: string | null) =>
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
         // The FCDO list writes each date as day/month/year (ADR 0024).
-        const dayFirst = cited.every((one) => one.uri === UK_LIST_CSV);
+        const dayFirst = cited.every((one) => one.fcdoList);
         const { act: request, dropped } = statedBounds(resolved, passages, {
           publishedOn: published,
           dayFirst,
