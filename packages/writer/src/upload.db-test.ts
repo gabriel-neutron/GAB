@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -14,7 +15,12 @@ const pool = openPool();
 const store = openStore();
 // No door under test reads an object back, so this one refuses every read.
 const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the raw store')) };
-const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_READ);
+const app = writeRoutes(
+  pool,
+  { put: (object) => putObject(store, object) },
+  NO_READ,
+  TEST_OPERATOR_KEY,
+);
 
 // Departure: the suite reads the private tables as the owner of the database, because no api
 // view shows the text or the object key.
@@ -34,7 +40,7 @@ afterAll(async () => {
   store.client.destroy();
 });
 
-const OWN = { host: '127.0.0.1:5177', 'content-type': 'application/json' };
+const OWN = { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' };
 
 const replyShape = z.object({
   state: z.string().optional(),

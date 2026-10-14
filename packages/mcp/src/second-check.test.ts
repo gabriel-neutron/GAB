@@ -48,6 +48,12 @@ describe('the values of the check', () => {
     expect(checkEnvOf('\uFEFFCHECKER_MODEL=a/b\n', {})).toStrictEqual({ CHECKER_MODEL: 'a/b' });
   });
 
+  it('drops the key of the operator', () => {
+    expect(checkEnvOf('GABRIEL_OPERATOR_KEY=x\nCHECKER_MODEL=a/b\n', {})).toStrictEqual({
+      CHECKER_MODEL: 'a/b',
+    });
+  });
+
   it('keeps the password of the checker role', () => {
     expect(
       checkEnvOf('GABRIEL_CHECKER_PASSWORD=x\nGABRIEL_RESEARCH_PASSWORD=y\n', {}),

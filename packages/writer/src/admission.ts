@@ -1,10 +1,16 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+
+import { OPERATOR_KEY_HEADER } from '@gab/proposal/request';
 import type { MiddlewareHandler } from 'hono';
+import { z } from 'zod';
 
 const JSON_MEDIA = 'application/json';
 const OWN_SITE = 'same-origin';
 
 const WRONG_MEDIA = 'the body must be sent as application/json';
 const OTHER_SITE = 'the request does not come from this site';
+const NOT_OPERATOR =
+  'the request does not carry the key of the operator; start pnpm dev, which opens the page with the key';
 
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const FORBIDDEN = 403;
@@ -24,6 +30,12 @@ const OWN_ORIGINS: ReadonlySet<string> = new Set(
 
 const mediaOf = (header: string | null): string => (header ?? '').split(';')[0]?.trim() ?? '';
 
+const digest = (text: string): Buffer => createHash('sha256').update(text).digest();
+
+// Hashing first gives two buffers of one length, which timingSafeEqual needs.
+const fromOperator = (headers: Headers, key: string): boolean =>
+  timingSafeEqual(digest(headers.get(OPERATOR_KEY_HEADER) ?? ''), digest(key));
+
 const fromOtherSite = (headers: Headers): boolean => {
   const host = headers.get('host');
   const origin = headers.get('origin');
@@ -35,17 +47,34 @@ const fromOtherSite = (headers: Headers): boolean => {
 
 // External constraint: a page whose name points at the loopback address is same-origin to the
 // browser, and only its Host shows it. A media type other than JSON makes a browser ask before it
-// sends. A caller that is not a browser, such as the tooling of the operator, sends no site header.
-const turnedAway = (headers: Headers): Turned | undefined => {
+// sends. A caller that is not a browser sends no site header, so it must send the key of the
+// operator: no header that a browser sends proves that the caller is a browser.
+const turnedAway = (headers: Headers, operatorKey: string): Turned | undefined => {
   if (fromOtherSite(headers)) return { status: FORBIDDEN, refusal: OTHER_SITE };
+  if (!fromOperator(headers, operatorKey)) return { status: FORBIDDEN, refusal: NOT_OPERATOR };
   if (mediaOf(headers.get('content-type')).toLowerCase() !== JSON_MEDIA)
     return { status: UNSUPPORTED_MEDIA_TYPE, refusal: WRONG_MEDIA };
   return undefined;
 };
 
-export const admitOwnSiteJson = (): MiddlewareHandler => async (context, next) => {
-  const held = turnedAway(context.req.raw.headers);
-  if (held !== undefined) return context.json({ refusal: held.refusal }, held.status);
-  await next();
-  return undefined;
+const OPERATOR_KEY = z.string().regex(/^[A-Za-z0-9_-]{32,}$/u);
+
+/** The key of the operator, from the environment. The writer does not start without it. The error
+ * never holds the value. */
+export const operatorKeyOf = (env: Record<string, string | undefined>): string => {
+  const key = OPERATOR_KEY.safeParse(env['GABRIEL_OPERATOR_KEY']);
+  if (key.success) return key.data;
+  throw new Error(
+    'GABRIEL_OPERATOR_KEY in infra/.env must hold at least 32 characters of A-Z, a-z, 0-9, - and _. ' +
+      "Make a key with: node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64url'))\"",
+  );
 };
+
+export const admitOperatorJson =
+  (operatorKey: string): MiddlewareHandler =>
+  async (context, next) => {
+    const held = turnedAway(context.req.raw.headers, operatorKey);
+    if (held !== undefined) return context.json({ refusal: held.refusal }, held.status);
+    await next();
+    return undefined;
+  };

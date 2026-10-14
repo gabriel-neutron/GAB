@@ -3,6 +3,7 @@ import { putObject } from '@gab/store/object';
 import { readObject } from '@gab/store/reading';
 import { serve } from '@hono/node-server';
 
+import { operatorKeyOf } from './admission.ts';
 import { openPool } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -11,6 +12,7 @@ import { writeRoutes } from './routes.ts';
 const HOSTNAME = '127.0.0.1';
 const PORT = 5177;
 
+const operatorKey = operatorKeyOf(process.env);
 const pool = openPool();
 const store = openStore();
 const reader = openReadStore();
@@ -18,6 +20,7 @@ const app = writeRoutes(
   pool,
   { put: (object) => putObject(store, object) },
   { read: (key) => readObject(reader, key) },
+  operatorKey,
 );
 
 serve({ fetch: app.fetch, hostname: HOSTNAME, port: PORT });
