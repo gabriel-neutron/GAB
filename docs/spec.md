@@ -308,12 +308,15 @@ not its codes.
 
 A machine can propose again a claim that the operator rejected, from a new run with new
 identities. So each act keeps a frozen key of its claim, with no identity that a run makes: the
-type and the name of a new entity; the type and the two ends of a new relation; the target and the
-values of any other act. An element that an act proposed gives the key of that act, also after its
+type and the name of a new entity; the type and the two ends of a new relation, and the day
+(`observed_on`) of a port call when the act gives it; the target and the values of any other act. An element that an act proposed gives the key of that act, also after its
 promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
 the reason of the newest rejection. An entity matches a rejected entity only under the same
 parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
 under the same parent. The reason stays private to the operator and the AI reviewer of the MCP server.
+
+Two calls of one vessel at one port on two days are two facts. The propose tool keeps the day of a
+port call only when it is one real day that a cited passage states (ADR 0026).
 
 
 ## The decision path
