@@ -502,6 +502,57 @@ test('a value that its excerpt does not state marks the item as disputed', async
   });
 });
 
+const AERO_PAGE = 'GAZPROMNEFT AERO, Moscow, Russia; Tax ID No. 7714117720 (Russia).';
+
+test.each(['RU', 'Russia'])(
+  'a proposal of the jurisdiction %j on a page that writes Russia is accepted and stored as RU',
+  async (jurisdiction) => {
+    const found = await rolledBack('superuser', async (ask) => {
+      const batch = batchOf(
+        await proposeOnPage(
+          ask,
+          [
+            item(
+              'aero',
+              {
+                op: 'create_entity',
+                type: 'company',
+                label: 'Gazpromneft Aero',
+                attrs: { registration_jurisdiction: { v: jurisdiction } },
+              },
+              'GAZPROMNEFT AERO, Moscow, Russia',
+            ),
+          ],
+          AERO_PAGE,
+        ),
+      );
+      const id = batch.proposals[0]?.proposalId;
+      await ask("SELECT public.apply_proposal($1::uuid, 'a test', NULL)", [id]);
+      const stored = z.array(z.object({ act: z.unknown(), row: z.unknown() })).parse(
+        await ask(
+          `SELECT p.payload #> '{attrs,registration_jurisdiction,v}' AS act,
+                    e.attrs #> '{registration_jurisdiction,v}' AS row
+               FROM public.proposals p JOIN public.entities e ON e.promoted_from = p.id
+              WHERE p.id = $1::uuid`,
+          [id],
+        ),
+      );
+      const searched = hits.parse(
+        await asResearch(ask, () =>
+          output(ask, 'search_graph', {
+            identifier: { key: 'registration_jurisdiction', value: 'Russian Federation' },
+            query: 'Gazpromneft Aero',
+          }),
+        ),
+      );
+      return { batch, stored, id, searched };
+    });
+    expect(found.batch.proposals).toMatchObject([{ disputed: false, unstated: [] }]);
+    expect(found.stored).toStrictEqual([{ act: 'RU', row: 'RU' }]);
+    expect(found.searched.entities.map((entity) => entity.id)).toStrictEqual([found.id]);
+  },
+);
+
 // A unit tree drawn as an image: its OCR text mixes the columns, so it holds no parent.
 const IMAGE_SHA = 'e'.repeat(64);
 const IMAGE_DOC = `doc_${IMAGE_SHA.slice(0, 12)}`;
