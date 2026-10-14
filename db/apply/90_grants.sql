@@ -94,7 +94,6 @@ REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION write_unit(uuid,text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION write_unit_as(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit_as(uuid,text,text,text) FROM PUBLIC;
@@ -159,7 +158,7 @@ REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
-REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION approve_reference_dataset(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION act_reference_dataset(uuid)  FROM PUBLIC;
@@ -175,16 +174,16 @@ REVOKE ALL ON FUNCTION on_site_of(text,text[])     FROM PUBLIC;
 REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
-REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_act_check(uuid,text,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_target(text,text,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC;
+REVOKE ALL ON FUNCTION fact_digit(text)            FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION fact_support(text)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
-REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC;
+REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION rule_of_faults(uuid,jsonb)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_said(uuid,text,jsonb) FROM PUBLIC;
@@ -329,7 +328,7 @@ GRANT EXECUTE ON FUNCTION runner_settings()        TO gabriel_agent;
 
 -- THE LETTER OF AN AUTHOR IS AN INPUT. The worker writes it through two doors: a new author with a
 -- letter from C to F, and a new name of a known author. The operator writes the reference set
--- through a third door, and reads a letter. The worker reads no letter. The public read role
+-- through a third door. No role reads a letter. The public read role
 -- holds no grant on a letter, and no view of the api schema shows one.
 GRANT EXECUTE ON FUNCTION store_author_letter(text,text,text,text,text[],text,boolean)
   TO gabriel_agent;
@@ -337,7 +336,6 @@ GRANT EXECUTE ON FUNCTION join_author_name(text,text) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION store_reference_author(text,text,text,text,text[],text,boolean,text[])
   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION store_reference_sites(text,text[]) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION letter_of(text)          TO gabriel_app;
 -- THE OPERATOR APPROVES THE REFERENCE SET, AND THE WORKER CANNOT. The worker reads the context of
 -- one name (the known authors and the approved set) and gives C to F through the door above. No
 -- grant here lets the worker role give a letter A or B, or approve a set.
@@ -354,8 +352,6 @@ GRANT EXECUTE ON FUNCTION author_names_waiting()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decide_author_name(text,boolean) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION citations_independent(uuid,uuid) TO gabriel_app;
-GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 
 -- THE READ OF A RELEASE IS HELD BY THE THREE ROLES THAT RUN A TOOL. These roles read every row
 -- whole through the views already, so the grant shows them nothing new. The public read role holds
@@ -363,15 +359,15 @@ GRANT EXECUTE ON FUNCTION fact_digit(text)         TO gabriel_app;
 GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
   release_documents(), release_disclaimer(), release_merges()
   TO gabriel_app, gabriel_agent, gabriel_research;
--- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY, as the letter and the digit are. A machine role
+-- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY. A machine role
 -- that read the pair would read the letters and the digits that the rules decide from, and the
 -- public does not see them.
 GRANT EXECUTE ON FUNCTION nato_pair(uuid[]) TO gabriel_app;
 
 -- THE RULES DECIDE, AND NO ROLE CALLS THEM. The doors that write an act, a letter, a name or a
--- check call the function of the rules inside the database, so it holds no grant. The operator
--- role reads which rule matches a unit, and the read decides nothing.
-GRANT EXECUTE ON FUNCTION unit_rule(uuid)          TO gabriel_app;
+-- check call the function of the rules inside the database, so it holds no grant. The same holds
+-- for the letter, the digit and the independence of two citations: a revoke removes the grant that
+-- an old database still holds.
 -- The extractor checks the acts of gabriel_agent through its door. The MCP server checks the acts
 -- of gabriel_research through the other door, as gabriel_checker, so the research AI writes no
 -- check. Neither role reads a check or a digit.

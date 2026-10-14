@@ -24,11 +24,7 @@ const REFERENCE = `SELECT public.store_reference_author($1, $2, $3, $4, $5::text
 const letterOf = async (ask: Ask, name: string): Promise<string | undefined> =>
   z
     .array(z.object({ letter: z.string() }))
-    .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask('SELECT public.letter_of($1)::text AS letter', [name]),
-      ),
-    )[0]?.letter;
+    .parse(await ask('SELECT public.letter_of($1)::text AS letter', [name]))[0]?.letter;
 
 test('an author with no letter reads as F, and a name with no author is no author', async () => {
   const read = await rolledBack('superuser', async (ask) => ({

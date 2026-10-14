@@ -85,7 +85,7 @@ test('put_fetched_document stores the provider that it gets', async () => {
   const found = await rolledBack('research', async (ask) => {
     await ask(
       `SELECT public.put_fetched_document('api', 'A GLEIF record', $1, 'https://api.gleif.org/x',
-         $2, 'application/json', '2026-10-05'::date, NULL, 'gleif')`,
+         $2, 'application/json', (clock_timestamp() AT TIME ZONE 'UTC')::date, NULL, 'gleif')`,
       [`raw/${SHA}`, SHA],
     );
     return providerOf(ask, `doc_${SHA.slice(0, 12)}`);
@@ -100,7 +100,7 @@ for (const kind of ['url', 'api'] as const)
       const sha = (kind === 'url' ? 'a' : 'b').repeat(64);
       await ask(
         `SELECT public.put_fetched_document($1, 'No provider', $2, 'https://example.org/none',
-           $3, 'text/html', '2026-10-05'::date)`,
+           $3, 'text/html', (clock_timestamp() AT TIME ZONE 'UTC')::date)`,
         [kind, `raw/${sha}`, sha],
       );
       await ask('RESET ROLE');
@@ -209,7 +209,7 @@ test('the fill door gives a provider to a fetched document with none, and change
     await ask('SET LOCAL ROLE gabriel_research');
     await ask(
       `SELECT public.put_fetched_document('url', 'An old SDN list', $1, 'https://example.org/sdn',
-         $2, 'text/csv', '2026-10-05'::date)`,
+         $2, 'text/csv', (clock_timestamp() AT TIME ZONE 'UTC')::date)`,
       [`raw/${sha}`, sha],
     );
     const outcomes = [];
