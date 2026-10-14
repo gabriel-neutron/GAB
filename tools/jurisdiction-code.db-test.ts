@@ -12,13 +12,7 @@ import { z } from 'zod';
 import { JURISDICTION_SPELLINGS } from '@gab/tools/stated-value';
 import { rolledBack, type Ask } from './probe.ts';
 
-const MIGRATION = join(
-  import.meta.dirname,
-  '..',
-  'db',
-  'migrations',
-  '0078_jurisdiction_code.sql',
-);
+const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0078_jurisdiction_code.sql');
 
 const made = z.array(z.object({ target_id: z.uuid(), proposal_id: z.uuid() }));
 
