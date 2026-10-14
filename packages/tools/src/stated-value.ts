@@ -55,12 +55,20 @@ const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
 // writes it so (the EU, Russia). 03/04/2024 is the third of April in Europe and the fourth of
 // March in the United States, and the text does not say which: such a day states neither, so a
-// value with it is not stated. A part above 12 can only be the day.
-const numericDays = (first: string, mark: string, second: string, third: string): string[] => {
+// value with it is not stated. A part above 12 can only be the day. The FCDO UK Sanctions List
+// writes each date as day, month and year (ADR 0024), so a passage of it reads 03/04/2024 as
+// day/month.
+const numericDays = (
+  first: string,
+  mark: string,
+  second: string,
+  third: string,
+  dayFirst: boolean,
+): string[] => {
   if (first.length === 4) return [dayText(Number(first), Number(second), Number(third))];
   if (third.length !== 4) return [];
   const [one, two, year] = [Number(first), Number(second), Number(third)];
-  if (mark === '.') return [dayText(year, two, one)];
+  if (mark === '.' || (dayFirst && mark === '/')) return [dayText(year, two, one)];
   if (one > 12) return [dayText(year, two, one)];
   if (two > 12) return [dayText(year, one, two)];
   return one === two ? [dayText(year, one, one)] : [];
@@ -121,11 +129,13 @@ export interface StatedOptions {
   /** The day when the document was published, in the form of the record. A date with no year
    * takes its year from it. With no such day, a date with no year states nothing. */
   readonly publishedOn?: string | undefined;
+  /** Each passage comes from the FCDO UK Sanctions List, so a date with slashes is day/month. */
+  readonly dayFirst?: boolean | undefined;
 }
 
 /** Each day that a text states, in the form of the record. A day with two readings (03/04/2024)
  * states no day, because the text does not say which one it means. */
-const daysIn = (text: string, publishedOn: string | undefined): Set<string> => {
+const daysIn = (text: string, { publishedOn, dayFirst = false }: StatedOptions): Set<string> => {
   const found = new Set<string>();
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
@@ -139,7 +149,7 @@ const daysIn = (text: string, publishedOn: string | undefined): Set<string> => {
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
   }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
-    for (const day of numericDays(first, mark, second, third)) found.add(day);
+    for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
   return found;
 };
 
@@ -248,7 +258,7 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
-const stated = (value: Scalar, passage: string, publishedOn?: string): boolean => {
+const stated = (value: Scalar, passage: string, options: StatedOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
     return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
@@ -257,7 +267,7 @@ const stated = (value: Scalar, passage: string, publishedOn?: string): boolean =
     return (value < 0 ? negativesIn(passage) : numbersIn(passage)).some((found) =>
       sameNumber(found, value),
     );
-  if (DAY.test(value) && daysIn(passage, publishedOn).has(value)) return true;
+  if (DAY.test(value) && daysIn(passage, options).has(value)) return true;
   if (statesWords(value, passage)) return true;
   if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
@@ -315,11 +325,12 @@ export const daysFromPublication = (
   act: WriteRequest,
   passages: readonly string[],
   publishedOn: string | undefined,
+  dayFirst = false,
 ): string[] => {
   if (publishedOn === undefined) return [];
   const text = passages.join('\n');
-  const alone = daysIn(text, undefined);
-  const deduced = daysIn(text, publishedOn);
+  const alone = daysIn(text, { dayFirst });
+  const deduced = daysIn(text, { publishedOn, dayFirst });
   return [
     ...new Set(
       [
@@ -341,7 +352,7 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => !stated(named.value, text, options.publishedOn));
+  return valuesOf(act).filter((named) => !stated(named.value, text, options));
 };
 
 /** The name of a bound of a relation. */
@@ -378,15 +389,12 @@ export const statedBounds = (
   if (act.op === 'update_relation')
     return {
       act,
-      dropped:
-        act.validTo === undefined || stated(act.validTo, text, options.publishedOn)
-          ? []
-          : ['validTo'],
+      dropped: act.validTo === undefined || stated(act.validTo, text, options) ? [] : ['validTo'],
     };
   if (act.op !== 'create_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
-    return day !== undefined && !stated(day, text, options.publishedOn);
+    return day !== undefined && !stated(day, text, options);
   });
   return { act: withoutBounds(act, dropped), dropped };
 };
