@@ -294,6 +294,8 @@ const candidatePayload = (
       return { attrs: payload.attrs };
     case 'close':
       return { valid_to: payload.valid_to };
+    case 'start':
+      return { valid_from: payload.valid_from };
     case 'retype':
       return { type: payload.type };
     case 'columns':

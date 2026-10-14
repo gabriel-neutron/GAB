@@ -370,6 +370,39 @@ BEGIN
   END IF;
 END $$;
 
+-- A START DATE GOES ONLY ON A RELATION OF A DATED TYPE THAT HAS NO START, ON OR BEFORE ITS END. The
+-- batch door reads it so that an act that can never apply does not wait in the queue, and the
+-- promotion reads it again under the row lock, because another act can date the relation in
+-- between.
+CREATE OR REPLACE FUNCTION check_relation_start(p_target uuid, p_day date)
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_rel   public.relations%ROWTYPE;
+  v_dated boolean;
+BEGIN
+  SELECT * INTO v_rel FROM public.relations WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the relation % does not exist, so it gets no start date', p_target
+      USING CONSTRAINT = 'target_exists', HINT = 'targetId';
+  END IF;
+  SELECT t.takes_interval INTO v_dated FROM public.relation_type t WHERE t.key = v_rel.type;
+  IF NOT coalesce(v_dated, false) THEN
+    RAISE EXCEPTION 'a relation of type % takes no interval, so it has no start date', v_rel.type
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_scope', HINT = 'validFrom';
+  END IF;
+  IF v_rel.valid_from IS NOT NULL THEN
+    RAISE EXCEPTION 'the relation started on % already, and a start date is never changed',
+      v_rel.valid_from
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'relation_has_start', HINT = 'validFrom';
+  END IF;
+  IF p_day > v_rel.valid_to THEN
+    RAISE EXCEPTION 'the relation ends on %, and it cannot start after that day on %',
+      v_rel.valid_to, p_day
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'rel_dates_order', HINT = 'validFrom';
+  END IF;
+END $$;
+
 -- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
 -- LINKS THE SAME TWO ENDS. The batch door reads it so that an act that can never apply does not
 -- wait in the queue, and the promotion reads it again under the row lock, because another act can
@@ -516,6 +549,9 @@ BEGIN
      'no other value'),
     ('proposals_close_relation_shape', 'validTo',
      'an end date of a relation is a day of the calendar, written as year, month and day: '
+     '2026-01-31, and the act that gives it holds no other value'),
+    ('proposals_start_relation_shape', 'validFrom',
+     'a start date of a relation is a day of the calendar, written as year, month and day: '
      '2026-01-31, and the act that gives it holds no other value'),
     ('proposals_update_entity_shape', 'label',
      'the act names a new name, a new type, a new geometry, or any of them, and neither the name '
@@ -774,9 +810,9 @@ BEGIN
         USING ERRCODE = 'invalid_parameter_value';
     END IF;
     -- A change of a name or a type and a deletion rewrite what the operator already decided. An
-    -- end date on an open relation adds to it, and changes nothing that stands. A type change of
-    -- a designated_by relation to restricted_by is a correction of the type, with the same rule.
-    -- A place for an entity that has none adds to the record. A place that differs from the place
+    -- end date on an open relation adds to it, and changes nothing that stands, and so does a start
+    -- date on a relation that has none. A type change of a designated_by relation to restricted_by
+    -- is a correction of the type, with the same rule. A place for an entity that has none adds to the record. A place that differs from the place
     -- of the record waits as a doubt (S3), so the proposal of a place is no rewrite in silence.
     IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs',
                                             'update_relation','update_entity')
@@ -788,11 +824,13 @@ BEGIN
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (((v_item->'payload') ? 'valid_to'
                           AND (v_item->'payload') - 'valid_to' = '{}'::jsonb)
+                         OR ((v_item->'payload') ? 'valid_from'
+                             AND (v_item->'payload') - 'valid_from' = '{}'::jsonb)
                          OR ((v_item->'payload') ? 'type'
                              AND (v_item->'payload') - 'type' = '{}'::jsonb)))) THEN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
-                      'or the end date of an open relation, or the type change of a relation, or the '
-                      'geometry of an entity, and never a change of a name, a type or a relation, '
+                      'or the start or end date of a relation, or the type change of a relation, or '
+                      'the geometry of an entity, and never a change of a name, a type or a relation, '
                       'nor a deletion', v_no
         USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
@@ -902,6 +940,24 @@ BEGIN
       BEGIN
         PERFORM public.check_relation_retype(v_target);
       EXCEPTION WHEN raise_exception OR check_violation OR unique_violation THEN
+        GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
+                                v_hint = PG_EXCEPTION_HINT;
+        RAISE EXCEPTION 'item %: %', v_no, v_said
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = v_rule, HINT = v_hint;
+      END;
+    ELSIF v_item->>'op' = 'update_relation' AND v_payload::jsonb ? 'valid_from' THEN
+      IF NOT coalesce(v_payload::jsonb->>'valid_from' ~ '^\d{4}-\d{2}-\d{2}$'
+                      AND pg_input_is_valid(v_payload::jsonb->>'valid_from', 'date'), false) THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_start_relation_shape', '23514',
+                                       'the day is not a day of the calendar');
+      END IF;
+      IF v_item->>'target_kind' IS DISTINCT FROM 'relation' THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_op_target_kind', '23514',
+                                       'the act names a target of the wrong kind');
+      END IF;
+      BEGIN
+        PERFORM public.check_relation_start(v_target, (v_payload::jsonb->>'valid_from')::date);
+      EXCEPTION WHEN raise_exception OR check_violation THEN
         GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
                                 v_hint = PG_EXCEPTION_HINT;
         RAISE EXCEPTION 'item %: %', v_no, v_said
@@ -1434,8 +1490,8 @@ BEGIN
    WHERE r.id = o.id
      AND o.id IN (SELECT x::uuid FROM jsonb_array_elements_text(v_copy->'moved') AS x);
 
-  -- A later act that gave the twin its end date added its own documents, and they stay: the undo
-  -- takes away only the documents that the merge added, and none that a later end date cites. A
+  -- A later act that gave the twin a date or a type added its own documents, and they stay: the
+  -- undo takes away only the documents that the merge added, and none that such an act cites. A
   -- twin whose later end date is before its own first day keeps the first day of the merge, and
   -- with it the documents that hold that day up, so the undo leaves it as it is.
   UPDATE public.relations r
@@ -1452,7 +1508,7 @@ BEGIN
        FROM public.proposals a, unnest(a.src::text[]) AS d(doc)
       WHERE a.op = 'update_relation' AND a.status = 'accepted'
         AND a.target_id = k.key::uuid
-        AND (a.payload ? 'valid_to' OR a.payload ? 'type')) AS c
+        AND (a.payload ? 'valid_to' OR a.payload ? 'valid_from' OR a.payload ? 'type')) AS c
    WHERE r.id = k.key::uuid
      AND to_jsonb(r.sources) @> (k.value->'after'->'sources')
      AND NOT EXISTS (SELECT 1 FROM unnest(r.sources::text[]) AS y(d)
@@ -1572,7 +1628,7 @@ BEGIN
       p.id)
     RETURNING id INTO v_id;
 
-  -- -------------------------------------------------------------------- end of a relation --
+  -- ----------------------------------------------------------- dates and type of a relation --
   -- S2: the row-level list backs the dates, so the documents of the act join the documents of
   -- the relation, and no document of the old row is lost.
   ELSIF p.op = 'update_relation' AND p.payload ? 'type' THEN
@@ -1588,6 +1644,20 @@ BEGIN
       FROM public.relations r WHERE r.id = p.target_id;
     UPDATE public.relations r
        SET type       = p.payload->>'type',
+           sources    = r.sources || ARRAY(SELECT x.d FROM unnest(p.src) WITH ORDINALITY AS x(d, n)
+                                            WHERE NOT x.d = ANY (r.sources)
+                                            GROUP BY x.d ORDER BY min(x.n)),
+           updated_at = now()
+     WHERE r.id = p.target_id;
+    v_id := p.target_id;
+
+  ELSIF p.op = 'update_relation' AND p.payload ? 'valid_from' THEN
+    PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
+    PERFORM public.check_relation_start(p.target_id, (p.payload->>'valid_from')::date);
+    SELECT jsonb_build_object('valid_from', NULL, 'sources', to_jsonb(r.sources)) INTO v_prior
+      FROM public.relations r WHERE r.id = p.target_id;
+    UPDATE public.relations r
+       SET valid_from = (p.payload->>'valid_from')::date,
            sources    = r.sources || ARRAY(SELECT x.d FROM unnest(p.src) WITH ORDINALITY AS x(d, n)
                                             WHERE NOT x.d = ANY (r.sources)
                                             GROUP BY x.d ORDER BY min(x.n)),
@@ -3566,6 +3636,12 @@ BEGIN
       FROM acts a JOIN public.relations r ON r.id = a.target_id
      WHERE a.op = 'update_relation' AND a.payload ? 'valid_to' AND r.valid_to IS NOT NULL
     UNION ALL
+    SELECT a.unit_id, 'blocks', 'relation_started', a.id,
+           'The relation ' || coalesce(public.element_name(a.target_id), a.target_id::text)
+           || ' started on ' || r.valid_from || ' already'
+      FROM acts a JOIN public.relations r ON r.id = a.target_id
+     WHERE a.op = 'update_relation' AND a.payload ? 'valid_from' AND r.valid_from IS NOT NULL
+    UNION ALL
     SELECT a.unit_id, 'blocks', 'no_source', a.id,
            'The act ' || coalesce(public.element_name(coalesce(a.target_id, a.id)), a.op)
            || ' cites no passage of a source'
@@ -3591,8 +3667,8 @@ BEGIN
      GROUP BY s.unit_id, s.element, s.key
     HAVING count(DISTINCT s.value) > 1
     UNION ALL
-    -- Each act that ends a relation is a unit of its own, so two of them on one relation are two
-    -- units, and only one of them can apply.
+    -- Each act that ends or starts a relation is a unit of its own, so two of them on one relation
+    -- are two units, and only one of them can apply.
     SELECT a.unit_id, 'not_clean', 'contradiction', a.id,
            'Two acts give the relation '
            || coalesce(public.element_name(a.target_id), a.target_id::text) || ' an end date: '
@@ -3601,6 +3677,17 @@ BEGIN
       JOIN public.proposals o ON o.status = 'pending' AND o.op = 'update_relation'
                              AND o.target_id = a.target_id AND o.payload ? 'valid_to'
      WHERE a.op = 'update_relation' AND a.payload ? 'valid_to'
+     GROUP BY a.unit_id, a.id, a.target_id
+    HAVING count(*) > 1
+    UNION ALL
+    SELECT a.unit_id, 'not_clean', 'contradiction', a.id,
+           'Two acts give the relation '
+           || coalesce(public.element_name(a.target_id), a.target_id::text) || ' a start date: '
+           || string_agg(DISTINCT o.payload->>'valid_from', ' and ')
+      FROM acts a
+      JOIN public.proposals o ON o.status = 'pending' AND o.op = 'update_relation'
+                             AND o.target_id = a.target_id AND o.payload ? 'valid_from'
+     WHERE a.op = 'update_relation' AND a.payload ? 'valid_from'
      GROUP BY a.unit_id, a.id, a.target_id
     HAVING count(*) > 1
     UNION ALL
@@ -4249,6 +4336,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'id', a.id, 'op', a.op, 'payload', a.payload, 'targetId', a.target_id,
              'targetFrom', (SELECT r.valid_from FROM public.relations r
                              WHERE a.op = 'update_relation' AND r.id = a.target_id),
+             'targetTo', (SELECT r.valid_to FROM public.relations r
+                           WHERE a.op = 'update_relation' AND r.id = a.target_id),
              'targetType', (SELECT r.type FROM public.relations r
                              WHERE a.op = 'update_relation' AND r.id = a.target_id),
              'createdAt', a.created_at, 'dissent', a.dissent,
@@ -6102,6 +6191,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
       FROM api.relation r
       JOIN api.proposal c ON c.target_id = r.id AND c.status = 'accepted'
                          AND c.op = 'update_relation' AND c.payload ? 'valid_to'
+     WHERE r.id IN (SELECT x.id FROM rel x)
+    UNION ALL
+    -- A start date that a later act gave is a value of the relation in the same way.
+    SELECT r.id::text || '/valid_from', 'relation', r.id, 'valid_from', to_jsonb(r.valid_from::text),
+           c.origin_label, to_jsonb(c.src), c.id
+      FROM api.relation r
+      JOIN api.proposal c ON c.target_id = r.id AND c.status = 'accepted'
+                         AND c.op = 'update_relation' AND c.payload ? 'valid_from'
      WHERE r.id IN (SELECT x.id FROM rel x)
     UNION ALL
     -- A type change is a value of the relation in the same way (ADR 0023): the value is the

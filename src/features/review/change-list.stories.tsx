@@ -51,6 +51,46 @@ const closing =
     null,
   )?.units[0] ?? null;
 
+const STARTING = '8091a2b3-c4d5-4e6f-9a71-8c9d0e1f2a3b';
+
+// The research AI gives the start date of a relation of the record that has none.
+const starting =
+  unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: UNIT_ANSWER.units.slice(0, 1).map((unit) => ({
+        ...unit,
+        unit: STARTING,
+        kind: 'change',
+        name: 'Nayara designated by OFAC',
+        type: null,
+        proposer: 'research_ai',
+        group: null,
+        faults: [],
+        endRejected: null,
+        acts: [
+          {
+            id: STARTING,
+            op: 'update_relation',
+            payload: { valid_from: '2024-02-23' },
+            targetId: OWNS,
+            targetFrom: null,
+            targetTo: null,
+            dissent: false,
+            endRejected: false,
+            dissentReason: null,
+            check: null,
+            target: { name: 'Nayara designated by OFAC', state: 'record', group: null },
+            src: null,
+            dst: null,
+          },
+        ],
+        passages: [],
+      })),
+    },
+    null,
+  )?.units[0] ?? null;
+
 const RETYPING = '7f8091a2-b3c4-4d5e-8f60-7b8c9d0e1f2a';
 
 // The research AI changes the type of a promoted relation. The read gives the type of today.
@@ -214,6 +254,20 @@ export const AnEndDateClosesTheRelation: Story = {
     );
     await expect(change).toHaveTextContent('The relation starts on 2019-05-02 in the record.');
     await expect(canvas.queryByText('valid to:')).toBeNull();
+  },
+};
+
+/** An act that gives the start date of a relation reads "starts the relation on <date>", and
+ * says that the relation has no last day. */
+export const AStartDateStartsTheRelation: Story = {
+  args: { unit: starting },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'Start of a relation' })).toBeVisible();
+    const change = canvasElement.querySelector(`[data-change="${STARTING}"]`);
+    await expect(change).toHaveTextContent(
+      'Starts the relation on 2024-02-23: Nayara designated by OFAC.',
+    );
+    await expect(change).toHaveTextContent('The relation has no last day in the record.');
   },
 };
 

@@ -180,6 +180,12 @@ const ACTS: readonly {
     read: { kind: 'close', valid_to: '2023-11-30' },
   },
   {
+    op: 'update_relation',
+    targetKind: 'relation',
+    payload: { valid_from: '2024-02-23' },
+    read: { kind: 'start', valid_from: '2024-02-23' },
+  },
+  {
     op: 'delete_relation',
     targetKind: 'relation',
     payload: {},

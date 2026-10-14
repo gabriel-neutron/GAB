@@ -245,6 +245,22 @@ test('the end of a close stays in the act, and it is named when no passage state
   });
 });
 
+const starting = writeRequest.parse({
+  op: 'update_relation',
+  targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+  validFrom: '2024-02-23',
+});
+
+test('the start that an act gives to a relation stays in the act, and it is named when no passage states it', () => {
+  expect(
+    statedBounds(starting, ['OFAC designated the vessel on February 23, 2024.']),
+  ).toStrictEqual({ act: starting, dropped: [] });
+  expect(statedBounds(starting, ['OFAC designated the vessel.'])).toStrictEqual({
+    act: starting,
+    dropped: ['validFrom'],
+  });
+});
+
 test('a passage names a provision by the number of a directive, an annex or an article', () => {
   expect(namesProvision(['Directive 4 under Executive Order 14024'])).toBe(true);
   expect(namesProvision(['listed in Annex XLVII to Regulation (EU) No 833/2014'])).toBe(true);
