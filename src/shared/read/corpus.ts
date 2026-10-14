@@ -38,11 +38,17 @@ const memory = readOnce(read);
 
 export const loadCorpus = memory.load;
 
-/** Forget each held answer, the decided acts too, then run the loaders again through `reload`.
- * The order is the whole function: a loader that ran first would take the answer that is held,
- * and each surface would draw the record of the read before it. */
-export async function refreshCorpus(reload: () => Promise<void>): Promise<void> {
+/** Forget each held answer, the decided acts too. A write that shows no corpus calls it alone,
+ * so the next surface that opens reads the record again. */
+export function forgetCorpus(): void {
   memory.forget();
   forgetDecidedActs();
+}
+
+/** Forget each held answer, then run the loaders again through `reload`. The order is the whole
+ * function: a loader that ran first would take the answer that is held, and each surface would
+ * draw the record of the read before it. */
+export async function refreshCorpus(reload: () => Promise<void>): Promise<void> {
+  forgetCorpus();
   await reload();
 }

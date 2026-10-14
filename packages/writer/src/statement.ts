@@ -15,6 +15,12 @@ type Row = Readonly<Record<string, unknown>>;
 /** The rows of one statement, or the reason it gave none. */
 type Answered = { readonly outcome: 'answered'; readonly rows: readonly Row[] } | Unwritten;
 
+// The act stands, so an answer that cannot be read is a doubt, not a refusal.
+export const unreadAnswer: Unwritten = {
+  outcome: 'doubt',
+  reply: { doubt: 'the record took the act and gave an answer that this writer cannot read' },
+};
+
 export const refused = (refusal: string): Unwritten => ({ outcome: 'refused', reply: { refusal } });
 
 /** Run one statement of a door, in a transaction of its own. It raises nothing: a pool that

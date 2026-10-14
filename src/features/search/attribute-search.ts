@@ -1,6 +1,6 @@
 import type { AttributeValue, Entity } from '@/shared/read/model';
 
-import { folded } from './text-fold';
+import { folded } from '@/shared/text-fold';
 
 export interface AttributeHit {
   readonly entityId: string;

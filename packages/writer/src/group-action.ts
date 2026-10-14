@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { readBody } from './body.ts';
 import { DECIDED_BY } from './decision.ts';
 import type { Sessions } from './pool.ts';
-import { refused, runStatement, type DoorAct } from './statement.ts';
+import { runStatement, unreadAnswer, type DoorAct } from './statement.ts';
 
 const PROMOTE = 'SELECT public.promote_group($1::uuid, $2::uuid[], $3::text) AS results';
 
@@ -38,7 +38,6 @@ export const promoteGroup = async (pool: Sessions, raw: string): Promise<DoorAct
   ]);
   if (answer.outcome !== 'answered') return answer;
   const held = answered.safeParse(answer.rows[0]);
-  if (!held.success)
-    return refused('the record gave a result of the group action that this writer cannot read');
+  if (!held.success) return unreadAnswer;
   return { outcome: 'done', reply: held.data };
 };

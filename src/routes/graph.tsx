@@ -48,12 +48,8 @@ export const Route = createFileRoute('/graph')({
   // The router draws no component until this answer arrives, and every reader below takes the
   // record from here as a value. So no reader on this surface can meet a record that is absent.
   loader: async () => {
-    const [corpus, types, layout] = await Promise.all([
-      loadCorpus(),
-      loadEntityTypes(),
-      loadLayout(),
-    ]);
-    return { corpus, types, layout };
+    const [corpus, types] = await Promise.all([loadCorpus(), loadEntityTypes()]);
+    return { corpus, types, layout: await loadLayout(corpus.entities) };
   },
 
   component: GraphRoute,

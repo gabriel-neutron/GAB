@@ -105,11 +105,11 @@ test('three files give three documents, three done store_only jobs and their tex
   expect(text.rows).toStrictEqual([{ n: 3 }]);
 });
 
-test('a second run reports three known files and writes nothing', async () => {
+test('a second run reports three known files, writes no row, and writes each object again', async () => {
   const before = puts.length;
   const outcomes = await ingestFiles(door, paths(...Object.keys(BODIES)), OPTIONS);
   expect(outcomes.map((o) => o.status)).toStrictEqual(['known', 'known', 'known']);
-  expect(puts).toHaveLength(before);
+  expect(puts).toHaveLength(before + 3);
 });
 
 test('two files with the same bytes and different names give one document', async () => {
@@ -163,4 +163,20 @@ test('a known file with no address gets the address, and another address is refu
   expect(refused).toMatchObject({ status: 'refused' });
   expect(refused?.reason).toMatch(/with another address/u);
   expect(await addressOf(id)).toStrictEqual({ uri: PAGE, open: true });
+});
+
+test('a known file whose object cannot be written leaves the row without an address', async () => {
+  const id = idOf(SOURCED['public-page.txt']);
+  await owner.query('UPDATE public.documents SET uri = NULL WHERE id = $1', [id]);
+  const down: IngestDoor = {
+    connect: () => app.connect(),
+    put: () => Promise.reject(new Error('the store is down')),
+  };
+
+  const [refused] = await ingestFiles(down, paths('public-page.txt'), { ...OPTIONS, uri: PAGE });
+  expect(refused).toMatchObject({ status: 'refused', reason: 'the store is down' });
+  expect(await addressOf(id)).toStrictEqual({ uri: null, open: false });
+
+  const [again] = await ingestFiles(door, paths('public-page.txt'), { ...OPTIONS, uri: PAGE });
+  expect(again).toMatchObject({ status: 'known', filled: true });
 });

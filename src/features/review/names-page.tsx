@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { forgetCorpus } from '@/shared/read/corpus';
 import { SaidLine } from '@/shared/said-line';
 import { writeSaid, type WriteState, type WriteWords } from '@/shared/write/write-state';
 
@@ -59,6 +60,7 @@ export function NamesPage({ read }: NamesPageProps) {
     // The result and the list read again land together, so no button acts on a list that the
     // decision made old.
     void decideAuthorName(name, confirm).then(async (result) => {
+      forgetCorpus();
       const again = await readAuthorNames();
       setHeld({ from: read, now: again });
       setDecision({ ...result, name, confirm });
