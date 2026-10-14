@@ -789,6 +789,19 @@ BEGIN
       IF v_target = v_from::uuid THEN v_target := v_to::uuid; END IF;
     END LOOP;
 
+    -- A merge locks both entities and their relations before it reads the acts that wait. This
+    -- lock makes the merge wait for this batch, and then it sees the acts and refuses. The lock
+    -- stands before the alias check: when the merge commits first, this batch waits, and the alias
+    -- check then sees the alias.
+    PERFORM 1 FROM public.entities e
+      WHERE e.id = v_target OR e.id = ANY (v_names)
+         OR e.id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+      ORDER BY e.id FOR KEY SHARE;
+    PERFORM 1 FROM public.relations r
+      WHERE r.id = v_target OR r.id = ANY (v_names)
+         OR r.id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+      ORDER BY r.id FOR KEY SHARE;
+
     -- An entity that a merge absorbed is no longer in the graph: the act names its survivor.
     SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
       FROM public.entity_alias a
@@ -6008,10 +6021,13 @@ DECLARE
   v_digits text;
   v_origin text;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE unit_id = p_unit AND status = 'pending') THEN
+  -- A decision of the operator can commit while this write waits for the lock. The unit is then
+  -- decided, so the rule skips it and the rest of the write stays.
+  PERFORM 1 FROM public.proposals WHERE unit_id = p_unit AND status = 'pending' ORDER BY id
+    FOR UPDATE;
+  IF NOT FOUND THEN
     RETURN NULL;
   END IF;
-  PERFORM public.pending_unit(p_unit);
   v_rule := public.unit_rule(p_unit);
   -- A unit with weak sources starts its one deepening search. It is rejected only after that
   -- search, and only when every source is D or E. Any other unit waits.
