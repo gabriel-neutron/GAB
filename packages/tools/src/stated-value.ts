@@ -417,11 +417,55 @@ export const withoutBounds = <
   Act extends { validFrom?: string | undefined; validTo?: string | undefined },
 >(
   act: Act,
-  dropped: readonly BoundName[],
+  dropped: readonly DroppedName[],
 ): Act => {
   const kept = { ...act };
   if (dropped.includes('validFrom')) delete kept.validFrom;
   if (dropped.includes('validTo')) delete kept.validTo;
+  return kept;
+};
+
+/** The name of a value of an act that code removes when no passage states it. */
+export type DroppedName = BoundName | 'observed_on';
+
+/** The relation types of a port call. The claim key of a relation holds the same list. */
+export const PORT_CALL_TYPES = ['berthed_at', 'loads_at', 'discharges_at'] as const;
+
+// The day of a port call, when the act is a port call that gives one.
+const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
+  act.op === 'create_relation' && PORT_CALL_TYPES.some((type) => type === act.type)
+    ? act.attrs?.['observed_on']
+    : undefined;
+
+/** Is the day of a port call no single real day that a cited passage states? The day enters the
+ * claim key of the call, so a guessed day, a month or a list would make a false second fact. */
+export const unstatedCallDay = (
+  act: WriteRequest,
+  passages: readonly string[],
+  options: StatedOptions = {},
+): boolean => {
+  const held = callDayOf(act);
+  if (held === undefined) return false;
+  const day = held.v;
+  const parts = typeof day === 'string' ? DAY.exec(day) : null;
+  if (typeof day !== 'string' || parts === null) return true;
+  const [, year = '', month = '', date = ''] = parts;
+  return !(
+    isRealDay(Number(year), Number(month), Number(date)) &&
+    daysIn(passages.join('\n'), options).has(day)
+  );
+};
+
+/** The act with no day of a call, and no attributes when the day was the only one. */
+export const withoutCallDay = <
+  Act extends { readonly op: string; attrs?: Readonly<Record<string, unknown>> | undefined },
+>(
+  act: Act,
+): Act => {
+  const others = Object.entries(act.attrs ?? {}).filter(([key]) => key !== 'observed_on');
+  const kept = { ...act };
+  if (others.length === 0) delete kept.attrs;
+  else Object.assign(kept, { attrs: Object.fromEntries(others) });
   return kept;
 };
 

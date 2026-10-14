@@ -86,14 +86,17 @@ interface Held {
   readonly step: (agent: RunnerAgent, router: StubRouter) => Promise<Step>;
 }
 
-const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void> => {
+const inTransaction = async (
+  work: (held: Held) => Promise<void>,
+  page: string = PAGE,
+): Promise<void> => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query(PUT, [DOCUMENT]);
     await client.query('SELECT public.put_document_text($1, $2::jsonb, $3)', [
       DOCUMENT,
-      JSON.stringify([PAGE]),
+      JSON.stringify([page]),
       TEXT_SET,
     ]);
     const made = z
@@ -710,6 +713,61 @@ test('an end date that no excerpt states is dropped, the relation is disputed, a
         dropped: { bound_not_in_excerpt: 1 },
       });
     });
+  } finally {
+    logged.mockRestore();
+  }
+});
+
+const LOADED_PAGE = 'The tanker Nayara loaded at Sikka on 19 May 2026.';
+
+test.each([
+  ['an excerpt that states the day keeps it', LOADED_PAGE, 'loaded at Sikka on 19 May 2026', true],
+  ['an excerpt with no day drops it, and the job counts it', PAGE, LEFT, false],
+])('the day of a port call: %s', async (_case, page, excerpt, kept) => {
+  const logged = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  try {
+    await inTransaction(async (held) => {
+      const loads = {
+        ref: 'loads',
+        act: {
+          op: 'create_relation',
+          type: 'loads_at',
+          srcId: 'nayara',
+          dstId: 'sikka',
+          attrs: { observed_on: { v: '2026-05-19' } },
+        },
+        originator: 'The port authority',
+        modality: 'asserts',
+        evidence: [{ document: DOCUMENT, page: 1, excerpt }],
+      };
+      const router = routerOf(
+        (call) =>
+          answerOf(call === 1 ? [NAYARA, itemOf('sikka', 'Sikka', 'port', excerpt), loads] : []),
+        (_call, body) => verdictsOf(claimsOf(body).map((ref) => [ref, 'supported'] as const)),
+      );
+
+      expect((await held.step(makeExtractor(CONFIG), router)).did).toBe('done');
+      const rows = z.array(z.object({ payload: z.record(z.string(), z.unknown()) })).parse(
+        (
+          await held.client.query(
+            `SELECT payload FROM public.proposals
+                WHERE op = 'create_relation' AND $1 = ANY (src::text[])`,
+            [DOCUMENT],
+          )
+        ).rows,
+      );
+      expect(rows).toHaveLength(1);
+      const day = z
+        .object({ attrs: z.object({ observed_on: z.object({ v: z.string() }) }) })
+        .safeParse(rows[0]?.payload);
+      expect(day.success ? day.data.attrs.observed_on.v : null).toBe(kept ? '2026-05-19' : null);
+      if (!kept)
+        expect(logged).toHaveBeenCalledWith('the agent dropped items', {
+          agent: 'extractor',
+          job: held.job,
+          dropped: { bound_not_in_excerpt: 1 },
+        });
+    }, page);
   } finally {
     logged.mockRestore();
   }
