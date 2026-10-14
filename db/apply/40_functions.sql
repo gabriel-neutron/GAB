@@ -5938,8 +5938,10 @@ $$;
 -- THE DEEPENING SEARCH OF A UNIT. A unit with weak sources starts at most one lead, and only when
 -- the operator has set a budget: at zero, nothing runs. The unit waits until each act of a machine
 -- has its check, because a source is weak or strong only after the check. The lead carries the
--- budget as it stands now, and it states the acts that wait. No role holds this step; the unit is
--- locked by the caller, so two callers never start two searches.
+-- budget as it stands now, and it states the acts that wait. A unit whose sources are only pages
+-- that a deepening search stored starts no search, so a search never starts a chain. A page that
+-- the operator gave to a lead does not count, because the operator bounds those leads. No role
+-- holds this step; the unit is locked by the caller, so two callers never start two searches.
 CREATE OR REPLACE FUNCTION start_deepening(p_unit uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5957,6 +5959,15 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.proposals a
               WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.originator IS NOT NULL
                 AND NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = a.id)) THEN
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals a JOIN public.citation c ON c.claim_id = a.id
+              WHERE a.unit_id = p_unit AND a.status = 'pending')
+     AND NOT EXISTS (SELECT 1 FROM public.proposals a JOIN public.citation c ON c.claim_id = a.id
+                      WHERE a.unit_id = p_unit AND a.status = 'pending'
+                        AND NOT EXISTS (SELECT 1 FROM public.lead_document l
+                                          JOIN public.deepening d ON d.job_id = l.job_id
+                                         WHERE l.document_id = c.doc_id)) THEN
     RETURN;
   END IF;
   SELECT left('Find a better source for these acts: ' ||

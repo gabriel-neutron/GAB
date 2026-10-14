@@ -322,6 +322,65 @@ test('a search that finds a source C keeps the unit', async () => {
   expect(read.status).not.toBe('rejected');
 });
 
+// A page that a deepening search stored is cited by a unit. That unit is weak, but a search does
+// not start a search, so the chain stops.
+const pageOf = async (ask: Ask, one: Cited): Promise<string> => {
+  const [row] = z
+    .array(z.object({ doc_id: z.string() }))
+    .parse(await ask('SELECT doc_id FROM public.citation WHERE id = $1', [one.citation]));
+  if (row === undefined) throw new Error('the citation is absent');
+  return row.doc_id;
+};
+
+const stored = (ask: Ask, search: string, page: string): Promise<unknown> =>
+  as(ask, 'gabriel_agent', () =>
+    ask('SELECT public.record_lead_document($1::uuid, $2)', [search, page]),
+  );
+
+test('a unit whose sources are all pages of a search starts no search of its own', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const first = await weak(ask, 'D');
+    const [search] = await deepeningOf(ask, first.act);
+    if (search === undefined) throw new Error('the search did not start');
+    await run(ask, search.id);
+    const who = author();
+    await rate(ask, who, 'D');
+    const second = await cited(ask, { author: who, label: label() });
+    await stored(ask, search.id, await pageOf(ask, second));
+    await check(ask, second);
+    return { first: await deepeningOf(ask, first.act), second: await deepeningOf(ask, second.act) };
+  });
+  expect(read.first).toHaveLength(1);
+  expect(read.second).toHaveLength(0);
+});
+
+test('a unit with one page outside the search still starts its own search', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const first = await weak(ask, 'D');
+    const [search] = await deepeningOf(ask, first.act);
+    if (search === undefined) throw new Error('the search did not start');
+    await run(ask, search.id);
+    const who = author();
+    await rate(ask, who, 'D');
+    const outside = await cited(ask, { author: who, label: label() });
+    const inside = await cited(ask, { author: who, label: label() });
+    await stored(ask, search.id, await pageOf(ask, inside));
+    // The two acts become one unit, as a group of the review would make them.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask(
+      'UPDATE public.proposals SET unit_id = (SELECT unit_id FROM public.proposals WHERE id = $1) WHERE id = $2',
+      [outside.act, inside.act],
+    );
+    await ask('ALTER TABLE public.proposals ENABLE TRIGGER proposals_append_only');
+    await check(ask, inside);
+    await check(ask, outside);
+    return deepeningOf(ask, outside.act);
+  });
+  expect(read).toHaveLength(1);
+});
+
 // THE REAL PATH OF THE WORKER. The runner claims the deepening search and the lead agent runs it,
 // with a stub router in place of the model service: no call leaves the machine. Each answer of
 // the stub costs twelve tokens, so a budget of 30 tokens stops the search at its third question.
