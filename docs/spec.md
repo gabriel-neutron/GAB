@@ -344,7 +344,9 @@ A rule of S3 can give a deepening search for a unit with weak sources, inside th
 operator sets. The lead agent proposes nothing, starts no lead, and does not fetch an address that
 is already stored. It has no page limit; its token budget stops it. A lead of the operator then
 fails with that reason. A deepening search that stops at its budget has ended, and it keeps that
-reason for the operator. The rules judge its unit again when the extraction of its pages ends. No schedule starts a lead. The text of a
+reason for the operator. The rules judge its unit again when the extraction of its pages ends. A unit whose sources are only
+pages of a deepening search starts no search of its own, so a search never starts a chain. No schedule
+starts a lead. The text of a
 lead is private: only the operator and the research AI read the leads, and the worker reads the
 text of the one lead that it runs.
 

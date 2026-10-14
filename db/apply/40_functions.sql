@@ -734,11 +734,36 @@ DECLARE
   v_held     uuid;
   v_written  uuid[] := '{}';
   v_passages jsonb;
+  v_lock     bigint;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+
+  -- THE LOCK THAT A MERGE WAITS FOR. A merge takes the same advisory keys, in the same order,
+  -- before it reads the acts that wait. The merge then waits for this batch, sees its acts and
+  -- refuses. When the merge commits first, this batch waits here, and the alias check below sees
+  -- the alias. All keys are taken now, in the order of the key, so a batch that names both
+  -- entities of a merge in two items cannot lock out the merge. An advisory key holds no row, so
+  -- it never conflicts with the row locks of a promotion. A key for a row that does not exist is
+  -- harmless, and no table is read.
+  -- shortcut: a relation that a promotion adds to the absorbed entity after the merge read its
+  -- relations has no key. Upgrade when that window shows in a test.
+  FOR v_lock IN
+    SELECT DISTINCT hashtextextended('record_row:' || lower(r.ref), 0) AS k
+      FROM (SELECT x.value->>'target_id' AS ref FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT x.value->'payload'->>'src_id' FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT x.value->'payload'->>'dst_id' FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT n FROM jsonb_array_elements(p_items) AS x,
+                      LATERAL jsonb_array_elements_text(
+                        CASE WHEN jsonb_typeof(x.value->'names') = 'array' THEN x.value->'names'
+                             ELSE '[]'::jsonb END) AS n) AS r
+     WHERE r.ref IS NOT NULL
+     ORDER BY k
+  LOOP
+    PERFORM pg_advisory_xact_lock_shared(v_lock);
+  END LOOP;
 
   -- THE GROUPS OF LINKED ITEMS. Each item starts as a group of its own. Each item then joins its
   -- group to the groups of the items that it names, in any order of the items. Each group takes
@@ -2069,13 +2094,8 @@ BEGIN
   RETURN v_head;
 END $$;
 
--- THE WRITE OF A UNIT THAT THE OPERATOR DECIDES, with the test of the transaction.
-CREATE OR REPLACE FUNCTION write_unit(p_unit uuid, p_decided_by text, p_mode text)
-RETURNS uuid
-LANGUAGE sql
-SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT public.write_unit_as(p_unit, p_decided_by, p_mode, NULL)
-$$;
+-- The wrapper of the write of a unit had no caller. A database that still holds it loses it here.
+DROP FUNCTION IF EXISTS write_unit(uuid, text, text);
 
 -- THE PROMOTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
 -- and the door of an AI reviewer run it. It runs the check of the faults that the screen reads,
@@ -2689,7 +2709,22 @@ CREATE OR REPLACE FUNCTION merge_entities(p_decided_by text, p_survivor uuid, p_
 RETURNS TABLE (proposal_id uuid, target_id uuid)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_lock bigint;
 BEGIN
+  -- The advisory keys of a batch (see propose_batch): the two entities and the relations of the
+  -- absorbed entity, in the order of the key. The merge waits here for each open batch that names
+  -- one of them, and then it sees the acts of that batch.
+  FOR v_lock IN
+    SELECT DISTINCT hashtextextended('record_row:' || x.id::text, 0) AS k
+      FROM (SELECT p_survivor AS id UNION SELECT p_absorbed
+            UNION SELECT r.id FROM public.relations r
+             WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+                OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed)) AS x
+     ORDER BY k
+  LOOP
+    PERFORM pg_advisory_xact_lock(v_lock);
+  END LOOP;
   proposal_id := public.propose_change('merge_entities',
                    CASE WHEN p_keep_name THEN '{"keep_name": true}'::jsonb ELSE '{}'::jsonb END,
                    ARRAY['manual'], 'entity', p_survivor, ARRAY[p_absorbed]);
@@ -5313,7 +5348,7 @@ BEGIN
   PERFORM public.run_rules(public.units_of_author(v_author));
 END $$;
 
--- THE LETTER OF AN AUTHOR, for the operator. A name that no worker answer has resolved reads as
+-- THE LETTER OF AN AUTHOR. No role holds this step: the rules call it. A name that no worker answer has resolved reads as
 -- F. A name that joined an author A or B reads as F until the operator confirms it. A party to
 -- the conflict reads as C at most on every fact, because the graph holds no side yet
 -- (decisions.md S1). The digit of a fact never calls this function.
@@ -5925,8 +5960,10 @@ $$;
 -- THE DEEPENING SEARCH OF A UNIT. A unit with weak sources starts at most one lead, and only when
 -- the operator has set a budget: at zero, nothing runs. The unit waits until each act of a machine
 -- has its check, because a source is weak or strong only after the check. The lead carries the
--- budget as it stands now, and it states the acts that wait. No role holds this step; the unit is
--- locked by the caller, so two callers never start two searches.
+-- budget as it stands now, and it states the acts that wait. A unit whose sources are only pages
+-- that a deepening search stored starts no search, so a search never starts a chain. A page that
+-- the operator gave to a lead does not count, because the operator bounds those leads. No role
+-- holds this step; the unit is locked by the caller, so two callers never start two searches.
 CREATE OR REPLACE FUNCTION start_deepening(p_unit uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5944,6 +5981,15 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.proposals a
               WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.originator IS NOT NULL
                 AND NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = a.id)) THEN
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals a JOIN public.citation c ON c.claim_id = a.id
+              WHERE a.unit_id = p_unit AND a.status = 'pending')
+     AND NOT EXISTS (SELECT 1 FROM public.proposals a JOIN public.citation c ON c.claim_id = a.id
+                      WHERE a.unit_id = p_unit AND a.status = 'pending'
+                        AND NOT EXISTS (SELECT 1 FROM public.lead_document l
+                                          JOIN public.deepening d ON d.job_id = l.job_id
+                                         WHERE l.document_id = c.doc_id)) THEN
     RETURN;
   END IF;
   SELECT left('Find a better source for these acts: ' ||
@@ -6008,10 +6054,13 @@ DECLARE
   v_digits text;
   v_origin text;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.proposals WHERE unit_id = p_unit AND status = 'pending') THEN
+  -- A decision of the operator can commit while this write waits for the lock. The unit is then
+  -- decided, so the rule skips it and the rest of the write stays.
+  PERFORM 1 FROM public.proposals WHERE unit_id = p_unit AND status = 'pending' ORDER BY id
+    FOR UPDATE;
+  IF NOT FOUND THEN
     RETURN NULL;
   END IF;
-  PERFORM public.pending_unit(p_unit);
   v_rule := public.unit_rule(p_unit);
   -- A unit with weak sources starts its one deepening search. It is rejected only after that
   -- search, and only when every source is D or E. Any other unit waits.

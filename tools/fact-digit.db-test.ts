@@ -33,9 +33,7 @@ const check = (
 const digitOf = async (ask: Ask, key: string): Promise<number | null | undefined> =>
   z
     .array(z.object({ digit: z.number().nullable() }))
-    .parse(
-      await as(ask, 'gabriel_app', () => ask('SELECT public.fact_digit($1)::int AS digit', [key])),
-    )[0]?.digit;
+    .parse(await ask('SELECT public.fact_digit($1)::int AS digit', [key]))[0]?.digit;
 
 // Two sources that differ in every way that the proof of independence reads.
 const ONE: Partial<Source> = {
@@ -333,10 +331,10 @@ test('the digit is computed on read and stored nowhere', async () => {
   expect(read).toStrictEqual({ alone: 3, together: 1, columns: [] });
 });
 
-test('the digit door is closed to the worker and the public read', async () => {
+test('the digit door is closed to the operator, the worker and the public read', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     const found: (string | null)[] = [];
-    for (const role of ['gabriel_agent', 'gabriel_read'])
+    for (const role of ['gabriel_app', 'gabriel_agent', 'gabriel_read'])
       found.push(
         await refusal(ask, () => as(ask, role, () => ask('SELECT public.fact_digit($$x$$)'))),
       );

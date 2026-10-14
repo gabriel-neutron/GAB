@@ -34,7 +34,9 @@ claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the
 across a Latin and a Cyrillic spelling. `pnpm worker asset-coverage` reports the coverage of each
 kind of asset (see below). They run as they do against the local stack.
 Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
-that is still running. `pnpm worker ingest` stores a file only with
+that is still running. Two workers at the same time stay unsupported. When the database connection
+fails, for example after the computer sleeps, `pnpm worker run` waits, tries again and puts the job
+in hand back in the queue. It does not stop. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
 For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
 so that the file stays not public.
