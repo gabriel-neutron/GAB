@@ -222,7 +222,8 @@ test('the same bytes again with an address are refused when the document is not 
   expect(await addressOf(id)).toStrictEqual({ uri: null, open: false });
 });
 
-test('a known file restores its stored copy', async () => {
+// The recording door keeps each key that the writer puts, and it still writes the object.
+const recordingApp = () => {
   const puts: string[] = [];
   const recording = writeRoutes(
     pool,
@@ -243,6 +244,11 @@ test('a known file restores its stored copy', async () => {
         body,
       })
     ).status;
+  return { puts, sendTo };
+};
+
+test('a known file restores its stored copy', async () => {
+  const { puts, sendTo } = recordingApp();
   const bytes = freshText();
   const sha256 = hashOf(bytes);
   written.push(`doc_${sha256.slice(0, 12)}`);
@@ -253,6 +259,25 @@ test('a known file restores its stored copy', async () => {
   // not delete the object first.
   expect(await sendTo(requestOf(bytes))).toBe(200);
   expect(puts).toStrictEqual([`raw/${sha256}`]);
+});
+
+test('a refused known upload writes no object', async () => {
+  const { puts, sendTo } = recordingApp();
+  const free = { providerId: undefined, costEur: undefined };
+  const refused = [
+    ["UPDATE public.documents SET kind = 'report', uri = NULL WHERE id = $1", free],
+    [undefined, { ...free, uri: 'https://example.org/other' }],
+  ] as const;
+  for (const [change, fields] of refused) {
+    const bytes = freshText();
+    const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+    written.push(id);
+    expect(await sendTo(requestOf(bytes, free))).toBe(200);
+    if (change !== undefined) await owner.query(change, [id]);
+    puts.length = 0;
+    expect(await sendTo(requestOf(bytes, fields))).toBe(422);
+    expect(puts).toStrictEqual([]);
+  }
 });
 
 test('the same bytes again with another address are refused, and the address stays', async () => {

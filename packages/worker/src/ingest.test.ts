@@ -176,6 +176,7 @@ const doorOf = (
     mime?: string;
     failOn?: string;
     putFails?: boolean;
+    fill?: string;
   } = {},
 ) => {
   const calls: Call[] = [];
@@ -189,6 +190,8 @@ const doorOf = (
           calls.push({ text, values });
           if (options.failOn !== undefined && text.includes(options.failOn))
             return Promise.reject(new Error('refused'));
+          if (text.includes('fill_document_uri'))
+            return Promise.resolve({ rows: [{ found: options.fill ?? 'filled' }] });
           if (text.includes('FROM public.documents'))
             return Promise.resolve({
               rows:
@@ -270,8 +273,25 @@ test('a known file whose object cannot be written does not get the address', asy
     uri: 'https://example.org/page',
   });
   expect(outcome?.status).toBe('refused');
-  expect(calls.some((c) => c.text.includes('fill_document_uri'))).toBe(false);
+  const texts = calls.map((c) => c.text);
+  expect(texts).toContain('ROLLBACK');
+  expect(texts).not.toContain('COMMIT');
 });
+
+test.each(['not_a_file', 'other', 'before_rule'])(
+  'a known file with the answer %s is refused, and no object is written',
+  async (fill) => {
+    const key = `raw/${'ab'.repeat(32)}`;
+    const { door, calls, puts } = doorOf({ known: true, key, fill });
+    const [outcome] = await ingestFiles(door, [join(folder, 'one.txt')], {
+      ...OPTIONS,
+      uri: 'https://example.org/page',
+    });
+    expect(outcome?.status).toBe('refused');
+    expect(puts).toStrictEqual([]);
+    expect(calls.map((c) => c.text)).toContain('ROLLBACK');
+  },
+);
 
 test('a known file with an empty key writes no object and still gets the address', async () => {
   const { door, calls, puts } = doorOf({ known: true, key: '' });
