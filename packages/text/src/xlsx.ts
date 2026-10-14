@@ -199,19 +199,36 @@ export const textSetName = (sheet: string, filter?: TableFilter): string =>
  * limit keeps every row, so a large sheet would fill the memory without this cap. */
 export const MAX_TABLE_CHARS = 64 * 1024 * 1024;
 
-/** The CSV rows of one table, with the cap of the kept text. */
+/** The CSV rows of one table, with the cap of the kept text. `chars` is the number of characters
+ * that earlier tables of the same read kept. */
 export class KeptRows {
   private readonly rows: string[] = [];
-  private chars = 0;
+  private chars: number;
 
-  add(row: readonly string[], table: string): void {
+  constructor(chars = 0) {
+    this.chars = chars;
+  }
+
+  /** The CSV line of a row, counted against the cap. */
+  line(row: readonly string[], table: string): string {
+    const fault = new WorkbookFault(
+      `the read keeps more than ${String(MAX_TABLE_CHARS)} characters at the ${table}: give a filter`,
+    );
+    // The cells are a floor of the line, so a row past the cap is refused before its line is built.
+    if (this.chars + row.reduce((sum, cell) => sum + cell.length, 0) > MAX_TABLE_CHARS) throw fault;
     const line = csvOf([row]);
     this.chars += line.length;
-    if (this.chars > MAX_TABLE_CHARS)
-      throw new WorkbookFault(
-        `the table ${table} keeps more than ${String(MAX_TABLE_CHARS)} characters: give a filter`,
-      );
-    this.rows.push(line);
+    if (this.chars > MAX_TABLE_CHARS) throw fault;
+    return line;
+  }
+
+  add(row: readonly string[], table: string): void {
+    this.rows.push(this.line(row, table));
+  }
+
+  /** The characters that this read has kept so far. */
+  get spent(): number {
+    return this.chars;
   }
 
   get length(): number {
@@ -229,14 +246,16 @@ const sheetCsvOf = async (
   sheet: string,
   filter?: TableFilter,
   maxRows?: number,
+  kept = new KeptRows(),
 ): Promise<string> => {
   let header: string[] | undefined;
+  let head = '';
   let at = -1;
-  const kept = new KeptRows();
   for await (const row of sheetRows(archive, sheet, strings)) {
     if (header === undefined) {
       header = row.map((name) => name.trim());
       while (header.at(-1) === '') header.pop();
+      head = kept.line(header, `sheet "${sheet}"`);
       at = filter === undefined ? -1 : header.indexOf(filter.column);
       if (filter !== undefined && at === -1)
         throw new WorkbookFault(`the sheet "${sheet}" has no column "${filter.column}"`);
@@ -251,14 +270,14 @@ const sheetCsvOf = async (
     if (maxRows !== undefined && kept.length >= maxRows) break;
   }
   if (header === undefined) throw new WorkbookFault(`the sheet "${sheet}" holds no row`);
-  return csvOf([header]) + kept.text();
+  return head + kept.text();
 };
 
 /** One sheet as CSV text: the header row, then each row that the filter keeps. A row is padded or
  * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
  * read as a stream. The memory is the table of shared strings of the workbook, one chunk, and the
- * rows that are kept (at most MAX_TABLE_CHARS). `maxRows` stops the read after that many kept
- * rows. */
+ * lines that are kept (at most MAX_TABLE_CHARS, the header included). `maxRows` stops the read
+ * after that many kept rows. */
 export const sheetCsv = async (
   input: TableInput,
   sheet: string,
@@ -271,12 +290,16 @@ export const sheetCsv = async (
 };
 
 /** Every sheet of a workbook as CSV text, in the order of the workbook. The shared strings are
- * read once for the whole workbook. */
+ * read once for the whole workbook, and MAX_TABLE_CHARS caps the text of all the sheets together. */
 export const workbookCsvs = async (input: TableInput, maxRows?: number): Promise<string[]> => {
   const archive = await openArchive(input);
   const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
   const pages: string[] = [];
-  for (const sheet of await sheetNames(archive.source))
-    pages.push(await sheetCsvOf(archive, strings, sheet, undefined, maxRows));
+  let spent = 0;
+  for (const sheet of await sheetNames(archive.source)) {
+    const kept = new KeptRows(spent);
+    pages.push(await sheetCsvOf(archive, strings, sheet, undefined, maxRows, kept));
+    spent = kept.spent;
+  }
   return pages;
 };

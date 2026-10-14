@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import { extractText, mimeOfFileName } from './extract.ts';
 import {
   MAX_PART_BYTES,
+  MAX_TABLE_CHARS,
   sheetCsv,
   sheetNames,
   textSetName,
@@ -138,3 +139,16 @@ test('a cell with no reference takes the column after the previous cell', async 
   });
   expect(await sheetCsv(book, 'Gap')).toBe('1,2,3,4,5\r\na,2,,4,5\r\n');
 });
+
+test(
+  'the character cap applies to the whole workbook and not to each sheet',
+  { timeout: 60_000 },
+  async () => {
+    const big = 'x'.repeat(1024 * 1024);
+    const rows = Math.ceil(MAX_TABLE_CHARS / 2 / big.length) + 1;
+    const sheet = [['Name'], ...Array.from({ length: rows }, () => [big])];
+    const book = workbookOf({ A: sheet, B: sheet });
+    await expect(sheetCsv(book, 'A')).resolves.toContain('Name');
+    await expect(workbookCsvs(book)).rejects.toThrow(/keeps more than/u);
+  },
+);
