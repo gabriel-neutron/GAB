@@ -109,7 +109,7 @@ cp infra/vps/claude-settings.local.example.json .claude/settings.local.json
 chmod 600 .claude/settings.local.json
 nano .claude/settings.local.json     # replace PASTE-THE-VPS-PAT-HERE with the PAT
 git config --local user.name gabriel-neutron
-git config --local user.email gabriel-neutron@users.noreply.github.com
+git config --local user.email 267274726+gabriel-neutron@users.noreply.github.com
 git config --local credential.helper ''
 git config --local --add credential.helper '!gh auth git-credential'
 ```
