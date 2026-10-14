@@ -1,13 +1,17 @@
 // Origin of the number: a bought filing is a PDF of some megabytes, and a scan of many pages
-// reaches some tens of them. The whole file is held in memory twice, as text and as bytes, so
-// the cap keeps one request well under the heap of the writer.
+// reaches some tens of them. The door holds a file as about five times its size (see the note on
+// the bulk cap), some 100 MB at this cap, so the cap keeps one request well under the heap of the
+// writer.
 export const UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
 
 // Origin of the number: decided, not calibrated. A published bulk dataset (a GEM workbook, a GEM
 // route archive, a World Bank flare workbook) is some tens to some hundreds of megabytes. The
-// real limit is the heap of the writer: it holds the request body as text (some 342 MB of base64
-// at the cap) and then the decoded bytes (256 MB), so the peak of one bulk upload is about 600 MB.
-// The text step reads such a file as a stream, but the door still holds the bytes once.
+// real limit is the heap of the writer. The body arrives as bytes (some 342 MB of base64 at the
+// cap) and the writer holds it as text (342 MB). JSON.parse copies the base64 field (342 MB), and
+// the decoded file is 256 MB. So the peak of one bulk upload is about 1.3 GB, about five times the
+// file, before the collector frees the first copies. This number is counted from the copies and
+// not measured. The text step reads such a file as a stream, but the door still holds the bytes
+// once.
 // shortcut: the writer holds the whole body in memory, upgrade to a streamed upload when a
 // dataset passes this cap.
 export const BULK_FILE_BYTES = 256 * 1024 * 1024;
