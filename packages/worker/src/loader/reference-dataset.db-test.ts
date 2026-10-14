@@ -373,7 +373,7 @@ test('the Russian fields of an approved edition load as points with their kind, 
       },
     ]);
     const lines = new TextDecoder().decode(held.stored[0]?.bytes).trim().split('\r\n');
-    expect(lines[0]).toMatch(/read 3; loaded 3; excluded 0$/u);
+    expect(lines[0]).toMatch(/read 3; loaded 3; excluded 0; dropped 0$/u);
     expect(lines[2]).toContain(`entity ${known} by its name only`);
   });
 });
@@ -515,6 +515,129 @@ test('a row whose value disagrees with the record is a doubt, and an agreeing ro
     ).toStrictEqual([
       { kind: null, status: 'operating' },
       { kind: 'field', status: 'operating' },
+    ]);
+  });
+});
+
+test('a row sets a missing geometry, a different point is a doubt that writes nothing, and a promotion keeps the old point', async () => {
+  await inTransaction(async (held) => {
+    const entity = async (label: string, osm: string, geom?: unknown): Promise<string> => {
+      const act = await held.asApp(() =>
+        held.idOf(
+          `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+          [
+            JSON.stringify({
+              type: 'facility',
+              label,
+              ...(geom === undefined ? {} : { geom }),
+              attrs: { osm_id: { v: osm, src: ['manual'] } },
+            }),
+          ],
+        ),
+      );
+      await fromAnEarlierTransaction(held, act);
+      return held.asApp(() =>
+        held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [act]),
+      );
+    };
+    const bare = await entity('Iota field', 'n20');
+    const moved = await entity('Kappa field', 'n21', { type: 'Point', coordinates: [20, 10] });
+    const same = await entity('Lambda field', 'n22', { type: 'Point', coordinates: [22, 12] });
+    const book = workbookOf({
+      [SHEET]: [
+        ['Unit name', 'Country/Area', 'OSM id', 'Latitude', 'Longitude'],
+        ['Iota field', 'Russia', 'n20', 61.5, 73.25],
+        ['Kappa field', 'Russia', 'n21', 11, 21],
+        ['Lambda field', 'Russia', 'n22', 12, 22],
+      ],
+    });
+    await storeWorkbook(held, book);
+    const job = await held.asApp(() =>
+      held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [BOOK, SET_NAME]),
+    );
+    await held.ask(OLDEST, [job]);
+    const draft = {
+      ...DRAFT,
+      rows: {
+        ...DRAFT.rows,
+        lookup: [{ key: 'osm_id', column: 'OSM id' }],
+        attrs: {},
+        constants: undefined,
+      },
+    };
+    await held.step(
+      makeMapper(CONFIG),
+      routerOf(() => answerOf(draft)),
+    );
+    const mapping = await held.idOf(
+      "SELECT id FROM public.proposals WHERE op = 'map_document' AND $1 = ANY (src::text[])",
+      [BOOK],
+    );
+    await fromAnEarlierTransaction(held, mapping);
+    const load = await held.asApp(() =>
+      held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+    );
+    await held.ask(OLDEST, [load]);
+    await approve(held);
+
+    await runLoad(held, load);
+
+    const placeOf = (id: string) =>
+      held.ask(
+        `SELECT public.ST_X(e.geom) AS lon, public.ST_Y(e.geom) AS lat, e.sources::text[] AS sources
+           FROM public.entities e WHERE e.id = $1`,
+        [id],
+      );
+    const actOf = (id: string) =>
+      held.ask(
+        `SELECT p.status, p.found_by, public.unit_rule(p.unit_id) AS rule,
+                p.prior_value -> 'geom' AS prior
+           FROM public.proposals p WHERE p.op = 'update_entity' AND p.target_id = $1`,
+        [id],
+      );
+
+    // An entity with no point gets the point of the row, by a proposal that the rule accepts.
+    expect(await placeOf(bare)).toStrictEqual([{ lon: 73.25, lat: 61.5, sources: [BOOK] }]);
+    expect(await actOf(bare)).toStrictEqual([
+      { status: 'accepted', found_by: 'osm_id', rule: null, prior: null },
+    ]);
+    // The point of the record is not the point of the row, so the row waits as a doubt.
+    expect(await placeOf(moved)).toStrictEqual([{ lon: 20, lat: 10, sources: ['manual'] }]);
+    expect(await actOf(moved)).toStrictEqual([
+      { status: 'pending', found_by: 'osm_id', rule: 'doubt', prior: null },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT f.faults->0->>'kind' AS kind, f.faults->0->>'said' AS said
+           FROM public.unit_faults(ARRAY(SELECT p.unit_id FROM public.proposals p
+                                          WHERE p.op = 'update_entity' AND p.target_id = $1)) f`,
+        [moved],
+      ),
+    ).toStrictEqual([
+      {
+        kind: 'record_disagrees',
+        said: 'The record holds another geometry than the reference dataset gives',
+      },
+    ]);
+    // The same point writes no act.
+    expect(await actOf(same)).toStrictEqual([]);
+
+    // The operator promotes the doubt: the point is replaced, the old point stays in the history,
+    // and the source list of the row is the list of the act.
+    const unit = await held.idOf(
+      "SELECT unit_id AS id FROM public.proposals WHERE op = 'update_entity' AND target_id = $1",
+      [moved],
+    );
+    await fromAnEarlierTransaction(held, unit);
+    await held.asApp(() => held.ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit]));
+    expect(await placeOf(moved)).toStrictEqual([{ lon: 21, lat: 11, sources: [BOOK] }]);
+    expect(await actOf(moved)).toStrictEqual([
+      {
+        status: 'accepted',
+        found_by: 'osm_id',
+        rule: null,
+        prior: { type: 'Point', coordinates: [20, 10] },
+      },
     ]);
   });
 });
@@ -1025,7 +1148,7 @@ test('a GEM company finds the record company by its tax number, and a name match
       },
     ]);
     const report = new TextDecoder().decode(held.stored[0]?.bytes);
-    expect(report).toMatch(/read 4; loaded 4; excluded 0\r\n/u);
+    expect(report).toMatch(/read 4; loaded 4; excluded 0; dropped 0\r\n/u);
     expect(report).toContain('gives no lei: ""not found"" is not a LEI in its legal form');
     expect(report).not.toContain('is a tax number, and not a registration number');
     // The entity of a name match gets no relation, and a new entity gets its owner.
@@ -1038,5 +1161,609 @@ test('a GEM company finds the record company by its tax number, and a name match
         [novatek],
       ),
     ).toStrictEqual([{ owned: 'Arctic New Co' }]);
+  });
+});
+
+// A workbook in the shape of the GEM ownership workbook: an entity sheet, and an ownership sheet
+// where each row is one link with its share. GEM estimated one share, one holder is no entity,
+// and one holder is a company that the Russian set of the entity sheet does not hold.
+const OWNERSHIP_SHEET = 'Ownership';
+const OWNERSHIP_SET = 'xlsx-1|sheet=Ownership';
+const OWNERSHIP_HEADER = [
+  'Subject ID',
+  'Subject',
+  'Holder ID',
+  'Holder',
+  'Share',
+  'Imputed',
+  'URL',
+];
+const OWNERSHIP_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+    ['E200002', 'Rosneft', 'Russia', 7706107510, '', ''],
+    ['E200003', 'QH Oil Investments', 'Russia', '', '', ''],
+    ['E200009', 'Oslo Co', 'Norway', '', '', ''],
+  ],
+  [OWNERSHIP_SHEET]: [
+    [...OWNERSHIP_HEADER],
+    ['E200002', 'Rosneft', 'E200001', 'Rosneftegaz', 40.4, 'FALSE', 'https://gem.test/a'],
+    ['E200002', 'Rosneft', 'E200003', 'QH Oil Investments', 18.46, 'TRUE', 'https://gem.test/b'],
+    ['E200002', 'Rosneft', 'E200008', 'small shareholder(s)', 41.14, 'TRUE', ''],
+    ['E200002', 'Rosneft', 'E200009', 'Oslo Co', 0.5, 'FALSE', ''],
+  ],
+});
+
+const COMPANY_DRAFT = {
+  ...ENTITY_DRAFT,
+  rows: {
+    ...ENTITY_DRAFT.rows,
+    lookup: [{ key: 'gem_entity_id', column: 'Entity ID' }],
+    attrs: {
+      gem_entity_id: { column: 'Entity ID', cast: { type: 'identifier' } },
+      tax_id: { column: 'Registry ID', cast: { type: 'ru_register' } },
+      registration_number: { column: 'Registry ID', cast: { type: 'ru_register' } },
+    },
+  },
+  relations: [],
+};
+
+const LINK_DRAFT = {
+  table: 'GEM-ownership.xlsx, ownership',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    relation_type: 'owns',
+    src: {
+      entity_type: 'company',
+      name: 'Holder',
+      lookup: [{ key: 'gem_entity_id', column: 'Holder ID' }],
+    },
+    dst: {
+      entity_type: 'company',
+      name: 'Subject',
+      lookup: [{ key: 'gem_entity_id', column: 'Subject ID' }],
+    },
+    attrs: {
+      share_pct: { column: 'Share', cast: { type: 'number', scale: 4 } },
+      share_imputed: { column: 'Imputed', cast: { type: 'boolean' } },
+      source_url: { column: 'URL', cast: { type: 'text' } },
+    },
+  },
+  relations: [],
+};
+
+/** Maps one text set of the stored workbook, and promotes the mapping. Returns the mapping and
+ * the load job. */
+const mapAndPromote = async (
+  held: Held,
+  set: string,
+  draft: unknown,
+  document: string = BOOK,
+): Promise<{ mapping: string; load: string }> => {
+  const job = await held.asApp(() =>
+    held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [document, set]),
+  );
+  await held.ask(OLDEST, [job]);
+  expect(
+    await held.step(
+      makeMapper(CONFIG),
+      routerOf(() => answerOf(draft)),
+    ),
+  ).toStrictEqual({ did: 'done', job });
+  const mapping = await held.idOf(
+    `SELECT p.id FROM public.proposals p
+      WHERE p.op = 'map_document' AND $1 = ANY (p.src::text[])
+        AND public.mapping_text_set(p.id) = $2`,
+    [document, set],
+  );
+  await fromAnEarlierTransaction(held, mapping);
+  const load = await held.asApp(() =>
+    held.idOf("SELECT public.promote_unit($1::uuid, 'a test') AS id", [mapping]),
+  );
+  await held.ask(OLDEST, [load]);
+  return { mapping, load };
+};
+
+const linkRow = z.object({
+  holder: z.string(),
+  subject: z.string(),
+  share: z.number().nullable(),
+  imputed: z.boolean().nullable(),
+  url: z.string().nullable(),
+  status: z.string(),
+  decided_by: z.string().nullable(),
+  originator: z.string(),
+  passage: z.string(),
+});
+
+test('a relation table loads the ownership links between GEM companies, with the share and its flag', async () => {
+  await inTransaction(async (held) => {
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/ownership.xlsx',
+      sha256(OWNERSHIP_BOOK),
+      XLSX_MIME,
+    ]);
+    const open = () => Promise.resolve(bytesSource(OWNERSHIP_BOOK));
+    await makeTextSet(
+      { db: asQueryable(held), open },
+      { document: BOOK, sheet: ENTITY_SHEET, filter: { column: 'Country', value: 'Russia' } },
+    );
+    expect(
+      await makeTextSet(
+        { db: asQueryable(held), open },
+        { document: BOOK, sheet: OWNERSHIP_SHEET },
+      ),
+    ).toMatchObject({ name: OWNERSHIP_SET, rows: 4 });
+    await approve(held);
+
+    // The companies load first, by their GEM identifier.
+    const companies = await mapAndPromote(held, ENTITY_SET, COMPANY_DRAFT);
+    await runLoad(held, companies.load);
+    const idOf = (label: string): Promise<string> =>
+      held.idOf('SELECT id FROM public.entities WHERE label = $1', [label]);
+    const [rosneftegaz, rosneft, qh] = [
+      await idOf('Rosneftegaz'),
+      await idOf('Rosneft'),
+      await idOf('QH Oil Investments'),
+    ];
+
+    // Then the links. The dry join says which key finds each end, and writes nothing.
+    const links = await mapAndPromote(held, OWNERSHIP_SET, LINK_DRAFT);
+    const join = await held.asAgent(() => dryJoin(asQueryable(held), links.mapping));
+    expect(join.trim().split('\r\n')).toStrictEqual([
+      `# dry join of mapping ${links.mapping}; document ${BOOK}; text set ${OWNERSHIP_SET}; ` +
+        'rows 4; links 2; to the report 2',
+      'row,src_key,src_entity,src_outcome,dst_key,dst_entity,dst_outcome,outcome',
+      `1,gem_entity_id,${rosneftegaz},finds,gem_entity_id,${rosneft},finds,links`,
+      `2,gem_entity_id,${qh},finds,gem_entity_id,${rosneft},finds,links`,
+      `3,,,"the src ""small shareholder(s)"" is not an entity",gem_entity_id,${rosneft},finds,goes to the report`,
+      `4,,,not in the record,gem_entity_id,${rosneft},finds,goes to the report`,
+    ]);
+    const entities = 'SELECT count(*)::int AS entities FROM public.proposals WHERE op = $1';
+    const before = await held.ask(entities, ['create_entity']);
+
+    await runLoad(held, links.load);
+
+    // A row of a relation table creates no entity.
+    expect(await held.ask(entities, ['create_entity'])).toStrictEqual(before);
+    expect(
+      z.array(linkRow).parse(
+        await held.ask(
+          `SELECT s.label AS holder, d.label AS subject,
+                  (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share,
+                  (r.attrs #>> '{share_imputed,v}')::boolean AS imputed,
+                  r.attrs #>> '{source_url,v}' AS url,
+                  p.status, p.decided_by, p.originator,
+                  substr(t.text, c.start + 1, c."end" - c.start) AS passage
+             FROM public.relations r
+             JOIN public.proposals p ON p.id = r.promoted_from
+             JOIN public.entities s ON s.id = r.src_id
+             JOIN public.entities d ON d.id = r.dst_id
+             JOIN public.citation c ON c.claim_id = p.id
+             JOIN public.document_text t
+               ON (t.document_id, t.extractor, t.page) = (c.doc_id, c.text_extractor, c.page)
+            WHERE r.type = 'owns' ORDER BY s.label`,
+        ),
+      ),
+    ).toStrictEqual([
+      {
+        holder: 'QH Oil Investments',
+        subject: 'Rosneft',
+        share: 18.46,
+        imputed: true,
+        url: 'https://gem.test/b',
+        status: 'accepted',
+        decided_by: 'rule reference_dataset v1',
+        originator: PUBLISHER,
+        passage: 'E200002,Rosneft,E200003,QH Oil Investments,18.46,TRUE,https://gem.test/b',
+      },
+      {
+        holder: 'Rosneftegaz',
+        subject: 'Rosneft',
+        share: 40.4,
+        imputed: false,
+        url: 'https://gem.test/a',
+        status: 'accepted',
+        decided_by: 'rule reference_dataset v1',
+        originator: PUBLISHER,
+        passage: 'E200002,Rosneft,E200001,Rosneftegaz,40.4,FALSE,https://gem.test/a',
+      },
+    ]);
+
+    // A holder that is no entity, and a holder that the record does not hold, go to the report.
+    const report = new TextDecoder().decode(held.stored[1]?.bytes).trim().split('\r\n');
+    expect(report[0]).toMatch(/read 4; loaded 2; excluded 2; dropped 0$/u);
+    expect(report.slice(2)).toStrictEqual([
+      expect.stringMatching(
+        /^3,1,\d+,\d+,"relation not loaded: the src ""small shareholder\(s\)"" is not an entity"$/u,
+      ),
+      expect.stringMatching(
+        /^4,1,\d+,\d+,"relation not loaded: the src ""Oslo Co"" is not in the record"$/u,
+      ),
+    ]);
+  });
+});
+
+// A workbook in the shape of the GEM workbooks of the hydrocarbon map: companies, assets with
+// their operator, LNG terminals with an owner cell, and the ownership of pipeline segments.
+const HC_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+    ['E200002', 'Novatek', 'Russia', 6316031581, '', ''],
+  ],
+  Assets: [
+    ['Project ID', 'Unit name', 'Operator ID', 'Latitude', 'Longitude'],
+    ['P0001', 'Segment A', 'E200001', 61, 73],
+    ['P0002', 'Segment B', 'E200099', 62, 74],
+  ],
+  LNG: [
+    ['Terminal ID', 'Terminal', 'Owners', 'Capacity', 'Group share', 'Latitude', 'Longitude'],
+    ['L0001', 'Yamal LNG', 'Novatek [E200002] 60%; New Gas Co [E200555] 40%', 16.5, 75.5, 71, 72],
+    ['L0002', 'Names LNG', 'Novatek 60%; Shell 40%', 5, 10, 51, 143],
+  ],
+  Owners: [
+    ['Project ID', 'Owner ID', 'Share'],
+    ['P0001', 'E200001', 100],
+  ],
+});
+
+const assetDraft = (kind: string, id: string, label: string) => ({
+  table: 'GEM assets',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    entity_type: 'facility',
+    label,
+    lookup: [{ key: 'gem_project_id', column: id }],
+    geom: { lon: 'Longitude', lat: 'Latitude' },
+    attrs: { gem_project_id: { column: id, cast: { type: 'identifier' } } } as Record<
+      string,
+      unknown
+    >,
+    constants: { asset_kind: kind },
+  },
+  relations: [] as unknown[],
+});
+
+test('an asset finds its operator company, an LNG owner cell with identifiers splits, and a cell of names does not', async () => {
+  await inTransaction(async (held) => {
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/hydrocarbons.xlsx',
+      sha256(HC_BOOK),
+      XLSX_MIME,
+    ]);
+    const open = () => Promise.resolve(bytesSource(HC_BOOK));
+    const sets = { db: asQueryable(held), open };
+    await makeTextSet(sets, {
+      document: BOOK,
+      sheet: ENTITY_SHEET,
+      filter: { column: 'Country', value: 'Russia' },
+    });
+    for (const sheet of ['Assets', 'LNG', 'Owners'])
+      await makeTextSet(sets, { document: BOOK, sheet });
+    await approve(held);
+
+    await runLoad(held, (await mapAndPromote(held, ENTITY_SET, COMPANY_DRAFT)).load);
+    const idOf = (label: string): Promise<string> =>
+      held.idOf('SELECT id FROM public.entities WHERE label = $1', [label]);
+    const rosneftegaz = await idOf('Rosneftegaz');
+
+    // An asset finds its operator company by the identifier of the company, and an operator that
+    // the record does not hold goes to the report.
+    const assets = assetDraft('pipeline_segment', 'Project ID', 'Unit name');
+    assets.relations = [
+      {
+        type: 'operates',
+        row_is: 'dst',
+        other: { key: 'gem_entity_id', column: 'Operator ID' },
+        other_type: 'company',
+      },
+    ];
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=Assets', assets)).load);
+    const segmentA = await idOf('Segment A');
+    expect(
+      await held.ask(
+        `SELECT s.label AS operator, d.label AS asset FROM public.relations r
+           JOIN public.entities s ON s.id = r.src_id JOIN public.entities d ON d.id = r.dst_id
+          WHERE r.type = 'operates' AND d.label LIKE 'Segment %'`,
+      ),
+    ).toStrictEqual([{ operator: 'Rosneftegaz', asset: 'Segment A' }]);
+    expect(new TextDecoder().decode(held.stored[1]?.bytes)).toContain(
+      'relation not loaded: the other end is not in the record',
+    );
+
+    // An owner cell with an identifier and a share for each owner splits. An owner that the record
+    // lacks is created with its identifier. A group share stays an attribute.
+    const lng = assetDraft('lng_plant', 'Terminal ID', 'Terminal');
+    lng.rows.attrs = {
+      ...lng.rows.attrs,
+      capacity_mtpa: { column: 'Capacity', cast: { type: 'number', scale: 2 } },
+      group_share_pct: { column: 'Group share', cast: { type: 'number', scale: 2 } },
+    };
+    lng.relations = [
+      {
+        type: 'owns',
+        row_is: 'dst',
+        other: { key: 'gem_entity_id', column: 'Owners' },
+        other_type: 'company',
+        split: { separator: ';' },
+      },
+    ];
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=LNG', lng)).load);
+    expect(
+      await held.ask(
+        `SELECT s.label AS owner, d.label AS terminal,
+                (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share
+           FROM public.relations r
+           JOIN public.entities s ON s.id = r.src_id JOIN public.entities d ON d.id = r.dst_id
+          WHERE r.type = 'owns' AND d.attrs ? 'asset_kind' ORDER BY s.label`,
+      ),
+    ).toStrictEqual([
+      { owner: 'New Gas Co', terminal: 'Yamal LNG', share: 40 },
+      { owner: 'Novatek', terminal: 'Yamal LNG', share: 60 },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT e.attrs #>> '{gem_entity_id,v}' AS gem FROM public.entities e
+          WHERE e.label = 'New Gas Co'`,
+      ),
+    ).toStrictEqual([{ gem: 'E200555' }]);
+    // The terminal is a point with its capacity, and its group share is an attribute only.
+    expect(
+      await held.ask(
+        `SELECT label, ST_GeometryType(geom) AS geometry, attrs #>> '{capacity_mtpa,v}' AS capacity,
+                attrs #>> '{group_share_pct,v}' AS group_share
+           FROM public.entities WHERE attrs @> '{"asset_kind":{"v":"lng_plant"}}' ORDER BY label`,
+      ),
+    ).toStrictEqual([
+      { label: 'Names LNG', geometry: 'ST_Point', capacity: '5', group_share: '10' },
+      { label: 'Yamal LNG', geometry: 'ST_Point', capacity: '16.5', group_share: '75.5' },
+    ]);
+    // A cell of names does not split: the terminal loads with no owner, and the report says why.
+    expect(
+      await held.ask(
+        `SELECT count(*)::int AS links FROM public.relations r
+           JOIN public.entities d ON d.id = r.dst_id WHERE d.label = 'Names LNG'`,
+      ),
+    ).toStrictEqual([{ links: 0 }]);
+    expect(new TextDecoder().decode(held.stored[2]?.bytes)).toContain(
+      'relation not loaded: the owner cell does not split: ""Novatek 60%""',
+    );
+
+    // The ownership sheet links a pipeline segment to its direct owner, by identifier.
+    const owners = {
+      table: 'GEM asset ownership',
+      modality: 'asserts',
+      publisher: PUBLISHER,
+      rows: {
+        relation_type: 'owns',
+        src: {
+          entity_type: 'company',
+          lookup: [{ key: 'gem_entity_id', column: 'Owner ID' }],
+        },
+        dst: {
+          entity_type: 'facility',
+          lookup: [{ key: 'gem_project_id', column: 'Project ID' }],
+        },
+        attrs: { share_pct: { column: 'Share', cast: { type: 'number', scale: 4 } } },
+      },
+      relations: [],
+    };
+    await runLoad(held, (await mapAndPromote(held, 'xlsx-1|sheet=Owners', owners)).load);
+    expect(
+      await held.ask(
+        `SELECT r.dst_id = $1 AS segment, r.src_id = $2 AS owner,
+                (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share
+           FROM public.relations r WHERE r.type = 'owns' AND r.dst_id = $1`,
+        [segmentA, rosneftegaz],
+      ),
+    ).toStrictEqual([{ segment: true, owner: true, share: 100 }]);
+  });
+});
+
+// Two editions of one GEM workbook from one host. The second edition renames a field and changes
+// its status, changes one share, and no longer gives one ownership link. The rest is the same.
+const EDITION_ONE = 'doc_gem_edition_one';
+const EDITION_TWO = 'doc_gem_edition_two';
+const FIELD_SET = 'xlsx-1|sheet=Field-level data|where=Country/Area=Russia';
+const FIELD_HEADER = ['Unit ID', 'Unit name', 'Country/Area', 'Status'];
+const editionOf = (
+  share: number,
+  links: readonly (readonly (string | number)[])[],
+  fields: readonly (readonly string[])[],
+): Uint8Array =>
+  workbookOf({
+    [ENTITY_SHEET]: [
+      ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+      ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+      ['E200002', 'Rosneft', 'Russia', 7706107510, '', ''],
+      ['E200003', 'QH Oil Investments', 'Russia', '', '', ''],
+    ],
+    [OWNERSHIP_SHEET]: [
+      [...OWNERSHIP_HEADER],
+      ['E200002', 'Rosneft', 'E200001', 'Rosneftegaz', share, 'FALSE', 'https://gem.test/a'],
+      ...links.map((row) => [...row]),
+    ],
+    [SHEET]: [[...FIELD_HEADER], ...fields.map((row) => [...row])],
+  });
+const FIRST_EDITION = editionOf(
+  40.4,
+  [['E200002', 'Rosneft', 'E200003', 'QH Oil Investments', 18.46, 'TRUE', 'https://gem.test/b']],
+  [
+    ['G100001', 'Alpha field', 'Russia', 'operating'],
+    ['G100002', 'Gamma field', 'Russia', 'operating'],
+  ],
+);
+const SECOND_EDITION = editionOf(
+  41,
+  [],
+  [
+    ['G100001', 'Alpha North field', 'Russia', 'mothballed'],
+    ['G100002', 'Gamma field', 'Russia', 'operating'],
+  ],
+);
+const FIELD_DRAFT = {
+  table: 'GEM-fields.xlsx',
+  modality: 'asserts',
+  publisher: PUBLISHER,
+  rows: {
+    entity_type: 'facility',
+    label: 'Unit name',
+    lookup: [{ key: 'gem_unit_id', column: 'Unit ID' }],
+    attrs: {
+      gem_unit_id: { column: 'Unit ID', cast: { type: 'identifier' } },
+      status: { column: 'Status', cast: { type: 'text' } },
+    },
+    constants: { asset_kind: 'field' },
+  },
+  relations: [],
+};
+
+/** Stores one edition from the host of the tracker, makes its three text sets and approves it. */
+const storeEdition = async (held: Held, document: string, bytes: Uint8Array): Promise<void> => {
+  await held.ask(PUT, [
+    document,
+    `raw/${document}.xlsx`,
+    `https://tracker.test/${document}/ownership.xlsx`,
+    sha256(bytes),
+    XLSX_MIME,
+  ]);
+  const open = () => Promise.resolve(bytesSource(bytes));
+  const db = asQueryable(held);
+  await makeTextSet(
+    { db, open },
+    { document, sheet: ENTITY_SHEET, filter: { column: 'Country', value: 'Russia' } },
+  );
+  await makeTextSet({ db, open }, { document, sheet: OWNERSHIP_SHEET });
+  await makeTextSet({ db, open }, { document, sheet: SHEET, filter: FILTER });
+  await held.asApp(() =>
+    held.ask('SELECT public.approve_reference_dataset($1, $2) AS id', [document, 'GEM']),
+  );
+};
+
+/** The lines of the load report of one load job. */
+const reportOfLoad = (held: Held, load: string): string[] =>
+  held.stored
+    .map((object) => new TextDecoder().decode(object.bytes))
+    .filter((text) => text.includes(`; job ${load}; `))
+    .flatMap((text) => text.trim().split('\r\n'));
+
+test('a second edition loads with no model, writes only the changed values, and reports a dropped link', async () => {
+  await inTransaction(async (held) => {
+    // The first edition: the operator promotes one mapping for each text set.
+    await storeEdition(held, EDITION_ONE, FIRST_EDITION);
+    for (const [set, draft] of [
+      [ENTITY_SET, COMPANY_DRAFT],
+      [OWNERSHIP_SET, LINK_DRAFT],
+      [FIELD_SET, FIELD_DRAFT],
+    ] as const) {
+      const { load } = await mapAndPromote(held, set, draft, EDITION_ONE);
+      await runLoad(held, load);
+    }
+    const idOf = (label: string): Promise<string> =>
+      held.idOf('SELECT id FROM public.entities WHERE label = $1', [label]);
+    const alpha = await idOf('Alpha field');
+    const linkOf = (holder: string): Promise<string> =>
+      held.idOf(
+        `SELECT r.id FROM public.relations r JOIN public.entities s ON s.id = r.src_id
+          WHERE r.type = 'owns' AND s.label = $1`,
+        [holder],
+      );
+    const [major, minor] = [await linkOf('Rosneftegaz'), await linkOf('QH Oil Investments')];
+    const created = `SELECT count(*)::int AS n FROM public.proposals
+      WHERE op IN ('create_entity', 'create_relation') AND src::text[] && ARRAY[$1, $2]`;
+    const before = await held.ask(created, [EDITION_ONE, EDITION_TWO]);
+    expect(before).toStrictEqual([{ n: 7 }]);
+
+    // The second edition: the mapper finds the promoted mapping of each text set, and asks no
+    // model. The load reads each row under that mapping.
+    await storeEdition(held, EDITION_TWO, SECOND_EDITION);
+    const loads = new Map<string, string>();
+    for (const set of [ENTITY_SET, OWNERSHIP_SET, FIELD_SET]) {
+      const job = await held.asApp(() =>
+        held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [EDITION_TWO, set]),
+      );
+      await held.ask(OLDEST, [job]);
+      expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({ did: 'done', job });
+      const load = await held.idOf(
+        `SELECT id FROM public.jobs
+          WHERE document_id = $1 AND kind = 'load_mapped' AND text_set = $2`,
+        [EDITION_TWO, set],
+      );
+      await held.ask(OLDEST, [load]);
+      await runLoad(held, load);
+      loads.set(set, load);
+    }
+
+    // No entity and no relation is created twice: the renamed field is the same entity.
+    expect(await held.ask(created, [EDITION_ONE, EDITION_TWO])).toStrictEqual(before);
+    expect(await idOf('Alpha field')).toBe(alpha);
+    expect(
+      await held.ask("SELECT id FROM public.entities WHERE label = 'Alpha North field'"),
+    ).toStrictEqual([]);
+
+    // The second edition writes two proposals: the changed status of the renamed field, found by
+    // its GEM identifier, and the changed share. Each one is a doubt for the operator.
+    expect(
+      await held.ask(
+        `SELECT p.op, p.target_kind, p.target_id::text AS target, p.payload->'attrs' AS attrs,
+                p.found_by, p.status, public.unit_rule(p.unit_id) AS rule,
+                f.faults->0->>'said' AS said
+           FROM public.proposals p
+           CROSS JOIN LATERAL public.unit_faults(ARRAY[p.unit_id]) f
+          WHERE p.src::text[] = ARRAY[$1::text] AND p.op <> 'map_document'
+          ORDER BY p.target_kind`,
+        [EDITION_TWO],
+      ),
+    ).toStrictEqual([
+      {
+        op: 'update_attrs',
+        target_kind: 'entity',
+        target: alpha,
+        attrs: { status: { v: 'mothballed', src: [EDITION_TWO] } },
+        found_by: 'gem_unit_id',
+        status: 'pending',
+        rule: 'doubt',
+        said: 'The record holds status operating, and the reference dataset gives mothballed',
+      },
+      {
+        op: 'update_attrs',
+        target_kind: 'relation',
+        target: major,
+        attrs: { share_pct: { v: 41, src: [EDITION_TWO] } },
+        found_by: null,
+        status: 'pending',
+        rule: 'doubt',
+        said: 'The relation holds share_pct 40.4, and the reference dataset gives 41',
+      },
+    ]);
+
+    // An unchanged row writes nothing, and it counts as loaded.
+    expect(reportOfLoad(held, loads.get(ENTITY_SET) ?? '')[0]).toMatch(
+      /read 3; loaded 3; excluded 0; dropped 0$/u,
+    );
+    // The new name goes to the operator through the report.
+    expect(reportOfLoad(held, loads.get(FIELD_SET) ?? '').slice(2)).toStrictEqual([
+      expect.stringMatching(
+        /^1,1,\d+,\d+,"the row gives the name ""Alpha North field"", and the record holds ""Alpha field"""$/u,
+      ),
+    ]);
+    // The link that the second edition no longer gives is in the report, and it stays open.
+    expect(reportOfLoad(held, loads.get(OWNERSHIP_SET) ?? '')).toStrictEqual([
+      expect.stringMatching(/read 1; loaded 1; excluded 0; dropped 1$/u),
+      'row,page,start,end,reason',
+      `,,,,"the edition no longer gives relation ${minor}: owns from ""QH Oil Investments"" ` +
+        `to ""Rosneft"""`,
+    ]);
+    expect(
+      await held.ask('SELECT valid_to FROM public.relations WHERE id = $1', [minor]),
+    ).toStrictEqual([{ valid_to: null }]);
   });
 });

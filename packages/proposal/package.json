@@ -12,6 +12,7 @@
     "./proposer": "./src/proposer.ts",
     "./relation-types": "./src/relation-types.ts",
     "./request": "./src/request.ts",
+    "./share": "./src/share.ts",
     "./upload-limit": "./src/upload-limit.ts"
   },
   "dependencies": {

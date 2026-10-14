@@ -165,6 +165,8 @@ REVOKE ALL ON FUNCTION approve_reference_dataset(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION act_reference_dataset(uuid)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_reference_dataset(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION mapping_text_set(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION earlier_editions(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION text_set_shape(text)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION reference_set()             FROM PUBLIC;
 REVOKE ALL ON FUNCTION rating_context(text)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_author_rating()     FROM PUBLIC;
@@ -287,6 +289,9 @@ GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION propose_mapping(text,jsonb,uuid) TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text)   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION put_load_report(uuid,text,text,text,text) TO gabriel_agent;
+-- The loader reads the earlier editions of its table, to report each link that the new edition no
+-- longer gives.
+GRANT EXECUTE ON FUNCTION earlier_editions(uuid)   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION requeue_running_jobs()   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION fail_job(uuid,text)      TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION enqueue_job(text,text,text)

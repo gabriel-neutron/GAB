@@ -390,8 +390,10 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(made.written.folder).toBe(folder);
   expect((await readdir(folder)).sort()).toStrictEqual([
     'alignment-matrix.csv',
+    'asset-links.csv',
     'changelog.csv',
     'claims.csv',
+    'credits.md',
     'critical-nodes.csv',
     'dataset.jsonld',
     'entities.csv',
@@ -458,6 +460,8 @@ test('a release writes the public entities, relations and claims, each row with 
     'merges.csv',
     'alignment-matrix.csv',
     'critical-nodes.csv',
+    'asset-links.csv',
+    'credits.md',
     'entities.geojson',
     'dataset.jsonld',
     'changelog.csv',
@@ -541,6 +545,7 @@ test('a release writes the public entities, relations and claims, each row with 
     origin_label: MANUAL,
     licence: DERIVED,
     document_ids: SHIPS,
+    share: '',
   });
 
   // One row for each claim and each cited passage of a public document.

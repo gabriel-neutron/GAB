@@ -131,3 +131,41 @@ export const AClosedIntervalSaysThatItIsClosed: Story = {
     await expect(canvas.getByText('from 2018-02-01 to 2025-09-30, and closed')).toBeVisible();
   },
 };
+
+/** The closed ownership, with the flag that says that GEM estimated its share. */
+const ESTIMATED = ((): RelationDossier => {
+  const held = readRelation(
+    {
+      ...corpus,
+      relations: corpus.relations.map((one) =>
+        one.id === CLOSED_ID
+          ? { ...one, attrs: { ...one.attrs, share_imputed: { v: true, src: ['doc_3c1104'] } } }
+          : one,
+      ),
+    },
+    CLOSED_ID,
+  );
+  if (held === null) throw new Error(`The committed corpus holds no relation ${CLOSED_ID}`);
+  return held;
+})();
+
+export const AShareReadsInPercent: Story = {
+  args: { relation: CLOSED },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('share 51%')).toBeVisible();
+  },
+};
+
+/** A reader never reads an estimate of GEM as a published fact. */
+export const AShareThatGemEstimatedSaysSo: Story = {
+  args: { relation: ESTIMATED },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('share 51%, estimated by GEM')).toBeVisible();
+  },
+};
+
+export const ARelationWithNoShareDrawsNoShareRow: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByText('Share')).toBeNull();
+  },
+};

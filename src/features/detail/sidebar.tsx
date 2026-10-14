@@ -126,6 +126,15 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
         </span>
       </div>
 
+      {relation.share === null ? null : (
+        <div className="flex items-baseline gap-2 text-small/4">
+          <span className="w-20 shrink-0 text-label">Share</span>
+          <span title={relation.share} className="min-w-0 flex-1 truncate">
+            {relation.share}
+          </span>
+        </div>
+      )}
+
       {/* External constraint: S2 at row level. This list backs the type, the two ends and the
           dates of the relation, and not one attribute, so M8 does not govern it. */}
       <div className="flex items-center gap-2">
