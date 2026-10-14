@@ -26,8 +26,8 @@ the convention, replace the tool and keep the convention.
   writes the values of the record again: the old values and the new values must come from one
   rule, and a change of the rule needs a new migration that writes each value again.
 - **Re-runnable files** hold views, functions, triggers, grants and seed rows. Each run applies all
-  of them. Each file holds the full current definition. Seed rows only add and update, never
-  delete.
+  of them. Each file holds the full current definition. Each file runs in one transaction, so a
+  failure changes nothing of that file. Seed rows only add and update, never delete.
 
 From an empty database, the migrations and then the re-runnable files give the current state, with
 no baseline dump and no step by hand.
