@@ -2,6 +2,7 @@ import { identifierContainment, identifierKey } from '@gab/proposal/identifiers'
 import { z } from 'zod';
 
 import { entityHit, entityHits, rowsOf } from './fields.ts';
+import { codedIdentifier } from './stated-value.ts';
 import { defineTool } from './tool.ts';
 
 // A percent sign and an underscore are letters in a name, and a backslash escapes them.
@@ -48,9 +49,10 @@ export const searchGraph = defineTool({
     const held =
       input.identifier === undefined
         ? null
-        : identifierContainment(input.identifier.key, input.identifier.value).map((shape) =>
-            JSON.stringify(shape),
-          );
+        : identifierContainment(
+            input.identifier.key,
+            codedIdentifier(input.identifier.key, input.identifier.value),
+          ).map((shape) => JSON.stringify(shape));
     const entities = await rowsOf(session, entityHit, SEARCH, [
       input.query === undefined ? null : escaped(input.query),
       input.type ?? null,

@@ -1,7 +1,7 @@
 // The record holds the registration jurisdiction as its ISO 3166-1 code. The database writes a
 // known spelling as its code on each write of an entity, and migration 0078 writes again each
-// value that the record held before. The act keeps the spelling of its source. Each test rolls
-// back.
+// value that the record held before. A signed act keeps the value that its writer gave. Each
+// test rolls back.
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -93,7 +93,7 @@ const census = async (ask: Ask) => {
   return row;
 };
 
-test('a new fact with "Russia" or "Russian Federation" is stored as RU, and its act keeps the spelling', async () => {
+test('a new fact with "Russia" or "Russian Federation" is stored as RU, and a signed act keeps its value', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const russia = await company(ask, 'A company of the code test', 'Russia');
     const federation = await company(ask, 'A bank of the code test', 'Russian Federation', 'bank');
@@ -105,10 +105,15 @@ test('a new fact with "Russia" or "Russian Federation" is stored as RU, and its 
   ]);
 });
 
-test('a jurisdiction with no known spelling, and each value of a list, keeps its own form', async () => {
+test('a jurisdiction with no known spelling keeps its form, and a list keeps each code once', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const belarus = await company(ask, 'A Minsk company of the code test', 'Belarus');
-    const two = await company(ask, 'A company with two seats', ['Russian Federation', 'Belarus']);
+    const two = await company(ask, 'A company with two seats', [
+      'Russian Federation',
+      'Belarus',
+      'RU',
+      'Russia',
+    ]);
     return [await held(ask, belarus.target_id), await held(ask, two.target_id)];
   });
   expect(found.map(({ value }) => value)).toStrictEqual(['Belarus', ['RU', 'Belarus']]);
@@ -143,6 +148,7 @@ test('the database codes each spelling of the tool check to the same code', asyn
     names.flatMap((name) => [
       [name, code],
       [` ${name.toUpperCase()} `, code],
+      [name.normalize('NFD'), code],
     ]),
   );
   const coded = await rolledBack('superuser', async (ask) =>
