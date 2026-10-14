@@ -190,3 +190,128 @@ test('a designation with no official file names no regime, and an ownership cycl
   expect(day.get('Rosneft Terminal')?.designations[0]?.regime).toBeNull();
   expect(day.get('Taiga Field')?.status).toBe('derived');
 });
+
+const withExtra = (
+  entities: ReleaseEntity[],
+  relations: ReleaseRelation[],
+  claims: ReleaseClaim[],
+): ReleaseRecord => ({
+  ...RECORD,
+  entities: [...RECORD.entities, ...entities],
+  relations: [...RECORD.relations, ...relations],
+  claims: [...RECORD.claims, ...claims],
+});
+
+test('shares of owners listed under different regimes do not add up', () => {
+  const OWNER_EU = 20;
+  const OWNER_OFAC = 21;
+  const OWNER_OFAC_2 = 22;
+  const MIXED = 23;
+  const record = withExtra(
+    [
+      entity(OWNER_EU, 'company', 'Owner EU'),
+      entity(OWNER_OFAC, 'company', 'Owner OFAC'),
+      entity(OWNER_OFAC_2, 'company', 'Owner OFAC Two'),
+      entity(MIXED, 'facility', 'Mixed Field'),
+    ],
+    [
+      relation(201, 'designated_by', OWNER_EU, REG_EU, { valid_from: '2022-01-01' }),
+      relation(202, 'designated_by', OWNER_OFAC, REG_OFAC, { valid_from: '2022-01-01' }),
+      relation(203, 'owns', OWNER_EU, MIXED),
+      relation(204, 'owns', OWNER_OFAC, MIXED),
+      relation(205, 'designated_by', OWNER_OFAC_2, REG_OFAC, { valid_from: '2022-01-01' }),
+      relation(206, 'owns', OWNER_OFAC_2, MIXED),
+    ],
+    [
+      claim(id(201), null, null, ['doc_eu']),
+      claim(id(202), null, null, ['doc_ofac']),
+      claim(id(203), 'share_pct', 30),
+      claim(id(204), 'share_pct', 25),
+      claim(id(205), null, null, ['doc_ofac']),
+      claim(id(206), 'share_pct', 10),
+    ],
+  );
+  // EU 30, OFAC 25 + 10: no regime reaches 50.
+  expect(byLabel(record, '2026-10-13').get('Mixed Field')?.status).toBe('none');
+  const more: ReleaseRecord = {
+    ...record,
+    claims: record.claims.map((one) =>
+      one.claim_id === `${id(206)}/share_pct` ? { ...one, value: 25 } : one,
+    ),
+  };
+  const field = byLabel(more, '2026-10-13').get('Mixed Field');
+  expect(field?.status).toBe('derived');
+  expect(field?.derivedRegimes).toEqual(['ofac']);
+  expect(field?.holders.map((one) => one.regime)).toEqual(['ofac', 'ofac']);
+});
+
+test('valid_to is the last day: a designation counts on that day, and a one-day relation too', () => {
+  const oneDay: ReleaseRecord = {
+    ...RECORD,
+    relations: RECORD.relations.map((one) =>
+      one.id === id(102) ? { ...one, valid_from: '2023-01-01', valid_to: '2023-01-01' } : one,
+    ),
+  };
+  expect(byLabel(oneDay, '2023-01-01').get('Rosneft Terminal')?.status).toBe('listed');
+  expect(byLabel(oneDay, '2023-01-02').get('Rosneft Terminal')?.status).toBe('none');
+});
+
+test('an EU designation with no start takes the entry into force of its act', () => {
+  const dated: ReleaseRecord = {
+    ...RECORD,
+    relations: RECORD.relations.map((one) =>
+      one.id === id(102) ? { ...one, valid_from: null } : one,
+    ),
+    claims: [
+      ...RECORD.claims,
+      {
+        ...claim(id(REG_EU), 'entry_into_force', '2014-03-17', ['doc_eu']),
+      },
+    ],
+  };
+  expect(byLabel(dated, '2026-10-13').get('Rosneft Terminal')?.designations[0]?.date).toBe(
+    '2014-03-17',
+  );
+});
+
+test('a licence of the asset or of an intermediate owner shows for a derived status', () => {
+  const licensed = withExtra(
+    [],
+    [relation(210, 'exempted_by', FIELD, GL), relation(211, 'exempted_by', MIDDLE, GL)],
+    [claim(id(210), null, null, ['doc_ofac']), claim(id(211), null, null, ['doc_ofac'])],
+  );
+  const ends = byLabel(licensed, '2026-10-13')
+    .get('Taiga Field')
+    ?.licences.map((one) => one.entityId);
+  expect(ends).toEqual(expect.arrayContaining([id(FIELD), id(MIDDLE), id(LISTED_OWNER)]));
+});
+
+test('decimal shares that total 50 make a derived status', () => {
+  const record = withExtra(
+    [
+      entity(30, 'company', 'A'),
+      entity(31, 'company', 'B'),
+      entity(32, 'company', 'C'),
+      entity(33, 'facility', 'Decimal Field'),
+    ],
+    [
+      relation(220, 'designated_by', 30, REG_EU, { valid_from: '2022-01-01' }),
+      relation(221, 'designated_by', 31, REG_EU, { valid_from: '2022-01-01' }),
+      relation(222, 'designated_by', 32, REG_EU, { valid_from: '2022-01-01' }),
+      relation(223, 'owns', 30, 33),
+      relation(224, 'owns', 31, 33),
+      relation(225, 'owns', 32, 33),
+    ],
+    [
+      claim(id(220), null, null),
+      claim(id(221), null, null),
+      claim(id(222), null, null),
+      claim(id(223), 'share_pct', 16.7),
+      claim(id(224), 'share_pct', 16.6),
+      claim(id(225), 'share_pct', 16.7),
+    ],
+  );
+  const field = byLabel(record, '2026-10-13').get('Decimal Field');
+  expect(field?.status).toBe('derived');
+  expect(field?.heldPct).toBe(50);
+});
