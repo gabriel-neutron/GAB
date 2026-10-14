@@ -30,7 +30,8 @@ export const assetSanctionsCommand: SubCommand = async (args) => {
       },
     });
     const day = parsed.values['as-of'];
-    if (!DAY.test(day) || Number.isNaN(Date.parse(day))) throw new Error('--as-of is a day.');
+    if (!DAY.test(day) || new Date(day).toISOString().slice(0, 10) !== day)
+      throw new Error('--as-of is a day.');
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
     console.error(USAGE);
