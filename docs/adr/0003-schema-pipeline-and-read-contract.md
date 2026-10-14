@@ -22,7 +22,9 @@ the convention, replace the tool and keep the convention.
 
 - **Ordered migrations** hold what holds data or what other objects depend on: tables, columns,
   indexes, roles, extensions and types. Each one runs once, in order, in a transaction. A function
-  that a constraint calls is also schema, so it goes in an ordered file.
+  that a constraint calls is also schema, so it goes in an ordered file. So does a function that
+  writes the values of the record again: the old values and the new values must come from one
+  rule, and a change of the rule needs a new migration that writes each value again.
 - **Re-runnable files** hold views, functions, triggers, grants and seed rows. Each run applies all
   of them. Each file holds the full current definition. Seed rows only add and update, never
   delete.

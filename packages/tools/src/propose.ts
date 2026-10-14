@@ -435,11 +435,9 @@ const checkEventEnds = async (
 
 const claimActOf = async (
   session: Session,
-  given: ProposeItem,
+  act: ProposeItem['act'],
   dropped: readonly BoundName[],
 ): Promise<unknown> => {
-  // The checker reads the act that is written, so it reads the coded jurisdiction.
-  const act = withCodedJurisdiction(given.act);
   if (act.op === 'create_relation') return withoutBounds(act, dropped);
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
@@ -644,7 +642,12 @@ export const proposeOf = (modelCallId: string | null) =>
         prepared.push({
           given,
           act,
-          claimAct: await claimActOf(session, given, dropped),
+          claimAct: await claimActOf(
+            session,
+            // The checker reads the act that is written, so it reads the coded jurisdiction.
+            withCodedJurisdiction(given.act),
+            dropped,
+          ),
           cited,
           unstated,
           // The end of a close stays in its act, so code removed no bound of it.

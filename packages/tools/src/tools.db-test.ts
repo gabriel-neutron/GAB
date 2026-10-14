@@ -537,10 +537,19 @@ test.each(['RU', 'Russia'])(
           [id],
         ),
       );
-      return { batch, stored };
+      const searched = hits.parse(
+        await asResearch(ask, () =>
+          output(ask, 'search_graph', {
+            identifier: { key: 'registration_jurisdiction', value: 'Russian Federation' },
+            query: 'Gazpromneft Aero',
+          }),
+        ),
+      );
+      return { batch, stored, id, searched };
     });
     expect(found.batch.proposals).toMatchObject([{ disputed: false, unstated: [] }]);
     expect(found.stored).toStrictEqual([{ act: 'RU', row: 'RU' }]);
+    expect(found.searched.entities.map((entity) => entity.id)).toStrictEqual([found.id]);
   },
 );
 

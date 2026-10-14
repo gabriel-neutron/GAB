@@ -284,8 +284,8 @@ BEGIN
 END $$;
 
 
--- The record holds the code of a known registration jurisdiction, and the act keeps the spelling
--- of its source (migration 0078).
+-- The record holds the code of a known registration jurisdiction (migration 0078). The act keeps
+-- the value that its writer gave, and the cited passage keeps the text of the source.
 CREATE OR REPLACE FUNCTION code_entity_jurisdiction() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
