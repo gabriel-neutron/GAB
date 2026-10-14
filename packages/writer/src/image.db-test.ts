@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -17,6 +18,7 @@ const app = writeRoutes(
   pool,
   { put: (object) => putObject(store, object) },
   { read: (key) => readObject(reader, key) },
+  TEST_OPERATOR_KEY,
 );
 
 // Departure: the suite writes the document rows as the owner of the database, because the image
@@ -56,6 +58,7 @@ const askImage = (body: unknown, origin?: string) =>
   app.request('/private/document-image', {
     method: 'POST',
     headers: {
+      ...OPERATOR,
       host: '127.0.0.1:5177',
       'content-type': 'application/json',
       ...(origin === undefined ? {} : { origin }),

@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -11,7 +12,7 @@ const pool = openPool();
 // No door under test reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no door under test reaches the store')) };
 const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the store')) };
-const app = writeRoutes(pool, NO_STORE, NO_READ);
+const app = writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY);
 
 z.object({ GABRIEL_DATABASE: z.literal('gabriel_test') }).parse(process.env);
 const owner = new Pool({ connectionString: roleAddress('gabriel', 'POSTGRES_PASSWORD') });
@@ -23,7 +24,7 @@ afterAll(async () => {
   await Promise.all([owner.end(), agent.end(), pool.end()]);
 });
 
-const OWN = { host: '127.0.0.1:5177', 'content-type': 'application/json' };
+const OWN = { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' };
 
 const send = async (door: string, body: unknown): Promise<[number, unknown]> => {
   const answer = await app.request(door, {

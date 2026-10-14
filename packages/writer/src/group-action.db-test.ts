@@ -8,13 +8,14 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
 const pool = openPool();
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
 const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
-const app = writeRoutes(pool, NO_STORE, NO_READ);
+const app = writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY);
 
 // A research AI proposes a linked batch through its own door, as the MCP server does.
 const research = new Pool({
@@ -29,7 +30,7 @@ afterAll(async () => {
 const ask = async (door: string, body: unknown): Promise<[number, unknown]> => {
   const answer = await app.request(door, {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return [answer.status, await answer.json()];

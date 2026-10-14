@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
 
+/** The header that carries the key of the operator to the writer. The browser and the writer share this name. */
+export const OPERATOR_KEY_HEADER = 'x-gab-operator-key';
+
 /** The six acts the operator may sign. A merge and its undo have doors of their own. */
 export const WRITE_OPS = [
   'create_entity',
