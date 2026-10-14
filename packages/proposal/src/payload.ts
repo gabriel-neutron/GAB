@@ -84,7 +84,11 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
       return {
         op: request.op,
         payload:
-          request.type === undefined ? { valid_to: request.validTo } : { type: request.type },
+          request.type !== undefined
+            ? { type: request.type }
+            : request.validFrom !== undefined
+              ? { valid_from: request.validFrom }
+              : { valid_to: request.validTo },
         src: [MANUAL],
         names: [],
         targetKind: 'relation',

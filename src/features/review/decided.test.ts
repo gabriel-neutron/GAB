@@ -120,6 +120,14 @@ it('names an act that gives an end date the end of a relation', () => {
   ).toStrictEqual(['End of a relation', 'Modification of a relation']);
 });
 
+it('names an act that gives a start date the start of a relation', () => {
+  expect(
+    decidedRows([act({ op: 'update_relation', payload: { valid_from: '2024-02-23' } })]).map(
+      (row) => row.actWords,
+    ),
+  ).toStrictEqual(['Start of a relation']);
+});
+
 it('names an act that gives a new type the type change of a relation, with both types', () => {
   expect(
     decidedRows([

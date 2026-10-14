@@ -14,6 +14,7 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   end_rejected: 'end rejected',
   end_missing: 'end missing',
   relation_closed: 'relation ended',
+  relation_started: 'relation started',
   self: 'points to itself',
   no_source: 'no passage',
   end_waits_in_group: 'waits for a unit of its group',

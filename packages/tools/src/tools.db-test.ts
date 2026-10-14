@@ -1013,7 +1013,8 @@ test('an end that no excerpt states refuses the batch of the research AI, and na
 });
 
 // An open owns relation of the record, which the operator signs in the transaction of the test.
-const openOwns = async (ask: Ask, validFrom: string): Promise<string> => {
+// A null start gives a relation with no start.
+const openOwns = async (ask: Ask, validFrom: string | null): Promise<string> => {
   await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
   const signed = z.array(z.object({ target_id: z.uuid() }));
   const sign = async (op: string, payload: object, names: readonly string[] = []) => {
@@ -1039,7 +1040,13 @@ const openOwns = async (ask: Ask, validFrom: string): Promise<string> => {
   });
   const owns = await sign(
     'create_relation',
-    { type: 'owns', src_id: owner, dst_id: vessel, valid_from: validFrom, sources: ['manual'] },
+    {
+      type: 'owns',
+      src_id: owner,
+      dst_id: vessel,
+      ...(validFrom === null ? {} : { valid_from: validFrom }),
+      sources: ['manual'],
+    },
     [owner, vessel],
   );
   await ask('RESET SESSION AUTHORIZATION');
@@ -1107,6 +1114,68 @@ test.for([
       ask,
       [closing(owns, validTo, excerpt)],
       `${DATED} It changed hands on 1 May 2019.`,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(said) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+const starting = (target: string, validFrom: string, excerpt: string) =>
+  item('start', { op: 'update_relation', targetId: target, validFrom }, excerpt);
+
+test('propose gives a relation with no start the start date that its excerpt states', async () => {
+  claimsRead.length = 0;
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, null);
+    await asResearch(ask, () => withDocument(ask, [DATED]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      { items: [starting(owns, '2019-05-02', 'Rosneft owned the tanker from 2 May 2019')] },
+      reading,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { owns, batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'start', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toStrictEqual({ valid_from: '2019-05-02' });
+  expect(claimsRead).toStrictEqual([
+    {
+      op: 'update_relation',
+      targetId: found.owns,
+      validFrom: '2019-05-02',
+      relation: 'Rosneft owns A tanker',
+    },
+  ]);
+});
+
+test.for([
+  [
+    'a start that no excerpt states',
+    null,
+    '2018-01-01',
+    'item start: no excerpt states the start date 2018-01-01 (validFrom)',
+  ],
+  [
+    'a second start',
+    '2019-05-02',
+    '2019-05-02',
+    'item start: act.validFrom: the relation started on 2019-05-02 already',
+  ],
+] as const)('propose refuses %s of a relation', async ([, held, validFrom, said]) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, held);
+    const outcome = await proposeOnPage(
+      ask,
+      [starting(owns, validFrom, 'Rosneft owned the tanker from 2 May 2019')],
+      DATED,
     );
     return { outcome, rows: await rowsOfDocument(ask) };
   });

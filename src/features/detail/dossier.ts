@@ -368,9 +368,11 @@ export function readDossier(
       const head =
         proposal.payload.kind === 'close'
           ? `Closes the relation on ${proposal.payload.valid_to}`
-          : proposal.payload.kind === 'retype' && held !== undefined
-            ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
-            : OP_WORDS[proposal.op];
+          : proposal.payload.kind === 'start'
+            ? `Starts the relation on ${proposal.payload.valid_from}`
+            : proposal.payload.kind === 'retype' && held !== undefined
+              ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
+              : OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
