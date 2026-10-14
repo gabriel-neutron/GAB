@@ -93,19 +93,48 @@ export const fold = (source: string): Folded => {
   return { text: out.join(''), origin };
 };
 
-const codePoints = (text: string): number => Array.from(text).length;
+const isHigh = (code: number): boolean => code >= 0xd800 && code <= 0xdbff;
+const isLow = (code: number): boolean => code >= 0xdc00 && code <= 0xdfff;
 
-// A string index counts UTF-16 units, and a span counts code points.
-const pointIndex = (text: string, unit: number): number => codePoints(text.slice(0, unit));
+// A string index counts UTF-16 units, and a span counts code points. The two loops below read the
+// text in place: an array of its code points would hold millions of strings for a long page.
+const pointIndex = (text: string, unit: number): number => {
+  let points = 0;
+  for (let at = 0; at < unit; at += 1) {
+    const paired = isLow(text.charCodeAt(at)) && at > 0 && isHigh(text.charCodeAt(at - 1));
+    if (!paired) points += 1;
+  }
+  return points;
+};
 
-/** Where a page holds an excerpt: the exact text first, then the folded text. Null when the page
- * does not hold it. */
+// The index of the unit where the code point number `point` starts. A point past the end of the
+// text gives the end of the text.
+const unitIndex = (text: string, point: number): number => {
+  let at = 0;
+  for (let seen = 0; seen < point && at < text.length; seen += 1)
+    at += isHigh(text.charCodeAt(at)) && isLow(text.charCodeAt(at + 1)) ? 2 : 1;
+  return at;
+};
+
+/** The part of a text between two code points, as a span counts them. */
+export const pointSlice = (text: string, start: number, end: number): string =>
+  text.slice(unitIndex(text, start), unitIndex(text, end));
+
+/** The most UTF-16 units of a page on which the folded match runs. Origin: decided, not
+ * calibrated. The fold makes arrays of about 64 bytes for each character, so this cap holds its
+ * memory near 64 MiB. A page above it is a whole list or a whole act, and an exact copy of its
+ * words is found with no fold. */
+export const MAX_TOLERANT_UNITS = 1024 * 1024;
+
+/** Where a page holds an excerpt: the exact text first, then the folded text. The folded match
+ * runs only on a page of at most MAX_TOLERANT_UNITS. Null when the page does not hold it. */
 export const findExcerpt = (page: string, excerpt: string): Span | null => {
   const exact = excerpt === '' ? -1 : page.indexOf(excerpt);
   if (exact !== -1) {
     const start = pointIndex(page, exact);
-    return { start, end: start + codePoints(excerpt) };
+    return { start, end: start + pointIndex(excerpt, excerpt.length) };
   }
+  if (page.length > MAX_TOLERANT_UNITS) return null;
 
   const folded = fold(page);
   const wanted = fold(excerpt).text;
@@ -116,7 +145,7 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
     found = folded.text.indexOf(wanted, found + 1);
   if (found === -1) return null;
   const first = pointIndex(folded.text, found);
-  const last = first + codePoints(wanted) - 1;
+  const last = first + pointIndex(wanted, wanted.length) - 1;
   const start = folded.origin[first];
   const end = folded.origin[last];
   if (start === undefined || end === undefined) return null;

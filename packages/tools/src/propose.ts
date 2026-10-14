@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, type Span } from './excerpt.ts';
+import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   daysFromPublication,
@@ -293,20 +293,26 @@ const cite = async (
     findExcerpt(page.text, given.excerpt) ??
     refuse(
       ref,
-      `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
-        `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+      page.text.length > MAX_TOLERANT_UNITS
+        ? `page ${String(given.page)} of ${given.document} holds more than ` +
+            `${String(MAX_TOLERANT_UNITS)} characters, so only an exact copy of its words is ` +
+            'found. Copy the excerpt character for character, with the quotes, the dashes and ' +
+            'the spaces of the page.'
+        : `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
+            `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
-  const points = Array.from(page.text);
   return {
     document: given.document,
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     page: given.page,
     span,
-    passage: points.slice(span.start, span.end).join(''),
-    context: points
-      .slice(Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS)
-      .join(''),
+    passage: pointSlice(page.text, span.start, span.end),
+    context: pointSlice(
+      page.text,
+      Math.max(0, span.start - CONTEXT_POINTS),
+      span.end + CONTEXT_POINTS,
+    ),
   };
 };
 
