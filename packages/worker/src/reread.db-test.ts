@@ -63,7 +63,7 @@ const inTransaction = async (work: (held: Held) => Promise<void>): Promise<void>
         const [row] = z.array(z.object({ id: z.string() })).parse(
           await ask(
             `SELECT public.put_fetched_document('url', $1, $2, $3, $4, 'text/html',
-               '2026-10-01'::date)::text AS id`,
+               (clock_timestamp() AT TIME ZONE 'UTC')::date)::text AS id`,
             [title, key, uri, sha],
           ),
         );

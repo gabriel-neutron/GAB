@@ -4847,6 +4847,14 @@ $$;
 -- row is written by put_document, so the one rule of "a stored document starts no work" stays in
 -- one place.
 --
+-- THE DAY IS THE DAY OF THE READ. The door takes the UTC day of the database clock, or the day before.
+-- The day before covers a fetch that crosses UTC midnight, because the tool takes its day before the
+-- fetch. The row keeps the given day. A real past day enters only through put_document, the door of
+-- the operator. The clock is clock_timestamp(), and not now(): now() is frozen at the start of the
+-- transaction, so a tool that takes its day after the transaction opens, across UTC midnight, would
+-- look like a day in the future. AT TIME ZONE 'UTC' is explicit, because current_date follows the
+-- session time zone.
+--
 -- THE PROVIDER IS THE LAST PARAMETER, OPTIONAL, and it goes to put_document unchanged. The earlier
 -- signature is dropped for the reason that put_document gives.
 DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text);
@@ -4866,6 +4874,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_blank text := E' \t\n\r\f\v';
   v_known text;
+  v_today date := (clock_timestamp() AT TIME ZONE 'UTC')::date;
 BEGIN
   IF p_kind IS NULL OR p_kind NOT IN ('url','api') THEN
     RAISE EXCEPTION 'a fetched document is a url or an api, and this one is %',
@@ -4889,6 +4898,11 @@ BEGIN
   END IF;
   IF p_retrieved_at IS NULL THEN
     RAISE EXCEPTION 'a fetched document has the day it was retrieved'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_retrieved_at NOT IN (v_today, v_today - 1) THEN
+    RAISE EXCEPTION 'a fetched document carries the UTC day of its read, % or the day before, and not %',
+      v_today, p_retrieved_at
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
 

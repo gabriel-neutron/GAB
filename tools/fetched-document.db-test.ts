@@ -8,6 +8,8 @@ import { z } from 'zod';
 
 import { rolledBack, type Ask } from './probe.ts';
 
+// The door accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 const SHA = 'd'.repeat(64);
 const OTHER_SHA = 'e'.repeat(64);
 const ID = `doc_${SHA.slice(0, 12)}`;
@@ -32,7 +34,7 @@ const WHOLE: Fetched = {
   uri: 'https://example.org/statement',
   sha: SHA,
   mime: 'application/pdf',
-  at: '2026-09-02',
+  at: TODAY,
   archive: null,
 };
 
@@ -58,9 +60,7 @@ for (const identity of ['research', 'agent'] as const)
       return { id, row };
     });
     expect(found.id).toBe(ID);
-    expect(found.row).toStrictEqual([
-      { kind: 'url', uri: WHOLE.uri, sha256: SHA, at: '2026-09-02' },
-    ]);
+    expect(found.row).toStrictEqual([{ kind: 'url', uri: WHOLE.uri, sha256: SHA, at: WHOLE.at }]);
   });
 
 // The day comes from the database clock, so the test does not depend on the clock of Node.

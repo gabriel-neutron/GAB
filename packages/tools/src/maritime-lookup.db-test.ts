@@ -49,7 +49,7 @@ const heldBy = async (ask: Ask, title: string) =>
 
 test('an entity and the events of a vessel are each stored once as an api document', async () => {
   const store = memoryStore();
-  const reach = { store, web, now: () => new Date('2026-10-05T10:00:00Z') };
+  const reach = { store, web, now: () => new Date() };
   const input = { vesselId: VESSEL, from: '2026-01-01', to: '2026-02-01' };
   await rolledBack('research', async (ask) => {
     const match = toolNamed('sanctions_match');

@@ -16,6 +16,8 @@ const sessionOf = (ask: Ask): Session => ({
 });
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
+// The door of a fetched document accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores a post and its text. The number makes the hash, and so the identifier.
@@ -30,7 +32,7 @@ const post = async (ask: Ask, number: number, uri: string, text: string): Promis
       uri,
       sha,
       'text/html',
-      '2026-10-01',
+      TODAY,
       null,
     ]);
     await ask(WRITE_TEXT, [id, JSON.stringify([text]), 'event-test-1']);
