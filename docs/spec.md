@@ -192,9 +192,9 @@ writes no target and keeps the proposal as a record. An edit of the operator is 
 promotion in one transaction, so it is written whole or not at all. A machine role of the back end proposes and never decides. Only the operator, the decision rules in the database and the AI reviewer of the MCP server promote or reject. When an act keeps a
 value, the value keeps each document that it already cites.
 
-A machine door stamps the day of the read. It accepts the UTC day of the database clock or the day
-before, and refuses another day. Only the door of the operator takes an earlier day, for a file
-that was saved or downloaded before.
+A machine door stamps the day of the read, and the row keeps the UTC day of the database clock. The
+door accepts a given day that is that day or the day before, and refuses another day. Only the door
+of the operator takes an earlier day, for a file that was saved or downloaded before.
 
 A machine proposes through one door, which takes a batch. Each act cites a page and a span of
 stored text; code finds the span from a quoted excerpt. The door writes the acts and their
