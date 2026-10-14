@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chaîne des hydrocarbures russes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#2a2f3a;--text:#e6e8ec;--mute:#8b93a3;
+--brut:#d9a441;--produits:#e0703a;--gaz:#4fa3d9;--gnl:#8a7fe0;--strike:#ff4d4d;--sanc:#ffd24d;--exit:#c94fd9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:16px;margin:0 12px 0 0}.badge{font-size:11px;padding:2px 6px;border-radius:4px;background:#3a2a10;color:var(--sanc)}
+.ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+button,label.chip{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 9px;cursor:pointer;font:inherit;font-size:13px}
+button.on{background:#2b3446;border-color:#5b6b8a}label.chip input{margin:0 4px 0 0;vertical-align:-1px}
+main{display:grid;grid-template-columns:1fr 340px;height:calc(100vh - 54px)}
+#stage{position:relative;overflow:auto}#map{position:absolute;inset:0;display:none}
+svg{display:block}.col-title{fill:var(--mute);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.node rect{fill:var(--panel);stroke:var(--line);stroke-width:1.5;rx:6}.node text{fill:var(--text);font-size:12px;pointer-events:none}
+.node{cursor:pointer}.node.sel rect{stroke:#fff;stroke-width:2.5}.node.dim,.link.dim{opacity:.12}
+.link{fill:none;stroke-opacity:.55;transition:opacity .15s}.node .sub{fill:var(--mute);font-size:10px}
+aside{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:14px 16px}
+aside h2{font-size:16px;margin:0 0 4px}aside .k{color:var(--mute);font-size:12px;margin-top:10px}
+aside ul{margin:4px 0;padding-left:18px}aside a{color:#8fb7ff;cursor:pointer}
+.pill{display:inline-block;font-size:11px;border-radius:4px;padding:1px 6px;margin:2px 4px 0 0;border:1px solid var(--line)}
+.sim{color:var(--sanc);border-color:#5a4a10}.pub{color:#7fd99a;border-color:#1f5a33}
+#owners{display:flex;gap:6px;flex-wrap:wrap}#owners .chip{font-size:12px;padding:3px 7px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:60vh auto;height:auto}aside{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chaîne d'approvisionnement — hydrocarbures russes</h1><span class="badge">PROTOTYPE · données en partie simulées</span>
+  <div class="ctl"><button id="vFlow" class="on">Flux ⟶</button><button id="vMap">Carte</button></div>
+  <div class="ctl" id="prod"></div>
+  <div class="ctl"><label class="chip"><input type="checkbox" id="oOwn">Entreprises</label><label class="chip"><input type="checkbox" id="oStr" checked>Frappes</label><label class="chip"><input type="checkbox" id="oSan" checked>Sanctions</label></div>
+</header>
+<main>
+  <div id="stage"><svg id="svg"></svg><div id="map"></div></div>
+  <aside id="panel"></aside>
+</main>
+<script>
+const COLS=["Gisements","Transport amont","Raffinage / liquéfaction","Export (ports, tubes)","Sortie du giron russe","Destination déclarée"];
+const PROD={brut:"Brut",produits:"Produits raffinés",gaz:"Gaz (tube)",gnl:"GNL"};
+const OWN={Rosneft:"#e05050",Lukoil:"#e0a030","Gazprom Neft":"#3fa0e0",Surgutneftegas:"#60c070",Tatneft:"#a070e0",Gazprom:"#2f6fd0",Novatek:"#40c0c0",Transneft:"#c0c0c0","Inconnu / opaque":"#c94fd9","Acheteur étranger":"#666"};
+// s: "pub" = fait public à sourcer, "sim" = valeur simulée pour le prototype
+const N=[
+ {id:"samotlor",c:0,n:"Samotlor",o:"Rosneft",ll:[61.1,76.7],cap:"~18 Mt/an (sim)",b:1965,s:"sim"},
+ {id:"priob",c:0,n:"Priobskoïe",o:"Rosneft",ll:[61.0,70.5],cap:"~30 Mt/an (sim)",b:1988,s:"sim"},
+ {id:"surgut",c:0,n:"Gisements Surgutneftegas",o:"Surgutneftegas",ll:[61.3,73.4],cap:"~55 Mt/an (sim)",b:1977,s:"sim"},
+ {id:"vankor",c:0,n:"Vankor",o:"Rosneft",ll:[67.8,83.5],cap:"~15 Mt/an (sim)",b:2009,s:"sim"},
+ {id:"romash",c:0,n:"Romachkino",o:"Tatneft",ll:[54.9,52.3],cap:"~15 Mt/an (sim)",b:1948,s:"sim"},
+ {id:"urengoy",c:0,n:"Ourengoï (gaz)",o:"Gazprom",ll:[66.1,76.7],cap:"(sim)",b:1978,s:"sim"},
+ {id:"chayanda",c:0,n:"Tchaïanda (gaz)",o:"Gazprom",ll:[60.7,111.1],cap:"(sim)",b:2019,s:"sim"},
+ {id:"tambey",c:0,n:"Ioujno-Tambeïskoïe",o:"Novatek",ll:[71.3,72.0],cap:"(sim)",b:2017,s:"sim"},
+ {id:"tws",c:1,n:"Réseau Transneft Sibérie Ouest",o:"Transneft",ll:[60.5,69],cap:"(sim)",b:1970,s:"sim"},
+ {id:"gts",c:1,n:"Réseau gazier Gazprom",o:"Gazprom",ll:[62,60],cap:"(sim)",b:1970,s:"sim"},
+ {id:"bps1",c:1,n:"BPS-1",o:"Transneft",ll:[60,33],cap:"(sim)",b:2001,s:"pub"},
+ {id:"bps2",c:1,n:"BPS-2",o:"Transneft",ll:[58.7,31.5],cap:"(sim)",b:2012,s:"pub"},
+ {id:"druzhba",c:1,n:"Droujba",o:"Transneft",ll:[53.2,45],cap:"(sim)",b:1964,s:"pub"},
+ {id:"espo",c:1,n:"ESPO (VSTO)",o:"Transneft",ll:[56.5,115],cap:"(sim)",b:2009,s:"pub"},
+ {id:"kirishi",c:2,n:"Raffinerie de Kirichi",o:"Surgutneftegas",ll:[59.45,32.0],cap:"~20 Mt/an",b:1966,s:"pub",st:["2024-03 (sim)","2025-09 (sim)"]},
+ {id:"ryazan",c:2,n:"Raffinerie de Riazan",o:"Rosneft",ll:[54.6,39.7],cap:"~17 Mt/an",b:1960,s:"pub",st:["2024-03 (sim)","2025-08 (sim)"]},
+ {id:"kstovo",c:2,n:"Raffinerie NORSI (Kstovo)",o:"Lukoil",ll:[56.15,44.2],cap:"~17 Mt/an",b:1958,s:"pub",st:["2025-01 (sim)"]},
+ {id:"volgo",c:2,n:"Raffinerie de Volgograd",o:"Lukoil",ll:[48.6,44.4],cap:"~15 Mt/an",b:1957,s:"pub",st:["2024-02 (sim)","2025-08 (sim)"]},
+ {id:"tuaref",c:2,n:"Raffinerie de Touapsé",o:"Rosneft",ll:[44.1,39.1],cap:"~12 Mt/an",b:1929,s:"pub",st:["2024-01 (sim)","2025-04 (sim)"]},
+ {id:"ulcx",c:2,n:"Complexe Novatek Oust-Louga",o:"Novatek",ll:[59.68,28.4],cap:"~7 Mt/an (sim)",b:2013,s:"pub",st:["2024-01 (sim)"]},
+ {id:"yamallng",c:2,n:"Yamal LNG (liquéfaction)",o:"Novatek",ll:[71.27,72.05],cap:"~17 Mt/an",b:2017,s:"pub"},
+ {id:"primorsk",c:3,n:"Port de Primorsk",o:"Transneft",ll:[60.35,28.7],cap:"(sim)",b:2001,s:"pub",st:["2025-09 (sim)"]},
+ {id:"ulport",c:3,n:"Port d'Oust-Louga",o:"Transneft",ll:[59.7,28.3],cap:"(sim)",b:2012,s:"pub",st:["2025-08 (sim)"]},
+ {id:"novo",c:3,n:"Novorossiisk (Cheskharis)",o:"Transneft",ll:[44.7,37.8],cap:"(sim)",b:1964,s:"pub"},
+ {id:"tuaport",c:3,n:"Port de Touapsé",o:"Rosneft",ll:[44.09,39.07],cap:"(sim)",b:1898,s:"pub"},
+ {id:"kozmino",c:3,n:"Kozmino",o:"Transneft",ll:[42.75,133.0],cap:"(sim)",b:2009,s:"pub"},
+ {id:"skovo",c:3,n:"Embranchement Skovorodino–Mohe",o:"Transneft",ll:[53.9,123.9],cap:"(sim)",b:2011,s:"pub"},
+ {id:"druzex",c:3,n:"Droujba sud (frontière)",o:"Transneft",ll:[52.0,31.8],cap:"(sim)",b:1964,s:"pub"},
+ {id:"pos",c:3,n:"Force de Sibérie",o:"Gazprom",ll:[50.3,127.5],cap:"38 Gm³/an",b:2019,s:"pub"},
+ {id:"turks",c:3,n:"TurkStream (Anapa)",o:"Gazprom",ll:[44.9,37.3],cap:"31,5 Gm³/an",b:2020,s:"pub"},
+ {id:"sabetta",c:3,n:"Port de Sabetta",o:"Novatek",ll:[71.3,72.1],cap:"(sim)",b:2017,s:"pub"},
+ {id:"fob",c:4,n:"Vente FOB à un négociant",o:"Inconnu / opaque",ll:[59.9,25.5],cap:"—",s:"sim",exit:"Le titre de propriété passe à un négociant au port russe. Le prix FOB est le point où le plafond de prix s'applique."},
+ {id:"shadow",c:4,n:"Flotte fantôme (agrégat)",o:"Inconnu / opaque",ll:[57.5,20],cap:"—",s:"sim",exit:"Pétroliers à propriété opaque, assurance hors G7, AIS parfois coupé."},
+ {id:"sts",c:4,n:"Transbordement STS (golfe de Laconie)",o:"Inconnu / opaque",ll:[36.6,22.8],cap:"—",s:"sim",exit:"Transfert navire à navire : l'origine de la cargaison devient difficile à suivre."},
+ {id:"pipeex",c:4,n:"Livraison à la frontière (tube)",o:"Inconnu / opaque",ll:[50.5,30],cap:"—",s:"sim",exit:"Le transfert de propriété a lieu au point de mesure à la frontière."},
+ {id:"india",c:5,n:"Inde (Jamnagar, Vadinar)",o:"Acheteur étranger",ll:[22.4,69.9],s:"sim"},
+ {id:"chinasea",c:5,n:"Chine maritime (Shandong)",o:"Acheteur étranger",ll:[36.1,120.4],s:"sim"},
+ {id:"chinapipe",c:5,n:"Chine (CNPC, par tube)",o:"Acheteur étranger",ll:[47.3,123.9],s:"sim"},
+ {id:"turkey",c:5,n:"Turquie",o:"Acheteur étranger",ll:[41.0,29.0],s:"sim"},
+ {id:"hungary",c:5,n:"Hongrie / Slovaquie (MOL)",o:"Acheteur étranger",ll:[47.5,19.0],s:"sim"},
+ {id:"eulng",c:5,n:"Terminaux GNL de l'UE",o:"Acheteur étranger",ll:[51.3,3.2],s:"sim"}
+];
+const SANC={Rosneft:"US SDN (2025), UE (sectorielles) — à vérifier",Lukoil:"US SDN (2025) — à vérifier","Gazprom Neft":"US SDN (2025) — à vérifier",Surgutneftegas:"US SDN (2025) — à vérifier",Transneft:"UE (interdiction de transactions) — à vérifier",Novatek:"Sanctions partielles (Arctic LNG 2) — à vérifier"};
+// [de, vers, produit, volume simulé Mt/an]
+const L=[["samotlor","tws","brut",18],["priob","tws","brut",30],["surgut","tws","brut",55],["vankor","tws","brut",15],["romash","druzhba","brut",15],
+["tws","bps1","brut",40],["tws","bps2","brut",30],["tws","druzhba","brut",20],["tws","espo","brut",40],["tws","novo","brut",30],
+["tws","kirishi","brut",20],["tws","ryazan","brut",17],["tws","kstovo","brut",17],["tws","volgo","brut",15],["tws","tuaref","brut",12],
+["bps1","primorsk","brut",35],["bps2","ulport","brut",30],["druzhba","druzex","brut",12],["espo","kozmino","brut",40],["espo","skovo","brut",30],
+["kirishi","primorsk","produits",15],["kstovo","primorsk","produits",8],["ryazan","novo","produits",6],["volgo","novo","produits",8],["tuaref","tuaport","produits",10],["ulcx","ulport","produits",7],
+["urengoy","gts","gaz",60],["gts","turks","gaz",15],["chayanda","pos","gaz",38],["tambey","yamallng","gnl",17],["yamallng","sabetta","gnl",17],
+["primorsk","shadow","brut",25],["primorsk","fob","produits",15],["ulport","shadow","brut",20],["ulport","fob","produits",10],["novo","shadow","brut",15],["novo","sts","brut",10],["novo","fob","produits",14],
+["tuaport","fob","produits",10],["kozmino","fob","brut",40],["skovo","pipeex","brut",30],["druzex","pipeex","brut",12],["pos","pipeex","gaz",38],["turks","pipeex","gaz",15],["sabetta","fob","gnl",17],
+["shadow","india","brut",35],["shadow","sts","brut",10],["sts","india","brut",15],["sts","chinasea","brut",5],["fob","turkey","produits",30],["fob","chinasea","brut",40],["fob","eulng","gnl",10],["fob","chinasea","gnl",7],["fob","india","produits",10],
+["pipeex","chinapipe","brut",30],["pipeex","hungary","brut",12],["pipeex","chinapipe","gaz",38],["pipeex","turkey","gaz",10],["pipeex","hungary","gaz",5]];
+const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+const st={view:"flow",prod:new Set(Object.keys(PROD)),own:false,str:true,san:true,sel:null,ownSel:null};
+const visL=()=>L.filter(l=>st.prod.has(l[2]));
+const visN=()=>{const s=new Set();visL().forEach(l=>{s.add(l[0]);s.add(l[1])});return N.filter(n=>s.has(n.id))};
+function reach(id){ // tout l'amont et l'aval du nœud
+  const out=new Set([id]),ls=visL();
+  for(const dir of[0,1]){let f=[id];while(f.length){const x=f.pop();ls.forEach(l=>{if(l[dir]===x&&!out.has(l[1-dir])){out.add(l[1-dir]);f.push(l[1-dir])}})}}
+  return out}
+const prodEl=document.getElementById("prod");
+for(const[k,v]of Object.entries(PROD)){const lb=document.createElement("label");lb.className="chip";lb.innerHTML=`<input type=checkbox checked><span class=sw style="background:var(--${k})"></span>${v}`;
+ lb.querySelector("input").onchange=e=>{e.target.checked?st.prod.add(k):st.prod.delete(k);render()};prodEl.append(lb)}
+oOwn.onchange=e=>{st.own=e.target.checked;render()};oStr.onchange=e=>{st.str=e.target.checked;render()};oSan.onchange=e=>{st.san=e.target.checked;render()};
+vFlow.onclick=()=>{st.view="flow";render()};vMap.onclick=()=>{st.view="map";render()};
+const color=n=>st.own?OWN[n.o]:(n.c===4?"var(--exit)":"var(--line)");
+function hl(){const r=st.sel?reach(st.sel):st.ownSel?new Set(N.filter(n=>n.o===st.ownSel).map(n=>n.id)):null;return r}
+
+function renderFlow(){
+  const svg=document.getElementById("svg"),ns=visN(),W=Math.max(1100,stage.clientWidth),nw=170,nh=40,top=40;
+  const per=COLS.map((_,c)=>ns.filter(n=>n.c===c)),H=Math.max(stage.clientHeight,top+Math.max(...per.map(p=>p.length))*(nh+14)+20);
+  svg.setAttribute("width",W);svg.setAttribute("height",H);
+  const pos={},gap=(W-nw-40)/(COLS.length-1);
+  per.forEach((p,c)=>{const y0=top+(H-top-p.length*(nh+14))/2;p.forEach((n,i)=>pos[n.id]={x:20+c*gap,y:y0+i*(nh+14)})});
+  const r=hl();let h=COLS.map((t,c)=>`<text class=col-title x=${20+c*gap} y=20>${t}</text>`).join("");
+  h+=visL().map(([a,b,p,v])=>{const A=pos[a],B=pos[b],x1=A.x+nw,y1=A.y+nh/2,x2=B.x,y2=B.y+nh/2,mx=(x1+x2)/2;
+    const dim=r&&!(r.has(a)&&r.has(b));return`<path class="link${dim?" dim":""}" d="M${x1},${y1}C${mx},${y1} ${mx},${y2} ${x2},${y2}" stroke="var(--${p})" stroke-width="${Math.max(1.5,v/5)}"><title>${byId[a].n} → ${byId[b].n} · ${PROD[p]} · ${v} Mt/an (simulé)</title></path>`}).join("");
+  h+=ns.map(n=>{const P=pos[n.id],dim=r&&!r.has(n.id);let badges="";
+    if(st.str&&n.st)badges+=`<circle cx=${nw-10} cy=10 r=6 fill="var(--strike)"/><text x=${nw-10} y=14 text-anchor=middle style="font-size:9px;fill:#fff">${n.st.length}</text>`;
+    if(st.san&&SANC[n.o])badges+=`<rect x=${nw-30} y=4 width=12 height=12 rx=2 fill="var(--sanc)"/><text x=${nw-24} y=14 text-anchor=middle style="font-size:9px;fill:#000">S</text>`;
+    return`<g class="node${dim?" dim":""}${st.sel===n.id?" sel":""}" data-id=${n.id} transform="translate(${P.x},${P.y})"><rect width=${nw} height=${nh} style="stroke:${color(n)}"/>
+    <text x=8 y=17>${n.n.length>22?n.n.slice(0,21)+"…":n.n}</text><text class=sub x=8 y=32>${n.o}</text>${badges}</g>`}).join("");
+  svg.innerHTML=h;svg.querySelectorAll(".node").forEach(g=>{g.onclick=()=>select(g.dataset.id)});
+}
+let map,layer;
+function renderMap(){
+  if(!map){map=L_.map("map",{worldCopyJump:true}).setView([55,60],3);L_.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO"}).addTo(map)}
+  if(layer)layer.remove();layer=L_.layerGroup().addTo(map);const r=hl();
+  visL().forEach(([a,b,p,v])=>{const dim=r&&!(r.has(a)&&r.has(b));L_.polyline([byId[a].ll,byId[b].ll],{color:getComputedStyle(document.body).getPropertyValue("--"+p),weight:Math.max(1.5,v/6),opacity:dim?.08:.6,dashArray:byId[b].c>=4?"4 6":null}).addTo(layer)});
+  visN().forEach(n=>{const dim=r&&!r.has(n.id);const m=L_.circleMarker(n.ll,{radius:n.c===4?9:6,color:st.own?OWN[n.o]:["#d9a441","#c0c0c0","#e0703a","#4fa3d9","#c94fd9","#666"][n.c],fillOpacity:dim?.1:.9,opacity:dim?.15:1,weight:st.sel===n.id?4:(st.str&&n.st?3:1)}).addTo(layer);
+    m.bindTooltip(n.n+(st.str&&n.st?` · ${n.st.length} frappe(s)`:""));m.on("click",()=>select(n.id))});
+  setTimeout(()=>map.invalidateSize(),0)}
+const L_=window.L;
+function select(id){st.sel=st.sel===id?null:id;st.ownSel=null;render()}
+function panel(){
+  const p=document.getElementById("panel");
+  const owners=`<div class=k>Entreprises (cliquer pour isoler)</div><div id=owners>${Object.keys(OWN).map(o=>`<span class=chip data-o="${o}" style="${st.ownSel===o?"border-color:#fff":""}"><span class=sw style="background:${OWN[o]}"></span>${o}</span>`).join("")}</div>`;
+  if(st.ownSel){const ns=N.filter(n=>n.o===st.ownSel);p.innerHTML=`<h2>${st.ownSel}</h2><div class=k>Sanctions</div>${SANC[st.ownSel]||"—"}<div class=k>Actifs dans la chaîne (${ns.length})</div><ul>${ns.map(n=>`<li><a data-id=${n.id}>${n.n}</a> <span class=sub>· ${COLS[n.c]}</span></li>`).join("")}</ul>${owners}`}
+  else if(!st.sel){p.innerHTML=`<h2>Lire le schéma</h2><p>De gauche à droite : du gisement jusqu'au point où le produit <b>sort du contrôle russe</b>. L'épaisseur d'un lien = volume (simulé).</p><p>Survoler un lien donne le détail. Cliquer un nœud isole toute sa chaîne amont et aval, et ouvre sa fiche.</p><p><span class=pill style="color:var(--strike)">● frappe documentée</span><span class=pill style="color:var(--sanc)">■ entité sanctionnée</span></p><p class=sub style="color:var(--mute)">Limite connue : Transneft mélange les bruts dans son réseau. Un lien gisement → port est une attribution, pas une trace physique.</p>${owners}`}
+  else{const n=byId[st.sel],up=L.filter(l=>l[1]===n.id),dn=L.filter(l=>l[0]===n.id);
+    const li=(arr,i)=>arr.map(l=>`<li><a data-id=${l[i]}>${byId[l[i]].n}</a> · ${PROD[l[2]]} · ${l[3]} Mt/an</li>`).join("")||"<li>—</li>";
+    p.innerHTML=`<h2>${n.n}</h2><span class="pill ${n.s}">${n.s==="pub"?"fait public — source à attacher":"valeur simulée"}</span><span class=pill>${COLS[n.c]}</span>
+    ${n.exit?`<div class=k>Pourquoi c'est un point de sortie</div>${n.exit}`:""}
+    <div class=k>Propriétaire / opérateur</div><a data-o="${n.o}">${n.o}</a>
+    <div class=k>Localisation</div>${n.ll[0].toFixed(2)}°N, ${n.ll[1].toFixed(2)}°E
+    ${n.cap?`<div class=k>Capacité</div>${n.cap}`:""}${n.b?`<div class=k>Mise en service</div>${n.b}`:""}
+    <div class=k>Sanctions</div>${SANC[n.o]||"Aucune connue"}
+    <div class=k>Frappes</div>${n.st?`<ul>${n.st.map(s=>`<li style="color:var(--strike)">${s}</li>`).join("")}</ul>`:"Aucune connue"}
+    <div class=k>Amont</div><ul>${li(up,0)}</ul><div class=k>Aval</div><ul>${li(dn,1)}</ul>
+    <div class=k>Sources</div><ul><li><i>(document de la base GAB, à relier)</i></li></ul>`}
+  p.querySelectorAll("[data-id]").forEach(a=>a.onclick=()=>{st.sel=a.dataset.id;st.ownSel=null;render()});
+  p.querySelectorAll("[data-o]").forEach(a=>a.onclick=()=>{st.ownSel=st.ownSel===a.dataset.o?null:a.dataset.o;st.sel=null;render()});
+}
+function render(){vFlow.classList.toggle("on",st.view==="flow");vMap.classList.toggle("on",st.view==="map");
+  svg.style.display=st.view==="flow"?"block":"none";document.getElementById("map").style.display=st.view==="map"?"block":"none";
+  st.view==="flow"?renderFlow():renderMap();panel()}
+addEventListener("resize",()=>st.view==="flow"&&renderFlow());
+render();
+</script>
+</body>
+</html>

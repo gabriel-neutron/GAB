@@ -1,0 +1,277 @@
+<!doctype html>
+<!-- PROTOTYPE, à jeter. Quatre variantes de la vue « chaîne des hydrocarbures », choisies par ?variant=A|B|C|D. Données illustratives. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chaîne hydrocarbures — variantes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%}body{font:14px/1.45 Inter,system-ui,sans-serif;background:#fff;color:#111}
+#root{min-height:100%}button{font:inherit;cursor:pointer}
+/* ----- commun : fiche ----- */
+.fiche h3{margin:0 0 2px;font-size:18px}.fiche .stage{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.fiche dl{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;margin:14px 0}.fiche dt{opacity:.55;font-size:12px}.fiche dd{margin:0}
+.fiche .reg{display:inline-flex;gap:4px}.fiche ul{margin:4px 0 0;padding-left:16px}.fiche a{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.rb{font:600 10px/1 "JetBrains Mono",monospace;padding:3px 5px;border-radius:3px;border:1px solid currentColor}
+.rb.gel{background:#c62828;color:#fff;border-color:#c62828}.rb.sect{color:#b26a00;background:#fff4e0;border-color:#e0b060}.rb.none{color:#888;border-style:dashed}
+.prov{margin-top:14px;padding:10px;border-radius:6px;font-size:12px;background:rgba(127,127,127,.1)}
+.close{position:absolute;top:10px;right:12px;border:0;background:none;font-size:20px;opacity:.6;color:inherit}
+/* ----- sélecteur flottant ----- */
+#sw{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:6px;background:#111;color:#fff;border-radius:999px;padding:6px 8px;box-shadow:0 6px 24px rgba(0,0,0,.35);font:600 13px Inter,sans-serif}
+#sw button{background:#333;color:#fff;border:0;border-radius:999px;width:30px;height:30px}#sw span{padding:0 10px;white-space:nowrap}
+
+/* ===== A : éditorial ===== */
+.va{background:#f5f1ea;color:#1b1b1b;min-height:100vh;padding:28px 32px 90px}
+.va .kick{font:600 11px Inter;letter-spacing:.14em;color:#a3312a}.va h1{font:700 34px/1.15 "Source Serif 4",serif;margin:6px 0 8px;max-width:900px}
+.va .std{font:400 17px/1.5 "Source Serif 4",serif;max-width:760px;color:#444}.va .stat{display:flex;gap:36px;margin:20px 0 6px;flex-wrap:wrap}
+.va .stat b{display:block;font:700 40px "Source Serif 4",serif;color:#a3312a}.va .stat span{font-size:13px;color:#555;max-width:200px;display:block}
+.va .tabs{display:flex;gap:4px;margin:22px 0 8px;border-bottom:1px solid #d8d0c3}.va .tabs button{border:0;background:none;padding:8px 12px;color:#666;border-bottom:2px solid transparent}
+.va .tabs button.on{color:#111;border-color:#111;font-weight:600}
+.va svg text{font-family:Inter}.va .ct{font:600 10px Inter;letter-spacing:.12em;fill:#8a8070;text-transform:uppercase}
+.va .nd rect{fill:#fff;stroke:#d8d0c3}.va .nd{cursor:pointer}.va .nd:hover rect{stroke:#1b1b1b}.va .nd.sel rect{stroke:#1b1b1b;stroke-width:2}
+.va .dim{opacity:.13}.va .note{font-size:12px;color:#777;margin-top:8px;max-width:760px}
+.va .drawer{position:fixed;top:0;right:0;width:380px;max-width:100%;height:100%;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.12);padding:26px 24px 90px;overflow:auto;transform:translateX(100%);transition:transform .2s}
+.va .drawer.open{transform:none}.va .fiche h3{font:700 22px "Source Serif 4",serif}
+
+/* ===== B : métro ===== */
+.vb{background:#0b1020;color:#e9ecf5;min-height:100vh;padding:24px 28px 90px}
+.vb h1{font:700 22px Inter;margin:0}.vb .sub{color:#8d97b5;margin:4px 0 14px}
+.vb .lg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:10px;font-size:12px;color:#aab3cc}.vb .lg i{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.vb .lg label{cursor:pointer}.vb .lg .off{opacity:.3}
+.vb .stn{cursor:pointer}.vb .stn:hover circle{r:9}.vb text{font-family:Inter}.vb .dim{opacity:.15}
+.vb .sheet{display:none;position:fixed;left:50%;bottom:70px;transform:translate(-50%,130%);width:min(720px,94vw);background:#141b33;border:1px solid #27304f;border-radius:14px;padding:18px 22px;transition:transform .2s;box-shadow:0 10px 40px rgba(0,0,0,.5);max-height:60vh;overflow:auto}
+.vb .sheet.open{display:block;transform:translate(-50%,0)}.vb .fiche dl{grid-template-columns:repeat(4,auto 1fr)}.vb .fiche a{color:#8fb3ff}
+
+/* ===== C : carte ===== */
+.vc{position:fixed;inset:0;background:#0d0f12}.vc #lmap{position:absolute;inset:0;background:#0d0f12}
+.vc .float{position:absolute;z-index:500;background:rgba(18,20,26,.92);color:#e7e9ee;border:1px solid #2a2e38;border-radius:10px;backdrop-filter:blur(6px)}
+.vc .intro{top:16px;left:16px;width:300px;padding:16px}.vc .intro h1{font-size:17px;margin:0 0 6px}.vc .intro p{margin:0 0 10px;color:#a0a6b4;font-size:13px}
+.vc .fil{display:flex;flex-wrap:wrap;gap:6px}.vc .fil button{background:#20242e;color:#cfd3dc;border:1px solid #333a48;border-radius:6px;padding:4px 9px;font-size:12px}.vc .fil button.on{background:#e7e9ee;color:#111}
+.vc .strip{left:50%;bottom:64px;transform:translateX(-50%);display:flex;padding:6px;gap:4px;max-width:96vw;overflow:auto}
+.vc .strip button{background:none;border:0;color:#cfd3dc;padding:8px 12px;border-radius:7px;text-align:left;min-width:120px}.vc .strip button b{display:block;font-size:20px}
+.vc .strip button small{color:#8a90a0;font-size:11px}.vc .strip button.on{background:#e7e9ee;color:#111}.vc .strip button.on small{color:#555}
+.vc .strip .arrow{align-self:center;color:#555;padding:0 2px}.vc .card{top:16px;right:16px;width:340px;padding:18px;max-height:calc(100vh - 160px);overflow:auto;display:none}
+.vc .card.open{display:block}.vc .fiche a{color:#8fb3ff}.vc .leaflet-tooltip{background:#111;color:#eee;border:0}
+
+/* ===== D : matrice ===== */
+.vd{background:#fafafa;color:#161616;min-height:100vh;padding:24px 28px 90px;display:grid;grid-template-columns:1fr 300px;gap:24px}
+.vd h1{font-size:20px;margin:0}.vd .sub{color:#666;margin:4px 0 16px}
+.vd table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;border:1px solid #e3e3e3;border-radius:8px;overflow:hidden}
+.vd th,.vd td{border-bottom:1px solid #eee;padding:10px;vertical-align:top;text-align:left}.vd th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#777;background:#f4f4f4}
+.vd td.own{font-weight:600;white-space:nowrap}.vd td.own .reg{display:flex;gap:4px;margin-top:6px}
+.vd .chip{display:inline-block;margin:2px 4px 2px 0;padding:4px 8px;border-radius:5px;background:#f1f1f1;border:1px solid #e2e2e2;cursor:pointer;font-size:12px}
+.vd .chip:hover,.vd .chip.sel{border-color:#161616}.vd .chip .bolt{color:#c62828;font-weight:700;margin-left:4px}
+.vd aside{position:sticky;top:24px;align-self:start}.vd .gap{background:#fff;border:1px solid #e3e3e3;border-radius:8px;padding:14px;margin-bottom:14px}
+.vd .gap h4{margin:0 0 8px;font-size:13px}.vd .gap .n{font:700 28px Inter}.vd .fiche{background:#fff;border:1px solid #e3e3e3;border-radius:8px;padding:16px;position:relative}
+@media (max-width:900px){.vd{grid-template-columns:1fr}.vb .fiche dl{grid-template-columns:110px 1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="sw"><button id="prev" aria-label="Variante précédente">←</button><span id="swl"></span><button id="next" aria-label="Variante suivante">→</button></div>
+<script>
+/* ================= DONNÉES (illustratives) ================= */
+const STAGES=["Gisements","Transport amont","Raffinage / liquéfaction","Export","Sortie du contrôle russe","Destination déclarée"];
+const PROD={brut:"Brut",produits:"Produits raffinés",gaz:"Gaz par tube",gnl:"GNL"};
+const PCOL={brut:"#c8902c",produits:"#d4572e",gaz:"#2f86c9",gnl:"#7b68d6"};
+// régimes par entreprise, illustratif : gel = gel d'avoirs, sect = mesure sectorielle, "" = rien
+const SAN={Rosneft:{US:"gel",UE:"sect",UK:"gel"},Lukoil:{US:"gel",UE:"",UK:"gel"},"Gazprom Neft":{US:"gel",UE:"sect",UK:"gel"},Surgutneftegas:{US:"gel",UE:"",UK:"gel"},
+ Transneft:{US:"sect",UE:"sect",UK:""},Tatneft:{US:"",UE:"",UK:""},Gazprom:{US:"sect",UE:"sect",UK:""},Novatek:{US:"sect",UE:"",UK:"gel"}};
+const N=[
+ ["samotlor",0,"Samotlor","Rosneft",[61.1,76.7],"",1965],["priob",0,"Priobskoïe","Rosneft",[61.0,70.5],"",1988],["surgut",0,"Gisements Surgutneftegas","Surgutneftegas",[61.3,73.4],"",1977],
+ ["vankor",0,"Vankor","Rosneft",[67.8,83.5],"",2009],["romash",0,"Romachkino","Tatneft",[54.9,52.3],"",1948],["urengoy",0,"Ourengoï","Gazprom",[66.1,76.7],"",1978],
+ ["chayanda",0,"Tchaïanda","Gazprom",[60.7,111.1],"",2019],["tambey",0,"Ioujno-Tambeïskoïe","Novatek",[71.3,72.0],"",2017],
+ ["tws",1,"Réseau Transneft Sibérie Ouest","Transneft",[60.5,69],"",1970],["gts",1,"Réseau gazier Gazprom","Gazprom",[62,60],"",1970],
+ ["bps1",1,"BPS-1","Transneft",[60,33],"",2001],["bps2",1,"BPS-2","Transneft",[58.7,31.5],"",2012],["druzhba",1,"Droujba","Transneft",[53.2,45],"",1964],["espo",1,"ESPO","Transneft",[56.5,115],"",2009],
+ ["kirishi",2,"Raffinerie de Kirichi","Surgutneftegas",[59.45,32.0],"~20 Mt/an",1966,["2024-03","2025-09"]],["ryazan",2,"Raffinerie de Riazan","Rosneft",[54.6,39.7],"~17 Mt/an",1960,["2024-03","2025-08"]],
+ ["kstovo",2,"Raffinerie NORSI","Lukoil",[56.15,44.2],"~17 Mt/an",1958,["2025-01"]],["volgo",2,"Raffinerie de Volgograd","Lukoil",[48.6,44.4],"~15 Mt/an",1957,["2024-02","2025-08"]],
+ ["tuaref",2,"Raffinerie de Touapsé","Rosneft",[44.1,39.1],"~12 Mt/an",1929,["2024-01","2025-04"]],["ulcx",2,"Complexe Oust-Louga","Novatek",[59.68,28.4],"~7 Mt/an",2013,["2024-01"]],
+ ["yamallng",2,"Yamal LNG","Novatek",[71.27,72.05],"~17 Mt/an",2017],
+ ["primorsk",3,"Primorsk","Transneft",[60.35,28.7],"",2001,["2025-09"]],["ulport",3,"Oust-Louga (port)","Transneft",[59.7,28.3],"",2012,["2025-08"]],["novo",3,"Novorossiisk","Transneft",[44.7,37.8],"",1964],
+ ["tuaport",3,"Touapsé (port)","Rosneft",[44.09,39.07],"",1898],["kozmino",3,"Kozmino","Transneft",[42.75,133.0],"",2009],["skovo",3,"Skovorodino–Mohe","Transneft",[53.9,123.9],"",2011],
+ ["druzex",3,"Droujba sud","Transneft",[52.0,31.8],"",1964],["pos",3,"Force de Sibérie","Gazprom",[50.3,127.5],"38 Gm³/an",2019],["turks",3,"TurkStream","Gazprom",[44.9,37.3],"31,5 Gm³/an",2020],
+ ["sabetta",3,"Sabetta","Novatek",[71.3,72.1],"",2017],
+ ["fob",4,"Vente FOB à un négociant","—",[59.9,25.5]],["shadow",4,"Pétroliers hors assurance G7","—",[57.5,20]],["sts",4,"Transbordement STS","—",[36.6,22.8]],["pipeex",4,"Livraison à la frontière","—",[50.5,30]],
+ ["india",5,"Inde","—",[22.4,69.9]],["chinasea",5,"Chine (mer)","—",[36.1,120.4]],["chinapipe",5,"Chine (tube)","—",[47.3,123.9]],["turkey",5,"Turquie","—",[41.0,29.0]],
+ ["hungary",5,"Hongrie / Slovaquie","—",[47.5,19.0]],["eulng",5,"Terminaux GNL UE","—",[51.3,3.2]]
+].map(([id,c,n,o,ll,cap,b,st])=>({id,c,n,o,ll,cap,b,st}));
+const EXIT={fob:"Le titre passe à un négociant au port russe. C'est le moment où le plafond de prix vise les services occidentaux (assurance, fret, financement).",
+ shadow:"Navires sans assurance du G7. Ne nommer un navire que s'il est désigné par une autorité.",sts:"Transfert de navire à navire en mer : l'origine devient difficile à suivre.",pipeex:"Transfert de propriété au point de mesure, à la frontière."};
+const L=[["samotlor","tws","brut"],["priob","tws","brut"],["surgut","tws","brut"],["vankor","tws","brut"],["romash","druzhba","brut"],
+["tws","bps1","brut"],["tws","bps2","brut"],["tws","druzhba","brut"],["tws","espo","brut"],["tws","novo","brut"],
+["tws","kirishi","brut"],["tws","ryazan","brut"],["tws","kstovo","brut"],["tws","volgo","brut"],["tws","tuaref","brut"],
+["bps1","primorsk","brut"],["bps2","ulport","brut"],["druzhba","druzex","brut"],["espo","kozmino","brut"],["espo","skovo","brut"],
+["kirishi","primorsk","produits"],["kstovo","primorsk","produits"],["ryazan","novo","produits"],["volgo","novo","produits"],["tuaref","tuaport","produits"],["ulcx","ulport","produits"],
+["urengoy","gts","gaz"],["gts","turks","gaz"],["chayanda","pos","gaz"],["tambey","yamallng","gnl"],["yamallng","sabetta","gnl"],
+["primorsk","shadow","brut"],["primorsk","fob","produits"],["ulport","shadow","brut"],["ulport","fob","produits"],["novo","shadow","brut"],["novo","sts","brut"],["novo","fob","produits"],
+["tuaport","fob","produits"],["kozmino","fob","brut"],["skovo","pipeex","brut"],["druzex","pipeex","brut"],["pos","pipeex","gaz"],["turks","pipeex","gaz"],["sabetta","fob","gnl"],
+["shadow","india","brut"],["shadow","sts","brut"],["sts","india","brut"],["sts","chinasea","brut"],["fob","turkey","produits"],["fob","chinasea","brut"],["fob","eulng","gnl"],["fob","chinasea","gnl"],["fob","india","produits"],
+["pipeex","chinapipe","brut"],["pipeex","hungary","brut"],["pipeex","chinapipe","gaz"],["pipeex","turkey","gaz"],["pipeex","hungary","gaz"]];
+const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+
+/* ================= COMMUN ================= */
+const S={sel:null,fil:"all"};
+const FIL={all:"Tout",brut:"Brut",produits:"Produits",gaz:"Gaz et GNL"};
+const okL=l=>S.fil==="all"||l[2]===S.fil||(S.fil==="gaz"&&l[2]==="gnl");
+const links=()=>L.filter(okL);
+const nodes=()=>{const s=new Set(links().flat());return N.filter(n=>s.has(n.id))};
+function reach(id){const out=new Set([id]),ls=links();for(const d of[0,1]){const f=[id];while(f.length){const x=f.pop();ls.forEach(l=>{if(l[d]===x&&!out.has(l[1-d])){out.add(l[1-d]);f.push(l[1-d])}})}}return out}
+const lit=()=>S.sel?reach(S.sel):null;
+const status=o=>{const r=SAN[o];if(!r)return"na";const v=Object.values(r);return v.includes("gel")?"gel":v.includes("sect")?"sect":"none"};
+const SCOL={gel:"#c62828",sect:"#d08a10",none:"#9a9a9a",na:"#7a5bd0"};
+const regs=o=>SAN[o]?`<span class=reg>${Object.entries(SAN[o]).map(([k,v])=>`<span class="rb ${v||"none"}" title="${k} : ${v==="gel"?"gel d'avoirs":v==="sect"?"mesure sectorielle":"aucune inscription"}">${k}</span>`).join("")}</span>`:"—";
+const short=(s,n)=>s.length>n?s.slice(0,n-1)+"…":s;
+function fiche(id){
+  const n=byId[id],up=L.filter(l=>l[1]===id),dn=L.filter(l=>l[0]===id);
+  const li=(a,i)=>a.map(l=>`<li><a data-go=${l[i]}>${byId[l[i]].n}</a> <small>· ${PROD[l[2]]}</small></li>`).join("")||"<li>—</li>";
+  return`<div class=fiche><div class=stage>${STAGES[n.c]}</div><h3>${n.n}</h3>
+  ${EXIT[id]?`<p>${EXIT[id]}</p>`:""}
+  <dl>${n.o!=="—"?`<dt>Exploitant</dt><dd>${n.o}</dd><dt>Sanctions</dt><dd>${regs(n.o)}</dd>`:""}
+  <dt>Position</dt><dd>${n.ll[0].toFixed(2)}° N, ${n.ll[1].toFixed(2)}° E</dd>
+  ${n.cap?`<dt>Capacité</dt><dd>${n.cap}</dd>`:""}${n.b?`<dt>Mise en service</dt><dd>${n.b}</dd>`:""}
+  ${n.st?`<dt>Frappes</dt><dd>${n.st.map(d=>`${d} <small>(rapportée par … )</small>`).join("<br>")}</dd>`:""}</dl>
+  <b>En amont</b><ul>${li(up,0)}</ul><b>En aval</b><ul>${li(dn,1)}</ul>
+  <div class=prov>📄 Source : document GAB à relier · extrait cité · vérifié le — <br>Données illustratives du prototype.</div></div>`}
+function wireGo(el,rerender){el.querySelectorAll("[data-go]").forEach(a=>a.onclick=e=>{e.stopPropagation();S.sel=a.dataset.go;rerender()})}
+// constat chiffré, calculé sur les données (illustratif)
+function headline(){const ex=N.filter(n=>n.c===3),noUE=ex.filter(n=>status(n.o)!=="gel");
+  return{ex:ex.length,noUE:noUE.length,strikes:N.filter(n=>n.st).length}}
+
+/* ================= A : ÉDITORIAL ================= */
+function A(root){
+  const h=headline(),ns=nodes(),r=lit(),W=Math.max(1060,root.clientWidth-64),nw=158,nh=30,gap=(W-nw)/5,top=34;
+  const per=STAGES.map((_,c)=>ns.filter(n=>n.c===c)),H=top+Math.max(...per.map(p=>p.length))*(nh+10)+10,pos={};
+  per.forEach((p,c)=>{const y0=top+(H-top-p.length*(nh+10))/2;p.forEach((n,i)=>pos[n.id]={x:c*gap,y:y0+i*(nh+10)})});
+  const fx=3*gap+nw+(gap-nw)/2;
+  let svg=`<line x1=${fx} x2=${fx} y1=14 y2=${H} stroke="#a3312a" stroke-dasharray="3 4"/><text x=${fx+6} y=${H-4} style="font:italic 12px 'Source Serif 4';fill:#a3312a">le produit quitte le contrôle russe →</text>`;
+  svg+=STAGES.map((t,c)=>`<text class=ct x=${c*gap} y=14>${t}</text>`).join("");
+  svg+=links().map(([a,b,p])=>{const A=pos[a],B=pos[b],x1=A.x+nw,y1=A.y+nh/2,x2=B.x,y2=B.y+nh/2,m=(x1+x2)/2,d=r&&!(r.has(a)&&r.has(b));
+    return`<path class="${d?"dim":""}" d="M${x1},${y1}C${m},${y1} ${m},${y2} ${x2},${y2}" fill=none stroke="${PCOL[p]}" stroke-width=1.6 stroke-opacity=.75 />`}).join("");
+  svg+=ns.map(n=>{const P=pos[n.id],d=r&&!r.has(n.id);return`<g class="nd${d?" dim":""}${S.sel===n.id?" sel":""}" data-id=${n.id} transform="translate(${P.x},${P.y})">
+    <rect width=${nw} height=${nh} rx=3 /><rect x=0 y=0 width=4 height=${nh} fill="${SCOL[status(n.o)]}" stroke=none />
+    <text x=12 y=19 style="font-size:12px;fill:#1b1b1b">${short(n.n,20)}</text>${n.st?`<text x=${nw-8} y=19 text-anchor=end style="font-size:11px;fill:#c62828">✸${n.st.length}</text>`:""}</g>`}).join("");
+  root.innerHTML=`<div class=va>
+   <div class=kick>ÉCONOMIE DE GUERRE · HYDROCARBURES</div>
+   <h1>Du puits au pétrolier : où le pétrole russe échappe aux sanctions</h1>
+   <div class=std>Chaque nœud est un actif réel, chaque lien cite un document. La ligne rouge marque l'instant où le produit quitte le contrôle russe.</div>
+   <div class=stat><div><b>${h.noUE}/${h.ex}</b><span>terminaux d'export dont l'exploitant n'est gelé par aucun régime (UE, US, UK)</span></div>
+   <div><b>${h.strikes}</b><span>actifs avec une frappe rapportée depuis 2024</span></div><div><b>4</b><span>façons de quitter le contrôle russe</span></div></div>
+   <div class=tabs>${Object.entries(FIL).map(([k,v])=>`<button data-f=${k} class="${S.fil===k?"on":""}">${v}</button>`).join("")}</div>
+   <svg width=${W} height=${H+10}>${svg}</svg>
+   <div class=note>Bande de couleur : <span style="color:#c62828">■</span> gel d'avoirs (au moins un régime) · <span style="color:#d08a10">■</span> mesure sectorielle seulement · <span style="color:#9a9a9a">■</span> aucune · ✸ frappes rapportées. Données illustratives.</div>
+   <div class="drawer${S.sel?" open":""}"><button class=close>×</button>${S.sel?fiche(S.sel):""}</div></div>`;
+  root.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.fil=b.dataset.f;S.sel=null;A(root)});
+  root.querySelectorAll(".nd").forEach(g=>g.onclick=()=>{S.sel=S.sel===g.dataset.id?null:g.dataset.id;A(root)});
+  root.querySelector(".close").onclick=()=>{S.sel=null;A(root)};wireGo(root,()=>A(root));
+}
+A.label="Éditorial";
+
+/* ================= B : MÉTRO ================= */
+const LINES=[
+ ["Brut · Baltique (Primorsk)","brut",["samotlor","tws","bps1","primorsk","shadow","india"]],
+ ["Brut · Baltique (Oust-Louga)","brut",["vankor","tws","bps2","ulport","shadow","india"]],
+ ["Produits · Baltique","produits",["surgut","tws","kirishi","primorsk","fob","turkey"]],
+ ["Brut · mer Noire","brut",["priob","tws","novo","sts","india"]],
+ ["Produits · mer Noire","produits",["tws","tuaref","tuaport","fob","turkey"]],
+ ["Brut · Pacifique","brut",["vankor","tws","espo","kozmino","fob","chinasea"]],
+ ["Brut · tube Chine","brut",["tws","espo","skovo","pipeex","chinapipe"]],
+ ["Brut · Droujba","brut",["romash","druzhba","druzex","pipeex","hungary"]],
+ ["Gaz · Force de Sibérie","gaz",["chayanda","pos","pipeex","chinapipe"]],
+ ["Gaz · TurkStream","gaz",["urengoy","gts","turks","pipeex","turkey"]],
+ ["GNL · Arctique","gnl",["tambey","yamallng","sabetta","fob","eulng"]]];
+const LTINT=["#e0a53a","#f2c14e","#ef6a3a","#b5772a","#ff8f5a","#d9b44a","#a8702a","#8a5a20","#3a9be0","#6bc0f0","#9a86f0"];
+function B(root){
+  const ls=LINES.map((l,i)=>({name:l[0],p:l[1],seq:l[2],col:LTINT[i],i})).filter(l=>S.fil==="all"||l.p===S.fil||(S.fil==="gaz"&&l.p==="gnl"));
+  const W=Math.max(1100,root.clientWidth-56),gap=(W-200)/5,x=c=>90+c*gap,rowH=50,top=64,y=i=>top+i*rowH,H=top+ls.length*rowH+20;
+  const r=lit(),rows={};ls.forEach((l,i)=>l.seq.forEach(id=>(rows[id]??=[]).push(i)));
+  const fx=x(3)+gap/2;
+  let s=`<rect x=${fx} y=0 width=${W-fx} height=${H} fill="#ffffff" opacity=.03 /><line x1=${fx} x2=${fx} y1=0 y2=${H} stroke="#ff5a5a" stroke-dasharray="4 5" opacity=.7 />
+   <text x=${fx+8} y=16 style="font-size:11px;fill:#ff8080;letter-spacing:.1em">HORS DU CONTRÔLE RUSSE →</text>`;
+  s+=STAGES.map((t,c)=>`<text x=${x(c)} y=40 text-anchor=middle style="font-size:10px;fill:#6f7a99;letter-spacing:.1em">${t.toUpperCase()}</text>`).join("");
+  s+=ls.map((l,i)=>{const pts=l.seq.map(id=>`${x(byId[id].c)},${y(i)}`).join(" "),on=!r||l.seq.every(id=>r.has(id));
+    return`<polyline points="${pts}" fill=none stroke="${l.col}" stroke-width=6 stroke-linecap=round stroke-linejoin=round class="${on?"":"dim"}"/>`}).join("");
+  s+=Object.entries(rows).map(([id,rs])=>{const n=byId[id],X=x(n.c),y0=y(Math.min(...rs)),y1=y(Math.max(...rs)),d=r&&!r.has(id),st=status(n.o);
+    return`<g class="stn${d?" dim":""}" data-id=${id}>${rs.length>1?`<rect x=${X-9} y=${y0-9} width=18 height=${y1-y0+18} rx=9 fill="#0b1020" stroke="#e9ecf5" stroke-width=2.5 />`:""}
+     ${rs.map(i=>`<circle cx=${X} cy=${y(i)} r=7 fill="${S.sel===id?"#fff":"#0b1020"}" stroke="#e9ecf5" stroke-width=2.5 />`).join("")}
+     ${st==="gel"||st==="sect"?`<circle cx=${X+9} cy=${y0-9} r=4 fill="${SCOL[st]}"/>`:""}${n.st?`<text x=${X-14} y=${y0-6} text-anchor=end style="font-size:11px;fill:#ff6a6a">✸</text>`:""}
+     <text x=${X} y=${y0-14} text-anchor=middle style="font-size:11px;fill:#e9ecf5;paint-order:stroke;stroke:#0b1020;stroke-width:4px">${short(n.n,22)}</text></g>`}).join("");
+  root.innerHTML=`<div class=vb><h1>Le réseau d'exportation russe</h1><div class=sub>Une ligne = une filière, du gisement à l'acheteur. Les stations communes sont des correspondances.</div>
+   <div class=lg>${Object.entries(FIL).map(([k,v])=>`<label data-f=${k} class="${S.fil===k?"":"off"}">● ${v}</label>`).join("")}<span style="margin-left:auto"><span style="color:#c62828">●</span> exploitant gelé · <span style="color:#d08a10">●</span> sectoriel · <span style="color:#ff6a6a">✸</span> frappe rapportée</span></div>
+   <div class=lg>${ls.map(l=>`<span><i style="background:${l.col}"></i>${l.name}</span>`).join("")}</div>
+   <svg width=${W} height=${H+20}>${s}</svg>
+   <div class="sheet${S.sel?" open":""}"><button class=close>×</button>${S.sel?fiche(S.sel):""}</div></div>`;
+  root.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.fil=b.dataset.f;S.sel=null;B(root)});
+  root.querySelectorAll(".stn").forEach(g=>g.onclick=()=>{S.sel=S.sel===g.dataset.id?null:g.dataset.id;B(root)});
+  root.querySelector(".close").onclick=()=>{S.sel=null;B(root)};wireGo(root,()=>B(root));
+}
+B.label="Plan de métro";
+
+/* ================= C : CARTE ================= */
+let lmap,lay,stageSel=null;
+function arc(a,b){const[y1,x1]=a,[y2,x2]=b,mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1,k=.2,cx=mx-dy*k,cy=my+dx*k,p=[];
+  for(let t=0;t<=1.0001;t+=.05)p.push([(1-t)**2*y1+2*(1-t)*t*cy+t*t*y2,(1-t)**2*x1+2*(1-t)*t*cx+t*t*x2]);return p}
+function C(root){
+  if(!root.querySelector(".vc")){
+    root.innerHTML=`<div class=vc><div id=lmap></div>
+     <div class="float intro"><h1>Chaîne d'exportation sur la carte</h1><p>Cliquer une étape en bas pour la mettre en avant. Cliquer un point pour sa fiche et sa chaîne.</p><div class=fil></div></div>
+     <div class="float strip"></div><div class="float card"></div></div>`;
+    lmap=window.L.map("lmap",{zoomControl:false,worldCopyJump:true}).setView([52,70],3);
+    window.L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{attribution:"Esri, HERE, Garmin, © OpenStreetMap",maxZoom:16}).addTo(lmap);
+  }
+  const ns=nodes(),r=lit();
+  root.querySelector(".fil").innerHTML=Object.entries(FIL).map(([k,v])=>`<button data-f=${k} class="${S.fil===k?"on":""}">${v}</button>`).join("");
+  root.querySelector(".strip").innerHTML=STAGES.map((t,c)=>`${c?"<span class=arrow>›</span>":""}<button data-s=${c} class="${stageSel===c?"on":""}"><b>${ns.filter(n=>n.c===c).length}</b>${t}<br><small>${c===4?"sortie du giron":c===5?"hors périmètre":"Russie"}</small></button>`).join("");
+  if(lay)lay.remove();lay=window.L.layerGroup().addTo(lmap);
+  links().forEach(([a,b,p])=>{const d=(r&&!(r.has(a)&&r.has(b)))||(stageSel!==null&&byId[a].c!==stageSel&&byId[b].c!==stageSel);
+    window.L.polyline(arc(byId[a].ll,byId[b].ll),{color:PCOL[p],weight:2,opacity:d?.06:.7,dashArray:byId[b].c>=4?"3 6":null}).addTo(lay)});
+  ns.forEach(n=>{const d=(r&&!r.has(n.id))||(stageSel!==null&&n.c!==stageSel),st=status(n.o);
+    const m=window.L.circleMarker(n.ll,{radius:n.c===3?8:n.c>=4?6:5,color:n.st?"#ff4d4d":"#111",weight:n.st?2.5:1,fillColor:st==="na"?"#9a86f0":SCOL[st],fillOpacity:d?.1:.95,opacity:d?.1:1}).addTo(lay);
+    m.bindTooltip(`<b>${n.n}</b><br>${STAGES[n.c]}${n.st?` · ✸ ${n.st.length}`:""}`);m.on("click",()=>{S.sel=S.sel===n.id?null:n.id;C(root)});
+    if(S.sel===n.id||(stageSel===n.c&&n.c===3))window.L.tooltip({permanent:true,direction:"right",offset:[8,0]}).setLatLng(n.ll).setContent(n.n).addTo(lay)});
+  const card=root.querySelector(".card");card.className="float card"+(S.sel?" open":"");card.innerHTML=S.sel?`<button class=close>×</button>${fiche(S.sel)}`:"";
+  root.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.fil=b.dataset.f;S.sel=null;C(root)});
+  root.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{stageSel=stageSel===+b.dataset.s?null:+b.dataset.s;C(root)});
+  card.querySelector(".close")?.addEventListener("click",()=>{S.sel=null;C(root)});wireGo(card,()=>C(root));
+  setTimeout(()=>lmap.invalidateSize(),0);
+}
+C.label="Carte d'abord";
+
+/* ================= D : MATRICE DES SANCTIONS ================= */
+function D(root){
+  const owners=Object.keys(SAN),ns=nodes(),russ=ns.filter(n=>n.c<=3);
+  const gapsOf=k=>russ.filter(n=>SAN[n.o]&&SAN[n.o][k]!=="gel");
+  root.innerHTML=`<div class=vd><div><h1>Qui exploite chaque étape, et qui est sanctionné ?</h1>
+   <div class=sub>Lignes : exploitants. Colonnes : étapes en Russie. Les badges montrent l'état sous chaque régime. Les actifs avec ✸ ont une frappe rapportée.</div>
+   <div style="margin-bottom:10px">${Object.entries(FIL).map(([k,v])=>`<button data-f=${k} class=chip style="${S.fil===k?"border-color:#161616;font-weight:600":""}">${v}</button>`).join("")}</div>
+   <table><tr><th>Exploitant</th>${STAGES.slice(0,4).map(t=>`<th>${t}</th>`).join("")}</tr>
+   ${owners.map(o=>{const mine=russ.filter(n=>n.o===o);if(!mine.length)return"";return`<tr><td class=own>${o}${regs(o).replace("class=reg","class=reg")}</td>
+     ${[0,1,2,3].map(c=>`<td>${mine.filter(n=>n.c===c).map(n=>`<span class="chip${S.sel===n.id?" sel":""}" data-id=${n.id}>${n.n}${n.st?`<span class=bolt>✸${n.st.length}</span>`:""}</span>`).join("")}</td>`).join("")}</tr>`}).join("")}
+   </table>
+   <p class=sub style="margin-top:12px">Étapes hors de Russie (sortie, destination) : non listées ici, car aucun exploitant russe n'en a la charge.</p></div>
+   <aside>${["UE","US","UK"].map(k=>{const g=gapsOf(k);return`<div class=gap><h4>Actifs sans gel d'avoirs — ${k}</h4><div class=n>${g.length}<small style="font-size:13px;color:#777"> / ${russ.length}</small></div>
+     <div style="margin-top:6px">${g.slice(0,8).map(n=>`<span class=chip data-id=${n.id}>${short(n.n,18)}</span>`).join("")}${g.length>8?`<small> +${g.length-8}</small>`:""}</div></div>`}).join("")}
+   ${S.sel?`<div class=fiche><button class=close>×</button>${fiche(S.sel).replace('<div class=fiche>','<div>')}</div>`:""}</aside></div>`;
+  root.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.fil=b.dataset.f;S.sel=null;D(root)});
+  root.querySelectorAll("[data-id]").forEach(c=>c.onclick=()=>{S.sel=S.sel===c.dataset.id?null:c.dataset.id;D(root)});
+  root.querySelector(".close")?.addEventListener("click",()=>{S.sel=null;D(root)});wireGo(root,()=>D(root));
+}
+D.label="Matrice des sanctions";
+
+/* ================= SÉLECTEUR ================= */
+const V={A,B,C,D},keys=Object.keys(V),root=document.getElementById("root");
+let cur=new URLSearchParams(location.search).get("variant");if(!V[cur])cur="A";
+function show(k){cur=k;S.sel=null;root.innerHTML="";lmap&&lmap.remove();lmap=null;lay=null;stageSel=null;
+  try{history.replaceState(null,"","?variant="+k)}catch(e){}
+  document.getElementById("swl").textContent=`${k} · ${V[k].label}`;V[k](root)}
+const step=d=>show(keys[(keys.indexOf(cur)+d+keys.length)%keys.length]);
+prev.onclick=()=>step(-1);next.onclick=()=>step(1);
+addEventListener("keydown",e=>{if(e.target.closest("input,textarea,[contenteditable]"))return;if(e.key==="ArrowLeft")step(-1);if(e.key==="ArrowRight")step(1)});
+addEventListener("resize",()=>{if(cur!=="C")V[cur](root)});
+show(cur);
+</script>
+</body>
+</html>
